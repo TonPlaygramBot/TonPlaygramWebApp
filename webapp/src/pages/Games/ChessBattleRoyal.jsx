@@ -438,12 +438,12 @@ const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.88;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.62;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.76;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.48;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.69; // align portrait framing with the approved reference start view
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // pull the whole table noticeably closer to the bottom/local player on portrait screens
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -453,60 +453,6 @@ const SEATED_HUMAN_PICKUP_PHASE_END = 0.2;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.82;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
-
-const HUMAN_MODEL_URL_MIRRORS = Object.freeze({
-  xbot: Object.freeze([
-    'https://threejs.org/examples/models/gltf/Xbot.glb',
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb',
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Xbot.glb'
-  ]),
-  soldier: Object.freeze([
-    'https://threejs.org/examples/models/gltf/Soldier.glb',
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb',
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Soldier.glb'
-  ]),
-  cesiumMan: Object.freeze([
-    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMan/glTF-Binary/CesiumMan.glb',
-    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/CesiumMan/glTF-Binary/CesiumMan.glb'
-  ]),
-  riggedFigure: Object.freeze([
-    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/RiggedFigure/glTF-Binary/RiggedFigure.glb',
-    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/RiggedFigure/glTF-Binary/RiggedFigure.glb'
-  ]),
-  riggedSimple: Object.freeze([
-    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/RiggedSimple/glTF-Binary/RiggedSimple.glb',
-    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/RiggedSimple/glTF-Binary/RiggedSimple.glb'
-  ]),
-  robotExpressive: Object.freeze([
-    'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/RobotExpressive/RobotExpressive.glb'
-  ])
-});
-
-const HUMAN_CHARACTER_MODEL_FALLBACKS = Object.freeze({
-  'rpm-current': HUMAN_MODEL_URL_MIRRORS.xbot,
-  'mixamo-aj': HUMAN_MODEL_URL_MIRRORS.soldier,
-  'mixamo-jane': HUMAN_MODEL_URL_MIRRORS.cesiumMan,
-  'mixamo-eva': HUMAN_MODEL_URL_MIRRORS.riggedFigure,
-  'mixamo-joe': HUMAN_MODEL_URL_MIRRORS.riggedSimple,
-  'mixamo-kaya': HUMAN_MODEL_URL_MIRRORS.robotExpressive,
-  'mixamo-ybot': HUMAN_MODEL_URL_MIRRORS.xbot,
-  'mixamo-xbot': HUMAN_MODEL_URL_MIRRORS.xbot,
-  'mixamo-soldier': HUMAN_MODEL_URL_MIRRORS.soldier,
-  'mixamo-remy': HUMAN_MODEL_URL_MIRRORS.cesiumMan,
-  'mixamo-priya': HUMAN_MODEL_URL_MIRRORS.riggedFigure,
-  'mixamo-noah': HUMAN_MODEL_URL_MIRRORS.riggedSimple,
-  'mixamo-martha': HUMAN_MODEL_URL_MIRRORS.robotExpressive,
-  'mixamo-lewis': HUMAN_MODEL_URL_MIRRORS.soldier,
-  'mixamo-kiara': HUMAN_MODEL_URL_MIRRORS.cesiumMan,
-  'mixamo-josh': HUMAN_MODEL_URL_MIRRORS.riggedFigure,
-  'mixamo-grace': HUMAN_MODEL_URL_MIRRORS.riggedSimple,
-  'mixamo-fred': HUMAN_MODEL_URL_MIRRORS.robotExpressive,
-  'mixamo-ellen': HUMAN_MODEL_URL_MIRRORS.cesiumMan,
-  'mixamo-diego': HUMAN_MODEL_URL_MIRRORS.soldier,
-  'mixamo-carla': HUMAN_MODEL_URL_MIRRORS.riggedFigure
-});
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -702,6 +648,38 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
+function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 180; i += 1) {
+    const x = (i * 53) % size;
+    const y = (i * 79) % size;
+    const w = 8 + ((i * 11) % 22);
+    const h = 4 + ((i * 7) % 14);
+    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(tex);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   if (!rig) return;
   resetBoneRig(rig);
@@ -793,29 +771,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
 
 const seatedHumanTemplatePromiseById = new Map();
 
-function buildSeatedHumanModelUrlCandidates(selectedOption) {
-  const direct = Array.isArray(selectedOption?.modelUrls) ? selectedOption.modelUrls.filter(Boolean) : [];
-  const fallback = HUMAN_CHARACTER_MODEL_FALLBACKS[selectedOption?.id] || [];
-  const defaultFallback = Array.isArray(HUMAN_CHARACTER_MODEL_FALLBACKS['rpm-current'])
-    ? HUMAN_CHARACTER_MODEL_FALLBACKS['rpm-current']
-    : [];
-  return Array.from(new Set([...direct, ...fallback, ...defaultFallback, SEATED_HUMAN_DEFAULT_MODEL_URL].filter(Boolean)));
-}
-
-function resolveSeatedHumanScale(humanTemplate) {
-  const baseScale =
-    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
-    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
-  if (!humanTemplate) return baseScale;
-  const probe = cloneSkinned(humanTemplate);
-  probe.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(probe);
-  const measuredHeight = box.getSize(new THREE.Vector3()).y;
-  disposeObject3D(probe);
-  if (!Number.isFinite(measuredHeight) || measuredHeight <= 0.01) return baseScale;
-  return baseScale * (SEATED_HUMAN_BASE_HEIGHT / measuredHeight);
-}
-
 async function loadSeatedHumanTemplate(option, renderer = null) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
@@ -825,7 +780,12 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     loader.setCrossOrigin('anonymous');
-    const candidateUrls = buildSeatedHumanModelUrlCandidates(selectedOption);
+    const modelUrls = Array.isArray(selectedOption?.modelUrls)
+      ? selectedOption.modelUrls.filter(Boolean)
+      : [];
+    const candidateUrls = modelUrls.length
+      ? modelUrls
+      : [SEATED_HUMAN_DEFAULT_MODEL_URL].filter(Boolean);
     let lastError = null;
     let root = null;
     for (const url of candidateUrls) {
@@ -840,17 +800,24 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
     if (!root) {
       throw lastError || new Error('Missing seated human scene');
     }
+    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
       obj.castShadow = true;
       obj.receiveShadow = true;
       obj.frustumCulled = false;
+      const meshName = `${obj.name || ''}`.toLowerCase();
+      const useSkin = /head|face|neck|ear|hand/.test(meshName);
+      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
-        if (!mat) return;
+        if (!mat?.map) mat.map = fallbackTex;
+        if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-        if (mat?.alphaMap) applySRGBColorSpace(mat.alphaMap);
         mat.needsUpdate = true;
       });
     });
@@ -8606,7 +8573,9 @@ function Chess3D({
       void loadSeatedHumanTemplate(humanCharacterOption, arena.renderer)
         .then((humanTemplate) => {
           if (!arenaRef.current) return;
-          const baseScale = resolveSeatedHumanScale(humanTemplate);
+          const baseScale =
+            (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+            SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
           const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
           const nextActors = [];
           (arena.chairs || []).forEach((chair, playerIndex) => {
@@ -9189,7 +9158,8 @@ function Chess3D({
     seatedHumanMoveActionsRef.current.clear();
     try {
       const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
-      const baseScale = resolveSeatedHumanScale(humanTemplate);
+      const baseScale =
+        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkinned(humanTemplate);
         actor.scale.setScalar(baseScale);
