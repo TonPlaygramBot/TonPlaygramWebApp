@@ -1926,8 +1926,14 @@ const REFERENCE_CUE_SPEED_RANGE = 8.2; // reference implementation: extra speed 
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
-const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
+const POOL_ROYALE_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.34; // scale up the active shooter model for clearer portrait/mobile readability
+const POOL_ROYALE_HUMAN_GLTF_VISUAL_YAW_FIX = Math.PI;
+const POOL_ROYALE_HUMAN_GLTF_ROOT_Y_OFFSET = -0.05;
+const POOL_ROYALE_HUMAN_GLTF_IDLE_Z_OFFSET = 0.03;
+const POOL_ROYALE_HUMAN_GLTF_AIM_Z_OFFSET = -0.11;
+const POOL_ROYALE_HUMAN_GLTF_AIM_LEAN = 0.36;
+const POOL_ROYALE_HUMAN_GLTF_STRIKE_LEAN_BONUS = 0.08;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -19673,7 +19679,7 @@ const shotPowerRef = useRef(0);
         if (seatedHumanLoadRef.current) {
           return seatedHumanLoadRef.current;
         }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL])
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([POOL_ROYALE_HUMAN_GLTF_URL])
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
@@ -24443,6 +24449,9 @@ const shotPowerRef = useRef(0);
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
+        const glbRoot = new THREE.Group();
+        glbRoot.visible = false;
+        rigGroup.add(glbRoot);
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = humanHeight / 1.82;
@@ -24475,7 +24484,7 @@ const shotPowerRef = useRef(0);
         const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
         const rightFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
 
-        [
+        const proceduralParts = [
           pelvis,
           torso,
           chest,
@@ -24491,7 +24500,8 @@ const shotPowerRef = useRef(0);
           rightLowerLeg,
           leftFoot,
           rightFoot
-        ].forEach((mesh) => {
+        ];
+        proceduralParts.forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           rigGroup.add(mesh);
@@ -24521,13 +24531,16 @@ const shotPowerRef = useRef(0);
           gripHand,
           leftFoot,
           rightFoot,
+          glbRoot,
+          glbModel: null,
+          proceduralParts,
           humanHeight,
           scale,
           poseT: 0,
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: true
         };
         return rigGroup;
       };
@@ -24553,6 +24566,34 @@ const shotPowerRef = useRef(0);
           anim: group.userData.anim
         }));
         playerCharacterRigsRef.current.forEach((rig) => world.add(rig.group));
+
+        const glbTemplate = await ensureSeatedHumanTemplate();
+        if (!glbTemplate) return;
+        playerCharacterRigsRef.current.forEach((rig) => {
+          const anim = rig?.anim;
+          if (!anim?.glbRoot || anim.glbModel) return;
+          const model = glbTemplate.clone(true);
+          model.position.set(0, POOL_ROYALE_HUMAN_GLTF_ROOT_Y_OFFSET, POOL_ROYALE_HUMAN_GLTF_IDLE_Z_OFFSET);
+          model.rotation.set(0, POOL_ROYALE_HUMAN_GLTF_VISUAL_YAW_FIX, 0);
+          model.scale.setScalar((anim.scale || 1) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER);
+          model.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+          });
+          anim.glbRoot.add(model);
+          anim.glbModel = model;
+          anim.glbRoot.visible = true;
+          anim.usesFallbackRig = false;
+          if (Array.isArray(anim.proceduralParts)) {
+            anim.proceduralParts.forEach((part) => {
+              if (part) part.visible = false;
+            });
+          }
+          if (anim.bridgeHand) anim.bridgeHand.visible = false;
+          if (anim.gripHand) anim.gripHand.visible = false;
+        });
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
@@ -24741,6 +24782,31 @@ const shotPowerRef = useRef(0);
           anim.rightFoot.quaternion.copy(bodyQ);
           anim.leftFoot.rotation.y += -0.24 * t;
           anim.rightFoot.rotation.y += 0.16 * t;
+
+          if (anim.glbRoot && anim.glbModel) {
+            const isStriking = humanShotState === 'striking';
+            const glbLean =
+              t * (POOL_ROYALE_HUMAN_GLTF_AIM_LEAN + activePower * 0.1) +
+              (isStriking ? POOL_ROYALE_HUMAN_GLTF_STRIKE_LEAN_BONUS : 0);
+            anim.glbRoot.position.copy(rig.group.position);
+            anim.glbRoot.position.y += POOL_ROYALE_HUMAN_GLTF_ROOT_Y_OFFSET * scale;
+            anim.glbRoot.position.addScaledVector(
+              aimForward,
+              THREE.MathUtils.lerp(
+                POOL_ROYALE_HUMAN_GLTF_IDLE_Z_OFFSET * scale,
+                POOL_ROYALE_HUMAN_GLTF_AIM_Z_OFFSET * scale,
+                t
+              )
+            );
+            anim.glbRoot.rotation.set(0, anim.yaw, 0);
+            anim.glbModel.position.set(0, 0, 0);
+            anim.glbModel.rotation.set(
+              -glbLean,
+              POOL_ROYALE_HUMAN_GLTF_VISUAL_YAW_FIX + Math.sin(nowMs * 0.0012) * 0.01 * (1 - t),
+              0
+            );
+            anim.glbModel.scale.setScalar((anim.scale || 1) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER);
+          }
 
         });
       };
