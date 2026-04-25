@@ -353,6 +353,7 @@ const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair propo
 const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
+const BOARD_MIN_SURFACE_CLEARANCE = 0.02; // keep the board slightly above every table surface to prevent clipping/sinking.
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
@@ -2270,7 +2271,10 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.shapeId] ??
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.themeId] ??
     0;
-  return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
+  return alignGroupToFloorY(
+    boardGroup,
+    surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset + BOARD_MIN_SURFACE_CLEARANCE
+  );
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, preferredShiftZ = 0) {
@@ -2384,13 +2388,13 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.065,
-  hexagonTable: -0.065,
-  grandOval: -0.065,
-  diamondEdge: -0.065
+  classicOctagon: 0,
+  hexagonTable: 0,
+  grandOval: 0,
+  diamondEdge: 0
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
-const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
+const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.7; // push parked vehicles farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
@@ -9295,8 +9299,12 @@ function Chess3D({
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
 
-      const initialRadius = CAMERA_3D_MAX_RADIUS;
-      const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
+      const initialRadius = clamp(current.radius || CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+      const default3d = new THREE.Spherical(
+        initialRadius,
+        clamp(current.phi || CAMERA_DEFAULT_PHI, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+        theta
+      );
 
       if (mode === '2d') {
         cameraMemory.last3d = current;
