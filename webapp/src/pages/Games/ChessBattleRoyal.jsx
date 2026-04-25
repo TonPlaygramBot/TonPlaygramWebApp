@@ -366,7 +366,7 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.66; // Keep chair height, but make chair body narrower/shallower on screen.
+const CHAIR_FOOTPRINT_SHRINK = 0.78; // Keep chair height, but make chair body slightly smaller on screen.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -393,8 +393,6 @@ const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE;
 const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
-const PLAYER_TABLE_CLOSER_OFFSET = 0.12 * MODEL_SCALE; // Pull board/table visually closer to the bottom player.
-const TOP_CHAIR_AWAY_OFFSET = 0.12 * MODEL_SCALE; // Push top chair + seated human farther from the table.
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -1065,7 +1063,6 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const POLYHAVEN_MODEL_CACHE = new Map();
-const POLYHAVEN_FILES_MANIFEST_CACHE = new Map();
 
 function extractAllHttpUrls(value) {
   const urls = [];
@@ -1087,100 +1084,19 @@ function extractAllHttpUrls(value) {
   return urls;
 }
 
-async function getPolyhavenFilesManifest(assetId) {
-  if (!assetId || typeof fetch !== 'function') return null;
-  const key = String(assetId).toLowerCase();
-  if (POLYHAVEN_FILES_MANIFEST_CACHE.has(key)) {
-    return POLYHAVEN_FILES_MANIFEST_CACHE.get(key);
-  }
-  const request = (async () => {
-    try {
-      const response = await fetch(
-        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`,
-        { mode: 'cors', credentials: 'omit' }
-      );
-      if (!response.ok) throw new Error(`Poly Haven files API ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      console.warn('Chess Battle Royal: failed Poly Haven manifest load', assetId, error);
-      return null;
-    }
-  })();
-  POLYHAVEN_FILES_MANIFEST_CACHE.set(key, request);
-  return request;
-}
-
-function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
-  const include = manifest?.gltf?.[resolution]?.gltf?.include;
-  if (!include || typeof include !== 'object') return null;
-  const map = new Map();
-  Object.entries(include).forEach(([relativePath, entry]) => {
-    if (!relativePath || typeof relativePath !== 'string') return;
-    const fileUrl = entry?.url;
-    if (!fileUrl || typeof fileUrl !== 'string') return;
-    map.set(relativePath, fileUrl);
-    map.set(relativePath.replace(/^\.\//, ''), fileUrl);
-    map.set(relativePath.split('/').pop() || relativePath, fileUrl);
-  });
-  return map;
-}
-
-function buildPolyhavenManifestCandidates(manifest, resolutionOrder = ['2k', '1k']) {
-  if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
-  const availableResolutions = Object.keys(manifest.gltf);
-  const orderedResolutions = Array.from(new Set([...resolutionOrder, ...availableResolutions]));
-  return orderedResolutions
-    .map((resolution) => {
-      const url = manifest?.gltf?.[resolution]?.gltf?.url;
-      if (!url || typeof url !== 'string') return null;
-      return {
-        url,
-        resolution: String(resolution).toLowerCase(),
-        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
-      };
-    })
-    .filter(Boolean);
-}
-
-function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
-  const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
-  const urls = [];
-  ids.forEach((id) => {
-    if (!id) return;
-    resolutionOrder.forEach((resolution) => {
-      urls.push(`https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${id}/${id}_${resolution}.gltf`);
-    });
-  });
-  urls.push(
+function buildPolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
     `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
-  );
-  return urls;
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
+  ];
 }
 
 function pickBestModelUrl(urls = []) {
   const preferred = urls.filter((u) => u.endsWith('.glb') || u.endsWith('.gltf'));
   return preferred[0] || urls[0] || null;
-}
-
-function createPolyhavenGltfLoader(renderer = null, includeUrlMap = null) {
-  const manager = new THREE.LoadingManager();
-  if (includeUrlMap?.size) {
-    manager.setURLModifier((requestUrl = '') => {
-      const cleanUrl = String(requestUrl || '').split('?')[0];
-      const normalized = cleanUrl.replace(/^\.\//, '');
-      const fileName = normalized.split('/').pop();
-      return (
-        includeUrlMap.get(cleanUrl) ||
-        includeUrlMap.get(normalized) ||
-        includeUrlMap.get(fileName) ||
-        requestUrl
-      );
-    });
-  }
-  return createConfiguredGLTFLoader(renderer, manager);
 }
 
 const PREFERRED_POLYHAVEN_TEXTURE_SIZES = Object.freeze(['4k', '2k', '1k']);
@@ -1316,37 +1232,20 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   }
 
   const promise = (async () => {
-    const preferredResolutions = ['4k', '2k', '1k'];
-    const filesManifest = await getPolyhavenFilesManifest(assetId);
-    const manifestCandidates = buildPolyhavenManifestCandidates(filesManifest, preferredResolutions);
-    const fallbackCandidates = buildPolyhavenModelUrls(assetId, preferredResolutions).map((url) => ({
-      url,
-      resolution: url.match(/\/(1k|2k|4k|8k)\//i)?.[1]?.toLowerCase?.() || '2k',
-      includeUrlMap: null
-    }));
-    const modelCandidates = [...manifestCandidates, ...fallbackCandidates];
-
-    if (filesManifest) {
-      const allUrls = extractAllHttpUrls(filesManifest);
+    const modelCandidates = new Set(buildPolyhavenModelUrls(assetId));
+    try {
+      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+      const allUrls = extractAllHttpUrls(filesJson);
       const apiModelUrl = pickBestModelUrl(allUrls);
-      if (apiModelUrl) {
-        modelCandidates.unshift({
-          url: apiModelUrl,
-          resolution: apiModelUrl.match(/\/(1k|2k|4k|8k)\//i)?.[1]?.toLowerCase?.() || '2k',
-          includeUrlMap: null
-        });
-      }
+      if (apiModelUrl) modelCandidates.add(apiModelUrl);
+    } catch (error) {
+      console.warn('Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs', error);
     }
 
+    const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
-    for (const candidate of modelCandidates) {
+    for (const modelUrl of modelCandidates) {
       try {
-        const modelUrl = candidate?.url;
-        if (!modelUrl) continue;
-        const includeUrlMap =
-          candidate?.includeUrlMap ||
-          extractPolyhavenIncludeUrlMap(filesManifest, candidate?.resolution || '2k');
-        const loader = createPolyhavenGltfLoader(renderer, includeUrlMap);
         const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
         const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
         loader.setResourcePath?.(resourcePath);
@@ -1355,10 +1254,6 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const gltf = await loader.loadAsync(resolvedUrl);
         const root = gltf.scene || gltf.scenes?.[0] || gltf;
         if (!root) continue;
-        root.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          obj.userData = { ...(obj.userData || {}), preserveGltfTextureMapping: true };
-        });
         return root;
       } catch (error) {
         lastError = error;
@@ -3338,8 +3233,8 @@ const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
 
-function createConfiguredGLTFLoader(renderer = null, manager = null) {
-  const loader = manager ? new GLTFLoader(manager) : new GLTFLoader();
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
@@ -9021,18 +8916,14 @@ function Chess3D({
     chairA.group.position.set(
       0,
       CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE - PLAYER_TABLE_CLOSER_OFFSET
+      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
     );
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
     alignGroupToFloorY(chairA.group, initialArenaFloorY);
     chairs.push(chairA);
     const chairB = makeChair(1);
-    chairB.group.position.set(
-      0,
-      CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      -chairDistance - TOP_CHAIR_AWAY_OFFSET
-    );
+    chairB.group.position.set(0, CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET, -chairDistance);
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
     chairs.push(chairB);
