@@ -352,7 +352,7 @@ const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
 const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = 0.035;
+const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
@@ -432,8 +432,8 @@ const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
-const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
@@ -443,11 +443,11 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.38; // keep table/board a bit closer to the bottom (local) player on portrait screens
-const SEATED_HUMAN_MOVE_DURATION_MS = 980; // restore faster piece pacing while keeping human hand synced
-const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
-const SEATED_HUMAN_CARRY_PHASE_END = 0.78;
+const SEATED_HUMAN_MOVE_DURATION_MS = 420; // keep piece pacing close to classic move speed while syncing hand contact.
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.2;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.82;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -2565,7 +2565,7 @@ function mapChairOptionToTheme(chairOption) {
     seatColor: chairOption?.primary ?? '#2b314e',
     legColor: chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor,
     chairId: chairOption?.id ?? 'default',
-    preserveMaterials: chairOption?.preserveMaterials,
+    preserveMaterials: Boolean(chairOption?.preserveMaterials || chairOption?.source === 'polyhaven'),
     source: chairOption?.source,
     assetId: chairOption?.assetId
   };
@@ -9187,7 +9187,7 @@ function Chess3D({
     boardGroup.add(boardVisualGroup);
     const boardLookTarget = new THREE.Vector3(
       tablePlacementOffset.x,
-      boardGroup.position.y + (BOARD.baseH + 0.06) * BOARD_SCALE,
+      boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE,
       tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
     studioCamA.lookAt(boardLookTarget);
@@ -13247,20 +13247,35 @@ function Chess3D({
                 : action.from.clone());
             const holdWorld = gripWorld.clone();
             holdWorld.y += SEATED_HUMAN_HAND_GRIP_HEIGHT;
-            holdWorld.z += entry.playerIndex === 0 ? -SEATED_HUMAN_HAND_PIECE_FORWARD : SEATED_HUMAN_HAND_PIECE_FORWARD;
+            holdWorld.z +=
+              entry.playerIndex === 0
+                ? -SEATED_HUMAN_HAND_PIECE_FORWARD
+                : SEATED_HUMAN_HAND_PIECE_FORWARD;
+            const liftedFrom = action.from.clone();
+            liftedFrom.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
+            const liftedTo = action.to.clone();
+            liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
             if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
-              const pickupArc = action.from.clone().lerp(holdWorld, pickupT);
-              pickupArc.y += Math.sin(pickupT * Math.PI) * SEATED_HUMAN_PICK_LIFT_HEIGHT;
-              action.mesh.position.copy(pickupArc);
+              action.mesh.position.lerpVectors(action.from, liftedFrom, pickupT);
+            } else if (u < 0.44) {
+              const gripT = smoothEase(
+                clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
+              );
+              action.mesh.position.lerpVectors(liftedFrom, holdWorld, gripT);
             } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
-              action.mesh.position.copy(holdWorld);
+              const carryT = smoothEase(
+                clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44))
+              );
+              const carryTarget = holdWorld.clone().lerp(liftedTo, carryT);
+              carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
+              action.mesh.position.copy(carryTarget);
             } else {
               const dropT = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
               const easedDropT = smoothEase(dropT);
               const landing = action.to.clone();
               landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
-              action.mesh.position.lerpVectors(holdWorld, landing, easedDropT);
+              action.mesh.position.lerpVectors(liftedTo, landing, easedDropT);
             }
           }
           if (u >= 1) {
@@ -13301,7 +13316,7 @@ function Chess3D({
         const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat);
         camera.position
           .copy(eyeWorld)
-          .addScaledVector(eyeForward, 0.08)
+          .addScaledVector(eyeForward, 0.15)
           .addScaledVector(eyeUp, 0.03 + bobOffset);
         camera.quaternion.slerp(headQuat, 0.6);
       }
