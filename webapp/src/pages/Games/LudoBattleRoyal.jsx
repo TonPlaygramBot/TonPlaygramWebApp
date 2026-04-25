@@ -1900,6 +1900,8 @@ const ROLL_PHASE_HOLD_END_SEC = 1.05;
 const ROLL_PHASE_WINDUP_END_SEC = 1.3;
 const ROLL_PHASE_RELEASE_END_SEC = 1.56;
 const ROLL_PHASE_FOLLOW_END_SEC = 2.4;
+const HUMAN_DICE_THROW_MIN_DURATION_MS = Math.round(ROLL_PHASE_RELEASE_END_SEC * 1000 + 40);
+const TAP_MOVE_TOLERANCE_PX = 12;
 const CAMERA_TOUCH_PULL_FORWARD_FACTOR = 0.0032;
 const CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO = 0.32;
 const CAMERA_TOUCH_PULL_BACK_MAX_RATIO = 0.4;
@@ -4491,8 +4493,9 @@ function spinDice(
     const pickupHandTarget = new THREE.Vector3();
     const releaseHandTarget = new THREE.Vector3();
     const easedTarget = new THREE.Vector3();
-    const pickupPhase = 0.42;
-    const throwBlendPhase = 0.72;
+    const pickupPhase = clamp(ROLL_PHASE_REACH_END_SEC / Math.max(duration / 1000, 1e-4), 0.1, 0.72);
+    const holdPhase = clamp(ROLL_PHASE_HOLD_END_SEC / Math.max(duration / 1000, 1e-4), pickupPhase + 0.08, 0.84);
+    const throwBlendPhase = clamp(ROLL_PHASE_RELEASE_END_SEC / Math.max(duration / 1000, 1e-4), holdPhase + 0.08, 0.96);
 
     const step = () => {
       const now = performance.now();
@@ -4511,20 +4514,20 @@ function spinDice(
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
           easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
           position.copy(easedTarget);
-        } else if (t <= throwBlendPhase * 0.68) {
-          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase * 0.68 - pickupPhase), 0, 1);
+        } else if (t <= holdPhase) {
+          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, holdPhase - pickupPhase), 0, 1);
           const bodyHold = handPickup
             .clone()
             .lerp(handRelease ?? handPickup, 0.22 + holdT * 0.12);
           bodyHold.y += Math.sin(holdT * Math.PI) * 0.014;
           position.copy(bodyHold);
         } else if (t <= throwBlendPhase) {
-          const throwT = clamp((t - throwBlendPhase * 0.68) / Math.max(1e-4, throwBlendPhase - throwBlendPhase * 0.68), 0, 1);
+          const throwT = clamp((t - holdPhase) / Math.max(1e-4, throwBlendPhase - holdPhase), 0, 1);
           easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
           position.copy(easedTarget);
         }
       }
-      const wobbleStrength = Math.sin(eased * Math.PI);
+      const wobbleStrength = Math.sin(eased * Math.PI) * (handAvailable && t <= holdPhase ? 0.35 : 1);
       position.addScaledVector(wobble, wobbleStrength * 0.45);
       const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
       if (handAvailable && t <= throwBlendPhase) {
@@ -7168,14 +7171,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
+    let pointerTapState = null;
     let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
+      pointerTapState = {
+        pointerId: event.pointerId,
+        startX: clientX,
+        startY: clientY,
+        moved: false,
+        handled: false
+      };
       let handled = attemptHumanSelection(clientX, clientY);
       if (!handled) {
         handled = attemptDiceRoll(clientX, clientY);
       }
+      if (pointerTapState) pointerTapState.handled = handled;
       if (handled) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
@@ -7206,6 +7218,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
+      if (pointerTapState?.pointerId === event.pointerId) {
+        const movedDistance = Math.hypot(clientX - pointerTapState.startX, clientY - pointerTapState.startY);
+        if (movedDistance > TAP_MOVE_TOLERANCE_PX) {
+          pointerTapState.moved = true;
+        }
+      }
       const deltaX = clientX - lookState.lastX;
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
@@ -7227,6 +7245,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls?.update();
     };
     onPointerUp = (event) => {
+      if (
+        pointerTapState &&
+        pointerTapState.pointerId === event?.pointerId &&
+        !pointerTapState.handled &&
+        !pointerTapState.moved
+      ) {
+        const tapX = event?.clientX ?? pointerTapState.startX;
+        const tapY = event?.clientY ?? pointerTapState.startY;
+        let handled = attemptHumanSelection(tapX, tapY);
+        if (!handled) {
+          handled = attemptDiceRoll(tapX, tapY);
+        }
+        pointerTapState.handled = handled;
+      }
+      if (pointerTapState?.pointerId === event?.pointerId) {
+        pointerTapState = null;
+      }
       const lookState = cameraLookStateRef.current;
       if (lookState.pointerId === event?.pointerId) {
         lookState.pointerId = null;
@@ -9376,7 +9411,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
-      duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
+      duration: resolveFrameSyncedDuration(
+        Math.max(AUTO_ROLL_DURATION_MS, HUMAN_DICE_THROW_MIN_DURATION_MS),
+        { min: 620, max: 1800 }
+      ),
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06,
       handPickupSampler: (out) => sampleHumanActionHelperPosition(player, 'dicePickup', out),
