@@ -1774,33 +1774,8 @@ const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 280,
-  gripMs: 220,
-  holdMs: 180,
-  windupMs: 180,
-  releaseMs: 210,
-  followMs: 520
-});
-const SEATED_HUMAN_TOKEN_PHASES = Object.freeze({
-  pickupMs: 180,
-  gripMs: 140,
-  carryMs: 240,
-  placeMs: 200
-});
-const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
-  idleBreathAmp: 0.012,
-  throwPrecision: 1.08,
-  tokenPrecision: 1.14
-});
-const SEATED_CONTACT_BLEND_ALPHA = 0.42;
-const SEATED_CONTACT_EPSILON = 1e-5;
-const SEATED_CONTACT_HELPER_MAP = Object.freeze({
-  dicePickup: 'dicePickup',
-  diceRelease: 'diceRelease',
-  tokenPickup: 'tokenPickup',
-  tokenPlace: 'tokenPlace'
-});
+const SEATED_HUMAN_ROLL_MS = 1680;
+const SEATED_HUMAN_RECOVER_MS = 420;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.066 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.124 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.023 * MODEL_SCALE;
@@ -4083,26 +4058,6 @@ function smooth01(v) {
   return t * t * (3 - 2 * t);
 }
 
-function smoother01(v) {
-  const t = clamp(v, 0, 1);
-  return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-function easeInOutSine01(v) {
-  const t = clamp(v, 0, 1);
-  return 0.5 - Math.cos(Math.PI * t) * 0.5;
-}
-
-function easeOutBack01(v, overshoot = 1.6) {
-  const t = clamp(v, 0, 1) - 1;
-  return 1 + (overshoot + 1) * t * t * t + overshoot * t * t;
-}
-
-function normalizedPhase(nowMs, startMs, durationMs) {
-  const safeDuration = Math.max(1, durationMs || 0);
-  return clamp((nowMs - startMs) / safeDuration, 0, 1);
-}
-
 function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
   const grip = clamp(amount, 0, 1);
   chain.forEach((bone, index) => {
@@ -4173,12 +4128,11 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
 }
 
-function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}, motionTuning = {}) {
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}) {
   if (!rig) return;
   resetBoneRig(rig);
-  const t = smoother01(intensity);
-  const breathe = Math.sin(performance.now() * 0.002) * (motionTuning.idleBreathAmp ?? SEATED_HUMAN_MOTION_TUNING.idleBreathAmp);
-  const precision = clamp(motionTuning?.precision ?? 1, 0.8, 1.35);
+  const t = smooth01(intensity);
+  const breathe = Math.sin(performance.now() * 0.002) * 0.012;
   const throwLateral = clamp(throwBias?.lateral ?? 0, -1, 1);
   const throwForward = clamp(throwBias?.forward ?? 1, -1, 1);
 
@@ -4215,8 +4169,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   let chestY = 0;
   let headX = -0.06;
   let headY = 0;
-  let torsoForwardLean = 0;
-  let hipsForwardShift = 0;
 
   if (mode === 'reachDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
@@ -4232,8 +4184,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestY = THREE.MathUtils.lerp(chestY, -0.08, t);
     headX = THREE.MathUtils.lerp(headX, 0.03, t);
     headY = THREE.MathUtils.lerp(headY, -0.08, t);
-    torsoForwardLean = THREE.MathUtils.lerp(0, 0.1, t);
-    hipsForwardShift = THREE.MathUtils.lerp(0, -0.03, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.79, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
@@ -4270,10 +4220,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestX = THREE.MathUtils.lerp(chestX, 0.02, t);
     chestY = THREE.MathUtils.lerp(chestY, -0.06, t);
     headX = THREE.MathUtils.lerp(headX, -0.02, t);
-    shoulderY += throwLateral * 0.24 * t * precision;
-    forearmY += throwLateral * 0.14 * t * precision;
-    wristY += throwLateral * 0.08 * t * precision;
-    shoulderZ += (1 - throwForward) * 0.14 * t * precision;
+    shoulderY += throwLateral * 0.24 * t;
+    forearmY += throwLateral * 0.14 * t;
+    wristY += throwLateral * 0.08 * t;
+    shoulderZ += (1 - throwForward) * 0.14 * t;
   } else if (mode === 'release') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.18, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
@@ -4287,10 +4237,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestX = THREE.MathUtils.lerp(chestX, 0.20, t);
     chestY = THREE.MathUtils.lerp(chestY, 0.04, t);
     headX = THREE.MathUtils.lerp(headX, 0.04, t);
-    shoulderY += throwLateral * 0.34 * t * precision;
-    forearmY += throwLateral * 0.24 * t * precision;
-    wristY += throwLateral * 0.2 * t * precision;
-    shoulderZ += (1 - throwForward) * 0.2 * t * precision;
+    shoulderY += throwLateral * 0.34 * t;
+    forearmY += throwLateral * 0.24 * t;
+    wristY += throwLateral * 0.2 * t;
+    shoulderZ += (1 - throwForward) * 0.2 * t;
   } else if (mode === 'followThrough') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.12, t);
@@ -4301,9 +4251,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristX = THREE.MathUtils.lerp(wristX, 0.22, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.15, t);
-    shoulderY += throwLateral * 0.24 * t * precision;
-    forearmY += throwLateral * 0.14 * t * precision;
-    wristY += throwLateral * 0.1 * t * precision;
+    shoulderY += throwLateral * 0.24 * t;
+    forearmY += throwLateral * 0.14 * t;
+    wristY += throwLateral * 0.1 * t;
   } else if (mode === 'reachToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.04, t);
@@ -4316,8 +4266,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.20, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
-    torsoForwardLean = THREE.MathUtils.lerp(0, 0.14, t);
-    hipsForwardShift = THREE.MathUtils.lerp(0, -0.045, t);
   } else if (mode === 'gripToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.9, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
@@ -4330,8 +4278,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
-    torsoForwardLean = THREE.MathUtils.lerp(0, 0.13, t);
-    hipsForwardShift = THREE.MathUtils.lerp(0, -0.04, t);
   } else if (mode === 'carryToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
@@ -4344,8 +4290,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.10, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.18, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
-    torsoForwardLean = THREE.MathUtils.lerp(0, 0.12, t);
-    hipsForwardShift = THREE.MathUtils.lerp(0, -0.03, t);
   } else if (mode === 'placeToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
@@ -4358,16 +4302,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
     headX = THREE.MathUtils.lerp(headX, 0.10, t);
-    torsoForwardLean = THREE.MathUtils.lerp(0, 0.16, t);
-    hipsForwardShift = THREE.MathUtils.lerp(0, -0.05, t);
-  }
-
-  if (torsoForwardLean !== 0) {
-    addBoneRot(rig, rig.spine, torsoForwardLean, 0, 0, 1);
-    addBoneRot(rig, rig.chest, torsoForwardLean * 0.5, 0, 0, 1);
-  }
-  if (hipsForwardShift !== 0) {
-    addBonePos(rig, rig.hips, 0, 0, hipsForwardShift, 1);
   }
 
   addBoneRot(rig, rig.chest, chestX, chestY, 0, 1);
@@ -4475,177 +4409,6 @@ function sampleSeatedActionHelper(entry, helperKey, out) {
   helper.updateMatrixWorld?.(true);
   helper.getWorldPosition(out);
   return true;
-}
-
-function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs) {
-  const basePose = {
-    mode: 'idle',
-    intensity: 1,
-    handGrip: 0,
-    motionTuning: {
-      idleBreathAmp: SEATED_HUMAN_MOTION_TUNING.idleBreathAmp,
-      precision: 1
-    }
-  };
-  if (!actorState) return basePose;
-
-  const throwingPlayer = actorState.throwPlayer;
-  if (throwingPlayer === playerIndex && Number.isFinite(actorState.throwStartMs) && actorState.throwStartMs > 0) {
-    const { windupMs, releaseMs, followMs } = SEATED_HUMAN_DICE_PHASES;
-    const windupStart = actorState.throwStartMs;
-    const releaseStart = windupStart + windupMs;
-    const followStart = releaseStart + releaseMs;
-    const endMs = followStart + followMs;
-
-    if (nowMs < releaseStart) {
-      return {
-        ...basePose,
-        mode: 'windUp',
-        intensity: easeInOutSine01(normalizedPhase(nowMs, windupStart, windupMs)),
-        handGrip: 0.56,
-        motionTuning: { idleBreathAmp: 0.008, precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision }
-      };
-    }
-    if (nowMs < followStart) {
-      const phase = normalizedPhase(nowMs, releaseStart, releaseMs);
-      return {
-        ...basePose,
-        mode: 'release',
-        intensity: easeOutBack01(phase, 1.45),
-        handGrip: 1 - phase,
-        motionTuning: { idleBreathAmp: 0.006, precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision }
-      };
-    }
-    if (nowMs < endMs) {
-      return {
-        ...basePose,
-        mode: 'followThrough',
-        intensity: 1 - normalizedPhase(nowMs, followStart, followMs),
-        handGrip: 0,
-        motionTuning: { idleBreathAmp: 0.01, precision: 1.04 }
-      };
-    }
-    return basePose;
-  }
-
-  const holdPlayer = actorState.holdPlayer;
-  if (holdPlayer === playerIndex && Number.isFinite(actorState.holdStartMs) && actorState.holdStartMs > 0) {
-    const { reachMs, gripMs } = SEATED_HUMAN_DICE_PHASES;
-    const reachEnd = actorState.holdStartMs + reachMs;
-    const gripEnd = reachEnd + gripMs;
-    if (nowMs < reachEnd) {
-      return {
-        ...basePose,
-        mode: 'reachDice',
-        intensity: easeInOutSine01(normalizedPhase(nowMs, actorState.holdStartMs, reachMs)),
-        handGrip: 0.04,
-        motionTuning: { idleBreathAmp: 0.01, precision: 1.05 }
-      };
-    }
-    if (nowMs < gripEnd) {
-      const phase = normalizedPhase(nowMs, reachEnd, gripMs);
-      return {
-        ...basePose,
-        mode: 'gripDice',
-        intensity: smoother01(phase),
-        handGrip: 0.28 + phase * 0.28,
-        motionTuning: { idleBreathAmp: 0.009, precision: 1.08 }
-      };
-    }
-    return {
-      ...basePose,
-      mode: 'holdDice',
-      intensity: 1,
-      handGrip: 0.56,
-      motionTuning: { idleBreathAmp: 0.008, precision: 1.08 }
-    };
-  }
-
-  const activeAnim = gameState?.animation;
-  if (activeAnim?.active && activeAnim.player === playerIndex) {
-    const seg = activeAnim.segments?.[activeAnim.segment];
-    const segProgress = seg ? normalizedPhase(activeAnim.elapsed, 0, seg.duration) : 1;
-    const helperPhase = seg?.viaHelper || null;
-    if (helperPhase === 'pickup') {
-      return {
-        ...basePose,
-        mode: 'reachToken',
-        intensity: easeInOutSine01(segProgress),
-        handGrip: 0.08,
-        motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
-      };
-    }
-    if (activeAnim.segment > 0 && activeAnim.segments?.[activeAnim.segment - 1]?.viaHelper === 'pickup') {
-      return {
-        ...basePose,
-        mode: 'gripToken',
-        intensity: smoother01(segProgress),
-        handGrip: segProgress,
-        motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
-      };
-    }
-    if (helperPhase === 'place' || activeAnim.segments?.[activeAnim.segment + 1]?.viaHelper === 'place') {
-      return {
-        ...basePose,
-        mode: 'placeToken',
-        intensity: easeInOutSine01(segProgress),
-        handGrip: 1 - segProgress * 0.86,
-        motionTuning: { idleBreathAmp: 0.01, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
-      };
-    }
-    return {
-      ...basePose,
-      mode: 'carryToken',
-      intensity: 0.48 + segProgress * 0.52,
-      handGrip: 1,
-      motionTuning: { idleBreathAmp: 0.01, precision: 1.1 }
-    };
-  }
-
-  return basePose;
-}
-
-function ensureContactTargetStore(actionRefValue) {
-  if (!actionRefValue) return {};
-  if (!actionRefValue.contactTargets || typeof actionRefValue.contactTargets !== 'object') {
-    actionRefValue.contactTargets = {};
-  }
-  return actionRefValue.contactTargets;
-}
-
-function setSeatedContactTarget(actionRefValue, playerIndex, key, worldPosition) {
-  if (!Number.isInteger(playerIndex) || !key || !worldPosition?.isVector3) return;
-  const contactTargets = ensureContactTargetStore(actionRefValue);
-  if (!contactTargets[playerIndex]) contactTargets[playerIndex] = {};
-  contactTargets[playerIndex][key] = worldPosition.clone();
-}
-
-function clearSeatedContactTargets(actionRefValue, playerIndex = null) {
-  const contactTargets = ensureContactTargetStore(actionRefValue);
-  if (Number.isInteger(playerIndex)) {
-    delete contactTargets[playerIndex];
-    return;
-  }
-  Object.keys(contactTargets).forEach((key) => {
-    delete contactTargets[key];
-  });
-}
-
-function retargetSeatedActionHelpers(entry, actionRefValue) {
-  if (!entry?.actionHelpers || !entry?.actor?.isObject3D) return;
-  const playerTargets = actionRefValue?.contactTargets?.[entry.playerIndex];
-  if (!playerTargets) return;
-  Object.entries(SEATED_CONTACT_HELPER_MAP).forEach(([targetKey, helperKey]) => {
-    const helper = entry.actionHelpers?.[helperKey];
-    const desiredWorld = playerTargets?.[targetKey];
-    if (!helper?.isObject3D || !desiredWorld?.isVector3) return;
-    const parent = helper.parent;
-    if (!parent?.isObject3D) return;
-    parent.updateMatrixWorld?.(true);
-    const desiredLocal = parent.worldToLocal(desiredWorld.clone());
-    if (helper.position.distanceToSquared(desiredLocal) <= SEATED_CONTACT_EPSILON) return;
-    helper.position.lerp(desiredLocal, SEATED_CONTACT_BLEND_ALPHA);
-  });
 }
 
 function applyBottomSeatFaceCameraView({
@@ -4989,8 +4752,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     throwStartMs: 0,
     rollEndMs: 0,
     throwLateral: 0,
-    throwForward: 1,
-    contactTargets: {}
+    throwForward: 1
   });
   const fitRef = useRef(() => {});
   const cameraRef = useRef(null);
@@ -6270,7 +6032,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   };
 
   const beginDiceHoldPose = (player, { startMs = performance.now() } = {}) => {
-    clearSeatedContactTargets(seatedHumanActionRef.current, player);
     seatedHumanActionRef.current = {
       ...seatedHumanActionRef.current,
       holdPlayer: player,
@@ -6311,10 +6072,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (state.cancelled) return;
       const now = performance.now();
       const t = Math.min(1, (now - started) / Math.max(1, duration));
-      const eased = t < 0.82 ? easeInOutSine01(t / 0.82) * 0.92 : 0.92 + easeOutBack01((t - 0.82) / 0.18, 1.3) * 0.08;
+      const eased = easeOutCubic(t);
       const pos = startPos.clone().lerp(target, eased);
       if (lift > 0) {
-        const arc = Math.sin(Math.PI * eased) * lift * (1 - eased * 0.25);
+        const arc = Math.sin(Math.PI * eased) * lift * (1 - eased * 0.35);
         pos.y = THREE.MathUtils.lerp(startPos.y, target.y, eased) + arc;
       }
       dice.position.copy(pos);
@@ -6342,11 +6103,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
-      setSeatedContactTarget(seatedHumanActionRef.current, player, 'dicePickup', target);
       beginDiceHoldPose(player);
       return;
     }
-    setSeatedContactTarget(seatedHumanActionRef.current, player, 'dicePickup', target);
     beginDiceHoldPose(player, { startMs: performance.now() - 220 });
     animateDicePosition(dice, target, {
       duration: 520,
@@ -7542,37 +7301,102 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       const actorState = seatedHumanActionRef.current;
-      if (
-        actorState?.throwStartMs > 0 &&
-        now - actorState.throwStartMs >
-          SEATED_HUMAN_DICE_PHASES.windupMs +
-            SEATED_HUMAN_DICE_PHASES.releaseMs +
-            SEATED_HUMAN_DICE_PHASES.followMs +
-            40
-      ) {
-        clearSeatedContactTargets(actorState, actorState.throwPlayer);
-        actorState.throwPlayer = null;
-        actorState.throwStartMs = 0;
-      }
+      const holdPlayer = actorState?.holdPlayer;
+      const throwingPlayer = actorState?.throwPlayer;
       const actors = seatedHumanActorsRef.current;
       if (Array.isArray(actors) && actors.length) {
         actors.forEach((entry) => {
           const { rig, playerIndex } = entry;
           if (!rig) return;
-          retargetSeatedActionHelpers(entry, actorState);
-          const pose = resolveSeatedHumanActionPose(actorState, state, playerIndex, now);
+          let mode = 'idle';
+          let intensity = 1;
+          let handGrip = 0;
           const throwBias = {
             lateral: actorState?.throwLateral ?? 0,
             forward: actorState?.throwForward ?? 1
           };
-          applySeatedHumanPose(
-            rig,
-            pose.mode,
-            pose.intensity,
-            pose.handGrip,
-            throwBias,
-            pose.motionTuning
-          );
+
+          if (
+            Number.isFinite(actorState?.throwStartMs) &&
+            throwingPlayer === playerIndex &&
+            actorState.throwStartMs > 0
+          ) {
+            const elapsedSec = Math.max(0, (now - actorState.throwStartMs) / 1000);
+            if (elapsedSec < 0.18) {
+              mode = 'holdDice';
+              intensity = 1;
+              handGrip = 0.52;
+            } else if (elapsedSec < 0.38) {
+              mode = 'windUp';
+              intensity = clamp((elapsedSec - 0.18) / 0.2, 0, 1);
+              handGrip = 0.56;
+            } else if (elapsedSec < 0.66) {
+              mode = 'release';
+              intensity = clamp((elapsedSec - 0.38) / 0.28, 0, 1);
+              handGrip = 1 - intensity;
+            } else if (elapsedSec < 1.45) {
+              mode = 'followThrough';
+              intensity = 1;
+              handGrip = 0;
+            } else {
+              mode = 'idle';
+              intensity = 1;
+              handGrip = 0;
+            }
+            if (elapsedSec > 1.62) {
+              actorState.throwPlayer = null;
+            }
+          } else if (
+            Number.isFinite(actorState?.holdStartMs) &&
+            holdPlayer === playerIndex &&
+            actorState.holdStartMs > 0
+          ) {
+            const elapsedSec = Math.max(0, (now - actorState.holdStartMs) / 1000);
+            if (elapsedSec < 0.36) {
+              mode = 'reachDice';
+              intensity = clamp(elapsedSec / 0.36, 0, 1);
+              handGrip = 0.02;
+            } else if (elapsedSec < 0.68) {
+              mode = 'gripDice';
+              intensity = clamp((elapsedSec - 0.36) / 0.32, 0, 1);
+              handGrip = 0.42;
+            } else {
+              mode = 'holdDice';
+              intensity = 1;
+              handGrip = 0.52;
+            }
+          } else if (state?.animation?.active && state.animation.player === playerIndex) {
+            const anim = state.animation;
+            const seg = anim.segments?.[anim.segment];
+            const segProgress = seg ? clamp(anim.elapsed / Math.max(seg.duration, 1e-4), 0, 1) : 1;
+            const helperPhase = seg?.viaHelper || null;
+            if (helperPhase === 'pickup') {
+              mode = 'reachToken';
+              intensity = segProgress;
+              handGrip = 0.05;
+            } else if (anim.segment > 0 && anim.segments?.[anim.segment - 1]?.viaHelper === 'pickup') {
+              mode = 'gripToken';
+              intensity = segProgress;
+              handGrip = segProgress;
+            } else if (helperPhase === 'place' || anim.segments?.[anim.segment + 1]?.viaHelper === 'place') {
+              mode = 'placeToken';
+              intensity = segProgress;
+              handGrip = 1 - segProgress * 0.85;
+            } else {
+              mode = 'carryToken';
+              intensity = 0.45 + segProgress * 0.55;
+              handGrip = 1;
+            }
+          } else if (
+            actorState?.rollEndMs &&
+            now - actorState.rollEndMs < SEATED_HUMAN_RECOVER_MS &&
+            throwingPlayer === playerIndex
+          ) {
+            mode = 'followThrough';
+            intensity = clamp(1 - (now - actorState.rollEndMs) / SEATED_HUMAN_RECOVER_MS, 0, 1);
+          }
+
+          applySeatedHumanPose(rig, mode, intensity, handGrip, throwBias);
         });
       }
 
@@ -7692,8 +7516,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         throwStartMs: 0,
         rollEndMs: 0,
         throwLateral: 0,
-        throwForward: 1,
-        contactTargets: {}
+        throwForward: 1
       };
       setSeatAnchors([]);
       stateRef.current = null;
@@ -9017,15 +8840,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
-    if (path.length) {
-      setSeatedContactTarget(seatedHumanActionRef.current, player, 'tokenPickup', path[0].position);
-      setSeatedContactTarget(
-        seatedHumanActionRef.current,
-        player,
-        'tokenPlace',
-        path[path.length - 1].position
-      );
-    }
     const pickupHelper = new THREE.Vector3();
     const placeHelper = new THREE.Vector3();
     const hasPickupHelper = sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
@@ -9058,20 +8872,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const from = fromNode.position;
       const to = toNode.position;
       const distance = from.distanceTo(to);
-      const baseDuration = Math.max(TOKEN_STEP_DURATION_SECONDS, distance / TOKEN_MOVE_SPEED);
-      const helperDurationScale =
-        toNode.viaHelper === 'pickup'
-          ? 0.78
-          : toNode.viaHelper === 'place'
-          ? 0.74
-          : 1;
-      const minDuration =
-        toNode.viaHelper === 'pickup'
-          ? SEATED_HUMAN_TOKEN_PHASES.pickupMs / 1000
-          : toNode.viaHelper === 'place'
-          ? SEATED_HUMAN_TOKEN_PHASES.placeMs / 1000
-          : 0.16;
-      const duration = Math.max(minDuration, baseDuration * helperDurationScale);
+      const duration = Math.max(TOKEN_STEP_DURATION_SECONDS, distance / TOKEN_MOVE_SPEED);
       segments.push({
         from,
         to,
@@ -9523,11 +9324,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
     if (!out?.isVector3) return false;
-    const directTarget = seatedHumanActionRef.current?.contactTargets?.[player]?.[helperKey];
-    if (directTarget?.isVector3) {
-      out.copy(directTarget);
-      return true;
-    }
     const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
     return sampleSeatedActionHelper(actorEntry, helperKey, out);
   }, []);
@@ -9579,8 +9375,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwLateral = clamp(localDir.x * 2.1, -1, 1);
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
-    setSeatedContactTarget(seatedHumanActionRef.current, player, 'dicePickup', dice.position.clone());
-    setSeatedContactTarget(seatedHumanActionRef.current, player, 'diceRelease', baseTarget.clone());
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
