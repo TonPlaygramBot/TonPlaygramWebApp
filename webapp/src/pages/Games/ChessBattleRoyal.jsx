@@ -9526,7 +9526,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    setViewModeInternal(viewModeRef.current);
+    // Always start every new match in cinematic 3D mode before any user toggle.
+    restoreAutoViewTo2dRef.current = false;
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
