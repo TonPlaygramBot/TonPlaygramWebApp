@@ -7674,7 +7674,8 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
 ]);
 const HUMAN_CHARACTER_DISABLED = false;
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+// Keep Domino seated humans aligned to the same seated baseline used in Ludo Battle Royal.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.42 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const seatedHumans = [];
@@ -7760,42 +7761,72 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
   const breathe = Math.sin(timeSeconds * 1.1) * 0.018;
   root.scale.setScalar(baseScale);
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.12 - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.34 + breathe - knockStrength * 0.15, 0, 0, 'XYZ'));
+  const actionType = seatHuman?.action?.type ?? 'idle';
+  const isPlaceAction = actionType === 'place';
+  const isKnockAction = actionType === 'knock';
+  const actionTarget = seatHuman?.action?.targetWorld;
+  let targetBiasY = -0.04;
+  let targetBiasZ = 0.18;
+  let forwardReach = 0;
+  if (actionTarget && seatHuman?.root?.parent?.worldToLocal) {
+    const targetLocal = seatHuman.root.parent.worldToLocal(actionTarget.clone());
+    const horizontal = Math.hypot(targetLocal.x, targetLocal.z) || 1;
+    targetBiasY = THREE.MathUtils.clamp(targetLocal.x / horizontal, -0.32, 0.32);
+    targetBiasZ = THREE.MathUtils.clamp(-targetLocal.z / horizontal, -0.34, 0.34);
+    const seatLocal = seatHuman.root.parent.worldToLocal(seatHuman.root.getWorldPosition(new THREE.Vector3()));
+    const dist = Math.hypot(targetLocal.x - seatLocal.x, targetLocal.z - seatLocal.z);
+    forwardReach = THREE.MathUtils.clamp((dist - 0.55) / 1.25, 0, 1);
+  }
+
+  const placeReach = THREE.MathUtils.clamp(actionStrength * (0.64 + forwardReach * 0.36), 0, 1);
+  const pickPhase = Math.sin(placeReach * Math.PI * 0.72);
+  const placePhase = Math.sin(placeReach * Math.PI);
+
+  composeModelBone(
+    rest,
+    bones.hips,
+    new THREE.Euler(-0.14 - knockStrength * 0.08 + forwardReach * 0.08 * placePhase, 0, 0, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.spine,
+    new THREE.Euler(0.34 + breathe - knockStrength * 0.15 + forwardReach * 0.24 * placePhase, 0, 0, 'XYZ')
+  );
   composeModelBone(rest, bones.spine1, new THREE.Euler(0.22 - knockStrength * 0.08, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine2, new THREE.Euler(0.12 - knockStrength * 0.03, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.head,
+    new THREE.Euler(-0.08 + placePhase * 0.08, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ')
+  );
 
   composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.5, 0.13, 0.1, 'XYZ'));
   composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.5, -0.13, -0.1, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
 
-  const rightReach = actionStrength;
+  const rightReach = isPlaceAction ? placePhase : 0;
   const rightKnock = knockStrength;
-  // Baseline: both arms stay in a stable "holding dominos" seated pose.
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.04, -0.34, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.84, 0.18, -0.36, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.1, 0.16, -0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.2, 0.08, -0.04, 'XYZ'));
-
-  let targetBiasY = -0.04;
-  let targetBiasZ = 0.18;
-  if (seatHuman?.action?.targetWorld && seatHuman?.root?.parent?.worldToLocal) {
-    const targetLocal = seatHuman.root.parent.worldToLocal(
-      seatHuman.action.targetWorld.clone()
-    );
-    const horizontal = Math.hypot(targetLocal.x, targetLocal.z) || 1;
-    targetBiasY = THREE.MathUtils.clamp(targetLocal.x / horizontal, -0.32, 0.32);
-    targetBiasZ = THREE.MathUtils.clamp(-targetLocal.z / horizontal, -0.34, 0.34);
-  }
+  // Baseline: both hands hold dominos from both side edges while seated.
+  composeModelBone(
+    rest,
+    bones.leftShoulder,
+    new THREE.Euler(-0.14 + pickPhase * 0.08, 0.04 + targetBiasY * 0.12, -0.34 + targetBiasZ * 0.1, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.leftArm,
+    new THREE.Euler(-0.88 + pickPhase * 0.14, 0.16 + targetBiasY * 0.1, -0.38 + targetBiasZ * 0.08, 'XYZ')
+  );
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.14 + pickPhase * 0.1, 0.12, -0.16, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.22 + pickPhase * 0.08, 0.08, -0.06, 'XYZ'));
 
   composeModelBone(
     rest,
     bones.rightShoulder,
     new THREE.Euler(
-      -0.18 + rightReach * 0.58 - rightKnock * 0.2,
+      -0.18 + rightReach * 0.58 - rightKnock * 0.2 + pickPhase * 0.12,
       -0.18 + targetBiasY * 0.52,
       0.28 + targetBiasZ * 0.36,
       'XYZ'
@@ -7805,7 +7836,7 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
     rest,
     bones.rightArm,
     new THREE.Euler(
-      -0.86 + rightReach * 1.78 + rightKnock * 1.06,
+      -0.86 + rightReach * 1.78 + rightKnock * 1.06 + pickPhase * 0.3,
       -0.2 - rightReach * 0.24 + targetBiasY * 0.4,
       0.24 + targetBiasZ * 0.34,
       'XYZ'
@@ -7815,7 +7846,7 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
     rest,
     bones.rightForeArm,
     new THREE.Euler(
-      -1.22 + rightReach * 1.4 + rightKnock * 1.65,
+      -1.22 + rightReach * 1.4 + rightKnock * 1.65 + pickPhase * 0.12,
       -0.12 + targetBiasY * 0.35,
       0.14 + targetBiasZ * 0.2,
       'XYZ'
@@ -7824,8 +7855,13 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
   composeModelBone(
     rest,
     bones.rightHand,
-    new THREE.Euler(-0.24 + rightReach * 0.7, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
+    new THREE.Euler(-0.24 + rightReach * 0.7 + pickPhase * 0.12, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
   );
+  if (isKnockAction) {
+    composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.18, 0.02, -0.2, 'XYZ'));
+    composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.72, 0.08, -0.18, 'XYZ'));
+    composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.92, 0.04, -0.1, 'XYZ'));
+  }
 }
 
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
@@ -7882,6 +7918,7 @@ async function ensureHumanTemplate() {
       const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
+        // Preserve original GLB texture set whenever it exists; only fill missing maps.
         if (!mat?.map) mat.map = fallbackTex;
         if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
@@ -7959,7 +7996,7 @@ function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null)
   seatHuman.action = {
     type: 'place',
     startMs: now,
-    durationMs: 950,
+    durationMs: 1050,
     targetWorld: actionTarget
   };
 }
@@ -7978,7 +8015,10 @@ function syncSeatHumans(nowMs = performance.now()) {
         Math.max(0, (nowMs - seatHuman.action.startMs) / Math.max(1, seatHuman.action.durationMs))
       );
       if (seatHuman.action.type === 'place') {
-        placeStrength = Math.sin(progress * Math.PI);
+        const pickupPhase = THREE.MathUtils.smoothstep(progress, 0.04, 0.42);
+        const carryPhase = THREE.MathUtils.smoothstep(progress, 0.28, 0.78);
+        const placePhase = THREE.MathUtils.smoothstep(progress, 0.56, 1);
+        placeStrength = Math.max(0, pickupPhase * 0.62 + carryPhase * 0.55 + placePhase);
       } else if (seatHuman.action.type === 'knock') {
         knockStrength = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
       }
