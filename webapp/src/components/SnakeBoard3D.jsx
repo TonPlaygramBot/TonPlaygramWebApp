@@ -47,9 +47,11 @@ const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.48;
+const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const CHAIR_GLOBAL_PUSHBACK = 0.176 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.258 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -81,12 +83,12 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.28;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.9;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.38;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_Y = -0.76 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -3308,7 +3310,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       .catch(() => {});
   }
 
-  const chairRadius = (tableInfo.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
+  const chairRadius =
+    (tableInfo.radius ?? TABLE_RADIUS) +
+    SEAT_DEPTH / 2 +
+    AI_CHAIR_GAP +
+    CHAIR_GLOBAL_PUSHBACK;
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const cameraSeatAngle = Math.PI / 2;
   const cameraBackOffset = cameraTuning.backOffset;
@@ -3407,7 +3413,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
     const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatPos = forward.clone().multiplyScalar(chairRadius);
+    const seatRadius = chairRadius + (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+    const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
     group.position.copy(seatPos);
