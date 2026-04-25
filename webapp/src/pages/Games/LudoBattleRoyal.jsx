@@ -1766,14 +1766,14 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-// Push seated humans noticeably lower so the local player reads much closer to the floor on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -3.65 * MODEL_SCALE * STOOL_SCALE;
+// Push seated humans much lower so they sit deeper into the chair and closer to the floor on portrait gameplay.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -4.35 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-// Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.82 * MODEL_SCALE * STOOL_SCALE;
+// Keep feet below the grounding plane to reinforce the deeper seated posture.
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.05 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.052 * MODEL_SCALE;
