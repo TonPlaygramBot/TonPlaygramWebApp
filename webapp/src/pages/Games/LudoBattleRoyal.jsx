@@ -1729,9 +1729,9 @@ const AI_CHAIR_RADIUS =
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
 // Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
-const CHAIR_GLOBAL_PUSHBACK = 0.236 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.31 * MODEL_SCALE;
 // Keep the bottom/local-player seat distinctly farther out than the rest.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.382 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.48 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1765,11 +1765,12 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.62;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.98;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.88 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -2.08 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans slightly farther back on the chair so they stay aligned after outward chair spacing changes.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.26;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.1;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
@@ -1856,10 +1857,10 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.68;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.82;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.56;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.3;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.5;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.24 * MODEL_SCALE;
@@ -6850,7 +6851,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
-        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+        const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
