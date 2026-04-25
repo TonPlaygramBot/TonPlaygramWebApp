@@ -14,7 +14,11 @@ const POLYHAVEN_ASSET_ALIASES = {
   polar_fleece_nature_wildwood: 'polar_fleece'
 };
 
-const resolvePolyHavenId = (id) => POLYHAVEN_ASSET_ALIASES[id] ?? id;
+const resolvePolyHavenId = (id) => {
+  const raw = String(id ?? '').trim();
+  if (!raw) return raw;
+  return POLYHAVEN_ASSET_ALIASES[raw] ?? raw.toLowerCase();
+};
 
 const encodeSvg = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 

@@ -366,7 +366,7 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.78; // Keep chair height, but make chair body slightly smaller on screen.
+const CHAIR_FOOTPRINT_SHRINK = 0.72; // Keep chair height, but make chair body slightly smaller on screen.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -389,9 +389,11 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width/depth.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull bottom chair slightly closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.12 * MODEL_SCALE; // Push top chair slightly farther from the table.
 const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
@@ -1086,12 +1088,21 @@ function extractAllHttpUrls(value) {
 
 function buildPolyhavenModelUrls(assetId) {
   if (!assetId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
-  ];
+  const normalized = String(assetId).trim();
+  const lower = normalized.toLowerCase();
+  const ids = Array.from(new Set([normalized, lower]));
+  const urls = [];
+  ids.forEach((id) => {
+    urls.push(
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${id}/${id}.glb`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${id}.glb`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/glb/${id}/${id}.glb`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/glb/${id}.glb`
+    );
+  });
+  return urls;
 }
 
 function pickBestModelUrl(urls = []) {
@@ -7761,10 +7772,19 @@ function Chess3D({
       const accent = option.accent || option.highlight || '#38bdf8';
       return (
         <div className={baseClass}>
-          <div
-            className="absolute inset-0"
-            style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
-          />
+          {option.thumbnail ? (
+            <img
+              src={option.thumbnail}
+              alt={option.label || 'Chair style'}
+              className="absolute inset-0 h-full w-full object-cover opacity-85"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
+            />
+          )}
           <div className={overlay} />
         </div>
       );
@@ -8901,7 +8921,7 @@ function Chess3D({
       avatarAnchor.userData = { index };
       g.add(avatarAnchor);
 
-      g.scale.setScalar(CHAIR_SCALE);
+      g.scale.set(CHAIR_SCALE * CHAIR_WIDTH_SCALE, CHAIR_SCALE, CHAIR_SCALE * CHAIR_WIDTH_SCALE);
       return {
         group: g,
         anchor: avatarAnchor
@@ -8923,7 +8943,11 @@ function Chess3D({
     alignGroupToFloorY(chairA.group, initialArenaFloorY);
     chairs.push(chairA);
     const chairB = makeChair(1);
-    chairB.group.position.set(0, CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET, -chairDistance);
+    chairB.group.position.set(
+      0,
+      CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
+      -(chairDistance + OPPONENT_CHAIR_EXTRA_CLEARANCE)
+    );
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
     chairs.push(chairB);
