@@ -1928,6 +1928,8 @@ const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
 const HUMAN_PLAYER_REACT_LEAN = 0.12;
+const POOL_ROYALE_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_ROYALE_HUMAN_SCALE_BOOST = 1.18;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24331,6 +24333,22 @@ const shotPowerRef = useRef(0);
         });
         playerCharacterRigsRef.current = [];
       };
+      let playerCharacterTemplatePromise = null;
+      const loadStandingCharacterTemplate = async () => {
+        if (!playerCharacterTemplatePromise) {
+          playerCharacterTemplatePromise = (async () => {
+            const loader = createConfiguredGLTFLoader(rendererRef.current ?? null);
+            const gltf = await loader.loadAsync(POOL_ROYALE_HUMAN_MODEL_URL);
+            const root = gltf?.scene || gltf?.scenes?.[0] || null;
+            if (!root) throw new Error('Missing standing human scene');
+            return root;
+          })().catch((error) => {
+            playerCharacterTemplatePromise = null;
+            throw error;
+          });
+        }
+        return playerCharacterTemplatePromise;
+      };
       const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
@@ -24338,36 +24356,13 @@ const shotPowerRef = useRef(0);
         const torsoPivot = new THREE.Group();
         rigGroup.add(torsoPivot);
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const torsoHeight = humanHeight * 0.46;
-        const legHeight = humanHeight * 0.42;
-        const shoulderY = legHeight + torsoHeight * 0.84;
-        const headRadius = humanHeight * 0.09;
-        const skin = new THREE.MeshStandardMaterial({ color: 0xf4d8c2, roughness: 0.84, metalness: 0.02 });
-        const cloth = new THREE.MeshStandardMaterial({
-          color: seat === 'A' ? 0x3558d6 : 0x2a2a2f,
-          roughness: 0.75,
-          metalness: 0.06
-        });
-        const trousers = new THREE.MeshStandardMaterial({ color: 0x161920, roughness: 0.86, metalness: 0.04 });
+        const shoulderY = humanHeight * 0.7;
         const cuePaint = new THREE.MeshStandardMaterial({ color: 0xb28452, roughness: 0.68, metalness: 0.14 });
-        const torso = new THREE.Mesh(
-          new THREE.CapsuleGeometry(humanHeight * 0.07, torsoHeight, 8, 14),
-          cloth
-        );
-        torso.position.set(0, legHeight + torsoHeight * 0.5, 0);
-        torsoPivot.add(torso);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 18, 16), skin);
-        head.position.set(0, legHeight + torsoHeight + headRadius * 1.12, 0);
+        const avatarAnchor = new THREE.Group();
+        torsoPivot.add(avatarAnchor);
+        const head = new THREE.Object3D();
+        head.position.set(0, humanHeight * 0.94, 0);
         torsoPivot.add(head);
-        const legOffset = humanHeight * 0.05;
-        [-1, 1].forEach((side) => {
-          const leg = new THREE.Mesh(
-            new THREE.CapsuleGeometry(humanHeight * 0.03, legHeight, 7, 10),
-            trousers
-          );
-          leg.position.set(legOffset * side, legHeight * 0.5, 0);
-          torsoPivot.add(leg);
-        });
         const cue = new THREE.Mesh(
           new THREE.CylinderGeometry(humanHeight * 0.005, humanHeight * 0.008, humanHeight * 0.78, 12),
           cuePaint
@@ -24375,6 +24370,17 @@ const shotPowerRef = useRef(0);
         cue.rotation.z = Math.PI / 2;
         cue.position.set(humanHeight * 0.17, shoulderY - humanHeight * 0.12, humanHeight * 0.02);
         torsoPivot.add(cue);
+        const fallbackBody = new THREE.Mesh(
+          new THREE.CapsuleGeometry(humanHeight * 0.07, humanHeight * 0.52, 8, 14),
+          new THREE.MeshStandardMaterial({
+            color: seat === 'A' ? 0x3558d6 : 0x2a2a2f,
+            roughness: 0.76,
+            metalness: 0.04
+          })
+        );
+        fallbackBody.position.set(0, humanHeight * 0.44, 0);
+        fallbackBody.visible = false;
+        torsoPivot.add(fallbackBody);
         rigGroup.userData.anim = {
           seat,
           mode: 'idle',
@@ -24382,13 +24388,49 @@ const shotPowerRef = useRef(0);
           torsoPivot,
           head,
           cue,
-          humanHeight
+          humanHeight,
+          avatarAnchor
         };
         rigGroup.traverse((child) => {
           if (!child.isMesh) return;
           child.castShadow = true;
           child.receiveShadow = true;
         });
+        const applyCharacterModel = (characterRoot) => {
+          if (!characterRoot || !avatarAnchor.parent) return;
+          while (avatarAnchor.children.length > 0) {
+            avatarAnchor.remove(avatarAnchor.children[0]);
+          }
+          const avatarModel = characterRoot.clone(true);
+          avatarModel.rotation.y = Math.PI;
+          const bbox = new THREE.Box3().setFromObject(avatarModel);
+          const modelHeight = Math.max(0.001, bbox.max.y - bbox.min.y);
+          const targetHeight = humanHeight * POOL_ROYALE_HUMAN_SCALE_BOOST;
+          const scale = targetHeight / modelHeight;
+          avatarModel.scale.setScalar(scale);
+          const scaledBox = new THREE.Box3().setFromObject(avatarModel);
+          avatarModel.position.set(
+            0,
+            -scaledBox.min.y,
+            -humanHeight * 0.05
+          );
+          avatarModel.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          avatarAnchor.add(avatarModel);
+          fallbackBody.visible = false;
+        };
+        loadStandingCharacterTemplate()
+          .then((template) => {
+            if (!rigGroup.parent) return;
+            applyCharacterModel(template);
+          })
+          .catch((error) => {
+            fallbackBody.visible = true;
+            console.warn('Failed to load Pool Royale standing character GLB', error);
+          });
         return rigGroup;
       };
       const spawnPlayerCharacters = () => {
