@@ -367,7 +367,7 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.72; // Keep chair height, but make chair body slightly smaller on screen.
+const CHAIR_FOOTPRINT_SHRINK = 0.82; // Make chair bodies slightly bigger while preserving overall style.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -389,8 +389,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width/depth.
+const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 0.9; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Pull local seat slightly farther from the table for clearer portrait framing.
@@ -428,33 +428,34 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.018;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.96;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.72;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.56;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.52;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.02;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.16;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.48; // keep board low on portrait screens but leave more room to show the seated actor.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.64; // Push board/chairs/avatars visually lower on portrait screens.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
-const SEATED_HUMAN_MOVE_DURATION_MS = 420; // keep piece pacing close to classic move speed while syncing hand contact.
+const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
+const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.006;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
-const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.022;
-const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.026;
+const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
+const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -1442,8 +1443,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 function normalizePbrTexture(texture, maxAnisotropy = 1) {
   if (!texture) return;
   texture.flipY = false;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.wrapS = texture.wrapS ?? THREE.ClampToEdgeWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.ClampToEdgeWrapping;
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
   texture.needsUpdate = true;
 }
@@ -2623,10 +2624,7 @@ function applyChairThemeMaterials(chairAssets, theme) {
 }
 
 async function loadGltfChair() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
+  const loader = createConfiguredGLTFLoader();
 
   let gltf = null;
   let lastError = null;
@@ -9460,17 +9458,18 @@ function Chess3D({
 
     const setViewModeInternal = (mode) => {
       if (!controls) return;
+      const requestedMode = mode === 'fpv' ? '3d' : mode;
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
       const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
-      const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
+      const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
 
       const initialRadius = currentRadius;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
-      if (mode === '2d') {
+      if (requestedMode === '2d') {
         cameraMemory.last3d = current;
         controls.target.copy(boardLookTarget);
         controls.enabled = true;
@@ -9487,13 +9486,6 @@ function Chess3D({
         }
         const target = initial2dViewRef.current;
         animateCameraTo(target, 360);
-      } else if (mode === 'fpv') {
-        controls.enabled = false;
-        controls.enableRotate = false;
-        controls.enablePan = false;
-        controls.enableZoom = false;
-        camera.near = 0.03;
-        camera.updateProjectionMatrix();
       } else {
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
@@ -12417,6 +12409,7 @@ function Chess3D({
           from: liveFrom.clone(),
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
+          isCapture: Boolean(capturedPiece),
           startMs: nowMs + Math.max(0, moveDelayMs),
           durationMs: SEATED_HUMAN_MOVE_DURATION_MS,
           handHelper: null,
@@ -13405,6 +13398,9 @@ function Chess3D({
             return;
           }
           const u = clamp01(elapsedMs / Math.max(1, action.durationMs));
+          const carryPhaseEnd = action.isCapture
+            ? SEATED_HUMAN_ATTACK_CARRY_PHASE_END
+            : SEATED_HUMAN_CARRY_PHASE_END;
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
@@ -13416,14 +13412,14 @@ function Chess3D({
             mode = 'gripPiece';
             intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
             grip = intensity;
-          } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
+          } else if (u < carryPhaseEnd) {
             mode = 'carryPiece';
-            intensity = clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44));
+            intensity = clamp01((u - 0.44) / (carryPhaseEnd - 0.44));
             grip = 1;
           } else {
             mode = 'placePiece';
-            intensity = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
-            grip = 1 - intensity * 0.9;
+            intensity = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
+            grip = action.isCapture ? 1 - intensity * 0.2 : 1 - intensity * 0.9;
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip);
           if (action?.mesh) {
@@ -13447,7 +13443,7 @@ function Chess3D({
               entry.playerIndex === 0
                 ? -SEATED_HUMAN_HAND_PIECE_FORWARD
                 : SEATED_HUMAN_HAND_PIECE_FORWARD;
-            const liveFrom = action.mesh.getWorldPosition(new THREE.Vector3());
+            const liveFrom = action.from.clone();
             const liveTo = action.toSquare
               ? piecePosition(action.toSquare.r, action.toSquare.c, currentPieceYOffset)
               : action.to.clone();
@@ -13463,15 +13459,15 @@ function Chess3D({
                 clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
               );
               action.mesh.position.lerpVectors(liftedFrom, holdWorld, gripT);
-            } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
+            } else if (u < carryPhaseEnd) {
               const carryT = smoothEase(
-                clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44))
+                clamp01((u - 0.44) / (carryPhaseEnd - 0.44))
               );
               const carryTarget = holdWorld.clone().lerp(liftedTo, carryT);
               carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
               action.mesh.position.copy(carryTarget);
             } else {
-              const dropT = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
+              const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
               const easedDropT = smoothEase(dropT);
               const landing = liveTo.clone();
               landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
@@ -13704,10 +13700,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : mode === '2d' ? 'fpv' : '3d'))}
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : viewMode === '2d' ? 'POV' : '3D'}
+              {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
