@@ -392,9 +392,9 @@ const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width/depth.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.12 * MODEL_SCALE; // Keep local seat close enough for interaction while preserving a visible leg gap.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.34 * MODEL_SCALE; // Push top seat farther up on screen to open space from the table edge.
-const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Pull local seat slightly farther from the table for clearer portrait framing.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.46 * MODEL_SCALE; // Pull opponent seat a bit farther from the table while preserving top-screen spacing.
+const CHAIR_TABLE_PUSHBACK = 0.12 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
 const CHAIR_TABLE_SHAPE_BIAS = 0.18 * MODEL_SCALE;
@@ -443,6 +443,10 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // pull the whole table noticeably closer to the bottom/local player on portrait screens
+const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
+const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
+const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
+const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 420; // keep piece pacing close to classic move speed while syncing hand contact.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.2;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.82;
@@ -13309,16 +13313,16 @@ function Chess3D({
         localActorEntry.actor.rotation.y = SEATED_HUMAN_FACING_Y + fpState.yaw;
         addBoneRot(localActorEntry.rig, localActorEntry.rig.head, fpState.pitch * 0.85, 0, 0);
         fpState.bobTime += dt * (2.2 + Math.abs(fpState.targetYaw - fpState.yaw) * 6);
-        const bobOffset = Math.sin(fpState.bobTime * 7.2) * 0.01;
+        const bobOffset = Math.sin(fpState.bobTime * 7.2) * FPV_BOB_AMPLITUDE;
         const eyeWorld = localActorEntry.rig.head.getWorldPosition(new THREE.Vector3());
         const headQuat = localActorEntry.rig.head.getWorldQuaternion(new THREE.Quaternion());
         const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
         const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat);
         camera.position
           .copy(eyeWorld)
-          .addScaledVector(eyeForward, 0.15)
-          .addScaledVector(eyeUp, 0.03 + bobOffset);
-        camera.quaternion.slerp(headQuat, 0.6);
+          .addScaledVector(eyeForward, FPV_FACE_FORWARD_OFFSET)
+          .addScaledVector(eyeUp, FPV_FACE_UP_OFFSET + bobOffset);
+        camera.quaternion.slerp(headQuat, FPV_HEAD_FOLLOW_SMOOTHING);
       }
 
       controls?.update();
