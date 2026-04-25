@@ -1764,11 +1764,11 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
 // Push seated humans noticeably lower on portrait screens so they do not appear to hover above chairs.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.92 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.08 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to match the user's requested stronger downward move.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.5 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.62 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -1864,6 +1864,15 @@ const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
+const LUDO_BOTTOM_FIRST_PERSON_ENABLED = true;
+const FIRST_PERSON_HEAD_FORWARD_OFFSET = 0.046;
+const FIRST_PERSON_HEAD_UP_OFFSET = 0.016;
+const FIRST_PERSON_HEAD_BOB_AMPLITUDE = 0.005;
+const FIRST_PERSON_HEAD_BOB_SPEED = 6.2;
+const FIRST_PERSON_ROTATION_SMOOTH = 0.16;
+const FIRST_PERSON_YAW_BODY_BLEND = 0.55;
+const FIRST_PERSON_BODY_YAW_LIMIT = THREE.MathUtils.degToRad(35);
+const FIRST_PERSON_CLIP_MARGIN = 0.018;
 const CAMERA_TOUCH_PULL_FORWARD_FACTOR = 0.0032;
 const CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO = 0.32;
 const CAMERA_TOUCH_PULL_BACK_MAX_RATIO = 0.4;
@@ -4285,6 +4294,25 @@ function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_
   actor.updateMatrixWorld(true);
 }
 
+function setLocalFirstPersonMeshVisibility(actor, enabled) {
+  if (!actor?.isObject3D) return;
+  actor.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const meshName = `${obj.name || ''}`.toLowerCase();
+    const isHeadMesh = /head|face|neck|eye|hair|beard|mustache|moustache|eyebrow|ear/.test(meshName);
+    const isArmMesh = /arm|hand|finger|wrist/.test(meshName);
+    if (!enabled) {
+      obj.visible = true;
+      return;
+    }
+    if (isHeadMesh) {
+      obj.visible = false;
+      return;
+    }
+    obj.visible = isArmMesh;
+  });
+}
+
 async function loadSeatedHumanTemplate(renderer = null) {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
@@ -4585,6 +4613,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
   const cameraSeatLockPositionRef = useRef(null);
+  const firstPersonCameraStateRef = useRef({
+    active: false,
+    time: 0,
+    smoothedYaw: 0,
+    smoothedPitch: 0
+  });
   const lockUserTurnSeatViewRef = useRef(false);
   const preserveUserTurnCameraRef = useRef(false);
   const cameraTurnStateRef = useRef({
@@ -6763,7 +6797,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1);
         alignSeatedHumanFeetToGroundPlane(actor, rig);
-        seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
+        setLocalFirstPersonMeshVisibility(actor, false);
+        seatedHumanActorsRef.current.push({
+          playerIndex,
+          actor,
+          rig,
+          baseYaw: actor.rotation.y
+        });
       });
     } catch (error) {
       console.warn('Unable to attach seated human actors for Ludo chairs', error);
@@ -7118,7 +7158,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const actors = seatedHumanActorsRef.current;
       if (Array.isArray(actors) && actors.length) {
         actors.forEach((entry) => {
-          const { rig, playerIndex } = entry;
+          const { actor, rig, playerIndex, baseYaw = SEATED_HUMAN_FACING_Y } = entry;
           if (!rig) return;
           let mode = 'idle';
           let intensity = 1;
@@ -7191,6 +7231,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
 
           applySeatedHumanPose(rig, mode, intensity, handGrip);
+          if (playerIndex === 0 && actor?.isObject3D) {
+            const lookYaw = clamp(
+              cameraLookStateRef.current.yaw * FIRST_PERSON_YAW_BODY_BLEND,
+              -FIRST_PERSON_BODY_YAW_LIMIT,
+              FIRST_PERSON_BODY_YAW_LIMIT
+            );
+            actor.rotation.y = THREE.MathUtils.lerp(actor.rotation.y, baseYaw + lookYaw, 0.14);
+          }
         });
       }
 
@@ -7257,9 +7305,103 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
-      if (!isCamera2d && controls) {
-        if (LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
+      let firstPersonActive = false;
+      if (!isCamera2d && controls && camera && LUDO_BOTTOM_FIRST_PERSON_ENABLED) {
+        const localActorEntry = Array.isArray(actors)
+          ? actors.find((entry) => entry?.playerIndex === 0 && entry?.actor?.isObject3D)
+          : null;
+        const shouldUseFirstPerson =
+          Boolean(localActorEntry) &&
+          lockUserTurnSeatViewRef.current &&
+          state?.turn === 0 &&
+          !state?.winner;
+        if (shouldUseFirstPerson) {
+          const fpState = firstPersonCameraStateRef.current;
+          const headBone = localActorEntry?.rig?.head;
+          const headPos = headBone?.isBone
+            ? headBone.getWorldPosition(new THREE.Vector3())
+            : localActorEntry.actor.getWorldPosition(new THREE.Vector3());
+          const headQuat = headBone?.isBone
+            ? headBone.getWorldQuaternion(new THREE.Quaternion())
+            : localActorEntry.actor.getWorldQuaternion(new THREE.Quaternion());
+          const headEuler = new THREE.Euler().setFromQuaternion(headQuat, 'YXZ');
+          const desiredYaw = headEuler.y + cameraLookStateRef.current.yaw;
+          const desiredPitch = clamp(
+            headEuler.x + cameraLookStateRef.current.pitch,
+            CAMERA_LOOK_MIN_PITCH,
+            CAMERA_LOOK_PITCH_LIMIT
+          );
+          fpState.smoothedYaw = THREE.MathUtils.lerp(fpState.smoothedYaw, desiredYaw, FIRST_PERSON_ROTATION_SMOOTH);
+          fpState.smoothedPitch = THREE.MathUtils.lerp(
+            fpState.smoothedPitch,
+            desiredPitch,
+            FIRST_PERSON_ROTATION_SMOOTH
+          );
+          fpState.time += delta;
+
+          const bob = Math.sin(fpState.time * FIRST_PERSON_HEAD_BOB_SPEED) * FIRST_PERSON_HEAD_BOB_AMPLITUDE;
+          const bobSide = Math.cos(fpState.time * FIRST_PERSON_HEAD_BOB_SPEED * 0.5) * FIRST_PERSON_HEAD_BOB_AMPLITUDE * 0.35;
+          const lookQuat = new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(fpState.smoothedPitch, fpState.smoothedYaw, 0, 'YXZ')
+          );
+          const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(lookQuat).normalize();
+          const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(lookQuat).normalize();
+          const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(lookQuat).normalize();
+          const desiredCameraPos = headPos
+            .clone()
+            .addScaledVector(cameraUp, FIRST_PERSON_HEAD_UP_OFFSET + bob)
+            .addScaledVector(cameraRight, bobSide)
+            .addScaledVector(cameraForward, FIRST_PERSON_HEAD_FORWARD_OFFSET);
+
+          const toDesired = desiredCameraPos.clone().sub(headPos);
+          const distance = toDesired.length();
+          if (distance > 1e-4) {
+            raycaster.set(headPos, toDesired.normalize());
+            const envHits = raycaster
+              .intersectObjects([arenaState?.group ?? scene], true)
+              .filter((hit) => {
+                let node = hit.object;
+                while (node) {
+                  if (node === localActorEntry.actor) return false;
+                  node = node.parent;
+                }
+                return true;
+              });
+            const clipHit = envHits.find((hit) => hit.distance > 0.0005);
+            if (clipHit && clipHit.distance < distance) {
+              desiredCameraPos.copy(headPos).addScaledVector(
+                toDesired,
+                Math.max(0.001, clipHit.distance - FIRST_PERSON_CLIP_MARGIN)
+              );
+            }
+          }
+          camera.position.copy(desiredCameraPos);
+          camera.quaternion.copy(lookQuat);
+          controls.target.copy(camera.position.clone().addScaledVector(cameraForward, 0.8));
+          cameraTurnStateRef.current.currentTarget = controls.target.clone();
+          controls.enabled = false;
+          setLocalFirstPersonMeshVisibility(localActorEntry.actor, true);
+          fpState.active = true;
+          firstPersonActive = true;
+        }
+      }
+      if (!firstPersonActive) {
+        if (!isCamera2d && controls && LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
           applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
+        }
+        if (controls) controls.enabled = true;
+        const fpState = firstPersonCameraStateRef.current;
+        if (fpState.active) {
+          fpState.active = false;
+          fpState.time = 0;
+          fpState.smoothedPitch = 0;
+          fpState.smoothedYaw = 0;
+        }
+        const localActorEntry = Array.isArray(actors)
+          ? actors.find((entry) => entry?.playerIndex === 0 && entry?.actor?.isObject3D)
+          : null;
+        if (localActorEntry?.actor) {
+          setLocalFirstPersonMeshVisibility(localActorEntry.actor, false);
         }
       }
       controls?.update();
