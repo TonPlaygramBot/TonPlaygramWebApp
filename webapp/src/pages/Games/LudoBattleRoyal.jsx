@@ -1749,6 +1749,7 @@ const CUSTOM_CHAIR_ANGLES = [
 const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 2600;
+const HUMAN_DICE_TOUCH_ONLY = true;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const ANIMATION_BASE_FPS = 60;
@@ -1776,16 +1777,19 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.052 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.088 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.027 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.022 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.066 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.124 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.023 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.018 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.036 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.064 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.098 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.022 * MODEL_SCALE;
 const SEATED_HELPER_UP_TOKEN_PICKUP = 0.008 * MODEL_SCALE;
 const SEATED_HELPER_UP_TOKEN_PLACE = 0.011 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.006 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = 0.085 * MODEL_SCALE;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -1857,13 +1861,13 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.74;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.62;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.12;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.62;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
-const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.24 * MODEL_SCALE;
+const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.32 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -3179,7 +3183,7 @@ const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
 const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
-const DICE_TAP_MIN_RADIUS_PX = 56;
+const DICE_TAP_MIN_RADIUS_PX = 74;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -4172,15 +4176,15 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   let headY = 0;
 
   if (mode === 'reachDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.70, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.03, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.86, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.20, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.18, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.12, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.94, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.20, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.30, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.20, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.20, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     chestY = THREE.MathUtils.lerp(chestY, -0.08, t);
     headX = THREE.MathUtils.lerp(headX, 0.03, t);
@@ -4200,35 +4204,35 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     headX = THREE.MathUtils.lerp(headX, 0.01, t);
     headY = THREE.MathUtils.lerp(headY, -0.08, t);
   } else if (mode === 'holdDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.54, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.16, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.60, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.10, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.30, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.38, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.18, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.42, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.24, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.46, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.20, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.44, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.42, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.22, t);
   } else if (mode === 'windUp') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.72, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.34, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.30, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.42, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.18, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.18, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.46, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.62, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.70, t);
     wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
     wristZ = THREE.MathUtils.lerp(wristZ, 0.22, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.02, t);
     chestY = THREE.MathUtils.lerp(chestY, -0.06, t);
     headX = THREE.MathUtils.lerp(headX, -0.02, t);
   } else if (mode === 'release') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.08, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.86, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.34, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.18, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.94, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.24, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.10, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.04, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.46, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.20, t);
@@ -4319,7 +4323,9 @@ function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_
 
 function createSeatedHumanActionHelpers(actor, rig) {
   const rightHand = rig?.rightHand;
+  const headBone = rig?.head;
   const helperRoot = rightHand?.isBone ? rightHand : actor;
+  const faceRoot = headBone?.isBone ? headBone : actor;
   if (!helperRoot?.isObject3D) return null;
   const createHelper = (name, x, y, z) => {
     const helper = new THREE.Object3D();
@@ -4352,8 +4358,73 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_RIGHT_TOKEN,
       SEATED_HELPER_UP_TOKEN_PLACE,
       SEATED_HELPER_FORWARD_TOKEN_PLACE
-    )
+    ),
+    faceCamera: (() => {
+      if (!faceRoot?.isObject3D) return null;
+      const helper = new THREE.Object3D();
+      helper.name = 'faceCameraHelper';
+      helper.position.set(
+        SEATED_HELPER_FACE_CAMERA_RIGHT,
+        SEATED_HELPER_FACE_CAMERA_UP,
+        SEATED_HELPER_FACE_CAMERA_FORWARD
+      );
+      faceRoot.add(helper);
+      return helper;
+    })()
   };
+}
+
+function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
+  if (!actorEntry?.actor?.isObject3D) return null;
+  const faceHelper = actorEntry?.actionHelpers?.faceCamera;
+  if (!faceHelper?.isObject3D) return null;
+  const position = new THREE.Vector3();
+  const target = new THREE.Vector3();
+  faceHelper.updateMatrixWorld?.(true);
+  faceHelper.getWorldPosition(position);
+  if (actorEntry?.rig?.head?.isBone) {
+    actorEntry.rig.head.updateMatrixWorld?.(true);
+    actorEntry.rig.head.getWorldPosition(target);
+  } else if (fallbackTarget?.isVector3) {
+    target.copy(fallbackTarget);
+  } else {
+    target.copy(position).add(new THREE.Vector3(0, -0.005, 0.08 * MODEL_SCALE));
+  }
+  return {
+    position,
+    target
+  };
+}
+
+function sampleSeatedActionHelper(entry, helperKey, out) {
+  if (!out?.isVector3 || !entry) return false;
+  const helper = entry?.actionHelpers?.[helperKey];
+  if (!helper?.isObject3D) return false;
+  helper.updateMatrixWorld?.(true);
+  helper.getWorldPosition(out);
+  return true;
+}
+
+function applyBottomSeatFaceCameraView({
+  camera,
+  controls,
+  actorEntry,
+  boardLookTarget,
+  saveAsInitial = false
+}) {
+  if (!camera || !controls || !actorEntry) return false;
+  const facePose = resolveSeatedFaceCameraPose(actorEntry, boardLookTarget);
+  if (!facePose) return false;
+  camera.position.copy(facePose.position);
+  controls.target.copy(facePose.target);
+  controls.update();
+  if (saveAsInitial) {
+    return {
+      position: facePose.position.clone(),
+      target: facePose.target.clone()
+    };
+  }
+  return true;
 }
 
 async function loadSeatedHumanTemplate(renderer = null) {
@@ -4419,8 +4490,8 @@ function spinDice(
     const pickupHandTarget = new THREE.Vector3();
     const releaseHandTarget = new THREE.Vector3();
     const easedTarget = new THREE.Vector3();
-    const pickupPhase = 0.32;
-    const throwBlendPhase = 0.58;
+    const pickupPhase = 0.42;
+    const throwBlendPhase = 0.72;
 
     const step = () => {
       const now = performance.now();
@@ -4439,8 +4510,15 @@ function spinDice(
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
           easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
           position.copy(easedTarget);
+        } else if (t <= throwBlendPhase * 0.68) {
+          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase * 0.68 - pickupPhase), 0, 1);
+          const bodyHold = handPickup
+            .clone()
+            .lerp(handRelease ?? handPickup, 0.22 + holdT * 0.12);
+          bodyHold.y += Math.sin(holdT * Math.PI) * 0.014;
+          position.copy(bodyHold);
         } else if (t <= throwBlendPhase) {
-          const throwT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase - pickupPhase), 0, 1);
+          const throwT = clamp((t - throwBlendPhase * 0.68) / Math.max(1e-4, throwBlendPhase - throwBlendPhase * 0.68), 0, 1);
           easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
           position.copy(easedTarget);
         }
@@ -5706,6 +5784,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 
   const scheduleHumanAutoRoll = useCallback(() => {
+    if (HUMAN_DICE_TOUCH_ONLY) return;
     const state = stateRef.current;
     if (!state || state.winner || state.turn !== 0 || state.animation) return;
     if (humanSelectionRef.current) return;
@@ -6892,7 +6971,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     moveDiceToRail(0, true);
     updateTurnIndicator(0, true);
     if (camera && controls) {
-      initialBottomCameraViewRef.current = {
+      const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
+      const faceView = applyBottomSeatFaceCameraView({
+        camera,
+        controls,
+        actorEntry: bottomActorEntry,
+        boardLookTarget,
+        saveAsInitial: true
+      });
+      initialBottomCameraViewRef.current = faceView || {
         position: camera.position.clone(),
         target: controls.target.clone()
       };
@@ -8592,6 +8679,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       lockUserTurnSeatViewRef.current = true;
       cameraLookStateRef.current.pitch = 0;
+      const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
+      const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, boardLookTargetRef.current);
+      if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
+        cameraTurnStateRef.current.baseTurnView = {
+          position: facePose.position.clone(),
+          target: facePose.target.clone()
+        };
+        animateCameraPose(facePose.target, facePose.position, duration);
+        return;
+      }
       const initialBottomView = initialBottomCameraViewRef.current;
       if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
         const boardLookTarget = boardLookTargetRef.current;
@@ -9235,11 +9332,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
     if (!out?.isVector3) return false;
     const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    const helper = actorEntry?.actionHelpers?.[helperKey];
-    if (!helper?.isObject3D) return false;
-    helper.updateMatrixWorld?.(true);
-    helper.getWorldPosition(out);
-    return true;
+    return sampleSeatedActionHelper(actorEntry, helperKey, out);
   }, []);
 
   const rollDice = async () => {
