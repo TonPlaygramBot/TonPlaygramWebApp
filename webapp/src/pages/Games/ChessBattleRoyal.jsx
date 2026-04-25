@@ -419,8 +419,8 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
-const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(3.5); // keep animation framing closer to the game-start camera pose.
-const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.02; // keep animation framing consistent with the game-start camera distance.
+const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(10); // push forced 3D animation camera a bit higher for stronger down-board framing
+const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 0.95; // move forced 3D animation camera slightly closer during capture
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
@@ -436,11 +436,11 @@ const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.98;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.9;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.76;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // pull the whole table noticeably closer to the bottom/local player on portrait screens
@@ -648,6 +648,38 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
+function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 180; i += 1) {
+    const x = (i * 53) % size;
+    const y = (i * 79) % size;
+    const w = 8 + ((i * 11) % 22);
+    const h = 4 + ((i * 7) % 14);
+    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(tex);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   if (!rig) return;
   resetBoneRig(rig);
@@ -768,26 +800,21 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
     if (!root) {
       throw lastError || new Error('Missing seated human scene');
     }
-    root.updateMatrixWorld(true);
-    const preBox = new THREE.Box3().setFromObject(root);
-    const preSize = preBox.getSize(new THREE.Vector3());
-    const sourceHeight = Math.max(preSize.y, 0.01);
-    const normalizeScale = SEATED_HUMAN_BASE_HEIGHT / sourceHeight;
-    root.scale.setScalar(normalizeScale);
-    root.updateMatrixWorld(true);
-    const normalizedBox = new THREE.Box3().setFromObject(root);
-    const normalizedCenter = normalizedBox.getCenter(new THREE.Vector3());
-    root.position.x -= normalizedCenter.x;
-    root.position.z -= normalizedCenter.z;
-    root.position.y -= normalizedBox.min.y;
-    root.updateMatrixWorld(true);
+    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
       obj.castShadow = true;
       obj.receiveShadow = true;
       obj.frustumCulled = false;
+      const meshName = `${obj.name || ''}`.toLowerCase();
+      const useSkin = /head|face|neck|ear|hand/.test(meshName);
+      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
+        if (!mat?.map) mat.map = fallbackTex;
         if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
@@ -796,12 +823,8 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
     });
     return root;
   })();
-  const resilientPromise = promise.catch((error) => {
-    seatedHumanTemplatePromiseById.delete(cacheKey);
-    throw error;
-  });
-  seatedHumanTemplatePromiseById.set(cacheKey, resilientPromise);
-  return resilientPromise;
+  seatedHumanTemplatePromiseById.set(cacheKey, promise);
+  return promise;
 }
 
 function getDisplayMetrics() {
