@@ -24439,13 +24439,20 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+      const createPlayerCharacterRig = ({
+        seat = 'A',
+        x = 0,
+        z = 0,
+        facingY = 0,
+        glbTemplate = null
+      } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = humanHeight / 1.82;
+        const visualScale = scale * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
         const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
@@ -24499,6 +24506,57 @@ const shotPowerRef = useRef(0);
 
         rigGroup.add(bridgeHand);
         rigGroup.add(gripHand);
+        const fallbackMeshes = [
+          pelvis,
+          torso,
+          chest,
+          neck,
+          head,
+          leftUpperArm,
+          leftLowerArm,
+          rightUpperArm,
+          rightLowerArm,
+          leftUpperLeg,
+          leftLowerLeg,
+          rightUpperLeg,
+          rightLowerLeg,
+          leftFoot,
+          rightFoot
+        ];
+        let glbModel = null;
+        if (glbTemplate?.clone) {
+          const model = glbTemplate.clone(true);
+          model.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+            if (child.material?.clone) {
+              child.material = child.material.clone();
+            }
+          });
+          const glbBox = new THREE.Box3().setFromObject(model);
+          const glbSize = glbBox.getSize(new THREE.Vector3());
+          const sourceHeight = Math.max(glbSize.y, 0.001);
+          const glbScale = visualScale / sourceHeight;
+          model.scale.setScalar(glbScale);
+          model.rotation.y = Math.PI;
+          model.position.set(0, 0, 0);
+          model.updateMatrixWorld(true);
+          const alignedBox = new THREE.Box3().setFromObject(model);
+          const center = alignedBox.getCenter(new THREE.Vector3());
+          model.position.x -= center.x;
+          model.position.z -= center.z;
+          model.position.y -= alignedBox.min.y;
+          model.visible = true;
+          rigGroup.add(model);
+          glbModel = model;
+          fallbackMeshes.forEach((mesh) => {
+            mesh.visible = false;
+          });
+          bridgeHand.visible = false;
+          gripHand.visible = false;
+        }
 
         rigGroup.userData.anim = {
           seat,
@@ -24521,32 +24579,38 @@ const shotPowerRef = useRef(0);
           gripHand,
           leftFoot,
           rightFoot,
+          fallbackMeshes,
+          glbModel,
           humanHeight,
           scale,
+          visualScale,
           poseT: 0,
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: !glbModel
         };
         return rigGroup;
       };
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        const seatedHumanTemplate = await ensureSeatedHumanTemplate();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const leftPlayer = createPlayerCharacterRig({
           seat: 'A',
           x: -sideOffset,
           z: -zOffset,
-          facingY: 0
+          facingY: 0,
+          glbTemplate: seatedHumanTemplate
         });
         const rightPlayer = createPlayerCharacterRig({
           seat: 'B',
           x: sideOffset,
           z: zOffset,
-          facingY: Math.PI
+          facingY: Math.PI,
+          glbTemplate: seatedHumanTemplate
         });
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
@@ -24741,6 +24805,26 @@ const shotPowerRef = useRef(0);
           anim.rightFoot.quaternion.copy(bodyQ);
           anim.leftFoot.rotation.y += -0.24 * t;
           anim.rightFoot.rotation.y += 0.16 * t;
+
+          if (anim.glbModel) {
+            const glbRoot = hipCenterWorld.clone();
+            const shotLean = THREE.MathUtils.lerp(0.04, 0.22, t);
+            const shotPush = THREE.MathUtils.lerp(0.02, 0.12, t + activePower * 0.35);
+            glbRoot.y -= 0.92 * scale;
+            glbRoot.addScaledVector(aimForward, shotPush * scale);
+            anim.glbModel.position.copy(glbRoot);
+            anim.glbModel.quaternion.copy(bodyQ);
+            anim.glbModel.rotation.y += Math.PI;
+            anim.glbModel.rotation.x += -shotLean;
+            anim.glbModel.visible = true;
+            if (Array.isArray(anim.fallbackMeshes)) {
+              anim.fallbackMeshes.forEach((mesh) => {
+                mesh.visible = false;
+              });
+            }
+            if (anim.bridgeHand) anim.bridgeHand.visible = false;
+            if (anim.gripHand) anim.gripHand.visible = false;
+          }
 
         });
       };
