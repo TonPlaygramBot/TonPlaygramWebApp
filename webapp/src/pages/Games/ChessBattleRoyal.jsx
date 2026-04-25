@@ -425,6 +425,7 @@ const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.36 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
 const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
@@ -2183,7 +2184,7 @@ function alignActorFeetToFloorY(actor, floorY = 0) {
   actor.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(actor);
   if (!Number.isFinite(box.min.y)) return 0;
-  const offset = floorY - box.min.y;
+  const offset = floorY - box.min.y - SEATED_HUMAN_FOOT_GROUND_DROP;
   if (Math.abs(offset) > 1e-4) {
     actor.position.y += offset;
     actor.updateMatrixWorld(true);
