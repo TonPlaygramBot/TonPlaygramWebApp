@@ -9,6 +9,162 @@ import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
+const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
+  source: 'open-source',
+  license: 'CC0',
+  author: 'Mixamo / Adobe (sample avatars)'
+});
+
+export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current',
+    label: 'Current Avatar',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    thumbnail: swatchThumbnail(['#2f6f8a', '#1e293b', '#b48d6b']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-aj',
+    label: 'AJ',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
+    thumbnail: swatchThumbnail(['#2a4365', '#1f2937', '#d4a373']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-jane',
+    label: 'Jane',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
+    thumbnail: swatchThumbnail(['#6b21a8', '#1f2937', '#f5c2a0']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-eva',
+    label: 'Eva',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
+    thumbnail: swatchThumbnail(['#0f766e', '#164e63', '#f2c89b']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-joe',
+    label: 'Joe',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
+    thumbnail: swatchThumbnail(['#6b7280', '#1f2937', '#c58f63']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-kaya',
+    label: 'Kaya',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kaya.glb'],
+    thumbnail: swatchThumbnail(['#1d4ed8', '#111827', '#d8b08c']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-ybot',
+    label: 'Y-Bot',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/YBot.glb'],
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#9ca3af']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-xbot',
+    label: 'X-Bot',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'],
+    thumbnail: swatchThumbnail(['#334155', '#0f172a', '#94a3b8']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-soldier',
+    label: 'Soldier',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb'],
+    thumbnail: swatchThumbnail(['#3f6212', '#1f2937', '#b8a083']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-remy',
+    label: 'Remy',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
+    thumbnail: swatchThumbnail(['#7c2d12', '#111827', '#d6a77b']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-priya',
+    label: 'Priya',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Priya.glb'],
+    thumbnail: swatchThumbnail(['#c026d3', '#312e81', '#e6b58f']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-noah',
+    label: 'Noah',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Noah.glb'],
+    thumbnail: swatchThumbnail(['#0891b2', '#0f172a', '#c79b76']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-martha',
+    label: 'Martha',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Martha.glb'],
+    thumbnail: swatchThumbnail(['#7e22ce', '#1f2937', '#f0c4a3']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-lewis',
+    label: 'Lewis',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Lewis.glb'],
+    thumbnail: swatchThumbnail(['#0f766e', '#064e3b', '#cb9d75']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-kiara',
+    label: 'Kiara',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kiara.glb'],
+    thumbnail: swatchThumbnail(['#be123c', '#1f2937', '#e7be98']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-josh',
+    label: 'Josh',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Josh.glb'],
+    thumbnail: swatchThumbnail(['#1d4ed8', '#1f2937', '#c49368']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-grace',
+    label: 'Grace',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Grace.glb'],
+    thumbnail: swatchThumbnail(['#7e22ce', '#4c1d95', '#f0c9aa']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-fred',
+    label: 'Fred',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Fred.glb'],
+    thumbnail: swatchThumbnail(['#78350f', '#1f2937', '#be8f67']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-ellen',
+    label: 'Ellen',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Ellen.glb'],
+    thumbnail: swatchThumbnail(['#0369a1', '#1f2937', '#ebc3a2']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-diego',
+    label: 'Diego',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Diego.glb'],
+    thumbnail: swatchThumbnail(['#166534', '#1f2937', '#bf8a61']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  },
+  {
+    id: 'mixamo-carla',
+    label: 'Carla',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Carla.glb'],
+    thumbnail: swatchThumbnail(['#be185d', '#1f2937', '#e5bc96']),
+    ...CHESS_HUMAN_CHARACTER_SOURCE
+  }
+]);
+
 const BASE_CHAIR_OPTIONS = [
   {
     id: 'crimsonVelvet',
@@ -182,6 +338,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
+  humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID]
 });
 
@@ -235,6 +392,12 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     headChrome: 'Chrome',
     headGold: 'Gold'
   }),
+  humanCharacter: Object.freeze(
+    CHESS_HUMAN_CHARACTER_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
   environmentHdri: Object.freeze(
     POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
       acc[variant.id] = `${variant.name} HDRI`;
@@ -274,7 +437,13 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
     headSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
     headChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
     headGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
-  })
+  }),
+  humanCharacter: Object.freeze(
+    CHESS_HUMAN_CHARACTER_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.thumbnail;
+      return acc;
+    }, {})
+  )
 });
 
 export const CHESS_BATTLE_STORE_ITEMS = [
@@ -500,6 +669,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
+  ...CHESS_HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
+    id: `chess-human-${option.id}`,
+    type: 'humanCharacter',
+    optionId: option.id,
+    name: option.label,
+    price: 620 + idx * 30,
+    description: 'Open-source GLB human character for the seated chess arena.',
+    thumbnail: option.thumbnail
+  })),
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `chess-hdri-${variant.id}`,
     type: 'environmentHdri',
@@ -527,6 +705,11 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },
   { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
+  {
+    type: 'humanCharacter',
+    optionId: CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id,
+    label: CHESS_HUMAN_CHARACTER_OPTIONS[0]?.label || 'Current Avatar'
+  },
   {
     type: 'environmentHdri',
     optionId: DEFAULT_HDRI_ID,

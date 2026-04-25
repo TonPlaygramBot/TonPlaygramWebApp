@@ -48,7 +48,8 @@ import {
   CHESS_CHAIR_OPTIONS,
   CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
-  CHESS_TABLE_FINISH_OPTIONS
+  CHESS_TABLE_FINISH_OPTIONS,
+  CHESS_HUMAN_CHARACTER_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
   chessBattleAccountId,
@@ -424,7 +425,7 @@ const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's ava
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
-const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
@@ -768,16 +769,37 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   applyRightHandGrip(rig, handGrip);
 }
 
-let seatedHumanTemplatePromise = null;
+const seatedHumanTemplatePromiseById = new Map();
 
-async function loadSeatedHumanTemplate(renderer = null) {
-  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
-  seatedHumanTemplatePromise = (async () => {
+async function loadSeatedHumanTemplate(option, renderer = null) {
+  const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
+  const selectedOption = option || fallbackOption;
+  const cacheKey = selectedOption.id || fallbackOption.id || 'default';
+  const cached = seatedHumanTemplatePromiseById.get(cacheKey);
+  if (cached) return cached;
+  const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     loader.setCrossOrigin('anonymous');
-    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
-    const root = gltf?.scene || gltf?.scenes?.[0];
-    if (!root) throw new Error('Missing seated human scene');
+    const modelUrls = Array.isArray(selectedOption?.modelUrls)
+      ? selectedOption.modelUrls.filter(Boolean)
+      : [];
+    const candidateUrls = modelUrls.length
+      ? modelUrls
+      : [SEATED_HUMAN_DEFAULT_MODEL_URL].filter(Boolean);
+    let lastError = null;
+    let root = null;
+    for (const url of candidateUrls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        root = gltf?.scene || gltf?.scenes?.[0];
+        if (root) break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!root) {
+      throw lastError || new Error('Missing seated human scene');
+    }
     const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
     const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
     const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
@@ -801,7 +823,8 @@ async function loadSeatedHumanTemplate(renderer = null) {
     });
     return root;
   })();
-  return seatedHumanTemplatePromise;
+  seatedHumanTemplatePromiseById.set(cacheKey, promise);
+  return promise;
 }
 
 function getDisplayMetrics() {
@@ -2358,11 +2381,13 @@ const DEFAULT_APPEARANCE = {
   whitePieceStyle: 0,
   blackPieceStyle: 1,
   headStyle: 0,
+  humanCharacter: 0,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS]);
 const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_BATTLE_TABLE_OPTIONS]);
+const HUMAN_CHARACTER_OPTIONS = Object.freeze([...CHESS_HUMAN_CHARACTER_OPTIONS]);
 
 const TABLE_FINISH_OPTIONS = Object.freeze([...CHESS_TABLE_FINISH_OPTIONS]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
@@ -2379,6 +2404,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
+  { key: 'humanCharacter', label: 'Human Characters', options: HUMAN_CHARACTER_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
 ];
 
@@ -2414,6 +2440,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
+    ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -2427,6 +2454,7 @@ function normalizeAppearance(value = {}) {
   normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
   normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  if (!Number.isFinite(normalized.humanCharacter)) normalized.humanCharacter = DEFAULT_APPEARANCE.humanCharacter;
   return normalized;
 }
 
@@ -7744,6 +7772,7 @@ function Chess3D({
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableFinish: TABLE_FINISH_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
+        humanCharacter: HUMAN_CHARACTER_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
       };
       let changed = false;
@@ -7844,6 +7873,25 @@ function Chess3D({
               className="absolute inset-0"
               style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
             />
+          )}
+          <div className={overlay} />
+        </div>
+      );
+    }
+    if (key === 'humanCharacter') {
+      return (
+        <div className={baseClass}>
+          {option.thumbnail ? (
+            <img
+              src={option.thumbnail}
+              alt={option.label || 'Human character'}
+              className="absolute inset-0 h-full w-full object-cover opacity-90"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold text-white/80">
+              {option.label || 'Character'}
+            </div>
           )}
           <div className={overlay} />
         </div>
@@ -8367,6 +8415,8 @@ function Chess3D({
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
     const baseOption = DEFAULT_BASE_OPTION;
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const humanCharacterOption =
+      HUMAN_CHARACTER_OPTIONS[normalized.humanCharacter] ?? HUMAN_CHARACTER_OPTIONS[0];
     const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
     const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
@@ -8516,6 +8566,51 @@ function Chess3D({
       } else if (currentId !== nextId) {
         applyChairThemeMaterials(arena, chairTheme);
       }
+    }
+
+    const selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
+    if (selectedHumanCharacterId !== (arena.selectedHumanCharacterId ?? 'default')) {
+      void loadSeatedHumanTemplate(humanCharacterOption, arena.renderer)
+        .then((humanTemplate) => {
+          if (!arenaRef.current) return;
+          const baseScale =
+            (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+            SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+          const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
+          const nextActors = [];
+          (arena.chairs || []).forEach((chair, playerIndex) => {
+            if (!chair?.group) return;
+            const actor = cloneSkinned(humanTemplate);
+            actor.scale.setScalar(baseScale);
+            actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+            actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+            chair.group.add(actor);
+            alignActorFeetToFloorY(actor, arenaFloorY);
+            const rig = saveBoneRig(actor);
+            applySeatedHumanPose(rig, 'idle', 1, 0);
+            const fpvMeshes = { head: [], body: [], arms: [] };
+            actor.traverse((obj) => {
+              if (!obj?.isMesh) return;
+              const meshName = String(obj.name || '').toLowerCase();
+              if (/(head|face|hair|helmet|cap|ear)/.test(meshName)) fpvMeshes.head.push(obj);
+              else if (/(arm|hand|wrist|finger)/.test(meshName)) fpvMeshes.arms.push(obj);
+              else fpvMeshes.body.push(obj);
+            });
+            nextActors.push({ playerIndex, actor, rig, fpvMeshes });
+          });
+          seatedHumanActorsRef.current.forEach((entry) => {
+            if (!entry?.actor) return;
+            const actor = entry.actor;
+            actor.parent?.remove(actor);
+            disposeObject3D(actor);
+          });
+          seatedHumanActorsRef.current = nextActors;
+          seatedHumanMoveActionsRef.current.clear();
+          arena.selectedHumanCharacterId = selectedHumanCharacterId;
+        })
+        .catch((error) => {
+          console.warn('Chess Battle Royal: unable to switch seated human character', error);
+        });
     }
 
     const shouldRefreshBoardPieces = !arena.lastAppliedAppearance || boardOrPieceAppearanceChanged;
@@ -8727,6 +8822,8 @@ function Chess3D({
       const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? DEFAULT_CLOTH_OPTION;
       const baseOption = DEFAULT_BASE_OPTION;
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const humanCharacterOption =
+        HUMAN_CHARACTER_OPTIONS[normalizedAppearance.humanCharacter] ?? HUMAN_CHARACTER_OPTIONS[0];
       const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
       const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
       const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
@@ -9060,7 +9157,7 @@ function Chess3D({
     seatedHumanActorsRef.current = [];
     seatedHumanMoveActionsRef.current.clear();
     try {
-      const humanTemplate = await loadSeatedHumanTemplate(renderer);
+      const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
       const baseScale =
         (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
       chairs.forEach((chair, playerIndex) => {
@@ -9082,6 +9179,7 @@ function Chess3D({
         });
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig, fpvMeshes });
       });
+      arena.selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
     } catch (error) {
       console.warn('Chess Battle Royal: unable to attach seated human actors', error);
     }

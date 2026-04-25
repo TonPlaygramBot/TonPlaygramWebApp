@@ -210,6 +210,7 @@ const CHESS_TYPE_LABELS = {
   tableFinish: 'Table Finish',
   tableCloth: 'Table Cloth',
   chairColor: 'Chairs',
+  humanCharacter: 'Human Characters',
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
@@ -667,6 +668,7 @@ const TYPE_SWATCHES = {
   stools: ['#111827', '#eab308'],
   chairTheme: ['#0f172a', '#f59e0b'],
   chairColor: ['#111827', '#f59e0b'],
+  humanCharacter: ['#334155', '#fca5a5'],
   tableShape: ['#334155', '#64748b'],
   sideColor: ['#f8fafc', '#1f2937'],
   boardTheme: ['#f59e0b', '#14b8a6'],
@@ -770,6 +772,7 @@ const OPTION_SWATCH_OVERRIDES = {
 const PREVIEW_BY_TYPE = {
   cueStyle: 'cue',
   chairColor: 'chair',
+  humanCharacter: 'chair',
   stools: 'chair',
   boardTheme: 'chess-royals',
   sideColor: 'chess-royals',
