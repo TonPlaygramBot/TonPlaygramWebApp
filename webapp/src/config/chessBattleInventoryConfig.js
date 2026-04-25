@@ -15,6 +15,12 @@ const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
   author: 'Mixamo / Adobe (sample avatars)'
 });
 
+const buildThreeExampleModelUrls = (name) =>
+  Object.freeze([
+    `https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/${name}.glb`,
+    `https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/${name}.glb`
+  ]);
+
 export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-current',
@@ -26,140 +32,140 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'mixamo-aj',
     label: 'AJ',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
+    modelUrls: buildThreeExampleModelUrls('Aj'),
     thumbnail: swatchThumbnail(['#2a4365', '#1f2937', '#d4a373']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-jane',
     label: 'Jane',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
+    modelUrls: buildThreeExampleModelUrls('Jane'),
     thumbnail: swatchThumbnail(['#6b21a8', '#1f2937', '#f5c2a0']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-eva',
     label: 'Eva',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
+    modelUrls: buildThreeExampleModelUrls('Eva'),
     thumbnail: swatchThumbnail(['#0f766e', '#164e63', '#f2c89b']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-joe',
     label: 'Joe',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
+    modelUrls: buildThreeExampleModelUrls('Joe'),
     thumbnail: swatchThumbnail(['#6b7280', '#1f2937', '#c58f63']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-kaya',
     label: 'Kaya',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kaya.glb'],
+    modelUrls: buildThreeExampleModelUrls('Kaya'),
     thumbnail: swatchThumbnail(['#1d4ed8', '#111827', '#d8b08c']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-ybot',
     label: 'Y-Bot',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/YBot.glb'],
+    modelUrls: buildThreeExampleModelUrls('YBot'),
     thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#9ca3af']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-xbot',
     label: 'X-Bot',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'],
+    modelUrls: buildThreeExampleModelUrls('Xbot'),
     thumbnail: swatchThumbnail(['#334155', '#0f172a', '#94a3b8']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-soldier',
     label: 'Soldier',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb'],
+    modelUrls: buildThreeExampleModelUrls('Soldier'),
     thumbnail: swatchThumbnail(['#3f6212', '#1f2937', '#b8a083']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-remy',
     label: 'Remy',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
+    modelUrls: buildThreeExampleModelUrls('Remy'),
     thumbnail: swatchThumbnail(['#7c2d12', '#111827', '#d6a77b']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-priya',
     label: 'Priya',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Priya.glb'],
+    modelUrls: buildThreeExampleModelUrls('Priya'),
     thumbnail: swatchThumbnail(['#c026d3', '#312e81', '#e6b58f']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-noah',
     label: 'Noah',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Noah.glb'],
+    modelUrls: buildThreeExampleModelUrls('Noah'),
     thumbnail: swatchThumbnail(['#0891b2', '#0f172a', '#c79b76']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-martha',
     label: 'Martha',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Martha.glb'],
+    modelUrls: buildThreeExampleModelUrls('Martha'),
     thumbnail: swatchThumbnail(['#7e22ce', '#1f2937', '#f0c4a3']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-lewis',
     label: 'Lewis',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Lewis.glb'],
+    modelUrls: buildThreeExampleModelUrls('Lewis'),
     thumbnail: swatchThumbnail(['#0f766e', '#064e3b', '#cb9d75']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-kiara',
     label: 'Kiara',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kiara.glb'],
+    modelUrls: buildThreeExampleModelUrls('Kiara'),
     thumbnail: swatchThumbnail(['#be123c', '#1f2937', '#e7be98']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-josh',
     label: 'Josh',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Josh.glb'],
+    modelUrls: buildThreeExampleModelUrls('Josh'),
     thumbnail: swatchThumbnail(['#1d4ed8', '#1f2937', '#c49368']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-grace',
     label: 'Grace',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Grace.glb'],
+    modelUrls: buildThreeExampleModelUrls('Grace'),
     thumbnail: swatchThumbnail(['#7e22ce', '#4c1d95', '#f0c9aa']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-fred',
     label: 'Fred',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Fred.glb'],
+    modelUrls: buildThreeExampleModelUrls('Fred'),
     thumbnail: swatchThumbnail(['#78350f', '#1f2937', '#be8f67']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-ellen',
     label: 'Ellen',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Ellen.glb'],
+    modelUrls: buildThreeExampleModelUrls('Ellen'),
     thumbnail: swatchThumbnail(['#0369a1', '#1f2937', '#ebc3a2']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-diego',
     label: 'Diego',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Diego.glb'],
+    modelUrls: buildThreeExampleModelUrls('Diego'),
     thumbnail: swatchThumbnail(['#166534', '#1f2937', '#bf8a61']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
     id: 'mixamo-carla',
     label: 'Carla',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Carla.glb'],
+    modelUrls: buildThreeExampleModelUrls('Carla'),
     thumbnail: swatchThumbnail(['#be185d', '#1f2937', '#e5bc96']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   }
