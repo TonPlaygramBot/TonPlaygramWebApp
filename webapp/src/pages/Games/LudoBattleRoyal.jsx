@@ -1728,8 +1728,8 @@ const AI_CHAIR_RADIUS =
   CHAIR_OUTWARD_OFFSET -
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
-const CHAIR_GLOBAL_PUSHBACK = 0.115 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.155 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.146 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.182 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1762,15 +1762,25 @@ const CHAIR_MODEL_URLS = [
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.24;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.26 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.42 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.052 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.088 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.027 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.022 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.064 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.098 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.022 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = 0.008 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = 0.011 * MODEL_SCALE;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -4301,6 +4311,45 @@ function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_
   actor.updateMatrixWorld(true);
 }
 
+function createSeatedHumanActionHelpers(actor, rig) {
+  const rightHand = rig?.rightHand;
+  const helperRoot = rightHand?.isBone ? rightHand : actor;
+  if (!helperRoot?.isObject3D) return null;
+  const createHelper = (name, x, y, z) => {
+    const helper = new THREE.Object3D();
+    helper.name = name;
+    helper.position.set(x, y, z);
+    helperRoot.add(helper);
+    return helper;
+  };
+  return {
+    dicePickup: createHelper(
+      'dicePickupHelper',
+      SEATED_HELPER_RIGHT_DICE,
+      SEATED_HELPER_UP_DICE_PICKUP,
+      SEATED_HELPER_FORWARD_DICE_PICKUP
+    ),
+    diceRelease: createHelper(
+      'diceReleaseHelper',
+      SEATED_HELPER_RIGHT_DICE,
+      SEATED_HELPER_UP_DICE_RELEASE,
+      SEATED_HELPER_FORWARD_DICE_RELEASE
+    ),
+    tokenPickup: createHelper(
+      'tokenPickupHelper',
+      SEATED_HELPER_RIGHT_TOKEN,
+      SEATED_HELPER_UP_TOKEN_PICKUP,
+      SEATED_HELPER_FORWARD_TOKEN_PICKUP
+    ),
+    tokenPlace: createHelper(
+      'tokenPlaceHelper',
+      SEATED_HELPER_RIGHT_TOKEN,
+      SEATED_HELPER_UP_TOKEN_PLACE,
+      SEATED_HELPER_FORWARD_TOKEN_PLACE
+    )
+  };
+}
+
 async function loadSeatedHumanTemplate(renderer = null) {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
@@ -4346,7 +4395,8 @@ function spinDice(
     duration = 900,
     targetPosition = new THREE.Vector3(),
     bounceHeight = 0.06,
-    handPositionSampler = null
+    handPickupSampler = null,
+    handReleaseSampler = null
   } = {}
 ) {
   return new Promise((resolve) => {
@@ -4360,7 +4410,8 @@ function spinDice(
     );
     const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
-    const handTarget = new THREE.Vector3();
+    const pickupHandTarget = new THREE.Vector3();
+    const releaseHandTarget = new THREE.Vector3();
     const easedTarget = new THREE.Vector3();
     const pickupPhase = 0.32;
     const throwBlendPhase = 0.58;
@@ -4370,16 +4421,21 @@ function spinDice(
       const t = Math.min(1, (now - start) / Math.max(1, duration));
       const eased = easeOutCubic(t);
       const position = startPos.clone().lerp(endPos, eased);
-      const handAvailable =
-        typeof handPositionSampler === 'function' && handPositionSampler(handTarget) !== false;
-      if (handAvailable) {
+      const pickupAvailable =
+        typeof handPickupSampler === 'function' && handPickupSampler(pickupHandTarget) !== false;
+      const releaseAvailable =
+        typeof handReleaseSampler === 'function' && handReleaseSampler(releaseHandTarget) !== false;
+      const handAvailable = pickupAvailable || releaseAvailable;
+      const handPickup = pickupAvailable ? pickupHandTarget : releaseAvailable ? releaseHandTarget : null;
+      const handRelease = releaseAvailable ? releaseHandTarget : pickupAvailable ? pickupHandTarget : null;
+      if (handAvailable && handPickup) {
         if (t <= pickupPhase) {
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
-          easedTarget.copy(startPos).lerp(handTarget, easeInOutCubic(pickupT));
+          easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
           position.copy(easedTarget);
         } else if (t <= throwBlendPhase) {
           const throwT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase - pickupPhase), 0, 1);
-          easedTarget.copy(handTarget).lerp(endPos, easeOutCubic(throwT));
+          easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
           position.copy(easedTarget);
         }
       }
@@ -6796,7 +6852,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1);
         alignSeatedHumanFeetToGroundPlane(actor, rig);
-        seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
+        const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
+        seatedHumanActorsRef.current.push({ playerIndex, actor, rig, actionHelpers });
       });
     } catch (error) {
       console.warn('Unable to attach seated human actors for Ludo chairs', error);
@@ -7222,15 +7279,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const anim = state.animation;
             const seg = anim.segments?.[anim.segment];
             const segProgress = seg ? clamp(anim.elapsed / Math.max(seg.duration, 1e-4), 0, 1) : 1;
-            if (anim.segment <= 0) {
+            const helperPhase = seg?.viaHelper || null;
+            if (helperPhase === 'pickup') {
               mode = 'reachToken';
               intensity = segProgress;
               handGrip = 0.05;
-            } else if (anim.segment === 1) {
+            } else if (anim.segment > 0 && anim.segments?.[anim.segment - 1]?.viaHelper === 'pickup') {
               mode = 'gripToken';
               intensity = segProgress;
               handGrip = segProgress;
-            } else if (anim.segment >= Math.max((anim.segments?.length || 1) - 1, 2)) {
+            } else if (helperPhase === 'place' || anim.segments?.[anim.segment + 1]?.viaHelper === 'place') {
               mode = 'placeToken';
               intensity = segProgress;
               handGrip = 1 - segProgress * 0.85;
@@ -8656,16 +8714,53 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
+    const pickupHelper = new THREE.Vector3();
+    const placeHelper = new THREE.Vector3();
+    const hasPickupHelper = sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
+    const hasPlaceHelper = sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
+    const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
+      collection.push({
+        position,
+        progress,
+        viaHelper
+      });
+    };
+    const animatedPath = [];
+    if (path.length) {
+      pushPathNode(animatedPath, path[0].position, path[0].progress);
+      if (hasPickupHelper && path.length > 1 && path[0].position.distanceTo(pickupHelper) > 1e-4) {
+        pushPathNode(animatedPath, pickupHelper.clone(), null, 'pickup');
+      }
+      for (let i = 1; i < path.length; i += 1) {
+        if (hasPlaceHelper && i === path.length - 1 && path[i - 1].position.distanceTo(placeHelper) > 1e-4) {
+          pushPathNode(animatedPath, placeHelper.clone(), null, 'place');
+        }
+        pushPathNode(animatedPath, path[i].position, path[i].progress);
+      }
+    }
     const segments = [];
     const highlightTiles = [];
-    for (let i = 0; i < path.length - 1; i++) {
-      const from = path[i].position;
-      const to = path[i + 1].position;
+    for (let i = 0; i < animatedPath.length - 1; i++) {
+      const fromNode = animatedPath[i];
+      const toNode = animatedPath[i + 1];
+      const from = fromNode.position;
+      const to = toNode.position;
       const distance = from.distanceTo(to);
       const duration = Math.max(TOKEN_STEP_DURATION_SECONDS, distance / TOKEN_MOVE_SPEED);
-      segments.push({ from, to, distance, duration, progress: path[i + 1].progress });
-      const tile = findTileForProgress(player, path[i + 1].progress);
-      highlightTiles.push(tile ?? null);
+      segments.push({
+        from,
+        to,
+        distance,
+        duration,
+        progress: toNode.progress,
+        viaHelper: toNode.viaHelper || null
+      });
+      if (toNode.progress == null) {
+        highlightTiles.push(null);
+      } else {
+        const tile = findTileForProgress(player, toNode.progress);
+        highlightTiles.push(tile ?? null);
+      }
     }
     if (!segments.length) {
       if (token && shouldFollowCamera) {
@@ -9101,19 +9196,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return list;
   };
 
-  const sampleDiceHandPosition = useCallback((player, out) => {
+  const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
     if (!out?.isVector3) return false;
     const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    const handBone = actorEntry?.rig?.rightHand;
-    if (!handBone?.isBone) return false;
-    handBone.updateMatrixWorld?.(true);
-    handBone.getWorldPosition(out);
-    const handQuat = handBone.getWorldQuaternion(new THREE.Quaternion());
-    const handForward = new THREE.Vector3(0, 0, 1).applyQuaternion(handQuat).normalize();
-    const handRight = new THREE.Vector3(1, 0, 0).applyQuaternion(handQuat).normalize();
-    out.addScaledVector(handForward, 0.06 * MODEL_SCALE);
-    out.addScaledVector(handRight, -0.028 * MODEL_SCALE);
-    out.y += 0.018 * MODEL_SCALE;
+    const helper = actorEntry?.actionHelpers?.[helperKey];
+    if (!helper?.isObject3D) return false;
+    helper.updateMatrixWorld?.(true);
+    helper.getWorldPosition(out);
     return true;
   }, []);
 
@@ -9160,7 +9249,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06,
-      handPositionSampler: (out) => sampleDiceHandPosition(player, out)
+      handPickupSampler: (out) => sampleHumanActionHelperPosition(player, 'dicePickup', out),
+      handReleaseSampler: (out) => sampleHumanActionHelperPosition(player, 'diceRelease', out)
     });
     dice.userData.isRolling = false;
     seatedHumanActionRef.current.rollEndMs = performance.now();
