@@ -60,14 +60,10 @@ export const sampleCueStrokeTimeline = ({
       }
     }
     const strikeT = THREE.MathUtils.clamp((baseT - strikeStartT) / Math.max(strikeShare, 1e-6), 0, 1)
-    const cueAtContact = strikeT >= 0.999
     return {
       phase: 'strike',
       t: Math.max(styleT, strikeT),
-      // Fire physics only when the cue has fully reached cue-ball contact.
-      // Slider power still controls pull amount + strike speed, but release
-      // should happen from cue impact, not early in the forward motion.
-      hitArmed: cueAtContact && baseT >= hitT,
+      hitArmed: baseT >= hitT,
       done: false
     }
   }
