@@ -1927,7 +1927,11 @@ const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
 const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
+const POOL_ROYALE_HUMAN_GLTF_URLS = [
+  '/assets/models/pool-royale-human.glb',
+  LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL
+];
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.35; // make Pool Royale humans visibly bigger on portrait view
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -1938,6 +1942,18 @@ const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.42; // transition the shooter into cue-address pose once camera is lowered toward cue view
+const REFERENCE_HUMAN_IDLE_GAP = BALL_R * (0.012 / 0.055);
+const REFERENCE_HUMAN_CONTACT_GAP = BALL_R * (0.0012 / 0.055);
+const REFERENCE_HUMAN_PULL_RANGE = BALL_R * (0.42 / 0.055);
+const REFERENCE_HUMAN_PRACTICE_STROKE = BALL_R * (0.035 / 0.055);
+const REFERENCE_HUMAN_BRIDGE_HAND_BACK = BALL_R * (0.245 / 0.055);
+const REFERENCE_HUMAN_BRIDGE_HAND_SIDE = BALL_R * (-0.008 / 0.055);
+const REFERENCE_HUMAN_BRIDGE_PALM_LIFT = BALL_R * (0.012 / 0.055);
+const REFERENCE_HUMAN_BRIDGE_CUE_LIFT = BALL_R * (0.026 / 0.055);
+const REFERENCE_HUMAN_BRIDGE_CUE_FORWARD = BALL_R * (0.01 / 0.055);
+const REFERENCE_HUMAN_CUE_LENGTH = BALL_R * (1.46 / 0.055);
+const REFERENCE_HUMAN_CUE_BRIDGE_DIST = BALL_R * (0.24 / 0.055);
+const REFERENCE_HUMAN_CUE_BACK_LIFT = BALL_R * (0.028 / 0.055);
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -19673,7 +19689,7 @@ const shotPowerRef = useRef(0);
         if (seatedHumanLoadRef.current) {
           return seatedHumanLoadRef.current;
         }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL])
+        seatedHumanLoadRef.current = loadFirstAvailableGltf(POOL_ROYALE_HUMAN_GLTF_URLS)
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
@@ -24393,6 +24409,87 @@ const shotPowerRef = useRef(0);
         return new THREE.Quaternion().setFromRotationMatrix(basis);
       };
 
+      const cleanBoneName = (name = '') => String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const findBoneByAliases = (bones, aliases = []) => {
+        if (!Array.isArray(bones) || !bones.length) return null;
+        const normalized = bones.map((bone) => ({ bone, name: cleanBoneName(bone?.name) }));
+        const wanted = aliases.map((alias) => cleanBoneName(alias));
+        for (const alias of wanted) {
+          const exact = normalized.find((entry) => entry.name === alias || entry.name.endsWith(alias));
+          if (exact?.bone) return exact.bone;
+        }
+        for (const alias of wanted) {
+          const loose = normalized.find((entry) => entry.name.includes(alias));
+          if (loose?.bone) return loose.bone;
+        }
+        return null;
+      };
+
+      const buildPlayerAvatarBones = (model) => {
+        const bones = [];
+        model?.traverse?.((child) => {
+          if (child?.isBone) bones.push(child);
+        });
+        return {
+          hips: findBoneByAliases(bones, ['hips', 'pelvis', 'mixamorigHips']),
+          spine: findBoneByAliases(bones, ['spine', 'spine1', 'mixamorigSpine']),
+          chest: findBoneByAliases(bones, ['spine2', 'chest', 'upperchest', 'mixamorigSpine2']),
+          head: findBoneByAliases(bones, ['head', 'mixamorigHead']),
+          leftUpperArm: findBoneByAliases(bones, ['leftupperarm', 'leftarm', 'mixamorigLeftArm']),
+          leftLowerArm: findBoneByAliases(bones, ['leftforearm', 'leftlowerarm', 'mixamorigLeftForeArm']),
+          rightUpperArm: findBoneByAliases(bones, ['rightupperarm', 'rightarm', 'mixamorigRightArm']),
+          rightLowerArm: findBoneByAliases(bones, ['rightforearm', 'rightlowerarm', 'mixamorigRightForeArm']),
+          leftUpperLeg: findBoneByAliases(bones, ['leftupleg', 'leftthigh', 'mixamorigLeftUpLeg']),
+          leftLowerLeg: findBoneByAliases(bones, ['leftleg', 'leftlowerleg', 'mixamorigLeftLeg']),
+          rightUpperLeg: findBoneByAliases(bones, ['rightupleg', 'rightthigh', 'mixamorigRightUpLeg']),
+          rightLowerLeg: findBoneByAliases(bones, ['rightleg', 'rightlowerleg', 'mixamorigRightLeg'])
+        };
+      };
+
+      const driveGltfPlayerPose = (anim, mode, poseT, power) => {
+        if (!anim?.gltfBones || !anim?.gltfRestPose) return;
+        const t = THREE.MathUtils.clamp(poseT, 0, 1);
+        anim.gltfRestPose.forEach((restQ, bone) => {
+          bone.quaternion.copy(restQ);
+        });
+        const aimWeight = mode === 'aim' || mode === 'strike' ? t : 0;
+        const strikeWeight = mode === 'strike' ? 1 : 0;
+        const powerWeight = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const {
+          hips,
+          spine,
+          chest,
+          head,
+          leftUpperArm,
+          leftLowerArm,
+          rightUpperArm,
+          rightLowerArm,
+          leftUpperLeg,
+          leftLowerLeg,
+          rightUpperLeg,
+          rightLowerLeg
+        } = anim.gltfBones;
+        if (hips) hips.rotation.x += -0.12 * aimWeight;
+        if (spine) spine.rotation.x += -0.25 * aimWeight;
+        if (chest) chest.rotation.x += -0.34 * aimWeight - 0.05 * powerWeight;
+        if (head) head.rotation.x += -0.1 * aimWeight;
+        if (leftUpperArm) {
+          leftUpperArm.rotation.x += -0.68 * aimWeight;
+          leftUpperArm.rotation.z += -0.32 * aimWeight;
+        }
+        if (leftLowerArm) leftLowerArm.rotation.x += -0.42 * aimWeight;
+        if (rightUpperArm) {
+          rightUpperArm.rotation.x += -0.48 * aimWeight - 0.2 * strikeWeight;
+          rightUpperArm.rotation.z += 0.18 * aimWeight;
+        }
+        if (rightLowerArm) rightLowerArm.rotation.x += -0.32 * aimWeight - 0.22 * strikeWeight;
+        if (leftUpperLeg) leftUpperLeg.rotation.x += 0.14 * aimWeight;
+        if (leftLowerLeg) leftLowerLeg.rotation.x += -0.2 * aimWeight;
+        if (rightUpperLeg) rightUpperLeg.rotation.x += -0.08 * aimWeight;
+        if (rightLowerLeg) rightLowerLeg.rotation.x += -0.12 * aimWeight;
+      };
+
       const createBridgeHandGroup = (skinMat) => {
         const group = new THREE.Group();
         const palm = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.022, 0.115), skinMat);
@@ -24441,8 +24538,12 @@ const shotPowerRef = useRef(0);
 
       const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
+        const proceduralRoot = new THREE.Group();
+        const gltfRoot = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
+        rigGroup.add(proceduralRoot);
+        rigGroup.add(gltfRoot);
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = humanHeight / 1.82;
@@ -24494,11 +24595,11 @@ const shotPowerRef = useRef(0);
         ].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          rigGroup.add(mesh);
+          proceduralRoot.add(mesh);
         });
 
-        rigGroup.add(bridgeHand);
-        rigGroup.add(gripHand);
+        proceduralRoot.add(bridgeHand);
+        proceduralRoot.add(gripHand);
 
         rigGroup.userData.anim = {
           seat,
@@ -24527,8 +24628,52 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: false,
+          proceduralRoot,
+          gltfRoot,
+          gltfModel: null,
+          gltfBones: null,
+          gltfRestPose: null
         };
+
+        void ensureSeatedHumanTemplate()
+          .then((template) => {
+            if (!template || !rigGroup.userData?.anim) return;
+            const model = template.clone(true);
+            model.traverse((child) => {
+              if (!child?.isMesh) return;
+              child.castShadow = true;
+              child.receiveShadow = true;
+              child.frustumCulled = false;
+            });
+            const anim = rigGroup.userData.anim;
+            gltfRoot.clear();
+            gltfRoot.add(model);
+            const gltfScale = Math.max(0.0001, scale * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER);
+            gltfRoot.scale.setScalar(gltfScale);
+            gltfRoot.rotation.y = Math.PI;
+
+            model.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.x -= center.x;
+            model.position.y -= box.min.y;
+            model.position.z -= center.z;
+
+            const bones = buildPlayerAvatarBones(model);
+            const restPose = new Map();
+            Object.values(bones).forEach((bone) => {
+              if (bone) restPose.set(bone, bone.quaternion.clone());
+            });
+            anim.gltfModel = model;
+            anim.gltfBones = bones;
+            anim.gltfRestPose = restPose;
+            proceduralRoot.visible = false;
+          })
+          .catch((error) => {
+            console.warn('Failed to attach Pool Royale player GLB', error);
+          });
+
         return rigGroup;
       };
 
@@ -24607,6 +24752,14 @@ const shotPowerRef = useRef(0);
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
 
+          if (anim.gltfModel) {
+            anim.proceduralRoot.visible = false;
+            anim.gltfRoot.visible = true;
+          } else {
+            anim.proceduralRoot.visible = true;
+            anim.gltfRoot.visible = false;
+          }
+
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
@@ -24642,44 +24795,57 @@ const shotPowerRef = useRef(0);
           const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
           const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
 
+          const tableTopY = TABLE_Y + TABLE.THICK + BALL_R * 0.58;
           const bridgeHandTarget = cueWorld
             .clone()
-            .addScaledVector(aimForward, -(TABLE.W * 0.12))
-            .addScaledVector(side, -0.018 * scale)
-            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
+            .addScaledVector(aimForward, -REFERENCE_HUMAN_BRIDGE_HAND_BACK)
+            .addScaledVector(side, REFERENCE_HUMAN_BRIDGE_HAND_SIDE)
+            .setY(tableTopY + REFERENCE_HUMAN_BRIDGE_PALM_LIFT);
+
+          const bridgeCuePoint = bridgeHandTarget
+            .clone()
+            .addScaledVector(aimForward, REFERENCE_HUMAN_BRIDGE_CUE_FORWARD)
+            .add(new THREE.Vector3(0, REFERENCE_HUMAN_BRIDGE_CUE_LIFT, 0));
 
           const humanShotState =
             mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
           const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
           const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
           const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
-          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
+          const pull = REFERENCE_HUMAN_PULL_RANGE * (1 - Math.pow(1 - activePower, 3));
           const practiceStroke =
             humanShotState === 'dragging'
-              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
+              ? Math.sin(nowMs * 0.012) * REFERENCE_HUMAN_PRACTICE_STROKE * (0.25 + activePower * 0.75)
               : 0;
           const strikeNorm =
             humanShotState === 'striking'
               ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
               : 0;
-          let cueBallGap = BALL_R * 1.22;
+
+          let cueGap = REFERENCE_HUMAN_IDLE_GAP;
           if (humanShotState === 'dragging') {
-            cueBallGap += pull + practiceStroke;
+            cueGap = REFERENCE_HUMAN_IDLE_GAP + pull + practiceStroke;
           } else if (humanShotState === 'striking') {
-            cueBallGap = THREE.MathUtils.lerp(
-              BALL_R * (1.22 + (pull / BALL_R)),
-              BALL_R * 1.05,
+            cueGap = THREE.MathUtils.lerp(
+              REFERENCE_HUMAN_IDLE_GAP + pull,
+              REFERENCE_HUMAN_CONTACT_GAP,
               1 - Math.pow(1 - strikeNorm, 3)
             );
           }
+
           const cueTipShoot = cueWorld
             .clone()
-            .addScaledVector(aimForward, -cueBallGap)
-            .setY(bridgeHandTarget.y + 0.05 * scale);
-          const cueBackShoot = bridgeHandTarget
+            .addScaledVector(aimForward, -(BALL_R + cueGap))
+            .setY(bridgeCuePoint.y);
+
+          const cueBackShoot = bridgeCuePoint
             .clone()
-            .addScaledVector(aimForward, -(anim.humanHeight * 0.76))
-            .add(new THREE.Vector3(0, 0.028 * scale, 0));
+            .addScaledVector(
+              aimForward,
+              -(REFERENCE_HUMAN_CUE_LENGTH - REFERENCE_HUMAN_CUE_BRIDGE_DIST - BALL_R - cueGap)
+            )
+            .add(new THREE.Vector3(0, REFERENCE_HUMAN_CUE_BACK_LIFT, 0));
+
           const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, 0.76);
 
           const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
@@ -24741,6 +24907,13 @@ const shotPowerRef = useRef(0);
           anim.rightFoot.quaternion.copy(bodyQ);
           anim.leftFoot.rotation.y += -0.24 * t;
           anim.rightFoot.rotation.y += 0.16 * t;
+
+          if (anim.gltfModel) {
+            anim.gltfRoot.position.copy(hipCenterWorld);
+            anim.gltfRoot.position.y -= 0.95 * scale;
+            anim.gltfRoot.rotation.y = anim.yaw + Math.PI;
+            driveGltfPlayerPose(anim, mode, t, activePower);
+          }
 
         });
       };
