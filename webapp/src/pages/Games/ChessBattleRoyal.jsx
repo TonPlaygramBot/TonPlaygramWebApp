@@ -352,7 +352,7 @@ const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
 const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = 0.11; // Lift board + pieces higher above table for clearer portrait gameplay framing.
+const BOARD_GROUP_Y_OFFSET = 0.035;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
@@ -432,13 +432,13 @@ const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
 const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 0.42;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 0.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.0;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.0;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.03;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.05;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.22;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -2437,7 +2437,7 @@ const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable',
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.7; // push parked vehicles farther to the sides
-const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.4; // lift parked support weapons higher so they track the raised board plane
+const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.28; // increase parked truck size just a bit more
 
@@ -9181,31 +9181,12 @@ function Chess3D({
       ? PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT
       : PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
-    const bottomPlayerEntry = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === 0);
-    const headAnchor = bottomPlayerEntry?.rig?.head || bottomPlayerEntry?.rig?.neck || bottomPlayerEntry?.actor;
-    const cameraForward = new THREE.Vector3(
-      tablePlacementOffset.x,
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
       tableSurfaceY + cameraHeightOffset,
-      tablePlacementOffset.z
+      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
     );
-    if (headAnchor) {
-      const headWorld = new THREE.Vector3();
-      headAnchor.getWorldPosition(headWorld);
-      const toBoard = new THREE.Vector3().subVectors(boardLookTarget, headWorld);
-      if (toBoard.lengthSq() < 1e-6) {
-        toBoard.set(0, -0.02, -1);
-      }
-      toBoard.normalize();
-      camera.position.copy(headWorld).addScaledVector(toBoard, 0.03);
-      cameraForward.copy(boardLookTarget);
-    } else {
-      camera.position.set(
-        Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
-        tableSurfaceY + cameraHeightOffset,
-        Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
-      );
-    }
-    camera.lookAt(cameraForward);
+    camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
