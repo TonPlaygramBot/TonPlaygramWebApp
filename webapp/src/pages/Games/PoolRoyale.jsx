@@ -1842,8 +1842,8 @@ const SHOT_FORCE_BOOST =
   SHOT_GLOBAL_POWER_SCALE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
+const SHOT_MIN_FACTOR = 0;
+const SHOT_POWER_RANGE = 1;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -1921,7 +1921,13 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
+const CUE_POWER_GAMMA = 1.18; // keep slider-to-speed mapping closer to linear so cue-ball speed follows slider power
+const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.62; // keep standing avatar height close to real world relative to table length
+const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
+const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
+const HUMAN_PLAYER_AIM_LEAN = 0.2;
+const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -15267,6 +15273,9 @@ function PoolRoyaleGame({
   const clearHospitalityLayoutRef = useRef(() => {});
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
+  const playerCharacterRigsRef = useRef([]);
+  const characterShotStartedAtRef = useRef(0);
+  const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
@@ -24314,6 +24323,139 @@ const shotPowerRef = useRef(0);
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
       layoutHospitalityGroups(environmentHdriRef.current);
+      const disposePlayerCharacters = () => {
+        playerCharacterRigsRef.current.forEach((rig) => {
+          if (rig?.group?.parent) {
+            rig.group.parent.remove(rig.group);
+          }
+        });
+        playerCharacterRigsRef.current = [];
+      };
+      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+        const rigGroup = new THREE.Group();
+        rigGroup.position.set(x, floorY, z);
+        rigGroup.rotation.y = facingY;
+        const torsoPivot = new THREE.Group();
+        rigGroup.add(torsoPivot);
+        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+        const torsoHeight = humanHeight * 0.46;
+        const legHeight = humanHeight * 0.42;
+        const shoulderY = legHeight + torsoHeight * 0.84;
+        const headRadius = humanHeight * 0.09;
+        const skin = new THREE.MeshStandardMaterial({ color: 0xf4d8c2, roughness: 0.84, metalness: 0.02 });
+        const cloth = new THREE.MeshStandardMaterial({
+          color: seat === 'A' ? 0x3558d6 : 0x2a2a2f,
+          roughness: 0.75,
+          metalness: 0.06
+        });
+        const trousers = new THREE.MeshStandardMaterial({ color: 0x161920, roughness: 0.86, metalness: 0.04 });
+        const cuePaint = new THREE.MeshStandardMaterial({ color: 0xb28452, roughness: 0.68, metalness: 0.14 });
+        const torso = new THREE.Mesh(
+          new THREE.CapsuleGeometry(humanHeight * 0.07, torsoHeight, 8, 14),
+          cloth
+        );
+        torso.position.set(0, legHeight + torsoHeight * 0.5, 0);
+        torsoPivot.add(torso);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 18, 16), skin);
+        head.position.set(0, legHeight + torsoHeight + headRadius * 1.12, 0);
+        torsoPivot.add(head);
+        const legOffset = humanHeight * 0.05;
+        [-1, 1].forEach((side) => {
+          const leg = new THREE.Mesh(
+            new THREE.CapsuleGeometry(humanHeight * 0.03, legHeight, 7, 10),
+            trousers
+          );
+          leg.position.set(legOffset * side, legHeight * 0.5, 0);
+          torsoPivot.add(leg);
+        });
+        const cue = new THREE.Mesh(
+          new THREE.CylinderGeometry(humanHeight * 0.005, humanHeight * 0.008, humanHeight * 0.78, 12),
+          cuePaint
+        );
+        cue.rotation.z = Math.PI / 2;
+        cue.position.set(humanHeight * 0.17, shoulderY - humanHeight * 0.12, humanHeight * 0.02);
+        torsoPivot.add(cue);
+        rigGroup.userData.anim = {
+          seat,
+          mode: 'idle',
+          intensity: 0,
+          torsoPivot,
+          head,
+          cue,
+          humanHeight
+        };
+        rigGroup.traverse((child) => {
+          if (!child.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        });
+        return rigGroup;
+      };
+      const spawnPlayerCharacters = () => {
+        disposePlayerCharacters();
+        const zOffset = TABLE.H * 0.72;
+        const sideOffset = TABLE.W * 0.19;
+        const leftPlayer = createPlayerCharacterRig({
+          seat: 'A',
+          x: -sideOffset,
+          z: -zOffset,
+          facingY: 0
+        });
+        const rightPlayer = createPlayerCharacterRig({
+          seat: 'B',
+          x: sideOffset,
+          z: zOffset,
+          facingY: Math.PI
+        });
+        playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
+          group,
+          anim: group.userData.anim
+        }));
+        playerCharacterRigsRef.current.forEach((rig) => world.add(rig.group));
+      };
+      const updatePlayerCharacters = (nowMs, dtSeconds) => {
+        const rigs = playerCharacterRigsRef.current;
+        if (!Array.isArray(rigs) || rigs.length === 0) return;
+        const hudState = hudRef.current;
+        const isReplay = Boolean(replayPlaybackRef.current);
+        const isShotActive = Boolean(shootingRef.current);
+        const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
+        const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
+        const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
+        rigs.forEach((rig) => {
+          const anim = rig?.anim;
+          if (!anim?.torsoPivot || !anim?.head || !anim?.cue) return;
+          const isShooter = anim.seat === activeSeat;
+          let mode = 'idle';
+          if (isReplay) mode = 'idle';
+          else if (isShotActive && anim.seat === shotSeat && shotAge < 420) mode = 'strike';
+          else if (isShotActive) mode = 'react';
+          else if (isShooter) mode = 'aim';
+          anim.mode = mode;
+          const targetIntensity =
+            mode === 'aim' ? 1 : mode === 'strike' ? 1 : mode === 'react' ? 0.7 : 0.2;
+          const lerpT = THREE.MathUtils.clamp(dtSeconds * 6.5, 0, 1);
+          anim.intensity = THREE.MathUtils.lerp(anim.intensity ?? 0, targetIntensity, lerpT);
+          const phase = nowMs * 0.001 * HUMAN_PLAYER_IDLE_SWAY_SPEED + (anim.seat === 'A' ? 0 : Math.PI);
+          const sway = Math.sin(phase) * HUMAN_PLAYER_IDLE_SWAY_ANGLE;
+          const cueSwing = Math.sin(phase * 1.8) * HUMAN_PLAYER_IDLE_SWAY_ANGLE * 0.6;
+          anim.torsoPivot.rotation.x =
+            mode === 'aim'
+              ? -HUMAN_PLAYER_AIM_LEAN * anim.intensity
+              : mode === 'strike'
+                ? -HUMAN_PLAYER_AIM_LEAN * 1.15
+                : mode === 'react'
+                  ? HUMAN_PLAYER_REACT_LEAN * anim.intensity
+                  : sway * anim.intensity;
+          anim.torsoPivot.rotation.y = sway * 0.42;
+          anim.head.rotation.y = sway * 0.5;
+          anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing;
+          anim.cue.position.z =
+            anim.humanHeight * 0.02 +
+            (mode === 'strike' ? -anim.humanHeight * 0.05 : cueSwing * anim.humanHeight * 0.18);
+        });
+      };
+      spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -26367,7 +26509,13 @@ const shotPowerRef = useRef(0);
           ? committedPowerOverride
           : powerRef.current;
         const clampedPower = clampPower(sourcePower, 0);
+        if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
+          setShootingState(false);
+          return;
+        }
         shotPowerRef.current = clampedPower;
+        characterShotStartedAtRef.current = shotStartTime;
+        characterShotShooterRef.current = currentHud?.turn === 1 ? 'B' : 'A';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -32351,6 +32499,7 @@ const shotPowerRef = useRef(0);
             fit(1 + edge * 0.08);
           }
           syncCueShadow();
+          updatePlayerCharacters(now, deltaSeconds);
           const frameCamera = updateCamera();
           const handIconEl = inHandIconRef.current;
           if (handIconEl) {
@@ -32568,6 +32717,10 @@ const shotPowerRef = useRef(0);
         clearDecorTablesRef.current = () => {};
         clearHospitalityLayoutRef.current?.();
         hospitalityGroupsRef.current = [];
+        playerCharacterRigsRef.current.forEach((rig) => {
+          if (rig?.group?.parent) rig.group.parent.remove(rig.group);
+        });
+        playerCharacterRigsRef.current = [];
         updateHospitalityLayoutRef.current = () => {};
         clearHospitalityLayoutRef.current = () => {};
         chessBoardTextureRef.current?.dispose?.();
