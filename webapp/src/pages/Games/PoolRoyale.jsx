@@ -115,7 +115,6 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
-import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1925,7 +1924,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
-const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
+const MIN_SHOT_POWER_TO_FIRE = 0.02; // match Bilardo Shqip release threshold and ignore accidental micro drags
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
@@ -24505,6 +24504,29 @@ const shotPowerRef = useRef(0);
         rigGroup.add(bridgeHand);
         rigGroup.add(gripHand);
 
+        const proceduralParts = [
+          pelvis,
+          torso,
+          chest,
+          neck,
+          head,
+          leftUpperArm,
+          leftLowerArm,
+          rightUpperArm,
+          rightLowerArm,
+          leftUpperLeg,
+          leftLowerLeg,
+          rightUpperLeg,
+          rightLowerLeg,
+          leftFoot,
+          rightFoot,
+          bridgeHand,
+          gripHand
+        ];
+        const modelRoot = new THREE.Group();
+        modelRoot.visible = false;
+        rigGroup.add(modelRoot);
+
         rigGroup.userData.anim = {
           seat,
           mode: 'idle',
@@ -24532,8 +24554,41 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: true,
+          modelRoot,
+          activeGlb: false
         };
+        void loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
+          .then((gltf) => {
+            const model =
+              gltf?.scene?.clone?.(true) ??
+              gltf?.scene ??
+              gltf?.scenes?.[0] ??
+              null;
+            if (!model) return;
+            // Keep the exact same visual body size we had before by reusing the
+            // procedural rig scale derived from table-relative human height.
+            model.scale.setScalar(scale);
+            const bbox = new THREE.Box3().setFromObject(model);
+            model.position.y = -(bbox.min?.y ?? 0);
+            model.rotation.y = Math.PI;
+            model.traverse((child) => {
+              if (!child?.isMesh) return;
+              child.castShadow = true;
+              child.receiveShadow = true;
+            });
+            modelRoot.add(model);
+            modelRoot.visible = true;
+            proceduralParts.forEach((part) => {
+              if (part) part.visible = false;
+            });
+            rigGroup.userData.anim.activeGlb = true;
+            rigGroup.userData.anim.usesFallbackRig = false;
+          })
+          .catch(() => {
+            rigGroup.userData.anim.activeGlb = false;
+            rigGroup.userData.anim.usesFallbackRig = true;
+          });
         return rigGroup;
       };
 
@@ -26716,6 +26771,18 @@ const shotPowerRef = useRef(0);
           }
         }
       };
+      const applyBilardoShqipCueVelocity = (ball, power, aimDir) => {
+        if (!ball || !aimDir) return 0;
+        const p = THREE.MathUtils.clamp(power, 0, 1);
+        const speed =
+          REFERENCE_CUE_SPEED_BASE +
+          REFERENCE_CUE_SPEED_RANGE * Math.pow(p, REFERENCE_CUE_SPEED_GAMMA);
+        const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
+        if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
+        else shotDir3.set(0, 0, 1);
+        ball.vel.copy(shotDir3).multiplyScalar(speed);
+        return speed;
+      };
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
@@ -26723,30 +26790,13 @@ const shotPowerRef = useRef(0);
           aimDir,
           physicsSpin,
           clampedPower,
-          liftStrength,
-          pullDistance = 0,
-          contactAdvance = 0,
-          strikeDuration = LIVE_CUE_FORWARD_DURATION_MS
+          liftStrength
         } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
         };
-        const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
-        else shotDir3.set(0, 0, 1);
-        const cueDriveBoost = computeCueDriveBoost({
-          pullDistance,
-          contactAdvance,
-          strikeDurationMs: strikeDuration,
-          clampedPower
-        });
-        const referenceSpeed =
-          REFERENCE_CUE_SPEED_BASE +
-          REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
-            cueDriveBoost;
-        cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
+        const referenceSpeed = applyBilardoShqipCueVelocity(cue, clampedPower, aimDir);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
@@ -26757,7 +26807,9 @@ const shotPowerRef = useRef(0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        const shotDir = shotDir3;
+        const shotDir = TMP_VEC3_C.copy(cue.vel);
+        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
+        else shotDir.set(aimDir?.x ?? 0, 0, aimDir?.y ?? 1).normalize();
         const sideAxis = TMP_VEC3_E.set(-shotDir.z, 0, shotDir.x);
         if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
         const rOffset = TMP_VEC3_E
