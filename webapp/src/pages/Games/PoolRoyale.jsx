@@ -1925,7 +1925,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
-const MIN_SHOT_POWER_TO_FIRE = 0.02; // Bilardo Shqip parity: only release above 0.02 starts striking
+const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
@@ -26791,10 +26791,17 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
+        const cueDriveBoost = computeCueDriveBoost({
+          pullDistance,
+          contactAdvance,
+          strikeDurationMs: strikeDuration,
+          clampedPower
+        });
         const referenceSpeed =
           REFERENCE_CUE_SPEED_BASE +
           REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA);
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33318,9 +33325,7 @@ const shotPowerRef = useRef(0);
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
-    if (latchedPower > MIN_SHOT_POWER_TO_FIRE) {
-      fireRef.current?.(latchedPower);
-    }
+    fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
