@@ -18,7 +18,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import { PowerSlider } from '../../../../power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -24444,26 +24444,7 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const fitPlayerHumanModelToHeight = (model, targetHeight) => {
-        if (!model) return;
-        model.updateMatrixWorld(true);
-        const bounds = new THREE.Box3().setFromObject(model);
-        const size = bounds.getSize(new THREE.Vector3());
-        if (!Number.isFinite(size.y) || size.y <= 1e-4) {
-          return;
-        }
-        const center = bounds.getCenter(new THREE.Vector3());
-        const scale = targetHeight / size.y;
-        model.scale.multiplyScalar(scale);
-        model.updateMatrixWorld(true);
-        const scaledBounds = new THREE.Box3().setFromObject(model);
-        const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
-        model.position.x += -scaledCenter.x;
-        model.position.z += -scaledCenter.z;
-        model.position.y += -scaledBounds.min.y;
-      };
-
-      const createPlayerCharacterRig = async ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
@@ -24551,46 +24532,8 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: true,
-          glbRoot: null
+          usesFallbackRig: false
         };
-
-        const seatedHumanTemplate = await ensureSeatedHumanTemplate();
-        if (seatedHumanTemplate) {
-          const glbRoot = seatedHumanTemplate.clone(true);
-          fitPlayerHumanModelToHeight(glbRoot, humanHeight);
-          glbRoot.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-          });
-          glbRoot.rotation.y = Math.PI;
-          rigGroup.add(glbRoot);
-          rigGroup.userData.anim.glbRoot = glbRoot;
-          rigGroup.userData.anim.usesFallbackRig = false;
-          [
-            pelvis,
-            torso,
-            chest,
-            neck,
-            head,
-            leftUpperArm,
-            leftLowerArm,
-            rightUpperArm,
-            rightLowerArm,
-            leftUpperLeg,
-            leftLowerLeg,
-            rightUpperLeg,
-            rightLowerLeg,
-            bridgeHand,
-            gripHand,
-            leftFoot,
-            rightFoot
-          ].forEach((mesh) => {
-            mesh.visible = false;
-          });
-        }
-
         return rigGroup;
       };
 
@@ -24598,13 +24541,13 @@ const shotPowerRef = useRef(0);
         disposePlayerCharacters();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
-        const leftPlayer = await createPlayerCharacterRig({
+        const leftPlayer = createPlayerCharacterRig({
           seat: 'A',
           x: -sideOffset,
           z: -zOffset,
           facingY: 0
         });
-        const rightPlayer = await createPlayerCharacterRig({
+        const rightPlayer = createPlayerCharacterRig({
           seat: 'B',
           x: sideOffset,
           z: zOffset,
@@ -24770,13 +24713,6 @@ const shotPowerRef = useRef(0);
           const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
           const scale = anim.scale || 1;
-
-          if (anim.glbRoot) {
-            const breath = Math.sin(nowMs * 0.0016 + (anim.seat === 'A' ? 0 : Math.PI * 0.35));
-            anim.glbRoot.position.set(0, 0.004 * breath - 0.028 * t, 0);
-            anim.glbRoot.rotation.x = THREE.MathUtils.lerp(0, -0.24, t);
-            anim.glbRoot.rotation.y = Math.PI;
-          }
 
           const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
           const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
@@ -33316,6 +33252,25 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const onPowerDragStart = useCallback(() => {
+    captureCueStickAnchor();
+  }, [captureCueStickAnchor]);
+  const onPowerDrag = useCallback((powerRatio = 0) => {
+    const clamped = clampPower(powerRatio, 0);
+    shotPowerRef.current = clamped;
+    applyPower(clamped);
+  }, [applyPower, clampPower]);
+  const onPowerRelease = useCallback((powerRatio = null) => {
+    const sourcePower = Math.max(
+      Number.isFinite(powerRatio) ? powerRatio : 0,
+      Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+      Number.isFinite(powerRef.current) ? powerRef.current : 0
+    );
+    const latchedPower = clampPower(sourcePower, 0);
+    shotPowerRef.current = latchedPower;
+    applyPower(latchedPower);
+    fireRef.current?.(latchedPower);
+  }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33323,30 +33278,31 @@ const shotPowerRef = useRef(0);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
+    const slider = new PowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '/assets/snooker/cue.webp',
+      cueSrc: '',
+      theme: 'pool-royale',
       labels: true,
-      onChange: (v) => applyPower((v ?? 0) / 100),
-      onStart: () => {
-        captureCueStickAnchor();
-      },
-      onCommit: () => {
-        fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
-      }
-    });
+      onChange: (v) => onPowerDrag((v ?? 0) / 100),
+      onStart: () => onPowerDragStart(),
+	      onCommit: (committedValue) => {
+	        const hasCommittedValue = Number.isFinite(committedValue);
+	        const powerRatio = hasCommittedValue
+	          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
+	          : clampPower(powerRef.current, 0);
+	        onPowerRelease(powerRatio);
+	        const resetDurationMs = 180;
+	        slider.animateToMin({ duration: resetDurationMs });
+	      }
+	    });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, clampPower, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
