@@ -18,8 +18,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
-import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -1264,7 +1262,7 @@ const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'e
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
-const ENABLE_CUE_STROKE_ANIMATION = true;
+const ENABLE_CUE_STROKE_ANIMATION = false;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: false,
@@ -1927,8 +1925,8 @@ const REFERENCE_CUE_SPEED_RANGE = 10.6; // wider speed range so slider pull tran
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
-const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.34; // stronger character up-scale so humans read larger on mobile portrait
+const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // keep same base character size but slightly larger on-table
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -15885,7 +15883,8 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     shootingRef.current = shotActive;
   }, [shotActive]);
-  const sliderInstanceRef = useRef(null);
+  const shotChargeActiveRef = useRef(false);
+  const shotChargeStartedAtRef = useRef(0);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
@@ -15982,21 +15981,20 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     recomputeAiShotState();
   }, [recomputeAiShotState, hud.turn, shotActive]);
-  const applySliderLock = useCallback(() => {
-    const slider = sliderInstanceRef.current;
-    if (!slider) return;
-    const hudState = hudRef.current;
-    const shouldLock =
-      breakRollState !== 'done' ||
-      hudState?.turn !== 0 ||
-      hudState?.over ||
-      shootingRef.current;
-    if (shouldLock) slider.lock();
-    else slider.unlock();
-  }, [breakRollState]);
   useEffect(() => {
-    applySliderLock();
-  }, [applySliderLock, breakRollState, hud.turn, hud.over, shotActive]);
+    const shouldResetCharge =
+      breakRollState !== 'done' ||
+      hud.turn !== 0 ||
+      hud.over ||
+      shotActive;
+    if (!shouldResetCharge) return;
+    shotChargeActiveRef.current = false;
+    shotChargeStartedAtRef.current = 0;
+    shotPowerRef.current = 0;
+    applyPower(0);
+    cuePullCurrentRef.current = 0;
+    cuePullTargetRef.current = 0;
+  }, [applyPower, breakRollState, hud.over, hud.turn, shotActive]);
 
   const applyLightingPreset = useCallback(
     (presetId = lightingId) => {
@@ -16033,7 +16031,7 @@ const shotPowerRef = useRef(0);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
-  const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
+  const fireRef = useRef(() => {}); // set from effect so shoot button/AI can trigger fire()
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -19674,7 +19672,7 @@ const shotPowerRef = useRef(0);
         if (seatedHumanLoadRef.current) {
           return seatedHumanLoadRef.current;
         }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL])
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
@@ -24533,8 +24531,14 @@ const shotPowerRef = useRef(0);
         return rigGroup;
       };
 
+      const ensurePlayerHumanTemplate = async () => {
+        const seatedTemplate = await ensureSeatedHumanTemplate();
+        return seatedTemplate?.clone?.(true) ?? null;
+      };
+
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        const humanTemplate = await ensurePlayerHumanTemplate();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const leftPlayer = createPlayerCharacterRig({
@@ -24548,6 +24552,51 @@ const shotPowerRef = useRef(0);
           x: sideOffset,
           z: zOffset,
           facingY: Math.PI
+        });
+        [leftPlayer, rightPlayer].forEach((rig, index) => {
+          if (!humanTemplate) return;
+          const anim = rig?.userData?.anim;
+          if (!anim) return;
+          const glbModel = humanTemplate.clone(true);
+          const targetHeight = Math.max(anim.humanHeight ?? 1, 0.01);
+          const bounds = new THREE.Box3().setFromObject(glbModel);
+          const size = bounds.getSize(new THREE.Vector3());
+          const modelHeight = Math.max(size.y, 1e-4);
+          const modelScale = targetHeight / modelHeight;
+          glbModel.scale.setScalar(modelScale);
+          glbModel.position.set(0, 0, 0);
+          glbModel.rotation.y = Math.PI;
+          glbModel.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          rig.add(glbModel);
+          anim.glbModel = glbModel;
+          anim.usesFallbackRig = false;
+          const fallbackParts = [
+            anim.pelvis,
+            anim.torso,
+            anim.chest,
+            anim.neck,
+            anim.head,
+            anim.leftUpperArm,
+            anim.leftLowerArm,
+            anim.rightUpperArm,
+            anim.rightLowerArm,
+            anim.leftUpperLeg,
+            anim.leftLowerLeg,
+            anim.rightUpperLeg,
+            anim.rightLowerLeg,
+            anim.leftFoot,
+            anim.rightFoot,
+            anim.bridgeHand,
+            anim.gripHand
+          ];
+          fallbackParts.forEach((part) => {
+            if (part) part.visible = false;
+          });
+          anim.seat = index === 0 ? 'A' : 'B';
         });
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
@@ -24599,7 +24648,7 @@ const shotPowerRef = useRef(0);
           const isShooter = anim.seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
-          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
+          const draggingSlider = Boolean(shotChargeActiveRef.current);
           const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
@@ -24608,29 +24657,50 @@ const shotPowerRef = useRef(0);
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
 
-          const targetPose = mode === 'idle' ? 0 : 1;
-          anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
+          if (anim.glbModel) {
+            const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+            const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+            const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+            if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
+            anim.rootTarget.copy(seatTarget);
+            rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
+            const aimForward = new THREE.Vector3(-normalizedAim.x, 0, -normalizedAim.y).normalize();
+            const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
+            anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
+            rig.group.rotation.y = anim.yaw;
+            const chargePower = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
+            const shotPulse =
+              mode === 'strike'
+                ? Math.sin(Math.min(1, shotAge / 180) * Math.PI)
+                : mode === 'aim'
+                  ? 0.25 + chargePower * 0.75
+                  : 0;
+            anim.glbModel.position.y = Math.sin(nowMs * 0.0016) * 0.015;
+            anim.glbModel.rotation.x = -0.06 - shotPulse * 0.16;
+          } else {
+            const targetPose = mode === 'idle' ? 0 : 1;
+            anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
-          anim.rootTarget.copy(seatTarget);
-          rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
+            const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+            const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+            const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+            if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
+            anim.rootTarget.copy(seatTarget);
+            rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
 
-          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
-          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
+            const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+            anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
 
-          const aimForward = new THREE.Vector3(-normalizedAim.x, 0, -normalizedAim.y).normalize();
-          const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
-          anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
-          rig.group.rotation.y = anim.yaw;
+            const aimForward = new THREE.Vector3(-normalizedAim.x, 0, -normalizedAim.y).normalize();
+            const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
+            anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
+            rig.group.rotation.y = anim.yaw;
 
-          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
-          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
-          const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
-          const scale = anim.scale || 1;
+            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+            const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+            const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
+            const scale = anim.scale || 1;
 
           const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
           const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
@@ -24736,12 +24806,13 @@ const shotPowerRef = useRef(0);
           anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
           anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.3, 1.2, t);
 
-          anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.leftFoot.quaternion.copy(bodyQ);
-          anim.rightFoot.quaternion.copy(bodyQ);
-          anim.leftFoot.rotation.y += -0.24 * t;
-          anim.rightFoot.rotation.y += 0.16 * t;
+            anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+            anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+            anim.leftFoot.quaternion.copy(bodyQ);
+            anim.rightFoot.quaternion.copy(bodyQ);
+            anim.leftFoot.rotation.y += -0.24 * t;
+            anim.rightFoot.rotation.y += 0.16 * t;
+          }
 
         });
       };
@@ -25220,7 +25291,7 @@ const shotPowerRef = useRef(0);
         const anchor = cueStickAnchorRef.current;
         const useAnchor =
           Boolean(options.forceAnchor) ||
-          Boolean(sliderInstanceRef.current?.dragging) ||
+          Boolean(shotChargeActiveRef.current) ||
           shooting ||
           cueAnimating;
         const baseX = useAnchor && Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
@@ -26444,8 +26515,7 @@ const shotPowerRef = useRef(0);
         maxPull = CUE_PULL_BASE,
         { instant = false, preserveLarger = false, smoothingOverride = null } = {}
       ) => {
-        const slider = sliderInstanceRef.current;
-        const dragging = Boolean(slider?.dragging);
+        const dragging = Boolean(shotChargeActiveRef.current);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
         const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
@@ -30676,7 +30746,7 @@ const shotPowerRef = useRef(0);
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
         if (
           cue?.pos &&
-          !sliderInstanceRef.current?.dragging &&
+          !shotChargeActiveRef.current &&
           !shooting &&
           !cueAnimating
         ) {
@@ -31069,7 +31139,7 @@ const shotPowerRef = useRef(0);
             : 0;
           const pull = computeCuePull(desiredPull, maxPull, {
             instant:
-              Boolean(sliderInstanceRef.current?.dragging) ||
+              Boolean(shotChargeActiveRef.current) ||
               (isAiTurn && !aiPullReady),
             smoothingOverride: pullProfile.pullSmoothing
           });
@@ -33166,66 +33236,43 @@ const shotPowerRef = useRef(0);
     return () => window.removeEventListener('resize', computeInsets);
   }, [uiScale, usePortraitHudLayout]);
 
-  // --------------------------------------------------
-  // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
-  // --------------------------------------------------
-  const sliderRef = useRef(null);
-  const onPowerDragStart = useCallback(() => {
+  const showShootButton = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
+  const onShootPressStart = useCallback((event) => {
+    if (!showShootButton) return;
+    event?.preventDefault?.();
+    shotChargeActiveRef.current = true;
+    shotChargeStartedAtRef.current = performance.now();
     captureCueStickAnchor();
-  }, [captureCueStickAnchor]);
-  const onPowerDrag = useCallback((powerRatio = 0) => {
-    const clamped = clampPower(powerRatio, 0);
-    shotPowerRef.current = clamped;
-    applyPower(clamped);
-  }, [applyPower, clampPower]);
-  const onPowerRelease = useCallback((powerRatio = null) => {
-    const sourcePower = Number.isFinite(powerRatio) ? powerRatio : powerRef.current;
-    const latchedPower = clampPower(sourcePower, 0);
+  }, [captureCueStickAnchor, showShootButton]);
+  const onShootPressMove = useCallback(() => {
+    if (!shotChargeActiveRef.current) return;
+    const elapsed = Math.max(0, performance.now() - (shotChargeStartedAtRef.current || performance.now()));
+    const chargedPower = THREE.MathUtils.clamp(elapsed / 1200, 0, 1);
+    shotPowerRef.current = chargedPower;
+    applyPower(chargedPower);
+  }, [applyPower]);
+  const onShootPressEnd = useCallback(() => {
+    if (!shotChargeActiveRef.current) return;
+    shotChargeActiveRef.current = false;
+    const latchedPower = clampPower(shotPowerRef.current, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
     fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
-    if (!showPowerSlider) {
-      return undefined;
-    }
-    const mount = sliderRef.current;
-    if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
-      mount,
-      value: powerRef.current * 100,
-      cueSrc: '/assets/snooker/cue.webp',
-      labels: true,
-      onChange: (v) => onPowerDrag((v ?? 0) / 100),
-      onStart: () => onPowerDragStart(),
-	      onCommit: (committedValue) => {
-	        const hasCommittedValue = Number.isFinite(committedValue);
-	        const powerRatio = hasCommittedValue
-	          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
-	          : clampPower(powerRef.current, 0);
-	        onPowerRelease(powerRatio);
-	        const resetDurationMs = 180;
-	        slider.animateToMin({ duration: resetDurationMs });
-	      }
-	    });
-    sliderInstanceRef.current = slider;
-    applySliderLock();
-    return () => {
-      sliderInstanceRef.current = null;
-      slider.destroy();
+    if (!shotChargeActiveRef.current) return undefined;
+    let rafId = 0;
+    const tick = () => {
+      onShootPressMove();
+      if (shotChargeActiveRef.current) {
+        rafId = requestAnimationFrame(tick);
+      }
     };
-  }, [applySliderLock, clampPower, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
-  useEffect(() => {
-    if (shotActive || hud.over || hud.turn !== 0) return;
-    const slider = sliderInstanceRef.current;
-    if (slider) {
-      slider.set(slider.min, { animate: true });
-    }
-    applyPower(0);
-    cuePullCurrentRef.current = 0;
-    cuePullTargetRef.current = 0;
-  }, [applyPower, hud.over, hud.turn, shotActive]);
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [onShootPressMove, hud.turn, hud.over, shotActive, replayActive]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
@@ -35644,20 +35691,20 @@ const shotPowerRef = useRef(0);
           <span aria-hidden="true">✋️</span>
         </button>
       )}
-      {/* Power Slider */}
-      {showPowerSlider && !replayActive && (
-        <div
-          className="absolute right-3 top-[56%] -translate-y-1/2"
-          data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
-          data-player-turn={isPlayerTurn ? 'true' : 'false'}
-        >
-          <div
-            ref={sliderRef}
-            style={{
-              transform: `scale(${uiScale})`,
-              transformOrigin: 'top right'
-            }}
-          />
+      {showShootButton && !replayActive && (
+        <div className="absolute right-3 top-[56%] -translate-y-1/2">
+          <button
+            type="button"
+            onPointerDown={onShootPressStart}
+            onPointerMove={onShootPressMove}
+            onPointerUp={onShootPressEnd}
+            onPointerCancel={onShootPressEnd}
+            onPointerLeave={onShootPressEnd}
+            className="h-14 w-14 rounded-full border border-white/70 bg-amber-500/90 text-sm font-extrabold text-slate-950 shadow-[0_18px_30px_rgba(0,0,0,0.42)]"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'top right' }}
+          >
+            SHOOT
+          </button>
         </div>
       )}
 
