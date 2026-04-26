@@ -1939,6 +1939,7 @@ const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.42; // transition the shooter into cue-address pose once camera is lowered toward cue view
+const HUMAN_SHOT_TRIGGER_THRESHOLD = 0.02; // keep shot release threshold aligned with Bilardo Shqip drag-release behavior
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24572,14 +24573,30 @@ const shotPowerRef = useRef(0);
         const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
         const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
 
+        const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
+        const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
+        const clampToWalkLane = (position) => {
+          const clamped = position.clone();
+          clamped.x = THREE.MathUtils.clamp(clamped.x, -xEdge, xEdge);
+          clamped.z = THREE.MathUtils.clamp(clamped.z, -zEdge, zEdge);
+          const insideX = Math.abs(clamped.x) < xEdge - 1e-4;
+          const insideZ = Math.abs(clamped.z) < zEdge - 1e-4;
+          if (insideX && insideZ) {
+            const distToX = xEdge - Math.abs(clamped.x);
+            const distToZ = zEdge - Math.abs(clamped.z);
+            if (distToX < distToZ) clamped.x = Math.sign(clamped.x || 1) * xEdge;
+            else clamped.z = Math.sign(clamped.z || 1) * zEdge;
+          }
+          clamped.y = floorY;
+          return clamped;
+        };
+
         const chooseEdgeTarget = (forward2) => {
           const desired = cueWorld.clone().add(new THREE.Vector3(
             -forward2.x * HUMAN_DESIRED_SHOOT_DISTANCE,
             0,
             -forward2.y * HUMAN_DESIRED_SHOOT_DISTANCE
           ));
-          const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
-          const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
           const candidates = [
             new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
             new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
@@ -24613,10 +24630,13 @@ const shotPowerRef = useRef(0);
 
           const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
           const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+          const seatTarget = clampToWalkLane(
+            desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42)
+          );
           if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
           anim.rootTarget.copy(seatTarget);
           rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
+          rig.group.position.copy(clampToWalkLane(rig.group.position));
 
           const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
           anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
@@ -33183,6 +33203,9 @@ const shotPowerRef = useRef(0);
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
+    if (latchedPower <= HUMAN_SHOT_TRIGGER_THRESHOLD) {
+      return;
+    }
     fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
