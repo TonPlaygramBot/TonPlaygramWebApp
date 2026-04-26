@@ -918,6 +918,10 @@ export default function BilardoShqipGame() {
           </div>
         </div>
         <div style={{ position: "absolute", left: 14, top: 14, width: "34vw", maxWidth: 240, aspectRatio: "1.65 / 1", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 20px rgba(0,0,0,0.28)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", right: 14, top: 14, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "10px 12px", fontSize: 12, maxWidth: 220 }}>
+          Bilardo Shqip · Rotation 61
+          <div style={{ opacity: 0.86, marginTop: 4 }}>Hit the lowest ball first, score by ball number, first to 61 points wins.</div>
+        </div>
       </div>
     </div>
   );
