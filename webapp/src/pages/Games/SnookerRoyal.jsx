@@ -1636,7 +1636,11 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const ENABLE_CUE_STROKE_ANIMATION = true;
+const ENABLE_CUE_STROKE_ANIMATION = false; // disable slider-driven cue stroke animation; human animation now drives shot motion
+const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88;
+const SNOOKER_HUMAN_SCALE_MULTIPLIER = 1.34;
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const PLAYER_CUE_FORWARD_MIN_MS = 450;
@@ -14900,6 +14904,10 @@ const powerRef = useRef(hud.power);
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
+      let shooterHuman = null;
+      let shooterHumanMixer = null;
+      let shooterHumanAction = null;
+      let shooterHumanLoaded = false;
       let maxPowerLiftTriggered = false;
       const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
       const dynamicTextureEntries = [];
@@ -20509,6 +20517,51 @@ const powerRef = useRef(hud.power);
         }
         applyCueStickTransform(tipTarget);
       };
+      const updateShooterHumanPose = ({
+        dir,
+        power = 0,
+        state = 'idle',
+        cueTarget = null,
+        deltaSeconds = 0
+      } = {}) => {
+        if (!shooterHuman || !dir) return;
+        if (!shooterHumanLoaded) {
+          shooterHuman.visible = false;
+          return;
+        }
+        const aimDir = TMP_VEC3_CUE_DIR.copy(dir);
+        if (aimDir.lengthSq() < 1e-8) {
+          shooterHuman.visible = false;
+          return;
+        }
+        aimDir.normalize();
+        shooterHuman.visible = true;
+        const side = TMP_VEC3_PERP.set(aimDir.z, 0, -aimDir.x).normalize();
+        const cueTargetPos = cueTarget
+          ? TMP_VEC3_A.copy(cueTarget)
+          : TMP_VEC3_A.set(cue.pos.x, CUE_Y, cue.pos.y);
+        const basePos = cueTargetPos
+          .clone()
+          .addScaledVector(aimDir, HUMAN_DESIRED_SHOOT_DISTANCE)
+          .addScaledVector(side, -0.2);
+        basePos.y = FLOOR_Y;
+        shooterHuman.position.lerp(basePos, THREE.MathUtils.clamp(1 - Math.exp(-6 * Math.max(deltaSeconds, 1 / 120)), 0, 1));
+        const yaw = Math.atan2(-aimDir.x, -aimDir.z);
+        shooterHuman.rotation.y = THREE.MathUtils.lerp(
+          shooterHuman.rotation.y,
+          yaw,
+          THREE.MathUtils.clamp(1 - Math.exp(-8 * Math.max(deltaSeconds, 1 / 120)), 0, 1)
+        );
+        const charge = THREE.MathUtils.clamp(power, 0, 1);
+        const aimLean = state === 'dragging' ? charge * 0.22 : state === 'striking' ? 0.28 : 0.08;
+        shooterHuman.rotation.x = THREE.MathUtils.lerp(shooterHuman.rotation.x, -aimLean, 0.2);
+        if (shooterHumanMixer && shooterHumanAction) {
+          const speed = state === 'striking' ? 1.9 : state === 'dragging' ? 1.1 + charge * 0.7 : 0.45;
+          shooterHumanAction.setEffectiveTimeScale(speed);
+          shooterHumanMixer.update(Math.max(0, deltaSeconds));
+        }
+      };
+
       const resolveCueObstructionTilt = (strength) => {
         const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
         const obstructionLift = strength * CUE_OBSTRUCTION_LIFT;
@@ -20525,6 +20578,41 @@ const powerRef = useRef(hud.power);
         tipTarget.y += liftAmount;
         return tipTarget;
       };
+
+      shooterHuman = new THREE.Group();
+      shooterHuman.visible = false;
+      table.add(shooterHuman);
+      const humanLoader = new GLTFLoader();
+      humanLoader.setCrossOrigin('anonymous');
+      humanLoader.load(
+        BILARDO_SHQIP_HUMAN_URL,
+        (gltf) => {
+          const model = gltf?.scene || gltf?.scenes?.[0];
+          if (!model || !shooterHuman) return;
+          const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+          const scale = (humanHeight / 1.82) * SNOOKER_HUMAN_SCALE_MULTIPLIER;
+          model.scale.setScalar(scale);
+          model.rotation.y = Math.PI;
+          model.traverse((node) => {
+            if (!node?.isMesh) return;
+            node.castShadow = true;
+            node.receiveShadow = true;
+          });
+          shooterHuman.clear();
+          shooterHuman.add(model);
+          shooterHumanLoaded = true;
+          const clips = Array.isArray(gltf?.animations) ? gltf.animations : [];
+          if (clips.length > 0) {
+            shooterHumanMixer = new THREE.AnimationMixer(model);
+            shooterHumanAction = shooterHumanMixer.clipAction(clips[0]);
+            shooterHumanAction.play();
+          }
+        },
+        undefined,
+        (err) => {
+          console.warn('Snooker Royal human GLB failed to load', err);
+        }
+      );
 
       const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
@@ -21913,6 +22001,13 @@ const powerRef = useRef(hud.power);
             cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
           }
           playCueHit(clampedPower * 0.6);
+          updateShooterHumanPose({
+            dir,
+            power: clampedPower,
+            state: 'striking',
+            cueTarget: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
+            deltaSeconds: 1 / 60
+          });
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -22095,10 +22190,11 @@ const powerRef = useRef(hud.power);
           }
           const animateStroke = (now) => {
             if (!ENABLE_CUE_STROKE_ANIMATION) {
-              cueStick.visible = false;
+              cueStick.visible = true;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
+              cueStick.position.copy(impactPos);
               return;
             }
             const elapsed = Math.max(0, now - startTime);
@@ -24913,6 +25009,13 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
+          updateShooterHumanPose({
+            dir,
+            power: powerStrength,
+            state: sliderInstanceRef.current?.dragging ? 'dragging' : 'idle',
+            cueTarget: tipTarget,
+            deltaSeconds: deltaSeconds
+          });
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -25067,6 +25170,13 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
+          updateShooterHumanPose({
+            dir: baseDir,
+            power: powerStrength,
+            state: 'dragging',
+            cueTarget: tipTarget,
+            deltaSeconds: deltaSeconds
+          });
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -25167,6 +25277,13 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
+          updateShooterHumanPose({
+            dir,
+            power: powerTarget,
+            state: 'dragging',
+            cueTarget: tipTarget,
+            deltaSeconds: deltaSeconds
+          });
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -25179,6 +25296,7 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
+          if (shooterHuman) shooterHuman.visible = false;
           updateChalkVisibility(null);
         }
 
@@ -26071,6 +26189,16 @@ const powerRef = useRef(hud.power);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.clear();
         pocketRestIndexRef.current.clear();
+        if (shooterHumanMixer) {
+          shooterHumanMixer.stopAllAction();
+          shooterHumanMixer = null;
+          shooterHumanAction = null;
+        }
+        if (shooterHuman?.parent) {
+          shooterHuman.parent.remove(shooterHuman);
+        }
+        shooterHuman = null;
+
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = null;
