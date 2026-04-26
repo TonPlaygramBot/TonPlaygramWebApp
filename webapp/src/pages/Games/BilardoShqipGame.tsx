@@ -98,7 +98,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.18,
+  humanScale: 1.34,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52,
   bridgePalmTableLift: 0.012,
@@ -106,7 +106,7 @@ const CFG = {
   bridgeHandBackFromBall: 0.245,
   bridgeHandSide: -0.008,
   gripHandBackOnCue: 0.78,
-  chinToCueHeight: 0.11,
+  chinToCueHeight: 0.1,
   cueArmElbowRise: 0.43,
 };
 const BALL_COLORS = [0xf7f7f7, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28, 0x111111, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28];
@@ -351,8 +351,37 @@ function addBalls(tableGroup: THREE.Group) {
 }
 function addCue(scene: THREE.Scene): CueRig {
   const group = new THREE.Group();
-  const cue = { group, shaft: createUnitCylinder(0xd9b88d), ferrule: createUnitCylinder(0xf2f2f2), tip: createUnitCylinder(0x3476d6) };
-  [cue.shaft, cue.ferrule, cue.tip].forEach((m) => group.add(enableShadow(m)));
+  const cue = {
+    group,
+    shaft: createUnitCylinder(0xe7cfab),
+    ferrule: createUnitCylinder(0xf4f4f4),
+    tip: createUnitCylinder(0x2e6fc4)
+  };
+  cue.shaft.material = new THREE.MeshStandardMaterial({
+    color: 0xe7cfab,
+    roughness: 0.32,
+    metalness: 0.05,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.26
+  });
+  const butt = createUnitCylinder(0x3a2518);
+  butt.material = new THREE.MeshStandardMaterial({
+    color: 0x3a2518,
+    roughness: 0.5,
+    metalness: 0.08,
+    clearcoat: 0.14
+  });
+  const wrap = createUnitCylinder(0x111827);
+  wrap.material = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.7,
+    metalness: 0.02
+  });
+  [cue.shaft, butt, wrap, cue.ferrule, cue.tip].forEach((m) => group.add(enableShadow(m)));
+  butt.position.y = -0.34;
+  butt.scale.set(1.16, 0.3, 1.16);
+  wrap.position.y = -0.08;
+  wrap.scale.set(1.08, 0.22, 1.08);
   scene.add(group);
   return cue;
 }
@@ -653,8 +682,8 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
   const powerLean = power * t;
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
+  const torso = local(new THREE.Vector3(0, lerp(1.18, 0.98, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
+  const chest = local(new THREE.Vector3(0, lerp(1.42, 1.12, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
   const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - CFG.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
   const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
