@@ -24381,158 +24381,41 @@ const shotPowerRef = useRef(0);
         playerCharacterRigsRef.current = [];
       };
 
-      const setHumanoidSegment = (mesh, from, to, radius) => {
-        if (!mesh || !from || !to) return;
-        const dir = new THREE.Vector3().subVectors(to, from);
-        const len = Math.max(1e-4, dir.length());
-        mesh.position.copy(from).addScaledVector(dir, 0.5);
-        dir.normalize();
-        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-        mesh.scale.set(radius, len, radius);
+      const ensureStandingHumanTemplate = async () => {
+        const template = await ensureSeatedHumanTemplate();
+        return template?.clone?.(true) ?? null;
       };
 
-      const makeHumanoidBasis = (side, forward) => {
-        const basis = new THREE.Matrix4();
-        const up = new THREE.Vector3(0, 1, 0);
-        basis.makeBasis(side.clone().normalize(), up, forward.clone().normalize());
-        return new THREE.Quaternion().setFromRotationMatrix(basis);
-      };
-
-      const createBridgeHandGroup = (skinMat) => {
-        const group = new THREE.Group();
-        const palm = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.022, 0.115), skinMat);
-        palm.position.set(0, 0.012, 0.01);
-        group.add(palm);
-        [-0.058, -0.02, 0.018, 0.056].forEach((x, i) => {
-          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.018, i === 1 ? 0.18 : 0.16), skinMat);
-          finger.position.set(x, 0.018, 0.118);
-          finger.rotation.y = (i - 1.5) * 0.13;
-          group.add(finger);
-        });
-        const cueGuide = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.038, 0.17), skinMat);
-        cueGuide.position.set(-0.01, 0.043, 0.095);
-        cueGuide.rotation.z = -0.08;
-        group.add(cueGuide);
-        const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.02, 0.13), skinMat);
-        thumb.position.set(0.09, 0.026, 0.03);
-        thumb.rotation.y = -0.75;
-        group.add(thumb);
-        group.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
-        return group;
-      };
-
-      const createGripHandGroup = (skinMat) => {
-        const group = new THREE.Group();
-        const palm = new THREE.Mesh(new THREE.SphereGeometry(0.047, 18, 18), skinMat);
-        palm.scale.set(1.15, 0.9, 0.85);
-        group.add(palm);
-        for (let i = 0; i < 4; i++) {
-          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.054, 0.018), skinMat);
-          finger.position.set(-0.032 + i * 0.021, -0.006, 0.045);
-          finger.rotation.x = 0.85;
-          group.add(finger);
-        }
-        group.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
-        return group;
-      };
-
-      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+      const createPlayerCharacterRig = async ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
-        const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
-        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.64 });
-
-        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.3 * scale, 0.2 * scale, 0.19 * scale), vestMat);
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.42 * scale, 0.22 * scale), bodyMat);
-        const chest = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.34 * scale, 0.23 * scale), vestMat);
-        const neck = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), skinMat);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scale, 22, 22), skinMat);
-
-        const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const leftLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const rightLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-
-        const leftUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const leftLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const rightUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const rightLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-
-        const bridgeHand = createBridgeHandGroup(skinMat);
-        const gripHand = createGripHandGroup(skinMat);
-        bridgeHand.scale.setScalar(scale);
-        gripHand.scale.setScalar(scale);
-
-        const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
-        const rightFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
-
-        [
-          pelvis,
-          torso,
-          chest,
-          neck,
-          head,
-          leftUpperArm,
-          leftLowerArm,
-          rightUpperArm,
-          rightLowerArm,
-          leftUpperLeg,
-          leftLowerLeg,
-          rightUpperLeg,
-          rightLowerLeg,
-          leftFoot,
-          rightFoot
-        ].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          rigGroup.add(mesh);
-        });
-
-        rigGroup.add(bridgeHand);
-        rigGroup.add(gripHand);
+        const model = await ensureStandingHumanTemplate();
+        if (model) {
+          model.scale.setScalar(scale);
+          model.rotation.set(0, Math.PI, 0);
+          model.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          rigGroup.add(model);
+        }
 
         rigGroup.userData.anim = {
           seat,
           mode: 'idle',
-          intensity: 0,
-          pelvis,
-          torso,
-          chest,
-          neck,
-          head,
-          leftUpperArm,
-          leftLowerArm,
-          rightUpperArm,
-          rightLowerArm,
-          leftUpperLeg,
-          leftLowerLeg,
-          rightUpperLeg,
-          rightLowerLeg,
-          bridgeHand,
-          gripHand,
-          leftFoot,
-          rightFoot,
-          humanHeight,
-          scale,
+          model,
           poseT: 0,
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          humanHeight,
+          scale,
+          strikeClock: 0
         };
         return rigGroup;
       };
@@ -24541,18 +24424,20 @@ const shotPowerRef = useRef(0);
         disposePlayerCharacters();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
-        const leftPlayer = createPlayerCharacterRig({
-          seat: 'A',
-          x: -sideOffset,
-          z: -zOffset,
-          facingY: 0
-        });
-        const rightPlayer = createPlayerCharacterRig({
-          seat: 'B',
-          x: sideOffset,
-          z: zOffset,
-          facingY: Math.PI
-        });
+        const [leftPlayer, rightPlayer] = await Promise.all([
+          createPlayerCharacterRig({
+            seat: 'A',
+            x: -sideOffset,
+            z: -zOffset,
+            facingY: 0
+          }),
+          createPlayerCharacterRig({
+            seat: 'B',
+            x: sideOffset,
+            z: zOffset,
+            facingY: Math.PI
+          })
+        ]);
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
           anim: group.userData.anim
@@ -24568,7 +24453,6 @@ const shotPowerRef = useRef(0);
         const isShotActive = Boolean(shootingRef.current);
         const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
         const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
-        const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
 
         const cueBall = cueRef.current;
         const aimDir2 = aimDirRef.current;
@@ -24594,237 +24478,46 @@ const shotPowerRef = useRef(0);
             candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
           );
         };
-        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
-        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
-        const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
-        const blockerHalfZ = TABLE.H / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
-        const clampToWalkPerimeter = (point) => {
-          const px = Number.isFinite(point?.x) ? point.x : 0;
-          const pz = Number.isFinite(point?.z) ? point.z : 0;
-          const absX = Math.abs(px);
-          const absZ = Math.abs(pz);
-          const onX = absX / Math.max(HUMAN_WALK_EPS, walkHalfX);
-          const onZ = absZ / Math.max(HUMAN_WALK_EPS, walkHalfZ);
-          if (onX >= onZ) {
-            return new THREE.Vector3(
-              Math.sign(px || 1) * walkHalfX,
-              floorY,
-              THREE.MathUtils.clamp(pz, -walkHalfZ, walkHalfZ)
-            );
-          }
-          return new THREE.Vector3(
-            THREE.MathUtils.clamp(px, -walkHalfX, walkHalfX),
-            floorY,
-            Math.sign(pz || 1) * walkHalfZ
-          );
-        };
-        const pointToPerimeterT = (point) => {
-          const clamped = clampToWalkPerimeter(point);
-          const x = clamped.x;
-          const z = clamped.z;
-          const perim = 4 * (walkHalfX + walkHalfZ);
-          if (Math.abs(x + walkHalfX) < 1e-4) {
-            return THREE.MathUtils.clamp((z + walkHalfZ), 0, 2 * walkHalfZ) / perim;
-          }
-          if (Math.abs(z - walkHalfZ) < 1e-4) {
-            return (2 * walkHalfZ + THREE.MathUtils.clamp((x + walkHalfX), 0, 2 * walkHalfX)) / perim;
-          }
-          if (Math.abs(x - walkHalfX) < 1e-4) {
-            return (2 * walkHalfZ + 2 * walkHalfX + THREE.MathUtils.clamp((walkHalfZ - z), 0, 2 * walkHalfZ)) / perim;
-          }
-          return (
-            2 * walkHalfZ +
-            2 * walkHalfX +
-            2 * walkHalfZ +
-            THREE.MathUtils.clamp((walkHalfX - x), 0, 2 * walkHalfX)
-          ) / perim;
-        };
-        const perimeterTToPoint = (t) => {
-          const perim = 4 * (walkHalfX + walkHalfZ);
-          let dist = THREE.MathUtils.euclideanModulo(t, 1) * perim;
-          if (dist <= 2 * walkHalfZ) {
-            return new THREE.Vector3(-walkHalfX, floorY, -walkHalfZ + dist);
-          }
-          dist -= 2 * walkHalfZ;
-          if (dist <= 2 * walkHalfX) {
-            return new THREE.Vector3(-walkHalfX + dist, floorY, walkHalfZ);
-          }
-          dist -= 2 * walkHalfX;
-          if (dist <= 2 * walkHalfZ) {
-            return new THREE.Vector3(walkHalfX, floorY, walkHalfZ - dist);
-          }
-          dist -= 2 * walkHalfZ;
-          return new THREE.Vector3(walkHalfX - dist, floorY, -walkHalfZ);
-        };
-        const isInsideTableBlocker = (point) =>
-          Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
         const desiredRoot = chooseEdgeTarget(normalizedAim);
 
         rigs.forEach((rig) => {
           const anim = rig?.anim;
-          if (!anim?.pelvis) return;
+          if (!anim) return;
           const isShooter = anim.seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
           const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
           const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
+
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (isShotActive && anim.seat === shotSeat && shotAge < 420) mode = 'strike';
+          else if (isShotActive && anim.seat === shotSeat) mode = 'strike';
           else if (isShotActive) mode = 'react';
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
 
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
-
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          const perimeterTarget = clampToWalkPerimeter(seatTarget);
-          if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
-          anim.rootTarget.copy(perimeterTarget);
-          if (!Number.isFinite(anim.walkPerimeterT)) {
-            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
-          }
-          const targetT = pointToPerimeterT(anim.rootTarget);
-          const loopDelta = THREE.MathUtils.euclideanModulo(targetT - anim.walkPerimeterT + 0.5, 1) - 0.5;
-          const maxStepT = (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) / (4 * (walkHalfX + walkHalfZ));
-          const stepT = THREE.MathUtils.clamp(loopDelta, -maxStepT, maxStepT);
-          anim.walkPerimeterT = THREE.MathUtils.euclideanModulo(anim.walkPerimeterT + stepT, 1);
-          const perimeterPos = perimeterTToPoint(anim.walkPerimeterT);
-          rig.group.position.copy(perimeterPos);
-          if (isInsideTableBlocker(rig.group.position)) {
-            rig.group.position.copy(clampToWalkPerimeter(rig.group.position));
-            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
-          }
-
-          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
-          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
+          anim.rootTarget.copy(desiredRoot);
+          rig.group.position.lerp(anim.rootTarget, 1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds));
 
           const aimForward = new THREE.Vector3(-normalizedAim.x, 0, -normalizedAim.y).normalize();
           const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
           anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
           rig.group.rotation.y = anim.yaw;
 
-          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
-          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
-          const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
-          const scale = anim.scale || 1;
-
-          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
-          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
-          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
-          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
-          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
-
-          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
-          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
-          const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
-          const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
-
-          const bridgeHandTarget = cueWorld
-            .clone()
-            .addScaledVector(aimForward, -(TABLE.W * 0.12))
-            .addScaledVector(side, -0.018 * scale)
-            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
-
-          const humanShotState =
-            mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-          const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-          const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-          const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
-          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
-          const practiceStroke =
-            humanShotState === 'dragging'
-              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
-              : 0;
-          const strikeNorm =
-            humanShotState === 'striking'
-              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
-              : 0;
-          let cueBallGap = BALL_R * 1.22;
-          if (humanShotState === 'dragging') {
-            cueBallGap += pull + practiceStroke;
-          } else if (humanShotState === 'striking') {
-            cueBallGap = THREE.MathUtils.lerp(
-              BALL_R * (1.22 + (pull / BALL_R)),
-              BALL_R * 1.05,
-              1 - Math.pow(1 - strikeNorm, 3)
-            );
+          if (anim.model) {
+            const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+            const activePower = mode === 'aim' ? draggingPower : strikingPower;
+            const powerLean = activePower * t;
+            const idleSway = Math.sin(nowMs * 0.001 * HUMAN_PLAYER_IDLE_SWAY_SPEED) * HUMAN_PLAYER_IDLE_SWAY_ANGLE;
+            const shotLean = mode === 'strike' ? HUMAN_PLAYER_REACT_LEAN : mode === 'aim' ? HUMAN_PLAYER_AIM_LEAN : 0;
+            anim.model.position.set(0, -0.02 * t, 0);
+            anim.model.rotation.set(-shotLean - powerLean * 0.06, Math.PI + idleSway, 0);
           }
-          const cueTipShoot = cueWorld
-            .clone()
-            .addScaledVector(aimForward, -cueBallGap)
-            .setY(bridgeHandTarget.y + 0.05 * scale);
-          const cueBackShoot = bridgeHandTarget
-            .clone()
-            .addScaledVector(aimForward, -(anim.humanHeight * 0.76))
-            .add(new THREE.Vector3(0, 0.028 * scale, 0));
-          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, 0.76);
-
-          const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
-          const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
-
-          const leftHandWorld = idleLeftHandTarget.clone().lerp(bridgeHandTarget, t);
-          const rightHandWorld = idleRightHandTarget.clone().lerp(gripHandTarget, t);
-
-          const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
-          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.43, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.03, 0.06, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.03, 0.02, t) * scale);
-
-          const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
-          const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
-          const frontFootShoot = new THREE.Vector3(-0.22 * scale, 0.035 * scale, -0.34 * scale);
-          const rearFootShoot = new THREE.Vector3(0.26 * scale, 0.035 * scale, 0.34 * scale);
-          const leftFootWorld = localToWorld(leftFootStand.lerp(frontFootShoot, t));
-          const rightFootWorld = localToWorld(rightFootStand.lerp(rearFootShoot, t));
-
-          const leftKnee = leftHipWorld.clone().lerp(leftFootWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.11, t) * scale).addScaledVector(aimForward, 0.04 * t * scale);
-          const rightKnee = rightHipWorld.clone().lerp(rightFootWorld, 0.52).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.08, t) * scale).addScaledVector(aimForward, -0.03 * t * scale);
-
-          const bodyQ = makeHumanoidBasis(side, aimForward);
-          anim.pelvis.position.copy(hipCenterWorld);
-          anim.pelvis.quaternion.copy(bodyQ);
-          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
-
-          anim.torso.position.copy(torsoCenterWorld);
-          anim.torso.quaternion.copy(bodyQ);
-          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
-
-          anim.chest.position.copy(chestCenterWorld);
-          anim.chest.quaternion.copy(bodyQ);
-          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
-
-          setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
-          anim.head.position.copy(headCenterWorld);
-          anim.head.quaternion.copy(bodyQ);
-          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
-
-          setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
-          setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
-          setHumanoidSegment(anim.rightUpperArm, rightShoulderWorld, rightElbow, 0.045 * scale);
-          setHumanoidSegment(anim.rightLowerArm, rightElbow, rightHandWorld, 0.037 * scale);
-
-          setHumanoidSegment(anim.leftUpperLeg, leftHipWorld, leftKnee, 0.058 * scale);
-          setHumanoidSegment(anim.leftLowerLeg, leftKnee, leftFootWorld, 0.052 * scale);
-          setHumanoidSegment(anim.rightUpperLeg, rightHipWorld, rightKnee, 0.058 * scale);
-          setHumanoidSegment(anim.rightLowerLeg, rightKnee, rightFootWorld, 0.052 * scale);
-
-          anim.bridgeHand.position.copy(leftHandWorld);
-          anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-          anim.gripHand.position.copy(rightHandWorld);
-          anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-          anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.3, 1.2, t);
-
-          anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.leftFoot.quaternion.copy(bodyQ);
-          anim.rightFoot.quaternion.copy(bodyQ);
-          anim.leftFoot.rotation.y += -0.24 * t;
-          anim.rightFoot.rotation.y += 0.16 * t;
-
         });
       };
       void spawnPlayerCharacters();
@@ -26722,11 +26415,7 @@ const shotPowerRef = useRef(0);
         const {
           aimDir,
           physicsSpin,
-          clampedPower,
-          liftStrength,
-          pullDistance = 0,
-          contactAdvance = 0,
-          strikeDuration = LIVE_CUE_FORWARD_DURATION_MS
+          clampedPower
         } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
@@ -26735,17 +26424,10 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const cueDriveBoost = computeCueDriveBoost({
-          pullDistance,
-          contactAdvance,
-          strikeDurationMs: strikeDuration,
-          clampedPower
-        });
         const referenceSpeed =
           REFERENCE_CUE_SPEED_BASE +
           REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
-            cueDriveBoost;
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA);
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
