@@ -2058,12 +2058,12 @@ const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 120,
-  gripMs: 90,
-  holdMs: 140,
-  windupMs: 240,
-  releaseMs: 220,
-  followMs: 420
+  reachMs: 250,
+  gripMs: 180,
+  holdMs: 220,
+  windupMs: 300,
+  releaseMs: 260,
+  followMs: 520
 });
 const SEATED_HUMAN_TOKEN_PHASES = Object.freeze({
   pickupMs: 220,
@@ -4516,20 +4516,20 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.08, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.2, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.05, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.12, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.5, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.04, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.1, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.54, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
   } else if (mode === 'holdDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
@@ -4537,9 +4537,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.08, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.02, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.16, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.56, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.06, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.14, t);
   } else if (mode === 'windUp') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.38, t);
@@ -6780,9 +6780,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       beginDiceHoldPose(player);
       return;
     }
-    beginDiceHoldPose(player, { startMs: performance.now() - 140 });
+    beginDiceHoldPose(player, { startMs: performance.now() - 220 });
     animateDicePosition(dice, target, {
-      duration: 260,
+      duration: 520,
       lift: 0.05,
       onComplete: () => beginDiceHoldPose(player)
     });
@@ -10243,7 +10243,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return true;
   }, []);
 
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 55 } = {}) => {
+  const syncDiceToThrowHand = useCallback((player, dice, { duration = 90 } = {}) => {
     if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
     const parent = dice.parent;
     const worldTarget = new THREE.Vector3();
@@ -10252,7 +10252,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const snapToHand = (blend = 1) => {
       if (!sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
-      worldTarget.y -= DICE_SIZE * 0.16;
+      worldTarget.y -= DICE_SIZE * 0.1;
       localTarget.copy(worldTarget);
       parent.worldToLocal(localTarget);
       if (blend >= 1) {
@@ -10334,7 +10334,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 45 });
+    await syncDiceToThrowHand(player, dice, { duration: 70 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
