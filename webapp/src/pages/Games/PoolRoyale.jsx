@@ -1939,6 +1939,10 @@ const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.42; // transition the shooter into cue-address pose once camera is lowered toward cue view
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
+const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
+const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
+const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24590,6 +24594,70 @@ const shotPowerRef = useRef(0);
             candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
           );
         };
+        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
+        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
+        const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
+        const blockerHalfZ = TABLE.H / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
+        const clampToWalkPerimeter = (point) => {
+          const px = Number.isFinite(point?.x) ? point.x : 0;
+          const pz = Number.isFinite(point?.z) ? point.z : 0;
+          const absX = Math.abs(px);
+          const absZ = Math.abs(pz);
+          const onX = absX / Math.max(HUMAN_WALK_EPS, walkHalfX);
+          const onZ = absZ / Math.max(HUMAN_WALK_EPS, walkHalfZ);
+          if (onX >= onZ) {
+            return new THREE.Vector3(
+              Math.sign(px || 1) * walkHalfX,
+              floorY,
+              THREE.MathUtils.clamp(pz, -walkHalfZ, walkHalfZ)
+            );
+          }
+          return new THREE.Vector3(
+            THREE.MathUtils.clamp(px, -walkHalfX, walkHalfX),
+            floorY,
+            Math.sign(pz || 1) * walkHalfZ
+          );
+        };
+        const pointToPerimeterT = (point) => {
+          const clamped = clampToWalkPerimeter(point);
+          const x = clamped.x;
+          const z = clamped.z;
+          const perim = 4 * (walkHalfX + walkHalfZ);
+          if (Math.abs(x + walkHalfX) < 1e-4) {
+            return THREE.MathUtils.clamp((z + walkHalfZ), 0, 2 * walkHalfZ) / perim;
+          }
+          if (Math.abs(z - walkHalfZ) < 1e-4) {
+            return (2 * walkHalfZ + THREE.MathUtils.clamp((x + walkHalfX), 0, 2 * walkHalfX)) / perim;
+          }
+          if (Math.abs(x - walkHalfX) < 1e-4) {
+            return (2 * walkHalfZ + 2 * walkHalfX + THREE.MathUtils.clamp((walkHalfZ - z), 0, 2 * walkHalfZ)) / perim;
+          }
+          return (
+            2 * walkHalfZ +
+            2 * walkHalfX +
+            2 * walkHalfZ +
+            THREE.MathUtils.clamp((walkHalfX - x), 0, 2 * walkHalfX)
+          ) / perim;
+        };
+        const perimeterTToPoint = (t) => {
+          const perim = 4 * (walkHalfX + walkHalfZ);
+          let dist = THREE.MathUtils.euclideanModulo(t, 1) * perim;
+          if (dist <= 2 * walkHalfZ) {
+            return new THREE.Vector3(-walkHalfX, floorY, -walkHalfZ + dist);
+          }
+          dist -= 2 * walkHalfZ;
+          if (dist <= 2 * walkHalfX) {
+            return new THREE.Vector3(-walkHalfX + dist, floorY, walkHalfZ);
+          }
+          dist -= 2 * walkHalfX;
+          if (dist <= 2 * walkHalfZ) {
+            return new THREE.Vector3(walkHalfX, floorY, walkHalfZ - dist);
+          }
+          dist -= 2 * walkHalfZ;
+          return new THREE.Vector3(walkHalfX - dist, floorY, -walkHalfZ);
+        };
+        const isInsideTableBlocker = (point) =>
+          Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
         const desiredRoot = chooseEdgeTarget(normalizedAim);
 
@@ -24614,9 +24682,23 @@ const shotPowerRef = useRef(0);
           const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
           const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
           const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
-          anim.rootTarget.copy(seatTarget);
-          rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
+          const perimeterTarget = clampToWalkPerimeter(seatTarget);
+          if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
+          anim.rootTarget.copy(perimeterTarget);
+          if (!Number.isFinite(anim.walkPerimeterT)) {
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
+          const targetT = pointToPerimeterT(anim.rootTarget);
+          const loopDelta = THREE.MathUtils.euclideanModulo(targetT - anim.walkPerimeterT + 0.5, 1) - 0.5;
+          const maxStepT = (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) / (4 * (walkHalfX + walkHalfZ));
+          const stepT = THREE.MathUtils.clamp(loopDelta, -maxStepT, maxStepT);
+          anim.walkPerimeterT = THREE.MathUtils.euclideanModulo(anim.walkPerimeterT + stepT, 1);
+          const perimeterPos = perimeterTToPoint(anim.walkPerimeterT);
+          rig.group.position.copy(perimeterPos);
+          if (isInsideTableBlocker(rig.group.position)) {
+            rig.group.position.copy(clampToWalkPerimeter(rig.group.position));
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
 
           const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
           anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
@@ -26804,11 +26886,11 @@ const shotPowerRef = useRef(0);
         } else {
           aimDir.normalize();
         }
-        const sourcePower = Number.isFinite(committedPowerOverride)
-          ? committedPowerOverride
-          : Number.isFinite(shotPowerRef.current)
-            ? shotPowerRef.current
-            : powerRef.current;
+        const sourcePower = Math.max(
+          Number.isFinite(committedPowerOverride) ? committedPowerOverride : 0,
+          Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+          Number.isFinite(powerRef.current) ? powerRef.current : 0
+        );
         const clampedPower = clampPower(sourcePower, 0);
         if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
           setShootingState(false);
@@ -33179,7 +33261,11 @@ const shotPowerRef = useRef(0);
     applyPower(clamped);
   }, [applyPower, clampPower]);
   const onPowerRelease = useCallback((powerRatio = null) => {
-    const sourcePower = Number.isFinite(powerRatio) ? powerRatio : powerRef.current;
+    const sourcePower = Math.max(
+      Number.isFinite(powerRatio) ? powerRatio : 0,
+      Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+      Number.isFinite(powerRef.current) ? powerRef.current : 0
+    );
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
