@@ -15886,6 +15886,10 @@ const shotPowerRef = useRef(0);
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
+  const shotTriggerStateRef = useRef('idle'); // idle | dragging | striking
+  const strikingStartMsRef = useRef(0);
+  const strikingPowerRef = useRef(0);
+  const strikingDidFireRef = useRef(false);
   useEffect(() => {
     shootingRef.current = shotActive;
   }, [shotActive]);
@@ -26791,17 +26795,8 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const cueDriveBoost = computeCueDriveBoost({
-          pullDistance,
-          contactAdvance,
-          strikeDurationMs: strikeDuration,
-          clampedPower
-        });
-        const referenceSpeed =
-          REFERENCE_CUE_SPEED_BASE +
-          REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
-            cueDriveBoost;
+        // Bilardo Shqip parity: direct cue-ball launch speed from power.
+        const referenceSpeed = 1.9 + 8.2 * Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), 1.08);
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33307,8 +33302,13 @@ const shotPowerRef = useRef(0);
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
+  const BILARDO_STRIKE_DURATION_MS = 180;
+  const BILARDO_STRIKE_TRIGGER_NORM = 0.88;
+  const BILARDO_MIN_POWER_TO_STRIKE = 0.02;
   const sliderRef = useRef(null);
   const onPowerDragStart = useCallback(() => {
+    shotTriggerStateRef.current = 'dragging';
+    strikingDidFireRef.current = false;
     captureCueStickAnchor();
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
@@ -33324,9 +33324,41 @@ const shotPowerRef = useRef(0);
     );
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
+    strikingPowerRef.current = latchedPower;
     applyPower(latchedPower);
-    fireRef.current?.(latchedPower);
+    if (latchedPower > BILARDO_MIN_POWER_TO_STRIKE) {
+      shotTriggerStateRef.current = 'striking';
+      strikingStartMsRef.current = performance.now();
+      strikingDidFireRef.current = false;
+    } else {
+      shotTriggerStateRef.current = 'idle';
+      strikingStartMsRef.current = 0;
+      strikingDidFireRef.current = false;
+    }
   }, [applyPower, clampPower]);
+  useEffect(() => {
+    let rafId = 0;
+    const tick = () => {
+      const state = shotTriggerStateRef.current;
+      if (state === 'striking') {
+        const elapsed = Math.max(0, performance.now() - (strikingStartMsRef.current || 0));
+        const strikeNorm = THREE.MathUtils.clamp(elapsed / BILARDO_STRIKE_DURATION_MS, 0, 1);
+        if (!strikingDidFireRef.current && strikeNorm > BILARDO_STRIKE_TRIGGER_NORM) {
+          strikingDidFireRef.current = true;
+          fireRef.current?.(strikingPowerRef.current);
+        }
+        if (strikeNorm >= 1) {
+          shotTriggerStateRef.current = 'idle';
+          strikingStartMsRef.current = 0;
+          strikingPowerRef.current = 0;
+          strikingDidFireRef.current = false;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33364,6 +33396,10 @@ const shotPowerRef = useRef(0);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
+    shotTriggerStateRef.current = 'idle';
+    strikingStartMsRef.current = 0;
+    strikingPowerRef.current = 0;
+    strikingDidFireRef.current = false;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
