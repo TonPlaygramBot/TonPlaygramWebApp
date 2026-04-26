@@ -7,6 +7,7 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -980,6 +981,29 @@ const CHAIR_OUTWARD_OFFSET = 0;
 const CHAIR_RADIUS =
   TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
 const CHAIR_VISUAL_SCALE = 1.3;
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.014 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = -0.007 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = -0.004 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -998,6 +1022,65 @@ const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
   CHAIR_RADIUS,
   CHAIR_RADIUS
+]);
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current',
+    label: 'Current Avatar',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb']
+  },
+  {
+    id: 'rpm-67d411',
+    label: 'RPM 67d411',
+    modelUrls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ]
+  },
+  {
+    id: 'rpm-67f433',
+    label: 'RPM 67f433',
+    modelUrls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ]
+  },
+  {
+    id: 'rpm-67e1b5',
+    label: 'RPM 67e1b5',
+    modelUrls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ]
+  },
+  {
+    id: 'webgl-vietnam-human',
+    label: 'Vietnam Human',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb']
+  },
+  {
+    id: 'webgl-human-body-a',
+    label: 'Human Body A',
+    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb']
+  },
+  {
+    id: 'webgl-human-body-b',
+    label: 'Human Body B',
+    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb']
+  },
+  {
+    id: 'webgl-ai-teacher',
+    label: 'AI Teacher',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb']
+  },
+  {
+    id: 'webgl-ai-teacher-1',
+    label: 'AI Teacher 1',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb']
+  }
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -3961,6 +4044,7 @@ const TABLE_SETUP_SECTIONS = [
   { key: 'dominoStyle', label: 'Domino Colors', options: DOMINO_STYLE_OPTIONS },
   { key: 'dominoDotStyle', label: 'Domino Dots', options: DOMINO_DOT_STYLE_OPTIONS },
   { key: 'dominoFrameStyle', label: 'Domino Frames', options: DOMINO_FRAME_STYLE_OPTIONS },
+  { key: 'humanCharacter', label: 'Human Characters', options: DOMINO_HUMAN_CHARACTER_OPTIONS },
   {
     key: 'highlightStyle',
     label: 'Highlights',
@@ -4008,6 +4092,7 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   dominoStyle: DOMINO_STYLE_OPTIONS,
   dominoDotStyle: DOMINO_DOT_STYLE_OPTIONS,
   dominoFrameStyle: DOMINO_FRAME_STYLE_OPTIONS,
+  humanCharacter: DOMINO_HUMAN_CHARACTER_OPTIONS,
   highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
   chairTheme: CHAIR_THEME_OPTIONS
 });
@@ -4164,6 +4249,7 @@ function normalizeAppearance(raw) {
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
     ['dominoDotStyle', DOMINO_DOT_STYLE_OPTIONS.length],
     ['dominoFrameStyle', DOMINO_FRAME_STYLE_OPTIONS.length],
+    ['humanCharacter', DOMINO_HUMAN_CHARACTER_OPTIONS.length],
     ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
     ['chairTheme', CHAIR_THEME_OPTIONS.length]
   ];
@@ -7444,6 +7530,10 @@ function createOptionPreview(key, option) {
     case 'chairTheme':
       swatch.style.background = option.seatColor;
       break;
+    case 'humanCharacter':
+      swatch.style.background =
+        'linear-gradient(145deg, rgba(59,130,246,0.72), rgba(15,23,42,0.95))';
+      break;
     default:
       swatch.style.background = '#1f2937';
   }
@@ -7673,6 +7763,284 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenColorMap',
   'sheenRoughnessMap'
 ]);
+const seatedHumanTemplatePromiseById = new Map();
+const seatedHumanActors = [];
+
+function normalizeHumanModelUrlCandidates(modelUrls = []) {
+  const next = [];
+  const seen = new Set();
+  const push = (value) => {
+    if (!value || typeof value !== 'string') return;
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    next.push(normalized);
+  };
+  modelUrls.forEach((url) => {
+    push(url);
+    const rawGithubMatch = url.match(
+      /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/
+    );
+    if (rawGithubMatch) {
+      const [, owner, repo, branch, path] = rawGithubMatch;
+      push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${path}`);
+      push(`https://cdn.statically.io/gh/${owner}/${repo}/${branch}/${path}`);
+    }
+  });
+  return next;
+}
+
+function normalizeSeatedHumanRootToChair(root) {
+  const box = new THREE.Box3().setFromObject(root);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return;
+  const centerX = (box.min.x + box.max.x) * 0.5;
+  const centerZ = (box.min.z + box.max.z) * 0.5;
+  root.position.x -= centerX;
+  root.position.z -= centerZ;
+  root.position.y -= box.min.y;
+  root.updateMatrixWorld(true);
+}
+
+function computeSeatedHumanScale(actorTemplate) {
+  if (!actorTemplate) return 1;
+  const box = new THREE.Box3().setFromObject(actorTemplate);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return 1;
+  const measuredHeight = Math.max(0.01, box.max.y - box.min.y);
+  return (
+    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(measuredHeight, 0.01)) *
+    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER
+  );
+}
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function normalizeBoneName(name = '') {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findBoneByNeedle(bones, ...needles) {
+  const normalized = bones.map((bone) => ({
+    bone,
+    name: normalizeBoneName(bone?.name)
+  }));
+  for (const needle of needles) {
+    const clean = normalizeBoneName(needle);
+    const matched = normalized.find((entry) => entry.name.includes(clean));
+    if (matched?.bone) return matched.bone;
+  }
+  return null;
+}
+
+function findBoneChainByNeedle(bones, ...needles) {
+  const normalized = bones.map((bone) => ({ bone, name: normalizeBoneName(bone?.name) }));
+  const result = [];
+  for (const needle of needles) {
+    const clean = normalizeBoneName(needle);
+    const matched = normalized
+      .filter((entry) => entry.name.includes(clean))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    matched.forEach((entry) => {
+      if (!result.includes(entry.bone)) result.push(entry.bone);
+    });
+    if (result.length) break;
+  }
+  return result.slice(0, 4);
+}
+
+function saveBoneRig(modelRoot) {
+  const bones = [];
+  modelRoot?.traverse?.((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  const saved = new Map();
+  bones.forEach((bone) => {
+    saved.set(bone, { rotation: bone.rotation.clone(), position: bone.position.clone() });
+  });
+  return {
+    bones,
+    saved,
+    hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
+    spine: findBoneByNeedle(bones, 'spine'),
+    chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
+    neck: findBoneByNeedle(bones, 'neck'),
+    head: findBoneByNeedle(bones, 'head'),
+    leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
+    leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
+    leftFoot: findBoneByNeedle(bones, 'leftfoot'),
+    rightUpperLeg: findBoneByNeedle(bones, 'rightupleg', 'rightthigh', 'rightupperleg'),
+    rightLowerLeg: findBoneByNeedle(bones, 'rightleg', 'rightlowerleg', 'rightcalf'),
+    rightFoot: findBoneByNeedle(bones, 'rightfoot'),
+    leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
+    leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
+    leftHand: findBoneByNeedle(bones, 'lefthand'),
+    rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
+    rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
+    rightHand: findBoneByNeedle(bones, 'righthand'),
+    rightThumb: findBoneChainByNeedle(bones, 'righthandthumb', 'rightthumb'),
+    rightIndex: findBoneChainByNeedle(bones, 'righthandindex', 'rightindex'),
+    rightMiddle: findBoneChainByNeedle(bones, 'righthandmiddle', 'rightmiddle'),
+    rightRing: findBoneChainByNeedle(bones, 'righthandring', 'rightring'),
+    rightPinky: findBoneChainByNeedle(bones, 'righthandpinky', 'rightpinky')
+  };
+}
+
+function resetBoneRig(rig) {
+  if (!rig?.saved) return;
+  rig.saved.forEach((state, bone) => {
+    bone.rotation.copy(state.rotation);
+    bone.position.copy(state.position);
+  });
+}
+
+function addBoneRot(rig, bone, x = 0, y = 0, z = 0, weight = 1) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.rotation.x = base.rotation.x + x * weight;
+  bone.rotation.y = base.rotation.y + y * weight;
+  bone.rotation.z = base.rotation.z + z * weight;
+}
+
+function addBonePos(rig, bone, x = 0, y = 0, z = 0, weight = 1) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.position.x = base.position.x + x * weight;
+  bone.position.y = base.position.y + y * weight;
+  bone.position.z = base.position.z + z * weight;
+}
+
+function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
+  const grip = clamp(amount, 0, 1);
+  chain.forEach((bone, index) => {
+    const curl = index === 0 ? -0.38 : -0.72;
+    const side = index === 0 ? sideSpread : sideSpread * 0.25;
+    addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip, 1);
+  });
+}
+
+function applyRightHandGrip(rig, gripAmount = 0) {
+  if (!rig) return;
+  const grip = clamp(gripAmount, 0, 1);
+  const open = 1 - grip;
+  const squeeze = 0.78 + grip * 0.38;
+  curlFingerChain(rig, rig.rightIndex, grip * squeeze, -0.06 + 0.04 * open);
+  curlFingerChain(rig, rig.rightMiddle, grip * squeeze, -0.025);
+  curlFingerChain(rig, rig.rightRing, grip * squeeze, 0.055 - 0.03 * open);
+  curlFingerChain(rig, rig.rightPinky, grip * squeeze, 0.105 - 0.04 * open);
+  (rig.rightThumb || []).forEach((bone, index) => {
+    const fold = index === 0 ? -0.38 : -0.62;
+    addBoneRot(rig, bone, fold * grip, -0.36 * grip, 0.27 * grip, 1);
+  });
+}
+
+function applySeatedHumanPose(rig) {
+  if (!rig) return;
+  resetBoneRig(rig);
+  addBonePos(rig, rig.hips, 0, -0.62, -0.078, 1);
+  addBoneRot(rig, rig.hips, -0.16, 0, 0, 1);
+  addBoneRot(rig, rig.spine, 0.26, 0, 0, 1);
+  addBoneRot(rig, rig.chest, 0.16, 0, 0, 1);
+  addBoneRot(rig, rig.neck, -0.04, 0, 0, 1);
+  addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
+  addBoneRot(rig, rig.leftUpperLeg, -1.58, 0.16, 0.05, 1);
+  addBoneRot(rig, rig.leftLowerLeg, -1.66, 0.02, 0.01, 1);
+  addBoneRot(rig, rig.leftFoot, 0.26, 0.03, 0.02, 1);
+  addBoneRot(rig, rig.rightUpperLeg, -1.58, 0.03, -0.02, 1);
+  addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
+  addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
+  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
+  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
+  addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
+  addBoneRot(rig, rig.rightUpperArm, -0.20, -0.02, -0.72, 1);
+  addBoneRot(rig, rig.rightForeArm, -0.50, -0.04, 0.14, 1);
+  addBoneRot(rig, rig.rightHand, -0.08, 0, 0.06, 1);
+  applyRightHandGrip(rig, 0.02);
+}
+
+function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
+  if (!actor?.isObject3D) return;
+  actor.updateMatrixWorld(true);
+  const footBones = [rig?.leftFoot, rig?.rightFoot].filter((bone) => bone?.isBone);
+  if (!footBones.length) return;
+  let minFootY = Infinity;
+  footBones.forEach((bone) => {
+    const worldPos = bone.getWorldPosition(new THREE.Vector3());
+    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
+  });
+  if (!Number.isFinite(minFootY)) return;
+  actor.position.y -= minFootY - clearance;
+  actor.updateMatrixWorld(true);
+}
+
+function createSeatedHumanActionHelpers(actor, rig) {
+  const rightHand = rig?.rightHand;
+  const headBone = rig?.head;
+  const helperRoot = rightHand?.isBone ? rightHand : actor;
+  const faceRoot = headBone?.isBone ? headBone : actor;
+  if (!helperRoot?.isObject3D) return null;
+  const createHelper = (name, x, y, z) => {
+    const helper = new THREE.Object3D();
+    helper.name = name;
+    helper.position.set(x, y, z);
+    helperRoot.add(helper);
+    return helper;
+  };
+  return {
+    dicePickup: createHelper('dicePickupHelper', SEATED_HELPER_RIGHT_DICE, SEATED_HELPER_UP_DICE_PICKUP, SEATED_HELPER_FORWARD_DICE_PICKUP),
+    diceRelease: createHelper('diceReleaseHelper', SEATED_HELPER_RIGHT_DICE, SEATED_HELPER_UP_DICE_RELEASE, SEATED_HELPER_FORWARD_DICE_RELEASE),
+    tokenPickup: createHelper('tokenPickupHelper', SEATED_HELPER_RIGHT_TOKEN, SEATED_HELPER_UP_TOKEN_PICKUP, SEATED_HELPER_FORWARD_TOKEN_PICKUP),
+    tokenPlace: createHelper('tokenPlaceHelper', SEATED_HELPER_RIGHT_TOKEN, SEATED_HELPER_UP_TOKEN_PLACE, SEATED_HELPER_FORWARD_TOKEN_PLACE),
+    contactEffector: createHelper('contactEffectorHelper', SEATED_HELPER_CONTACT_RIGHT, SEATED_HELPER_CONTACT_UP, SEATED_HELPER_CONTACT_FORWARD),
+    faceCamera: (() => {
+      if (!faceRoot?.isObject3D) return null;
+      const helper = new THREE.Object3D();
+      helper.name = 'faceCameraHelper';
+      helper.position.set(SEATED_HELPER_FACE_CAMERA_RIGHT, SEATED_HELPER_FACE_CAMERA_UP, SEATED_HELPER_FACE_CAMERA_FORWARD);
+      faceRoot.add(helper);
+      return helper;
+    })()
+  };
+}
+
+async function loadSeatedHumanTemplate(option) {
+  const fallbackOption = DOMINO_HUMAN_CHARACTER_OPTIONS[0] || {};
+  const targetOption = option || fallbackOption;
+  const cacheKey = targetOption.id || 'default-human';
+  if (!seatedHumanTemplatePromiseById.has(cacheKey)) {
+    seatedHumanTemplatePromiseById.set(
+      cacheKey,
+      (async () => {
+        const loader = createConfiguredGltfLoader();
+        const candidates = normalizeHumanModelUrlCandidates(
+          targetOption.modelUrls || fallbackOption.modelUrls || []
+        );
+        let gltf = null;
+        let lastError = null;
+        for (const url of candidates) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            gltf = await loader.loadAsync(url);
+            if (gltf) break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (!gltf) throw lastError || new Error('Missing seated human scene');
+        const root = gltf.scene || gltf.scenes?.[0] || gltf;
+        normalizeSeatedHumanRootToChair(root);
+        root.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        });
+        root.userData.seatedHumanScale = computeSeatedHumanScale(root);
+        return root;
+      })()
+    );
+  }
+  return seatedHumanTemplatePromiseById.get(cacheKey);
+}
 
 function disposeChairResources(root) {
   root.traverse((child) => {
@@ -7713,6 +8081,10 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
+  while (seatedHumanActors.length) {
+    const actor = seatedHumanActors.pop();
+    actor?.parent?.remove(actor);
+  }
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
@@ -7749,7 +8121,50 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
+  void attachSeatedHumanActors(token);
   syncArenaGroundToFurniture();
+}
+
+async function attachSeatedHumanActors(token) {
+  try {
+    for (let index = 0; index < chairs.length; index += 1) {
+      if (token !== chairBuildToken) return;
+      const chairRoot = chairs[index];
+      if (!chairRoot) continue;
+      const humanIndex =
+        index === HUMAN_SEAT_INDEX
+          ? appearance.humanCharacter
+          : (index - 1 + DOMINO_HUMAN_CHARACTER_OPTIONS.length) %
+            DOMINO_HUMAN_CHARACTER_OPTIONS.length;
+      const option =
+        DOMINO_HUMAN_CHARACTER_OPTIONS[humanIndex] ??
+        DOMINO_HUMAN_CHARACTER_OPTIONS[0];
+      let template;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        template = await loadSeatedHumanTemplate(option);
+      } catch (error) {
+        console.warn('Domino Royal human seat model failed, using default', option?.id, error);
+        // eslint-disable-next-line no-await-in-loop
+        template = await loadSeatedHumanTemplate(DOMINO_HUMAN_CHARACTER_OPTIONS[0]);
+      }
+      if (!template || token !== chairBuildToken) return;
+      const actor = cloneSkeleton(template);
+      const actorScale =
+        template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template);
+      actor.scale.setScalar(actorScale);
+      actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+      actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+      const rig = saveBoneRig(actor);
+      applySeatedHumanPose(rig);
+      alignSeatedHumanFeetToGroundPlane(actor, rig);
+      actor.userData.seatedHelpers = createSeatedHumanActionHelpers(actor, rig);
+      chairRoot.add(actor);
+      seatedHumanActors.push(actor);
+    }
+  } catch (error) {
+    console.warn('Unable to attach seated human actors for Domino chairs', error);
+  }
 }
 
 async function buildChairs(
