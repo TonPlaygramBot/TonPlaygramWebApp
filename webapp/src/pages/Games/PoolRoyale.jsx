@@ -1925,9 +1925,9 @@ const REFERENCE_CUE_SPEED_BASE = 1.9; // reference implementation: base cue-ball
 const REFERENCE_CUE_SPEED_RANGE = 8.2; // reference implementation: extra speed from power
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.9; // make human players visibly bigger relative to the table on portrait screens
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
 const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.28; // extra global scale bump so both fallback and GLTF humans read larger on phone screens
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24445,7 +24445,7 @@ const shotPowerRef = useRef(0);
         rigGroup.rotation.y = facingY;
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const scale = humanHeight / 1.82;
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
         const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
@@ -27185,8 +27185,8 @@ const shotPowerRef = useRef(0);
           const startTime = performance.now();
           const impactPos = idlePos.clone();
           const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.02,
-            BALL_R * 0.14,
+            BALL_R * 0.28,
+            BALL_R * 0.62,
             clampedPower
           );
           const contactPos = impactPos
@@ -27316,7 +27316,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.72,
+              strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
@@ -33184,7 +33184,7 @@ const shotPowerRef = useRef(0);
 	          : clampPower(powerRef.current, 0);
 	        onPowerRelease(powerRatio);
 	        const resetDurationMs = 180;
-	        slider.animateToMin({ duration: resetDurationMs, emitChange: false });
+	        slider.animateToMin({ duration: resetDurationMs });
 	      }
 	    });
     sliderInstanceRef.current = slider;
