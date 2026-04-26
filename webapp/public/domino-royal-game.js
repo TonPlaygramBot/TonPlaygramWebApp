@@ -984,14 +984,6 @@ const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
-const SEATED_HUMAN_FACING_Y = 0;
 const CAMERA_REFERENCE_TABLE_RADIUS = TABLE_RADIUS;
 const CAMERA_REFERENCE_TABLE_HEIGHT = TABLE_HEIGHT;
 const HUMAN_SEAT_INDEX = 0;
@@ -5972,75 +5964,6 @@ async function applyTableTheme(
 
 const tableParts = {};
 const chairs = [];
-const seatedHumanActors = [];
-let seatedHumanTemplatePromise = null;
-
-async function loadSeatedHumanTemplate() {
-  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
-  seatedHumanTemplatePromise = new Promise((resolve, reject) => {
-    const loader = createConfiguredGltfLoader();
-    loader.load(
-      SEATED_HUMAN_MODEL_URL,
-      (gltf) => {
-        const root = gltf?.scene;
-        if (!root) {
-          reject(new Error('Missing seated human scene'));
-          return;
-        }
-        root.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-          child.frustumCulled = false;
-        });
-        resolve(root);
-      },
-      undefined,
-      (error) => reject(error)
-    );
-  }).catch((error) => {
-    seatedHumanTemplatePromise = null;
-    throw error;
-  });
-  return seatedHumanTemplatePromise;
-}
-
-function disposeSeatedHumans() {
-  while (seatedHumanActors.length) {
-    const actor = seatedHumanActors.pop();
-    actor?.parent?.remove(actor);
-  }
-}
-
-function getSeatedHumanScale() {
-  return (
-    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
-    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER
-  );
-}
-
-async function attachSeatedHumansToChairs(seatWrappers = []) {
-  disposeSeatedHumans();
-  if (!Array.isArray(seatWrappers) || !seatWrappers.length) return;
-  try {
-    const template = await loadSeatedHumanTemplate();
-    const scale = getSeatedHumanScale();
-    seatWrappers.forEach((wrapper, playerIndex) => {
-      if (!wrapper || !template) return;
-      const actor = template.clone(true);
-      actor.scale.setScalar(scale);
-      const seatZOffset =
-        SEATED_HUMAN_SEAT_Z_OFFSET +
-        (playerIndex === HUMAN_SEAT_INDEX ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-      actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
-      actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
-      wrapper.add(actor);
-      seatedHumanActors.push(actor);
-    });
-  } catch (error) {
-    console.warn('Unable to attach seated human actors for Domino chairs', error);
-  }
-}
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7785,7 +7708,6 @@ function placeChairsWithOption(option, chairData, token) {
   disposeSeatAvatars();
   disposeSeatNameTags();
   disposeSeatBadges();
-  disposeSeatedHumans();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -7826,7 +7748,6 @@ function placeChairsWithOption(option, chairData, token) {
     }
   });
 
-  void attachSeatedHumansToChairs(chairs);
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
 }
