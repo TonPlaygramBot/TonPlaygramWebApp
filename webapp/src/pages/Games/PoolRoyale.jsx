@@ -1931,7 +1931,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
-const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
+const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
@@ -33364,11 +33364,6 @@ useEffect(() => {
     manualStrikeStartedAtRef.current = performance.now();
     const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
     setManualShotState(shouldStrike ? 'striking' : 'idle');
-    if (shouldStrike) {
-      // Immediate fire on release guarantees cue-ball power transfer even if
-      // strike timeline callbacks are delayed on some devices.
-      fireRef.current?.(latchedPower);
-    }
   }, [applyPower, clampPower]);
   useEffect(() => {
     let raf = 0;
