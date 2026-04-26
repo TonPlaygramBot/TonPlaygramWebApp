@@ -31,6 +31,10 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, buyBundle, depositAccount, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
+import {
+  BILARDO_MIN_RELEASE_POWER,
+  computeBilardoCueSpeed
+} from './sharedBilardoShotLogic';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -1928,7 +1932,7 @@ const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // keep character/table size contrast aligned with Bilardo Shqip
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -26791,17 +26795,7 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const cueDriveBoost = computeCueDriveBoost({
-          pullDistance,
-          contactAdvance,
-          strikeDurationMs: strikeDuration,
-          clampedPower
-        });
-        const referenceSpeed =
-          REFERENCE_CUE_SPEED_BASE +
-          REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
-            cueDriveBoost;
+        const referenceSpeed = computeBilardoCueSpeed(clampedPower);
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33325,6 +33319,10 @@ const shotPowerRef = useRef(0);
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
+    if (latchedPower <= BILARDO_MIN_RELEASE_POWER) {
+      applyPower(0);
+      return;
+    }
     fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
