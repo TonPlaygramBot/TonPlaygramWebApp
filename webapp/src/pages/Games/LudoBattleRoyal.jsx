@@ -184,6 +184,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     label: 'AK-47',
     urls: [
       'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
       'https://raw.githubusercontent.com/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb',
       'https://cdn.statically.io/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb'
     ],
@@ -200,31 +201,75 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   shotgunBlastAttack: {
     label: 'Shotgun',
-    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/shotgun.glb',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
+    ],
     scale: 0.228
   },
   sniperShotAttack: {
     label: 'Sniper Rifle',
-    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/sniper.glb',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
+    ],
     scale: 0.248
   },
   smgBurstAttack: {
     label: 'SMG',
-    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/smg.glb',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
+    ],
     scale: 0.218
   },
   compactCarbineAttack: {
     label: 'Compact Carbine',
-    urls: ['https://raw.githubusercontent.com/pmndrs/drei-assets/master/smg.glb'],
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb'
+    ],
     scale: 0.21
   },
   marksmanDmrAttack: {
     label: 'Marksman DMR',
-    urls: ['https://raw.githubusercontent.com/pmndrs/drei-assets/master/sniper.glb'],
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
+    ],
     scale: 0.23
   }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
+let activeModelTextureAnisotropy = 8;
+
+function resolveModelTextureAnisotropy(profile = null) {
+  const id = `${profile?.id || ''}`.toLowerCase();
+  if (id.includes('hd50')) return 3;
+  if (id.includes('fhd60')) return 6;
+  if (id.includes('qhd90')) return 8;
+  if (id.includes('uhd120')) return 12;
+  if (id.includes('uhd144')) return 16;
+  return 8;
+}
+
+function setModelTextureQualityProfile(profile = null) {
+  activeModelTextureAnisotropy = resolveModelTextureAnisotropy(profile);
+}
+
+function applyModelQualityToObject(root) {
+  if (!root?.isObject3D) return;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+      material.needsUpdate = true;
+    });
+  });
+}
+
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   glockSidearmAttack: 17,
   pistolSidearmAttack: 16,
@@ -332,6 +377,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           material.needsUpdate = true;
         });
       });
+      applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
       return root;
     } catch (error) {
@@ -4460,7 +4506,7 @@ function normalizedPhase(nowMs, startMs, durationMs) {
 function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
   const grip = clamp(amount, 0, 1);
   chain.forEach((bone, index) => {
-    const curl = index === 0 ? -0.38 : -0.72;
+    const curl = index === 0 ? 0.38 : 0.72;
     const side = index === 0 ? sideSpread : sideSpread * 0.25;
     addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip, 1);
   });
@@ -4478,7 +4524,7 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   curlFingerChain(rig, rig.rightPinky, grip * squeeze, 0.105 - 0.04 * open);
 
   (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.38 : -0.62;
+    const fold = index === 0 ? 0.38 : 0.62;
     addBoneRot(rig, bone, fold * grip, -0.36 * grip, 0.27 * grip, 1);
   });
 }
@@ -5187,12 +5233,13 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             materials.forEach((mat) => {
               if (!mat?.map) mat.map = fallbackTex;
               if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-              normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+              normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
               if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
               mat.needsUpdate = true;
             });
           }
         });
+        applyModelQualityToObject(root);
         return root;
       })()
     );
@@ -5610,6 +5657,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [activeFrameRateOption]);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
+    setModelTextureQualityProfile(frameQualityProfile);
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
@@ -7366,6 +7414,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (hdriChanged) {
         await applyHdriEnvironment(envVariant);
         arena.hdriResolutionKey = hdriResolutionProfile.key;
+      }
+
+      if (qualityChanged) {
+        seatedHumanActorsRef.current?.forEach((entry) => applyModelQualityToObject(entry?.actor));
+        parkedCaptureVehiclesRef.current?.forEach((entry) => {
+          applyModelQualityToObject(entry?.weaponRack);
+          applyModelQualityToObject(entry?.weaponHolder);
+        });
       }
 
       if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged || qualityChanged) {
