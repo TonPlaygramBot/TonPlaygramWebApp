@@ -4513,23 +4513,23 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   if (mode === 'reachDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.78, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.3, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.24, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.18, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.72, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.18, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.04, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.24, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.84, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.04, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.12, t);
   } else if (mode === 'holdDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
@@ -4920,7 +4920,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       ...basePose,
       mode: 'holdDice',
       intensity: 1,
-      handGrip: playerIndex === 0 ? 0.2 : 0.92,
+      handGrip: 0.94,
       motionTuning: { idleBreathAmp: 0.008, precision: 1.08 }
     };
   }
@@ -9735,12 +9735,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
-    const pickupHelper = new THREE.Vector3();
     const placeHelper = new THREE.Vector3();
-    const hasPickupHelper =
-      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
     const hasPlaceHelper =
-      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
+      !enteringMove && sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
     const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
       collection.push({
         position,
@@ -10331,7 +10328,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 150 });
+    await syncDiceToThrowHand(player, dice, {
+      duration: Math.max(80, Math.round(SEATED_HUMAN_DICE_PHASES.gripMs * 0.78))
+    });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
@@ -10389,18 +10388,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
-      const enteringOptions = options.filter((option) => option.entering);
-      if (enteringOptions.length) {
-        beginHumanSelection(value, enteringOptions, { skipCameraFollow: !hasBoardTokenBeforeRoll });
-        return;
-      }
-      const choice = chooseMoveOption(state, 0, value, options);
-      if (choice) {
-        moveToken(0, choice.token, value, {
-          skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
-        });
-        return;
-      }
       beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
