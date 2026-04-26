@@ -1926,7 +1926,7 @@ const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilard
 const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 1.02; // increase human scale to match Bilardo Shqiptar perceived size
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
@@ -15523,16 +15523,6 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
-const MANUAL_STRIKE_TIME_MS = 170;
-const MANUAL_STRIKE_THRESHOLD = 0.88;
-const [manualShotState, setManualShotState] = useState('idle'); // idle | dragging | striking
-const manualShotStateRef = useRef('idle');
-const manualStrikeStartedAtRef = useRef(0);
-const manualStrikeDidHitRef = useRef(false);
-const manualStrikePowerRef = useRef(0);
-useEffect(() => {
-  manualShotStateRef.current = manualShotState;
-}, [manualShotState]);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -26808,8 +26798,10 @@ useEffect(() => {
           clampedPower
         });
         const referenceSpeed =
-          (1.9 + 8.2 * Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), 1.08)) *
-          cueDriveBoost;
+          REFERENCE_CUE_SPEED_BASE +
+          REFERENCE_CUE_SPEED_RANGE *
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33318,11 +33310,8 @@ useEffect(() => {
   const sliderRef = useRef(null);
   const onPowerDragStart = useCallback(() => {
     captureCueStickAnchor();
-    manualStrikeDidHitRef.current = false;
-    setManualShotState('dragging');
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
-    if (manualShotStateRef.current === 'striking') return;
     const clamped = clampPower(powerRatio, 0);
     shotPowerRef.current = clamped;
     applyPower(clamped);
@@ -33335,44 +33324,9 @@ useEffect(() => {
     );
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
-    manualStrikePowerRef.current = latchedPower;
     applyPower(latchedPower);
-    manualStrikeDidHitRef.current = false;
-    manualStrikeStartedAtRef.current = performance.now();
-    setManualShotState(latchedPower > 0.02 ? 'striking' : 'idle');
+    fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      if (manualShotStateRef.current !== 'striking') return;
-      const start = manualStrikeStartedAtRef.current || 0;
-      if (start <= 0) return;
-      const strikeNorm = THREE.MathUtils.clamp(
-        (performance.now() - start) / MANUAL_STRIKE_TIME_MS,
-        0,
-        1
-      );
-      if (!manualStrikeDidHitRef.current && strikeNorm > MANUAL_STRIKE_THRESHOLD) {
-        manualStrikeDidHitRef.current = true;
-        fireRef.current?.(manualStrikePowerRef.current ?? shotPowerRef.current ?? powerRef.current ?? 0);
-      }
-      if (strikeNorm >= 1) {
-        setManualShotState('idle');
-        manualStrikeStartedAtRef.current = 0;
-        manualStrikePowerRef.current = 0;
-        requestAnimationFrame(() => {
-          const slider = sliderInstanceRef.current;
-          if (slider) slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [applyPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33390,6 +33344,10 @@ useEffect(() => {
       onStart: () => onPowerDragStart(),
       onCommit: () => {
         onPowerRelease(clampPower(powerRef.current, 0));
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
