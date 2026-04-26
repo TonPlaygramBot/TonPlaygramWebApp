@@ -2079,7 +2079,7 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.008 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
@@ -4517,9 +4517,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.3, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.24, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.5, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
@@ -4527,9 +4527,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.18, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.54, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
   } else if (mode === 'holdDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
@@ -9735,12 +9735,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
-    const pickupHelper = new THREE.Vector3();
-    const placeHelper = new THREE.Vector3();
-    const hasPickupHelper =
-      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
-    const hasPlaceHelper =
-      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
     const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
       collection.push({
         position,
@@ -9752,9 +9746,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (path.length) {
       pushPathNode(animatedPath, path[0].position, path[0].progress);
       for (let i = 1; i < path.length; i += 1) {
-        if (hasPlaceHelper && i === path.length - 1 && path[i - 1].position.distanceTo(placeHelper) > 1e-4) {
-          pushPathNode(animatedPath, placeHelper.clone(), null, 'place');
-        }
         pushPathNode(animatedPath, path[i].position, path[i].progress);
       }
     }
@@ -10252,12 +10243,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return true;
   }, []);
 
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 150 } = {}) => {
+  const syncDiceToThrowHand = useCallback((player, dice, { duration = 90 } = {}) => {
     if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
     const parent = dice.parent;
     const worldTarget = new THREE.Vector3();
     const localTarget = new THREE.Vector3();
     const start = performance.now();
+
+    const snapToHand = (blend = 1) => {
+      if (!sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
+      worldTarget.y -= DICE_SIZE * 0.1;
+      localTarget.copy(worldTarget);
+      parent.worldToLocal(localTarget);
+      if (blend >= 1) {
+        dice.position.copy(localTarget);
+      } else {
+        dice.position.lerp(localTarget, clamp(blend, 0, 1));
+      }
+      return true;
+    };
+
+    // Remove visible pickup lag: snap into the hand immediately on fist motion.
+    snapToHand(1);
+
     return new Promise((resolve) => {
       const step = () => {
         if (!dice?.isObject3D || !parent?.isObject3D) {
@@ -10266,13 +10274,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         const elapsed = performance.now() - start;
         const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        if (sampleSeatedContactEffectorPosition(player, worldTarget)) {
-          worldTarget.y -= DICE_SIZE * 0.08;
-          localTarget.copy(worldTarget);
-          parent.worldToLocal(localTarget);
-          const blend = 0.38 + (1 - Math.pow(1 - phase, 2)) * 0.58;
-          dice.position.lerp(localTarget, blend);
-        }
+        const blend = 0.7 + (1 - Math.pow(1 - phase, 2)) * 0.3;
+        snapToHand(blend);
         if (phase < 1) {
           requestAnimationFrame(step);
         } else {
@@ -10331,7 +10334,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 150 });
+    await syncDiceToThrowHand(player, dice, { duration: 70 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
@@ -10389,18 +10392,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
-      const enteringOptions = options.filter((option) => option.entering);
-      if (enteringOptions.length) {
-        beginHumanSelection(value, enteringOptions, { skipCameraFollow: !hasBoardTokenBeforeRoll });
-        return;
-      }
-      const choice = chooseMoveOption(state, 0, value, options);
-      if (choice) {
-        moveToken(0, choice.token, value, {
-          skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
-        });
-        return;
-      }
       beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
