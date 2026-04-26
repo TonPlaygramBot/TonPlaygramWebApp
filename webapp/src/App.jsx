@@ -374,6 +374,10 @@ export default function App() {
               element={<SnookerRoyalLobby />}
             />
             <Route
+              path="/games/bilardoshqip/lobby"
+              element={<Navigate to="/games/bilardoshqip" replace />}
+            />
+            <Route
               path="/games/bilardoshqip"
               element={
                 <GameLiveAvatarOverlay gameSlug="bilardoshqip">
