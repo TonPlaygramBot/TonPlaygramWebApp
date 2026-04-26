@@ -115,6 +115,7 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
+import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1921,13 +1922,13 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const REFERENCE_CUE_SPEED_BASE = 1.9; // reference implementation: base cue-ball launch speed
-const REFERENCE_CUE_SPEED_RANGE = 8.2; // reference implementation: extra speed from power
+const REFERENCE_CUE_SPEED_BASE = 2.35; // raise baseline cue-ball launch so light shots still roll with intent
+const REFERENCE_CUE_SPEED_RANGE = 10.6; // wider speed range so slider pull translates to stronger impact
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.34; // stronger character up-scale so humans read larger on mobile portrait
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24445,7 +24446,7 @@ const shotPowerRef = useRef(0);
         rigGroup.rotation.y = facingY;
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const scale = humanHeight / 1.82;
+        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
         const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
@@ -26636,7 +26637,15 @@ const shotPowerRef = useRef(0);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
-        const { aimDir, physicsSpin, clampedPower, liftStrength } = payload;
+        const {
+          aimDir,
+          physicsSpin,
+          clampedPower,
+          liftStrength,
+          pullDistance = 0,
+          contactAdvance = 0,
+          strikeDuration = LIVE_CUE_FORWARD_DURATION_MS
+        } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
@@ -26644,9 +26653,17 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
+        const cueDriveBoost = computeCueDriveBoost({
+          pullDistance,
+          contactAdvance,
+          strikeDurationMs: strikeDuration,
+          clampedPower
+        });
         const referenceSpeed =
           REFERENCE_CUE_SPEED_BASE +
-          REFERENCE_CUE_SPEED_RANGE * Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA);
+          REFERENCE_CUE_SPEED_RANGE *
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -27082,6 +27099,9 @@ const shotPowerRef = useRef(0);
             physicsSpin: { x: spinSide, y: spinTop },
             clampedPower,
             liftStrength,
+            pullDistance: 0,
+            contactAdvance: 0,
+            strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
 
@@ -27129,6 +27149,7 @@ const shotPowerRef = useRef(0);
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
+          shotImpactPayload.pullDistance = visualPull;
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -27189,6 +27210,7 @@ const shotPowerRef = useRef(0);
             BALL_R * 0.62,
             clampedPower
           );
+          shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
