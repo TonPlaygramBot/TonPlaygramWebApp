@@ -191,44 +191,80 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     license: 'MIT examples bundle'
   },
   {
-    id: 'mixamo-aj',
-    label: 'AJ',
-    description: 'Mixamo AJ humanoid rig that can be fully re-targeted for seated gameplay.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67d411',
+    label: 'RPM 67d411',
+    description: 'Ready Player Me public avatar seated with the same Ludo rig logic and motion set.',
+    modelUrls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    source: 'Ready Player Me public GLB',
+    license: 'Check Ready Player Me terms'
   },
   {
-    id: 'mixamo-jane',
-    label: 'Jane',
-    description: 'Mixamo Jane with preserved GLB material textures and humanoid skeleton.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67f433',
+    label: 'RPM 67f433',
+    description: 'Ready Player Me public avatar aligned to default seated scale/orientation for Ludo.',
+    modelUrls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    source: 'Ready Player Me public GLB',
+    license: 'Check Ready Player Me terms'
   },
   {
-    id: 'mixamo-eva',
-    label: 'Eva',
-    description: 'Mixamo Eva realistic female rig ready for seated pose overrides.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67e1b5',
+    label: 'RPM 67e1b5',
+    description: 'Ready Player Me public avatar using the same seated helper offsets and animation logic.',
+    modelUrls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    source: 'Ready Player Me public GLB',
+    license: 'Check Ready Player Me terms'
   },
   {
-    id: 'mixamo-joe',
-    label: 'Joe',
-    description: 'Mixamo Joe humanoid compatible with existing Ludo seated animation helpers.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'webgl-vietnam-human',
+    label: 'Vietnam Human',
+    description: 'Open WebGL GLB humanoid seated with the same Ludo scale/orientation/motion rig.',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    source: 'hmthanh/3d-human-model GitHub',
+    license: 'Check repository license'
   },
   {
-    id: 'mixamo-remy',
-    label: 'Remy',
-    description: 'Mixamo Remy character tuned to the same target seated height in-game.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'webgl-human-body-a',
+    label: 'Human Body A',
+    description: 'Open WebGL GLB body variant using the same seated character animation logic.',
+    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb'],
+    source: 'msorkhpar/3d-human-model-vite GitHub',
+    license: 'Check repository license'
+  },
+  {
+    id: 'webgl-human-body-b',
+    label: 'Human Body B',
+    description: 'Open WebGL GLB body variant matched to default seated sizing/orientation.',
+    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb'],
+    source: 'bddicken/humanbody GitHub',
+    license: 'Check repository license'
+  },
+  {
+    id: 'webgl-ai-teacher',
+    label: 'AI Teacher',
+    description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    source: 'Surbh77/AI-teacher GitHub',
+    license: 'Check repository license'
+  },
+  {
+    id: 'webgl-ai-teacher-1',
+    label: 'AI Teacher 1',
+    description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    source: 'Surbh77/AI-teacher GitHub',
+    license: 'Check repository license'
   }
 ]);
 
