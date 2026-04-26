@@ -4511,35 +4511,35 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   const bodyLockedMode = mode !== 'idle';
 
   if (mode === 'reachDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.12, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.04, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.22, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.74, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.04, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.22, t);
-  } else if (mode === 'gripDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.8, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.88, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.78, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.02, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.84, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.1, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.3, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.24, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
+  } else if (mode === 'gripDice') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.18, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
   } else if (mode === 'holdDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.52, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.2, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.3, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.1, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.12, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.32, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.92, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.12, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.12, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.34, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.56, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.06, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.14, t);
   } else if (mode === 'windUp') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.38, t);
@@ -9735,6 +9735,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
+    const pickupHelper = new THREE.Vector3();
+    const placeHelper = new THREE.Vector3();
+    const hasPickupHelper =
+      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
+    const hasPlaceHelper =
+      enteringMove && sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
     const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
       collection.push({
         position,
@@ -9746,6 +9752,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (path.length) {
       pushPathNode(animatedPath, path[0].position, path[0].progress);
       for (let i = 1; i < path.length; i += 1) {
+        if (hasPlaceHelper && i === path.length - 1 && path[i - 1].position.distanceTo(placeHelper) > 1e-4) {
+          pushPathNode(animatedPath, placeHelper.clone(), null, 'place');
+        }
         pushPathNode(animatedPath, path[i].position, path[i].progress);
       }
     }
@@ -10267,12 +10276,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (phase < 1) {
           requestAnimationFrame(step);
         } else {
-          if (sampleSeatedContactEffectorPosition(player, worldTarget)) {
-            worldTarget.y -= DICE_SIZE * 0.08;
-            localTarget.copy(worldTarget);
-            parent.worldToLocal(localTarget);
-            dice.position.copy(localTarget);
-          }
           resolve();
         }
       };
@@ -10327,9 +10330,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwLateral = clamp(localDir.x * 2.1, -1, 1);
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
-    beginDiceHoldPose(player, { startMs: performance.now() - SEATED_HUMAN_DICE_PHASES.reachMs });
-    await syncDiceToThrowHand(player, dice, { duration: 72 });
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
+    await syncDiceToThrowHand(player, dice, { duration: 150 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
@@ -10387,6 +10389,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
+      const enteringOptions = options.filter((option) => option.entering);
+      if (enteringOptions.length) {
+        beginHumanSelection(value, enteringOptions, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+        return;
+      }
+      const choice = chooseMoveOption(state, 0, value, options);
+      if (choice) {
+        moveToken(0, choice.token, value, {
+          skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
+        });
+        return;
+      }
       beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
