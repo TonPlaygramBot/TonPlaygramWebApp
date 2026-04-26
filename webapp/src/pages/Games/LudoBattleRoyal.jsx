@@ -1775,12 +1775,12 @@ const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 380,
-  gripMs: 300,
-  holdMs: 220,
-  windupMs: 300,
-  releaseMs: 260,
-  followMs: 520
+  reachMs: 320,
+  gripMs: 240,
+  holdMs: 180,
+  windupMs: 220,
+  releaseMs: 240,
+  followMs: 460
 });
 const SEATED_HUMAN_TOKEN_PHASES = Object.freeze({
   pickupMs: 220,
@@ -1793,27 +1793,22 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.079 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.004 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PICKUP = -0.007 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PLACE = -0.004 * MODEL_SCALE;
-const SEATED_HELPER_CONTACT_RIGHT = -0.014 * MODEL_SCALE;
-const SEATED_HELPER_CONTACT_UP = -0.008 * MODEL_SCALE;
-const SEATED_HELPER_CONTACT_FORWARD = 0.082 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.072 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.136 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.021 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.03 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.07 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.106 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.02 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = 0.006 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = 0.008 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 4;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.22;
-const SEATED_CONTACT_DICE_Y_OFFSET = 0.012;
-const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.011;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -3395,7 +3390,7 @@ function updateTokenSurfaceOffset(tableThemeId) {
     getShapedTableHeightLift(tableThemeId);
 }
 
-const DICE_SIZE = 0.062;
+const DICE_SIZE = 0.076;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -4115,16 +4110,15 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   if (!rig) return;
   const grip = clamp(gripAmount, 0, 1);
   const open = 1 - grip;
-  const squeeze = 0.78 + grip * 0.38;
 
-  curlFingerChain(rig, rig.rightIndex, grip * squeeze, -0.06 + 0.04 * open);
-  curlFingerChain(rig, rig.rightMiddle, grip * squeeze, -0.025);
-  curlFingerChain(rig, rig.rightRing, grip * squeeze, 0.055 - 0.03 * open);
-  curlFingerChain(rig, rig.rightPinky, grip * squeeze, 0.105 - 0.04 * open);
+  curlFingerChain(rig, rig.rightIndex, grip, -0.05 + 0.05 * open);
+  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
+  curlFingerChain(rig, rig.rightRing, grip, 0.05 - 0.03 * open);
+  curlFingerChain(rig, rig.rightPinky, grip, 0.1 - 0.04 * open);
 
   (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.38 : -0.62;
-    addBoneRot(rig, bone, fold * grip, -0.36 * grip, 0.27 * grip, 1);
+    const fold = index === 0 ? -0.32 : -0.52;
+    addBoneRot(rig, bone, fold * grip, -0.3 * grip, 0.24 * grip, 1);
   });
 }
 
@@ -4397,12 +4391,6 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_UP_TOKEN_PLACE,
       SEATED_HELPER_FORWARD_TOKEN_PLACE
     ),
-    contactEffector: createHelper(
-      'contactEffectorHelper',
-      SEATED_HELPER_CONTACT_RIGHT,
-      SEATED_HELPER_CONTACT_UP,
-      SEATED_HELPER_CONTACT_FORWARD
-    ),
     faceCamera: (() => {
       if (!faceRoot?.isObject3D) return null;
       const helper = new THREE.Object3D();
@@ -4458,7 +4446,7 @@ function applyWorldRotationDeltaToBone(bone, worldDeltaQ) {
   bone.quaternion.premultiply(localDeltaQ);
 }
 
-function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKey = 'contactEffector') {
+function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1) {
   const rig = entry?.rig;
   const actor = entry?.actor;
   if (!rig || !actor?.isObject3D || !targetWorld?.isVector3) return;
@@ -4466,8 +4454,6 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKe
   const lower = rig.rightForeArm;
   const hand = rig.rightHand;
   if (!upper?.isBone || !lower?.isBone || !hand?.isBone) return;
-  const contactEffector = entry?.actionHelpers?.[effectorKey];
-  const effector = contactEffector?.isObject3D ? contactEffector : hand;
 
   const blend = clamp(weight, 0, 1);
   if (blend <= 1e-4) return;
@@ -4483,8 +4469,7 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKe
     bone.updateMatrixWorld?.(true);
     hand.updateMatrixWorld?.(true);
     bone.getWorldPosition(jointPos);
-    effector.updateMatrixWorld?.(true);
-    effector.getWorldPosition(endPos);
+    hand.getWorldPosition(endPos);
     toEnd.copy(endPos).sub(jointPos);
     toTarget.copy(targetWorld).sub(jointPos);
     const endLen = toEnd.length();
@@ -4584,7 +4569,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         ...basePose,
         mode: 'gripDice',
         intensity: smoother01(phase),
-        handGrip: 0.55 + phase * 0.35,
+        handGrip: 0.28 + phase * 0.28,
         motionTuning: { idleBreathAmp: 0.009, precision: 1.08 }
       };
     }
@@ -4592,7 +4577,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       ...basePose,
       mode: 'holdDice',
       intensity: 1,
-      handGrip: 0.92,
+      handGrip: 0.56,
       motionTuning: { idleBreathAmp: 0.008, precision: 1.08 }
     };
   }
@@ -4616,7 +4601,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         ...basePose,
         mode: 'gripToken',
         intensity: smoother01(segProgress),
-        handGrip: 0.62 + segProgress * 0.32,
+        handGrip: segProgress,
         motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
       };
     }
@@ -7562,19 +7547,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             pose.motionTuning
           );
           let hasContactTarget = false;
-          const contactOffsetByMode = {
-            reachDice: SEATED_CONTACT_DICE_Y_OFFSET,
-            gripDice: SEATED_CONTACT_DICE_Y_OFFSET,
-            holdDice: SEATED_CONTACT_DICE_Y_OFFSET,
-            windUp: SEATED_CONTACT_DICE_Y_OFFSET * 0.9,
-            release: SEATED_CONTACT_DICE_Y_OFFSET * 0.85,
-            followThrough: SEATED_CONTACT_DICE_Y_OFFSET * 0.8,
-            reachToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
-            gripToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
-            carryToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
-            placeToken: SEATED_CONTACT_TOKEN_Y_OFFSET * 0.92
-          };
-          const contactYOffset = contactOffsetByMode[pose.mode] ?? SEATED_CONTACT_TOKEN_Y_OFFSET;
           const poseToHelperKey = {
             reachDice: 'dicePickup',
             gripDice: 'dicePickup',
@@ -7587,13 +7559,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             carryToken: 'tokenPlace',
             placeToken: 'tokenPlace'
           };
+          const helperKey = poseToHelperKey[pose.mode] || null;
+          if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
+            hasContactTarget = true;
+          }
           const movingToken =
             state?.animation?.active && state.animation.player === playerIndex
               ? state.animation.token
               : null;
-          if (movingToken?.isObject3D) {
+          if (!hasContactTarget && movingToken?.isObject3D) {
             movingToken.getWorldPosition(handContactTarget);
-            handContactTarget.y += contactYOffset;
+            handContactTarget.y += 0.01;
             hasContactTarget = true;
           }
           if (
@@ -7602,30 +7578,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
           ) {
             diceRef.current.getWorldPosition(handContactTarget);
-            handContactTarget.y += contactYOffset;
+            handContactTarget.y += 0.008;
             hasContactTarget = true;
-          }
-          if (!hasContactTarget) {
-            const helperKey = poseToHelperKey[pose.mode] || null;
-            if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
-              hasContactTarget = true;
-            }
           }
           if (hasContactTarget) {
             const contactWeightByMode = {
-              reachDice: 1,
-              gripDice: 1,
-              holdDice: 1,
-              reachToken: 1,
-              gripToken: 1,
-              carryToken: 0.94,
-              placeToken: 0.98,
-              windUp: 0.97,
-              release: 0.95,
-              followThrough: 0.92
+              carryToken: 0.82,
+              release: 0.92,
+              followThrough: 0.9
             };
             const contactWeight = contactWeightByMode[pose.mode] ?? 1;
-            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, 'contactEffector');
+            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight);
           }
         });
       }
