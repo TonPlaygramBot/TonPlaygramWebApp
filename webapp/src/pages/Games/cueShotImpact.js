@@ -43,3 +43,8 @@ export function computeCueDriveBoost({
 export function shouldResolveShot({ hasAnyMotion, shotApplied }) {
   return Boolean(shotApplied) && !Boolean(hasAnyMotion);
 }
+
+export function computeBilardoShotSpeed(power = 0) {
+  const clamped = Number.isFinite(power) ? Math.max(0, Math.min(1, power)) : 0;
+  return 1.9 + 8.2 * Math.pow(clamped, 1.08);
+}

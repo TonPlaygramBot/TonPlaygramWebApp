@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { BilardoShqipRules } from "../../../../src/rules/BilardoShqipRules.ts";
+import { computeBilardoShotSpeed } from "./cueShotImpact.js";
 
 type ShotState = "idle" | "dragging" | "striking";
 type BallState = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; number: number; isCue: boolean };
@@ -669,7 +670,9 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
 }
 
 function applyCueShot(cueBall: BallState, power: number, yaw: number, tmp: THREE.Vector3) {
-  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(1.9 + 8.2 * Math.pow(power, 1.08));
+  cueBall.vel
+    .copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize())
+    .multiplyScalar(computeBilardoShotSpeed(power));
 }
 function updateBalls(
   balls: BallState[],
