@@ -13243,18 +13243,11 @@ function PoolRoyaleGame({
     [variantKey, ballSetKey]
   );
   const infoText = useMemo(() => {
-    const normalizedVariant = normalizeVariantKey(variantKey);
-    if (
-      normalizedVariant === 'american' ||
-      normalizedVariant === 'americanbilliards' ||
-      normalizedVariant === 'rotation61' ||
-      normalizedVariant === 'race61' ||
-      normalizedVariant === 'bilardoshqip'
-    ) {
-      return 'Bilardo Shqip · Race to 61: hit the lowest numbered ball first, score by ball value, and first to 61 wins.';
+    if (activeVariant?.id === 'uk') {
+      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
     }
     return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
-  }, [variantKey]);
+  }, [activeVariant]);
   const isUkAmericanSet = useMemo(
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
     [activeVariant]
@@ -35941,19 +35934,8 @@ export default function PoolRoyale() {
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('variant');
-    const normalized = normalizeVariantKey(requested);
     if (playType === 'training') {
       return 'uk';
-    }
-    if (
-      normalized === 'american' ||
-      normalized === 'americanbilliards' ||
-      normalized === 'rotation61' ||
-      normalized === 'race61' ||
-      normalized === 'bilardoshqip' ||
-      normalized === 'albanianbilliards'
-    ) {
-      return 'americanbilliards';
     }
     return resolvePoolVariant(requested).id;
   }, [location.search, playType]);
