@@ -7,7 +7,6 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkinned } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -7683,6 +7682,33 @@ const seatFaceAnchors = [];
 const seatCharacterHelpers = [];
 let seatedHumanTemplatePromise = null;
 
+function cloneSkinned(source) {
+  if (!source?.isObject3D) return source?.clone?.(true) ?? null;
+  const clone = source.clone(true);
+  const sourceSkinnedMeshes = [];
+  const cloneBonesByName = new Map();
+  const cloneSkinnedMeshes = [];
+
+  source.traverse((obj) => {
+    if (obj?.isSkinnedMesh) sourceSkinnedMeshes.push(obj);
+  });
+  clone.traverse((obj) => {
+    if (obj?.isBone && obj.name) cloneBonesByName.set(obj.name, obj);
+    if (obj?.isSkinnedMesh) cloneSkinnedMeshes.push(obj);
+  });
+
+  cloneSkinnedMeshes.forEach((mesh, index) => {
+    const sourceMesh = sourceSkinnedMeshes[index];
+    if (!sourceMesh?.skeleton) return;
+    const sourceBones = sourceMesh.skeleton.bones || [];
+    const cloneBones = sourceBones.map((bone) => cloneBonesByName.get(bone.name) || bone);
+    if (!cloneBones.length) return;
+    mesh.bind(new THREE.Skeleton(cloneBones, sourceMesh.skeleton.boneInverses), mesh.bindMatrix);
+  });
+
+  return clone;
+}
+
 function normalizeHumanBoneName(value = '') {
   return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -7962,17 +7988,9 @@ function createSeatCharacterHelper({ chairSize, seatBottomOffset }) {
 function fitHumanToSeat(root, seatHelper, chairSize) {
   const bounds = new THREE.Box3().setFromObject(root);
   const size = bounds.getSize(new THREE.Vector3());
-  const baseHeight = Math.max(
-    0.1,
-    size.y,
-    1.74
-  );
-  const targetHeightFromChair = Math.max(
-    0.9,
-    chairSize.y * 2.7 * 1.02
-  );
-  const targetHeightFromLudo = 1.74 * 3.24;
-  const targetHeight = Math.max(targetHeightFromChair, targetHeightFromLudo);
+  const baseHeight = Math.max(0.1, size.y, 1.74);
+  // Keep seated humans proportional to each chair so all seats match the Ludo-like layout.
+  const targetHeight = THREE.MathUtils.clamp(chairSize.y * 2.18, 1.5, 2.1);
   const scaleFix = targetHeight / baseHeight;
   root.scale.multiplyScalar(scaleFix);
   root.position.copy(seatHelper.position);
