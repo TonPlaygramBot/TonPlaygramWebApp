@@ -1793,22 +1793,24 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.072 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.136 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.021 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.03 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.07 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.106 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_TOKEN = -0.02 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PICKUP = 0.006 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PLACE = 0.008 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.079 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.004 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = -0.007 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = -0.004 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 4;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.22;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.017;
+const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.013;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -7547,6 +7549,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             pose.motionTuning
           );
           let hasContactTarget = false;
+          const contactOffsetByMode = {
+            reachDice: SEATED_CONTACT_DICE_Y_OFFSET,
+            gripDice: SEATED_CONTACT_DICE_Y_OFFSET,
+            holdDice: SEATED_CONTACT_DICE_Y_OFFSET,
+            windUp: SEATED_CONTACT_DICE_Y_OFFSET * 0.9,
+            release: SEATED_CONTACT_DICE_Y_OFFSET * 0.85,
+            followThrough: SEATED_CONTACT_DICE_Y_OFFSET * 0.8,
+            reachToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
+            gripToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
+            carryToken: SEATED_CONTACT_TOKEN_Y_OFFSET,
+            placeToken: SEATED_CONTACT_TOKEN_Y_OFFSET * 0.92
+          };
+          const contactYOffset = contactOffsetByMode[pose.mode] ?? SEATED_CONTACT_TOKEN_Y_OFFSET;
           const poseToHelperKey = {
             reachDice: 'dicePickup',
             gripDice: 'dicePickup',
@@ -7559,17 +7574,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             carryToken: 'tokenPlace',
             placeToken: 'tokenPlace'
           };
-          const helperKey = poseToHelperKey[pose.mode] || null;
-          if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
-            hasContactTarget = true;
-          }
           const movingToken =
             state?.animation?.active && state.animation.player === playerIndex
               ? state.animation.token
               : null;
-          if (!hasContactTarget && movingToken?.isObject3D) {
+          if (movingToken?.isObject3D) {
             movingToken.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.01;
+            handContactTarget.y += contactYOffset;
             hasContactTarget = true;
           }
           if (
@@ -7578,14 +7589,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
           ) {
             diceRef.current.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.008;
+            handContactTarget.y += contactYOffset;
             hasContactTarget = true;
+          }
+          if (!hasContactTarget) {
+            const helperKey = poseToHelperKey[pose.mode] || null;
+            if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
+              hasContactTarget = true;
+            }
           }
           if (hasContactTarget) {
             const contactWeightByMode = {
-              carryToken: 0.82,
-              release: 0.92,
-              followThrough: 0.9
+              reachDice: 1,
+              gripDice: 1,
+              holdDice: 1,
+              reachToken: 1,
+              gripToken: 1,
+              carryToken: 0.94,
+              placeToken: 0.98,
+              windUp: 0.97,
+              release: 0.95,
+              followThrough: 0.92
             };
             const contactWeight = contactWeightByMode[pose.mode] ?? 1;
             solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight);
