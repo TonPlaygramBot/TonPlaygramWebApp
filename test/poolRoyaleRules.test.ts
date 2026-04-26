@@ -44,17 +44,17 @@ describe('PoolRoyaleRules', () => {
     expect(foulState.ballOn).toContain('YELLOW');
   });
 
-  test('Legacy american variant key is remapped to 8-ball rules', () => {
+  test('American billiards variant key maps to race-to-61 rules', () => {
     const rules = new PoolRoyaleRules('american');
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const initialMeta = initialFrame.meta as any;
 
-    expect(initialMeta?.variant).toBe('8ball');
+    expect(initialMeta?.variant).toBe('american61');
     expect(initialMeta?.breakInProgress).toBe(true);
     expect(initialMeta?.state?.ballInHand).toBe(true);
-    expect(initialMeta?.hud?.next).toBe('open table');
-    expect(initialMeta?.hud?.phase).toBe('groups');
-    expect(initialFrame.ballOn).toEqual(['SOLID', 'STRIPE']);
+    expect(initialMeta?.hud?.next).toBe('ball 1');
+    expect(initialMeta?.hud?.phase).toBe('race61');
+    expect(initialFrame.ballOn).toEqual(['BALL_1']);
 
     const breakEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 1, ballId: 1 },
@@ -69,14 +69,14 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['SOLID']);
-    expect(clearedMeta?.hud?.next).toBe('solid');
-    expect(clearedMeta?.hud?.phase).toBe('groups');
+    expect(cleared.ballOn).toEqual(['BALL_2']);
+    expect(clearedMeta?.hud?.next).toBe('ball 2');
+    expect(clearedMeta?.hud?.phase).toBe('race61');
     expect(cleared.players.A.score).toBe(1);
     expect(cleared.activePlayer).toBe('A');
 
     const scratchEvents: ShotEvent[] = [
-      { type: 'HIT', firstContact: 3, ballId: 3 },
+      { type: 'HIT', firstContact: 2, ballId: 2 },
       { type: 'POTTED', ball: 0, pocket: 'TR', ballId: 'cue' }
     ];
     const scratchContext: ShotContext = { cueBallPotted: true, contactMade: true };
@@ -87,12 +87,12 @@ describe('PoolRoyaleRules', () => {
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratchMeta?.breakInProgress).toBe(false);
     expect(scratch.activePlayer).toBe('B');
-    expect(scratch.ballOn).toEqual(['STRIPE']);
-    expect(scratchMeta?.hud?.next).toBe('stripe');
-    expect(scratchMeta?.hud?.phase).toBe('groups');
+    expect(scratch.ballOn).toEqual(['BALL_2']);
+    expect(scratchMeta?.hud?.next).toBe('ball 2');
+    expect(scratchMeta?.hud?.phase).toBe('race61');
   });
 
-  test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
+    test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
     const rules = new PoolRoyaleRules('9ball');
     const initialFrame = rules.getInitialFrame('Challenger', 'Rival');
     const initialMeta = initialFrame.meta as any;

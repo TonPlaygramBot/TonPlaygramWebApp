@@ -19,10 +19,15 @@ export type BilardoShotResult = {
   scores: { A: number; B: number };
   raceTo: number;
   winner: BilardoPlayer | null;
+  reracked: boolean;
+  ballsRemaining: number;
+  nextRequiredBall: number | null;
 };
 
 const sumNumbers = (values: number[]) =>
   values.reduce((total, value) => total + value, 0);
+
+const makeRack = () => new Set(Array.from({ length: 15 }, (_, index) => index + 1));
 
 const lowestBall = (ballsOnTable: Set<number>) => {
   let lowest: number | null = null;
@@ -35,7 +40,7 @@ const lowestBall = (ballsOnTable: Set<number>) => {
 export class BilardoShqipRules {
   private scores = { A: 0, B: 0 };
 
-  private ballsOnTable = new Set(Array.from({ length: 15 }, (_, index) => index + 1));
+  private ballsOnTable = makeRack();
 
   private currentPlayer: BilardoPlayer = 'A';
 
@@ -91,18 +96,20 @@ export class BilardoShqipRules {
       this.scores[active] += scored;
     }
 
-    if (!this.winner) {
-      if (this.scores[active] >= this.raceTo) {
-        this.winner = active;
-      } else if (this.scores[opponent] >= this.raceTo) {
-        this.winner = opponent;
-      }
+    if (!this.winner && this.scores[active] >= this.raceTo) {
+      this.winner = active;
     }
 
     const keepTurn = !foul && scored > 0 && !this.winner;
     const nextPlayer = keepTurn ? active : opponent;
     this.currentPlayer = nextPlayer;
     this.cueBallInHand = foul;
+
+    let reracked = false;
+    if (!this.winner && this.ballsOnTable.size === 0) {
+      this.ballsOnTable = makeRack();
+      reracked = true;
+    }
 
     return {
       legal: !foul,
@@ -116,7 +123,10 @@ export class BilardoShqipRules {
       cueBallInHand: this.cueBallInHand,
       scores: { ...this.scores },
       raceTo: this.raceTo,
-      winner: this.winner
+      winner: this.winner,
+      reracked,
+      ballsRemaining: this.ballsOnTable.size,
+      nextRequiredBall: lowestBall(this.ballsOnTable)
     };
   }
 }
