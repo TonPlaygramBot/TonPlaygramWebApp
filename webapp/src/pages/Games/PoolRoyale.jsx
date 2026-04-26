@@ -27463,8 +27463,7 @@ useEffect(() => {
             applyShotAtImpact(shotImpactPayload);
           };
           const useBilardoImmediateImpact =
-            manualShotStateRef.current === 'striking' ||
-            Number.isFinite(committedPowerOverride);
+            manualShotStateRef.current === 'striking';
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -33344,7 +33343,6 @@ useEffect(() => {
   const onPowerDragStart = useCallback(() => {
     captureCueStickAnchor();
     manualStrikeDidHitRef.current = false;
-    manualShotStateRef.current = 'dragging';
     setManualShotState('dragging');
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
@@ -33365,10 +33363,10 @@ useEffect(() => {
     manualStrikeDidHitRef.current = false;
     manualStrikeStartedAtRef.current = performance.now();
     const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
-    manualShotStateRef.current = shouldStrike ? 'striking' : 'idle';
     setManualShotState(shouldStrike ? 'striking' : 'idle');
     if (shouldStrike) {
-      // Bilardo Shqip behavior: release should immediately commit the shot.
+      // Immediate fire on release guarantees cue-ball power transfer even if
+      // strike timeline callbacks are delayed on some devices.
       fireRef.current?.(latchedPower);
     }
   }, [applyPower, clampPower]);
@@ -33386,9 +33384,17 @@ useEffect(() => {
       );
       if (!manualStrikeDidHitRef.current && strikeNorm > MANUAL_STRIKE_THRESHOLD) {
         manualStrikeDidHitRef.current = true;
+        fireRef.current?.(
+          manualStrikePowerRef.current ??
+            shotPowerRef.current ??
+            powerRef.current ??
+            0
+        );
       }
       if (strikeNorm >= 1) {
-        manualShotStateRef.current = 'idle';
+        if (!shootingRef.current && manualStrikePowerRef.current > BILARDO_MIN_RELEASE_POWER) {
+          fireRef.current?.(manualStrikePowerRef.current);
+        }
         setManualShotState('idle');
         manualStrikeStartedAtRef.current = 0;
         manualStrikePowerRef.current = 0;
