@@ -15523,15 +15523,6 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
-const MANUAL_STRIKE_TIME_MS = 170;
-const MANUAL_STRIKE_THRESHOLD = 0.88;
-const [manualShotState, setManualShotState] = useState('idle'); // idle | dragging | striking
-const manualShotStateRef = useRef('idle');
-const manualStrikeStartedAtRef = useRef(0);
-const manualStrikeDidHitRef = useRef(false);
-useEffect(() => {
-  manualShotStateRef.current = manualShotState;
-}, [manualShotState]);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -26807,8 +26798,10 @@ useEffect(() => {
           clampedPower
         });
         const referenceSpeed =
-          (1.9 + 8.2 * Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), 1.08)) *
-          cueDriveBoost;
+          REFERENCE_CUE_SPEED_BASE +
+          REFERENCE_CUE_SPEED_RANGE *
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33317,8 +33310,6 @@ useEffect(() => {
   const sliderRef = useRef(null);
   const onPowerDragStart = useCallback(() => {
     captureCueStickAnchor();
-    manualStrikeDidHitRef.current = false;
-    setManualShotState('dragging');
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
     const clamped = clampPower(powerRatio, 0);
@@ -33334,41 +33325,8 @@ useEffect(() => {
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
-    manualStrikeDidHitRef.current = false;
-    manualStrikeStartedAtRef.current = performance.now();
-    setManualShotState(latchedPower > 0.02 ? 'striking' : 'idle');
+    fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      if (manualShotStateRef.current !== 'striking') return;
-      const start = manualStrikeStartedAtRef.current || 0;
-      if (start <= 0) return;
-      const strikeNorm = THREE.MathUtils.clamp(
-        (performance.now() - start) / MANUAL_STRIKE_TIME_MS,
-        0,
-        1
-      );
-      if (!manualStrikeDidHitRef.current && strikeNorm > MANUAL_STRIKE_THRESHOLD) {
-        manualStrikeDidHitRef.current = true;
-        fireRef.current?.(shotPowerRef.current ?? powerRef.current ?? 0);
-      }
-      if (strikeNorm >= 1) {
-        setManualShotState('idle');
-        manualStrikeStartedAtRef.current = 0;
-        requestAnimationFrame(() => {
-          const slider = sliderInstanceRef.current;
-          if (slider) slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [applyPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33386,6 +33344,10 @@ useEffect(() => {
       onStart: () => onPowerDragStart(),
       onCommit: () => {
         onPowerRelease(clampPower(powerRef.current, 0));
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
