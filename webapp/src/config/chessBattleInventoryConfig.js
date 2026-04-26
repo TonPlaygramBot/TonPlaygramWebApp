@@ -175,6 +175,14 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   }
 ]);
 
+const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
+  'webgl-vietnam-human',
+  'webgl-human-body-a',
+  'webgl-human-body-b',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1'
+]);
+
 const BASE_CHAIR_OPTIONS = [
   {
     id: 'crimsonVelvet',
@@ -679,7 +687,9 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CHESS_HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
+  ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
+    CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)
+  ).map((option, idx) => ({
     id: `chess-human-${option.id}`,
     type: 'humanCharacter',
     optionId: option.id,
