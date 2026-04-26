@@ -432,17 +432,17 @@ const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.11;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.004;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.9;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.64;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.52;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.98;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.52;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.24;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.16; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.36; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -451,16 +451,16 @@ const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger con
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = -0.01;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = -0.01;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.004;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 const SEATED_HUMAN_FINGER_HELPER_RADIUS = 0.012;
 const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.32;
 const SEATED_HUMAN_REACH_SIDE_GAIN = 0.22;
-const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.9;
-const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.86;
+const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
+const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -991,10 +991,13 @@ async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 
       const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
       const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      const hasOriginalTexture = mats.some((mat) => Boolean(mat?.map));
+      const hasOriginalTexture = mats.some((mat) =>
+        Boolean(mat?.map || mat?.emissiveMap || mat?.normalMap || mat?.roughnessMap || mat?.metalnessMap)
+      );
       mats.forEach((mat) => {
-        if (!hasOriginalTexture && !mat?.map) mat.map = fallbackTex;
-        if (mat?.color?.setHex) mat.color.setHex(0xffffff);
+        const needsFallbackMap = !hasOriginalTexture && !mat?.map;
+        if (needsFallbackMap) mat.map = fallbackTex;
+        if (needsFallbackMap && mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) {
           applySRGBColorSpace(mat.map);
           applyTextureQualityToMaterialMap(mat.map, maxAnisotropy);
@@ -1002,6 +1005,15 @@ async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 
         if (mat?.emissiveMap) {
           applySRGBColorSpace(mat.emissiveMap);
           applyTextureQualityToMaterialMap(mat.emissiveMap, maxAnisotropy);
+        }
+        if (mat?.normalMap) {
+          applyTextureQualityToMaterialMap(mat.normalMap, maxAnisotropy);
+        }
+        if (mat?.roughnessMap) {
+          applyTextureQualityToMaterialMap(mat.roughnessMap, maxAnisotropy);
+        }
+        if (mat?.metalnessMap) {
+          applyTextureQualityToMaterialMap(mat.metalnessMap, maxAnisotropy);
         }
         mat.needsUpdate = true;
       });
@@ -13595,6 +13607,11 @@ function Chess3D({
                 scene.add(helpers.thumbHelper);
                 scene.add(helpers.indexHelper);
                 scene.add(helpers.middleHelper);
+                helpers.handHelper.visible = true;
+                helpers.pieceHelper.visible = true;
+                helpers.thumbHelper.visible = true;
+                helpers.indexHelper.visible = true;
+                helpers.middleHelper.visible = true;
               }
             }
             const thumbTip = entry.rig.rightThumb?.[entry.rig.rightThumb.length - 1] ?? null;
@@ -13635,8 +13652,9 @@ function Chess3D({
               );
               const blendedGrip = liveFrom.clone().lerp(holdWorld, SEATED_HUMAN_GRIP_CONTACT_BLEND);
               handTarget.lerpVectors(liftedFrom, blendedGrip, gripT);
+              if (gripT >= 0.82) handTarget.copy(holdWorld);
               action.mesh.position.copy(handTarget);
-              if (!action.gripOffset && gripT >= 0.96) {
+              if (!action.gripOffset && gripT >= 0.9) {
                 action.gripOffset = action.mesh.position.clone().sub(holdWorld);
               }
             } else if (u < carryPhaseEnd) {
@@ -13647,8 +13665,13 @@ function Chess3D({
               const gripContact = holdWorld.clone().add(gripOffset);
               const carryTarget = gripContact.clone().lerp(liftedTo, carryT);
               carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
-              handTarget.copy(carryTarget);
-              action.mesh.position.copy(carryTarget);
+              if (carryT <= 0.62) {
+                handTarget.copy(holdWorld);
+                action.mesh.position.copy(holdWorld);
+              } else {
+                handTarget.copy(carryTarget);
+                action.mesh.position.copy(carryTarget);
+              }
             } else {
               const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
               const easedDropT = smoothEase(dropT);
