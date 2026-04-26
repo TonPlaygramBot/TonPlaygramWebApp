@@ -432,17 +432,17 @@ const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.11;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.004;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.68;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.9;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.6;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.52;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.34;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.52;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.02; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.24;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.16; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -451,16 +451,16 @@ const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger con
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.006;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = -0.01;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = -0.01;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 const SEATED_HUMAN_FINGER_HELPER_RADIUS = 0.012;
 const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.32;
 const SEATED_HUMAN_REACH_SIDE_GAIN = 0.22;
-const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.68;
-const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.58;
+const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.9;
+const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.86;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -884,10 +884,35 @@ function normalizeHumanModelUrlCandidates(modelUrls = []) {
   return next;
 }
 
+function getRenderableMeshBounds(object) {
+  const box = new THREE.Box3();
+  let hasMeshBounds = false;
+  object?.updateMatrixWorld?.(true);
+  object?.traverse?.((node) => {
+    if (!node?.isMesh) return;
+    const nodeBox = new THREE.Box3().setFromObject(node);
+    if (!Number.isFinite(nodeBox.min.y) || !Number.isFinite(nodeBox.max.y)) return;
+    box.expandByPoint(nodeBox.min);
+    box.expandByPoint(nodeBox.max);
+    hasMeshBounds = true;
+  });
+  return hasMeshBounds ? box : null;
+}
+
+function normalizeSeatedHumanRootToChair(root) {
+  const box = getRenderableMeshBounds(root);
+  if (!box) return;
+  const centerX = (box.min.x + box.max.x) * 0.5;
+  const centerZ = (box.min.z + box.max.z) * 0.5;
+  root.position.x -= centerX;
+  root.position.z -= centerZ;
+  root.position.y -= box.min.y;
+  root.updateMatrixWorld(true);
+}
+
 function measureObjectHeight(object) {
   if (!object) return SEATED_HUMAN_BASE_HEIGHT;
-  object.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(object);
+  const box = getRenderableMeshBounds(object) || new THREE.Box3().setFromObject(object);
   if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return SEATED_HUMAN_BASE_HEIGHT;
   return Math.max(0.01, box.max.y - box.min.y);
 }
@@ -929,6 +954,7 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
     if (!root) {
       throw lastError || new Error('Missing seated human scene');
     }
+    normalizeSeatedHumanRootToChair(root);
     const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
     const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
     const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
@@ -942,8 +968,9 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
       const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
       const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+      const hasOriginalTexture = mats.some((mat) => Boolean(mat?.map));
       mats.forEach((mat) => {
-        if (!mat?.map) mat.map = fallbackTex;
+        if (!hasOriginalTexture && !mat?.map) mat.map = fallbackTex;
         if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
@@ -13470,7 +13497,7 @@ function Chess3D({
           } else {
             mode = 'placePiece';
             intensity = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
-            grip = action.isCapture ? 1 - intensity * 0.2 : 1 - intensity * 0.9;
+            grip = 1 - intensity * 0.95;
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip, {
             forwardReach: action.forwardReach,
