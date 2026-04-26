@@ -300,6 +300,7 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.26]
   }
 });
+const FIREARM_VOLLEY_SLOW_FACTOR = 1.18;
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -415,7 +416,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0, 0.026, -0.006);
+  weaponHolder.position.set(0.028, 0.026, -0.004);
   weaponHolder.rotation.z = -0.08;
   root.add(weaponHolder);
 
@@ -423,7 +424,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.CylinderGeometry(0.026, 0.03, 0.018, 20),
     createCaptureVehicleMaterial('truck', { color: '#111827', roughness: 0.55, metalness: 0.2 })
   );
-  buttonBase.position.set(0.098, 0.012, -0.008);
+  buttonBase.position.set(0.056, 0.014, -0.006);
   root.add(buttonBase);
 
   const actionButton = new THREE.Mesh(
@@ -431,7 +432,7 @@ async function createCaptureWeaponRackFx() {
     createCaptureVehicleMaterial('truck', { color: '#dc2626', roughness: 0.28, metalness: 0.12, emissive: '#3f0000' })
   );
   actionButton.name = 'captureActionButton';
-  actionButton.position.set(0.098, 0.024, -0.008);
+  actionButton.position.set(0.056, 0.026, -0.006);
   root.add(actionButton);
 
   const actionButtonHit = new THREE.Mesh(
@@ -447,7 +448,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0, 0.028, -0.006);
+  weaponRackHit.position.set(0.028, 0.028, -0.004);
   root.add(weaponRackHit);
 
   return {
@@ -1810,6 +1811,110 @@ function createCaptureMuzzleFx() {
   return { root, flash, smoke };
 }
 
+const TOKEN_BREAK_PROFILE_BY_WEAPON = Object.freeze({
+  firearm: { count: 14, sizeMin: 0.012, sizeMax: 0.03, impulse: 0.66, lingerMs: 1700, upward: 0.2 },
+  explosive: { count: 20, sizeMin: 0.016, sizeMax: 0.04, impulse: 0.9, lingerMs: 2400, upward: 0.3 },
+  aerial: { count: 18, sizeMin: 0.014, sizeMax: 0.035, impulse: 0.78, lingerMs: 2100, upward: 0.26 }
+});
+
+function resolveTokenBreakProfile(weaponId = '') {
+  if (FIREARM_CAPTURE_ANIMATION_IDS.has(weaponId)) return TOKEN_BREAK_PROFILE_BY_WEAPON.firearm;
+  if (weaponId === 'missileJavelin' || weaponId === 'droneAttack') return TOKEN_BREAK_PROFILE_BY_WEAPON.explosive;
+  if (weaponId === 'fighterJetAttack' || weaponId === 'helicopterAttack') return TOKEN_BREAK_PROFILE_BY_WEAPON.aerial;
+  return TOKEN_BREAK_PROFILE_BY_WEAPON.firearm;
+}
+
+function spawnTokenBreakDebris({
+  scene,
+  token,
+  impactPoint,
+  impactDirection = null,
+  weaponId = '',
+  tableSurfaceY = 0
+}) {
+  if (!scene || !token?.isObject3D || !impactPoint?.isVector3) return;
+  const profile = resolveTokenBreakProfile(weaponId);
+  const palette = [];
+  token.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (mat?.color?.isColor) palette.push(mat.color.clone());
+    });
+  });
+  if (!palette.length) palette.push(new THREE.Color('#d1d5db'));
+  const forward = impactDirection?.isVector3 && impactDirection.lengthSq() > 1e-6
+    ? impactDirection.clone().normalize()
+    : new THREE.Vector3(0, 0, 1);
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const right = forward.clone().cross(worldUp).normalize();
+  const chunks = [];
+  for (let i = 0; i < profile.count; i += 1) {
+    const size = THREE.MathUtils.lerp(profile.sizeMin, profile.sizeMax, Math.random());
+    const chunk = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(size, 0),
+      new THREE.MeshStandardMaterial({
+        color: palette[i % palette.length].clone(),
+        roughness: 0.48,
+        metalness: 0.18
+      })
+    );
+    chunk.castShadow = true;
+    chunk.receiveShadow = true;
+    const offset = right.clone().multiplyScalar((Math.random() - 0.5) * size * 2.3)
+      .add(forward.clone().multiplyScalar((Math.random() - 0.15) * size * 1.9))
+      .add(new THREE.Vector3(0, (Math.random() - 0.4) * size * 1.6, 0));
+    chunk.position.copy(impactPoint).add(offset);
+    chunk.userData.velocity = forward.clone().multiplyScalar(profile.impulse * (0.28 + Math.random() * 0.72))
+      .add(right.clone().multiplyScalar((Math.random() - 0.5) * profile.impulse * 0.46))
+      .add(new THREE.Vector3(0, profile.upward * (0.45 + Math.random() * 0.75), 0));
+    chunk.userData.spin = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.34,
+      (Math.random() - 0.5) * 0.34,
+      (Math.random() - 0.5) * 0.34
+    );
+    chunk.userData.startMs = performance.now();
+    scene.add(chunk);
+    chunks.push(chunk);
+  }
+
+  const startMs = performance.now();
+  const fallY = tableSurfaceY + 0.004;
+  const tick = () => {
+    const now = performance.now();
+    const age = now - startMs;
+    const life = profile.lingerMs;
+    const fade = clamp((age - life * 0.64) / Math.max(1, life * 0.36), 0, 1);
+    chunks.forEach((chunk) => {
+      const vel = chunk.userData.velocity;
+      if (!vel) return;
+      chunk.position.add(vel.clone().multiplyScalar(1 / 60));
+      vel.y -= 0.012;
+      if (chunk.position.y <= fallY) {
+        chunk.position.y = fallY;
+        vel.y = Math.abs(vel.y) * 0.24;
+        vel.x *= 0.82;
+        vel.z *= 0.82;
+      }
+      chunk.rotation.x += chunk.userData.spin.x;
+      chunk.rotation.y += chunk.userData.spin.y;
+      chunk.rotation.z += chunk.userData.spin.z;
+      chunk.material.opacity = 1 - fade;
+      chunk.material.transparent = fade > 0;
+    });
+    if (age < life) {
+      requestAnimationFrame(tick);
+      return;
+    }
+    chunks.forEach((chunk) => {
+      chunk.parent?.remove?.(chunk);
+      chunk.geometry?.dispose?.();
+      chunk.material?.dispose?.();
+    });
+  };
+  requestAnimationFrame(tick);
+}
+
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
     return false;
@@ -2184,13 +2289,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.074 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.024 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.006 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.104 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.03 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.086 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.022 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.045;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
@@ -2207,7 +2312,7 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
-const SEATED_CONTACT_DICE_Y_OFFSET = 0.008;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.004;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
 const seatedHumanTemplatePromiseById = new Map();
@@ -2252,7 +2357,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 66;
+const CAMERA_FOV = 72;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -3732,8 +3837,8 @@ const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/launch-85216.mp3';
-const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/metal-whistle-6121.mp3';
+const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
 const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
 const LUDO_CAPTURE_DRONE_SOUND_URL =
   '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
@@ -6019,7 +6124,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (entry.weaponRackHit?.isObject3D) {
           entry.weaponRackHit.visible = showFirearm;
         }
-        if (showFirearm) void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+        if (showFirearm) {
+          void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+        } else {
+          entry.weaponHolder?.clear?.();
+          entry.selectedCaptureAnimationId = null;
+        }
       }
     });
   }, [aiLoadoutByPlayer]);
@@ -8727,7 +8837,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const cadenceMs = resolvedCaptureAnimationId === 'sniperShotAttack' ? 85 : 42;
+          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 85 : 42) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const durationMs = pickupLeadMs + shots * cadenceMs + 420;
           const muzzleFx = createCaptureMuzzleFx();
@@ -8736,7 +8846,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           scene.add(muzzleFx.root);
           tracers.forEach((entry) => scene.add(entry.root));
           shells.forEach((entry) => scene.add(entry));
-          const tokenGlassShards = [];
           let shatterDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
           const tickFirearm = () => {
@@ -8755,6 +8864,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 parent.worldToLocal(rackLocal);
                 handWeaponAttachment.weapon.position.lerpVectors(rackLocal, handWeaponAttachment.weapon.position, blend);
               }
+            }
+            if (targetToken?.isObject3D) {
+              const liveTargetPos = targetToken.getWorldPosition(new THREE.Vector3());
+              muzzleTarget.copy(liveTargetPos).add(new THREE.Vector3(0, 0.03, 0));
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
               const parent = handWeaponAttachment.weapon.parent;
@@ -8811,43 +8924,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               shatterDone = true;
               playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
-              for (let i = 0; i < 14; i += 1) {
-                const shard = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.007 + Math.random() * 0.012, 0.005 + Math.random() * 0.01, 0.004 + Math.random() * 0.009),
-                  new THREE.MeshStandardMaterial({
-                    color: '#a9e8ff',
-                    emissive: '#b7dfff',
-                    emissiveIntensity: 0.22,
-                    transparent: true,
-                    opacity: 0.76,
-                    metalness: 0.15,
-                    roughness: 0.32
-                  })
-                );
-                shard.position.copy(muzzleTarget);
-                shard.userData.velocity = new THREE.Vector3(
-                  (Math.random() - 0.5) * 0.012,
-                  0.012 + Math.random() * 0.01,
-                  (Math.random() - 0.5) * 0.012
-                );
-                tokenGlassShards.push(shard);
-                scene.add(shard);
-              }
+              const shotDir = muzzleTarget.clone().sub(muzzleOrigin);
+              spawnTokenBreakDebris({
+                scene,
+                token: hideTarget,
+                impactPoint: muzzleTarget.clone(),
+                impactDirection: shotDir,
+                weaponId: resolvedCaptureAnimationId,
+                tableSurfaceY
+              });
             }
-            tokenGlassShards.forEach((shard) => {
-              const v = shard.userData.velocity;
-              shard.position.add(v);
-              v.y -= 0.0012;
-              shard.rotation.x += 0.18;
-              shard.rotation.y += 0.22;
-              shard.material.opacity = Math.max(0, shard.material.opacity - 0.016);
-            });
             if (elapsed < durationMs) {
               requestAnimationFrame(tickFirearm);
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, ...tracers.map((entry) => entry.root), ...shells, ...tokenGlassShards].forEach((obj) => {
+            [muzzleFx.root, ...tracers.map((entry) => entry.root), ...shells].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
             handWeaponAttachment?.release?.();
@@ -9157,13 +9249,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               framing.focusWeight - 0.18,
               framing.focusWeight + 0.06
             );
-            const cameraTarget = targetPosition.clone().lerp(weaponPosition, dynamicWeight);
+            const cameraTarget = weaponPosition.clone().lerp(targetPosition, 0.5);
             cameraTarget.y += framing.targetLift;
-            const travelDir = weaponPosition.clone().sub(targetPosition).setY(0);
+            const travelDir = targetPosition.clone().sub(weaponPosition).setY(0);
             const followOffset =
               travelDir.lengthSq() > 1e-6
-                ? travelDir.normalize().multiplyScalar(framing.followPullback).setY(framing.followLift)
-                : new THREE.Vector3(0, framing.followLift, framing.followPullback);
+                ? travelDir
+                    .normalize()
+                    .multiplyScalar(framing.followPullback + 0.08 + (1 - dynamicWeight) * 0.05)
+                    .setY(framing.followLift + 0.01)
+                : new THREE.Vector3(0, framing.followLift + 0.01, framing.followPullback + 0.08);
             setCameraFocus({
               object: primaryFx.root,
               target: cameraTarget,
@@ -9448,6 +9543,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               explosionTriggered = true;
               playMissileImpactSound();
               playExplosionBombSound();
+              if (targetToken?.isObject3D) {
+                const blastDir = liveTarget.clone().sub(dynamicFrom);
+                targetToken.visible = false;
+                spawnTokenBreakDebris({
+                  scene,
+                  token: targetToken,
+                  impactPoint: liveTarget.clone(),
+                  impactDirection: blastDir,
+                  weaponId: resolvedCaptureAnimationId,
+                  tableSurfaceY
+                });
+                window.setTimeout(() => {
+                  if (targetToken?.isObject3D) targetToken.visible = true;
+                }, 420);
+              }
               playCapture();
             }
           } else {
