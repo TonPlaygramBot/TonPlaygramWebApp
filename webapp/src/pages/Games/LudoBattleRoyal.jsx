@@ -1793,22 +1793,22 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.066 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.124 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.023 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.018 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.036 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.064 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.098 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_TOKEN = -0.022 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PICKUP = 0.008 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PLACE = 0.011 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.084 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.142 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.004 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.012 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.08 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.128 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = -0.005 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = 0.004 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
-const SEATED_CONTACT_IK_ITERATIONS = 4;
-const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.22;
+const SEATED_CONTACT_IK_ITERATIONS = 6;
+const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -1880,12 +1880,12 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.5;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.58;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.32;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.42;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.76;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.82;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.88;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.32 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -1901,9 +1901,9 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
   targetLift: 0.04 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.08;
-const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.19;
+const CAMERA_EXTRA_PULLBACK = 0.12;
+const CAMERA_EXTRA_LIFT = 0.2;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.23;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -3181,8 +3181,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.32;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.8;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.78;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.84;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.82;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4209,6 +4209,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   let chestY = 0;
   let headX = -0.06;
   let headY = 0;
+  const keepTorsoSeated = mode !== 'idle';
 
   if (mode === 'reachDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
@@ -4295,8 +4296,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmY += throwLateral * 0.14 * t * precision;
     wristY += throwLateral * 0.1 * t * precision;
   } else if (mode === 'reachToken') {
-    addBonePos(rig, rig.hips, 0, 0, -0.03 * t, 1);
-    addBoneRot(rig, rig.spine, 0.08 * t, 0, 0, 1);
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.04, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
@@ -4309,8 +4308,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
   } else if (mode === 'gripToken') {
-    addBonePos(rig, rig.hips, 0, 0, -0.036 * t, 1);
-    addBoneRot(rig, rig.spine, 0.1 * t, 0, 0, 1);
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.9, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.00, t);
@@ -4323,8 +4320,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
   } else if (mode === 'carryToken') {
-    addBonePos(rig, rig.hips, 0, 0, -0.022 * t, 1);
-    addBoneRot(rig, rig.spine, 0.08 * t, 0, 0, 1);
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, t);
@@ -4337,8 +4332,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     chestX = THREE.MathUtils.lerp(chestX, 0.18, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
   } else if (mode === 'placeToken') {
-    addBonePos(rig, rig.hips, 0, 0, -0.04 * t, 1);
-    addBoneRot(rig, rig.spine, 0.12 * t, 0, 0, 1);
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
@@ -4350,6 +4343,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
     headX = THREE.MathUtils.lerp(headX, 0.10, t);
+  }
+
+  if (keepTorsoSeated) {
+    chestX = 0.12 + breathe * 0.08;
+    chestY = 0;
+    headX = -0.06 + breathe * 0.05;
+    headY = 0;
   }
 
   addBoneRot(rig, rig.chest, chestX, chestY, 0, 1);
@@ -7575,14 +7575,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               : null;
           if (movingToken?.isObject3D) {
             movingToken.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.012;
+            handContactTarget.y += 0.004;
             hasContactTarget = true;
           } else if (
             diceRef.current?.isObject3D &&
             (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
           ) {
             diceRef.current.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.009;
+            handContactTarget.y += 0.003;
             hasContactTarget = true;
           }
           if (hasContactTarget) {
