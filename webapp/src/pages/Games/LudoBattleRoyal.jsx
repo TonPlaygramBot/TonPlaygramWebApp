@@ -1775,12 +1775,12 @@ const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 320,
-  gripMs: 240,
-  holdMs: 180,
-  windupMs: 220,
-  releaseMs: 240,
-  followMs: 460
+  reachMs: 380,
+  gripMs: 300,
+  holdMs: 220,
+  windupMs: 300,
+  releaseMs: 260,
+  followMs: 520
 });
 const SEATED_HUMAN_TOKEN_PHASES = Object.freeze({
   pickupMs: 220,
@@ -1793,22 +1793,28 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.072 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.136 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.021 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.03 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.07 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.106 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_TOKEN = -0.02 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PICKUP = 0.006 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PLACE = 0.008 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.079 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.004 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = -0.007 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = -0.004 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
+const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
-const SEATED_CONTACT_IK_ITERATIONS = 4;
-const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.22;
+const SEATED_CONTACT_IK_ITERATIONS = 7;
+const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.008;
+const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
+const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -3390,7 +3396,7 @@ function updateTokenSurfaceOffset(tableThemeId) {
     getShapedTableHeightLift(tableThemeId);
 }
 
-const DICE_SIZE = 0.076;
+const DICE_SIZE = 0.062;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -4110,15 +4116,16 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   if (!rig) return;
   const grip = clamp(gripAmount, 0, 1);
   const open = 1 - grip;
+  const squeeze = 0.78 + grip * 0.38;
 
-  curlFingerChain(rig, rig.rightIndex, grip, -0.05 + 0.05 * open);
-  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
-  curlFingerChain(rig, rig.rightRing, grip, 0.05 - 0.03 * open);
-  curlFingerChain(rig, rig.rightPinky, grip, 0.1 - 0.04 * open);
+  curlFingerChain(rig, rig.rightIndex, grip * squeeze, -0.06 + 0.04 * open);
+  curlFingerChain(rig, rig.rightMiddle, grip * squeeze, -0.025);
+  curlFingerChain(rig, rig.rightRing, grip * squeeze, 0.055 - 0.03 * open);
+  curlFingerChain(rig, rig.rightPinky, grip * squeeze, 0.105 - 0.04 * open);
 
   (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.32 : -0.52;
-    addBoneRot(rig, bone, fold * grip, -0.3 * grip, 0.24 * grip, 1);
+    const fold = index === 0 ? -0.38 : -0.62;
+    addBoneRot(rig, bone, fold * grip, -0.36 * grip, 0.27 * grip, 1);
   });
 }
 
@@ -4247,10 +4254,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.22, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.06, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.52, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.78, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.22, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.62, t);
+    wristY = THREE.MathUtils.lerp(wristY, -0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.04, t);
     shoulderY += throwLateral * 0.24 * t * precision;
     forearmY += throwLateral * 0.14 * t * precision;
     wristY += throwLateral * 0.08 * t * precision;
@@ -4259,12 +4266,12 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.08, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.98, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.16, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.10, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.04, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.34, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.24, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.06, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.08, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.14, t);
+    wristY = THREE.MathUtils.lerp(wristY, -0.06, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     shoulderY += throwLateral * 0.34 * t * precision;
     forearmY += throwLateral * 0.24 * t * precision;
     wristY += throwLateral * 0.2 * t * precision;
@@ -4275,9 +4282,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.18, t);
     forearmY = THREE.MathUtils.lerp(forearmY, 0.02, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.05, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.22, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.03, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.06, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.02, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
     shoulderY += throwLateral * 0.24 * t * precision;
     forearmY += throwLateral * 0.14 * t * precision;
     wristY += throwLateral * 0.1 * t * precision;
@@ -4391,6 +4399,12 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_UP_TOKEN_PLACE,
       SEATED_HELPER_FORWARD_TOKEN_PLACE
     ),
+    contactEffector: createHelper(
+      'contactEffectorHelper',
+      SEATED_HELPER_CONTACT_RIGHT,
+      SEATED_HELPER_CONTACT_UP,
+      SEATED_HELPER_CONTACT_FORWARD
+    ),
     faceCamera: (() => {
       if (!faceRoot?.isObject3D) return null;
       const helper = new THREE.Object3D();
@@ -4437,6 +4451,40 @@ function sampleSeatedActionHelper(entry, helperKey, out) {
   return true;
 }
 
+function sampleSeatedObjectContactTarget(entry, object, kind, out) {
+  if (!out?.isVector3 || !entry || !object?.isObject3D) return false;
+  const center = new THREE.Vector3();
+  const effector = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  object.getWorldPosition(center);
+  const contactEffector = entry?.actionHelpers?.contactEffector;
+  if (contactEffector?.isObject3D) {
+    contactEffector.updateMatrixWorld?.(true);
+    contactEffector.getWorldPosition(effector);
+  } else if (entry?.rig?.rightHand?.isBone) {
+    entry.rig.rightHand.updateMatrixWorld?.(true);
+    entry.rig.rightHand.getWorldPosition(effector);
+  } else {
+    effector.copy(center).add(new THREE.Vector3(0.01, 0.01, 0.01));
+  }
+  direction.copy(effector).sub(center);
+  if (kind === 'dice') {
+    const radius = DICE_SIZE * 0.52;
+    if (direction.lengthSq() < 1e-8) direction.set(0, 0.1, 1);
+    direction.normalize();
+    out.copy(center).addScaledVector(direction, radius);
+    out.y = THREE.MathUtils.clamp(out.y, center.y - DICE_SIZE * 0.24, center.y + DICE_SIZE * 0.2);
+    out.y += SEATED_CONTACT_DICE_Y_OFFSET;
+    return true;
+  }
+  direction.y = 0;
+  if (direction.lengthSq() < 1e-8) direction.set(0, 0, 1);
+  direction.normalize();
+  out.copy(center).addScaledVector(direction, SEATED_CONTACT_TOKEN_RADIUS);
+  out.y = center.y + SEATED_CONTACT_TOKEN_Y_OFFSET;
+  return true;
+}
+
 function applyWorldRotationDeltaToBone(bone, worldDeltaQ) {
   if (!bone?.isBone || !worldDeltaQ?.isQuaternion) return;
   const parentWorldQ = new THREE.Quaternion();
@@ -4446,7 +4494,7 @@ function applyWorldRotationDeltaToBone(bone, worldDeltaQ) {
   bone.quaternion.premultiply(localDeltaQ);
 }
 
-function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1) {
+function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKey = 'contactEffector') {
   const rig = entry?.rig;
   const actor = entry?.actor;
   if (!rig || !actor?.isObject3D || !targetWorld?.isVector3) return;
@@ -4454,6 +4502,8 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1) {
   const lower = rig.rightForeArm;
   const hand = rig.rightHand;
   if (!upper?.isBone || !lower?.isBone || !hand?.isBone) return;
+  const contactEffector = entry?.actionHelpers?.[effectorKey];
+  const effector = contactEffector?.isObject3D ? contactEffector : hand;
 
   const blend = clamp(weight, 0, 1);
   if (blend <= 1e-4) return;
@@ -4469,7 +4519,8 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1) {
     bone.updateMatrixWorld?.(true);
     hand.updateMatrixWorld?.(true);
     bone.getWorldPosition(jointPos);
-    hand.getWorldPosition(endPos);
+    effector.updateMatrixWorld?.(true);
+    effector.getWorldPosition(endPos);
     toEnd.copy(endPos).sub(jointPos);
     toTarget.copy(targetWorld).sub(jointPos);
     const endLen = toEnd.length();
@@ -4569,7 +4620,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         ...basePose,
         mode: 'gripDice',
         intensity: smoother01(phase),
-        handGrip: 0.28 + phase * 0.28,
+        handGrip: 0.55 + phase * 0.35,
         motionTuning: { idleBreathAmp: 0.009, precision: 1.08 }
       };
     }
@@ -4577,7 +4628,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       ...basePose,
       mode: 'holdDice',
       intensity: 1,
-      handGrip: 0.56,
+      handGrip: 0.92,
       motionTuning: { idleBreathAmp: 0.008, precision: 1.08 }
     };
   }
@@ -4601,7 +4652,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         ...basePose,
         mode: 'gripToken',
         intensity: smoother01(segProgress),
-        handGrip: segProgress,
+        handGrip: 0.62 + segProgress * 0.32,
         motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
       };
     }
@@ -7559,36 +7610,41 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             carryToken: 'tokenPlace',
             placeToken: 'tokenPlace'
           };
-          const helperKey = poseToHelperKey[pose.mode] || null;
-          if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
-            hasContactTarget = true;
-          }
           const movingToken =
             state?.animation?.active && state.animation.player === playerIndex
               ? state.animation.token
               : null;
-          if (!hasContactTarget && movingToken?.isObject3D) {
-            movingToken.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.01;
-            hasContactTarget = true;
+          if (movingToken?.isObject3D) {
+            hasContactTarget = sampleSeatedObjectContactTarget(entry, movingToken, 'token', handContactTarget);
           }
           if (
             !hasContactTarget &&
             diceRef.current?.isObject3D &&
             (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
           ) {
-            diceRef.current.getWorldPosition(handContactTarget);
-            handContactTarget.y += 0.008;
-            hasContactTarget = true;
+            hasContactTarget = sampleSeatedObjectContactTarget(entry, diceRef.current, 'dice', handContactTarget);
+          }
+          if (!hasContactTarget) {
+            const helperKey = poseToHelperKey[pose.mode] || null;
+            if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
+              hasContactTarget = true;
+            }
           }
           if (hasContactTarget) {
             const contactWeightByMode = {
-              carryToken: 0.82,
-              release: 0.92,
-              followThrough: 0.9
+              reachDice: 1,
+              gripDice: 1,
+              holdDice: 1,
+              reachToken: 1,
+              gripToken: 1,
+              carryToken: 1,
+              placeToken: 1,
+              windUp: 1,
+              release: 1,
+              followThrough: 1
             };
             const contactWeight = contactWeightByMode[pose.mode] ?? 1;
-            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight);
+            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, 'contactEffector');
           }
         });
       }
@@ -9534,6 +9590,54 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return sampleSeatedActionHelper(actorEntry, helperKey, out);
   }, []);
 
+  const sampleSeatedContactEffectorPosition = useCallback((player, out) => {
+    if (!out?.isVector3) return false;
+    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
+    if (!actorEntry) return false;
+    const effector = actorEntry?.actionHelpers?.contactEffector;
+    if (effector?.isObject3D) {
+      effector.updateMatrixWorld?.(true);
+      effector.getWorldPosition(out);
+      return true;
+    }
+    const rightHand = actorEntry?.rig?.rightHand;
+    if (!rightHand?.isBone) return false;
+    rightHand.updateMatrixWorld?.(true);
+    rightHand.getWorldPosition(out);
+    return true;
+  }, []);
+
+  const syncDiceToThrowHand = useCallback((player, dice, { duration = 220 } = {}) => {
+    if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
+    const parent = dice.parent;
+    const worldTarget = new THREE.Vector3();
+    const localTarget = new THREE.Vector3();
+    const start = performance.now();
+    return new Promise((resolve) => {
+      const step = () => {
+        if (!dice?.isObject3D || !parent?.isObject3D) {
+          resolve();
+          return;
+        }
+        const elapsed = performance.now() - start;
+        const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
+        if (sampleSeatedContactEffectorPosition(player, worldTarget)) {
+          worldTarget.y -= DICE_SIZE * 0.14;
+          localTarget.copy(worldTarget);
+          parent.worldToLocal(localTarget);
+          const blend = 0.24 + (1 - Math.pow(1 - phase, 2)) * 0.58;
+          dice.position.lerp(localTarget, blend);
+        }
+        if (phase < 1) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(step);
+    });
+  }, [sampleSeatedContactEffectorPosition]);
+
   const rollDice = async () => {
     const state = stateRef.current;
     clearHumanRollTimeout();
@@ -9582,6 +9686,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
+    await syncDiceToThrowHand(player, dice, { duration: 230 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
