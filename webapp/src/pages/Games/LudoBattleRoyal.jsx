@@ -119,6 +119,14 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   drone: 1.15
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
+const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
+  'glockSidearmAttack',
+  'pistolSidearmAttack',
+  'assaultRifleAttack',
+  'uziSprayAttack',
+  'ak47VolleyAttack',
+  'grenadeBlastAttack'
+]);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -135,6 +143,51 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   const forward = target.clone().sub(root.position).setY(0);
   if (forward.lengthSq() < 1e-6) return;
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
+}
+
+function createCaptureWeaponRackFx() {
+  const root = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.03, 0.15),
+    createCaptureVehicleMaterial('truck', { color: '#0f172a', roughness: 0.62, metalness: 0.2 })
+  );
+  base.position.y = 0.015;
+  root.add(base);
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.12, 12),
+    createCaptureVehicleMaterial('truck', { color: '#94a3b8', roughness: 0.44, metalness: 0.32 })
+  );
+  post.position.set(0, 0.075, 0);
+  root.add(post);
+  const tray = new THREE.Mesh(
+    new THREE.BoxGeometry(0.38, 0.018, 0.19),
+    createCaptureVehicleMaterial('truck', { color: '#334155', roughness: 0.55, metalness: 0.22 })
+  );
+  tray.position.y = 0.14;
+  root.add(tray);
+
+  const firearmOptions = CAPTURE_ANIMATION_OPTIONS.filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id));
+  firearmOptions.forEach((option, idx) => {
+    const weaponProxy =
+      option.id === 'grenadeBlastAttack'
+        ? new THREE.Mesh(
+            new THREE.SphereGeometry(0.017, 14, 14),
+            createCaptureVehicleMaterial('missile', { color: '#166534', roughness: 0.5, metalness: 0.1 })
+          )
+        : new THREE.Mesh(
+            new THREE.BoxGeometry(0.062, 0.013, 0.018),
+            createCaptureVehicleMaterial('missile', { color: '#e2e8f0', roughness: 0.26, metalness: 0.56 })
+          );
+    const cols = 3;
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    weaponProxy.position.set(-0.11 + col * 0.11, 0.162, -0.04 + row * 0.08);
+    weaponProxy.rotation.z = -0.24;
+    weaponProxy.userData.captureAnimationId = option.id;
+    weaponProxy.userData.captureWeaponRack = true;
+    root.add(weaponProxy);
+  });
+  return { root };
 }
 
 function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
@@ -5276,6 +5329,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     winner: null,
     turnCycle: 0
   });
+  const [weaponSwapPopup, setWeaponSwapPopup] = useState(null);
 
   const playerColors = useMemo(() => resolvePlayerColors(appearance), [appearance]);
 
@@ -5464,6 +5518,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
+      if (entry?.weaponRack) entry.weaponRack.visible = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
     });
   }, [aiLoadoutByPlayer]);
 
@@ -5476,6 +5531,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry?.drone?.parent?.remove?.(entry.drone);
       entry?.missile?.parent?.remove?.(entry.missile);
       entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
+      entry?.weaponRack?.parent?.remove?.(entry.weaponRack);
     });
     parkedCaptureVehiclesRef.current.clear();
 
@@ -5490,7 +5546,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const missileFx = await createCaptureMissileTruckFx();
       // eslint-disable-next-line no-await-in-loop
       const droneTruckFx = await createCaptureDroneLauncherTruckFx();
-      if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root) continue;
+      const weaponRackFx = createCaptureWeaponRackFx();
+      if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root || !weaponRackFx?.root) continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(droneFx.root, playerIndex);
@@ -5508,39 +5565,46 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
       const missilePark = resolveCaptureParkingAnchors(playerIndex, 'missile');
       const droneTruckPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark) continue;
+      const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
+      if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark || !weaponRackPark) continue;
       jetFx.root.position.copy(jetPark);
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
       droneTruckFx.root.position.copy(droneTruckPark);
+      weaponRackFx.root.position.copy(weaponRackPark.clone().add(new THREE.Vector3(0.03, 0, -0.03)));
       const tableSurfaceY = arena.tableInfo?.surfaceY;
       alignObjectBottomToY(jetFx.root, tableSurfaceY);
       alignObjectBottomToY(helicopterFx.root, tableSurfaceY);
       alignObjectBottomToY(droneFx.root, tableSurfaceY);
       alignObjectBottomToY(missileFx.root, tableSurfaceY);
       alignObjectBottomToY(droneTruckFx.root, tableSurfaceY);
+      alignObjectBottomToY(weaponRackFx.root, tableSurfaceY);
       jetFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       helicopterFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       droneFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       missileFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       droneTruckFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      weaponRackFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientCaptureVehicleTowardBoardCenter(jetFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
       arena.scene.add(missileFx.root);
       arena.scene.add(droneTruckFx.root);
+      arena.scene.add(weaponRackFx.root);
       const parkedEntry = {
         jet: jetFx.root,
         helicopter: helicopterFx.root,
         drone: droneFx.root,
         missile: missileFx.root,
         droneTruck: droneTruckFx.root,
+        weaponRack: weaponRackFx.root,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
@@ -5557,7 +5621,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         helicopterPark,
         dronePark,
         missilePark,
-        droneTruckPark
+        droneTruckPark,
+        weaponRackPark
       };
       parkedCaptureVehiclesRef.current.set(playerIndex, {
         ...parkedEntry
@@ -7372,6 +7437,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       });
       return true;
     };
+    const attemptWeaponQuickSwap = (clientX, clientY) => {
+      const state = stateRef.current;
+      if (!state || state.turn !== 0 || state.animation || state.winner) return false;
+      const humanEntry = parkedCaptureVehiclesRef.current.get(0);
+      const rack = humanEntry?.weaponRack;
+      if (!rack) return false;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.set(x, y);
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(rack, true);
+      if (!hits.length) return false;
+      setWeaponSwapPopup({
+        x: clientX,
+        y: clientY,
+        options: CAPTURE_ANIMATION_OPTIONS.filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id))
+      });
+      return true;
+    };
     const getCameraLookTarget = () => {
       if (!controls || !camera) return null;
       const baseTarget = cameraTurnStateRef.current.currentTarget?.isVector3
@@ -7410,7 +7495,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
-      let handled = attemptHumanSelection(clientX, clientY);
+      let handled = attemptWeaponQuickSwap(clientX, clientY);
+      if (!handled) {
+        handled = attemptHumanSelection(clientX, clientY);
+      }
       if (!handled) {
         handled = attemptDiceRoll(clientX, clientY);
       }
@@ -9744,6 +9832,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
+      const enteringOptions = options.filter((option) => option.entering);
+      if (enteringOptions.length) {
+        beginHumanSelection(value, enteringOptions, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+        return;
+      }
+      const choice = chooseMoveOption(state, 0, value, options);
+      if (choice) {
+        moveToken(0, choice.token, value, {
+          skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
+        });
+        return;
+      }
       beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
@@ -9792,6 +9892,38 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
+        {weaponSwapPopup && (
+          <div
+            className="pointer-events-auto absolute z-30 w-48 rounded-xl border border-white/20 bg-black/85 p-2 shadow-2xl backdrop-blur"
+            style={{
+              left: clamp(weaponSwapPopup.x - 80, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 200),
+              top: clamp(weaponSwapPopup.y - 12, 96, (typeof window !== 'undefined' ? window.innerHeight : 640) - 170)
+            }}
+          >
+            <p className="px-1 pb-1 text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
+            <div className="grid grid-cols-2 gap-1">
+              {weaponSwapPopup.options.map((option) => {
+                const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
+                const selected = appearance.captureAnimation === optionIndex;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`rounded-md border px-1.5 py-1 text-[10px] font-semibold ${
+                      selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
+                    }`}
+                    onClick={() => {
+                      if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
+                      setWeaponSwapPopup(null);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button

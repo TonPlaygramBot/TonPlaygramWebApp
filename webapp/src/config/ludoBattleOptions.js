@@ -121,6 +121,36 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'helicopterAttack',
     label: 'Helicopter Strike',
     description: 'Attack helicopter run that launches twin missiles on a jet-style path.'
+  },
+  {
+    id: 'glockSidearmAttack',
+    label: 'Glock Sidearm',
+    description: 'Pick the Glock from the table, aim, and fire before taking the tile.'
+  },
+  {
+    id: 'pistolSidearmAttack',
+    label: 'Pistol Sidearm',
+    description: 'Classic pistol takedown sequence with table pickup and close shot.'
+  },
+  {
+    id: 'assaultRifleAttack',
+    label: 'Assault Rifle',
+    description: 'AR burst capture with a short aim hold before advancing to the target tile.'
+  },
+  {
+    id: 'uziSprayAttack',
+    label: 'Uzi Spray',
+    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.'
+  },
+  {
+    id: 'ak47VolleyAttack',
+    label: 'AK-47 Volley',
+    description: 'Heavy AK-style capture volley while preserving existing vehicle attacks.'
+  },
+  {
+    id: 'grenadeBlastAttack',
+    label: 'Grenade Blast',
+    description: 'Grenade-style capture with quick throw/pickup pacing from the armory set.'
   }
 ]);
 
