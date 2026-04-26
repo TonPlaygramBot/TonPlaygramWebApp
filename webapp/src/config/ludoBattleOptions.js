@@ -115,12 +115,12 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'fighterJetAttack',
     label: 'Fighter Jet Attack',
-    description: 'Fast fighter jet strike with right-hand red launch button trigger.'
+    description: 'Fast fighter jet strike adapted from Chess Battle Royal scale.'
   },
   {
     id: 'helicopterAttack',
     label: 'Helicopter Strike',
-    description: 'Attack helicopter run that launches twin missiles after button press.'
+    description: 'Attack helicopter run that launches twin missiles on a jet-style path.'
   },
   {
     id: 'glockSidearmAttack',
@@ -130,12 +130,12 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'pistolSidearmAttack',
     label: 'Pistol Sidearm',
-    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.'
+    description: 'Classic pistol takedown sequence with table pickup and close shot.'
   },
   {
     id: 'assaultRifleAttack',
     label: 'Assault Rifle',
-    description: 'AR burst capture with short aim hold and original GLB texture materials.'
+    description: 'AR burst capture with a short aim hold before advancing to the target tile.'
   },
   {
     id: 'uziSprayAttack',
@@ -145,12 +145,12 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
-    description: 'Heavy AK volley using GLB texture maps while preserving vehicle attacks.'
+    description: 'Heavy AK-style capture volley while preserving existing vehicle attacks.'
   },
   {
     id: 'grenadeBlastAttack',
     label: 'Grenade Blast',
-    description: 'Grenade capture with preserved GLB textures and quick throw/pickup pacing.'
+    description: 'Grenade-style capture with quick throw/pickup pacing from the armory set.'
   },
   {
     id: 'shotgunBlastAttack',
@@ -166,16 +166,6 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'smgBurstAttack',
     label: 'SMG Burst',
     description: 'Compact SMG burst animation with controlled recoil.'
-  },
-  {
-    id: 'compactCarbineAttack',
-    label: 'Compact Carbine',
-    description: 'Open-source compact carbine-style pickup and burst capture animation.'
-  },
-  {
-    id: 'marksmanDmrAttack',
-    label: 'Marksman DMR',
-    description: 'Open-source designated marksman rifle attack with controlled right-hand aim.'
   }
 
 ]);
