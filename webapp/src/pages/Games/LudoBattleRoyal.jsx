@@ -2058,8 +2058,8 @@ const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 250,
-  gripMs: 180,
+  reachMs: 180,
+  gripMs: 130,
   holdMs: 220,
   windupMs: 300,
   releaseMs: 260,
@@ -4516,20 +4516,20 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.5, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.16, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.18, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.56, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.54, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.02, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.26, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.6, t);
   } else if (mode === 'holdDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
@@ -4537,9 +4537,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.56, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.16, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.06, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.14, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
   } else if (mode === 'windUp') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.38, t);
@@ -6782,7 +6782,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     beginDiceHoldPose(player, { startMs: performance.now() - 220 });
     animateDicePosition(dice, target, {
-      duration: 520,
+      duration: 320,
       lift: 0.05,
       onComplete: () => beginDiceHoldPose(player)
     });
@@ -10274,7 +10274,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         const elapsed = performance.now() - start;
         const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        const blend = 0.7 + (1 - Math.pow(1 - phase, 2)) * 0.3;
+        const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
         snapToHand(blend);
         if (phase < 1) {
           requestAnimationFrame(step);
@@ -10334,7 +10334,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 70 });
+    await syncDiceToThrowHand(player, dice, { duration: 32 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
