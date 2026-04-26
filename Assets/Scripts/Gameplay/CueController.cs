@@ -38,6 +38,8 @@ namespace Aiming
         [Min(0f)] public float minStrikeImpulse = 0.25f;
         [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
         [Range(0f, 0.5f)] public float minimumShotPowerNormalized = 0.06f;
+        [Tooltip("Minimum pull/slider amount required to arm a release trigger (Bilardo Shqip parity).")]
+        [Range(0f, 0.25f)] public float releaseTriggerThresholdNormalized = 0.02f;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.88f;
@@ -76,6 +78,7 @@ namespace Aiming
         float _dynamicWobble;
         Vector3 _strikeDirection;
         Vector3 _tipBaseScale = Vector3.one;
+        bool _cameraLowered;
 
         public ShotState CurrentShotState => _shotState;
         public Vector3 CurrentAimDirection => _aimDirection;
@@ -146,6 +149,22 @@ namespace Aiming
             UpdateCuePose();
         }
 
+        public void SetCameraLowered(bool lowered)
+        {
+            _cameraLowered = lowered;
+
+            if (_cameraLowered && _shotState == ShotState.Idle)
+            {
+                BeginCharge();
+                return;
+            }
+
+            if (!_cameraLowered && _shotState == ShotState.Dragging && _power < releaseTriggerThresholdNormalized)
+            {
+                CancelCharge();
+            }
+        }
+
         public void SetSpinInput(Vector2 normalizedSpin)
         {
             _liveSpinInput = Vector2.ClampMagnitude(normalizedSpin, 1f);
@@ -197,6 +216,7 @@ namespace Aiming
             _strikeElapsed = 0f;
             _didStrike = false;
             _shotState = ShotState.Striking;
+            _cameraLowered = false;
             TriggerShotBroadcastCamera();
         }
 
@@ -421,6 +441,12 @@ namespace Aiming
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower)
         {
             float raw = Mathf.Clamp01(Mathf.Max(sliderPower, recoveredPower));
+            bool pulledEnough = raw > releaseTriggerThresholdNormalized;
+            if (!pulledEnough && !_cameraLowered)
+            {
+                return 0f;
+            }
+
             if (raw <= 0f)
             {
                 return 0f;
