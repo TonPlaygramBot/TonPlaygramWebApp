@@ -98,6 +98,85 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const SNOOKER_PLAYER_MODEL_URL =
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+
+function createSnookerFallbackHuman() {
+  const root = new THREE.Group();
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x5b6470, roughness: 0.78, metalness: 0.02 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf1c7a4, roughness: 0.82, metalness: 0 });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.56, 0.16), cloth);
+  torso.position.y = 1.15;
+  const hip = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.2, 0.14), cloth);
+  hip.position.y = 0.76;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16), skin);
+  head.position.y = 1.55;
+  const legGeo = new THREE.CylinderGeometry(0.055, 0.06, 0.72, 10);
+  const armGeo = new THREE.CylinderGeometry(0.042, 0.045, 0.62, 10);
+  const leftLeg = new THREE.Mesh(legGeo, cloth);
+  leftLeg.position.set(-0.07, 0.38, 0);
+  const rightLeg = new THREE.Mesh(legGeo, cloth);
+  rightLeg.position.set(0.07, 0.38, 0);
+  const leftArm = new THREE.Mesh(armGeo, cloth);
+  leftArm.position.set(-0.18, 1.13, 0);
+  const rightArm = new THREE.Mesh(armGeo, cloth);
+  rightArm.position.set(0.18, 1.13, 0);
+  [torso, hip, head, leftLeg, rightLeg, leftArm, rightArm].forEach((mesh) => {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    root.add(mesh);
+  });
+  return root;
+}
+
+function createSnookerHuman({ scene, loader, scale = 1, side = 1 }) {
+  const rig = {
+    root: new THREE.Group(),
+    modelRoot: new THREE.Group(),
+    fallback: createSnookerFallbackHuman(),
+    loaded: false,
+    activeGlb: false,
+    yaw: 0,
+    settle: 0,
+    side
+  };
+  rig.root.visible = false;
+  rig.modelRoot.visible = false;
+  rig.fallback.visible = true;
+  rig.fallback.scale.setScalar(scale);
+  rig.modelRoot.scale.setScalar(scale);
+  scene.add(rig.root, rig.modelRoot, rig.fallback);
+  loader.load(
+    SNOOKER_PLAYER_MODEL_URL,
+    (gltf) => {
+      const model = gltf.scene;
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+      });
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.set(-center.x, -box.min.y, -center.z);
+      model.scale.setScalar(1);
+      model.rotation.set(0, Math.PI, 0);
+      rig.modelRoot.add(model);
+      rig.loaded = true;
+      rig.activeGlb = true;
+      rig.modelRoot.visible = true;
+      rig.fallback.visible = false;
+    },
+    undefined,
+    () => {
+      rig.loaded = true;
+      rig.activeGlb = false;
+      rig.modelRoot.visible = false;
+      rig.fallback.visible = true;
+    }
+  );
+  return rig;
+}
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -13584,6 +13663,7 @@ const powerRef = useRef(hud.power);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
+  const snookerHumansRef = useRef([]);
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -20722,6 +20802,23 @@ const powerRef = useRef(hud.power);
       cueStick.visible = false;
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
+      const snookerHumanLoader = new GLTFLoader();
+      snookerHumanLoader.setCrossOrigin('anonymous');
+      const tableSpan = Math.max(PLAY_W, PLAY_H);
+      const humanScale = THREE.MathUtils.clamp(tableSpan / 12.4, 0.92, 1.18);
+      const leftHuman = createSnookerHuman({
+        scene,
+        loader: snookerHumanLoader,
+        scale: humanScale,
+        side: -1
+      });
+      const rightHuman = createSnookerHuman({
+        scene,
+        loader: snookerHumanLoader,
+        scale: humanScale,
+        side: 1
+      });
+      snookerHumansRef.current = [leftHuman, rightHuman];
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -24565,6 +24662,52 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
+        const updateSnookerHumans = () => {
+          const humans = snookerHumansRef.current || [];
+          if (!humans.length) return;
+          const cuePosX = cue?.pos?.x ?? 0;
+          const cuePosZ = cue?.pos?.y ?? 0;
+          const aimForward = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
+          else aimForward.normalize();
+          const standDistance = Math.max(PLAY_W, PLAY_H) * 0.34;
+          const edgePad = BALL_R * 6;
+          const maxX = PLAY_W * 0.5 + edgePad;
+          const maxZ = PLAY_H * 0.5 + edgePad;
+          const desired = new THREE.Vector3(
+            cuePosX - aimForward.x * standDistance,
+            0,
+            cuePosZ - aimForward.z * standDistance
+          );
+          const leftTarget = new THREE.Vector3(-maxX, 0, THREE.MathUtils.clamp(desired.z, -maxZ, maxZ));
+          const rightTarget = new THREE.Vector3(maxX, 0, THREE.MathUtils.clamp(desired.z, -maxZ, maxZ));
+          humans.forEach((human, index) => {
+            const target = index === 0 ? leftTarget : rightTarget;
+            human.root.position.lerp(target, 1 - Math.exp(-deltaSeconds * 6.4));
+            const activeShooter =
+              (currentHud?.turn === 0 && index === 0) ||
+              (currentHud?.turn === 1 && index === 1);
+            const targetYaw = activeShooter
+              ? Math.atan2(aimForward.x, aimForward.z) + Math.PI
+              : human.side < 0
+                ? Math.PI * 0.42
+                : -Math.PI * 0.42;
+            human.yaw = THREE.MathUtils.lerp(human.yaw ?? targetYaw, targetYaw, 1 - Math.exp(-deltaSeconds * 8.1));
+            const poseTarget = activeShooter && canShowCue ? 1 : 0;
+            human.settle = THREE.MathUtils.lerp(human.settle ?? 0, poseTarget, 1 - Math.exp(-deltaSeconds * 5.5));
+            const y = TABLE.H + 0.01 - human.settle * 0.03;
+            const breath = Math.sin(now * 0.002 + index * 0.7) * 0.005;
+            human.root.position.y = y + breath;
+            const applyPose = (obj) => {
+              if (!obj) return;
+              obj.position.copy(human.root.position);
+              obj.rotation.set(-human.settle * 0.13, human.yaw, 0);
+            };
+            applyPose(human.activeGlb ? human.modelRoot : human.fallback);
+            if (human.activeGlb) human.fallback.visible = false;
+            else human.modelRoot.visible = false;
+          });
+        };
         function resolveCueObstruction(
           dirVec3,
           pullDistance = cuePullTargetRef.current ?? 0,
@@ -25967,6 +26110,7 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
+          updateSnookerHumans();
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
             isOnlineMatch &&
@@ -26084,6 +26228,14 @@ const powerRef = useRef(hud.power);
         lightingRigRef.current = null;
         worldRef.current = null;
         activeRenderCameraRef.current = null;
+        snookerHumansRef.current.forEach((human) => {
+          try {
+            if (human?.root?.parent) human.root.parent.remove(human.root);
+            if (human?.modelRoot?.parent) human.modelRoot.parent.remove(human.modelRoot);
+            if (human?.fallback?.parent) human.fallback.parent.remove(human.fallback);
+          } catch {}
+        });
+        snookerHumansRef.current = [];
         cueBodyRef.current = null;
         tipGroupRef.current = null;
         try {
