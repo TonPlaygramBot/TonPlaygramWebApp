@@ -166,21 +166,6 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'smgBurstAttack',
     label: 'SMG Burst',
     description: 'Compact SMG burst animation with controlled recoil.'
-  },
-  {
-    id: 'revolverStrikeAttack',
-    label: 'Revolver Strike',
-    description: 'Heavy revolver sidearm capture variation with stronger kick.'
-  },
-  {
-    id: 'carbineSweepAttack',
-    label: 'Carbine Sweep',
-    description: 'Carbine sweep animation with quick target acquisition from the weapon rack.'
-  },
-  {
-    id: 'marksmanRifleAttack',
-    label: 'Marksman Rifle',
-    description: 'Precise DMR-style takedown with a stable right-hand aiming hold.'
   }
 
 ]);
