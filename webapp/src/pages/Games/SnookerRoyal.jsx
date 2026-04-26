@@ -94,6 +94,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import SnookerRoyalDualHumanPreview from '../../components/SnookerRoyalDualHumanPreview.tsx';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -28228,6 +28229,10 @@ const powerRef = useRef(hud.power);
 export default function SnookerRoyal() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dualHumansPreview = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('dualHumansPreview') === '1';
+  }, [location.search]);
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
@@ -28357,6 +28362,10 @@ export default function SnookerRoyal() {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
+  if (dualHumansPreview) {
+    return <SnookerRoyalDualHumanPreview />;
+  }
+
   return (
     <SnookerRoyalGame
       variantKey={variantKey}
