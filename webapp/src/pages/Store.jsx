@@ -9,11 +9,6 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_BASE_VARIANTS
 } from '../config/poolRoyaleInventoryConfig.js';
-import {
-  BILARDO_SHQIP_DEFAULT_LOADOUT,
-  BILARDO_SHQIP_OPTION_LABELS,
-  BILARDO_SHQIP_STORE_ITEMS
-} from '../config/bilardoShqipInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
   SNOOKER_ROYALE_DEFAULT_LOADOUT,
@@ -49,13 +44,6 @@ import {
   listOwnedSnookerRoyalOptions,
   snookerRoyalAccountId
 } from '../utils/snookerRoyalInventory.js';
-import {
-  addBilardoShqipUnlock,
-  bilardoShqipAccountId,
-  getBilardoShqipInventory,
-  isBilardoShqipOptionUnlocked,
-  listOwnedBilardoShqipOptions
-} from '../utils/bilardoShqipInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
@@ -469,7 +457,6 @@ const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
   )
 );
 const HDRI_TARGET_GAMES = Object.freeze([
-  { slug: 'bilardoshqip', label: 'Bilardo Shqip' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
   { slug: 'chessbattleroyal', label: 'Chess Battle Royal' },
   { slug: 'checkersbattleroyal', label: 'Checkers Battle Royal' },
@@ -506,7 +493,6 @@ const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 
 const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   poolroyale: 'poolHdriEnvironment',
-  bilardoshqip: 'bilardoShqipHdriEnvironment',
   snookerroyale: 'snookerHdriEnvironment'
 });
 
@@ -1079,14 +1065,6 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
-  bilardoshqip: {
-    name: 'Bilardo Shqip',
-    items: BILARDO_SHQIP_STORE_ITEMS,
-    defaults: BILARDO_SHQIP_DEFAULT_LOADOUT,
-    labels: BILARDO_SHQIP_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   snookerroyale: {
     name: 'Snooker Royal',
     items: SNOOKER_ROYALE_STORE_ITEMS,
@@ -1195,9 +1173,6 @@ export default function Store() {
   );
   const [snookerOwned, setSnookerOwned] = useState(() =>
     getCachedSnookerRoyalInventory(accountId)
-  );
-  const [bilardoOwned, setBilardoOwned] = useState(() =>
-    getBilardoShqipInventory(bilardoShqipAccountId(accountId))
   );
   const [airOwned, setAirOwned] = useState(() =>
     getAirHockeyInventory(airHockeyAccountId(accountId))
@@ -1346,7 +1321,6 @@ export default function Store() {
   useEffect(() => {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
     setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
-    setBilardoOwned(getBilardoShqipInventory(bilardoShqipAccountId(accountId)));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setGoalRushOwned(getGoalRushInventory(goalRushAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
@@ -1660,7 +1634,6 @@ export default function Store() {
           const optionId = optionIdByGame[slug];
           if (!optionId) return Promise.resolve();
           if (slug === 'poolroyale') return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'bilardoshqip') return Promise.resolve(addBilardoShqipUnlock('environmentHdri', optionId, accountId));
           if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
           if (slug === 'goalrush') return addGoalRushUnlock('environmentHdri', optionId, accountId);
@@ -1732,11 +1705,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'poolroyale'
       })),
-      bilardoshqip: BILARDO_SHQIP_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'bilardoshqip'
-      })),
       snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1805,8 +1773,6 @@ export default function Store() {
     () => ({
       poolroyale: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
-      bilardoshqip: (type, optionId) =>
-        isBilardoShqipOptionUnlocked(type, optionId, bilardoOwned),
       snookerroyale: (type, optionId) =>
         isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) =>
@@ -1835,7 +1801,6 @@ export default function Store() {
     [
       airOwned,
       goalRushOwned,
-      bilardoOwned,
       poolOwned,
       snookerOwned,
       chessOwned,
@@ -1853,8 +1818,6 @@ export default function Store() {
     () => ({
       poolroyale: (item) =>
         POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      bilardoshqip: (item) =>
-        BILARDO_SHQIP_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snookerroyale: (item) =>
         SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) =>
@@ -1887,7 +1850,6 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
-      bilardoshqip: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       goalrush: GOAL_RUSH_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
@@ -2500,14 +2462,6 @@ export default function Store() {
             backgroundSyncTasks.push(syncTask);
           }
           setPoolOwned(getCachedPoolRoyalInventory(resolvedAccountId));
-          continue;
-        }
-        if (slug === 'bilardoshqip') {
-          for (const entry of group.items) {
-            setBilardoOwned(
-              addBilardoShqipUnlock(entry.type, entry.optionId, resolvedAccountId)
-            );
-          }
           continue;
         }
         if (slug === 'snookerroyale') {
