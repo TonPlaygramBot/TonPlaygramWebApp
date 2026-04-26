@@ -103,6 +103,35 @@ export const TOKEN_PIECE_OPTIONS = Object.freeze([
 
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
+    id: 'assaultRifleBurst',
+    label: 'Assault Rifle Burst',
+    description:
+      'Pick rifle from table, aim at enemy token, then burst-fire before advancing.'
+  },
+  {
+    id: 'sniperShot',
+    label: 'Sniper Shot',
+    description:
+      'Long-aim precision shot from the weapon table before the capture move.'
+  },
+  {
+    id: 'smgSpray',
+    label: 'SMG Spray',
+    description:
+      'Fast close-range SMG spray animation with quick token takedown.'
+  },
+  {
+    id: 'shotgunBlast',
+    label: 'Shotgun Blast',
+    description: 'Pump shotgun pickup + blast animation triggered on capture.'
+  },
+  {
+    id: 'grenadeToss',
+    label: 'Grenade Toss',
+    description:
+      'Character grabs grenade from table, lobs it, and secures the tile.'
+  },
+  {
     id: 'missileJavelin',
     label: 'Javelin Missile',
     description: 'Perimeter missile orbit with a spear-like terminal strike.'
@@ -115,12 +144,14 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'fighterJetAttack',
     label: 'Fighter Jet Attack',
-    description: 'Fast fighter jet strike adapted from Chess Battle Royal scale.'
+    description:
+      'Fast fighter jet strike adapted from Chess Battle Royal scale.'
   },
   {
     id: 'helicopterAttack',
     label: 'Helicopter Strike',
-    description: 'Attack helicopter run that launches twin missiles on a jet-style path.'
+    description:
+      'Attack helicopter run that launches twin missiles on a jet-style path.'
   }
 ]);
 
