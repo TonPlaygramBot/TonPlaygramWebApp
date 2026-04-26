@@ -180,6 +180,17 @@ namespace Aiming
 
             float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
             _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower);
+            if (_latchedShotPower <= 0f)
+            {
+                _shotState = ShotState.Idle;
+                _chargedCueDepth = idleTipGap;
+                _currentCueDepth = idleTipGap;
+                _dynamicLift = 0f;
+                _dynamicWobble = 0f;
+                ResetTipScale();
+                UpdateCuePose();
+                return;
+            }
 
             _latchedShotSpin = _liveSpinInput;
             _strikeDirection = _aimDirection;
@@ -410,7 +421,12 @@ namespace Aiming
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower)
         {
             float raw = Mathf.Clamp01(Mathf.Max(sliderPower, recoveredPower));
-            return raw <= 0f ? minimumShotPowerNormalized : Mathf.Max(minimumShotPowerNormalized, raw);
+            if (raw <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Max(minimumShotPowerNormalized, raw);
         }
 
         void ApplyStrikeImpulse(Vector3 strikeDirection, float shotPower)
