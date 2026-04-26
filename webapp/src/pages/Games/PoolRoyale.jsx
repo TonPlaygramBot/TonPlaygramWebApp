@@ -115,6 +115,7 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
+import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -24504,29 +24505,6 @@ const shotPowerRef = useRef(0);
         rigGroup.add(bridgeHand);
         rigGroup.add(gripHand);
 
-        const proceduralParts = [
-          pelvis,
-          torso,
-          chest,
-          neck,
-          head,
-          leftUpperArm,
-          leftLowerArm,
-          rightUpperArm,
-          rightLowerArm,
-          leftUpperLeg,
-          leftLowerLeg,
-          rightUpperLeg,
-          rightLowerLeg,
-          leftFoot,
-          rightFoot,
-          bridgeHand,
-          gripHand
-        ];
-        const modelRoot = new THREE.Group();
-        modelRoot.visible = false;
-        rigGroup.add(modelRoot);
-
         rigGroup.userData.anim = {
           seat,
           mode: 'idle',
@@ -24554,44 +24532,8 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: true,
-          modelRoot,
-          activeGlb: false
+          usesFallbackRig: false
         };
-        void loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
-          .then((gltf) => {
-            const model =
-              gltf?.scene?.clone?.(true) ??
-              gltf?.scene ??
-              gltf?.scenes?.[0] ??
-              null;
-            if (!model) return;
-            const bbox = new THREE.Box3().setFromObject(model);
-            const modelHeight = Math.max(
-              1e-5,
-              (bbox.max?.y ?? 0) - (bbox.min?.y ?? 0)
-            );
-            const targetScale = (humanHeight / modelHeight) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
-            model.scale.setScalar(targetScale);
-            model.position.y = -(bbox.min?.y ?? 0) * targetScale;
-            model.rotation.y = Math.PI;
-            model.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-            });
-            modelRoot.add(model);
-            modelRoot.visible = true;
-            proceduralParts.forEach((part) => {
-              if (part) part.visible = false;
-            });
-            rigGroup.userData.anim.activeGlb = true;
-            rigGroup.userData.anim.usesFallbackRig = false;
-          })
-          .catch(() => {
-            rigGroup.userData.anim.activeGlb = false;
-            rigGroup.userData.anim.usesFallbackRig = true;
-          });
         return rigGroup;
       };
 
@@ -26793,10 +26735,17 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
+        const cueDriveBoost = computeCueDriveBoost({
+          pullDistance,
+          contactAdvance,
+          strikeDurationMs: strikeDuration,
+          clampedPower
+        });
         const referenceSpeed =
           REFERENCE_CUE_SPEED_BASE +
           REFERENCE_CUE_SPEED_RANGE *
-            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA);
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
