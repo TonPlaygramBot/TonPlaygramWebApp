@@ -18,7 +18,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import { PowerSlider } from '../../../../power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -1922,13 +1922,13 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const REFERENCE_CUE_SPEED_BASE = 2.35; // raise baseline cue-ball launch so light shots still roll with intent
-const REFERENCE_CUE_SPEED_RANGE = 10.6; // wider speed range so slider pull translates to stronger impact
+const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
+const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
-const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.34; // stronger character up-scale so humans read larger on mobile portrait
+const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -19674,7 +19674,7 @@ const shotPowerRef = useRef(0);
         if (seatedHumanLoadRef.current) {
           return seatedHumanLoadRef.current;
         }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL])
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
@@ -33192,10 +33192,11 @@ const shotPowerRef = useRef(0);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
+    const slider = new PowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '/assets/snooker/cue.webp',
+      cueSrc: '',
+      theme: 'pool-royale',
       labels: true,
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),

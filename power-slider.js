@@ -53,9 +53,12 @@ export class PowerSlider {
     this.cueImg = document.createElement('img');
     this.cueImg.className = 'ps-cue-img';
     this.cueImg.alt = '';
-    if (cueSrc) this.cueImg.src = cueSrc;
+    this.hasCueImage = Boolean(cueSrc);
+    if (this.hasCueImage) this.cueImg.src = cueSrc;
+    else this.el.classList.add('ps-no-cue-image');
 
-    this.handle.append(this.cueImg, this.handleText, this.powerBar);
+    if (this.hasCueImage) this.handle.append(this.cueImg, this.handleText, this.powerBar);
+    else this.handle.append(this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
@@ -94,9 +97,11 @@ export class PowerSlider {
     this.el.addEventListener('wheel', this._onWheel, { passive: false });
     this.el.addEventListener('keydown', this._onKeyDown);
 
-    this.cueImg.addEventListener('load', () => {
-      this._update(false);
-    });
+    if (this.hasCueImage) {
+      this.cueImg.addEventListener('load', () => {
+        this._update(false);
+      });
+    }
 
     this.set(value);
   }
@@ -196,7 +201,7 @@ export class PowerSlider {
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
-    if (this.theme === 'pool-royale' || this.theme === 'snooker-royale') {
+    if (this.hasCueImage && (this.theme === 'pool-royale' || this.theme === 'snooker-royale')) {
       const drop = ratio * 28;
       const tilt = -8 - ratio * 10;
       this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
