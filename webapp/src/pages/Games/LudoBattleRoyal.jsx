@@ -2187,10 +2187,8 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.024 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.104 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.03 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -4797,12 +4795,6 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_UP_DICE_RELEASE,
       SEATED_HELPER_FORWARD_DICE_RELEASE
     ),
-    diceHold: createHelper(
-      'diceHoldHelper',
-      SEATED_HELPER_RIGHT_DICE,
-      SEATED_HELPER_UP_DICE_HOLD,
-      SEATED_HELPER_FORWARD_DICE_HOLD
-    ),
     tokenPickup: createHelper(
       'tokenPickupHelper',
       SEATED_HELPER_RIGHT_TOKEN,
@@ -6931,35 +6923,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     requestAnimationFrame(step);
   };
 
-  const resolveDiceHoldContactTarget = (player, fallbackTarget = null) => {
-    const dice = diceRef.current;
-    if (!dice?.isObject3D) return fallbackTarget ?? null;
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    if (!actorEntry) return fallbackTarget ?? null;
-    const helperWorld = new THREE.Vector3();
-    const sampled =
-      sampleSeatedActionHelper(actorEntry, 'diceHold', helperWorld) ||
-      sampleSeatedActionHelper(actorEntry, 'dicePickup', helperWorld);
-    if (!sampled) return fallbackTarget ?? null;
-    const parent = dice.parent;
-    const local = helperWorld.clone();
-    if (parent?.worldToLocal) {
-      parent.worldToLocal(local);
-    }
-    // Keep the dice slightly under the fingertip so the grasp appears like physical contact.
-    local.y -= DICE_SIZE * 0.08;
-    return local;
-  };
-
   const moveDiceToRail = (player, immediate = false) => {
     const dice = diceRef.current;
     if (!dice) return;
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
-    const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
-    // Keep the local human player dice at the visible board rail before roll (tap-to-roll expectation on portrait).
-    // AI turns can still use the hand-rest contact helper.
-    const target = player === 0 ? railTarget : resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
+    const target = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
@@ -10467,24 +10436,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const syncDiceToThrowHand = useCallback((player, dice, { duration = 28 } = {}) => {
     if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
     const parent = dice.parent;
-    const worldTargetPickup = new THREE.Vector3();
-    const worldTargetRelease = new THREE.Vector3();
+    const worldTarget = new THREE.Vector3();
     const localTarget = new THREE.Vector3();
     const start = performance.now();
 
-    const snapToHand = (blend = 1, phase = 1) => {
-      const hasPickup =
-        sampleHumanActionHelperPosition(player, 'dicePickup', worldTargetPickup) ||
-        sampleSeatedContactEffectorPosition(player, worldTargetPickup);
-      if (!hasPickup) return false;
-      const hasRelease = sampleHumanActionHelperPosition(player, 'diceRelease', worldTargetRelease);
-      const useRelease = hasRelease && phase > 0.52;
-      const targetWorld = useRelease
-        ? worldTargetPickup.clone().lerp(worldTargetRelease, smoother01((phase - 0.52) / 0.48))
-        : worldTargetPickup;
-      // Small portrait-calibrated downward nudge so fingers visibly touch the die (not hanging below hand).
-      targetWorld.y -= DICE_SIZE * 0.038;
-      localTarget.copy(targetWorld);
+    const snapToHand = (blend = 1) => {
+      if (!sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
+      worldTarget.y -= DICE_SIZE * 0.1;
+      localTarget.copy(worldTarget);
       parent.worldToLocal(localTarget);
       if (blend >= 1) {
         dice.position.copy(localTarget);
@@ -10506,7 +10465,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const elapsed = performance.now() - start;
         const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
         const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
-        snapToHand(blend, phase);
+        snapToHand(blend);
         if (phase < 1) {
           requestAnimationFrame(step);
         } else {
