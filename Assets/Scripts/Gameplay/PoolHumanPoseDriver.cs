@@ -38,8 +38,6 @@ namespace Aiming
         public float sourceTableWidth = 2f;
         public float edgeMargin = 0.58f;
         public float desiredShootDistance = 1.06f;
-        [Tooltip("Scales the full procedural human rig up/down after table-based scaling.")]
-        [Min(0.1f)] public float humanScaleMultiplier = 1.2f;
 
         [Header("Smoothing")]
         public float poseLambda = 9f;
@@ -114,8 +112,7 @@ namespace Aiming
             float lengthScale = cueController.tableBounds.size.z > 0.0001f
                 ? cueController.tableBounds.size.z / Mathf.Max(0.0001f, sourceTableLength)
                 : 1f;
-            float tableScale = (widthScale + lengthScale) * 0.5f;
-            return tableScale * Mathf.Max(0.1f, humanScaleMultiplier);
+            return (widthScale + lengthScale) * 0.5f;
         }
 
         float ResolveTableY(float cueBallY)

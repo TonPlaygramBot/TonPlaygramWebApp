@@ -34,8 +34,6 @@ namespace Aiming
         [Header("Strike feel")]
         public float strikeDuration = 0.11f;
         public float strikeHoldDuration = 0.045f;
-        [Tooltip("How strongly the pull slider ramps into shot power (1 = linear, >1 softer low-end).")]
-        [Range(0.5f, 3f)] public float pullToPowerExponent = 1.35f;
         [Tooltip("Minimum impulse used whenever a valid shot is released.")]
         [Min(0f)] public float minStrikeImpulse = 0.25f;
         [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
@@ -43,8 +41,6 @@ namespace Aiming
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.88f;
-        [Tooltip("Guarantees cue-ball exits contact with at least this linear speed after a valid strike.")]
-        [Min(0f)] public float minimumCueBallSpeedAfterStrike = 0.09f;
 
         [Header("Motion settle")]
         [Tooltip("Linear velocity threshold used to decide whether a ball is still moving.")]
@@ -68,7 +64,6 @@ namespace Aiming
         Vector3 _cueAnchorPosition;
         float _currentCueDepth;
         float _chargedCueDepth;
-        float _releaseStartDepth;
         float _power;
         float _latchedShotPower;
         Vector2 _liveSpinInput;
@@ -145,7 +140,6 @@ namespace Aiming
             _latchedShotPower = 0f;
             _chargedCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
             _currentCueDepth = _chargedCueDepth;
-            _releaseStartDepth = _chargedCueDepth;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
             gameObject.SetActive(true);
@@ -202,7 +196,6 @@ namespace Aiming
             _strikeDirection = _aimDirection;
             _strikeElapsed = 0f;
             _didStrike = false;
-            _releaseStartDepth = Mathf.Max(idleTipGap, _chargedCueDepth);
             _shotState = ShotState.Striking;
             TriggerShotBroadcastCamera();
         }
@@ -242,6 +235,7 @@ namespace Aiming
 
         void UpdateCueDepth()
         {
+            float hitT = Mathf.Clamp01(hitProgress);
             float activePower = _shotState == ShotState.Dragging ? _power : _latchedShotPower;
             float pull = pullRange * EaseOutCubic(activePower);
 
@@ -265,7 +259,6 @@ namespace Aiming
                 _dynamicWobble = 0f;
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
-                _releaseStartDepth = _chargedCueDepth;
                 return;
             }
 
@@ -277,19 +270,22 @@ namespace Aiming
             float follow = Mathf.Min(0.018f, topspin * 0.018f);
             float dynamicFollow = follow * (0.55f + (0.45f * Mathf.Sin(t * Mathf.PI)));
 
-            float pulledDepth = Mathf.Max(idleTipGap, _releaseStartDepth);
+            float pulledDepth = Mathf.Max(idleTipGap, _chargedCueDepth);
             float releaseTargetDepth = idleTipGap;
-            float releaseDistance = Mathf.Max(0.0001f, pulledDepth - releaseTargetDepth);
+            float contactDepth = Mathf.Min(contactTipGap - dynamicFollow, releaseTargetDepth);
 
             _dynamicLift = -0.0035f * strikeEase;
             _dynamicWobble = Mathf.Sin(t * Mathf.PI) * 0.0014f;
             _currentCueDepth = Mathf.Lerp(pulledDepth, releaseTargetDepth, strikeEase);
 
-            float travel01 = Mathf.Clamp01((pulledDepth - _currentCueDepth) / releaseDistance);
-            float contactDepth = Mathf.Min(contactTipGap - dynamicFollow, releaseTargetDepth);
-            bool crossedContactDepth = _currentCueDepth <= contactDepth;
-            bool crossedHitProgress = travel01 >= Mathf.Clamp01(hitProgress);
-            if (!_didStrike && (crossedContactDepth || crossedHitProgress))
+            if (!_didStrike && _currentCueDepth <= contactDepth)
+            {
+                _didStrike = true;
+                SquashTip();
+                ApplyStrikeImpulse(_strikeDirection, _latchedShotPower);
+            }
+
+            if (!_didStrike && t >= hitT)
             {
                 _didStrike = true;
                 SquashTip();
@@ -424,10 +420,7 @@ namespace Aiming
 
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower)
         {
-            float slider = Mathf.Clamp01(sliderPower);
-            float pulled = Mathf.Clamp01(recoveredPower);
-            float pullWeighted = Mathf.Pow(pulled, Mathf.Max(0.5f, pullToPowerExponent));
-            float raw = Mathf.Clamp01(Mathf.Max(slider, pullWeighted));
+            float raw = Mathf.Clamp01(Mathf.Max(sliderPower, recoveredPower));
             if (raw <= 0f)
             {
                 return 0f;
@@ -464,28 +457,6 @@ namespace Aiming
             float impulseMagnitude = Mathf.Lerp(minStrikeImpulse, maxStrikeImpulse, normalizedPower);
             Vector2 appliedSpin = _shotState == ShotState.Striking ? _latchedShotSpin : _liveSpinInput;
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, appliedSpin, ballRadius);
-
-            float minSpeed = Mathf.Max(0f, minimumCueBallSpeedAfterStrike);
-            if (minSpeed > 0f)
-            {
-                Vector3 velocity = cueBallBody.velocity;
-                float planarSpeed = Vector3.ProjectOnPlane(velocity, Vector3.up).magnitude;
-                if (planarSpeed < minSpeed)
-                {
-                    Vector3 planarDirection = Vector3.ProjectOnPlane(strikeDirection, Vector3.up);
-                    if (planarDirection.sqrMagnitude < 1e-6f)
-                    {
-                        planarDirection = velocity.sqrMagnitude > 1e-6f ? velocity.normalized : _aimDirection;
-                    }
-                    planarDirection.y = 0f;
-                    if (planarDirection.sqrMagnitude < 1e-6f)
-                    {
-                        planarDirection = Vector3.forward;
-                    }
-                    planarDirection.Normalize();
-                    cueBallBody.velocity = (planarDirection * minSpeed) + (Vector3.up * velocity.y);
-                }
-            }
         }
 
         void SquashTip()
