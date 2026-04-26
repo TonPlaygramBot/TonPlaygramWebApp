@@ -191,44 +191,28 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     license: 'MIT examples bundle'
   },
   {
-    id: 'mixamo-aj',
-    label: 'AJ',
-    description: 'Mixamo AJ humanoid rig that can be fully re-targeted for seated gameplay.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67d411',
+    label: 'RPM 67d411',
+    description: 'Ready Player Me seated avatar variant with full GLB texture maps.',
+    modelUrls: ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb'],
+    source: 'Ready Player Me public GLB',
+    license: 'Check RPM terms'
   },
   {
-    id: 'mixamo-jane',
-    label: 'Jane',
-    description: 'Mixamo Jane with preserved GLB material textures and humanoid skeleton.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67f433',
+    label: 'RPM 67f433',
+    description: 'Ready Player Me seated avatar variant with full GLB texture maps.',
+    modelUrls: ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'],
+    source: 'Ready Player Me public GLB',
+    license: 'Check RPM terms'
   },
   {
-    id: 'mixamo-eva',
-    label: 'Eva',
-    description: 'Mixamo Eva realistic female rig ready for seated pose overrides.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
-  },
-  {
-    id: 'mixamo-joe',
-    label: 'Joe',
-    description: 'Mixamo Joe humanoid compatible with existing Ludo seated animation helpers.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
-  },
-  {
-    id: 'mixamo-remy',
-    label: 'Remy',
-    description: 'Mixamo Remy character tuned to the same target seated height in-game.',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
-    source: 'three.js examples / Mixamo',
-    license: 'Mixamo sample terms'
+    id: 'rpm-67e1b5',
+    label: 'RPM 67e1b5',
+    description: 'Ready Player Me seated avatar variant with full GLB texture maps.',
+    modelUrls: ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb'],
+    source: 'Ready Player Me public GLB',
+    license: 'Check RPM terms'
   }
 ]);
 
