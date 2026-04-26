@@ -115,7 +115,7 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
-import { computeBilardoShotSpeed } from './cueShotImpact.js';
+import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1928,7 +1928,7 @@ const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // mirror Bilardo Shqip human/table size contrast
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.4; // slight size bump while keeping the same base proportions
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -15523,11 +15523,6 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
-const [manualShotState, setManualShotState] = useState('idle'); // idle | dragging | striking
-const manualShotStateRef = useRef('idle');
-useEffect(() => {
-  manualShotStateRef.current = manualShotState;
-}, [manualShotState]);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -24714,18 +24709,11 @@ useEffect(() => {
           const isShooter = anim.seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
-          const draggingSlider =
-            manualShotStateRef.current === 'dragging' ||
-            Boolean(sliderInstanceRef.current?.dragging);
-          const sliderPowerActive =
-            manualShotStateRef.current !== 'idle' || (powerRef.current ?? 0) > 0.01;
+          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
+          const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (
-            (isShotActive && anim.seat === shotSeat && shotAge < 420) ||
-            (isShooter && manualShotStateRef.current === 'striking')
-          )
-            mode = 'strike';
+          else if (isShotActive && anim.seat === shotSeat && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
@@ -26803,7 +26791,17 @@ useEffect(() => {
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const referenceSpeed = computeBilardoShotSpeed(clampedPower);
+        const cueDriveBoost = computeCueDriveBoost({
+          pullDistance,
+          contactAdvance,
+          strikeDurationMs: strikeDuration,
+          clampedPower
+        });
+        const referenceSpeed =
+          REFERENCE_CUE_SPEED_BASE +
+          REFERENCE_CUE_SPEED_RANGE *
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), REFERENCE_CUE_SPEED_GAMMA) *
+            cueDriveBoost;
         cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -33312,7 +33310,6 @@ useEffect(() => {
   const sliderRef = useRef(null);
   const onPowerDragStart = useCallback(() => {
     captureCueStickAnchor();
-    setManualShotState('dragging');
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
     const clamped = clampPower(powerRatio, 0);
@@ -33328,20 +33325,7 @@ useEffect(() => {
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     applyPower(latchedPower);
-    if (latchedPower > 0.02) {
-      setManualShotState('striking');
-      fireRef.current?.(latchedPower);
-      timersRef.current.push(window.setTimeout(() => {
-        setManualShotState('idle');
-      }, 170));
-    } else {
-      setManualShotState('idle');
-    }
-    requestAnimationFrame(() => {
-      const slider = sliderInstanceRef.current;
-      if (slider) slider.set(slider.min, { animate: true });
-      applyPower(0);
-    });
+    fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
@@ -33360,6 +33344,10 @@ useEffect(() => {
       onStart: () => onPowerDragStart(),
       onCommit: () => {
         onPowerRelease(clampPower(powerRef.current, 0));
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
