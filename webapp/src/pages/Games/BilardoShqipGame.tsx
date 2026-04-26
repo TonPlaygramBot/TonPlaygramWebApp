@@ -11,8 +11,15 @@ import {
 } from "./shared/bilardoShotModel";
 
 type ShotState = "idle" | "dragging" | "striking";
+type CameraMode = "broadcast" | "top" | "player";
 type BallState = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; number: number; isCue: boolean };
 type CueRig = { group: THREE.Group; shaft: THREE.Mesh; ferrule: THREE.Mesh; tip: THREE.Mesh };
+type TableRig = {
+  tableGroup: THREE.Group;
+  clothMaterial: THREE.MeshStandardMaterial;
+  woodMaterial: THREE.MeshStandardMaterial;
+  legMaterial: THREE.MeshStandardMaterial;
+};
 type BoneKey =
   | "hips" | "spine" | "chest" | "neck" | "head"
   | "leftUpperArm" | "leftLowerArm" | "leftHand"
@@ -98,7 +105,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.18,
+  humanScale: 1.34,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52,
   bridgePalmTableLift: 0.012,
@@ -106,7 +113,7 @@ const CFG = {
   bridgeHandBackFromBall: 0.245,
   bridgeHandSide: -0.008,
   gripHandBackOnCue: 0.78,
-  chinToCueHeight: 0.11,
+  chinToCueHeight: 0.1,
   cueArmElbowRise: 0.43,
 };
 const BALL_COLORS = [0xf7f7f7, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28, 0x111111, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28];
@@ -135,6 +142,11 @@ const RACE_TO_POINTS = 61;
 const CUE_BALL_RESPOT = new THREE.Vector3(0, CFG.ballR, 1.02);
 const POCKET_CAPTURE_RADIUS = CFG.ballR * 1.52;
 const stillMoving = (balls: BallState[]) => balls.some((ball) => ball.vel.lengthSq() > CFG.minSpeed2);
+const TABLE_LOADOUTS = [
+  { id: "royalClassic", label: "Royal Classic", cloth: 0x105f3c, wood: 0x4a2c1a, leg: 0x392114 },
+  { id: "royalBlue", label: "Royal Blue", cloth: 0x1b4a87, wood: 0x5a3722, leg: 0x2f1d12 },
+  { id: "royalCarbon", label: "Royal Carbon", cloth: 0x255b48, wood: 0x2a2f35, leg: 0x161a1f }
+];
 
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -293,12 +305,13 @@ function addBox(group: THREE.Group, size: [number, number, number], pos: [number
   group.add(mesh);
   return mesh;
 }
-function addTable(scene: THREE.Scene) {
+function addTable(scene: THREE.Scene): TableRig {
   const tableGroup = new THREE.Group();
   tableGroup.position.y = CFG.tableTopY;
   scene.add(tableGroup);
 
-  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], material(0x105f3c, 0.92, 0));
+  const clothMaterial = material(0x105f3c, 0.92, 0);
+  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], clothMaterial);
 
   const wood = material(0x4a2c1a, 0.46);
   const cushion = material(0x124a2e, 0.86, 0);
@@ -331,7 +344,12 @@ function addTable(scene: THREE.Scene) {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
-  return { tableGroup };
+  return {
+    tableGroup,
+    clothMaterial,
+    woodMaterial: wood,
+    legMaterial: legMat
+  };
 }
 function addBalls(tableGroup: THREE.Group) {
   const balls: BallState[] = [];
@@ -351,8 +369,37 @@ function addBalls(tableGroup: THREE.Group) {
 }
 function addCue(scene: THREE.Scene): CueRig {
   const group = new THREE.Group();
-  const cue = { group, shaft: createUnitCylinder(0xd9b88d), ferrule: createUnitCylinder(0xf2f2f2), tip: createUnitCylinder(0x3476d6) };
-  [cue.shaft, cue.ferrule, cue.tip].forEach((m) => group.add(enableShadow(m)));
+  const cue = {
+    group,
+    shaft: createUnitCylinder(0xe7cfab),
+    ferrule: createUnitCylinder(0xf4f4f4),
+    tip: createUnitCylinder(0x2e6fc4)
+  };
+  cue.shaft.material = new THREE.MeshStandardMaterial({
+    color: 0xe7cfab,
+    roughness: 0.32,
+    metalness: 0.05,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.26
+  });
+  const butt = createUnitCylinder(0x3a2518);
+  butt.material = new THREE.MeshStandardMaterial({
+    color: 0x3a2518,
+    roughness: 0.5,
+    metalness: 0.08,
+    clearcoat: 0.14
+  });
+  const wrap = createUnitCylinder(0x111827);
+  wrap.material = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.7,
+    metalness: 0.02
+  });
+  [cue.shaft, butt, wrap, cue.ferrule, cue.tip].forEach((m) => group.add(enableShadow(m)));
+  butt.position.y = -0.34;
+  butt.scale.set(1.16, 0.3, 1.16);
+  wrap.position.y = -0.08;
+  wrap.scale.set(1.08, 0.22, 1.08);
   scene.add(group);
   return cue;
 }
@@ -653,8 +700,8 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
   const powerLean = power * t;
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
+  const torso = local(new THREE.Vector3(0, lerp(1.18, 0.98, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
+  const chest = local(new THREE.Vector3(0, lerp(1.42, 1.12, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
   const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - CFG.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
   const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
@@ -673,8 +720,19 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
   driveHuman(human, { t, breath, stroke, follow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip });
 }
 
-function applyCueShot(cueBall: BallState, power: number, yaw: number, tmp: THREE.Vector3) {
-  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(bilardoCueSpeed(power));
+function applyCueShot(
+  cueBall: BallState,
+  power: number,
+  yaw: number,
+  spin: { x: number; y: number },
+  tmp: THREE.Vector3
+) {
+  const baseSpeed = bilardoCueSpeed(power);
+  const side = clamp(spin.x, -1, 1);
+  const vertical = clamp(spin.y, -1, 1);
+  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(baseSpeed);
+  cueBall.vel.x += side * baseSpeed * 0.14;
+  cueBall.vel.z += vertical * baseSpeed * 0.08;
 }
 function updateBalls(
   balls: BallState[],
@@ -815,6 +873,9 @@ export default function BilardoShqipGame() {
   const [power, setPower] = useState(0);
   const [shotState, setShotState] = useState<ShotState>("idle");
   const [aiLabel, setAiLabel] = useState("AI ready");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("broadcast");
+  const [spin, setSpin] = useState({ x: 0, y: 0 });
+  const [tableLoadout, setTableLoadout] = useState(TABLE_LOADOUTS[0].id);
   const [scoreboard, setScoreboard] = useState({
     raceTo: RACE_TO_POINTS,
     currentPlayer: "A",
@@ -825,6 +886,9 @@ export default function BilardoShqipGame() {
   const powerRef = useRef(0);
   const shotPowerRef = useRef(0);
   const shotStateRef = useRef<ShotState>("idle");
+  const spinRef = useRef(spin);
+  const cameraModeRef = useRef<CameraMode>(cameraMode);
+  const tableLoadoutRef = useRef(tableLoadout);
   const scoreboardRef = useRef(scoreboard);
   const draggingSliderRef = useRef(false);
   const aimYawRef = useRef(0);
@@ -836,6 +900,9 @@ export default function BilardoShqipGame() {
 
   useEffect(() => { powerRef.current = power; }, [power]);
   useEffect(() => { shotStateRef.current = shotState; }, [shotState]);
+  useEffect(() => { spinRef.current = spin; }, [spin]);
+  useEffect(() => { cameraModeRef.current = cameraMode; }, [cameraMode]);
+  useEffect(() => { tableLoadoutRef.current = tableLoadout; }, [tableLoadout]);
   useEffect(() => { scoreboardRef.current = scoreboard; }, [scoreboard]);
 
   const animatePowerToZero = (from: number, ms = 220) => {
@@ -904,7 +971,8 @@ export default function BilardoShqipGame() {
     sun.shadow.mapSize.height = 2048;
     scene.add(sun);
 
-    const { tableGroup } = addTable(scene);
+    const tableRig = addTable(scene);
+    const { tableGroup } = tableRig;
     const { balls, cueBall } = addBalls(tableGroup);
     const cue = addCue(scene);
     const human = addHuman(scene);
@@ -1001,6 +1069,14 @@ export default function BilardoShqipGame() {
     };
 
     resize();
+    const applyTableLoadout = (loadoutId: string) => {
+      const entry = TABLE_LOADOUTS.find((item) => item.id === loadoutId) || TABLE_LOADOUTS[0];
+      tableRig.clothMaterial.color.setHex(entry.cloth);
+      tableRig.woodMaterial.color.setHex(entry.wood);
+      tableRig.legMaterial.color.setHex(entry.leg);
+    };
+    let activeLoadout = tableLoadoutRef.current;
+    applyTableLoadout(activeLoadout);
     window.addEventListener("resize", resize);
 
     function animate() {
@@ -1046,7 +1122,7 @@ export default function BilardoShqipGame() {
         }
         if (!didHit && strikeNorm > 0.88) {
           didHit = true;
-          applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, c);
+          applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, spinRef.current, c);
         }
         if (strikeT >= CFG.strikeTime + CFG.holdTime) {
           strikeT = 0;
@@ -1070,6 +1146,17 @@ export default function BilardoShqipGame() {
       const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
       renderer.setViewport(0, 0, w, h);
       renderer.setScissorTest(false);
+      const mode = cameraModeRef.current;
+      if (mode === "top") {
+        mainCamera.position.set(0, 7.3, 0.01);
+        mainCamera.lookAt(0, CFG.tableTopY, 0);
+      } else if (mode === "player") {
+        mainCamera.position.set(cueBallWorld.x - aimForward.x * 1.2, CFG.tableTopY + 0.62, cueBallWorld.z - aimForward.z * 1.2);
+        mainCamera.lookAt(cueBallWorld.x + aimForward.x * 1.4, CFG.tableTopY + 0.06, cueBallWorld.z + aimForward.z * 1.4);
+      } else {
+        mainCamera.position.set(1.65, 2.15, 6.35);
+        mainCamera.lookAt(0, 1.05, 0);
+      }
       renderer.render(scene, mainCamera);
       renderCueInset(w, h, cueBackVisual, cueTipVisual);
     }
@@ -1089,12 +1176,40 @@ export default function BilardoShqipGame() {
 
   const sliderH = 320, sliderW = 58, knob = 30;
   const knobTop = clamp(power * sliderH - knob / 2, -2, sliderH - knob + 2);
+  const spinPadSize = 108;
+  const spinKnob = 26;
+  const spinKnobLeft = ((spin.x + 1) * 0.5) * (spinPadSize - spinKnob);
+  const spinKnobTop = ((1 - (spin.y + 1) * 0.5)) * (spinPadSize - spinKnob);
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0b0b0b" }}>
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ position: "absolute", left: 14, right: 14, top: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, pointerEvents: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 14, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(10,16,25,0.72)", padding: "8px 10px" }}>
+            <div style={{ width: 34, height: 34, borderRadius: 999, background: "linear-gradient(135deg,#60a5fa,#2563eb)" }} />
+            <div style={{ color: "white", fontSize: 12, fontWeight: 700 }}>Player · {scoreboard.scores.A}</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>vs</div>
+            <div style={{ color: "white", fontSize: 12, fontWeight: 700 }}>AI · {scoreboard.scores.B}</div>
+            <div style={{ width: 34, height: 34, borderRadius: 999, background: "linear-gradient(135deg,#f59e0b,#ef4444)" }} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setCameraMode((prev) => prev === "broadcast" ? "player" : prev === "player" ? "top" : "broadcast")}
+              style={{ border: "1px solid rgba(255,255,255,0.25)", color: "white", background: "rgba(0,0,0,0.52)", borderRadius: 10, padding: "8px 10px", fontSize: 11, fontWeight: 700 }}
+            >
+              Cam: {cameraMode}
+            </button>
+            <select
+              value={tableLoadout}
+              onChange={(e) => setTableLoadout(e.target.value)}
+              style={{ border: "1px solid rgba(255,255,255,0.25)", color: "white", background: "rgba(0,0,0,0.52)", borderRadius: 10, padding: "8px 10px", fontSize: 11, fontWeight: 700 }}
+            >
+              {TABLE_LOADOUTS.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+            </select>
+          </div>
+        </div>
         <div style={{ position: "absolute", left: 14, bottom: 18, display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" }}>
           <button
             onClick={() => aiShotRef.current?.()}
@@ -1120,6 +1235,20 @@ export default function BilardoShqipGame() {
           </div>
         </div>
         <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, pointerEvents: "auto", touchAction: "none", userSelect: "none" }}>
+          <div
+            onPointerDown={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const nx = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1);
+              const ny = clamp(1 - ((e.clientY - r.top) / r.height) * 2, -1, 1);
+              setSpin({ x: nx, y: ny });
+            }}
+            onDoubleClick={() => setSpin({ x: 0, y: 0 })}
+            style={{ position: "relative", width: spinPadSize, height: spinPadSize, borderRadius: 14, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(8,12,18,0.7)" }}
+          >
+            <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.14)" }} />
+            <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.14)" }} />
+            <div style={{ position: "absolute", left: spinKnobLeft, top: spinKnobTop, width: spinKnob, height: spinKnob, borderRadius: 999, background: "#60a5fa", boxShadow: "0 6px 14px rgba(37,99,235,0.55)" }} />
+          </div>
           <div onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp} style={{ position: "relative", height: sliderH, width: sliderW, borderRadius: 18, background: "rgba(255,255,255,0.92)", boxShadow: "0 12px 28px rgba(0,0,0,0.2)", padding: 9, opacity: scoreboard.currentPlayer === "A" && !scoreboard.winner ? 1 : 0.45, pointerEvents: scoreboard.currentPlayer === "A" && !scoreboard.winner ? "auto" : "none" }}>
             <div style={{ position: "absolute", left: 14, right: 14, top: 14, bottom: 14, borderRadius: 999, background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
               <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: `${power * 100}%`, background: "rgba(17,17,17,0.58)" }} />
@@ -1138,3 +1267,7 @@ export default function BilardoShqipGame() {
     </div>
   );
 }
+      if (activeLoadout !== tableLoadoutRef.current) {
+        activeLoadout = tableLoadoutRef.current;
+        applyTableLoadout(activeLoadout);
+      }
