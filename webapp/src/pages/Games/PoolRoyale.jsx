@@ -24591,35 +24591,6 @@ const shotPowerRef = useRef(0);
           );
         };
 
-        const TABLE_WALKWAY_PADDING_X = HUMAN_EDGE_MARGIN * 0.74;
-        const TABLE_WALKWAY_PADDING_Z = HUMAN_EDGE_MARGIN * 0.74;
-        const tableNoWalkHalfX = TABLE.W / 2 + TABLE_WALKWAY_PADDING_X;
-        const tableNoWalkHalfZ = TABLE.H / 2 + TABLE_WALKWAY_PADDING_Z;
-        const projectOutsideTable = (positionLike) => {
-          const p = positionLike.clone();
-          const insideX = Math.abs(p.x) < tableNoWalkHalfX;
-          const insideZ = Math.abs(p.z) < tableNoWalkHalfZ;
-          if (!insideX || !insideZ) {
-            p.y = floorY;
-            return p;
-          }
-          const pushX = tableNoWalkHalfX - Math.abs(p.x);
-          const pushZ = tableNoWalkHalfZ - Math.abs(p.z);
-          if (pushX < pushZ) {
-            p.x = Math.sign(p.x || 1) * tableNoWalkHalfX;
-          } else {
-            p.z = Math.sign(p.z || 1) * tableNoWalkHalfZ;
-          }
-          p.y = floorY;
-          return p;
-        };
-        const tableSideHelpers = [
-          new THREE.Vector3(-tableNoWalkHalfX, floorY, 0),
-          new THREE.Vector3(tableNoWalkHalfX, floorY, 0),
-          new THREE.Vector3(0, floorY, -tableNoWalkHalfZ),
-          new THREE.Vector3(0, floorY, tableNoWalkHalfZ)
-        ];
-
         const desiredRoot = chooseEdgeTarget(normalizedAim);
 
         rigs.forEach((rig) => {
@@ -24642,31 +24613,10 @@ const shotPowerRef = useRef(0);
 
           const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
           const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTargetRaw = desiredRoot
-            .clone()
-            .lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          const seatTarget = projectOutsideTable(seatTargetRaw);
+          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
           if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
-          const currentOutside = projectOutsideTable(rig.group.position);
-          const targetOutside = projectOutsideTable(seatTarget);
-          const midpoint = currentOutside.clone().lerp(targetOutside, 0.5);
-          const pathNeedsHelper =
-            Math.abs(midpoint.x) < tableNoWalkHalfX &&
-            Math.abs(midpoint.z) < tableNoWalkHalfZ;
-          let routedTarget = targetOutside;
-          if (pathNeedsHelper) {
-            routedTarget = tableSideHelpers.reduce((best, helper) => {
-              const bestCost = currentOutside.distanceTo(best) + best.distanceTo(targetOutside);
-              const helperCost = currentOutside.distanceTo(helper) + helper.distanceTo(targetOutside);
-              return helperCost < bestCost ? helper : best;
-            }, targetOutside.clone());
-          }
-          anim.rootTarget.copy(routedTarget);
-          rig.group.position.lerp(
-            anim.rootTarget,
-            THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1)
-          );
-          rig.group.position.copy(projectOutsideTable(rig.group.position));
+          anim.rootTarget.copy(seatTarget);
+          rig.group.position.lerp(anim.rootTarget, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1));
 
           const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
           anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
@@ -33220,9 +33170,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const powerDragStartedRef = useRef(false);
   const onPowerDragStart = useCallback(() => {
-    powerDragStartedRef.current = true;
     captureCueStickAnchor();
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
@@ -33231,8 +33179,6 @@ const shotPowerRef = useRef(0);
     applyPower(clamped);
   }, [applyPower, clampPower]);
   const onPowerRelease = useCallback((powerRatio = null) => {
-    if (!powerDragStartedRef.current) return;
-    powerDragStartedRef.current = false;
     const sourcePower = Number.isFinite(powerRatio) ? powerRatio : powerRef.current;
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
@@ -33273,7 +33219,6 @@ const shotPowerRef = useRef(0);
   }, [applySliderLock, clampPower, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
-    powerDragStartedRef.current = false;
     const slider = sliderInstanceRef.current;
     if (slider) {
       slider.set(slider.min, { animate: true });
