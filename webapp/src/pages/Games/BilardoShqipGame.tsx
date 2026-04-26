@@ -104,7 +104,25 @@ const CFG = {
   chinToCueHeight: 0.11,
   cueArmElbowRise: 0.43,
 };
-const BALL_COLORS = [0xf7f7f7, 0xf6d44a, 0x2f7ed8, 0xd13b30, 0x7a3db8, 0xf28c28, 0x1f9d55, 0x8b1e1e, 0x111111, 0xf6d44a, 0x2f7ed8, 0xd13b30, 0x7a3db8, 0xf28c28, 0x1f9d55, 0x8b1e1e];
+const BALL_COLORS = [0xf7f7f7, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28, 0x111111, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28];
+const BALL_PATTERNS: ("cue" | "solid" | "stripe")[] = [
+  "cue",
+  "solid",
+  "solid",
+  "solid",
+  "solid",
+  "solid",
+  "solid",
+  "solid",
+  "solid",
+  "stripe",
+  "stripe",
+  "stripe",
+  "stripe",
+  "stripe",
+  "stripe",
+  "stripe",
+];
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const UP = Y_AXIS;
 const BASIS_MAT = new THREE.Matrix4();
@@ -131,6 +149,75 @@ function makeBasisQuaternion(side: THREE.Vector3, up: THREE.Vector3, forward: TH
 }
 function material(color: number, roughness = 0.72, metalness = 0.03) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+function createBilardoBallTexture(color: number, pattern: "cue" | "solid" | "stripe", number: number | null) {
+  const size = 1024;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const colorHex = `#${new THREE.Color(color).getHexString()}`;
+  ctx.fillStyle = pattern === "stripe" ? "#ffffff" : colorHex;
+  ctx.fillRect(0, 0, size, size);
+
+  if (pattern === "stripe") {
+    const stripeHeight = size * 0.45;
+    const stripeY = (size - stripeHeight) / 2;
+    ctx.fillStyle = colorHex;
+    ctx.fillRect(0, stripeY, size, stripeHeight);
+  }
+
+  if (pattern === "cue") {
+    const dotRadius = size * 0.08;
+    const dots = [
+      [size * 0.5, size * 0.5],
+      [size * 0.23, size * 0.5],
+      [size * 0.77, size * 0.5],
+      [size * 0.5, size * 0.23],
+      [size * 0.5, size * 0.77],
+    ] as const;
+    ctx.fillStyle = "#d33131";
+    dots.forEach(([x, y]) => {
+      ctx.beginPath();
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  if (number != null) {
+    const badgeR = size * 0.09;
+    const cx = size * 0.5;
+    const cy = size * 0.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, badgeR, badgeR * 1.8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = size * 0.013;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+    ctx.fillStyle = "#000";
+    ctx.font = `900 ${number > 9 ? size * 0.12 : size * 0.14}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(number), cx, cy);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
+function billiardBallMaterial(color: number, pattern: "cue" | "solid" | "stripe", number: number | null) {
+  const map = createBilardoBallTexture(color, pattern, number);
+  return new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.18,
+    metalness: 0.03,
+    map: map ?? undefined,
+  });
 }
 function enableShadow(obj: THREE.Object3D) {
   obj.traverse((child) => {
@@ -173,8 +260,9 @@ function setCuePose(cue: CueRig, back: THREE.Vector3, tip: THREE.Vector3) {
   setSegment(cue.tip, tipBack, tip, 0.009);
 }
 
-function createBall(number: number, color: number, isCue = false): BallState {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 28, 28), material(color, 0.24, 0.02));
+function createBall(number: number, color: number, pattern: "cue" | "solid" | "stripe", isCue = false): BallState {
+  const labelNumber = isCue ? null : number;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 36, 36), billiardBallMaterial(color, pattern, labelNumber));
   enableShadow(mesh);
   return { mesh, pos: new THREE.Vector3(), vel: new THREE.Vector3(), number, isCue };
 }
@@ -205,10 +293,10 @@ function addTable(scene: THREE.Scene) {
   tableGroup.position.y = CFG.tableTopY;
   scene.add(tableGroup);
 
-  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], material(0x1f6f43, 0.96, 0));
+  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], material(0x105f3c, 0.92, 0));
 
-  const wood = material(0x4d2f1f, 0.64);
-  const cushion = material(0x1b5b39, 0.9, 0);
+  const wood = material(0x4a2c1a, 0.46);
+  const cushion = material(0x124a2e, 0.86, 0);
   const railY = CFG.railH / 2 - CFG.topThickness;
   const cushionY = 0.06 + CFG.cushionH / 2;
   [
@@ -242,11 +330,11 @@ function addTable(scene: THREE.Scene) {
 }
 function addBalls(tableGroup: THREE.Group) {
   const balls: BallState[] = [];
-  const cueBall = createBall(0, BALL_COLORS[0], true);
+  const cueBall = createBall(0, BALL_COLORS[0], BALL_PATTERNS[0], true);
   cueBall.pos.set(0, CFG.ballR, 1.02);
   balls.push(cueBall);
   rackPositions(new THREE.Vector3(0, CFG.ballR, -0.78)).forEach((p, i) => {
-    const b = createBall(i + 1, BALL_COLORS[i + 1]);
+    const b = createBall(i + 1, BALL_COLORS[i + 1], BALL_PATTERNS[i + 1]);
     b.pos.copy(p);
     balls.push(b);
   });
