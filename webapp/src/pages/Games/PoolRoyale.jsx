@@ -24444,13 +24444,52 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+      const fitPlayerHumanModelHeight = (model, targetHeight) => {
+        if (!model || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const sourceHeight = Math.max(size.y, 1e-4);
+        const scale = targetHeight / sourceHeight;
+        model.scale.setScalar(scale);
+        model.rotation.set(0, Math.PI, 0);
+        model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+        model.updateMatrixWorld(true);
+      };
+
+      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        if (template) {
+          const avatar = template.clone(true);
+          fitPlayerHumanModelHeight(avatar, humanHeight);
+          avatar.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+          });
+          rigGroup.add(avatar);
+          rigGroup.userData.anim = {
+            seat,
+            mode: 'idle',
+            intensity: 0,
+            humanHeight,
+            scale,
+            model: avatar,
+            poseT: 0,
+            walkT: 0,
+            yaw: facingY,
+            rootTarget: new THREE.Vector3(x, floorY, z),
+            usesFallbackRig: false
+          };
+          return rigGroup;
+        }
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
         const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
@@ -24539,19 +24578,22 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        const glbTemplate = await ensureSeatedHumanTemplate();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const leftPlayer = createPlayerCharacterRig({
           seat: 'A',
           x: -sideOffset,
           z: -zOffset,
-          facingY: 0
+          facingY: 0,
+          template: glbTemplate
         });
         const rightPlayer = createPlayerCharacterRig({
           seat: 'B',
           x: sideOffset,
           z: zOffset,
-          facingY: Math.PI
+          facingY: Math.PI,
+          template: glbTemplate
         });
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
@@ -24663,7 +24705,7 @@ const shotPowerRef = useRef(0);
 
         rigs.forEach((rig) => {
           const anim = rig?.anim;
-          if (!anim?.pelvis) return;
+          if (!anim) return;
           const isShooter = anim.seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
@@ -24709,6 +24751,20 @@ const shotPowerRef = useRef(0);
           rig.group.rotation.y = anim.yaw;
 
           const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+          if (anim.model && !anim.pelvis) {
+            const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+            const idle = 1 - t;
+            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
+            const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+            const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+            anim.model.position.set(0, 0.006 * breath - 0.018 * t, 0.01 * walk);
+            anim.model.rotation.set(
+              -0.08 * t - 0.02 * walk,
+              0,
+              (anim.seat === activeSeat ? -1 : 1) * 0.014 * idle
+            );
+            return;
+          }
           const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
           const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
@@ -33286,16 +33342,14 @@ const shotPowerRef = useRef(0);
       labels: true,
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
-	      onCommit: (committedValue) => {
-	        const hasCommittedValue = Number.isFinite(committedValue);
-	        const powerRatio = hasCommittedValue
-	          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
-	          : clampPower(powerRef.current, 0);
-	        onPowerRelease(powerRatio);
-	        const resetDurationMs = 180;
-	        slider.animateToMin({ duration: resetDurationMs });
-	      }
-	    });
+      onCommit: () => {
+        onPowerRelease(clampPower(powerRef.current, 0));
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
+      }
+    });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
