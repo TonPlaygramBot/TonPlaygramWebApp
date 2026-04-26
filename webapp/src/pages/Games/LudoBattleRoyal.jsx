@@ -300,6 +300,17 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.26]
   }
 });
+const FIREARM_VOLLEY_SLOW_FACTOR = 1.18;
+const FIREARM_CONTACT_SHARD_COUNT = 22;
+const TOKEN_BREAK_PROFILES = Object.freeze({
+  firearm: { count: 20, spread: 0.02, speed: 0.11, lifeMs: 1700, gravity: 0.00075, size: 0.42 },
+  sniperShotAttack: { count: 10, spread: 0.015, speed: 0.09, lifeMs: 1500, gravity: 0.0007, size: 0.38 },
+  shotgunBlastAttack: { count: 24, spread: 0.026, speed: 0.13, lifeMs: 1900, gravity: 0.0008, size: 0.46 },
+  fighterJetAttack: { count: 22, spread: 0.03, speed: 0.14, lifeMs: 2200, gravity: 0.00082, size: 0.54 },
+  helicopterAttack: { count: 20, spread: 0.028, speed: 0.13, lifeMs: 2100, gravity: 0.00082, size: 0.52 },
+  droneAttack: { count: 18, spread: 0.025, speed: 0.12, lifeMs: 2000, gravity: 0.0008, size: 0.5 },
+  missileJavelin: { count: 26, spread: 0.034, speed: 0.16, lifeMs: 2400, gravity: 0.00086, size: 0.58 }
+});
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -415,7 +426,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0, 0.026, -0.006);
+  weaponHolder.position.set(0.028, 0.026, -0.004);
   weaponHolder.rotation.z = -0.08;
   root.add(weaponHolder);
 
@@ -423,7 +434,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.CylinderGeometry(0.026, 0.03, 0.018, 20),
     createCaptureVehicleMaterial('truck', { color: '#111827', roughness: 0.55, metalness: 0.2 })
   );
-  buttonBase.position.set(0.098, 0.012, -0.008);
+  buttonBase.position.set(0.056, 0.014, -0.006);
   root.add(buttonBase);
 
   const actionButton = new THREE.Mesh(
@@ -431,7 +442,7 @@ async function createCaptureWeaponRackFx() {
     createCaptureVehicleMaterial('truck', { color: '#dc2626', roughness: 0.28, metalness: 0.12, emissive: '#3f0000' })
   );
   actionButton.name = 'captureActionButton';
-  actionButton.position.set(0.098, 0.024, -0.008);
+  actionButton.position.set(0.056, 0.026, -0.006);
   root.add(actionButton);
 
   const actionButtonHit = new THREE.Mesh(
@@ -447,7 +458,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0, 0.028, -0.006);
+  weaponRackHit.position.set(0.028, 0.028, -0.004);
   root.add(weaponRackHit);
 
   return {
@@ -1810,6 +1821,89 @@ function createCaptureMuzzleFx() {
   return { root, flash, smoke };
 }
 
+function createTokenBreakFragments({
+  scene,
+  token,
+  impactPoint,
+  attackId = 'firearm',
+  tableSurfaceY = 0
+} = {}) {
+  if (!scene || !token?.isObject3D || !impactPoint?.isVector3) return [];
+  const profile = TOKEN_BREAK_PROFILES[attackId] ?? TOKEN_BREAK_PROFILES.firearm;
+  const sourceMeshes = [];
+  token.traverse((node) => {
+    if (!node?.isMesh || !node.geometry) return;
+    sourceMeshes.push(node);
+  });
+  if (!sourceMeshes.length) return [];
+
+  const fragments = [];
+  const count = Math.max(8, profile.count | 0);
+  const startY = Math.max(tableSurfaceY + 0.001, impactPoint.y);
+  for (let i = 0; i < count; i += 1) {
+    const source = sourceMeshes[i % sourceMeshes.length];
+    const sourceMaterial = Array.isArray(source.material) ? source.material[0] : source.material;
+    const mat = sourceMaterial?.clone?.()
+      ? sourceMaterial.clone()
+      : new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.18 });
+    if (mat.transparent == null) mat.transparent = true;
+    mat.opacity = 1;
+    const piece = new THREE.Mesh(source.geometry, mat);
+    piece.castShadow = true;
+    piece.receiveShadow = true;
+    const randomScale = profile.size * (0.74 + Math.random() * 0.62);
+    piece.scale.copy(source.scale).multiplyScalar(randomScale);
+    piece.position.set(
+      impactPoint.x + (Math.random() - 0.5) * profile.spread,
+      startY + Math.random() * profile.spread * 0.3,
+      impactPoint.z + (Math.random() - 0.5) * profile.spread
+    );
+    piece.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    piece.userData.breakFx = {
+      bornAt: performance.now(),
+      lifeMs: profile.lifeMs,
+      gravity: profile.gravity,
+      tableSurfaceY,
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * profile.speed,
+        profile.speed * (0.65 + Math.random() * 0.45),
+        (Math.random() - 0.5) * profile.speed
+      ),
+      spin: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.34,
+        (Math.random() - 0.5) * 0.34,
+        (Math.random() - 0.5) * 0.34
+      )
+    };
+    scene.add(piece);
+    fragments.push(piece);
+  }
+  return fragments;
+}
+
+function updateTokenBreakFragments(fragments = []) {
+  const now = performance.now();
+  fragments.forEach((piece) => {
+    const fx = piece?.userData?.breakFx;
+    if (!fx?.velocity || !piece?.material) return;
+    const age = now - fx.bornAt;
+    const life = Math.max(1, fx.lifeMs);
+    const t = clamp(age / life, 0, 1);
+    piece.position.add(fx.velocity);
+    fx.velocity.y -= fx.gravity;
+    if (piece.position.y <= fx.tableSurfaceY) {
+      piece.position.y = fx.tableSurfaceY;
+      fx.velocity.y = Math.abs(fx.velocity.y) * 0.18;
+      fx.velocity.x *= 0.84;
+      fx.velocity.z *= 0.84;
+    }
+    piece.rotation.x += fx.spin.x;
+    piece.rotation.y += fx.spin.y;
+    piece.rotation.z += fx.spin.z;
+    piece.material.opacity = 1 - Math.max(0, (t - 0.48) / 0.52);
+  });
+}
+
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
     return false;
@@ -2184,15 +2278,15 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.082 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.024 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.009 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.104 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.03 * MODEL_SCALE;
-const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.045;
-const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.094 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.02 * MODEL_SCALE;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.03;
+const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.04;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -2252,7 +2346,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 66;
+const CAMERA_FOV = 72;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -3732,8 +3826,8 @@ const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/launch-85216.mp3';
-const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/metal-whistle-6121.mp3';
+const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/punch-03-352040.mp3';
+const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
 const LUDO_CAPTURE_DRONE_SOUND_URL =
   '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
@@ -6019,7 +6113,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (entry.weaponRackHit?.isObject3D) {
           entry.weaponRackHit.visible = showFirearm;
         }
-        if (showFirearm) void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+        if (showFirearm) {
+          void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+        } else {
+          entry.weaponHolder?.clear?.();
+          entry.selectedCaptureAnimationId = null;
+        }
       }
     });
   }, [aiLoadoutByPlayer]);
@@ -8269,10 +8368,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             carryToken: 'tokenPlace',
             placeToken: 'tokenPlace'
           };
-          const movingToken =
-            state?.animation?.active && state.animation.player === playerIndex
-              ? state.animation.token
-              : null;
           if (movingToken?.isObject3D) {
             hasContactTarget = sampleSeatedObjectContactTarget(entry, movingToken, 'token', handContactTarget);
           }
@@ -8705,6 +8800,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
+        const focusAttackDuelCamera = () => {
+          if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
+          const duelCenter = startPosition.clone().lerp(targetPosition, 0.5);
+          setCameraFocus({
+            target: duelCenter,
+            follow: false,
+            ttl: 1.6,
+            priority: 8,
+            offset: CAMERA_TARGET_LIFT + 0.055,
+            force: true
+          });
+        };
+        focusAttackDuelCamera();
         if (isFirearmAttack) {
           const attackerEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === attackerPlayer);
           const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
@@ -8727,7 +8835,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const cadenceMs = resolvedCaptureAnimationId === 'sniperShotAttack' ? 85 : 42;
+          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 85 : 42) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const durationMs = pickupLeadMs + shots * cadenceMs + 420;
           const muzzleFx = createCaptureMuzzleFx();
@@ -8737,6 +8845,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           tracers.forEach((entry) => scene.add(entry.root));
           shells.forEach((entry) => scene.add(entry));
           const tokenGlassShards = [];
+          const tokenBreakPieces = [];
           let shatterDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
           const tickFirearm = () => {
@@ -8756,6 +8865,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 handWeaponAttachment.weapon.position.lerpVectors(rackLocal, handWeaponAttachment.weapon.position, blend);
               }
             }
+            if (targetToken?.isObject3D) {
+              const liveTargetPos = targetToken.getWorldPosition(new THREE.Vector3());
+              muzzleTarget.copy(liveTargetPos).add(new THREE.Vector3(0, 0.03, 0));
+            }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
               const parent = handWeaponAttachment.weapon.parent;
               const targetLocal = parent.worldToLocal(muzzleTarget.clone());
@@ -8766,7 +8879,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs) {
               if (elapsedShooting % cadenceMs < 16) {
                 playFirearmShotSound();
-                playFirearmShellSound();
               }
               const pulse = 1 - ((elapsedShooting % cadenceMs) / Math.max(1, cadenceMs));
               muzzleFx.flash.scale.setScalar(0.8 + pulse * 0.8);
@@ -8811,9 +8923,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               shatterDone = true;
               playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
-              for (let i = 0; i < 14; i += 1) {
+              tokenBreakPieces.push(
+                ...createTokenBreakFragments({
+                  scene,
+                  token: targetToken,
+                  impactPoint: muzzleTarget,
+                  attackId: resolvedCaptureAnimationId,
+                  tableSurfaceY
+                })
+              );
+              for (let i = 0; i < FIREARM_CONTACT_SHARD_COUNT; i += 1) {
                 const shard = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.007 + Math.random() * 0.012, 0.005 + Math.random() * 0.01, 0.004 + Math.random() * 0.009),
+                  new THREE.BoxGeometry(0.009 + Math.random() * 0.016, 0.007 + Math.random() * 0.014, 0.006 + Math.random() * 0.012),
                   new THREE.MeshStandardMaterial({
                     color: '#a9e8ff',
                     emissive: '#b7dfff',
@@ -8826,9 +8947,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 );
                 shard.position.copy(muzzleTarget);
                 shard.userData.velocity = new THREE.Vector3(
-                  (Math.random() - 0.5) * 0.012,
-                  0.012 + Math.random() * 0.01,
-                  (Math.random() - 0.5) * 0.012
+                  (Math.random() - 0.5) * 0.014,
+                  0.011 + Math.random() * 0.012,
+                  (Math.random() - 0.5) * 0.014
                 );
                 tokenGlassShards.push(shard);
                 scene.add(shard);
@@ -8837,17 +8958,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             tokenGlassShards.forEach((shard) => {
               const v = shard.userData.velocity;
               shard.position.add(v);
-              v.y -= 0.0012;
+              v.y -= 0.001;
               shard.rotation.x += 0.18;
               shard.rotation.y += 0.22;
-              shard.material.opacity = Math.max(0, shard.material.opacity - 0.016);
+              shard.material.opacity = Math.max(0, shard.material.opacity - 0.0115);
             });
+            updateTokenBreakFragments(tokenBreakPieces);
             if (elapsed < durationMs) {
               requestAnimationFrame(tickFirearm);
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, ...tracers.map((entry) => entry.root), ...shells, ...tokenGlassShards].forEach((obj) => {
+            [muzzleFx.root, ...tracers.map((entry) => entry.root), ...shells, ...tokenGlassShards, ...tokenBreakPieces].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
             handWeaponAttachment?.release?.();
@@ -9050,6 +9172,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         let previousTickAt = started;
         let explosionTriggered = false;
         let helicopterMissileImpactAt = null;
+        const tokenBreakPieces = [];
 
         const updateExplosionRig = (elapsedSinceImpact) => {
           if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
@@ -9449,10 +9572,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               playMissileImpactSound();
               playExplosionBombSound();
               playCapture();
+              tokenBreakPieces.push(
+                ...createTokenBreakFragments({
+                  scene,
+                  token: targetToken,
+                  impactPoint: liveTarget.clone().add(new THREE.Vector3(0, 0.012, 0)),
+                  attackId: resolvedCaptureAnimationId,
+                  tableSurfaceY
+                })
+              );
             }
           } else {
             updateExplosionRig(explosionElapsed);
           }
+          updateTokenBreakFragments(tokenBreakPieces);
           if (
             elapsed < tunedTravelTime + Math.max(explosionTime, flyAwayDuration) ||
             (useHelicopterMissileImpact && explosionElapsed < explosionTime / 1000)
@@ -9491,6 +9624,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (entry.root.parent) entry.root.parent.remove(entry.root);
           });
           if (explosion.root.parent) explosion.root.parent.remove(explosion.root);
+          tokenBreakPieces.forEach((piece) => {
+            piece?.parent?.remove?.(piece);
+          });
           captureFxRef.current = null;
           seatedHumanActionRef.current = {
             ...seatedHumanActionRef.current,
