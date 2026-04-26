@@ -4,6 +4,11 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { BilardoShqipRules } from "../../../../src/rules/BilardoShqipRules.ts";
+import {
+  BILARDO_MIN_RELEASE_POWER,
+  BILARDO_STRIKE_TIME_MS,
+  bilardoCueSpeed
+} from "./shared/bilardoShotModel";
 
 type ShotState = "idle" | "dragging" | "striking";
 type BallState = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; number: number; isCue: boolean };
@@ -83,7 +88,7 @@ const CFG = {
   idleGap: 0.012,
   contactGap: 0.0012,
   pullRange: 0.42,
-  strikeTime: 0.12,
+  strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
   holdTime: 0.05,
   cueLength: 1.46,
   bridgeDist: 0.24,
@@ -669,7 +674,7 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
 }
 
 function applyCueShot(cueBall: BallState, power: number, yaw: number, tmp: THREE.Vector3) {
-  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(1.9 + 8.2 * Math.pow(power, 1.08));
+  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(bilardoCueSpeed(power));
 }
 function updateBalls(
   balls: BallState[],
@@ -860,7 +865,7 @@ export default function BilardoShqipGame() {
     if (scoreboardRef.current.winner || scoreboardRef.current.currentPlayer !== "A") return;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     draggingSliderRef.current = false;
-    setShotState(shotPowerRef.current > 0.02 ? "striking" : "idle");
+    setShotState(shotPowerRef.current > BILARDO_MIN_RELEASE_POWER ? "striking" : "idle");
     animatePowerToZero(powerRef.current, 180);
   };
 
