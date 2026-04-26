@@ -45,6 +45,7 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import {
   CAPTURE_ANIMATION_OPTIONS,
+  HUMAN_CHARACTER_OPTIONS,
   TOKEN_PALETTE_OPTIONS,
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS
@@ -125,7 +126,10 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'uziSprayAttack',
   'ak47VolleyAttack',
-  'grenadeBlastAttack'
+  'grenadeBlastAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'smgBurstAttack'
 ]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   glockSidearmAttack: {
@@ -156,7 +160,22 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   grenadeBlastAttack: {
     label: 'Grenade',
     url: 'https://cdn.jsdelivr.net/gh/friuns2/bingextension@main/grenade.glb',
-    scale: 0.08
+    scale: 0.16
+  },
+  shotgunBlastAttack: {
+    label: 'Shotgun',
+    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/shotgun.glb',
+    scale: 0.2
+  },
+  sniperShotAttack: {
+    label: 'Sniper Rifle',
+    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/sniper.glb',
+    scale: 0.22
+  },
+  smgBurstAttack: {
+    label: 'SMG',
+    url: 'https://raw.githubusercontent.com/pmndrs/drei-assets/master/smg.glb',
+    scale: 0.19
   }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
@@ -216,58 +235,55 @@ async function loadCaptureWeaponModel(captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const base = new THREE.Mesh(
-    new THREE.BoxGeometry(0.34, 0.03, 0.15),
-    createCaptureVehicleMaterial('truck', { color: '#0f172a', roughness: 0.62, metalness: 0.2 })
+    new THREE.CylinderGeometry(0.08, 0.09, 0.03, 20),
+    createCaptureVehicleMaterial('truck', { color: '#0f172a', roughness: 0.56, metalness: 0.18 })
   );
-  base.position.y = 0.015;
+  base.position.y = 0.016;
   root.add(base);
-  const post = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.012, 0.12, 12),
-    createCaptureVehicleMaterial('truck', { color: '#94a3b8', roughness: 0.44, metalness: 0.32 })
-  );
-  post.position.set(0, 0.075, 0);
-  root.add(post);
-  const tray = new THREE.Mesh(
-    new THREE.BoxGeometry(0.38, 0.018, 0.19),
-    createCaptureVehicleMaterial('truck', { color: '#334155', roughness: 0.55, metalness: 0.22 })
-  );
-  tray.position.y = 0.14;
-  root.add(tray);
 
-  const firearmOptions = CAPTURE_ANIMATION_OPTIONS.filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id));
-  firearmOptions.forEach((option, idx) => {
-    const cols = 3;
-    const row = Math.floor(idx / cols);
-    const col = idx % cols;
-    const slot = new THREE.Group();
-    slot.position.set(-0.11 + col * 0.11, 0.162, -0.04 + row * 0.08);
-    slot.rotation.z = -0.24;
-    slot.userData.captureAnimationId = option.id;
-    slot.userData.captureWeaponRack = true;
-    const fallbackMesh =
-      option.id === 'grenadeBlastAttack'
-        ? new THREE.Mesh(
-            new THREE.SphereGeometry(0.017, 14, 14),
-            createCaptureVehicleMaterial('missile', { color: '#166534', roughness: 0.5, metalness: 0.1 })
-          )
-        : new THREE.Mesh(
-            new THREE.BoxGeometry(0.062, 0.013, 0.018),
-            createCaptureVehicleMaterial('missile', { color: '#e2e8f0', roughness: 0.26, metalness: 0.56 })
-          );
-    fallbackMesh.userData.captureAnimationId = option.id;
-    fallbackMesh.userData.captureWeaponRack = true;
-    slot.add(fallbackMesh);
-    root.add(slot);
-    void loadCaptureWeaponModel(option.id).then((weaponModel) => {
-      if (!weaponModel) return;
-      slot.remove(fallbackMesh);
-      const clone = weaponModel.clone(true);
-      clone.userData.captureAnimationId = option.id;
-      clone.userData.captureWeaponRack = true;
-      slot.add(clone);
-    });
-  });
-  return { root };
+  const stand = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.014, 0.075, 16),
+    createCaptureVehicleMaterial('truck', { color: '#94a3b8', roughness: 0.4, metalness: 0.32 })
+  );
+  stand.position.y = 0.06;
+  root.add(stand);
+
+  const weaponHolder = new THREE.Group();
+  weaponHolder.position.y = 0.105;
+  weaponHolder.rotation.z = -0.16;
+  root.add(weaponHolder);
+
+  return { root, weaponHolder, selectedCaptureAnimationId: null };
+}
+
+async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
+  if (!entry?.weaponHolder) return;
+  if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
+    entry.weaponHolder.clear();
+    entry.selectedCaptureAnimationId = null;
+    return;
+  }
+  if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
+  entry.weaponHolder.clear();
+  const fallbackMesh =
+    captureAnimationId === 'grenadeBlastAttack'
+      ? new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 18, 18),
+          createCaptureVehicleMaterial('missile', { color: '#166534', roughness: 0.5, metalness: 0.1 })
+        )
+      : new THREE.Mesh(
+          new THREE.BoxGeometry(0.15, 0.028, 0.04),
+          createCaptureVehicleMaterial('missile', { color: '#e2e8f0', roughness: 0.26, metalness: 0.56 })
+        );
+  entry.weaponHolder.add(fallbackMesh);
+  entry.selectedCaptureAnimationId = captureAnimationId;
+  const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
+  if (!weaponModel || entry.selectedCaptureAnimationId !== captureAnimationId) return;
+  entry.weaponHolder.clear();
+  const clone = weaponModel.clone(true);
+  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
+  clone.rotation.y = Math.PI * 0.5;
+  entry.weaponHolder.add(clone);
 }
 
 function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
@@ -1948,7 +1964,7 @@ const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.008;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
-let seatedHumanTemplatePromise = null;
+const seatedHumanTemplatePromiseById = new Map();
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
@@ -2089,7 +2105,8 @@ function createAiUniqueLoadout(activePlayerCount) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
-    captureAnimationIndex: 0
+    captureAnimationIndex: 0,
+    humanCharacterIndex: 0
   }));
   const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
   if (!aiIndexes.length) return byPlayer;
@@ -2105,11 +2122,13 @@ function createAiUniqueLoadout(activePlayerCount) {
 
   const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
   const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
+  const humanPool = shuffle(Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx));
 
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
       tokenPieceIndex: piecePool[aiIndex % piecePool.length] ?? 0,
-      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0
+      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0,
+      humanCharacterIndex: humanPool[aiIndex % humanPool.length] ?? 0
     };
   });
   return byPlayer;
@@ -2136,7 +2155,8 @@ const DEFAULT_APPEARANCE = {
   tokenPalette: 0,
   tokenStyle: 0,
   tokenPiece: 0,
-  captureAnimation: 0
+  captureAnimation: 0,
+  humanCharacter: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -2148,7 +2168,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
-  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
+  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS },
+  { key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS }
 ];
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
@@ -2229,7 +2250,8 @@ function normalizeAppearance(value = {}) {
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
     ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
-    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length]
+    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
+    ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -4832,43 +4854,59 @@ function applyBottomSeatFaceCameraView({
   return true;
 }
 
-async function loadSeatedHumanTemplate(renderer = null) {
-  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
-  seatedHumanTemplatePromise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
-    loader.setCrossOrigin('anonymous');
-    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
-    const root = gltf?.scene || gltf?.scenes?.[0];
-    if (!root) throw new Error('Missing seated human scene');
-    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-    root.traverse((obj) => {
-      if (obj?.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        obj.frustumCulled = false;
-        const meshName = `${obj.name || ''}`.toLowerCase();
-        const useSkin = /head|face|neck|ear|hand/.test(meshName);
-        const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-        const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        materials.forEach((mat) => {
-          if (!mat?.map) {
-            mat.map = fallbackTex;
+async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHARACTER_OPTIONS[0]) {
+  const optionId = humanOption?.id || HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
+  if (!seatedHumanTemplatePromiseById.has(optionId)) {
+    seatedHumanTemplatePromiseById.set(
+      optionId,
+      (async () => {
+        const loader = createConfiguredGLTFLoader(renderer);
+        loader.setCrossOrigin('anonymous');
+        const fallbackUrls = Array.isArray(humanOption?.modelUrls) && humanOption.modelUrls.length ? humanOption.modelUrls : [];
+        const urls = fallbackUrls.length
+          ? fallbackUrls
+          : ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'];
+        let gltf = null;
+        let lastError = null;
+        for (const url of urls) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            gltf = await loader.loadAsync(url);
+            if (gltf) break;
+          } catch (error) {
+            lastError = error;
           }
-          if (mat?.color?.setHex) {
-            mat.color.setHex(0xffffff);
+        }
+        if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (!root) throw new Error('Missing seated human scene');
+        const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+        const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+        const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+        root.traverse((obj) => {
+          if (obj?.isMesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+            const meshName = `${obj.name || ''}`.toLowerCase();
+            const useSkin = /head|face|neck|ear|hand/.test(meshName);
+            const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+            const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
+            const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+            materials.forEach((mat) => {
+              if (!mat?.map) mat.map = fallbackTex;
+              if (mat?.color?.setHex) mat.color.setHex(0xffffff);
+              normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+              if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+              mat.needsUpdate = true;
+            });
           }
-          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
-          if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
-          mat.needsUpdate = true;
         });
-      }
-    });
-    return root;
-  })();
-  return seatedHumanTemplatePromise;
+        return root;
+      })()
+    );
+  }
+  return seatedHumanTemplatePromiseById.get(optionId);
 }
 
 function spinDice(
@@ -5358,7 +5396,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
         tokenPiece: TOKEN_PIECE_OPTIONS,
-        captureAnimation: CAPTURE_ANIMATION_OPTIONS
+        captureAnimation: CAPTURE_ANIMATION_OPTIONS,
+        humanCharacter: HUMAN_CHARACTER_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -5605,7 +5644,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
-      if (entry?.weaponRack) entry.weaponRack.visible = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+      if (entry?.weaponRack) {
+        const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+        entry.weaponRack.visible = showFirearm;
+        if (showFirearm) void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+      }
     });
   }, [aiLoadoutByPlayer]);
 
@@ -5693,6 +5736,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         missile: missileFx.root,
         droneTruck: droneTruckFx.root,
         weaponRack: weaponRackFx.root,
+        weaponHolder: weaponRackFx.weaponHolder ?? null,
+        selectedCaptureAnimationId: null,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
@@ -7346,10 +7391,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     seatedHumanActorsRef.current = [];
     try {
-      const humanTemplate = await loadSeatedHumanTemplate(renderer);
       const baseScale =
         (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
-      chairs.forEach((chair, playerIndex) => {
+      for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
+        const chair = chairs[playerIndex];
+        const humanIndex =
+          playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0 : appearanceRef.current?.humanCharacter ?? 0;
+        const humanOption = HUMAN_CHARACTER_OPTIONS[humanIndex] ?? HUMAN_CHARACTER_OPTIONS[0];
+        // eslint-disable-next-line no-await-in-loop
+        const humanTemplate = await loadSeatedHumanTemplate(renderer, humanOption);
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
         const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
@@ -7361,7 +7411,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         alignSeatedHumanFeetToGroundPlane(actor, rig);
         const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig, actionHelpers });
-      });
+      }
     } catch (error) {
       console.warn('Unable to attach seated human actors for Ludo chairs', error);
     }

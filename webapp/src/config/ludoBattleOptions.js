@@ -151,6 +151,74 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'grenadeBlastAttack',
     label: 'Grenade Blast',
     description: 'Grenade-style capture with quick throw/pickup pacing from the armory set.'
+  },
+  {
+    id: 'shotgunBlastAttack',
+    label: 'Shotgun Blast',
+    description: 'Short-range tactical shotgun blast with fast pickup timing.'
+  },
+  {
+    id: 'sniperShotAttack',
+    label: 'Sniper Shot',
+    description: 'Precision long-barrel sniper takedown sequence.'
+  },
+  {
+    id: 'smgBurstAttack',
+    label: 'SMG Burst',
+    description: 'Compact SMG burst animation with controlled recoil.'
+  }
+
+]);
+
+
+export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current',
+    label: 'Current Avatar',
+    description: 'Ready Player Me seated avatar with full PBR texture maps.',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    source: 'three.js examples',
+    license: 'MIT examples bundle'
+  },
+  {
+    id: 'mixamo-aj',
+    label: 'AJ',
+    description: 'Mixamo AJ humanoid rig that can be fully re-targeted for seated gameplay.',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
+    source: 'three.js examples / Mixamo',
+    license: 'Mixamo sample terms'
+  },
+  {
+    id: 'mixamo-jane',
+    label: 'Jane',
+    description: 'Mixamo Jane with preserved GLB material textures and humanoid skeleton.',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
+    source: 'three.js examples / Mixamo',
+    license: 'Mixamo sample terms'
+  },
+  {
+    id: 'mixamo-eva',
+    label: 'Eva',
+    description: 'Mixamo Eva realistic female rig ready for seated pose overrides.',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
+    source: 'three.js examples / Mixamo',
+    license: 'Mixamo sample terms'
+  },
+  {
+    id: 'mixamo-joe',
+    label: 'Joe',
+    description: 'Mixamo Joe humanoid compatible with existing Ludo seated animation helpers.',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
+    source: 'three.js examples / Mixamo',
+    license: 'Mixamo sample terms'
+  },
+  {
+    id: 'mixamo-remy',
+    label: 'Remy',
+    description: 'Mixamo Remy character tuned to the same target seated height in-game.',
+    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
+    source: 'three.js examples / Mixamo',
+    license: 'Mixamo sample terms'
   }
 ]);
 
