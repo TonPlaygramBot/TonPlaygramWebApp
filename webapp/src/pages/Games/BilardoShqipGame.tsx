@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { BilardoShqipRules } from "../../../../src/rules/BilardoShqipRules.ts";
 
 type ShotState = "idle" | "dragging" | "striking";
 type BallState = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; number: number; isCue: boolean };
@@ -107,6 +108,11 @@ const BALL_COLORS = [0xf7f7f7, 0xf6d44a, 0x2f7ed8, 0xd13b30, 0x7a3db8, 0xf28c28,
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const UP = Y_AXIS;
 const BASIS_MAT = new THREE.Matrix4();
+const RACE_TO_POINTS = 61;
+const CUE_BALL_RESPOT = new THREE.Vector3(0, CFG.ballR, 1.02);
+const POCKET_CAPTURE_RADIUS = CFG.ballR * 1.52;
+const stillMoving = (balls: BallState[]) => balls.some((ball) => ball.vel.lengthSq() > CFG.minSpeed2);
+
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clamp01 = (v: number) => clamp(v, 0, 1);
@@ -577,10 +583,18 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
 function applyCueShot(cueBall: BallState, power: number, yaw: number, tmp: THREE.Vector3) {
   cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar(1.9 + 8.2 * Math.pow(power, 1.08));
 }
-function updateBalls(balls: BallState[], dt: number, tmpA: THREE.Vector3, tmpB: THREE.Vector3) {
+function updateBalls(
+  balls: BallState[],
+  dt: number,
+  tmpA: THREE.Vector3,
+  tmpB: THREE.Vector3,
+  shotLog?: { firstContact: number | null; potted: Set<number>; cueBallPotted: boolean }
+) {
   const halfW = CFG.tableW / 2;
   const halfL = CFG.tableL / 2;
+  const pockets = getPocketPositions();
   for (const ball of balls) {
+    if (!ball.mesh.visible) continue;
     ball.pos.addScaledVector(ball.vel, dt);
     ball.vel.multiplyScalar(Math.exp(-CFG.friction * dt));
     if (ball.vel.lengthSq() < CFG.minSpeed2) ball.vel.set(0, 0, 0);
@@ -598,10 +612,24 @@ function updateBalls(balls: BallState[], dt: number, tmpA: THREE.Vector3, tmpB: 
       ball.pos.z = halfL - CFG.ballR;
       ball.vel.z = -Math.abs(ball.vel.z) * CFG.restitution;
     }
+    const pocketed = pockets.some((pocket) => planar(ball.pos).distanceTo(planar(pocket)) <= POCKET_CAPTURE_RADIUS);
+    if (pocketed) {
+      if (ball.isCue) {
+        ball.pos.copy(CUE_BALL_RESPOT);
+        ball.vel.set(0, 0, 0);
+        if (shotLog) shotLog.cueBallPotted = true;
+      } else {
+        ball.vel.set(0, 0, 0);
+        ball.pos.set(999, 999, 999);
+        ball.mesh.visible = false;
+        if (shotLog) shotLog.potted.add(ball.number);
+      }
+    }
   }
   for (let i = 0; i < balls.length; i++) {
     for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
+      if (!a.mesh.visible || !b.mesh.visible) continue;
       const delta = tmpA.copy(a.pos).sub(b.pos);
       const dist = delta.length();
       const minDist = CFG.ballR * 2;
@@ -616,6 +644,10 @@ function updateBalls(balls: BallState[], dt: number, tmpA: THREE.Vector3, tmpB: 
         const impulse = -(1 + CFG.restitution) * sep * 0.5;
         a.vel.addScaledVector(n, impulse);
         b.vel.addScaledVector(n, -impulse);
+        if (shotLog?.firstContact == null) {
+          if (a.isCue && !b.isCue) shotLog.firstContact = b.number;
+          else if (b.isCue && !a.isCue) shotLog.firstContact = a.number;
+        }
       }
     }
   }
@@ -690,17 +722,28 @@ export default function BilardoShqipGame() {
   const [power, setPower] = useState(0);
   const [shotState, setShotState] = useState<ShotState>("idle");
   const [aiLabel, setAiLabel] = useState("AI ready");
+  const [scoreboard, setScoreboard] = useState({
+    raceTo: RACE_TO_POINTS,
+    currentPlayer: "A",
+    scores: { A: 0, B: 0 },
+    winner: null as "A" | "B" | null
+  });
 
   const powerRef = useRef(0);
   const shotPowerRef = useRef(0);
   const shotStateRef = useRef<ShotState>("idle");
+  const scoreboardRef = useRef(scoreboard);
   const draggingSliderRef = useRef(false);
   const aimYawRef = useRef(0);
   const aiShotRef = useRef<() => void>(() => {});
   const timersRef = useRef<number[]>([]);
+  const rulesRef = useRef(new BilardoShqipRules(RACE_TO_POINTS));
+  const shotLogRef = useRef<{ firstContact: number | null; potted: Set<number>; cueBallPotted: boolean } | null>(null);
+  const wasMovingRef = useRef(false);
 
   useEffect(() => { powerRef.current = power; }, [power]);
   useEffect(() => { shotStateRef.current = shotState; }, [shotState]);
+  useEffect(() => { scoreboardRef.current = scoreboard; }, [scoreboard]);
 
   const animatePowerToZero = (from: number, ms = 220) => {
     const start = performance.now();
@@ -718,6 +761,7 @@ export default function BilardoShqipGame() {
     shotPowerRef.current = p;
   };
   const onSliderDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (scoreboardRef.current.winner || scoreboardRef.current.currentPlayer !== "A") return;
     e.currentTarget.setPointerCapture(e.pointerId);
     draggingSliderRef.current = true;
     setShotState("dragging");
@@ -725,6 +769,7 @@ export default function BilardoShqipGame() {
   };
   const onSliderMove = (e: React.PointerEvent<HTMLDivElement>) => { if (draggingSliderRef.current) setSliderPower(e); };
   const onSliderUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (scoreboardRef.current.winner || scoreboardRef.current.currentPlayer !== "A") return;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     draggingSliderRef.current = false;
     setShotState(shotPowerRef.current > 0.02 ? "striking" : "idle");
@@ -735,6 +780,16 @@ export default function BilardoShqipGame() {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
+    rulesRef.current = new BilardoShqipRules(RACE_TO_POINTS);
+    const initial = rulesRef.current.getSnapshot();
+    setScoreboard({
+      raceTo: initial.raceTo,
+      currentPlayer: initial.currentPlayer,
+      scores: initial.scores,
+      winner: initial.winner
+    });
+    shotLogRef.current = null;
+    wasMovingRef.current = false;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     renderer.setClearColor(0x0b0b0b, 1);
@@ -768,6 +823,35 @@ export default function BilardoShqipGame() {
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3();
     let strikeT = 0, didHit = false, frameId = 0, last = performance.now();
     let isAiming = false, lastAimX = 0, plannedTarget: BallState | null = null, plannedPocket: THREE.Vector3 | null = null;
+    const resolveShot = () => {
+      const log = shotLogRef.current;
+      if (!log) return;
+      shotLogRef.current = null;
+      const outcome = rulesRef.current.resolveShot({
+        firstContact: log.firstContact,
+        potted: Array.from(log.potted),
+        cueBallPotted: log.cueBallPotted
+      });
+      setScoreboard({
+        raceTo: outcome.raceTo,
+        currentPlayer: outcome.nextPlayer,
+        scores: outcome.scores,
+        winner: outcome.winner
+      });
+      const details = outcome.foul
+        ? `Foul: ${outcome.reason || "illegal shot"}`
+        : outcome.scored > 0
+          ? `+${outcome.scored} (${outcome.pointsByBall.join(", ")})`
+          : "No points";
+      setAiLabel(
+        outcome.winner
+          ? `${outcome.winner === "A" ? "Player" : "AI"} wins ${outcome.scores[outcome.winner]}-${Math.min(outcome.scores.A, outcome.scores.B)}`
+          : `${outcome.nextPlayer === "A" ? "Player" : "AI"} turn · ${details}`
+      );
+      if (!outcome.winner && outcome.nextPlayer === "B") {
+        timersRef.current.push(window.setTimeout(() => aiShotRef.current?.(), 620));
+      }
+    };
 
     const resize = () => {
       const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
@@ -776,7 +860,12 @@ export default function BilardoShqipGame() {
       mainCamera.aspect = w / h;
       mainCamera.updateProjectionMatrix();
     };
-    const onCanvasDown = (e: PointerEvent) => { if (!draggingSliderRef.current) { isAiming = true; lastAimX = e.clientX; } };
+    const onCanvasDown = (e: PointerEvent) => {
+      if (!draggingSliderRef.current && !scoreboardRef.current.winner && scoreboardRef.current.currentPlayer === "A") {
+        isAiming = true;
+        lastAimX = e.clientX;
+      }
+    };
     const onCanvasMove = (e: PointerEvent) => {
       if (!isAiming || draggingSliderRef.current) return;
       aimYawRef.current -= (e.clientX - lastAimX) * 0.006;
@@ -805,6 +894,8 @@ export default function BilardoShqipGame() {
       renderer.setScissorTest(false);
     };
     aiShotRef.current = () => {
+      const board = scoreboardRef.current;
+      if (board.winner || board.currentPlayer !== "B") return;
       const plan = chooseAiShot(balls, cueBall);
       aimYawRef.current = plan.yaw;
       shotPowerRef.current = plan.power;
@@ -857,6 +948,9 @@ export default function BilardoShqipGame() {
         didHit = false;
       } else {
         strikeT += dt;
+        if (!shotLogRef.current) {
+          shotLogRef.current = { firstContact: null, potted: new Set<number>(), cueBallPotted: false };
+        }
         if (!didHit && strikeNorm > 0.88) {
           didHit = true;
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, c);
@@ -869,7 +963,10 @@ export default function BilardoShqipGame() {
       }
 
       setCuePose(cue, state === "idle" ? cueBackVisual : cueBackShoot, state === "idle" ? cueTipVisual : cueTipShoot);
-      updateBalls(balls, dt, c, d);
+      updateBalls(balls, dt, c, d, shotLogRef.current || undefined);
+      const moving = stillMoving(balls);
+      if (wasMovingRef.current && !moving) resolveShot();
+      wasMovingRef.current = moving;
       updateHumanPose(human, dt, state, humanRootTarget, aimForward, bridgeHandTarget, gripHandTarget, idleRightHandTarget, idleLeftHandTarget, cueBackVisual, cueTipVisual, activePower);
       setLinePoints(cueLine, cueBackVisual, cueBallWorld);
       setLinePoints(aimLine, cueBallWorld, cueBallWorld.clone().add(aimForward.clone().multiplyScalar(2.1)));
@@ -906,18 +1003,44 @@ export default function BilardoShqipGame() {
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ position: "absolute", left: 14, bottom: 18, display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" }}>
-          <button onClick={() => aiShotRef.current?.()} style={{ border: "1px solid rgba(255,255,255,0.22)", background: "rgba(255,255,255,0.92)", color: "#111827", borderRadius: 14, padding: "11px 14px", fontWeight: 800, boxShadow: "0 10px 24px rgba(0,0,0,0.28)" }}>AI Shot</button>
-          <div style={{ color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 14, padding: "10px 12px", fontSize: 12, letterSpacing: 0.2, maxWidth: 180 }}>{aiLabel} · drag table to aim</div>
+          <button
+            onClick={() => aiShotRef.current?.()}
+            disabled={scoreboard.currentPlayer !== "B" || Boolean(scoreboard.winner)}
+            style={{
+              border: "1px solid rgba(255,255,255,0.22)",
+              background: scoreboard.currentPlayer === "B" && !scoreboard.winner ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.4)",
+              color: "#111827",
+              borderRadius: 14,
+              padding: "11px 14px",
+              fontWeight: 800,
+              boxShadow: "0 10px 24px rgba(0,0,0,0.28)"
+            }}
+          >
+            AI Shot
+          </button>
+          <div style={{ color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 14, padding: "10px 12px", fontSize: 12, letterSpacing: 0.2, maxWidth: 220 }}>
+            {`Race to ${scoreboard.raceTo} · Player ${scoreboard.scores.A} : AI ${scoreboard.scores.B}`}
+            <br />
+            {scoreboard.winner ? `${scoreboard.winner === "A" ? "Player" : "AI"} wins` : aiLabel}
+            <br />
+            {`Turn: ${scoreboard.currentPlayer === "A" ? "Player" : "AI"} · Rotation 61 rules`}
+          </div>
         </div>
         <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, pointerEvents: "auto", touchAction: "none", userSelect: "none" }}>
-          <div onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp} style={{ position: "relative", height: sliderH, width: sliderW, borderRadius: 18, background: "rgba(255,255,255,0.92)", boxShadow: "0 12px 28px rgba(0,0,0,0.2)", padding: 9 }}>
+          <div onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp} style={{ position: "relative", height: sliderH, width: sliderW, borderRadius: 18, background: "rgba(255,255,255,0.92)", boxShadow: "0 12px 28px rgba(0,0,0,0.2)", padding: 9, opacity: scoreboard.currentPlayer === "A" && !scoreboard.winner ? 1 : 0.45, pointerEvents: scoreboard.currentPlayer === "A" && !scoreboard.winner ? "auto" : "none" }}>
             <div style={{ position: "absolute", left: 14, right: 14, top: 14, bottom: 14, borderRadius: 999, background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
               <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: `${power * 100}%`, background: "rgba(17,17,17,0.58)" }} />
             </div>
             <div style={{ position: "absolute", left: (sliderW - knob) / 2, top: 14 + knobTop, width: knob, height: knob, borderRadius: 999, background: "rgba(255,255,255,0.98)", border: "1px solid rgba(0,0,0,0.18)", boxShadow: "0 10px 18px rgba(0,0,0,0.18)" }} />
           </div>
         </div>
-        <div style={{ position: "absolute", left: 14, top: 14, width: "34vw", maxWidth: 240, aspectRatio: "1.65 / 1", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 20px rgba(0,0,0,0.28)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 14, top: 14, width: "34vw", maxWidth: 260, borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 20px rgba(0,0,0,0.28)", pointerEvents: "none", background: "rgba(8,12,18,0.58)", color: "white", padding: "10px 12px", fontSize: 11, lineHeight: 1.4 }}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Bilardo Shqip · Rotation 61</div>
+          <div>• Lowest numbered ball must be first contact.</div>
+          <div>• Solids + stripes use their ball number as points.</div>
+          <div>• Foul = turn loss and cue-ball in hand.</div>
+          <div>• First player to {scoreboard.raceTo} wins.</div>
+        </div>
       </div>
     </div>
   );
