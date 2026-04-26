@@ -7,7 +7,6 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1000,41 +999,6 @@ const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
   CHAIR_RADIUS
 ]);
-const LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS = Object.freeze([
-  {
-    id: 'rpm-current',
-    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb']
-  },
-  {
-    id: 'mixamo-aj',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb']
-  },
-  {
-    id: 'mixamo-jane',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb']
-  },
-  {
-    id: 'mixamo-eva',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb']
-  },
-  {
-    id: 'mixamo-joe',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb']
-  },
-  {
-    id: 'mixamo-remy',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb']
-  }
-]);
-const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
-const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
-const seatedHumanTemplatePromiseById = new Map();
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
@@ -6000,201 +5964,6 @@ async function applyTableTheme(
 
 const tableParts = {};
 const chairs = [];
-const seatedHumanActors = [];
-
-function findBoneByNeedle(bones = [], ...needles) {
-  const normalized = needles
-    .flat()
-    .filter(Boolean)
-    .map((entry) => String(entry).toLowerCase().replace(/[^a-z0-9]/g, ''));
-  if (!normalized.length) return null;
-  return (
-    bones.find((bone) => {
-      const key = String(bone?.name || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
-      return normalized.some((needle) => key.includes(needle));
-    }) || null
-  );
-}
-
-function saveBoneRig(modelRoot) {
-  const bones = [];
-  modelRoot?.traverse?.((obj) => {
-    if (obj?.isBone) bones.push(obj);
-  });
-  const saved = new Map();
-  bones.forEach((bone) => {
-    saved.set(bone, {
-      rotation: bone.rotation.clone(),
-      position: bone.position.clone()
-    });
-  });
-  return {
-    saved,
-    hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
-    spine: findBoneByNeedle(bones, 'spine'),
-    chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
-    neck: findBoneByNeedle(bones, 'neck'),
-    head: findBoneByNeedle(bones, 'head'),
-    leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
-    leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
-    leftFoot: findBoneByNeedle(bones, 'leftfoot'),
-    rightUpperLeg: findBoneByNeedle(bones, 'rightupleg', 'rightthigh', 'rightupperleg'),
-    rightLowerLeg: findBoneByNeedle(bones, 'rightleg', 'rightlowerleg', 'rightcalf'),
-    rightFoot: findBoneByNeedle(bones, 'rightfoot'),
-    leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
-    leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
-    leftHand: findBoneByNeedle(bones, 'lefthand'),
-    rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
-    rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
-    rightHand: findBoneByNeedle(bones, 'righthand')
-  };
-}
-
-function resetBoneRig(rig) {
-  if (!rig?.saved) return;
-  rig.saved.forEach((savedState, bone) => {
-    bone.rotation.copy(savedState.rotation);
-    bone.position.copy(savedState.position);
-  });
-}
-
-function addBoneRot(rig, bone, x = 0, y = 0, z = 0, weight = 1) {
-  if (!rig || !bone) return;
-  const base = rig.saved.get(bone);
-  if (!base) return;
-  bone.rotation.x = base.rotation.x + x * weight;
-  bone.rotation.y = base.rotation.y + y * weight;
-  bone.rotation.z = base.rotation.z + z * weight;
-}
-
-function addBonePos(rig, bone, x = 0, y = 0, z = 0, weight = 1) {
-  if (!rig || !bone) return;
-  const base = rig.saved.get(bone);
-  if (!base) return;
-  bone.position.x = base.position.x + x * weight;
-  bone.position.y = base.position.y + y * weight;
-  bone.position.z = base.position.z + z * weight;
-}
-
-function applySeatedHumanIdlePose(rig) {
-  if (!rig?.saved) return;
-  resetBoneRig(rig);
-  const breathe = Math.sin(performance.now() * 0.002) * 0.012;
-
-  addBonePos(rig, rig.hips, 0, -0.62, -0.078, 1);
-  addBoneRot(rig, rig.hips, -0.16, 0, 0, 1);
-  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0, 1);
-  addBoneRot(rig, rig.chest, 0.16, 0, 0, 1);
-  addBoneRot(rig, rig.neck, -0.04, 0, 0, 1);
-  addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
-
-  addBoneRot(rig, rig.leftUpperLeg, -1.58, 0.16, 0.05, 1);
-  addBoneRot(rig, rig.leftLowerLeg, -1.66, 0.02, 0.01, 1);
-  addBoneRot(rig, rig.leftFoot, 0.26, 0.03, 0.02, 1);
-  addBoneRot(rig, rig.rightUpperLeg, -1.58, 0.03, -0.02, 1);
-  addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
-  addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
-
-  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
-  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
-  addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
-
-  addBoneRot(rig, rig.rightUpperArm, -0.2, -0.02, -0.72, 1);
-  addBoneRot(rig, rig.rightForeArm, -0.5, -0.04, 0.14, 1);
-  addBoneRot(rig, rig.rightHand, -0.08, 0, 0.06, 1);
-}
-
-function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
-  if (!actor?.isObject3D) return;
-  actor.updateMatrixWorld(true);
-  const footBones = [rig?.leftFoot, rig?.rightFoot].filter((bone) => bone?.isBone);
-  if (!footBones.length) return;
-  let minFootY = Infinity;
-  footBones.forEach((bone) => {
-    const worldPos = bone.getWorldPosition(new THREE.Vector3());
-    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
-  });
-  if (!Number.isFinite(minFootY)) return;
-  actor.position.y -= minFootY - clearance;
-  actor.updateMatrixWorld(true);
-}
-
-function disposeSeatedHumanActors() {
-  while (seatedHumanActors.length) {
-    const actor = seatedHumanActors.pop();
-    actor?.parent?.remove(actor);
-  }
-}
-
-async function loadSeatedHumanTemplate(
-  humanOption = LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[0]
-) {
-  const optionId = humanOption?.id || LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
-  if (!seatedHumanTemplatePromiseById.has(optionId)) {
-    seatedHumanTemplatePromiseById.set(
-      optionId,
-      (async () => {
-        const loader = createConfiguredGltfLoader();
-        const urls = Array.isArray(humanOption?.modelUrls) && humanOption.modelUrls.length
-          ? humanOption.modelUrls
-          : LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[0].modelUrls;
-        let gltf = null;
-        let lastError = null;
-        for (const url of urls) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            gltf = await loader.loadAsync(url);
-            if (gltf) break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-        if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
-        const root = gltf?.scene || gltf?.scenes?.[0] || gltf;
-        if (!root) throw new Error('Missing seated human scene');
-        prepareLoadedModel(root, { preserveGltfTextureMapping: true });
-        return root;
-      })()
-    );
-  }
-  return seatedHumanTemplatePromiseById.get(optionId);
-}
-
-async function attachSeatedHumansToChairs() {
-  disposeSeatedHumanActors();
-  const baseScale =
-    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
-    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
-  for (let seatIndex = 0; seatIndex < chairs.length; seatIndex += 1) {
-    const chairRoot = chairs[seatIndex];
-    if (!chairRoot) continue;
-    const humanOption =
-      LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[seatIndex % LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS.length] ??
-      LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[0];
-    let humanTemplate = null;
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      humanTemplate = await loadSeatedHumanTemplate(humanOption);
-    } catch (error) {
-      console.warn('Domino seated human model failed, using default character', seatIndex, humanOption?.id, error);
-      // eslint-disable-next-line no-await-in-loop
-      humanTemplate = await loadSeatedHumanTemplate(LUDO_DEFAULT_HUMAN_CHARACTER_OPTIONS[0]);
-    }
-    if (!humanTemplate) continue;
-    const actor = cloneSkeleton(humanTemplate);
-    actor.scale.setScalar(baseScale);
-    const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === HUMAN_SEAT_INDEX ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-    actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
-    actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
-    chairRoot.add(actor);
-    const rig = saveBoneRig(actor);
-    applySeatedHumanIdlePose(rig);
-    alignSeatedHumanFeetToGroundPlane(actor, rig);
-    seatedHumanActors.push(actor);
-  }
-}
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7932,14 +7701,13 @@ function disposeChairResources(root) {
   });
 }
 
-async function placeChairsWithOption(option, chairData, token) {
+function placeChairsWithOption(option, chairData, token) {
   if (token !== chairBuildToken || !chairData) return;
 
   disposeSeatLabel({ persistPreference: false });
   disposeSeatAvatars();
   disposeSeatNameTags();
   disposeSeatBadges();
-  disposeSeatedHumanActors();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -7980,7 +7748,6 @@ async function placeChairsWithOption(option, chairData, token) {
     }
   });
 
-  await attachSeatedHumansToChairs();
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
 }
@@ -7991,7 +7758,7 @@ async function buildChairs(
   const token = ++chairBuildToken;
   try {
     const chairData = await ensureChairTemplateForTheme(option);
-    await placeChairsWithOption(option, chairData, token);
+    placeChairsWithOption(option, chairData, token);
   } catch (error) {
     console.warn('Failed to load GLTF chair theme for Domino', error);
   }
