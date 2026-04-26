@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -21,7 +27,10 @@ import {
   applyTableMaterials
 } from '../../utils/murlanTable.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
-import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  applyRendererSRGB,
+  applySRGBColorSpace
+} from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -30,11 +39,7 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import coinConfetti from '../../utils/coinConfetti';
-import {
-  chatBeep,
-  bombSound,
-  cheerSound
-} from '../../assets/soundData.js';
+import { chatBeep, bombSound, cheerSound } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
@@ -50,8 +55,14 @@ import {
   TOKEN_STYLE_OPTIONS
 } from '../../config/ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  MURLAN_STOOL_THEMES,
+  MURLAN_TABLE_THEMES
+} from '../../config/murlanThemes.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS
+} from '../../config/poolRoyaleInventoryConfig.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -59,7 +70,10 @@ import {
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
-import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
+import {
+  playLudoDiceRollSfx,
+  playLudoTokenStepSfx
+} from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -118,17 +132,58 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   missile: 1.15,
   drone: 1.15
 });
-const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
+const FIREARM_CAPTURE_ANIMATION_IDS = Object.freeze([
+  'assaultRifleBurst',
+  'sniperShot',
+  'smgSpray',
+  'shotgunBlast',
+  'grenadeToss'
+]);
+const FIREARM_CAPTURE_ANIMATION_ID_SET = new Set(FIREARM_CAPTURE_ANIMATION_IDS);
+const CAPTURE_AIR_ATTACK_ID_SET = new Set([
+  'fighterJetAttack',
+  'helicopterAttack',
+  'droneAttack',
+  'missileJavelin'
+]);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
-  fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
-  helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
-  droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
-  missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
+  fighterJetAttack: {
+    speed: 1.2,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.2,
+    landing: 0.24
+  },
+  helicopterAttack: {
+    speed: 1.26,
+    height: 0.84,
+    inward: 0.88,
+    takeoff: 0.24,
+    landing: 0.28
+  },
+  droneAttack: {
+    speed: 1.14,
+    height: 0.9,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  },
+  missileJavelin: {
+    speed: 1.12,
+    height: 0.88,
+    inward: 0.92,
+    takeoff: 0.18,
+    landing: 0.24
+  }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
+const normalizeCaptureAnimationId = (captureAnimationId) =>
+  FIREARM_CAPTURE_ANIMATION_ID_SET.has(captureAnimationId)
+    ? 'missileJavelin'
+    : captureAnimationId;
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
@@ -142,7 +197,8 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
     ? `${toneSeed.base || ''}|${toneSeed.mid || ''}|${toneSeed.dark || ''}|${toneSeed.grid || ''}`
     : '';
   const cacheKey = `${kind}:${seedKey}`;
-  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(cacheKey)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(cacheKey);
+  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(cacheKey))
+    return CAPTURE_VEHICLE_TEXTURE_CACHE.get(cacheKey);
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
@@ -162,7 +218,12 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
   };
   const baseTone = palettes[kind] ?? palettes.generic;
   const tone = toneSeed
-    ? [toneSeed.base || baseTone[0], toneSeed.mid || baseTone[1], toneSeed.dark || baseTone[2], toneSeed.grid || baseTone[3]]
+    ? [
+        toneSeed.base || baseTone[0],
+        toneSeed.mid || baseTone[1],
+        toneSeed.dark || baseTone[2],
+        toneSeed.grid || baseTone[3]
+      ]
     : baseTone;
   ctx.fillStyle = tone[0];
   ctx.fillRect(0, 0, 256, 256);
@@ -172,7 +233,7 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
     const x = (i * 37) % 256;
     const y = (i * 53) % 256;
     ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
-    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
+    ctx.globalAlpha = 0.42 + (i % 4) * 0.12;
     ctx.fillRect(x, y, w, h);
   }
   ctx.globalAlpha = 1;
@@ -210,7 +271,12 @@ async function primeCaptureVehicleTextureSets(maxAnisotropy = 1) {
   await Promise.all(
     entries.map(async ([kind, assetId]) => {
       if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
-      const set = await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, CAPTURE_POLYHAVEN_TEXTURE_CACHE);
+      const set = await loadPolyhavenTextureSet(
+        assetId,
+        textureLoader,
+        maxAnisotropy,
+        CAPTURE_POLYHAVEN_TEXTURE_CACHE
+      );
       if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
     })
   );
@@ -250,7 +316,8 @@ function alignObjectBottomToY(root, targetY) {
 async function loadCaptureVehicleModel(kind) {
   const file = CAPTURE_VEHICLE_MODEL_FILES[kind];
   if (!file) return null;
-  if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
+  if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind))
+    return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
   const promise = (async () => {
     const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
     const loader = new GLTFLoader();
@@ -261,7 +328,13 @@ async function loadCaptureVehicleModel(kind) {
         // eslint-disable-next-line no-await-in-loop
         const rawBuffer = await fetchBuffer(url);
         // eslint-disable-next-line no-await-in-loop
-        const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, kind, url, urls, imageCache);
+        const patchedBuffer = await patchGlbImagesToDataUris(
+          rawBuffer,
+          kind,
+          url,
+          urls,
+          imageCache
+        );
         // eslint-disable-next-line no-await-in-loop
         const gltf = await parseObjectFromBuffer(loader, patchedBuffer);
         const modelRoot = gltf || null;
@@ -314,8 +387,10 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
 function decodeGlb(buffer) {
   const view = new DataView(buffer);
   if (view.byteLength < 20) throw new Error('GLB too small to parse');
-  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Asset is not a GLB file');
-  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
+  if (view.getUint32(0, true) !== GLB_MAGIC)
+    throw new Error('Asset is not a GLB file');
+  if (view.getUint32(4, true) !== GLB_VERSION)
+    throw new Error('Unsupported GLB version');
 
   const totalLength = view.getUint32(8, true);
   const bytes = new Uint8Array(buffer, 0, totalLength);
@@ -357,7 +432,8 @@ function createMinimalGlbBuffer(json, binChunk) {
     paddedBin.set(binChunk);
   }
 
-  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
+  const totalLength =
+    12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
   const buffer = new ArrayBuffer(totalLength);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -434,8 +510,10 @@ function parseObjectFromBuffer(loader, buffer) {
 async function blobToDataUri(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
+    reader.onload = () =>
+      resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () =>
+      reject(new Error('Failed to convert blob to data URI'));
     reader.readAsDataURL(blob);
   });
 }
@@ -457,14 +535,23 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+async function resolveExternalImageToDataUri(
+  imageUri,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache
+) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
     fighter: ['#98a1a9', '#646d76']
   };
-  const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
+  const [primary, secondary] = placeholderColors[kind] ?? [
+    '#6e7681',
+    '#4f5861'
+  ];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
   const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
   for (const candidate of candidates) {
@@ -487,7 +574,13 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   return placeholderDataUri;
 }
 
-async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+async function patchGlbImagesToDataUris(
+  buffer,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache
+) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -497,7 +590,13 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
     const image = images[i];
     if (typeof image.uri === 'string') {
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      image.uri = await resolveExternalImageToDataUri(
+        image.uri,
+        kind,
+        sourceUrl,
+        modelUrls,
+        cache
+      );
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
@@ -505,7 +604,8 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
     if (typeof image.bufferView === 'number') {
       const bytes = extractBufferViewBytes(cloned, binChunk, image.bufferView);
       if (bytes?.length) {
-        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
+        const mimeType =
+          typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
         image.uri = bytesToDataUri(bytes, mimeType);
         delete image.bufferView;
         image.mimeType = mimeType;
@@ -520,7 +620,8 @@ function applyCaptureTextureToOpaqueMeshes(root, kind, toneSeed = null) {
   root.traverse((obj) => {
     if (!obj?.isMesh) return;
     const mat = obj.material;
-    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1)
+      return;
     obj.material = createCaptureVehicleMaterial(kind, {
       toneSeed,
       color: mat.color ?? '#ffffff',
@@ -534,7 +635,9 @@ function applyCaptureTextureToOpaqueMeshes(root, kind, toneSeed = null) {
 
 function paintMeshMaterials(node, painter) {
   if (!node?.isMesh) return;
-  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  const materials = Array.isArray(node.material)
+    ? node.material
+    : [node.material];
   materials.forEach((mat) => {
     if (!mat || !mat.color) return;
     painter(mat);
@@ -580,8 +683,10 @@ function applyMilitaryJetLook(root) {
         return;
       }
       mat.color.offsetHSL(-0.03, -0.18, -0.12);
-      if ('metalness' in mat) mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
-      if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
+      if ('metalness' in mat)
+        mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
+      if ('roughness' in mat)
+        mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
     });
   });
 }
@@ -592,24 +697,44 @@ function findJetCockpitAndExhaustNodes(root) {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     const matName = `${node.material?.name || ''}`.toLowerCase();
-    candidates.push({ node, name, matName, position: node.getWorldPosition(new THREE.Vector3()) });
+    candidates.push({
+      node,
+      name,
+      matName,
+      position: node.getWorldPosition(new THREE.Vector3())
+    });
   });
   const cockpitNodes = candidates
     .filter(({ name, matName, node, position }) => {
-      if (/cockpit|canopy|window|glass|windscreen/.test(name) || /cockpit|window|glass/.test(matName)) return true;
-      return (node.material?.transparent || node.material?.opacity < 0.995) && position.x > -0.1;
+      if (
+        /cockpit|canopy|window|glass|windscreen/.test(name) ||
+        /cockpit|window|glass/.test(matName)
+      )
+        return true;
+      return (
+        (node.material?.transparent || node.material?.opacity < 0.995) &&
+        position.x > -0.1
+      );
     })
     .map((entry) => entry.node);
   const exhaustCandidates = candidates
     .filter(({ name, matName, position }) => {
-      if (/exhaust|nozzle|engine|thruster|afterburner/.test(name) || /exhaust|nozzle/.test(matName)) return true;
+      if (
+        /exhaust|nozzle|engine|thruster|afterburner/.test(name) ||
+        /exhaust|nozzle/.test(matName)
+      )
+        return true;
       return position.x < -0.55;
     })
     .sort((a, b) => a.position.x - b.position.x);
   const exhaustNodes = [];
   exhaustCandidates.forEach(({ node, position }) => {
     if (exhaustNodes.length >= 2) return;
-    const separated = exhaustNodes.every((entry) => Math.abs(entry.getWorldPosition(new THREE.Vector3()).z - position.z) > 0.08);
+    const separated = exhaustNodes.every(
+      (entry) =>
+        Math.abs(entry.getWorldPosition(new THREE.Vector3()).z - position.z) >
+        0.08
+    );
     if (separated) exhaustNodes.push(node);
   });
   return { cockpitNodes, exhaustNodes };
@@ -627,10 +752,18 @@ function findHelicopterRotorNodes(root) {
   root?.traverse((node) => {
     if (!node?.isObject3D) return;
     const name = `${node.name || ''}`.toLowerCase();
-    if (!topRotor && /rotor|propell|blade|fan/.test(name) && !/tail/.test(name)) {
+    if (
+      !topRotor &&
+      /rotor|propell|blade|fan/.test(name) &&
+      !/tail/.test(name)
+    ) {
       topRotor = node;
     }
-    if (!tailRotor && /tail/.test(name) && /rotor|propell|blade|fan/.test(name)) {
+    if (
+      !tailRotor &&
+      /tail/.test(name) &&
+      /rotor|propell|blade|fan/.test(name)
+    ) {
       tailRotor = node;
     }
   });
@@ -642,16 +775,16 @@ function inferRotorSpinAxis(node, fallbackAxis = 'y') {
     return fallbackAxis === 'x'
       ? new THREE.Vector3(1, 0, 0)
       : fallbackAxis === 'z'
-      ? new THREE.Vector3(0, 0, 1)
-      : new THREE.Vector3(0, 1, 0);
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(0, 1, 0);
   }
   const bounds = new THREE.Box3().setFromObject(node);
   if (bounds.isEmpty()) {
     return fallbackAxis === 'x'
       ? new THREE.Vector3(1, 0, 0)
       : fallbackAxis === 'z'
-      ? new THREE.Vector3(0, 0, 1)
-      : new THREE.Vector3(0, 1, 0);
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(0, 1, 0);
   }
   const size = new THREE.Vector3();
   bounds.getSize(size);
@@ -664,8 +797,8 @@ function inferRotorSpinAxis(node, fallbackAxis = 'y') {
   return chosen === 'x'
     ? new THREE.Vector3(1, 0, 0)
     : chosen === 'z'
-    ? new THREE.Vector3(0, 0, 1)
-    : new THREE.Vector3(0, 1, 0);
+      ? new THREE.Vector3(0, 0, 1)
+      : new THREE.Vector3(0, 1, 0);
 }
 
 function spinHelicopterRotorAssembly(entry, deltaSeconds) {
@@ -725,8 +858,10 @@ function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
         return;
       }
       mat.color.offsetHSL(0.01, 0.02, -0.08);
-      if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
-      if ('roughness' in mat) mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
+      if ('metalness' in mat)
+        mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
+      if ('roughness' in mat)
+        mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
     });
   });
 }
@@ -748,7 +883,8 @@ function applyMilitaryDroneLook(root, propeller = null) {
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
-    const isMotor = node === motor || /propell|rotor|blade|fan|motor/.test(name);
+    const isMotor =
+      node === motor || /propell|rotor|blade|fan|motor/.test(name);
     paintMeshMaterials(node, (mat) => {
       if (/window|windshield|glass|cockpit|canopy/.test(name)) {
         mat.color.setHex(0x000000);
@@ -779,7 +915,11 @@ function applyMilitaryTruckLook(root) {
     const name = `${node.name || ''}`.toLowerCase();
     paintMeshMaterials(node, (mat) => {
       const materialName = `${mat.name || ''}`.toLowerCase();
-      if (/window|windshield|glass|cockpit/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
+      if (
+        /window|windshield|glass|cockpit/.test(name) ||
+        /window|glass/.test(materialName) ||
+        mat.transparent
+      ) {
         mat.color.setHex(0x050608);
         if ('metalness' in mat) mat.metalness = 0.58;
         if ('roughness' in mat) mat.roughness = 0.2;
@@ -787,7 +927,10 @@ function applyMilitaryTruckLook(root) {
         if ('opacity' in mat) mat.opacity = 0.95;
         return;
       }
-      if (/wheel|tire|tyre|rim/.test(name) || /wheel|tire|tyre|rim/.test(materialName)) {
+      if (
+        /wheel|tire|tyre|rim/.test(name) ||
+        /wheel|tire|tyre|rim/.test(materialName)
+      ) {
         mat.color.setHex(0x080808);
         if ('metalness' in mat) mat.metalness = 0.2;
         if ('roughness' in mat) mat.roughness = 0.82;
@@ -802,10 +945,22 @@ function easeSmooth(t) {
 }
 
 function resolveCaptureAttackTuning(animationId) {
-  return CAPTURE_ATTACK_TUNING[animationId] ?? { speed: 1, height: 1, inward: 1, takeoff: 0.2, landing: 0.22 };
+  return (
+    CAPTURE_ATTACK_TUNING[animationId] ?? {
+      speed: 1,
+      height: 1,
+      inward: 1,
+      takeoff: 0.2,
+      landing: 0.22
+    }
+  );
 }
 
-function remapTakeoffLandingProgress(rawProgress, takeoffRatio = 0.2, landingRatio = 0.22) {
+function remapTakeoffLandingProgress(
+  rawProgress,
+  takeoffRatio = 0.2,
+  landingRatio = 0.22
+) {
   const t = clamp(rawProgress, 0, 1);
   const startRatio = clamp(takeoffRatio, 0.08, 0.4);
   const endRatio = clamp(landingRatio, 0.08, 0.4);
@@ -892,7 +1047,13 @@ function addFxSphere(
 ) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 16, 16),
-    new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
+    new THREE.MeshStandardMaterial({
+      color,
+      roughness,
+      metalness,
+      transparent,
+      opacity
+    })
   );
   mesh.position.set(position[0], position[1], position[2]);
   mesh.castShadow = true;
@@ -901,12 +1062,23 @@ function addFxSphere(
   return mesh;
 }
 
-function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.18) {
+function createFxPolygon(
+  points,
+  depth,
+  color,
+  roughness = 0.62,
+  metalness = 0.18
+) {
   const shape = new THREE.Shape();
   shape.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
+  for (let i = 1; i < points.length; i += 1)
+    shape.lineTo(points[i][0], points[i][1]);
   shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 1
+  });
   geometry.translate(0, 0, -depth / 2);
   geometry.rotateX(Math.PI / 2);
   const mesh = new THREE.Mesh(
@@ -920,12 +1092,31 @@ function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.1
 function createCaptureMissileFx({ withTrail = true } = {}) {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const body = addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
-  body.material = createCaptureVehicleMaterial('missile', { color: '#556b2f', roughness: 0.24, metalness: 0.82 });
+  const body = addFxCylinder(
+    root,
+    0.09,
+    0.1,
+    1.18,
+    [0, 0, 0],
+    [0, 0, Math.PI / 2],
+    '#d3d8de',
+    16,
+    0.3,
+    0.86
+  );
+  body.material = createCaptureVehicleMaterial('missile', {
+    color: '#556b2f',
+    roughness: 0.24,
+    metalness: 0.82
+  });
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.1, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: '#7a8f45', roughness: 0.2, metalness: 0.86 })
+    new THREE.MeshStandardMaterial({
+      color: '#7a8f45',
+      roughness: 0.2,
+      metalness: 0.86
+    })
   );
   nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -965,21 +1156,40 @@ async function createCaptureMissileTruckFx() {
   root.userData.lockCaptureTexture = true;
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 0.62, 1.0),
-    createCaptureVehicleMaterial('fighter', { color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#f1b445',
+      roughness: 0.56,
+      metalness: 0.24
+    })
   );
   body.castShadow = true;
   body.receiveShadow = true;
   root.add(body);
   const cabin = new THREE.Mesh(
     new THREE.BoxGeometry(0.78, 0.62, 0.92),
-    createCaptureVehicleMaterial('fighter', { color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#f3be59',
+      roughness: 0.52,
+      metalness: 0.22
+    })
   );
   cabin.position.set(0.86, 0.44, 0);
   cabin.castShadow = true;
   cabin.receiveShadow = true;
   root.add(cabin);
-  const cabinWindow = addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
-  cabinWindow.material = createCaptureVehicleMaterial('truck', { color: '#050608', roughness: 0.12, metalness: 0.42 });
+  const cabinWindow = addFxBox(
+    root,
+    [0.42, 0.22, 0.86],
+    [0.94, 0.48, 0],
+    '#050608',
+    0.16,
+    0.56
+  );
+  cabinWindow.material = createCaptureVehicleMaterial('truck', {
+    color: '#050608',
+    roughness: 0.12,
+    metalness: 0.42
+  });
 
   const wheelOffsets = [
     [-0.72, -0.34, -0.56],
@@ -988,19 +1198,44 @@ async function createCaptureMissileTruckFx() {
     [0.72, -0.34, 0.56]
   ];
   wheelOffsets.forEach(([x, y, z]) => {
-    addFxCylinder(root, 0.22, 0.22, 0.18, [x, y, z], [Math.PI / 2, 0, 0], '#050608', 16, 0.9, 0.08);
+    addFxCylinder(
+      root,
+      0.22,
+      0.22,
+      0.18,
+      [x, y, z],
+      [Math.PI / 2, 0, 0],
+      '#050608',
+      16,
+      0.9,
+      0.08
+    );
   });
 
   const launcher = new THREE.Group();
   launcher.position.set(-0.12, 0.96, 0);
   launcher.rotation.z = 0;
-  const launcherDeck = addFxBox(launcher, [1.66, 0.06, 1.02], [0, 0, 0], '#171b20', 0.62, 0.24);
+  const launcherDeck = addFxBox(
+    launcher,
+    [1.66, 0.06, 1.02],
+    [0, 0, 0],
+    '#171b20',
+    0.62,
+    0.24
+  );
   launcherDeck.material = createCaptureVehicleMaterial('fighter', {
     color: '#171b20',
     roughness: 0.62,
     metalness: 0.24
   });
-  const support = addFxBox(launcher, [0.14, 0.32, 0.2], [-0.56, -0.2, 0], '#0f1114', 0.5, 0.36);
+  const support = addFxBox(
+    launcher,
+    [0.14, 0.32, 0.2],
+    [-0.56, -0.2, 0],
+    '#0f1114',
+    0.5,
+    0.36
+  );
   support.material = createCaptureVehicleMaterial('fighter', {
     color: '#0f1114',
     roughness: 0.5,
@@ -1027,9 +1262,20 @@ async function createCaptureMissileTruckFx() {
       reloadMissileLocalPosition = missile.root.position.clone();
       reloadMissileLocalRotation = missile.root.rotation.clone();
     }
-    const strut = addFxBox(launcher, [0.06, 0.22, 0.06], [offset[0] - 0.08, 0.18, offset[2]], '#111418', 0.56, 0.28);
+    const strut = addFxBox(
+      launcher,
+      [0.06, 0.22, 0.06],
+      [offset[0] - 0.08, 0.18, offset[2]],
+      '#111418',
+      0.56,
+      0.28
+    );
     strut.rotation.z = -Math.PI * 0.24;
-    strut.material = createCaptureVehicleMaterial('truck', { color: '#111418', roughness: 0.56, metalness: 0.28 });
+    strut.material = createCaptureVehicleMaterial('truck', {
+      color: '#111418',
+      roughness: 0.56,
+      metalness: 0.28
+    });
     launcher.add(missile.root);
   });
 
@@ -1077,6 +1323,54 @@ async function createCaptureDroneLauncherTruckFx() {
   };
 }
 
+function createCaptureFirearmRackFx() {
+  const root = new THREE.Group();
+  const table = addFxBox(
+    root,
+    [1.2, 0.08, 0.62],
+    [0, 0, 0],
+    '#141a22',
+    0.62,
+    0.3
+  );
+  table.material = createCaptureVehicleMaterial('truck', {
+    color: '#141a22',
+    roughness: 0.62,
+    metalness: 0.3
+  });
+  const makeWeapon = (x, z, tint = '#8f98a1') => {
+    const weapon = new THREE.Group();
+    addFxBox(weapon, [0.48, 0.06, 0.06], [0, 0.05, 0], tint, 0.36, 0.52);
+    addFxBox(weapon, [0.2, 0.08, 0.07], [0.1, 0.09, 0], '#1f2937', 0.42, 0.4);
+    addFxBox(
+      weapon,
+      [0.07, 0.11, 0.05],
+      [-0.05, -0.01, 0],
+      '#0b1220',
+      0.5,
+      0.28
+    );
+    weapon.position.set(x, 0.03, z);
+    weapon.rotation.y = Math.PI * 0.1;
+    root.add(weapon);
+  };
+  makeWeapon(-0.34, -0.14, '#9ca3af');
+  makeWeapon(0, 0, '#cbd5e1');
+  makeWeapon(0.34, 0.14, '#94a3b8');
+  const grenade = addFxSphere(
+    root,
+    0.06,
+    [0.02, 0.09, -0.18],
+    '#6b7280',
+    0.7,
+    0.22
+  );
+  grenade.castShadow = true;
+  grenade.receiveShadow = true;
+  root.visible = false;
+  return { root };
+}
+
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
@@ -1108,7 +1402,11 @@ async function createCaptureDroneFx() {
   root.scale.setScalar(0.3);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
-    createCaptureVehicleMaterial('fighter', { color: '#d1d7de', roughness: 0.28, metalness: 0.84 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#d1d7de',
+      roughness: 0.28,
+      metalness: 0.84
+    })
   );
   body.rotation.set(0, 0, Math.PI / 2);
   body.castShadow = true;
@@ -1116,7 +1414,11 @@ async function createCaptureDroneFx() {
   root.add(body);
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.17, 0.68, 22),
-    createCaptureVehicleMaterial('fighter', { color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#edf1f6',
+      roughness: 0.24,
+      metalness: 0.88
+    })
   );
   nose.position.set(1.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -1124,7 +1426,11 @@ async function createCaptureDroneFx() {
   root.add(nose);
   const tail = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.13, 0.58, 16),
-    createCaptureVehicleMaterial('fighter', { color: '#10151c', roughness: 0.44, metalness: 0.44 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#10151c',
+      roughness: 0.44,
+      metalness: 0.44
+    })
   );
   tail.position.set(-1.62, 0, 0);
   tail.rotation.set(0, 0, Math.PI / 2);
@@ -1158,8 +1464,30 @@ async function createCaptureDroneFx() {
   );
   spine.position.set(0.15, 0.03, 0);
   root.add(spine);
-  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, -0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
-  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, 0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
+  addFxCylinder(
+    root,
+    0.04,
+    0.04,
+    0.64,
+    [0.28, -0.22, -0.55],
+    [Math.PI / 2, 0, 0],
+    '#656e76',
+    12,
+    0.54,
+    0.22
+  );
+  addFxCylinder(
+    root,
+    0.04,
+    0.04,
+    0.64,
+    [0.28, -0.22, 0.55],
+    [Math.PI / 2, 0, 0],
+    '#656e76',
+    12,
+    0.54,
+    0.22
+  );
   addFxSphere(root, 0.09, [1.05, 0, 0], '#000000', 0.22, 0.35);
   const propeller = new THREE.Group();
   propeller.position.set(-1.95, 0, 0);
@@ -1214,7 +1542,11 @@ async function createCaptureJetFx() {
   }
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.15, 0.21, 3.18, 28),
-    createCaptureVehicleMaterial('fighter', { color: '#bcc3c9', roughness: 0.46, metalness: 0.25 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#bcc3c9',
+      roughness: 0.46,
+      metalness: 0.25
+    })
   );
   body.rotation.set(0, 0, Math.PI / 2);
   body.castShadow = true;
@@ -1222,39 +1554,116 @@ async function createCaptureJetFx() {
   root.add(body);
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.16, 1.02, 24),
-    createCaptureVehicleMaterial('fighter', { color: '#d9dde2', roughness: 0.42, metalness: 0.2 })
+    createCaptureVehicleMaterial('fighter', {
+      color: '#d9dde2',
+      roughness: 0.42,
+      metalness: 0.2
+    })
   );
   nose.position.set(2.04, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#000000', 0.1, 0.56, true, 0.98);
+  const cockpit = addFxSphere(
+    root,
+    0.21,
+    [0.66, 0.16, 0],
+    '#000000',
+    0.1,
+    0.56,
+    true,
+    0.98
+  );
   cockpit.scale.set(1.25, 0.56, 0.62);
-  const wing = createFxPolygon([[-1.6, -2.55], [0.8, 0], [-0.4, 2.55]], 0.1, '#9ba4ac', 0.66, 0.18);
+  const wing = createFxPolygon(
+    [
+      [-1.6, -2.55],
+      [0.8, 0],
+      [-0.4, 2.55]
+    ],
+    0.1,
+    '#9ba4ac',
+    0.66,
+    0.18
+  );
   wing.position.set(-0.18, -0.04, 0);
   root.add(wing);
-  const canardLeft = createFxPolygon([[-0.42, -0.52], [0.2, 0], [-0.18, 0.52]], 0.05, '#8f99a2', 0.63, 0.2);
+  const canardLeft = createFxPolygon(
+    [
+      [-0.42, -0.52],
+      [0.2, 0],
+      [-0.18, 0.52]
+    ],
+    0.05,
+    '#8f99a2',
+    0.63,
+    0.2
+  );
   canardLeft.position.set(0.58, 0.01, -0.42);
   root.add(canardLeft);
   const canardRight = canardLeft.clone();
   canardRight.position.z = 0.42;
   root.add(canardRight);
-  const tailWing = createFxPolygon([[-0.95, -1.18], [0.33, 0], [-0.38, 1.18]], 0.08, '#929ca4', 0.64, 0.2);
+  const tailWing = createFxPolygon(
+    [
+      [-0.95, -1.18],
+      [0.33, 0],
+      [-0.38, 1.18]
+    ],
+    0.08,
+    '#929ca4',
+    0.64,
+    0.2
+  );
   tailWing.position.set(-1.36, 0.06, 0);
   root.add(tailWing);
-  const fin = createFxPolygon([[-0.54, 0], [0.24, 0], [-0.1, 1.02]], 0.05, '#8b959d', 0.58, 0.2);
+  const fin = createFxPolygon(
+    [
+      [-0.54, 0],
+      [0.24, 0],
+      [-0.1, 1.02]
+    ],
+    0.05,
+    '#8b959d',
+    0.58,
+    0.2
+  );
   fin.rotation.z = Math.PI / 2;
   fin.position.set(-1.12, 0.58, 0);
   root.add(fin);
-  const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.84, [-1.98, -0.08, -0.22], [0, 0, Math.PI / 2], '#6f7881', 18);
+  const engineLeft = addFxCylinder(
+    root,
+    0.12,
+    0.1,
+    0.84,
+    [-1.98, -0.08, -0.22],
+    [0, 0, Math.PI / 2],
+    '#6f7881',
+    18
+  );
   const engineRight = engineLeft.clone();
   engineRight.position.z = 0.22;
   root.add(engineRight);
   const leftStore = new THREE.Group();
-  addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#dce1e7', 12, 0.24, 0.9);
+  addFxCylinder(
+    leftStore,
+    0.04,
+    0.05,
+    0.55,
+    [0, 0, 0],
+    [0, 0, Math.PI / 2],
+    '#dce1e7',
+    12,
+    0.24,
+    0.9
+  );
   const leftStoreNose = new THREE.Mesh(
     new THREE.ConeGeometry(0.05, 0.14, 12),
-    new THREE.MeshStandardMaterial({ color: '#edf1f6', roughness: 0.22, metalness: 0.9 })
+    new THREE.MeshStandardMaterial({
+      color: '#edf1f6',
+      roughness: 0.22,
+      metalness: 0.9
+    })
   );
   leftStoreNose.position.set(0.34, 0, 0);
   leftStoreNose.rotation.z = -Math.PI / 2;
@@ -1297,12 +1706,24 @@ async function createCaptureHelicopterFx() {
     const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
     root.add(model);
     root.visible = false;
-    return { root, rotor: topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, trail: [] };
+    return {
+      root,
+      rotor: topRotor,
+      tailRotor,
+      rotorNodes,
+      topRotorAxis,
+      tailRotorAxis,
+      trail: []
+    };
   }
   root.scale.setScalar(1.2 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.18, 0.22, 2.56, 24),
-    createCaptureVehicleMaterial('helicopter', { color: '#86909a', roughness: 0.56, metalness: 0.26 })
+    createCaptureVehicleMaterial('helicopter', {
+      color: '#86909a',
+      roughness: 0.56,
+      metalness: 0.26
+    })
   );
   body.rotation.set(0, 0, Math.PI / 2);
   body.castShadow = true;
@@ -1310,15 +1731,37 @@ async function createCaptureHelicopterFx() {
   root.add(body);
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.2, 0.88, 22),
-    createCaptureVehicleMaterial('helicopter', { color: '#99a3ad', roughness: 0.5, metalness: 0.2 })
+    createCaptureVehicleMaterial('helicopter', {
+      color: '#99a3ad',
+      roughness: 0.5,
+      metalness: 0.2
+    })
   );
   nose.position.set(1.7, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.26, [0.72, 0.18, 0], '#000000', 0.18, 0.28);
+  const cockpit = addFxSphere(
+    root,
+    0.26,
+    [0.72, 0.18, 0],
+    '#000000',
+    0.18,
+    0.28
+  );
   cockpit.scale.set(1.2, 0.68, 0.72);
-  addFxCylinder(root, 0.08, 0.1, 1.25, [-1.7, 0.1, 0], [0, 0, Math.PI / 2], '#6f7881', 16, 0.56, 0.24);
+  addFxCylinder(
+    root,
+    0.08,
+    0.1,
+    1.25,
+    [-1.7, 0.1, 0],
+    [0, 0, Math.PI / 2],
+    '#6f7881',
+    16,
+    0.56,
+    0.24
+  );
   addFxBox(root, [1.0, 0.08, 0.1], [0.2, -0.28, 0], '#4f5963', 0.6, 0.2);
   addFxBox(root, [1.1, 0.08, 0.1], [-0.15, -0.28, -0.5], '#4f5963', 0.6, 0.2);
   addFxBox(root, [1.1, 0.08, 0.1], [-0.15, -0.28, 0.5], '#4f5963', 0.6, 0.2);
@@ -1328,7 +1771,11 @@ async function createCaptureHelicopterFx() {
   addFxBox(rotor, [0.14, 0.02, 1.9], [0, 0, 0], '#12161a', 0.44, 0.12);
   const rotorCross = new THREE.Mesh(
     new THREE.BoxGeometry(1.9, 0.02, 0.14),
-    new THREE.MeshStandardMaterial({ color: '#12161a', roughness: 0.44, metalness: 0.12 })
+    new THREE.MeshStandardMaterial({
+      color: '#12161a',
+      roughness: 0.44,
+      metalness: 0.12
+    })
   );
   rotorCross.castShadow = true;
   rotorCross.receiveShadow = true;
@@ -1339,17 +1786,36 @@ async function createCaptureHelicopterFx() {
   addFxBox(tailRotor, [0.04, 0.4, 0.08], [0, 0, 0], '#15191d', 0.52, 0.14);
   const tailRotorCross = new THREE.Mesh(
     new THREE.BoxGeometry(0.04, 0.08, 0.4),
-    new THREE.MeshStandardMaterial({ color: '#15191d', roughness: 0.52, metalness: 0.14 })
+    new THREE.MeshStandardMaterial({
+      color: '#15191d',
+      roughness: 0.52,
+      metalness: 0.14
+    })
   );
   tailRotorCross.castShadow = true;
   tailRotorCross.receiveShadow = true;
   tailRotor.add(tailRotorCross);
   root.add(tailRotor);
   const missileLeft = new THREE.Group();
-  addFxCylinder(missileLeft, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
+  addFxCylinder(
+    missileLeft,
+    0.04,
+    0.05,
+    0.55,
+    [0, 0, 0],
+    [0, 0, Math.PI / 2],
+    '#d8dbdf',
+    12,
+    0.4,
+    0.18
+  );
   const missileNose = new THREE.Mesh(
     new THREE.ConeGeometry(0.05, 0.14, 12),
-    new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+    new THREE.MeshStandardMaterial({
+      color: '#eceef0',
+      roughness: 0.35,
+      metalness: 0.16
+    })
   );
   missileNose.position.set(0.34, 0, 0);
   missileNose.rotation.z = -Math.PI / 2;
@@ -1391,10 +1857,26 @@ async function createCaptureHelicopterFx() {
 
 function createCaptureExplosionFx() {
   const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.28, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
+  const flash = addFxSphere(
+    root,
+    0.28,
+    [0, 0.25, 0],
+    '#ffe29f',
+    0.05,
+    0,
+    true,
+    1
+  );
   const fire = [];
   const smoke = [];
-  const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
+  const firePalette = [
+    '#ffd166',
+    '#ff8c1a',
+    '#ff4d3d',
+    '#d7263d',
+    '#ff8fab',
+    '#ffe45e'
+  ];
   for (let i = 0; i < 6; i += 1) {
     fire.push(
       addFxSphere(
@@ -1457,10 +1939,17 @@ function detectCoarsePointer() {
 }
 
 function detectLowRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
-  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  const queries = [
+    '(max-refresh-rate: 59hz)',
+    '(max-refresh-rate: 50hz)',
+    '(prefers-reduced-motion: reduce)'
+  ];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -1474,7 +1963,10 @@ function detectLowRefreshDisplay() {
 }
 
 function detectHighRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
@@ -1491,7 +1983,10 @@ function detectHighRefreshDisplay() {
 }
 
 function detectUltraRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
   const queries = ['(min-refresh-rate: 143hz)', '(min-refresh-rate: 144hz)'];
@@ -1584,7 +2079,11 @@ function classifyRendererTier(rendererString) {
   ) {
     return 'desktopHigh';
   }
-  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+  if (
+    signature.includes('intel') ||
+    signature.includes('iris') ||
+    signature.includes('uhd')
+  ) {
     return 'desktopMid';
   }
   return 'unknown';
@@ -1603,10 +2102,12 @@ function detectPreferredFrameRateId() {
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const deviceMemory =
+    typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
@@ -1618,13 +2119,24 @@ function detectPreferredFrameRateId() {
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
-    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+    if (
+      (deviceMemory !== null && deviceMemory <= 4) ||
+      hardwareConcurrency <= 4
+    ) {
       return 'hd50';
     }
-    if (ultraRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8)) {
+    if (
+      ultraRefresh &&
+      hardwareConcurrency >= 8 &&
+      (deviceMemory == null || deviceMemory >= 8)
+    ) {
       return 'uhd144';
     }
-    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+    if (
+      highRefresh &&
+      hardwareConcurrency >= 8 &&
+      (deviceMemory == null || deviceMemory >= 6)
+    ) {
       return 'uhd120';
     }
     if (
@@ -1637,7 +2149,10 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
 
-  if (ultraRefresh && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
+  if (
+    ultraRefresh &&
+    (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)
+  ) {
     return 'uhd144';
   }
 
@@ -1658,7 +2173,8 @@ function isLikelyMobileDevice() {
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
@@ -1707,7 +2223,8 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const CHAIR_LEG_TRIM_FACTOR = 0.64;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
+const BASE_COLUMN_HEIGHT =
+  0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
@@ -1716,7 +2233,8 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_VERTICAL_LOWERING = 0.198 * MODEL_SCALE;
 const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
-const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
+const TABLE_HEIGHT_LIFT =
+  0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
 const CHAIR_INWARD_PULL = 0.22 * MODEL_SCALE;
@@ -1761,7 +2279,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SEATED_HUMAN_MODEL_URL =
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
@@ -1816,12 +2335,15 @@ const SEATED_CONTACT_DICE_Y_OFFSET = 0.008;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
 let seatedHumanTemplatePromise = null;
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
-  CHAIR_SIZE_SCALE
-);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  1.3162499970197679,
+  1.9173749900311232,
+  1.7001562547683715
+).multiplyScalar(CHAIR_SIZE_SCALE);
 const CHAIR_BOTTOM_TRIM_SCALE = 0.74;
 TARGET_CHAIR_SIZE.y *= 0.84;
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.07 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_MIN_Y =
+  -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.07 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const stabilizeChairModelRenderState = (root) => {
@@ -1852,9 +2374,12 @@ const normalizeColorValue = (value, fallback) => {
 };
 
 function resolvePlayerColors(appearance = {}) {
-  const paletteOption = TOKEN_PALETTE_OPTIONS[appearance.tokenPalette] ?? TOKEN_PALETTE_OPTIONS[0];
+  const paletteOption =
+    TOKEN_PALETTE_OPTIONS[appearance.tokenPalette] ?? TOKEN_PALETTE_OPTIONS[0];
   const swatches = paletteOption?.swatches ?? [];
-  return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
+  return PLAYER_COLOR_ORDER.map((_, idx) =>
+    normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx])
+  );
 }
 
 const CAMERA_FOV = 66;
@@ -1874,10 +2399,30 @@ const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
 const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
 const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
-  fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
-  helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
-  droneAttack: { focusWeight: 0.62, targetLift: 0.016, followPullback: 0.054, followLift: 0.018 },
-  missileJavelin: { focusWeight: 0.67, targetLift: 0.012, followPullback: 0.048, followLift: 0.016 }
+  fighterJetAttack: {
+    focusWeight: 0.52,
+    targetLift: 0.014,
+    followPullback: 0.082,
+    followLift: 0.022
+  },
+  helicopterAttack: {
+    focusWeight: 0.56,
+    targetLift: 0.02,
+    followPullback: 0.068,
+    followLift: 0.026
+  },
+  droneAttack: {
+    focusWeight: 0.62,
+    targetLift: 0.016,
+    followPullback: 0.054,
+    followLift: 0.018
+  },
+  missileJavelin: {
+    focusWeight: 0.67,
+    targetLift: 0.012,
+    followPullback: 0.048,
+    followLift: 0.016
+  }
 });
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
@@ -1942,12 +2487,16 @@ const LUDO_HDRI_OPTIONS = Object.freeze(
 );
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
-  LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+  LUDO_HDRI_OPTIONS.findIndex(
+    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
+  )
 );
-const DEFAULT_HDRI_VARIANT = LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0] ?? null;
+const DEFAULT_HDRI_VARIANT =
+  LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0] ?? null;
 const TABLE_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0] ?? null;
-const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
+const DEFAULT_WOOD_OPTION =
+  DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
@@ -1958,7 +2507,10 @@ function createAiUniqueLoadout(activePlayerCount) {
     tokenPieceIndex: 0,
     captureAnimationIndex: 0
   }));
-  const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
+  const aiIndexes = Array.from(
+    { length: Math.max(0, totalPlayers - 1) },
+    (_, idx) => idx + 1
+  );
   if (!aiIndexes.length) return byPlayer;
 
   const shuffle = (items) => {
@@ -1970,8 +2522,12 @@ function createAiUniqueLoadout(activePlayerCount) {
     return copy;
   };
 
-  const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
-  const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
+  const piecePool = shuffle(
+    Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx)
+  );
+  const capturePool = shuffle(
+    Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx)
+  );
 
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
@@ -1983,14 +2539,22 @@ function createAiUniqueLoadout(activePlayerCount) {
 }
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_LEG_EXTENSION_FACTOR = 1.22;
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH =
+  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH =
+  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const resolveHdriVariant = (index) => {
   const max = LUDO_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
-  return LUDO_HDRI_OPTIONS[idx] ?? LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0];
+  const idx = Number.isFinite(index)
+    ? Math.min(Math.max(Math.round(index), 0), max)
+    : DEFAULT_HDRI_INDEX;
+  return (
+    LUDO_HDRI_OPTIONS[idx] ??
+    LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
+    LUDO_HDRI_OPTIONS[0]
+  );
 };
 
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
@@ -2011,11 +2575,23 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
-  { key: 'environmentHdri', label: 'HDR Environments', options: LUDO_HDRI_OPTIONS },
-  { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
+  {
+    key: 'environmentHdri',
+    label: 'HDR Environments',
+    options: LUDO_HDRI_OPTIONS
+  },
+  {
+    key: 'tokenPalette',
+    label: 'Token Palette',
+    options: TOKEN_PALETTE_OPTIONS
+  },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
-  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
+  {
+    key: 'captureAnimation',
+    label: 'Capture Animation',
+    options: CAPTURE_ANIMATION_OPTIONS
+  }
 ];
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
@@ -2027,7 +2603,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 0.82,
     pixelRatioCap: 1.15,
     resolution: '2K assets • fallback 1K',
-    description: 'Battery saver profile that keeps Poly Haven textures and HDRIs on official 2K assets.',
+    description:
+      'Battery saver profile that keeps Poly Haven textures and HDRIs on official 2K assets.',
     hdriPreferredResolutions: ['2k'],
     hdriFallbackResolution: '2k',
     texturePreferredSizes: ['2k', '1k']
@@ -2039,7 +2616,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 0.92,
     pixelRatioCap: 1.25,
     resolution: '2K assets • fallback 1K',
-    description: '60 Hz profile: HDRI + table/cloth/board/tokens/dice/chairs/UI run at official 2K.',
+    description:
+      '60 Hz profile: HDRI + table/cloth/board/tokens/dice/chairs/UI run at official 2K.',
     hdriPreferredResolutions: ['2k'],
     hdriFallbackResolution: '2k',
     texturePreferredSizes: ['2k', '1k']
@@ -2051,7 +2629,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1,
     pixelRatioCap: 1.4,
     resolution: '4K assets • fallback 2K',
-    description: '90 Hz profile: targets official 4K Poly Haven assets with 2K fallback.',
+    description:
+      '90 Hz profile: targets official 4K Poly Haven assets with 2K fallback.',
     hdriPreferredResolutions: ['4k', '2k'],
     hdriFallbackResolution: '2k',
     texturePreferredSizes: ['4k', '2k', '1k']
@@ -2063,7 +2642,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.08,
     pixelRatioCap: 1.5,
     resolution: '8K assets • fallback 4K',
-    description: '120 Hz profile: targets official 8K Poly Haven assets with 4K fallback.',
+    description:
+      '120 Hz profile: targets official 8K Poly Haven assets with 4K fallback.',
     hdriPreferredResolutions: ['8k', '4k'],
     hdriFallbackResolution: '4k',
     texturePreferredSizes: ['8k', '4k', '2k']
@@ -2075,7 +2655,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.12,
     pixelRatioCap: 1.6,
     resolution: '8K assets • fallback 4K',
-    description: '144 Hz profile: forces 8K-first Poly Haven assets for maximum clarity.',
+    description:
+      '144 Hz profile: forces 8K-first Poly Haven assets for maximum clarity.',
     hdriPreferredResolutions: ['8k', '4k'],
     hdriFallbackResolution: '4k',
     texturePreferredSizes: ['8k', '4k', '2k']
@@ -2083,7 +2664,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const DEFAULT_FRAME_RATE_OPTION =
-  FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
+  FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ??
+  FRAME_RATE_OPTIONS[0];
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -2110,7 +2692,8 @@ function normalizeAppearance(value = {}) {
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  const target =
+    amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
 }
@@ -2197,9 +2780,15 @@ function abgPreparePiece(src) {
     clone.updateMatrixWorld(true);
     let scaledBox = new THREE.Box3().setFromObject(clone);
     const scaledSize = scaledBox.getSize(new THREE.Vector3());
-    const scaleX = scaledSize.x > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.x / scaledSize.x : 1;
-    const scaleZ = scaledSize.z > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.z / scaledSize.z : 1;
-    clone.scale.set(clone.scale.x * scaleX, clone.scale.y, clone.scale.z * scaleZ);
+    const scaleX =
+      scaledSize.x > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.x / scaledSize.x : 1;
+    const scaleZ =
+      scaledSize.z > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.z / scaledSize.z : 1;
+    clone.scale.set(
+      clone.scale.x * scaleX,
+      clone.scale.y,
+      clone.scale.z * scaleZ
+    );
     clone.updateMatrixWorld(true);
     scaledBox = new THREE.Box3().setFromObject(clone);
     const center = scaledBox.getCenter(new THREE.Vector3());
@@ -2223,7 +2812,9 @@ function tintGltfToken(node, tint) {
   const target = new THREE.Color(tint);
   node.traverse((child) => {
     if (!child.isMesh) return;
-    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const mats = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
       if (mat.color?.set) {
@@ -2243,7 +2834,13 @@ function resolveAbgColorKey() {
 
 function resolveAbgPrototype(proto, colorKey, type) {
   if (!proto) return null;
-  return proto[colorKey]?.[type] ?? proto[colorKey]?.p ?? proto.w?.p ?? proto.b?.p ?? null;
+  return (
+    proto[colorKey]?.[type] ??
+    proto[colorKey]?.p ??
+    proto.w?.p ??
+    proto.b?.p ??
+    null
+  );
 }
 
 function applyTokenFacingRotation(token) {
@@ -2300,7 +2897,9 @@ async function getAbgAssets() {
       const path = abgNodePath(node);
       const type = abgDetectType(path);
       if (node.isMesh) {
-        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        const mats = Array.isArray(node.material)
+          ? node.material
+          : [node.material];
         let lum = 0;
         let cnt = 0;
         mats.forEach((mat) => {
@@ -2325,7 +2924,7 @@ async function getAbgAssets() {
     });
 
     const boardNode = boards[0] || root;
-    (['w', 'b']).forEach((color) => {
+    ['w', 'b'].forEach((color) => {
       ABG_TYPES.forEach((type) => {
         if (!proto[color][type]) {
           const other = color === 'w' ? 'b' : 'w';
@@ -2370,7 +2969,10 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
     sharedKtx2Loader = new KTX2Loader();
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     const supportRenderer =
-      renderer || (typeof document !== 'undefined' ? new THREE.WebGLRenderer({ antialias: false, alpha: true }) : null);
+      renderer ||
+      (typeof document !== 'undefined'
+        ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
+        : null);
     if (supportRenderer) {
       try {
         sharedKtx2Loader.detectSupport(supportRenderer);
@@ -2385,7 +2987,11 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTextureMapping = false } = {}) {
+function normalizeMaterialTextures(
+  material,
+  maxAnisotropy = 8,
+  { preserveGltfTextureMapping = false } = {}
+) {
   if (!material) return;
   const normalizeTex = (texture, isColor = false) => {
     if (!texture) return;
@@ -2406,7 +3012,10 @@ function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTe
   normalizeTex(material.aoMap, false);
 }
 
-function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
+function prepareLoadedModel(
+  model,
+  { preserveGltfTextureMapping = false } = {}
+) {
   if (!model) return;
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -2451,7 +3060,10 @@ const buildPolyhavenModelUrls = (assetId) => {
   return urls;
 };
 
-function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) {
+function pickBestTextureUrls(
+  apiJson,
+  preferredSizes = PREFERRED_TEXTURE_SIZES
+) {
   if (!apiJson || typeof apiJson !== 'object') {
     return { diffuse: null, normal: null, roughness: null };
   }
@@ -2461,7 +3073,10 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
     if (!value) return;
     if (typeof value === 'string') {
       const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+      if (
+        value.startsWith('http') &&
+        (lower.includes('.jpg') || lower.includes('.png'))
+      ) {
         urls.push(value);
       }
       return;
@@ -2519,10 +3134,15 @@ function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
   return map;
 }
 
-function buildPolyhavenManifestCandidates(manifest, resolutionOrder = ['2k', '1k']) {
+function buildPolyhavenManifestCandidates(
+  manifest,
+  resolutionOrder = ['2k', '1k']
+) {
   if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
   const availableResolutions = Object.keys(manifest.gltf);
-  const orderedResolutions = Array.from(new Set([...resolutionOrder, ...availableResolutions]));
+  const orderedResolutions = Array.from(
+    new Set([...resolutionOrder, ...availableResolutions])
+  );
   return orderedResolutions
     .map((resolution) => {
       const url = manifest?.gltf?.[resolution]?.gltf?.url;
@@ -2563,23 +3183,39 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   const promise = (async () => {
     const candidates = [];
     try {
-      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      const response = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+      );
       if (response.ok) {
         const manifest = await response.json();
         candidates.push(...buildPolyhavenManifestCandidates(manifest));
       }
     } catch (error) {
-      console.warn('Poly Haven manifest lookup failed, using direct model URL fallback', error);
+      console.warn(
+        'Poly Haven manifest lookup failed, using direct model URL fallback',
+        error
+      );
     }
-    buildPolyhavenModelUrls(assetId).forEach((url) => candidates.push({ url, includeUrlMap: null }));
+    buildPolyhavenModelUrls(assetId).forEach((url) =>
+      candidates.push({ url, includeUrlMap: null })
+    );
     let lastError = null;
     for (const candidate of candidates) {
       try {
         const modelUrl = candidate?.url;
         if (!modelUrl) continue;
-        const loader = createPolyhavenGltfLoader(renderer, candidate?.includeUrlMap ?? null);
-        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
-        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        const loader = createPolyhavenGltfLoader(
+          renderer,
+          candidate?.includeUrlMap ?? null
+        );
+        const resolvedUrl = new URL(
+          modelUrl,
+          typeof window !== 'undefined' ? window.location?.href : modelUrl
+        ).href;
+        const resourcePath = resolvedUrl.substring(
+          0,
+          resolvedUrl.lastIndexOf('/') + 1
+        );
         loader.setResourcePath(resourcePath);
         loader.setPath('');
         // eslint-disable-next-line no-await-in-loop
@@ -2593,7 +3229,9 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         lastError = error;
       }
     }
-    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+    throw (
+      lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
+    );
   })();
 
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
@@ -2638,7 +3276,9 @@ async function loadPolyhavenTextureSet(
 ) {
   if (!assetId || !textureLoader) return null;
   const preferredStack =
-    Array.isArray(preferredSizes) && preferredSizes.length ? preferredSizes : PREFERRED_TEXTURE_SIZES;
+    Array.isArray(preferredSizes) && preferredSizes.length
+      ? preferredSizes
+      : PREFERRED_TEXTURE_SIZES;
   const key = `${assetId.toLowerCase()}|${maxAnisotropy}|${preferredStack.join(',')}`;
   if (cache?.has(key)) {
     return cache.get(key);
@@ -2646,7 +3286,9 @@ async function loadPolyhavenTextureSet(
 
   const promise = (async () => {
     try {
-      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      const response = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+      );
       if (!response.ok) {
         return null;
       }
@@ -2658,11 +3300,17 @@ async function loadPolyhavenTextureSet(
 
       const [diffuse, normal, roughness] = await Promise.all([
         loadTexture(textureLoader, urls.diffuse, true, maxAnisotropy),
-        urls.normal ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy) : null,
-        urls.roughness ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy) : null
+        urls.normal
+          ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy)
+          : null,
+        urls.roughness
+          ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy)
+          : null
       ]);
 
-      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+      [diffuse, normal, roughness]
+        .filter(Boolean)
+        .forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
 
       return { diffuse, normal, roughness };
     } catch (error) {
@@ -2677,7 +3325,12 @@ async function loadPolyhavenTextureSet(
   return promise;
 }
 
-function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+function applyTextureSetToModel(
+  model,
+  textureSet,
+  fallbackTexture,
+  maxAnisotropy = 1
+) {
   const normalizeTexture = (texture, isColor = false) => {
     if (!texture) return null;
     if (isColor) applySRGBColorSpace(texture);
@@ -2740,18 +3393,25 @@ function fitModelToHeight(model, targetHeight) {
 }
 
 function fitTableModelToArena(model, tableThemeId = null) {
-  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  if (!model)
+    return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
   const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
   const targetDiameter =
-    TABLE_MODEL_TARGET_DIAMETER * TABLE_SIDE_EXPANSION_FACTOR * getTableWidthScale(tableThemeId);
+    TABLE_MODEL_TARGET_DIAMETER *
+    TABLE_SIDE_EXPANSION_FACTOR *
+    getTableWidthScale(tableThemeId);
   const targetRadius = targetDiameter / 2;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
   if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
+    model.scale.set(
+      model.scale.x * scaleXZ,
+      model.scale.y * scaleY,
+      model.scale.z * scaleXZ
+    );
   }
   if (TABLE_LEG_EXTENSION_FACTOR !== 1) {
     const stretchedScaleY = model.scale.y * TABLE_LEG_EXTENSION_FACTOR;
@@ -2761,7 +3421,9 @@ function fitTableModelToArena(model, tableThemeId = null) {
   const center = scaledBox.getCenter(new THREE.Vector3());
   const topAfterStretch = scaledBox.max.y;
   const topCorrection = targetHeight - topAfterStretch;
-  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y + topCorrection, -center.z));
+  model.position.add(
+    new THREE.Vector3(-center.x, -scaledBox.min.y + topCorrection, -center.z)
+  );
   const recenteredBox = new THREE.Box3().setFromObject(model);
   void recenteredBox;
   const radius = targetRadius;
@@ -2785,7 +3447,11 @@ function applyBoardGroupScale(boardGroup, tableInfo) {
   const scaleY = scale?.y ?? 1;
   const scaleZ = scale?.z ?? 1;
   if (scaleX && scaleY && scaleZ) {
-    boardGroup.scale.set(BOARD_SCALE / scaleX, BOARD_SCALE / scaleY, BOARD_SCALE / scaleZ);
+    boardGroup.scale.set(
+      BOARD_SCALE / scaleX,
+      BOARD_SCALE / scaleY,
+      BOARD_SCALE / scaleZ
+    );
   } else {
     boardGroup.scale.setScalar(BOARD_SCALE);
   }
@@ -2797,7 +3463,11 @@ function stripTableBase(model) {
   model.traverse((obj) => {
     if (!obj.isMesh) return;
     const name = (obj.name || '').toLowerCase();
-    if (name.includes('base') || name.includes('pedestal') || name.includes('stand')) {
+    if (
+      name.includes('base') ||
+      name.includes('pedestal') ||
+      name.includes('stand')
+    ) {
       toRemove.push(obj);
     }
   });
@@ -2807,7 +3477,8 @@ function stripTableBase(model) {
   });
 }
 
-const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
+const shouldPreserveChairMaterials = (theme) =>
+  Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 
 async function createPolyhavenInstance(
   assetId,
@@ -2856,7 +3527,11 @@ async function createPolyhavenInstance(
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const targetMax = Math.max(
+    TARGET_CHAIR_SIZE.x,
+    TARGET_CHAIR_SIZE.y,
+    TARGET_CHAIR_SIZE.z
+  );
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -2984,7 +3659,10 @@ function createProceduralChair(theme) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  const seatMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
+    seatMaterial
+  );
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
@@ -2994,12 +3672,20 @@ function createProceduralChair(theme) {
     new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
     seatMaterial
   );
-  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.position.set(
+    0,
+    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
+    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
+  );
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
 
-  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armGeometry = new THREE.BoxGeometry(
+    ARM_THICKNESS,
+    ARM_HEIGHT,
+    ARM_DEPTH
+  );
   const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
   const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
   const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
@@ -3015,7 +3701,12 @@ function createProceduralChair(theme) {
   chair.add(rightArm);
 
   const legMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    new THREE.CylinderGeometry(
+      0.16 * MODEL_SCALE * STOOL_SCALE,
+      0.2 * MODEL_SCALE * STOOL_SCALE,
+      BASE_COLUMN_HEIGHT,
+      18
+    ),
     legMaterial
   );
   legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -3024,10 +3715,16 @@ function createProceduralChair(theme) {
   chair.add(legMesh);
 
   const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    new THREE.CylinderGeometry(
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.08 * MODEL_SCALE,
+      24
+    ),
     legMaterial
   );
-  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.position.y =
+    legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
   foot.castShadow = true;
   foot.receiveShadow = true;
   chair.add(foot);
@@ -3077,20 +3774,26 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
-  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+  const resolutions =
+    Array.isArray(preferred) && preferred.length
+      ? preferred
+      : DEFAULT_HDRI_RESOLUTIONS;
   for (const res of resolutions) {
     const entry = json[res];
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  const fallback = Object.values(json).find(
+    (value) => value?.hdr || value?.exr
+  );
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
   const preferred =
-    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    Array.isArray(config?.preferredResolutions) &&
+    config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
   const fallbackRes = config?.fallbackResolution || preferred[0] || '2k';
@@ -3101,13 +3804,18 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     for (const res of preferred) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    const manual = Object.values(config.assetUrls).find(
+      (value) => typeof value === 'string' && value.length
+    );
     if (manual) return manual;
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length)
+    return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    const response = await fetch(
+      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
+    );
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferred);
@@ -3193,8 +3901,14 @@ const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
   far: CAMERA_FAR,
-  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor * CAMERA_EXTRA_ZOOM_IN,
-  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor * CAMERA_EXTRA_ZOOM_OUT,
+  minR:
+    CAMERA_BASE_RADIUS *
+    ARENA_CAMERA_DEFAULTS.minRadiusFactor *
+    CAMERA_EXTRA_ZOOM_IN,
+  maxR:
+    CAMERA_BASE_RADIUS *
+    ARENA_CAMERA_DEFAULTS.maxRadiusFactor *
+    CAMERA_EXTRA_ZOOM_OUT,
   phiMin: LUDO_CAMERA_PHI_MIN,
   phiMax: LUDO_CAMERA_PHI_MAX
 };
@@ -3316,10 +4030,7 @@ const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
 const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.115;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.146,
-  0.14,
-  0.146,
-  0.14
+  0.146, 0.14, 0.146, 0.14
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
@@ -3330,11 +4041,13 @@ const TOKEN_FRONT_OUTWARD_SHIFT = 0.074;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
-const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL =
+  '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_DRONE_SOUND_URL =
   '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
-const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
+const LUDO_CAPTURE_HELICOPTER_SOUND_URL =
+  '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const HAHA_SOUND_MAX_DURATION_MS = 6000;
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
@@ -3350,9 +4063,9 @@ const START_KEY_TO_PLAYER = new Map(
   })
 );
 const SAFE_TRACK_INDEXES = new Set(
-  PLAYER_START_INDEX
-    .map((index) => (index + 8) % RING_STEPS)
-    .filter((index) => !PLAYER_START_INDEX.includes(index))
+  PLAYER_START_INDEX.map((index) => (index + 8) % RING_STEPS).filter(
+    (index) => !PLAYER_START_INDEX.includes(index)
+  )
 );
 const SAFE_TRACK_KEY_SET = new Set(
   [...SAFE_TRACK_INDEXES].map((index) => {
@@ -3382,7 +4095,13 @@ function getTokenRailHeight(playerIndex) {
 function isShapedLudoTable(tableThemeId) {
   const id = String(tableThemeId || '').toLowerCase();
   if (!id) return false;
-  return id === 'murlan-default' || id.includes('octagon') || id.includes('oval') || id.includes('hexagon') || id.includes('diamond');
+  return (
+    id === 'murlan-default' ||
+    id.includes('octagon') ||
+    id.includes('oval') ||
+    id.includes('hexagon') ||
+    id.includes('diamond')
+  );
 }
 
 function getShapedTableHeightLift(tableThemeId) {
@@ -3444,17 +4163,35 @@ function makeDice() {
   });
 
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, DICE_CORNER_RADIUS),
+    new RoundedBoxGeometry(
+      DICE_SIZE,
+      DICE_SIZE,
+      DICE_SIZE,
+      6,
+      DICE_CORNER_RADIUS
+    ),
     dieMaterial
   );
   body.castShadow = true;
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.SphereGeometry(DICE_PIP_RADIUS, 36, 24, 0, Math.PI * 2, 0, Math.PI);
+  const pipGeo = new THREE.SphereGeometry(
+    DICE_PIP_RADIUS,
+    36,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI
+  );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
-  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
+  const pipRimGeo = new THREE.RingGeometry(
+    DICE_PIP_RIM_INNER,
+    DICE_PIP_RIM_OUTER,
+    64
+  );
   const half = DICE_SIZE / 2;
   const faceDepth = half - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -3510,7 +4247,10 @@ function makeDice() {
 
   faces.forEach(({ normal, points }) => {
     const n = normal.clone().normalize();
-    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const helper =
+      Math.abs(n.y) > 0.9
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(0, 1, 0);
     const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
 
@@ -3524,14 +4264,18 @@ function makeDice() {
       pip.castShadow = true;
       pip.receiveShadow = true;
       pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
-      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      pip.quaternion.copy(
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n)
+      );
       dice.add(pip);
 
       const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
       rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
-      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      rim.quaternion.copy(
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n)
+      );
       dice.add(rim);
     });
   });
@@ -3577,15 +4321,18 @@ function getMarkerTexture({
     return null;
   }
   const baseColor = new THREE.Color(color);
-  const skipBackground = backgroundColor === 'transparent' || backgroundColor === 'none';
+  const skipBackground =
+    backgroundColor === 'transparent' || backgroundColor === 'none';
   const bgColor =
     skipBackground || !backgroundColor
       ? baseColor.clone().lerp(new THREE.Color(0x000000), 0.68).getStyle()
       : backgroundColor;
   const accentColor =
-    resolveColorStyle(arrowColor) || baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18).getStyle();
+    resolveColorStyle(arrowColor) ||
+    baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18).getStyle();
   const labelColor =
-    textColor || baseColor.clone().lerp(new THREE.Color(0x1f2937), 0.2).getStyle();
+    textColor ||
+    baseColor.clone().lerp(new THREE.Color(0x1f2937), 0.2).getStyle();
 
   if (!skipBackground) {
     ctx.fillStyle = bgColor;
@@ -3642,10 +4389,21 @@ function createMarkerMesh({
   textColor,
   arrowColor
 }) {
-  const texture = getMarkerTexture({ label, color, arrow, backgroundColor, textColor, arrowColor });
+  const texture = getMarkerTexture({
+    label,
+    color,
+    arrow,
+    backgroundColor,
+    textColor,
+    arrowColor
+  });
   if (!texture) return null;
   const geometry = new THREE.PlaneGeometry(size, size);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
   mesh.position.y += MARKER_HEIGHT_OFFSET;
@@ -3712,7 +4470,10 @@ function createStarMarkerMesh({ color, position, size = LUDO_TILE * 0.82 }) {
   const texture = getStarMarkerTexture(color);
   if (!texture) return null;
   const geometry = new THREE.PlaneGeometry(size, size);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true
+  });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
   mesh.position.y += STAR_MARKER_HEIGHT_OFFSET;
@@ -3761,7 +4522,10 @@ function createHomeLabelMesh(size) {
   const texture = getHomeLabelTexture();
   if (!texture) return null;
   const geometry = new THREE.PlaneGeometry(size, size);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true
+  });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.renderOrder = 14;
@@ -3791,65 +4555,28 @@ function addCenterHome(scene, playerColors = DEFAULT_PLAYER_COLORS) {
   const triangleDefs = [
     {
       color: centerColors[0],
-      vertices: new Float32Array([
-        -half,
-        0,
-        -half,
-        -half,
-        0,
-        half,
-        0,
-        0,
-        0
-      ])
+      vertices: new Float32Array([-half, 0, -half, -half, 0, half, 0, 0, 0])
     },
     {
       color: centerColors[1],
-      vertices: new Float32Array([
-        -half,
-        0,
-        -half,
-        half,
-        0,
-        -half,
-        0,
-        0,
-        0
-      ])
+      vertices: new Float32Array([-half, 0, -half, half, 0, -half, 0, 0, 0])
     },
     {
       color: centerColors[2],
-      vertices: new Float32Array([
-        half,
-        0,
-        -half,
-        half,
-        0,
-        half,
-        0,
-        0,
-        0
-      ])
+      vertices: new Float32Array([half, 0, -half, half, 0, half, 0, 0, 0])
     },
     {
       color: centerColors[3],
-      vertices: new Float32Array([
-        -half,
-        0,
-        half,
-        half,
-        0,
-        half,
-        0,
-        0,
-        0
-      ])
+      vertices: new Float32Array([-half, 0, half, half, 0, half, 0, 0, 0])
     }
   ];
 
   triangleDefs.forEach(({ color, vertices }) => {
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({
       color,
@@ -3885,7 +4612,11 @@ function getTrackDirectionAngle(index) {
   return getArrowAngle(dx, dz);
 }
 
-function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLORS) {
+function addBoardMarkers(
+  scene,
+  cellToWorld,
+  playerColors = DEFAULT_PLAYER_COLORS
+) {
   if (typeof document === 'undefined') return;
   const group = new THREE.Group();
   scene.add(group);
@@ -3909,8 +4640,8 @@ function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLOR
       startOwner != null
         ? playerColors[startOwner]
         : safeOwner != null
-        ? playerColors[safeOwner]
-        : '#0f172a';
+          ? playerColors[safeOwner]
+          : '#0f172a';
     const isStartTile = startOwner != null;
     if (!isStartTile) {
       return;
@@ -3939,7 +4670,6 @@ function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLOR
       size: LUDO_TILE * 0.88
     });
     if (star) group.add(star);
-
   });
 
   HOME_COLUMN_COORDS.forEach((coords, playerIdx) => {
@@ -3981,11 +4711,16 @@ function setDiceOrientation(dice, val) {
 }
 
 function normalizeBoneName(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function findBoneByNeedle(bones, ...needles) {
-  const normalized = bones.map((bone) => ({ bone, name: normalizeBoneName(bone.name) }));
+  const normalized = bones.map((bone) => ({
+    bone,
+    name: normalizeBoneName(bone.name)
+  }));
   for (const needle of needles) {
     const clean = normalizeBoneName(needle);
     const exact = normalized.find((entry) => entry.name === clean);
@@ -3997,13 +4732,18 @@ function findBoneByNeedle(bones, ...needles) {
 }
 
 function findBoneChainByNeedle(bones, ...needles) {
-  const normalized = bones.map((bone) => ({ bone, name: normalizeBoneName(bone.name) }));
+  const normalized = bones.map((bone) => ({
+    bone,
+    name: normalizeBoneName(bone.name)
+  }));
   const result = [];
   for (const needle of needles) {
     const clean = normalizeBoneName(needle);
     const matched = normalized
       .filter((entry) => entry.name.includes(clean))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
     matched.forEach((entry) => {
       if (!result.includes(entry.bone)) result.push(entry.bone);
     });
@@ -4032,11 +4772,31 @@ function saveBoneRig(modelRoot) {
     chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
     neck: findBoneByNeedle(bones, 'neck'),
     head: findBoneByNeedle(bones, 'head'),
-    leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
-    leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
+    leftUpperLeg: findBoneByNeedle(
+      bones,
+      'leftupleg',
+      'leftthigh',
+      'leftupperleg'
+    ),
+    leftLowerLeg: findBoneByNeedle(
+      bones,
+      'leftleg',
+      'leftlowerleg',
+      'leftcalf'
+    ),
     leftFoot: findBoneByNeedle(bones, 'leftfoot'),
-    rightUpperLeg: findBoneByNeedle(bones, 'rightupleg', 'rightthigh', 'rightupperleg'),
-    rightLowerLeg: findBoneByNeedle(bones, 'rightleg', 'rightlowerleg', 'rightcalf'),
+    rightUpperLeg: findBoneByNeedle(
+      bones,
+      'rightupleg',
+      'rightthigh',
+      'rightupperleg'
+    ),
+    rightLowerLeg: findBoneByNeedle(
+      bones,
+      'rightleg',
+      'rightlowerleg',
+      'rightcalf'
+    ),
     rightFoot: findBoneByNeedle(bones, 'rightfoot'),
     leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
     leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
@@ -4129,7 +4889,10 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
-function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+function createSeatedHumanFallbackTexture(
+  primary = '#cdb8a0',
+  secondary = '#8a6a4e'
+) {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -4174,11 +4937,20 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
 }
 
-function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}, motionTuning = {}) {
+function applySeatedHumanPose(
+  rig,
+  mode = 'idle',
+  intensity = 1,
+  handGrip = 0,
+  throwBias = {},
+  motionTuning = {}
+) {
   if (!rig) return;
   resetBoneRig(rig);
   const t = smoother01(intensity);
-  const breathe = Math.sin(performance.now() * 0.002) * (motionTuning.idleBreathAmp ?? SEATED_HUMAN_MOTION_TUNING.idleBreathAmp);
+  const breathe =
+    Math.sin(performance.now() * 0.002) *
+    (motionTuning.idleBreathAmp ?? SEATED_HUMAN_MOTION_TUNING.idleBreathAmp);
   const precision = clamp(motionTuning?.precision ?? 1, 0.8, 1.35);
   const throwLateral = clamp(throwBias?.lateral ?? 0, -1, 1);
   const throwForward = clamp(throwBias?.forward ?? 1, -1, 1);
@@ -4203,10 +4975,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
   addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
 
-  let shoulderX = -0.20;
+  let shoulderX = -0.2;
   let shoulderY = -0.02;
   let shoulderZ = -0.72;
-  let forearmX = -0.50;
+  let forearmX = -0.5;
   let forearmY = -0.04;
   let forearmZ = 0.14;
   let wristX = -0.08;
@@ -4230,7 +5002,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
   } else if (mode === 'gripDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.1, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
@@ -4346,10 +5118,16 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   applyRightHandGrip(rig, handGrip);
 }
 
-function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
+function alignSeatedHumanFeetToGroundPlane(
+  actor,
+  rig,
+  clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE
+) {
   if (!actor?.isObject3D) return;
   actor.updateMatrixWorld(true);
-  const footBones = [rig?.leftFoot, rig?.rightFoot].filter((bone) => bone?.isBone);
+  const footBones = [rig?.leftFoot, rig?.rightFoot].filter(
+    (bone) => bone?.isBone
+  );
   if (!footBones.length) return;
   let minFootY = Infinity;
   footBones.forEach((bone) => {
@@ -4473,7 +5251,11 @@ function sampleSeatedObjectContactTarget(entry, object, kind, out) {
     if (direction.lengthSq() < 1e-8) direction.set(0, 0.1, 1);
     direction.normalize();
     out.copy(center).addScaledVector(direction, radius);
-    out.y = THREE.MathUtils.clamp(out.y, center.y - DICE_SIZE * 0.24, center.y + DICE_SIZE * 0.2);
+    out.y = THREE.MathUtils.clamp(
+      out.y,
+      center.y - DICE_SIZE * 0.24,
+      center.y + DICE_SIZE * 0.2
+    );
     out.y += SEATED_CONTACT_DICE_Y_OFFSET;
     return true;
   }
@@ -4490,11 +5272,18 @@ function applyWorldRotationDeltaToBone(bone, worldDeltaQ) {
   const parentWorldQ = new THREE.Quaternion();
   bone.parent?.getWorldQuaternion?.(parentWorldQ);
   const parentWorldInv = parentWorldQ.clone().invert();
-  const localDeltaQ = parentWorldInv.multiply(worldDeltaQ).multiply(parentWorldQ);
+  const localDeltaQ = parentWorldInv
+    .multiply(worldDeltaQ)
+    .multiply(parentWorldQ);
   bone.quaternion.premultiply(localDeltaQ);
 }
 
-function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKey = 'contactEffector') {
+function solveSeatedRightArmContactIK(
+  entry,
+  targetWorld,
+  weight = 1,
+  effectorKey = 'contactEffector'
+) {
   const rig = entry?.rig;
   const actor = entry?.actor;
   if (!rig || !actor?.isObject3D || !targetWorld?.isVector3) return;
@@ -4549,7 +5338,12 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKe
   }
 }
 
-function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs) {
+function resolveSeatedHumanActionPose(
+  actorState,
+  gameState,
+  playerIndex,
+  nowMs
+) {
   const basePose = {
     mode: 'idle',
     intensity: 1,
@@ -4562,7 +5356,11 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
   if (!actorState) return basePose;
 
   const throwingPlayer = actorState.throwPlayer;
-  if (throwingPlayer === playerIndex && Number.isFinite(actorState.throwStartMs) && actorState.throwStartMs > 0) {
+  if (
+    throwingPlayer === playerIndex &&
+    Number.isFinite(actorState.throwStartMs) &&
+    actorState.throwStartMs > 0
+  ) {
     const { windupMs, releaseMs, followMs } = SEATED_HUMAN_DICE_PHASES;
     const windupStart = actorState.throwStartMs;
     const releaseStart = windupStart + windupMs;
@@ -4573,9 +5371,14 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       return {
         ...basePose,
         mode: 'windUp',
-        intensity: easeInOutSine01(normalizedPhase(nowMs, windupStart, windupMs)),
+        intensity: easeInOutSine01(
+          normalizedPhase(nowMs, windupStart, windupMs)
+        ),
         handGrip: 0.56,
-        motionTuning: { idleBreathAmp: 0.008, precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision }
+        motionTuning: {
+          idleBreathAmp: 0.008,
+          precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision
+        }
       };
     }
     if (nowMs < followStart) {
@@ -4585,7 +5388,10 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         mode: 'release',
         intensity: easeOutBack01(phase, 1.45),
         handGrip: 1 - phase,
-        motionTuning: { idleBreathAmp: 0.006, precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision }
+        motionTuning: {
+          idleBreathAmp: 0.006,
+          precision: SEATED_HUMAN_MOTION_TUNING.throwPrecision
+        }
       };
     }
     if (nowMs < endMs) {
@@ -4601,7 +5407,11 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
   }
 
   const holdPlayer = actorState.holdPlayer;
-  if (holdPlayer === playerIndex && Number.isFinite(actorState.holdStartMs) && actorState.holdStartMs > 0) {
+  if (
+    holdPlayer === playerIndex &&
+    Number.isFinite(actorState.holdStartMs) &&
+    actorState.holdStartMs > 0
+  ) {
     const { reachMs, gripMs } = SEATED_HUMAN_DICE_PHASES;
     const reachEnd = actorState.holdStartMs + reachMs;
     const gripEnd = reachEnd + gripMs;
@@ -4609,7 +5419,9 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       return {
         ...basePose,
         mode: 'reachDice',
-        intensity: easeInOutSine01(normalizedPhase(nowMs, actorState.holdStartMs, reachMs)),
+        intensity: easeInOutSine01(
+          normalizedPhase(nowMs, actorState.holdStartMs, reachMs)
+        ),
         handGrip: 0.04,
         motionTuning: { idleBreathAmp: 0.01, precision: 1.05 }
       };
@@ -4636,7 +5448,9 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
   const activeAnim = gameState?.animation;
   if (activeAnim?.active && activeAnim.player === playerIndex) {
     const seg = activeAnim.segments?.[activeAnim.segment];
-    const segProgress = seg ? normalizedPhase(activeAnim.elapsed, 0, seg.duration) : 1;
+    const segProgress = seg
+      ? normalizedPhase(activeAnim.elapsed, 0, seg.duration)
+      : 1;
     const helperPhase = seg?.viaHelper || null;
     if (helperPhase === 'pickup') {
       return {
@@ -4644,25 +5458,40 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
         mode: 'reachToken',
         intensity: easeInOutSine01(segProgress),
         handGrip: 0.08,
-        motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
+        motionTuning: {
+          idleBreathAmp: 0.009,
+          precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision
+        }
       };
     }
-    if (activeAnim.segment > 0 && activeAnim.segments?.[activeAnim.segment - 1]?.viaHelper === 'pickup') {
+    if (
+      activeAnim.segment > 0 &&
+      activeAnim.segments?.[activeAnim.segment - 1]?.viaHelper === 'pickup'
+    ) {
       return {
         ...basePose,
         mode: 'gripToken',
         intensity: smoother01(segProgress),
         handGrip: 0.62 + segProgress * 0.32,
-        motionTuning: { idleBreathAmp: 0.009, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
+        motionTuning: {
+          idleBreathAmp: 0.009,
+          precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision
+        }
       };
     }
-    if (helperPhase === 'place' || activeAnim.segments?.[activeAnim.segment + 1]?.viaHelper === 'place') {
+    if (
+      helperPhase === 'place' ||
+      activeAnim.segments?.[activeAnim.segment + 1]?.viaHelper === 'place'
+    ) {
       return {
         ...basePose,
         mode: 'placeToken',
         intensity: easeInOutSine01(segProgress),
         handGrip: 1 - segProgress * 0.86,
-        motionTuning: { idleBreathAmp: 0.01, precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision }
+        motionTuning: {
+          idleBreathAmp: 0.01,
+          precision: SEATED_HUMAN_MOTION_TUNING.tokenPrecision
+        }
       };
     }
     return {
@@ -4719,7 +5548,11 @@ async function loadSeatedHumanTemplate(renderer = null) {
         const useSkin = /head|face|neck|ear|hand/.test(meshName);
         const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
         const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const materials = Array.isArray(obj.material)
+          ? obj.material
+          : obj.material
+            ? [obj.material]
+            : [];
         materials.forEach((mat) => {
           if (!mat?.map) {
             mat.map = fallbackTex;
@@ -4727,7 +5560,9 @@ async function loadSeatedHumanTemplate(renderer = null) {
           if (mat?.color?.setHex) {
             mat.color.setHex(0xffffff);
           }
-          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+          normalizeMaterialTextures(mat, 8, {
+            preserveGltfTextureMapping: true
+          });
           if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
           mat.needsUpdate = true;
         });
@@ -4740,7 +5575,11 @@ async function loadSeatedHumanTemplate(renderer = null) {
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  {
+    duration = 900,
+    targetPosition = new THREE.Vector3(),
+    bounceHeight = 0.06
+  } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -4751,7 +5590,11 @@ function spinDice(
       1.35 + Math.random() * 0.65,
       1.05 + Math.random() * 0.75
     );
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
+    const wobble = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.16,
+      0,
+      (Math.random() - 0.5) * 0.16
+    );
     const targetValue = 1 + Math.floor(Math.random() * 6);
 
     const step = () => {
@@ -4761,7 +5604,10 @@ function spinDice(
       const position = startPos.clone().lerp(endPos, eased);
       const wobbleStrength = Math.sin(eased * Math.PI);
       position.addScaledVector(wobble, wobbleStrength * 0.45);
-      const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
+      const bounce =
+        Math.sin(Math.min(1, eased * 1.25) * Math.PI) *
+        bounceHeight *
+        (1 - eased * 0.45);
       position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
       dice.position.copy(position);
 
@@ -4876,11 +5722,31 @@ const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
     y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.84,
     z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.88
   },
-  knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.36, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.45, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.5, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  knight: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z
+  },
+  rook: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z
+  },
+  bishop: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.36,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z
+  },
+  queen: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.45,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z
+  },
+  king: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.5,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z
+  }
 });
 
 function setTokenHighlight(token, active) {
@@ -4900,8 +5766,12 @@ function setTokenHighlight(token, active) {
     token.scale.copy(baseScale);
   }
 
-  const tokenColor = token.userData?.tokenColor ? new THREE.Color(token.userData.tokenColor) : null;
-  const highlightColor = tokenColor ? tokenColor.clone().lerp(new THREE.Color(0xffffff), 0.2) : null;
+  const tokenColor = token.userData?.tokenColor
+    ? new THREE.Color(token.userData.tokenColor)
+    : null;
+  const highlightColor = tokenColor
+    ? tokenColor.clone().lerp(new THREE.Color(0xffffff), 0.2)
+    : null;
 
   token.traverse((child) => {
     if (!child?.isMesh) return;
@@ -4911,7 +5781,10 @@ function setTokenHighlight(token, active) {
     if (material.emissive && !child.userData.baseEmissive) {
       child.userData.baseEmissive = material.emissive.clone();
     }
-    if (material.emissiveIntensity != null && child.userData.baseEmissiveIntensity == null) {
+    if (
+      material.emissiveIntensity != null &&
+      child.userData.baseEmissiveIntensity == null
+    ) {
       child.userData.baseEmissiveIntensity = material.emissiveIntensity;
     }
     if (active) {
@@ -4930,7 +5803,10 @@ function setTokenHighlight(token, active) {
       if (material.emissive && child.userData.baseEmissive) {
         material.emissive.copy(child.userData.baseEmissive);
       }
-      if (material.emissiveIntensity != null && child.userData.baseEmissiveIntensity != null) {
+      if (
+        material.emissiveIntensity != null &&
+        child.userData.baseEmissiveIntensity != null
+      ) {
         material.emissiveIntensity = child.userData.baseEmissiveIntensity;
       }
     }
@@ -4953,7 +5829,9 @@ function disposeBoardGroup(group) {
   group.traverse((node) => {
     if (node.isMesh) {
       node.geometry?.dispose?.();
-      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      const mats = Array.isArray(node.material)
+        ? node.material
+        : [node.material];
       mats.forEach((mat) => {
         if (mat?.map) mat.map.dispose?.();
         mat?.dispose?.();
@@ -5026,7 +5904,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
   const parkedCaptureVehiclesRef = useRef(new Map());
-  const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
+  const activePlayerCount = useMemo(
+    () => clampPlayerCount(playerCount),
+    [playerCount]
+  );
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
     () => clamp(Math.floor(aiCount ?? aiSlots), 0, aiSlots),
@@ -5034,18 +5915,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
   const resolvedAccountId = useMemo(() => ludoBattleAccountId(), []);
   const [inventoryVersion, setInventoryVersion] = useState(0);
+  const [captureQuickSwapOpen, setCaptureQuickSwapOpen] = useState(false);
   const ludoInventory = useMemo(
     () => getLudoBattleInventory(resolvedAccountId),
     [resolvedAccountId, inventoryVersion]
   );
   useEffect(() => {
     const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+      if (
+        !event?.detail?.accountId ||
+        event.detail.accountId === resolvedAccountId
+      ) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('ludoBattleInventoryUpdate', handler);
-    return () => window.removeEventListener('ludoBattleInventoryUpdate', handler);
+    return () =>
+      window.removeEventListener('ludoBattleInventoryUpdate', handler);
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
@@ -5071,7 +5957,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         esports144: 'uhd144'
       };
       const normalized = legacyMap[stored] ?? stored;
-      if (normalized && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalized)) {
+      if (
+        normalized &&
+        FRAME_RATE_OPTIONS.some((opt) => opt.id === normalized)
+      ) {
         return normalized;
       }
       const detected = detectPreferredFrameRateId();
@@ -5082,7 +5971,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return DEFAULT_FRAME_RATE_ID;
   });
   const activeFrameRateOption = useMemo(
-    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
+    () =>
+      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
+      DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
@@ -5092,14 +5983,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       Number.isFinite(option?.fps) && option.fps > 0
         ? option.fps
         : Number.isFinite(fallback?.fps) && fallback.fps > 0
-        ? fallback.fps
-        : 60;
+          ? fallback.fps
+          : 60;
     const renderScale =
-      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+      typeof option?.renderScale === 'number' &&
+      Number.isFinite(option.renderScale)
         ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1.3)
         : 0.92;
     const pixelRatioCap =
-      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+      typeof option?.pixelRatioCap === 'number' &&
+      Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
         : resolveDefaultPixelRatioCap();
     return {
@@ -5112,14 +6005,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const frameQualityRef = useRef(frameQualityProfile);
   const textureResolutionStack = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
-    const stack = Array.isArray(option?.texturePreferredSizes) ? option.texturePreferredSizes : [];
+    const stack = Array.isArray(option?.texturePreferredSizes)
+      ? option.texturePreferredSizes
+      : [];
     return stack.length ? stack : PREFERRED_TEXTURE_SIZES;
   }, [activeFrameRateOption]);
-  const textureResolutionKey = useMemo(() => textureResolutionStack.join('|'), [textureResolutionStack]);
+  const textureResolutionKey = useMemo(
+    () => textureResolutionStack.join('|'),
+    [textureResolutionStack]
+  );
   const hdriResolutionProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
     const mobileHdri4kOptionIds = ['qhd90'];
-    const forceMobile4kHdri = isLikelyMobileDevice() && mobileHdri4kOptionIds.includes(option?.id);
+    const forceMobile4kHdri =
+      isLikelyMobileDevice() && mobileHdri4kOptionIds.includes(option?.id);
     if (forceMobile4kHdri) {
       return {
         preferredResolutions: ['4k', '2k'],
@@ -5127,12 +6026,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         key: '4k|2k|mobile'
       };
     }
-    const preferred = Array.isArray(option?.hdriPreferredResolutions) ? option.hdriPreferredResolutions : [];
-    const resolvedPreferred = preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+    const preferred = Array.isArray(option?.hdriPreferredResolutions)
+      ? option.hdriPreferredResolutions
+      : [];
+    const resolvedPreferred = preferred.length
+      ? preferred
+      : DEFAULT_HDRI_RESOLUTIONS;
     const fallback =
-      typeof option?.hdriFallbackResolution === 'string' && option.hdriFallbackResolution
+      typeof option?.hdriFallbackResolution === 'string' &&
+      option.hdriFallbackResolution
         ? option.hdriFallbackResolution
-        : resolvedPreferred[resolvedPreferred.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0];
+        : resolvedPreferred[resolvedPreferred.length - 1] ||
+          DEFAULT_HDRI_RESOLUTIONS[0];
     return {
       preferredResolutions: resolvedPreferred,
       fallbackResolution: fallback,
@@ -5144,7 +6049,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
+      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) &&
+      DEFAULT_FRAME_RATE_OPTION.fps > 0
         ? DEFAULT_FRAME_RATE_OPTION.fps
         : 60;
     const fps =
@@ -5153,7 +6059,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: frameQualityProfile?.id ?? DEFAULT_FRAME_RATE_OPTION?.id ?? DEFAULT_FRAME_RATE_ID,
+      id:
+        frameQualityProfile?.id ??
+        DEFAULT_FRAME_RATE_OPTION?.id ??
+        DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -5163,22 +6072,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
   }, [resolvedFrameTiming]);
-  const resolveFrameSyncedDuration = useCallback((baseDurationMs, { min = 120, max = 2400 } = {}) => {
-    const baseDuration = Number(baseDurationMs);
-    const safeBaseDuration = Number.isFinite(baseDuration) ? Math.max(0, baseDuration) : 0;
-    if (safeBaseDuration <= 0) return 0;
-    const activeFps =
-      Number.isFinite(frameQualityRef.current?.fps) && frameQualityRef.current.fps > 0
-        ? frameQualityRef.current.fps
-        : ANIMATION_BASE_FPS;
-    const speedMultiplier = THREE.MathUtils.clamp(
-      ANIMATION_BASE_FPS / activeFps,
-      MIN_ANIMATION_SPEED_MULTIPLIER,
-      MAX_ANIMATION_SPEED_MULTIPLIER
-    );
-    const resolved = safeBaseDuration * speedMultiplier;
-    return THREE.MathUtils.clamp(resolved, min, max);
-  }, []);
+  const resolveFrameSyncedDuration = useCallback(
+    (baseDurationMs, { min = 120, max = 2400 } = {}) => {
+      const baseDuration = Number(baseDurationMs);
+      const safeBaseDuration = Number.isFinite(baseDuration)
+        ? Math.max(0, baseDuration)
+        : 0;
+      if (safeBaseDuration <= 0) return 0;
+      const activeFps =
+        Number.isFinite(frameQualityRef.current?.fps) &&
+        frameQualityRef.current.fps > 0
+          ? frameQualityRef.current.fps
+          : ANIMATION_BASE_FPS;
+      const speedMultiplier = THREE.MathUtils.clamp(
+        ANIMATION_BASE_FPS / activeFps,
+        MIN_ANIMATION_SPEED_MULTIPLIER,
+        MAX_ANIMATION_SPEED_MULTIPLIER
+      );
+      const resolved = safeBaseDuration * speedMultiplier;
+      return THREE.MathUtils.clamp(resolved, min, max);
+    },
+    []
+  );
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -5233,7 +6148,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const idx = Number.isFinite(next[key]) ? next[key] : 0;
         const option = options[idx];
         if (!option || !isLudoOptionUnlocked(key, option.id, ludoInventory)) {
-          const fallbackIdx = options.findIndex((opt) => isLudoOptionUnlocked(key, opt.id, ludoInventory));
+          const fallbackIdx = options.findIndex((opt) =>
+            isLudoOptionUnlocked(key, opt.id, ludoInventory)
+          );
           const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
           if (safeIdx !== idx) {
             next[key] = safeIdx;
@@ -5262,7 +6179,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         ...section,
         options: section.options
           .map((option, idx) => ({ ...option, idx }))
-          .filter(({ id }) => isLudoOptionUnlocked(section.key, id, ludoInventory))
+          .filter(({ id }) =>
+            isLudoOptionUnlocked(section.key, id, ludoInventory)
+          )
       })).filter((section) => section.options.length > 0),
     [ludoInventory]
   );
@@ -5277,22 +6196,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     turnCycle: 0
   });
 
-  const playerColors = useMemo(() => resolvePlayerColors(appearance), [appearance]);
+  const playerColors = useMemo(
+    () => resolvePlayerColors(appearance),
+    [appearance]
+  );
 
   const playerColorsHex = useMemo(
-    () => playerColors.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
+    () =>
+      playerColors
+        .slice(0, activePlayerCount)
+        .map((value) => colorNumberToHex(value)),
     [activePlayerCount, playerColors]
   );
 
   const aiFlags = useMemo(() => {
-    const base = Array.isArray(aiFlagOverrides) ? aiFlagOverrides.filter(Boolean) : [];
+    const base = Array.isArray(aiFlagOverrides)
+      ? aiFlagOverrides.filter(Boolean)
+      : [];
     const pool = [...base];
     while (pool.length < aiOpponentCount) {
       pool.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
-  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
+  const aiLoadoutByPlayer = useMemo(
+    () => createAiUniqueLoadout(activePlayerCount),
+    [activePlayerCount]
+  );
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
@@ -5324,8 +6254,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraTurnStateRef.current.activePriority = -Infinity;
       cameraTurnStateRef.current.followObject = null;
       const max2dDistance = CAM.maxR * CAMERA_2D_MAX_DISTANCE_FACTOR;
-      const topDownDistance = clamp(CAM.maxR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR, max2dDistance);
-      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
+      const topDownDistance = clamp(
+        CAM.maxR * CAMERA_2D_DISTANCE_FACTOR,
+        CAM.minR,
+        max2dDistance
+      );
+      camera.position.set(
+        boardLookTarget.x,
+        boardLookTarget.y + topDownDistance,
+        boardLookTarget.z + 0.001
+      );
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
@@ -5401,71 +6339,112 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
     if (!Array.isArray(playerTokens) || !playerTokens.length) return 0.28;
     const kingToken =
-      playerTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) ??
-      playerTokens[0];
+      playerTokens.find((token) =>
+        /king/i.test(String(token?.userData?.tokenType ?? ''))
+      ) ?? playerTokens[0];
     if (!kingToken) return 0.28;
     const box = new THREE.Box3().setFromObject(kingToken);
     const size = box.getSize(new THREE.Vector3());
     return Math.max(0.2, size.y || 0.28);
   }, []);
 
-  const fitCaptureVehicleToPlayerKing = useCallback((vehicleRoot, playerIndex) => {
-    if (!vehicleRoot?.isObject3D) return;
-    const kingHeight = getKingTokenHeightForPlayer(playerIndex);
-    fitObjectToTargetHeight(vehicleRoot, kingHeight * CAPTURE_VEHICLE_HEIGHT_TO_KING);
-  }, [getKingTokenHeightForPlayer]);
+  const fitCaptureVehicleToPlayerKing = useCallback(
+    (vehicleRoot, playerIndex) => {
+      if (!vehicleRoot?.isObject3D) return;
+      const kingHeight = getKingTokenHeightForPlayer(playerIndex);
+      fitObjectToTargetHeight(
+        vehicleRoot,
+        kingHeight * CAPTURE_VEHICLE_HEIGHT_TO_KING
+      );
+    },
+    [getKingTokenHeightForPlayer]
+  );
 
   const getKingTokenPositionForPlayer = useCallback((playerIndex) => {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
     if (!Array.isArray(playerTokens) || !playerTokens.length) return null;
     const kingToken =
-      playerTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) ??
-      playerTokens[0];
+      playerTokens.find((token) =>
+        /king/i.test(String(token?.userData?.tokenType ?? ''))
+      ) ?? playerTokens[0];
     if (!kingToken?.getWorldPosition) return null;
     return kingToken.getWorldPosition(new THREE.Vector3());
   }, []);
 
-  const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
-    const arena = arenaRef.current;
-    if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
-    const anchor = arena.seatAnchors[playerIndex];
-    if (!anchor) return null;
-    const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
-    const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
-    if (inward.lengthSq() < 1e-6) return null;
-    const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
-    const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
-    const park = kingPos
-      .clone()
-      .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
-      .addScaledVector(inward, forwardOffset)
-      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
-    return park;
-  }, [getKingTokenPositionForPlayer]);
+  const resolveCaptureParkingAnchors = useCallback(
+    (playerIndex, vehicleType = 'fighter') => {
+      const arena = arenaRef.current;
+      if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
+      const anchor = arena.seatAnchors[playerIndex];
+      if (!anchor) return null;
+      const seatPos = anchor.getWorldPosition(new THREE.Vector3());
+      const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
+      const inward = arena.boardLookTarget
+        .clone()
+        .sub(kingPos)
+        .setY(0)
+        .normalize();
+      if (inward.lengthSq() < 1e-6) return null;
+      const leftSide = new THREE.Vector3()
+        .crossVectors(MISSILE_WORLD_UP, inward)
+        .normalize();
+      const forwardOffset =
+        CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
+      const park = kingPos
+        .clone()
+        .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
+        .addScaledVector(inward, forwardOffset)
+        .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
+      park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
+      return park;
+    },
+    [getKingTokenPositionForPlayer]
+  );
 
   const resolvePlayerLabel = useCallback(
-    (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
+    (playerIndex) =>
+      players[playerIndex]?.name ||
+      COLOR_NAMES[playerIndex] ||
+      `Player ${playerIndex + 1}`,
     [players]
   );
 
-  const updateParkedCaptureVehicleVisibility = useCallback((humanCaptureAnimationIndex = null) => {
-    const humanOptionIndex =
-      Number.isFinite(humanCaptureAnimationIndex) && humanCaptureAnimationIndex >= 0
-        ? humanCaptureAnimationIndex
-        : appearanceRef.current?.captureAnimation ?? 0;
-    parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
-      const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
-      const selectedCaptureAnimationId =
-        CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
-      if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
-      if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = false;
-      if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
-      if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
-    });
-  }, [aiLoadoutByPlayer]);
+  const updateParkedCaptureVehicleVisibility = useCallback(
+    (humanCaptureAnimationIndex = null) => {
+      const humanOptionIndex =
+        Number.isFinite(humanCaptureAnimationIndex) &&
+        humanCaptureAnimationIndex >= 0
+          ? humanCaptureAnimationIndex
+          : (appearanceRef.current?.captureAnimation ?? 0);
+      parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
+        const optionIndex =
+          playerIndex > 0
+            ? (aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0)
+            : humanOptionIndex;
+        const runtimeCaptureAnimationId =
+          CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ??
+          CAPTURE_ANIMATION_OPTIONS[0]?.id ??
+          'missileJavelin';
+        if (entry?.jet)
+          entry.jet.visible = runtimeCaptureAnimationId === 'fighterJetAttack';
+        if (entry?.helicopter)
+          entry.helicopter.visible =
+            runtimeCaptureAnimationId === 'helicopterAttack';
+        if (entry?.drone) entry.drone.visible = false;
+        if (entry?.droneTruck)
+          entry.droneTruck.visible =
+            runtimeCaptureAnimationId === 'droneAttack';
+        if (entry?.missile)
+          entry.missile.visible =
+            runtimeCaptureAnimationId === 'missileJavelin';
+        if (entry?.firearmRack)
+          entry.firearmRack.visible = FIREARM_CAPTURE_ANIMATION_ID_SET.has(
+            runtimeCaptureAnimationId
+          );
+      });
+    },
+    [aiLoadoutByPlayer]
+  );
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
@@ -5476,10 +6455,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry?.drone?.parent?.remove?.(entry.drone);
       entry?.missile?.parent?.remove?.(entry.missile);
       entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
+      entry?.firearmRack?.parent?.remove?.(entry.firearmRack);
     });
     parkedCaptureVehiclesRef.current.clear();
 
-    for (let playerIndex = 0; playerIndex < activePlayerCount; playerIndex += 1) {
+    for (
+      let playerIndex = 0;
+      playerIndex < activePlayerCount;
+      playerIndex += 1
+    ) {
       // eslint-disable-next-line no-await-in-loop
       const jetFx = await createCaptureJetFx();
       // eslint-disable-next-line no-await-in-loop
@@ -5490,7 +6474,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const missileFx = await createCaptureMissileTruckFx();
       // eslint-disable-next-line no-await-in-loop
       const droneTruckFx = await createCaptureDroneLauncherTruckFx();
-      if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root) continue;
+      const firearmRackFx = createCaptureFirearmRackFx();
+      if (
+        !jetFx?.root ||
+        !helicopterFx?.root ||
+        !droneFx?.root ||
+        !missileFx?.root ||
+        !droneTruckFx?.root ||
+        !firearmRackFx?.root
+      )
+        continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(droneFx.root, playerIndex);
@@ -5498,66 +6491,131 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       fitObjectToTargetSize(helicopterFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(droneFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(missileFx.root, CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE);
-      fitObjectToTargetSize(droneTruckFx.root, CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE);
+      fitObjectToTargetSize(
+        droneTruckFx.root,
+        CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE
+      );
       jetFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.fighter);
-      helicopterFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.helicopter);
+      helicopterFx.root.scale.multiplyScalar(
+        CAPTURE_PARK_SCALE_BY_TYPE.helicopter
+      );
       missileFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.missile);
-      droneTruckFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.missile);
+      droneTruckFx.root.scale.multiplyScalar(
+        CAPTURE_PARK_SCALE_BY_TYPE.missile
+      );
       const jetPark = resolveCaptureParkingAnchors(playerIndex, 'fighter');
-      const helicopterPark = resolveCaptureParkingAnchors(playerIndex, 'helicopter');
+      const helicopterPark = resolveCaptureParkingAnchors(
+        playerIndex,
+        'helicopter'
+      );
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
       const missilePark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      const droneTruckPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark) continue;
+      const droneTruckPark = resolveCaptureParkingAnchors(
+        playerIndex,
+        'missile'
+      );
+      if (
+        !jetPark ||
+        !helicopterPark ||
+        !dronePark ||
+        !missilePark ||
+        !droneTruckPark
+      )
+        continue;
       jetFx.root.position.copy(jetPark);
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
       droneTruckFx.root.position.copy(droneTruckPark);
+      firearmRackFx.root.position.copy(missilePark);
       const tableSurfaceY = arena.tableInfo?.surfaceY;
       alignObjectBottomToY(jetFx.root, tableSurfaceY);
       alignObjectBottomToY(helicopterFx.root, tableSurfaceY);
       alignObjectBottomToY(droneFx.root, tableSurfaceY);
       alignObjectBottomToY(missileFx.root, tableSurfaceY);
       alignObjectBottomToY(droneTruckFx.root, tableSurfaceY);
+      alignObjectBottomToY(firearmRackFx.root, tableSurfaceY);
       jetFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       helicopterFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       droneFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       missileFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       droneTruckFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      firearmRackFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientCaptureVehicleTowardBoardCenter(jetFx.root, arena.boardLookTarget);
-      orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
-      orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
-      orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
-      orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(
+        helicopterFx.root,
+        arena.boardLookTarget
+      );
+      orientCaptureVehicleTowardBoardCenter(
+        droneFx.root,
+        arena.boardLookTarget
+      );
+      orientCaptureVehicleTowardBoardCenter(
+        missileFx.root,
+        arena.boardLookTarget
+      );
+      orientCaptureVehicleTowardBoardCenter(
+        droneTruckFx.root,
+        arena.boardLookTarget
+      );
+      orientCaptureVehicleTowardBoardCenter(
+        firearmRackFx.root,
+        arena.boardLookTarget
+      );
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
       arena.scene.add(missileFx.root);
       arena.scene.add(droneTruckFx.root);
+      arena.scene.add(firearmRackFx.root);
+      [
+        jetFx.root,
+        helicopterFx.root,
+        droneTruckFx.root,
+        missileFx.root,
+        firearmRackFx.root
+      ].forEach((obj) => {
+        if (!obj?.traverse) return;
+        obj.traverse((node) => {
+          node.userData = {
+            ...(node.userData || {}),
+            captureWeaponOwner: playerIndex
+          };
+        });
+      });
       const parkedEntry = {
         jet: jetFx.root,
         helicopter: helicopterFx.root,
         drone: droneFx.root,
         missile: missileFx.root,
         droneTruck: droneTruckFx.root,
+        firearmRack: firearmRackFx.root,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
-        helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
-        helicopterTopRotorAxis: helicopterFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0),
-        helicopterTailRotorAxis: helicopterFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0),
+        helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes)
+          ? helicopterFx.rotorNodes
+          : [],
+        helicopterTopRotorAxis:
+          helicopterFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0),
+        helicopterTailRotorAxis:
+          helicopterFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0),
         dronePropeller: droneFx.propeller ?? null,
         missileLauncher: missileFx.launcher ?? null,
-        droneTruckPayloads: Array.isArray(droneTruckFx.parkedDronePayloads) ? droneTruckFx.parkedDronePayloads : [],
+        droneTruckPayloads: Array.isArray(droneTruckFx.parkedDronePayloads)
+          ? droneTruckFx.parkedDronePayloads
+          : [],
         nextDronePayloadIndex: 0,
         reloadMissile: missileFx.reloadMissile ?? null,
-        reloadMissileLocalPosition: missileFx.reloadMissileLocalPosition ?? null,
-        reloadMissileLocalRotation: missileFx.reloadMissileLocalRotation ?? null,
+        reloadMissileLocalPosition:
+          missileFx.reloadMissileLocalPosition ?? null,
+        reloadMissileLocalRotation:
+          missileFx.reloadMissileLocalRotation ?? null,
         jetPark,
         helicopterPark,
         dronePark,
         missilePark,
-        droneTruckPark
+        droneTruckPark,
+        firearmPark: missilePark.clone()
       };
       parkedCaptureVehiclesRef.current.set(playerIndex, {
         ...parkedEntry
@@ -5579,6 +6637,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     uiRef.current = ui;
   }, [ui]);
 
+  useEffect(() => {
+    if (ui.turn !== 0 || ui.winner) {
+      setCaptureQuickSwapOpen(false);
+    }
+  }, [ui.turn, ui.winner]);
+
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
@@ -5595,18 +6659,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!renderer || !host) return;
     const quality = frameQualityRef.current;
     const dpr =
-      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+      typeof window !== 'undefined' &&
+      typeof window.devicePixelRatio === 'number'
         ? window.devicePixelRatio
         : 1;
     const pixelRatioCap =
       quality?.pixelRatioCap ??
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
     const renderScale =
-      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+      typeof quality?.renderScale === 'number' &&
+      Number.isFinite(quality.renderScale)
         ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1.3)
         : 0.92;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
-    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.setSize(
+      host.clientWidth * renderScale,
+      host.clientHeight * renderScale,
+      false
+    );
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -5619,7 +6689,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const renderer = rendererRef.current;
       const arena = arenaRef.current;
       if (!renderer || !arena?.scene) return;
-      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+      const activeVariant =
+        variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
       const envResult = await loadPolyHavenHdriEnvironment(renderer, {
         ...activeVariant,
@@ -5631,21 +6702,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const prevTexture = envTextureRef.current;
       const prevSkybox = envSkyboxRef.current;
       const floorY = environmentFloorRef.current ?? 0;
-      const boardLookTarget = arena.boardLookTarget ?? boardLookTargetRef.current ?? new THREE.Vector3();
+      const boardLookTarget =
+        arena.boardLookTarget ??
+        boardLookTargetRef.current ??
+        new THREE.Vector3();
       const cameraHeight =
-        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
-        HDRI_UNITS_PER_METER;
+        Math.max(
+          activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+          MIN_HDRI_CAMERA_HEIGHT_M
+        ) * HDRI_UNITS_PER_METER;
       const radiusMultiplier =
         typeof activeVariant?.groundRadiusMultiplier === 'number'
           ? activeVariant.groundRadiusMultiplier
           : DEFAULT_HDRI_RADIUS_MULTIPLIER;
       const sceneSpan = Math.max(TABLE_RADIUS, BOARD_RADIUS);
-      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
+      const groundRadius = Math.max(
+        sceneSpan * radiusMultiplier,
+        MIN_HDRI_RADIUS
+      );
       const skyboxResolution = Math.max(
         16,
         Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
       );
-      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      const skyboxRadius = Math.max(
+        groundRadius,
+        cameraHeight * 2.5,
+        MIN_HDRI_RADIUS
+      );
       const environmentRotationY =
         typeof activeVariant?.rotationY === 'number'
           ? activeVariant.rotationY
@@ -5653,8 +6736,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       let skybox = null;
       if (envResult.skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
         try {
-          skybox = new GroundedSkybox(envResult.skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
-          skybox.position.set(boardLookTarget.x, floorY + cameraHeight, boardLookTarget.z);
+          skybox = new GroundedSkybox(
+            envResult.skyboxMap,
+            cameraHeight,
+            skyboxRadius,
+            skyboxResolution
+          );
+          skybox.position.set(
+            boardLookTarget.x,
+            floorY + cameraHeight,
+            boardLookTarget.z
+          );
           skybox.rotation.y = environmentRotationY;
           skybox.material.depthWrite = false;
           skybox.userData.cameraHeight = cameraHeight;
@@ -5677,7 +6769,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if ('backgroundRotation' in arena.scene) {
           arena.scene.backgroundRotation.set(0, environmentRotationY, 0);
         }
-        if ('backgroundIntensity' in arena.scene && typeof activeVariant?.backgroundIntensity === 'number') {
+        if (
+          'backgroundIntensity' in arena.scene &&
+          typeof activeVariant?.backgroundIntensity === 'number'
+        ) {
           arena.scene.backgroundIntensity = activeVariant.backgroundIntensity;
         }
       }
@@ -5687,7 +6782,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (typeof activeVariant?.environmentIntensity === 'number') {
         arena.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
-      renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+      renderer.toneMappingExposure =
+        activeVariant?.exposure ?? renderer.toneMappingExposure;
       envTextureRef.current = envResult.envMap;
       syncSkyboxToCameraRef.current?.();
       disposeEnvironmentRef.current = () => {
@@ -5715,7 +6811,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
         }
       };
-      if (prevDispose && (prevTexture !== envResult.envMap || prevSkybox !== skybox)) {
+      if (
+        prevDispose &&
+        (prevTexture !== envResult.envMap || prevSkybox !== skybox)
+      ) {
         prevDispose();
       }
     },
@@ -5757,67 +6856,72 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         skybox.position.x = boardLookTarget.x;
         skybox.position.z = boardLookTarget.z;
       }
-      skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
+      skybox.position.y =
+        environmentFloorRef.current + skybox.userData.cameraHeight;
       if (Number.isFinite(skybox.userData?.rotationY)) {
         skybox.rotation.y = skybox.userData.rotationY;
       }
     }
   }, []);
 
-  const groundArenaToHdriFloor = useCallback(({ preserveView = false } = {}) => {
-    const arena = arenaRef.current;
-    if (!arena?.arenaGroup) return;
-    const tableGroup = arena.tableInfo?.group ?? null;
-    const objects = [];
-    if (tableGroup) objects.push(tableGroup);
-    if (Array.isArray(arena.chairs)) {
-      arena.chairs.forEach((chair) => {
-        if (chair?.group) objects.push(chair.group);
+  const groundArenaToHdriFloor = useCallback(
+    ({ preserveView = false } = {}) => {
+      const arena = arenaRef.current;
+      if (!arena?.arenaGroup) return;
+      const tableGroup = arena.tableInfo?.group ?? null;
+      const objects = [];
+      if (tableGroup) objects.push(tableGroup);
+      if (Array.isArray(arena.chairs)) {
+        arena.chairs.forEach((chair) => {
+          if (chair?.group) objects.push(chair.group);
+        });
+      }
+      if (!objects.length) return;
+      const bounds = new THREE.Box3();
+      let hasBounds = false;
+      objects.forEach((obj) => {
+        if (!obj) return;
+        const box = new THREE.Box3().setFromObject(obj);
+        if (box.isEmpty()) return;
+        if (!hasBounds) {
+          bounds.copy(box);
+          hasBounds = true;
+        } else {
+          bounds.union(box);
+        }
       });
-    }
-    if (!objects.length) return;
-    const bounds = new THREE.Box3();
-    let hasBounds = false;
-    objects.forEach((obj) => {
-      if (!obj) return;
-      const box = new THREE.Box3().setFromObject(obj);
-      if (box.isEmpty()) return;
-      if (!hasBounds) {
-        bounds.copy(box);
-        hasBounds = true;
-      } else {
-        bounds.union(box);
+      if (!hasBounds || !Number.isFinite(bounds.min.y)) return;
+      const floorMinY = bounds.min.y;
+      const targetFloorY = HDRI_GROUND_ALIGNMENT_OFFSET;
+      const yShift = targetFloorY - floorMinY;
+      if (Math.abs(yShift) <= 1e-4) {
+        environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
+        return;
       }
-    });
-    if (!hasBounds || !Number.isFinite(bounds.min.y)) return;
-    const floorMinY = bounds.min.y;
-    const targetFloorY = HDRI_GROUND_ALIGNMENT_OFFSET;
-    const yShift = targetFloorY - floorMinY;
-    if (Math.abs(yShift) <= 1e-4) {
-      environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
-      return;
-    }
 
-    const finalShift = yShift;
-    arena.arenaGroup.position.y += finalShift;
-    if (arena.boardLookTarget) arena.boardLookTarget.y += finalShift;
-    if (arena.defaultLookTarget) arena.defaultLookTarget.y += finalShift;
-    if (preserveView) {
-      const camera = cameraRef.current;
-      if (camera) {
-        camera.position.y += finalShift;
+      const finalShift = yShift;
+      arena.arenaGroup.position.y += finalShift;
+      if (arena.boardLookTarget) arena.boardLookTarget.y += finalShift;
+      if (arena.defaultLookTarget) arena.defaultLookTarget.y += finalShift;
+      if (preserveView) {
+        const camera = cameraRef.current;
+        if (camera) {
+          camera.position.y += finalShift;
+        }
+        if (arena.controls?.target) {
+          arena.controls.target.y += finalShift;
+          arena.controls.update();
+        }
       }
-      if (arena.controls?.target) {
-        arena.controls.target.y += finalShift;
-        arena.controls.update();
+      environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
+      const skybox = envSkyboxRef.current;
+      if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
+        skybox.position.y =
+          environmentFloorRef.current + skybox.userData.cameraHeight;
       }
-    }
-    environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
-    const skybox = envSkyboxRef.current;
-    if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
-      skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
-    }
-  }, []);
+    },
+    []
+  );
 
   const rebuildTable = useCallback(
     async (tableTheme, tableFinish, tableCloth = DEFAULT_CLOTH_OPTION) => {
@@ -5858,7 +6962,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           const tableGroup = new THREE.Group();
           tableGroup.add(model);
-          const { surfaceY, radius } = fitTableModelToArena(tableGroup, tableTheme?.id);
+          const { surfaceY, radius } = fitTableModelToArena(
+            tableGroup,
+            tableTheme?.id
+          );
           arena.arenaGroup.add(tableGroup);
           tableInfo = {
             group: tableGroup,
@@ -5895,8 +7002,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           baseOption,
           includeBase: true
         });
-        applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
-        tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
+        applyTableMaterials(
+          procedural.materials,
+          { woodOption, clothOption, baseOption },
+          renderer
+        );
+        tableInfo = {
+          ...procedural,
+          themeId: tableTheme?.id || procedural.shapeId
+        };
       }
 
       if (tableBuildTokenRef.current !== token) {
@@ -5909,7 +7023,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       updateTokenSurfaceOffset(arena.tableThemeId);
 
       if (boardGroup) {
-        boardGroup.position.set(0, tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
+        boardGroup.position.set(
+          0,
+          tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET,
+          0
+        );
         applyBoardGroupScale(boardGroup, tableInfo);
         tableInfo.group.add(boardGroup);
       }
@@ -5934,7 +7052,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         preferredTextureSizes: textureResolutionStack
       };
       const token = ++chairBuildTokenRef.current;
-      const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
+      const chairBuild = await buildChairTemplate(
+        stoolTheme,
+        renderer,
+        textureOptions
+      );
       if (chairBuildTokenRef.current !== token || !chairBuild) return;
 
       arena.chairs.forEach(({ group }) => {
@@ -5945,11 +7067,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       });
 
-      if (arena.chairTemplate && arena.chairTemplate !== chairBuild.chairTemplate) {
+      if (
+        arena.chairTemplate &&
+        arena.chairTemplate !== chairBuild.chairTemplate
+      ) {
         disposeChairAssets(arena.chairTemplate, arena.chairMaterials);
       }
 
-      const preserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+      const preserve =
+        chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
       const chairMaterials = chairBuild.materials;
       if (!preserve && chairMaterials) {
         applyChairThemeMaterials({ chairMaterials }, stoolTheme);
@@ -6003,8 +7129,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (!state || !Array.isArray(options) || !options.length) return;
       clearHumanSelection();
-      const normalized = options.map((option) => ({ token: option.token, entering: option.entering }));
-      humanSelectionRef.current = { roll, options: normalized, skipCameraFollow };
+      const normalized = options.map((option) => ({
+        token: option.token,
+        entering: option.entering
+      }));
+      humanSelectionRef.current = {
+        roll,
+        options: normalized,
+        skipCameraFollow
+      };
       normalized.forEach((option) => {
         const token = state.tokens?.[0]?.[option.token];
         if (token) {
@@ -6039,13 +7172,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (active) {
       if (tile.material.emissive) {
         if (tokenColor) {
-          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.14);
+          tile.material.emissive
+            .copy(tokenColor)
+            .lerp(new THREE.Color(0xffffff), 0.14);
         } else if (data.highlightEmissive) {
           tile.material.emissive.copy(data.highlightEmissive);
         }
       }
       if (tile.material.color && tokenColor) {
-        tile.material.color.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.08);
+        tile.material.color
+          .copy(tokenColor)
+          .lerp(new THREE.Color(0xffffff), 0.08);
       } else if (tile.material.color && data.highlightColor) {
         tile.material.color.copy(data.highlightColor);
       }
@@ -6095,11 +7232,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const updateAnimationHighlight = useCallback(
     (anim, nextIndex) => {
       if (!anim || !Array.isArray(anim.highlightTiles)) return;
-      if (nextIndex != null && nextIndex >= 0 && nextIndex < anim.highlightTiles.length) {
+      if (
+        nextIndex != null &&
+        nextIndex >= 0 &&
+        nextIndex < anim.highlightTiles.length
+      ) {
         const nextTile = anim.highlightTiles[nextIndex];
-      if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
+        if (
+          nextTile &&
+          Array.isArray(anim.activeHighlightTiles) &&
+          !anim.activeHighlightTiles.includes(nextTile)
+        ) {
           const activeColors = playerColorsRef.current || DEFAULT_PLAYER_COLORS;
-          const color = new THREE.Color(activeColors[anim.player] ?? DEFAULT_PLAYER_COLORS[anim.player] ?? 0xffffff);
+          const color = new THREE.Color(
+            activeColors[anim.player] ??
+              DEFAULT_PLAYER_COLORS[anim.player] ??
+              0xffffff
+          );
           setTileHighlight(nextTile, true, color);
           anim.activeHighlightTiles.push(nextTile);
         }
@@ -6124,7 +7273,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (label) {
           label.visible = false;
         }
-        if (!Number.isFinite(progress) || progress < 0 || progress > GOAL_PROGRESS) {
+        if (
+          !Number.isFinite(progress) ||
+          progress < 0 ||
+          progress > GOAL_PROGRESS
+        ) {
           continue;
         }
         const key = `${player}-${progress}`;
@@ -6222,7 +7375,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <div
                     key={`${option?.id}-swatch-${idx}`}
                     className="h-full w-full"
-                    style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx] || swatch)) }}
+                    style={{
+                      backgroundColor: colorNumberToHex(
+                        normalizeColorValue(
+                          swatch,
+                          DEFAULT_PLAYER_COLORS[idx] || swatch
+                        )
+                      )
+                    }}
                   />
                 ))}
               </div>
@@ -6241,7 +7401,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   // eslint-disable-next-line react/no-array-index-key
                   key={`${option.id}-swatch-${idx}`}
                   className="h-full w-full"
-                  style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx])) }}
+                  style={{
+                    backgroundColor: colorNumberToHex(
+                      normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx])
+                    )
+                  }}
                 />
               ))}
             </div>
@@ -6256,7 +7420,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="relative flex flex-col items-center">
               <span className="font-semibold">{option.label}</span>
               {option.description && (
-                <span className="text-[0.6rem] text-slate-200/80">{option.description}</span>
+                <span className="text-[0.6rem] text-slate-200/80">
+                  {option.description}
+                </span>
               )}
             </div>
           </div>
@@ -6267,7 +7433,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
             <div className="relative flex flex-col items-center">
               <span className="text-xl">{option.symbol}</span>
-              <span className="text-[0.6rem] text-slate-200/80">{option.label}</span>
+              <span className="text-[0.6rem] text-slate-200/80">
+                {option.label}
+              </span>
             </div>
           </div>
         );
@@ -6277,7 +7445,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
             <div className="relative flex flex-col items-center gap-0.5">
               <span className="font-semibold">{option.label}</span>
-              {option.description ? <span className="text-[0.56rem] text-slate-200/80">{option.description}</span> : null}
+              {option.description ? (
+                <span className="text-[0.56rem] text-slate-200/80">
+                  {option.description}
+                </span>
+              ) : null}
             </div>
           </div>
         );
@@ -6321,9 +7493,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   };
 
-  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04, onComplete = null } = {}) => {
+  const animateDicePosition = (
+    dice,
+    destination,
+    { duration = 450, lift = 0.04, onComplete = null } = {}
+  ) => {
     if (!dice || !destination) return;
-    const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
+    const target = destination.clone
+      ? destination.clone()
+      : new THREE.Vector3().copy(destination);
     stopDiceTransition();
     const startPos = dice.position.clone();
     const started = performance.now();
@@ -6338,7 +7516,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (state.cancelled) return;
       const now = performance.now();
       const t = Math.min(1, (now - started) / Math.max(1, duration));
-      const eased = t < 0.82 ? easeInOutSine01(t / 0.82) * 0.92 : 0.92 + easeOutBack01((t - 0.82) / 0.18, 1.3) * 0.08;
+      const eased =
+        t < 0.82
+          ? easeInOutSine01(t / 0.82) * 0.92
+          : 0.92 + easeOutBack01((t - 0.82) / 0.18, 1.3) * 0.08;
       const pos = startPos.clone().lerp(target, eased);
       if (lift > 0) {
         const arc = Math.sin(Math.PI * eased) * lift * (1 - eased * 0.25);
@@ -6365,7 +7546,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!dice) return;
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
-    const target = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
+    const target = rails[player].clone
+      ? rails[player].clone()
+      : new THREE.Vector3().copy(rails[player]);
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
@@ -6403,9 +7586,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const layouts = dice.userData?.tokenRails;
     if (!Array.isArray(layouts) || layouts.length < activePlayerCount) return;
 
-    const padMeshes = Array.isArray(dice.userData?.railPads) ? dice.userData.railPads : [];
+    const padMeshes = Array.isArray(dice.userData?.railPads)
+      ? dice.userData.railPads
+      : [];
     const updatedPads =
-      Array.isArray(state.startPads) && state.startPads.length >= activePlayerCount
+      Array.isArray(state.startPads) &&
+      state.startPads.length >= activePlayerCount
         ? state.startPads.slice()
         : Array.from({ length: activePlayerCount }, () =>
             Array.from({ length: 4 }, () => new THREE.Vector3())
@@ -6437,7 +7623,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       const centerPull =
-        TOKEN_RAIL_CENTER_PULL_PER_PLAYER[player] ?? TOKEN_RAIL_CENTER_PULL_DEFAULT;
+        TOKEN_RAIL_CENTER_PULL_PER_PLAYER[player] ??
+        TOKEN_RAIL_CENTER_PULL_DEFAULT;
       if (centerPull > 0) {
         base.add(forward.clone().multiplyScalar(-centerPull));
       }
@@ -6451,7 +7638,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         base.add(forward.clone().multiplyScalar(TOKEN_FRONT_OUTWARD_SHIFT));
       }
 
-      const forwardOffset = forward.clone().multiplyScalar(RAIL_TOKEN_FORWARD_SPACING);
+      const forwardOffset = forward
+        .clone()
+        .multiplyScalar(RAIL_TOKEN_FORWARD_SPACING);
       const backwardOffset = forwardOffset.clone().multiplyScalar(-1);
       const sideMultiplier = TOKEN_RAIL_SIDE_MULTIPLIER[player] ?? 1;
       const rightOffset = right
@@ -6484,7 +7673,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       for (let tokenIndex = 0; tokenIndex < 4; tokenIndex += 1) {
-        if (!state.progress?.[player] || state.progress[player][tokenIndex] == null) continue;
+        if (
+          !state.progress?.[player] ||
+          state.progress[player][tokenIndex] == null
+        )
+          continue;
         if (state.progress[player][tokenIndex] >= 0) continue;
         const token = state.tokens?.[player]?.[tokenIndex];
         if (!token) continue;
@@ -6522,8 +7715,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       centerXZ.set(centerWorld.x, 0, centerWorld.z);
 
       const heightLocal =
-        diceObj.userData?.railHeight ?? diceObj.userData?.baseHeight ?? DICE_BASE_HEIGHT;
-      const diceShapeLift = isShapedLudoTable(table?.themeId) ? SHAPED_TABLE_DICE_SURFACE_LIFT : 0;
+        diceObj.userData?.railHeight ??
+        diceObj.userData?.baseHeight ??
+        DICE_BASE_HEIGHT;
+      const diceShapeLift = isShapedLudoTable(table?.themeId)
+        ? SHAPED_TABLE_DICE_SURFACE_LIFT
+        : 0;
       const heightWorld = heightLocal * scaleWorld.y;
 
       const fallbackDirs = [
@@ -6579,7 +7776,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const rimInner = Math.min(inner, outer);
             const rimOuter = Math.max(inner, outer);
             const rimMid = rimInner + (rimOuter - rimInner) * 0.3;
-            restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
+            restRadius = Math.max(
+              restRadius,
+              THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08)
+            );
             restRadius = Math.max(restRadius, BOARD_RADIUS + 0.18);
             if (Number.isFinite(rimOuter)) {
               restRadius = Math.min(restRadius, rimOuter - 0.12);
@@ -6601,7 +7801,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
         }
 
-        const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
+        const restWorld = seatDir
+          .clone()
+          .multiplyScalar(restRadius)
+          .add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld + diceShapeLift;
         const rollWorld = restWorld.clone();
 
@@ -6624,7 +7827,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         } else {
           forwardLocal.normalize();
         }
-        const rightLocal = new THREE.Vector3().crossVectors(up, forwardLocal).setY(0);
+        const rightLocal = new THREE.Vector3()
+          .crossVectors(up, forwardLocal)
+          .setY(0);
         if (rightLocal.lengthSq() < 1e-6) {
           rightLocal.set(-forwardLocal.z, 0, forwardLocal.x);
         } else {
@@ -6632,22 +7837,44 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         const base = restLocal.clone();
         base.y = 0;
-        layouts.push({ base, forward: forwardLocal.clone(), right: rightLocal.clone() });
+        layouts.push({
+          base,
+          forward: forwardLocal.clone(),
+          right: rightLocal.clone()
+        });
       }
 
       diceObj.userData.railPositions = rails;
-      const preferredLanding = Array.isArray(diceObj.userData?.homeLandingTargets)
+      const preferredLanding = Array.isArray(
+        diceObj.userData?.homeLandingTargets
+      )
         ? diceObj.userData.homeLandingTargets.map((vec) => vec.clone())
         : rolls.map((vec) => vec.clone());
       diceObj.userData.rollTargets = preferredLanding;
       diceObj.userData.tokenRails = layouts;
       applyRailLayout();
-    }, [activePlayerCount, applyRailLayout]);
+    },
+    [activePlayerCount, applyRailLayout]
+  );
 
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+      [
+        moveSoundRef,
+        captureSoundRef,
+        missileLaunchSoundRef,
+        missileImpactSoundRef,
+        droneSoundRef,
+        fighterJetSoundRef,
+        helicopterSoundRef,
+        cheerSoundRef,
+        diceSoundRef,
+        diceRewardSoundRef,
+        sixRollSoundRef,
+        hahaSoundRef,
+        giftBombSoundRef
+      ].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -6662,8 +7889,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const vol = getGameVolume();
     moveSoundRef.current = null;
     captureSoundRef.current = new Audio(bombSound);
-    missileLaunchSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL);
-    missileImpactSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL);
+    missileLaunchSoundRef.current = new Audio(
+      LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL
+    );
+    missileImpactSoundRef.current = new Audio(
+      LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL
+    );
     droneSoundRef.current = new Audio(LUDO_CAPTURE_DRONE_SOUND_URL);
     droneSoundRef.current.loop = true;
     droneSoundRef.current.volume = 0.42;
@@ -6714,7 +7945,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+        window.localStorage?.setItem(
+          APPEARANCE_STORAGE_KEY,
+          JSON.stringify(appearance)
+        );
       } catch (error) {
         console.warn('Failed to persist Ludo appearance', error);
       }
@@ -6725,19 +7959,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const normalized = normalizeAppearance(appearance);
     const safe = ensureAppearanceUnlocked(normalized);
-    const tableTheme = MURLAN_TABLE_THEMES[safe.tables] ?? MURLAN_TABLE_THEMES[0];
-    const tableFinish = TABLE_FINISH_OPTIONS[safe.tableFinish] ?? DEFAULT_TABLE_FINISH;
-    const tableCloth = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? DEFAULT_CLOTH_OPTION;
-    const stoolTheme = MURLAN_STOOL_THEMES[safe.stools] ?? MURLAN_STOOL_THEMES[0];
+    const tableTheme =
+      MURLAN_TABLE_THEMES[safe.tables] ?? MURLAN_TABLE_THEMES[0];
+    const tableFinish =
+      TABLE_FINISH_OPTIONS[safe.tableFinish] ?? DEFAULT_TABLE_FINISH;
+    const tableCloth =
+      TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? DEFAULT_CLOTH_OPTION;
+    const stoolTheme =
+      MURLAN_STOOL_THEMES[safe.stools] ?? MURLAN_STOOL_THEMES[0];
     const envVariant = resolveHdriVariant(safe.environmentHdri);
-    const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
-    const tokenPieceByPlayer = Array.from({ length: activePlayerCount }, (_, playerIndex) => {
-      if (playerIndex === 0) {
-        return TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const tokenStyleOption =
+      TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const tokenPieceByPlayer = Array.from(
+      { length: activePlayerCount },
+      (_, playerIndex) => {
+        if (playerIndex === 0) {
+          return TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+        }
+        const aiTokenPieceIndex =
+          aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
+        return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
       }
-      const aiTokenPieceIndex = aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
-      return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
-    });
+    );
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
@@ -6745,19 +7988,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
     const tokenPieceChanged = previousAppearance.tokenPiece !== safe.tokenPiece;
     const qualityChanged = arena.textureResolutionKey !== textureResolutionKey;
-    const tableChanged = qualityChanged || arena.tableThemeId !== tableTheme.id || !arena.tableInfo;
-    const tableFinishChanged = previousAppearance.tableFinish !== safe.tableFinish;
+    const tableChanged =
+      qualityChanged ||
+      arena.tableThemeId !== tableTheme.id ||
+      !arena.tableInfo;
+    const tableFinishChanged =
+      previousAppearance.tableFinish !== safe.tableFinish;
     const tableClothChanged = previousAppearance.tableCloth !== safe.tableCloth;
-    const stoolChanged = qualityChanged || arena.chairThemeId !== stoolTheme.id || !arena.chairs?.length;
+    const stoolChanged =
+      qualityChanged ||
+      arena.chairThemeId !== stoolTheme.id ||
+      !arena.chairs?.length;
     const hdriChanged =
-      (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !== envVariant?.id ||
-      arena.hdriResolutionKey !== hdriResolutionProfile.key;
+      (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !==
+        envVariant?.id || arena.hdriResolutionKey !== hdriResolutionProfile.key;
 
     const refreshBoardTokens = async () => {
       const arenaState = arenaRef.current;
       if (!arenaState?.tableInfo?.group) return;
       const nextBoardGroup = new THREE.Group();
-      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
+      nextBoardGroup.position.set(
+        0,
+        arenaState.tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET,
+        0
+      );
       applyBoardGroupScale(nextBoardGroup, arenaState.tableInfo);
       nextBoardGroup.rotation.y = BOARD_ROTATION_Y;
       arenaState.tableInfo.group.add(nextBoardGroup);
@@ -6793,12 +8047,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         turnIndicator: boardData.turnIndicator,
         trackTiles: boardData.trackTiles,
         homeColumnTiles: boardData.homeColumnTiles,
-        progress: Array.from({ length: activePlayerCount }, () => Array(4).fill(-1)),
+        progress: Array.from({ length: activePlayerCount }, () =>
+          Array(4).fill(-1)
+        ),
         turn: 0,
         winner: null,
         animation: null
       };
-      setUi({ turn: 0, status: 'Your turn — dice rolling soon', dice: null, winner: null, turnCycle: 0 });
+      setUi({
+        turn: 0,
+        status: 'Your turn — dice rolling soon',
+        dice: null,
+        winner: null,
+        turnCycle: 0
+      });
       updateTokenStacks();
       applyRailLayout();
       scheduleHumanAutoRoll();
@@ -6820,28 +8082,55 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (!arena.boardLookTarget) {
             arena.boardLookTarget = new THREE.Vector3();
           }
-          arena.boardLookTarget.set(0, arena.tableInfo.surfaceY + CAMERA_TARGET_LIFT, 0);
+          arena.boardLookTarget.set(
+            0,
+            arena.tableInfo.surfaceY + CAMERA_TARGET_LIFT,
+            0
+          );
           arena.defaultLookTarget = arena.boardLookTarget.clone();
-          arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
+          arena.controls?.target.copy(
+            arena.boardLookTarget ?? new THREE.Vector3()
+          );
           arena.controls?.update();
           fitRef.current?.();
           applyBoardGroupScale(arena.boardGroup, arena.tableInfo);
-          configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
+          configureDiceAnchors({
+            tableInfo: arena.tableInfo,
+            boardGroup: arena.boardGroup,
+            chairs: arena.chairs
+          });
           const currentTurn = stateRef.current?.turn ?? 0;
           moveDiceToRail(currentTurn, true);
         }
-      } else if (arena.tableInfo?.materials && (tableFinishChanged || tableClothChanged)) {
-        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, rendererRef.current);
+      } else if (
+        arena.tableInfo?.materials &&
+        (tableFinishChanged || tableClothChanged)
+      ) {
+        applyTableMaterials(
+          arena.tableInfo.materials,
+          { woodOption, clothOption, baseOption },
+          rendererRef.current
+        );
       }
 
       if (stoolChanged) {
         await rebuildChairs(stoolTheme);
         arena.textureResolutionKey = textureResolutionKey;
-        configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
-      } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
+        configureDiceAnchors({
+          tableInfo: arena.tableInfo,
+          boardGroup: arena.boardGroup,
+          chairs: arena.chairs
+        });
+      } else if (
+        !shouldPreserveChairMaterials(stoolTheme) &&
+        arena.chairMaterials
+      ) {
         applyChairThemeMaterials(
           { chairMaterials: arena.chairMaterials },
-          { seatColor: stoolTheme.seatColor, legColor: stoolTheme.legColor ?? DEFAULT_STOOL_THEME.legColor }
+          {
+            seatColor: stoolTheme.seatColor,
+            legColor: stoolTheme.legColor ?? DEFAULT_STOOL_THEME.legColor
+          }
         );
       }
 
@@ -6850,7 +8139,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         arena.hdriResolutionKey = hdriResolutionProfile.key;
       }
 
-      if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged || qualityChanged) {
+      if (
+        paletteChanged ||
+        tokenStyleChanged ||
+        tokenPieceChanged ||
+        tableChanged ||
+        qualityChanged
+      ) {
         await refreshBoardTokens();
       }
     })();
@@ -6874,7 +8169,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+    [
+      moveSoundRef,
+      captureSoundRef,
+      missileLaunchSoundRef,
+      missileImpactSoundRef,
+      droneSoundRef,
+      fighterJetSoundRef,
+      helicopterSoundRef,
+      cheerSoundRef,
+      diceSoundRef,
+      diceRewardSoundRef,
+      sixRollSoundRef,
+      hahaSoundRef,
+      giftBombSoundRef
+    ].forEach((ref) => {
       if (ref.current) {
         ref.current.muted = !soundEnabled;
         ref.current.volume = level;
@@ -6905,16 +8214,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let onPointerUp = null;
     let onResize = null;
 
-  const setupScene = async () => {
-
+    const setupScene = async () => {
       const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
+      [
+        moveSoundRef,
+        captureSoundRef,
+        missileLaunchSoundRef,
+        missileImpactSoundRef,
+        droneSoundRef,
+        fighterJetSoundRef,
+        helicopterSoundRef,
+        cheerSoundRef,
+        diceSoundRef,
+        diceRewardSoundRef,
+        sixRollSoundRef
+      ].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = baseVolume;
         }
       });
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance'
+      });
       renderer.localClippingEnabled = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -6978,772 +8302,938 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
-      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : LANDSCAPE_CAMERA_TUNING.backOffset;
-      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : LANDSCAPE_CAMERA_TUNING.forwardOffset;
-      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : LANDSCAPE_CAMERA_TUNING.heightOffset;
+      const cameraBackOffset = isPortrait
+        ? PORTRAIT_CAMERA_TUNING.backOffset
+        : LANDSCAPE_CAMERA_TUNING.backOffset;
+      const cameraForwardOffset = isPortrait
+        ? PORTRAIT_CAMERA_TUNING.forwardOffset
+        : LANDSCAPE_CAMERA_TUNING.forwardOffset;
+      const cameraHeightOffset = isPortrait
+        ? PORTRAIT_CAMERA_TUNING.heightOffset
+        : LANDSCAPE_CAMERA_TUNING.heightOffset;
       const eyeForwardOffset = isPortrait
         ? PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT
         : PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
-      const seatForward = new THREE.Vector3(Math.cos(cameraSeatAngle), 0, Math.sin(cameraSeatAngle));
+      const seatForward = new THREE.Vector3(
+        Math.cos(cameraSeatAngle),
+        0,
+        Math.sin(cameraSeatAngle)
+      );
       camera.position.set(
-        Math.cos(cameraSeatAngle) * cameraRadius + seatForward.x * eyeForwardOffset,
+        Math.cos(cameraSeatAngle) * cameraRadius +
+          seatForward.x * eyeForwardOffset,
         TABLE_HEIGHT + cameraHeightOffset,
-        Math.sin(cameraSeatAngle) * cameraRadius + seatForward.z * eyeForwardOffset
+        Math.sin(cameraSeatAngle) * cameraRadius +
+          seatForward.z * eyeForwardOffset
       );
 
       const arenaGroup = new THREE.Group();
       scene.add(arenaGroup);
 
-    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
-    const tableTheme = MURLAN_TABLE_THEMES[initialAppearance.tables] ?? MURLAN_TABLE_THEMES[0];
-    const tableFinish = TABLE_FINISH_OPTIONS[initialAppearance.tableFinish] ?? DEFAULT_TABLE_FINISH;
-    const tableCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? DEFAULT_CLOTH_OPTION;
-    const stoolTheme = MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
-    const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
-    const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
-    const tokenPieceByPlayer = Array.from({ length: activePlayerCount }, (_, playerIndex) => {
-      if (playerIndex === 0) {
-        return TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+      const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
+      const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
+      const tableTheme =
+        MURLAN_TABLE_THEMES[initialAppearance.tables] ?? MURLAN_TABLE_THEMES[0];
+      const tableFinish =
+        TABLE_FINISH_OPTIONS[initialAppearance.tableFinish] ??
+        DEFAULT_TABLE_FINISH;
+      const tableCloth =
+        TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ??
+        DEFAULT_CLOTH_OPTION;
+      const stoolTheme =
+        MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
+      const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
+      const tokenStyleOption =
+        TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ??
+        TOKEN_STYLE_OPTIONS[0];
+      const tokenPieceByPlayer = Array.from(
+        { length: activePlayerCount },
+        (_, playerIndex) => {
+          if (playerIndex === 0) {
+            return (
+              TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ??
+              TOKEN_PIECE_OPTIONS[0]
+            );
+          }
+          const aiTokenPieceIndex =
+            aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
+          return (
+            TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0]
+          );
+        }
+      );
+      const initialPlayerColors = resolvePlayerColors(initialAppearance);
+      appearanceRef.current = initialAppearance;
+      playerColorsRef.current = initialPlayerColors;
+
+      let tableInfo = null;
+      const textureOptions = {
+        textureLoader: textureLoaderRef.current,
+        maxAnisotropy: maxAnisotropyRef.current ?? 1,
+        fallbackTexture: fallbackTextureRef.current,
+        textureCache: textureCacheRef.current,
+        preferredTextureSizes: textureResolutionStack
+      };
+
+      if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
+        try {
+          const model = await createPolyhavenInstance(
+            tableTheme.assetId,
+            TABLE_HEIGHT,
+            tableTheme.rotationY || 0,
+            renderer,
+            textureOptions
+          );
+          stripTableBase(model);
+          const tableGroup = new THREE.Group();
+          tableGroup.add(model);
+          const { surfaceY, radius } = fitTableModelToArena(
+            tableGroup,
+            tableTheme?.id
+          );
+          arenaGroup.add(tableGroup);
+          tableInfo = {
+            group: tableGroup,
+            surfaceY,
+            tableHeight: surfaceY,
+            radius,
+            dispose: () => {
+              disposeObjectResources(tableGroup);
+              if (tableGroup.parent) tableGroup.parent.remove(tableGroup);
+            },
+            materials: null,
+            shapeId: tableTheme.id,
+            rotationY: tableTheme.rotationY ?? 0,
+            themeId: tableTheme.id,
+            getOuterRadius: () => radius,
+            getInnerRadius: () => radius * 0.72
+          };
+        } catch (error) {
+          console.warn('Failed to load Poly Haven table', error);
+        }
       }
-      const aiTokenPieceIndex = aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
-      return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
-    });
-    const initialPlayerColors = resolvePlayerColors(initialAppearance);
-    appearanceRef.current = initialAppearance;
-    playerColorsRef.current = initialPlayerColors;
 
-    let tableInfo = null;
-    const textureOptions = {
-      textureLoader: textureLoaderRef.current,
-      maxAnisotropy: maxAnisotropyRef.current ?? 1,
-      fallbackTexture: fallbackTextureRef.current,
-      textureCache: textureCacheRef.current,
-      preferredTextureSizes: textureResolutionStack
-    };
-
-    if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
-      try {
-        const model = await createPolyhavenInstance(
-          tableTheme.assetId,
-          TABLE_HEIGHT,
-          tableTheme.rotationY || 0,
+      if (!tableInfo) {
+        const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
+        const clothOption = tableCloth;
+        const baseOption = DEFAULT_BASE_OPTION;
+        const procedural = createMurlanStyleTable({
+          arena: arenaGroup,
           renderer,
-          textureOptions
+          tableRadius: TABLE_RADIUS * TABLE_VISUAL_SCALE,
+          tableHeight: TABLE_HEIGHT,
+          woodOption,
+          clothOption,
+          baseOption,
+          includeBase: true
+        });
+        applyTableMaterials(
+          procedural.materials,
+          { woodOption, clothOption, baseOption },
+          renderer
         );
-        stripTableBase(model);
-        const tableGroup = new THREE.Group();
-        tableGroup.add(model);
-        const { surfaceY, radius } = fitTableModelToArena(tableGroup, tableTheme?.id);
-        arenaGroup.add(tableGroup);
         tableInfo = {
-          group: tableGroup,
-          surfaceY,
-          tableHeight: surfaceY,
-          radius,
-          dispose: () => {
-            disposeObjectResources(tableGroup);
-            if (tableGroup.parent) tableGroup.parent.remove(tableGroup);
-          },
-          materials: null,
-          shapeId: tableTheme.id,
-          rotationY: tableTheme.rotationY ?? 0,
-          themeId: tableTheme.id,
-          getOuterRadius: () => radius,
-          getInnerRadius: () => radius * 0.72
+          ...procedural,
+          themeId: tableTheme?.id || procedural.shapeId
         };
-      } catch (error) {
-        console.warn('Failed to load Poly Haven table', error);
       }
-    }
+      updateTokenSurfaceOffset(
+        tableInfo.themeId || tableTheme?.id || 'murlan-default'
+      );
 
-    if (!tableInfo) {
-      const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-      const clothOption = tableCloth;
-      const baseOption = DEFAULT_BASE_OPTION;
-      const procedural = createMurlanStyleTable({
-        arena: arenaGroup,
+      const boardGroup = new THREE.Group();
+      boardGroup.position.set(
+        0,
+        tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET,
+        0
+      );
+      applyBoardGroupScale(boardGroup, tableInfo);
+      boardGroup.rotation.y = BOARD_ROTATION_Y;
+      tableInfo.group.add(boardGroup);
+
+      const targetLift = isPortrait
+        ? PORTRAIT_CAMERA_TUNING.targetLift
+        : CAMERA_TARGET_LIFT;
+      const boardLookTarget = new THREE.Vector3(
+        0,
+        tableInfo.surfaceY +
+          targetLift +
+          0.06 * MODEL_SCALE -
+          CAMERA_LOOKDOWN_TARGET_OFFSET,
+        PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
+      );
+      boardLookTargetRef.current = boardLookTarget;
+      camera.lookAt(boardLookTarget);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.enableRotate = false;
+      controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
+      const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
+      controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
+      controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
+      controls.minPolarAngle = CAM.phiMin;
+      controls.maxPolarAngle = CAM.phiMax;
+      controls.target.copy(boardLookTarget);
+      const initialAzimuth = controls.getAzimuthalAngle();
+      controls.minAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
+        ? initialAzimuth - CAMERA_FREE_LOOK_AZIMUTH_RANGE
+        : -Infinity;
+      controls.maxAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
+        ? initialAzimuth + CAMERA_FREE_LOOK_AZIMUTH_RANGE
+        : Infinity;
+      controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
+      controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
+      controlsRef.current = controls;
+      baseCameraRadiusRef.current = initialCameraRadius;
+      syncSkyboxToCameraRef.current = () => {
+        if (!camera || !boardLookTarget) return;
+        const skybox = envSkyboxRef.current;
+        if (!skybox) return;
+        const radius = camera.position.distanceTo(boardLookTarget);
+        const baseRadius = baseCameraRadiusRef.current || radius || 1;
+        const baseScale = baseSkyboxScaleRef.current || 1;
+        const scale = clamp(radius / baseRadius, 0.35, 3.5);
+        skybox.scale.setScalar(baseScale * scale);
+        lastCameraRadiusRef.current = radius;
+        const floorY = environmentFloorRef.current ?? 0;
+        if (Number.isFinite(skybox.userData?.cameraHeight)) {
+          skybox.position.y = floorY + skybox.userData.cameraHeight;
+        }
+        skybox.position.x = boardLookTarget.x;
+        skybox.position.z = boardLookTarget.z;
+        if (Number.isFinite(skybox.userData?.rotationY)) {
+          skybox.rotation.y = skybox.userData.rotationY;
+        }
+      };
+      controls.addEventListener('change', syncSkyboxToCameraRef.current);
+
+      const fit = () => {
+        const w = host.clientWidth;
+        const h = host.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        if (baseCameraRadiusRef.current == null) {
+          baseCameraRadiusRef.current =
+            camera.position.distanceTo(boardLookTarget);
+        }
+        controls.update();
+        applyRendererQuality();
+        syncSkyboxToCameraRef.current?.();
+      };
+      fitRef.current = fit;
+      fit();
+      applyCameraViewMode(false);
+
+      const chairBuild = await buildChairTemplate(
+        stoolTheme,
         renderer,
-        tableRadius: TABLE_RADIUS * TABLE_VISUAL_SCALE,
-        tableHeight: TABLE_HEIGHT,
-        woodOption,
-        clothOption,
-        baseOption,
-        includeBase: true
-      });
-      applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
-      tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
-    }
-    updateTokenSurfaceOffset(tableInfo.themeId || tableTheme?.id || 'murlan-default');
-
-    const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
-    applyBoardGroupScale(boardGroup, tableInfo);
-    boardGroup.rotation.y = BOARD_ROTATION_Y;
-    tableInfo.group.add(boardGroup);
-
-    const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
-    const boardLookTarget = new THREE.Vector3(
-      0,
-      tableInfo.surfaceY + targetLift + 0.06 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
-      PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
-    );
-    boardLookTargetRef.current = boardLookTarget;
-    camera.lookAt(boardLookTarget);
-
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.enableRotate = false;
-    controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
-    const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-    controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
-    controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
-    controls.minPolarAngle = CAM.phiMin;
-    controls.maxPolarAngle = CAM.phiMax;
-    controls.target.copy(boardLookTarget);
-    const initialAzimuth = controls.getAzimuthalAngle();
-    controls.minAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
-      ? initialAzimuth - CAMERA_FREE_LOOK_AZIMUTH_RANGE
-      : -Infinity;
-    controls.maxAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
-      ? initialAzimuth + CAMERA_FREE_LOOK_AZIMUTH_RANGE
-      : Infinity;
-    controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
-    controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
-    controlsRef.current = controls;
-    baseCameraRadiusRef.current = initialCameraRadius;
-    syncSkyboxToCameraRef.current = () => {
-      if (!camera || !boardLookTarget) return;
-      const skybox = envSkyboxRef.current;
-      if (!skybox) return;
-      const radius = camera.position.distanceTo(boardLookTarget);
-      const baseRadius = baseCameraRadiusRef.current || radius || 1;
-      const baseScale = baseSkyboxScaleRef.current || 1;
-      const scale = clamp(radius / baseRadius, 0.35, 3.5);
-      skybox.scale.setScalar(baseScale * scale);
-      lastCameraRadiusRef.current = radius;
-      const floorY = environmentFloorRef.current ?? 0;
-      if (Number.isFinite(skybox.userData?.cameraHeight)) {
-        skybox.position.y = floorY + skybox.userData.cameraHeight;
+        textureOptions
+      );
+      if (cancelled || !chairBuild) return;
+      const chairTemplate = chairBuild.chairTemplate;
+      const chairMaterials = chairBuild.materials;
+      const preserveChairMats =
+        chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+      if (!preserveChairMats && chairMaterials) {
+        applyChairThemeMaterials({ chairMaterials }, stoolTheme);
       }
-      skybox.position.x = boardLookTarget.x;
-      skybox.position.z = boardLookTarget.z;
-      if (Number.isFinite(skybox.userData?.rotationY)) {
-        skybox.rotation.y = skybox.userData.rotationY;
-      }
-    };
-    controls.addEventListener('change', syncSkyboxToCameraRef.current);
 
-    const fit = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      if (baseCameraRadiusRef.current == null) {
-        baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+      const chairs = [];
+      for (let i = 0; i < activePlayerCount; i += 1) {
+        const fallbackAngle =
+          Math.PI / 2 -
+          HUMAN_SEAT_ROTATION_OFFSET -
+          (i / activePlayerCount) * Math.PI * 2;
+        const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
+        const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        const seatRadius =
+          AI_CHAIR_RADIUS +
+          CHAIR_GLOBAL_PUSHBACK +
+          (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+        const seatPos = forward.clone().multiplyScalar(seatRadius);
+        seatPos.y = CHAIR_BASE_HEIGHT;
+        const group = new THREE.Group();
+        group.position.copy(seatPos);
+        group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
+
+        const chairModel = chairTemplate.clone(true);
+        stabilizeChairModelRenderState(chairModel);
+        group.add(chairModel);
+        group.userData.chairModel = chairModel;
+
+        const avatarAnchor = new THREE.Object3D();
+        avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+        group.add(avatarAnchor);
+
+        arenaGroup.add(group);
+        chairs.push({ group, anchor: avatarAnchor });
       }
+      seatedHumanActorsRef.current = [];
+      try {
+        const humanTemplate = await loadSeatedHumanTemplate(renderer);
+        const baseScale =
+          (SEATED_HUMAN_TARGET_HEIGHT /
+            Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+          SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+        chairs.forEach((chair, playerIndex) => {
+          const actor = cloneSkeleton(humanTemplate);
+          actor.scale.setScalar(baseScale);
+          const seatZOffset =
+            SEATED_HUMAN_SEAT_Z_OFFSET +
+            (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+          actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
+          actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+          chair.group.add(actor);
+          const rig = saveBoneRig(actor);
+          applySeatedHumanPose(rig, 'idle', 1);
+          alignSeatedHumanFeetToGroundPlane(actor, rig);
+          const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
+          seatedHumanActorsRef.current.push({
+            playerIndex,
+            actor,
+            rig,
+            actionHelpers
+          });
+        });
+      } catch (error) {
+        console.warn(
+          'Unable to attach seated human actors for Ludo chairs',
+          error
+        );
+      }
+      controls.minDistance = CAM.minR;
+      controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
+      cameraSeatLockPositionRef.current = camera.position.clone();
+      baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
       controls.update();
-      applyRendererQuality();
-      syncSkyboxToCameraRef.current?.();
-    };
-    fitRef.current = fit;
-    fit();
-    applyCameraViewMode(false);
+      groundArenaToHdriFloor({ preserveView: true });
+      updateEnvironmentFloor();
 
-    const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
-    if (cancelled || !chairBuild) return;
-    const chairTemplate = chairBuild.chairTemplate;
-    const chairMaterials = chairBuild.materials;
-    const preserveChairMats = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
-    if (!preserveChairMats && chairMaterials) {
-      applyChairThemeMaterials({ chairMaterials }, stoolTheme);
-    }
-
-    const chairs = [];
-    for (let i = 0; i < activePlayerCount; i += 1) {
-      const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / activePlayerCount) * Math.PI * 2;
-      const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
-      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const seatRadius =
-        AI_CHAIR_RADIUS +
-        CHAIR_GLOBAL_PUSHBACK +
-        (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
-      const seatPos = forward.clone().multiplyScalar(seatRadius);
-      seatPos.y = CHAIR_BASE_HEIGHT;
-      const group = new THREE.Group();
-      group.position.copy(seatPos);
-      group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
-
-      const chairModel = chairTemplate.clone(true);
-      stabilizeChairModelRenderState(chairModel);
-      group.add(chairModel);
-      group.userData.chairModel = chairModel;
-
-      const avatarAnchor = new THREE.Object3D();
-      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
-      group.add(avatarAnchor);
-
-      arenaGroup.add(group);
-      chairs.push({ group, anchor: avatarAnchor });
-    }
-    seatedHumanActorsRef.current = [];
-    try {
-      const humanTemplate = await loadSeatedHumanTemplate(renderer);
-      const baseScale =
-        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
-      chairs.forEach((chair, playerIndex) => {
-        const actor = cloneSkeleton(humanTemplate);
-        actor.scale.setScalar(baseScale);
-        const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
-        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
-        chair.group.add(actor);
-        const rig = saveBoneRig(actor);
-        applySeatedHumanPose(rig, 'idle', 1);
-        alignSeatedHumanFeetToGroundPlane(actor, rig);
-        const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
-        seatedHumanActorsRef.current.push({ playerIndex, actor, rig, actionHelpers });
+      const boardData = await buildLudoBoard(
+        boardGroup,
+        activePlayerCount,
+        initialPlayerColors,
+        tokenStyleOption,
+        tokenPieceByPlayer
+      );
+      diceRef.current = boardData.dice;
+      turnIndicatorRef.current = boardData.turnIndicator;
+      configureDiceAnchors({
+        dice: boardData.dice,
+        boardGroup,
+        chairs,
+        tableInfo
       });
-    } catch (error) {
-      console.warn('Unable to attach seated human actors for Ludo chairs', error);
-    }
-    controls.minDistance = CAM.minR;
-    controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
-    cameraSeatLockPositionRef.current = camera.position.clone();
-    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
-    controls.update();
-    groundArenaToHdriFloor({ preserveView: true });
-    updateEnvironmentFloor();
+      moveDiceToRail(0, true);
+      updateTurnIndicator(0, true);
+      if (camera && controls) {
+        const bottomActorEntry = seatedHumanActorsRef.current?.find(
+          (entry) => entry?.playerIndex === 0
+        );
+        const faceView = applyBottomSeatFaceCameraView({
+          camera,
+          controls,
+          actorEntry: bottomActorEntry,
+          boardLookTarget,
+          saveAsInitial: true
+        });
+        initialBottomCameraViewRef.current = faceView || {
+          position: camera.position.clone(),
+          target: controls.target.clone()
+        };
+        cameraTurnStateRef.current.baseTurnView = {
+          position: initialBottomCameraViewRef.current.position.clone(),
+          target: initialBottomCameraViewRef.current.target.clone()
+        };
+      }
+      lockUserTurnSeatViewRef.current = true;
+      setCameraFocus({
+        target: resolveTurnLookTarget(0),
+        priority: 1,
+        force: true
+      });
+      setCameraViewForTurn(0, 0, { force: true });
 
-    const boardData = await buildLudoBoard(
-      boardGroup,
-      activePlayerCount,
-      initialPlayerColors,
-      tokenStyleOption,
-      tokenPieceByPlayer
-    );
-    diceRef.current = boardData.dice;
-    turnIndicatorRef.current = boardData.turnIndicator;
-    configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
-    moveDiceToRail(0, true);
-    updateTurnIndicator(0, true);
-    if (camera && controls) {
-      const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-      const faceView = applyBottomSeatFaceCameraView({
+      stateRef.current = {
+        paths: boardData.paths,
+        startPads: boardData.startPads,
+        homeColumns: boardData.homeColumns,
+        goalSlots: boardData.goalSlots,
+        tokens: boardData.tokens,
+        turnIndicator: boardData.turnIndicator,
+        trackTiles: boardData.trackTiles,
+        homeColumnTiles: boardData.homeColumnTiles,
+        progress: Array.from({ length: activePlayerCount }, () =>
+          Array(4).fill(-1)
+        ),
+        turn: 0,
+        winner: null,
+        animation: null
+      };
+
+      updateTokenStacks();
+
+      applyRailLayout();
+
+      scheduleHumanAutoRoll();
+
+      arenaRef.current = {
+        renderer,
+        scene,
         camera,
         controls,
-        actorEntry: bottomActorEntry,
+        arenaGroup,
+        tableInfo,
+        tableThemeId: tableInfo.themeId,
+        boardGroup,
         boardLookTarget,
-        saveAsInitial: true
-      });
-      initialBottomCameraViewRef.current = faceView || {
-        position: camera.position.clone(),
-        target: controls.target.clone()
+        defaultLookTarget: boardLookTarget.clone(),
+        chairTemplate,
+        chairMaterials,
+        chairThemeId: stoolTheme?.id,
+        chairThemePreserve: preserveChairMats,
+        chairs,
+        seatAnchors: chairs.map((chair) => chair.anchor),
+        textureResolutionKey,
+        hdriResolutionKey: hdriResolutionProfile.key
       };
-      cameraTurnStateRef.current.baseTurnView = {
-        position: initialBottomCameraViewRef.current.position.clone(),
-        target: initialBottomCameraViewRef.current.target.clone()
-      };
-    }
-    lockUserTurnSeatViewRef.current = true;
-    setCameraFocus({ target: resolveTurnLookTarget(0), priority: 1, force: true });
-    setCameraViewForTurn(0, 0, { force: true });
 
-    stateRef.current = {
-      paths: boardData.paths,
-      startPads: boardData.startPads,
-      homeColumns: boardData.homeColumns,
-      goalSlots: boardData.goalSlots,
-      tokens: boardData.tokens,
-      turnIndicator: boardData.turnIndicator,
-      trackTiles: boardData.trackTiles,
-      homeColumnTiles: boardData.homeColumnTiles,
-      progress: Array.from({ length: activePlayerCount }, () => Array(4).fill(-1)),
-      turn: 0,
-      winner: null,
-      animation: null
-    };
+      updateEnvironmentFloor();
+      void rebuildParkedCaptureVehicles();
+      hdriVariantRef.current = envVariant || DEFAULT_HDRI_VARIANT;
+      void applyHdriEnvironment(envVariant);
 
-    updateTokenStacks();
-
-    applyRailLayout();
-
-    scheduleHumanAutoRoll();
-
-    arenaRef.current = {
-      renderer,
-      scene,
-      camera,
-      controls,
-      arenaGroup,
-      tableInfo,
-      tableThemeId: tableInfo.themeId,
-      boardGroup,
-      boardLookTarget,
-      defaultLookTarget: boardLookTarget.clone(),
-      chairTemplate,
-      chairMaterials,
-      chairThemeId: stoolTheme?.id,
-      chairThemePreserve: preserveChairMats,
-      chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor),
-      textureResolutionKey,
-      hdriResolutionKey: hdriResolutionProfile.key
-    };
-
-    updateEnvironmentFloor();
-    void rebuildParkedCaptureVehicles();
-    hdriVariantRef.current = envVariant || DEFAULT_HDRI_VARIANT;
-    void applyHdriEnvironment(envVariant);
-
-    const attemptDiceRoll = (clientX, clientY) => {
-      const dice = diceRef.current;
-      const rollFn = rollDiceRef.current;
-      const state = stateRef.current;
-      if (
-        !dice ||
-        !rollFn ||
-        !state ||
-        state.turn !== 0 ||
-        state.winner ||
-        state.animation ||
-        dice.userData?.isRolling ||
-        humanSelectionRef.current
-      ) {
-        return false;
-      }
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
-      pointer.set(x, y);
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObject(dice, true);
-      if (hit.length) {
-        rollFn();
+      const attemptCaptureWeaponQuickSwap = (clientX, clientY) => {
+        const state = stateRef.current;
+        if (!state || state.turn !== 0 || state.winner) return false;
+        const arena = arenaRef.current;
+        if (!arena?.camera || !renderer?.domElement) return false;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        pointer.set(x, y);
+        raycaster.setFromCamera(pointer, arena.camera);
+        const clickable = [];
+        const playerEntry = parkedCaptureVehiclesRef.current.get(0);
+        if (playerEntry?.jet) clickable.push(playerEntry.jet);
+        if (playerEntry?.helicopter) clickable.push(playerEntry.helicopter);
+        if (playerEntry?.droneTruck) clickable.push(playerEntry.droneTruck);
+        if (playerEntry?.missile) clickable.push(playerEntry.missile);
+        if (playerEntry?.firearmRack) clickable.push(playerEntry.firearmRack);
+        if (!clickable.length) return false;
+        const hits = raycaster.intersectObjects(clickable, true);
+        if (!hits.length) return false;
+        setCaptureQuickSwapOpen((prev) => !prev);
         return true;
-      }
-      return false;
-    };
+      };
 
-    const attemptHumanSelection = (clientX, clientY) => {
-      const state = stateRef.current;
-      const selection = humanSelectionRef.current;
-      if (
-        !state ||
-        state.turn !== 0 ||
-        !selection ||
-        !Array.isArray(selection.options) ||
-        !selection.options.length
-      ) {
+      const attemptDiceRoll = (clientX, clientY) => {
+        const dice = diceRef.current;
+        const rollFn = rollDiceRef.current;
+        const state = stateRef.current;
+        if (
+          !dice ||
+          !rollFn ||
+          !state ||
+          state.turn !== 0 ||
+          state.winner ||
+          state.animation ||
+          dice.userData?.isRolling ||
+          humanSelectionRef.current
+        ) {
+          return false;
+        }
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        pointer.set(x, y);
+        raycaster.setFromCamera(pointer, camera);
+        const hit = raycaster.intersectObject(dice, true);
+        if (hit.length) {
+          rollFn();
+          return true;
+        }
         return false;
-      }
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
-      pointer.set(x, y);
-      raycaster.setFromCamera(pointer, camera);
-      const tokens = selection.options
-        .map((option) => state.tokens?.[0]?.[option.token])
-        .filter(Boolean);
-      if (!tokens.length) return false;
-      const hits = raycaster.intersectObjects(tokens, true);
-      if (!hits.length) return false;
-      let targetToken = null;
-      for (const hit of hits) {
-        const group = hit.object?.userData?.tokenGroup;
-        if (group && tokens.includes(group)) {
-          targetToken = group;
-          break;
+      };
+
+      const attemptHumanSelection = (clientX, clientY) => {
+        const state = stateRef.current;
+        const selection = humanSelectionRef.current;
+        if (
+          !state ||
+          state.turn !== 0 ||
+          !selection ||
+          !Array.isArray(selection.options) ||
+          !selection.options.length
+        ) {
+          return false;
         }
-      }
-      if (!targetToken) return false;
-      const option = selection.options.find(
-        (opt) => state.tokens?.[0]?.[opt.token] === targetToken
-      );
-      if (!option) return false;
-      clearHumanSelection();
-      moveToken(0, option.token, selection.roll, {
-        skipCameraFollow: selection.skipCameraFollow || option.entering
-      });
-      return true;
-    };
-    const getCameraLookTarget = () => {
-      if (!controls || !camera) return null;
-      const baseTarget = cameraTurnStateRef.current.currentTarget?.isVector3
-        ? cameraTurnStateRef.current.currentTarget
-        : controls.target;
-      const target = baseTarget.clone();
-      const toTarget = baseTarget.clone().sub(camera.position);
-      if (toTarget.lengthSq() > 1e-6 && Math.abs(cameraLookStateRef.current.yaw) > 0.0001) {
-        const horizontalLength = Math.max(
-          Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z),
-          0.001
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        pointer.set(x, y);
+        raycaster.setFromCamera(pointer, camera);
+        const tokens = selection.options
+          .map((option) => state.tokens?.[0]?.[option.token])
+          .filter(Boolean);
+        if (!tokens.length) return false;
+        const hits = raycaster.intersectObjects(tokens, true);
+        if (!hits.length) return false;
+        let targetToken = null;
+        for (const hit of hits) {
+          const group = hit.object?.userData?.tokenGroup;
+          if (group && tokens.includes(group)) {
+            targetToken = group;
+            break;
+          }
+        }
+        if (!targetToken) return false;
+        const option = selection.options.find(
+          (opt) => state.tokens?.[0]?.[opt.token] === targetToken
         );
-        const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).normalize();
-        target.addScaledVector(lateral, Math.tan(cameraLookStateRef.current.yaw) * horizontalLength);
-      }
-      if (toTarget.lengthSq() > 1e-6 && Math.abs(cameraLookStateRef.current.pitch) > 0.0001) {
-        target.y += Math.tan(cameraLookStateRef.current.pitch) * toTarget.length();
-      }
-      return target;
-    };
-    const applyCameraLookOffset = ({ recenter = false } = {}) => {
-      if (!controls || !camera || isCamera2d) return;
-      if (recenter) {
-        cameraLookStateRef.current.yaw *= 1 - CAMERA_LOOK_YAW_RECENTER_SPEED;
-        if (Math.abs(cameraLookStateRef.current.yaw) < 1e-4) {
-          cameraLookStateRef.current.yaw = 0;
+        if (!option) return false;
+        clearHumanSelection();
+        moveToken(0, option.token, selection.roll, {
+          skipCameraFollow: selection.skipCameraFollow || option.entering
+        });
+        return true;
+      };
+      const getCameraLookTarget = () => {
+        if (!controls || !camera) return null;
+        const baseTarget = cameraTurnStateRef.current.currentTarget?.isVector3
+          ? cameraTurnStateRef.current.currentTarget
+          : controls.target;
+        const target = baseTarget.clone();
+        const toTarget = baseTarget.clone().sub(camera.position);
+        if (
+          toTarget.lengthSq() > 1e-6 &&
+          Math.abs(cameraLookStateRef.current.yaw) > 0.0001
+        ) {
+          const horizontalLength = Math.max(
+            Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z),
+            0.001
+          );
+          const lateral = new THREE.Vector3(
+            -toTarget.z,
+            0,
+            toTarget.x
+          ).normalize();
+          target.addScaledVector(
+            lateral,
+            Math.tan(cameraLookStateRef.current.yaw) * horizontalLength
+          );
         }
-      }
-      const target = getCameraLookTarget();
-      if (!target) return;
-      controls.target.copy(target);
-    };
-
-    let pointerLocked = false;
-    let onPointerMove = null;
-    onPointerDown = (event) => {
-      const { clientX, clientY } = event;
-      if (clientX == null || clientY == null) return;
-      let handled = attemptHumanSelection(clientX, clientY);
-      if (!handled) {
-        handled = attemptDiceRoll(clientX, clientY);
-      }
-      if (handled) {
-        pointerLocked = true;
-        if (controls) controls.enabled = false;
-        event.preventDefault();
-        return;
-      }
-      if (
-        LUDO_CAMERA_CUSTOM_LOOK_ENABLED &&
-        !isCamera2d &&
-        controls &&
-        event.isPrimary !== false
-      ) {
-        cameraLookStateRef.current.pointerId = event.pointerId;
-        cameraLookStateRef.current.active = true;
-        cameraLookStateRef.current.lastX = clientX;
-        cameraLookStateRef.current.lastY = clientY;
-      }
-    };
-    onPointerMove = (event) => {
-      const lookState = cameraLookStateRef.current;
-      if (
-        !LUDO_CAMERA_CUSTOM_LOOK_ENABLED ||
-        isCamera2d ||
-        !lookState.active ||
-        lookState.pointerId !== event.pointerId
-      ) {
-        return;
-      }
-      const { clientX, clientY } = event;
-      if (clientX == null || clientY == null) return;
-      const deltaX = clientX - lookState.lastX;
-      const deltaY = clientY - lookState.lastY;
-      lookState.lastX = clientX;
-      lookState.lastY = clientY;
-      lookState.yaw = clamp(
-        lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
-        -CAMERA_LOOK_YAW_LIMIT,
-        CAMERA_LOOK_YAW_LIMIT
-      );
-      lookState.pitch = clamp(
-        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-        CAMERA_LOOK_MIN_PITCH,
-        CAMERA_LOOK_PITCH_LIMIT
-      );
-      applyCameraLookOffset();
-      if (stateRef.current?.turn === 0) {
-        preserveUserTurnCameraRef.current = true;
-      }
-      controls?.update();
-    };
-    onPointerUp = (event) => {
-      const lookState = cameraLookStateRef.current;
-      if (lookState.pointerId === event?.pointerId) {
-        lookState.pointerId = null;
-        lookState.active = false;
-      }
-      if (pointerLocked) {
-        pointerLocked = false;
-        if (controls) controls.enabled = true;
-      }
-    };
-    renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
-    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerup', onPointerUp, { passive: true });
-    window.addEventListener('pointercancel', onPointerUp, { passive: true });
-
-    let lastRenderTime = performance.now();
-    const animTemp = new THREE.Vector3();
-    const animDir = new THREE.Vector3();
-    const animLook = new THREE.Vector3();
-    const seatWorld = new THREE.Vector3();
-    const seatNdc = new THREE.Vector3();
-    const faceWorld = new THREE.Vector3();
-    const handContactTarget = new THREE.Vector3();
-
-    const step = () => {
-      const now = performance.now();
-      const frameTiming = frameTimingRef.current;
-      const targetFrameTime =
-        frameTiming && Number.isFinite(frameTiming.targetMs)
-          ? frameTiming.targetMs
-          : 1000 / 60;
-      const maxFrameTime =
-        frameTiming && Number.isFinite(frameTiming.maxMs)
-          ? frameTiming.maxMs
-          : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-      const deltaMs = now - lastRenderTime;
-      if (deltaMs < targetFrameTime - 0.5) {
-        animationId = requestAnimationFrame(step);
-        return;
-      }
-      const appliedDeltaMs = Math.min(deltaMs, maxFrameTime);
-      lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
-      const delta = appliedDeltaMs / 1000;
-      // Keep parked aircraft static; rotor/propeller animation only runs during active strikes.
-
-      const state = stateRef.current;
-      if (state?.animation?.active) {
-        const anim = state.animation;
-        const seg = anim.segments?.[anim.segment];
-        if (anim.highlightIndex !== anim.segment) {
-          updateAnimationHighlight(anim, anim.segment);
-          if (anim.segment > 0) {
-            playTokenStepSound();
+        if (
+          toTarget.lengthSq() > 1e-6 &&
+          Math.abs(cameraLookStateRef.current.pitch) > 0.0001
+        ) {
+          target.y +=
+            Math.tan(cameraLookStateRef.current.pitch) * toTarget.length();
+        }
+        return target;
+      };
+      const applyCameraLookOffset = ({ recenter = false } = {}) => {
+        if (!controls || !camera || isCamera2d) return;
+        if (recenter) {
+          cameraLookStateRef.current.yaw *= 1 - CAMERA_LOOK_YAW_RECENTER_SPEED;
+          if (Math.abs(cameraLookStateRef.current.yaw) < 1e-4) {
+            cameraLookStateRef.current.yaw = 0;
           }
         }
-        if (!seg) {
-          const done = anim.onComplete;
-          clearAnimationHighlights(anim);
-          state.animation = null;
-          if (typeof done === 'function') done();
-          updateTokenStacks();
-        } else {
-          anim.elapsed += delta;
-          const duration = Math.max(seg.duration, 1e-4);
-          const t = Math.min(1, anim.elapsed / duration);
-          const jumpT =
-            t <= TOKEN_STEP_JUMP_PHASE
-              ? 0
-              : (t - TOKEN_STEP_JUMP_PHASE) / Math.max(1e-4, 1 - TOKEN_STEP_JUMP_PHASE);
-          animTemp.copy(seg.from).lerp(seg.to, jumpT);
-          const jumpLift = Math.sin(jumpT * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
-          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, jumpT) + jumpLift;
-          anim.token.position.copy(animTemp);
-          animDir.copy(seg.to).sub(seg.from);
-          animDir.y = 0;
-          if (animDir.lengthSq() > 1e-6) {
-            animDir.normalize();
-            animLook.copy(anim.token.position).add(animDir);
-            anim.token.lookAt(animLook);
+        const target = getCameraLookTarget();
+        if (!target) return;
+        controls.target.copy(target);
+      };
+
+      let pointerLocked = false;
+      let onPointerMove = null;
+      onPointerDown = (event) => {
+        const { clientX, clientY } = event;
+        if (clientX == null || clientY == null) return;
+        let handled = attemptHumanSelection(clientX, clientY);
+        if (!handled) {
+          handled = attemptCaptureWeaponQuickSwap(clientX, clientY);
+        }
+        if (!handled) {
+          handled = attemptDiceRoll(clientX, clientY);
+        }
+        if (handled) {
+          pointerLocked = true;
+          if (controls) controls.enabled = false;
+          event.preventDefault();
+          return;
+        }
+        if (
+          LUDO_CAMERA_CUSTOM_LOOK_ENABLED &&
+          !isCamera2d &&
+          controls &&
+          event.isPrimary !== false
+        ) {
+          cameraLookStateRef.current.pointerId = event.pointerId;
+          cameraLookStateRef.current.active = true;
+          cameraLookStateRef.current.lastX = clientX;
+          cameraLookStateRef.current.lastY = clientY;
+        }
+      };
+      onPointerMove = (event) => {
+        const lookState = cameraLookStateRef.current;
+        if (
+          !LUDO_CAMERA_CUSTOM_LOOK_ENABLED ||
+          isCamera2d ||
+          !lookState.active ||
+          lookState.pointerId !== event.pointerId
+        ) {
+          return;
+        }
+        const { clientX, clientY } = event;
+        if (clientX == null || clientY == null) return;
+        const deltaX = clientX - lookState.lastX;
+        const deltaY = clientY - lookState.lastY;
+        lookState.lastX = clientX;
+        lookState.lastY = clientY;
+        lookState.yaw = clamp(
+          lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+          -CAMERA_LOOK_YAW_LIMIT,
+          CAMERA_LOOK_YAW_LIMIT
+        );
+        lookState.pitch = clamp(
+          lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+          CAMERA_LOOK_MIN_PITCH,
+          CAMERA_LOOK_PITCH_LIMIT
+        );
+        applyCameraLookOffset();
+        if (stateRef.current?.turn === 0) {
+          preserveUserTurnCameraRef.current = true;
+        }
+        controls?.update();
+      };
+      onPointerUp = (event) => {
+        const lookState = cameraLookStateRef.current;
+        if (lookState.pointerId === event?.pointerId) {
+          lookState.pointerId = null;
+          lookState.active = false;
+        }
+        if (pointerLocked) {
+          pointerLocked = false;
+          if (controls) controls.enabled = true;
+        }
+      };
+      renderer.domElement.addEventListener('pointerdown', onPointerDown, {
+        passive: false
+      });
+      renderer.domElement.addEventListener('pointermove', onPointerMove, {
+        passive: true
+      });
+      window.addEventListener('pointerup', onPointerUp, { passive: true });
+      window.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+      let lastRenderTime = performance.now();
+      const animTemp = new THREE.Vector3();
+      const animDir = new THREE.Vector3();
+      const animLook = new THREE.Vector3();
+      const seatWorld = new THREE.Vector3();
+      const seatNdc = new THREE.Vector3();
+      const faceWorld = new THREE.Vector3();
+      const handContactTarget = new THREE.Vector3();
+
+      const step = () => {
+        const now = performance.now();
+        const frameTiming = frameTimingRef.current;
+        const targetFrameTime =
+          frameTiming && Number.isFinite(frameTiming.targetMs)
+            ? frameTiming.targetMs
+            : 1000 / 60;
+        const maxFrameTime =
+          frameTiming && Number.isFinite(frameTiming.maxMs)
+            ? frameTiming.maxMs
+            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+        const deltaMs = now - lastRenderTime;
+        if (deltaMs < targetFrameTime - 0.5) {
+          animationId = requestAnimationFrame(step);
+          return;
+        }
+        const appliedDeltaMs = Math.min(deltaMs, maxFrameTime);
+        lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
+        const delta = appliedDeltaMs / 1000;
+        // Keep parked aircraft static; rotor/propeller animation only runs during active strikes.
+
+        const state = stateRef.current;
+        if (state?.animation?.active) {
+          const anim = state.animation;
+          const seg = anim.segments?.[anim.segment];
+          if (anim.highlightIndex !== anim.segment) {
+            updateAnimationHighlight(anim, anim.segment);
+            if (anim.segment > 0) {
+              playTokenStepSound();
+            }
           }
-          if (t >= 0.999) {
-            anim.segment += 1;
-            anim.elapsed = 0;
-            if (anim.segment >= anim.segments.length) {
-              const done = anim.onComplete;
-              clearAnimationHighlights(anim);
-              state.animation = null;
-              if (typeof done === 'function') {
-                const result = done();
-                if (result && typeof result.then === 'function') {
-                  result.finally(() => updateTokenStacks());
+          if (!seg) {
+            const done = anim.onComplete;
+            clearAnimationHighlights(anim);
+            state.animation = null;
+            if (typeof done === 'function') done();
+            updateTokenStacks();
+          } else {
+            anim.elapsed += delta;
+            const duration = Math.max(seg.duration, 1e-4);
+            const t = Math.min(1, anim.elapsed / duration);
+            const jumpT =
+              t <= TOKEN_STEP_JUMP_PHASE
+                ? 0
+                : (t - TOKEN_STEP_JUMP_PHASE) /
+                  Math.max(1e-4, 1 - TOKEN_STEP_JUMP_PHASE);
+            animTemp.copy(seg.from).lerp(seg.to, jumpT);
+            const jumpLift = Math.sin(jumpT * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
+            animTemp.y =
+              THREE.MathUtils.lerp(seg.from.y, seg.to.y, jumpT) + jumpLift;
+            anim.token.position.copy(animTemp);
+            animDir.copy(seg.to).sub(seg.from);
+            animDir.y = 0;
+            if (animDir.lengthSq() > 1e-6) {
+              animDir.normalize();
+              animLook.copy(anim.token.position).add(animDir);
+              anim.token.lookAt(animLook);
+            }
+            if (t >= 0.999) {
+              anim.segment += 1;
+              anim.elapsed = 0;
+              if (anim.segment >= anim.segments.length) {
+                const done = anim.onComplete;
+                clearAnimationHighlights(anim);
+                state.animation = null;
+                if (typeof done === 'function') {
+                  const result = done();
+                  if (result && typeof result.then === 'function') {
+                    result.finally(() => updateTokenStacks());
+                  } else {
+                    updateTokenStacks();
+                  }
                 } else {
                   updateTokenStacks();
                 }
-              } else {
-                updateTokenStacks();
               }
             }
           }
         }
-      }
 
-      const actorState = seatedHumanActionRef.current;
-      if (
-        actorState?.throwStartMs > 0 &&
-        now - actorState.throwStartMs >
-          SEATED_HUMAN_DICE_PHASES.windupMs +
-            SEATED_HUMAN_DICE_PHASES.releaseMs +
-            SEATED_HUMAN_DICE_PHASES.followMs +
-            40
-      ) {
-        actorState.throwPlayer = null;
-        actorState.throwStartMs = 0;
-      }
-      const actors = seatedHumanActorsRef.current;
-      if (Array.isArray(actors) && actors.length) {
-        actors.forEach((entry) => {
-          const { rig, playerIndex } = entry;
-          if (!rig) return;
-          const pose = resolveSeatedHumanActionPose(actorState, state, playerIndex, now);
-          const throwBias = {
-            lateral: actorState?.throwLateral ?? 0,
-            forward: actorState?.throwForward ?? 1
-          };
-          applySeatedHumanPose(
-            rig,
-            pose.mode,
-            pose.intensity,
-            pose.handGrip,
-            throwBias,
-            pose.motionTuning
-          );
-          let hasContactTarget = false;
-          const poseToHelperKey = {
-            reachDice: 'dicePickup',
-            gripDice: 'dicePickup',
-            holdDice: 'dicePickup',
-            windUp: 'diceRelease',
-            release: 'diceRelease',
-            followThrough: 'diceRelease',
-            reachToken: 'tokenPickup',
-            gripToken: 'tokenPickup',
-            carryToken: 'tokenPlace',
-            placeToken: 'tokenPlace'
-          };
-          const movingToken =
-            state?.animation?.active && state.animation.player === playerIndex
-              ? state.animation.token
-              : null;
-          if (movingToken?.isObject3D) {
-            hasContactTarget = sampleSeatedObjectContactTarget(entry, movingToken, 'token', handContactTarget);
-          }
-          if (
-            !hasContactTarget &&
-            diceRef.current?.isObject3D &&
-            (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
-          ) {
-            hasContactTarget = sampleSeatedObjectContactTarget(entry, diceRef.current, 'dice', handContactTarget);
-          }
-          if (!hasContactTarget) {
-            const helperKey = poseToHelperKey[pose.mode] || null;
-            if (helperKey && sampleSeatedActionHelper(entry, helperKey, handContactTarget)) {
-              hasContactTarget = true;
-            }
-          }
-          if (hasContactTarget) {
-            const contactWeightByMode = {
-              reachDice: 1,
-              gripDice: 1,
-              holdDice: 1,
-              reachToken: 1,
-              gripToken: 1,
-              carryToken: 1,
-              placeToken: 1,
-              windUp: 1,
-              release: 1,
-              followThrough: 1
+        const actorState = seatedHumanActionRef.current;
+        if (
+          actorState?.throwStartMs > 0 &&
+          now - actorState.throwStartMs >
+            SEATED_HUMAN_DICE_PHASES.windupMs +
+              SEATED_HUMAN_DICE_PHASES.releaseMs +
+              SEATED_HUMAN_DICE_PHASES.followMs +
+              40
+        ) {
+          actorState.throwPlayer = null;
+          actorState.throwStartMs = 0;
+        }
+        const actors = seatedHumanActorsRef.current;
+        if (Array.isArray(actors) && actors.length) {
+          actors.forEach((entry) => {
+            const { rig, playerIndex } = entry;
+            if (!rig) return;
+            const pose = resolveSeatedHumanActionPose(
+              actorState,
+              state,
+              playerIndex,
+              now
+            );
+            const throwBias = {
+              lateral: actorState?.throwLateral ?? 0,
+              forward: actorState?.throwForward ?? 1
             };
-            const contactWeight = contactWeightByMode[pose.mode] ?? 1;
-            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, 'contactEffector');
-          }
-        });
-      }
-
-      if (diceRef.current) {
-        const lights = diceRef.current.userData?.lights;
-        if (lights?.accent) {
-          const pos = diceRef.current.getWorldPosition(new THREE.Vector3());
-          lights.accent.position.copy(pos).add(lights.accent.userData.offset);
-          lights.fill.position.copy(pos).add(lights.fill.userData.offset);
-          lights.target.position.copy(pos);
-        }
-      }
-
-      const arenaState = arenaRef.current;
-      if (arenaState?.seatAnchors?.length && camera) {
-        const positions = arenaState.seatAnchors.map((anchor, index) => {
-          const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === index);
-          const faceHelper = actorEntry?.actionHelpers?.faceCamera;
-          const headBone = actorEntry?.rig?.head;
-          if (faceHelper?.isObject3D) {
-            faceHelper.updateMatrixWorld?.(true);
-            faceHelper.getWorldPosition(seatWorld);
-          } else if (headBone?.isBone) {
-            headBone.updateMatrixWorld?.(true);
-            headBone.getWorldPosition(seatWorld);
-          } else {
-            anchor.getWorldPosition(seatWorld);
-          }
-          seatNdc.copy(seatWorld).project(camera);
-          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
-          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-          if (faceHelper?.isObject3D) {
-            faceHelper.getWorldPosition(faceWorld);
-          } else if (headBone?.isBone) {
-            headBone.getWorldPosition(faceWorld);
-          } else {
-            faceWorld.copy(seatWorld);
-          }
-          const depth = camera.position.distanceTo(faceWorld);
-          return { index, x, y, depth };
-        });
-        let changed = positions.length !== seatPositionsRef.current.length;
-        if (!changed) {
-          for (let i = 0; i < positions.length; i += 1) {
-            const prev = seatPositionsRef.current[i];
-            const curr = positions[i];
+            applySeatedHumanPose(
+              rig,
+              pose.mode,
+              pose.intensity,
+              pose.handGrip,
+              throwBias,
+              pose.motionTuning
+            );
+            let hasContactTarget = false;
+            const poseToHelperKey = {
+              reachDice: 'dicePickup',
+              gripDice: 'dicePickup',
+              holdDice: 'dicePickup',
+              windUp: 'diceRelease',
+              release: 'diceRelease',
+              followThrough: 'diceRelease',
+              reachToken: 'tokenPickup',
+              gripToken: 'tokenPickup',
+              carryToken: 'tokenPlace',
+              placeToken: 'tokenPlace'
+            };
+            const movingToken =
+              state?.animation?.active && state.animation.player === playerIndex
+                ? state.animation.token
+                : null;
+            if (movingToken?.isObject3D) {
+              hasContactTarget = sampleSeatedObjectContactTarget(
+                entry,
+                movingToken,
+                'token',
+                handContactTarget
+              );
+            }
             if (
-              !prev ||
-              Math.abs(prev.x - curr.x) > 0.2 ||
-              Math.abs(prev.y - curr.y) > 0.2 ||
-              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+              !hasContactTarget &&
+              diceRef.current?.isObject3D &&
+              (actorState?.holdPlayer === playerIndex ||
+                actorState?.throwPlayer === playerIndex)
             ) {
-              changed = true;
-              break;
+              hasContactTarget = sampleSeatedObjectContactTarget(
+                entry,
+                diceRef.current,
+                'dice',
+                handContactTarget
+              );
+            }
+            if (!hasContactTarget) {
+              const helperKey = poseToHelperKey[pose.mode] || null;
+              if (
+                helperKey &&
+                sampleSeatedActionHelper(entry, helperKey, handContactTarget)
+              ) {
+                hasContactTarget = true;
+              }
+            }
+            if (hasContactTarget) {
+              const contactWeightByMode = {
+                reachDice: 1,
+                gripDice: 1,
+                holdDice: 1,
+                reachToken: 1,
+                gripToken: 1,
+                carryToken: 1,
+                placeToken: 1,
+                windUp: 1,
+                release: 1,
+                followThrough: 1
+              };
+              const contactWeight = contactWeightByMode[pose.mode] ?? 1;
+              solveSeatedRightArmContactIK(
+                entry,
+                handContactTarget,
+                contactWeight,
+                'contactEffector'
+              );
+            }
+          });
+        }
+
+        if (diceRef.current) {
+          const lights = diceRef.current.userData?.lights;
+          if (lights?.accent) {
+            const pos = diceRef.current.getWorldPosition(new THREE.Vector3());
+            lights.accent.position.copy(pos).add(lights.accent.userData.offset);
+            lights.fill.position.copy(pos).add(lights.fill.userData.offset);
+            lights.target.position.copy(pos);
+          }
+        }
+
+        const arenaState = arenaRef.current;
+        if (arenaState?.seatAnchors?.length && camera) {
+          const positions = arenaState.seatAnchors.map((anchor, index) => {
+            const actorEntry = seatedHumanActorsRef.current?.find(
+              (entry) => entry?.playerIndex === index
+            );
+            const faceHelper = actorEntry?.actionHelpers?.faceCamera;
+            const headBone = actorEntry?.rig?.head;
+            if (faceHelper?.isObject3D) {
+              faceHelper.updateMatrixWorld?.(true);
+              faceHelper.getWorldPosition(seatWorld);
+            } else if (headBone?.isBone) {
+              headBone.updateMatrixWorld?.(true);
+              headBone.getWorldPosition(seatWorld);
+            } else {
+              anchor.getWorldPosition(seatWorld);
+            }
+            seatNdc.copy(seatWorld).project(camera);
+            const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+            const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+            if (faceHelper?.isObject3D) {
+              faceHelper.getWorldPosition(faceWorld);
+            } else if (headBone?.isBone) {
+              headBone.getWorldPosition(faceWorld);
+            } else {
+              faceWorld.copy(seatWorld);
+            }
+            const depth = camera.position.distanceTo(faceWorld);
+            return { index, x, y, depth };
+          });
+          let changed = positions.length !== seatPositionsRef.current.length;
+          if (!changed) {
+            for (let i = 0; i < positions.length; i += 1) {
+              const prev = seatPositionsRef.current[i];
+              const curr = positions[i];
+              if (
+                !prev ||
+                Math.abs(prev.x - curr.x) > 0.2 ||
+                Math.abs(prev.y - curr.y) > 0.2 ||
+                Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+              ) {
+                changed = true;
+                break;
+              }
             }
           }
-        }
-        if (changed) {
-          seatPositionsRef.current = positions;
-          setSeatAnchors(positions);
-        }
-      } else if (seatPositionsRef.current.length) {
-        seatPositionsRef.current = [];
-        setSeatAnchors([]);
-      }
-
-      if (
-        !isCamera2d &&
-        cameraTurnStateRef.current.followObject?.isObject3D &&
-        controls &&
-        !LUDO_CAMERA_SEAT_LOCK_ENABLED
-      ) {
-        const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
-        const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
-        if (liftedTarget) {
-          controls.target.lerp(liftedTarget.target, 0.18);
-          if (cameraTurnStateRef.current.followOffset?.isVector3) {
-            const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
-            camera.position.lerp(followCameraTarget, 0.12);
+          if (changed) {
+            seatPositionsRef.current = positions;
+            setSeatAnchors(positions);
           }
-          cameraTurnStateRef.current.currentTarget = controls.target.clone();
+        } else if (seatPositionsRef.current.length) {
+          seatPositionsRef.current = [];
+          setSeatAnchors([]);
         }
-      }
 
-      if (!isCamera2d && controls) {
-        if (LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
-          applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
+        if (
+          !isCamera2d &&
+          cameraTurnStateRef.current.followObject?.isObject3D &&
+          controls &&
+          !LUDO_CAMERA_SEAT_LOCK_ENABLED
+        ) {
+          const followedTarget =
+            cameraTurnStateRef.current.followObject.getWorldPosition(
+              new THREE.Vector3()
+            );
+          const liftedTarget = resolveFocusCameraState(
+            followedTarget,
+            CAMERA_TARGET_LIFT + 0.02
+          );
+          if (liftedTarget) {
+            controls.target.lerp(liftedTarget.target, 0.18);
+            if (cameraTurnStateRef.current.followOffset?.isVector3) {
+              const followCameraTarget = liftedTarget.target
+                .clone()
+                .add(cameraTurnStateRef.current.followOffset);
+              camera.position.lerp(followCameraTarget, 0.12);
+            }
+            cameraTurnStateRef.current.currentTarget = controls.target.clone();
+          }
         }
-      }
-      controls?.update();
-      renderer.render(scene, camera);
+
+        if (!isCamera2d && controls) {
+          if (LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
+            applyCameraLookOffset({
+              recenter: !cameraLookStateRef.current.active
+            });
+          }
+        }
+        controls?.update();
+        renderer.render(scene, camera);
+        animationId = requestAnimationFrame(step);
+      };
       animationId = requestAnimationFrame(step);
-    };
-    animationId = requestAnimationFrame(step);
 
-    onResize = () => fit();
-    window.addEventListener('resize', onResize);
-
+      onResize = () => fit();
+      window.addEventListener('resize', onResize);
     };
 
     setupScene();
@@ -7827,8 +9317,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             entry?.parent?.remove?.(entry);
           });
         }
-        captureFxRef.current.missile?.parent?.remove?.(captureFxRef.current.missile);
-        captureFxRef.current.explosion?.parent?.remove?.(captureFxRef.current.explosion);
+        captureFxRef.current.missile?.parent?.remove?.(
+          captureFxRef.current.missile
+        );
+        captureFxRef.current.explosion?.parent?.remove?.(
+          captureFxRef.current.explosion
+        );
         captureFxRef.current = null;
       }
       parkedCaptureVehiclesRef.current.forEach((entry) => {
@@ -7876,19 +9370,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   };
 
   const playMissileLaunchSound = () => {
-    if (!settingsRef.current.soundEnabled || !missileLaunchSoundRef.current) return;
+    if (!settingsRef.current.soundEnabled || !missileLaunchSoundRef.current)
+      return;
     missileLaunchSoundRef.current.currentTime = 0;
     missileLaunchSoundRef.current.play().catch(() => {});
   };
 
   const playMissileImpactSound = () => {
-    if (!settingsRef.current.soundEnabled || !missileImpactSoundRef.current) return;
+    if (!settingsRef.current.soundEnabled || !missileImpactSoundRef.current)
+      return;
     missileImpactSoundRef.current.currentTime = 0;
     missileImpactSoundRef.current.play().catch(() => {});
   };
 
   const playHelicopterSound = () => {
-    if (!settingsRef.current.soundEnabled || !helicopterSoundRef.current) return;
+    if (!settingsRef.current.soundEnabled || !helicopterSoundRef.current)
+      return;
     helicopterSoundRef.current.currentTime = 0;
     helicopterSoundRef.current.play().catch(() => {});
   };
@@ -7900,7 +9397,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   };
 
   const playFighterJetSound = () => {
-    if (!settingsRef.current.soundEnabled || !fighterJetSoundRef.current) return;
+    if (!settingsRef.current.soundEnabled || !fighterJetSoundRef.current)
+      return;
     fighterJetSoundRef.current.currentTime = 0;
     fighterJetSoundRef.current.play().catch(() => {});
   };
@@ -7933,7 +9431,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const state = stateRef.current;
     const sourceTokens = state?.tokens?.[player] ?? [];
     const bishopToken =
-      sourceTokens.find((token) => /bishop/i.test(String(token?.userData?.tokenType ?? ''))) || fallbackToken;
+      sourceTokens.find((token) =>
+        /bishop/i.test(String(token?.userData?.tokenType ?? ''))
+      ) || fallbackToken;
     const box = new THREE.Box3().setFromObject(bishopToken || fallbackToken);
     const size = new THREE.Vector3();
     box.getSize(size);
@@ -7942,17 +9442,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return { bishopHeight, bishopWidth };
   };
 
-  const resolveTokenAnchorPoint = useCallback((token, fallbackPosition = null, yOffset = 0) => {
-    const base =
-      token?.isObject3D
+  const resolveTokenAnchorPoint = useCallback(
+    (token, fallbackPosition = null, yOffset = 0) => {
+      const base = token?.isObject3D
         ? token.getWorldPosition(new THREE.Vector3())
         : fallbackPosition?.isVector3
-        ? fallbackPosition.clone()
-        : null;
-    if (!base) return null;
-    base.y += yOffset;
-    return base;
-  }, []);
+          ? fallbackPosition.clone()
+          : null;
+      if (!base) return null;
+      base.y += yOffset;
+      return base;
+    },
+    []
+  );
 
   const resolveLiveTokenPosition = useCallback(
     ({ token, player, tokenIndex, fallbackPosition = null }) => {
@@ -7992,655 +9494,956 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const arena = arenaRef.current;
           const scene = arena?.scene;
           const tableSurfaceY = arena?.tableInfo?.surfaceY ?? 0;
-          if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
+          if (
+            !scene ||
+            !attackerToken ||
+            !startPosition?.isVector3 ||
+            !targetPosition?.isVector3
+          ) {
             resolve();
             return;
           }
 
-        const selectedCaptureAnimationId =
-          attackerPlayer > 0
-            ? CAPTURE_ANIMATION_OPTIONS[aiLoadoutByPlayer[attackerPlayer]?.captureAnimationIndex ?? 0]?.id
-            : CAPTURE_ANIMATION_OPTIONS[appearance.captureAnimation]?.id ??
-              CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation ?? 0]?.id;
-        const resolvedCaptureAnimationId =
-          selectedCaptureAnimationId ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
-        const captureTuning = resolveCaptureAttackTuning(resolvedCaptureAnimationId);
-        const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
-        const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
-        const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
-        const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
-        isMissileTruckAttack = resolvedCaptureAnimationId === 'missileJavelin';
-        parkedLaunch =
-          isFighterJetAttack
+          const rawCaptureAnimationId =
+            attackerPlayer > 0
+              ? CAPTURE_ANIMATION_OPTIONS[
+                  aiLoadoutByPlayer[attackerPlayer]?.captureAnimationIndex ?? 0
+                ]?.id
+              : (CAPTURE_ANIMATION_OPTIONS[appearance.captureAnimation]?.id ??
+                CAPTURE_ANIMATION_OPTIONS[
+                  appearanceRef.current?.captureAnimation ?? 0
+                ]?.id);
+          const resolvedCaptureAnimationId =
+            rawCaptureAnimationId ??
+            CAPTURE_ANIMATION_OPTIONS[0]?.id ??
+            'missileJavelin';
+          const runtimeCaptureAnimationId = normalizeCaptureAnimationId(
+            resolvedCaptureAnimationId
+          );
+          const captureTuning = resolveCaptureAttackTuning(
+            runtimeCaptureAnimationId
+          );
+          const isHelicopterAttack =
+            runtimeCaptureAnimationId === 'helicopterAttack';
+          const isDroneAttack = runtimeCaptureAnimationId === 'droneAttack';
+          const isFighterJetAttack =
+            runtimeCaptureAnimationId === 'fighterJetAttack';
+          const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_ID_SET.has(
+            resolvedCaptureAnimationId
+          );
+          const parkedEntry =
+            parkedCaptureVehiclesRef.current.get(attackerPlayer);
+          isMissileTruckAttack = runtimeCaptureAnimationId === 'missileJavelin';
+          parkedLaunch = isFighterJetAttack
             ? parkedEntry?.jetPark?.clone?.()
             : isHelicopterAttack
-            ? parkedEntry?.helicopterPark?.clone?.()
-            : isDroneAttack
-            ? parkedEntry?.droneTruckPark?.clone?.() ?? parkedEntry?.dronePark?.clone?.()
-            : isMissileTruckAttack
-            ? parkedEntry?.missilePark?.clone?.()
-            : null;
-        parkedVehicleToRestore =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? parkedEntry?.jet
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? parkedEntry?.helicopter
-            : resolvedCaptureAnimationId === 'droneAttack'
-            ? parkedEntry?.droneTruck ?? parkedEntry?.drone
-            : resolvedCaptureAnimationId === 'missileJavelin'
-            ? parkedEntry?.missile
-            : null;
-        parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
-        parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
-        parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
-        if (isDroneAttack) {
-          const parkedPayloads = Array.isArray(parkedEntry?.droneTruckPayloads) ? parkedEntry.droneTruckPayloads : [];
-          if (parkedPayloads.length > 0) {
-            const nextPayloadIndex = Number.isFinite(parkedEntry?.nextDronePayloadIndex)
-              ? parkedEntry.nextDronePayloadIndex
-              : 0;
-            parkedDronePayload = parkedPayloads[((nextPayloadIndex % parkedPayloads.length) + parkedPayloads.length) % parkedPayloads.length];
-            parkedEntry.nextDronePayloadIndex = (nextPayloadIndex + 1) % parkedPayloads.length;
+              ? parkedEntry?.helicopterPark?.clone?.()
+              : isDroneAttack
+                ? (parkedEntry?.droneTruckPark?.clone?.() ??
+                  parkedEntry?.dronePark?.clone?.())
+                : isMissileTruckAttack
+                  ? parkedEntry?.missilePark?.clone?.()
+                  : null;
+          parkedVehicleToRestore =
+            runtimeCaptureAnimationId === 'fighterJetAttack'
+              ? parkedEntry?.jet
+              : runtimeCaptureAnimationId === 'helicopterAttack'
+                ? parkedEntry?.helicopter
+                : runtimeCaptureAnimationId === 'droneAttack'
+                  ? (parkedEntry?.droneTruck ?? parkedEntry?.drone)
+                  : runtimeCaptureAnimationId === 'missileJavelin'
+                    ? isFirearmAttack
+                      ? (parkedEntry?.firearmRack ?? parkedEntry?.missile)
+                      : parkedEntry?.missile
+                    : null;
+          parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
+          parkedReloadMissileLocalPosition =
+            parkedEntry?.reloadMissileLocalPosition ?? null;
+          parkedReloadMissileLocalRotation =
+            parkedEntry?.reloadMissileLocalRotation ?? null;
+          if (isDroneAttack) {
+            const parkedPayloads = Array.isArray(
+              parkedEntry?.droneTruckPayloads
+            )
+              ? parkedEntry.droneTruckPayloads
+              : [];
+            if (parkedPayloads.length > 0) {
+              const nextPayloadIndex = Number.isFinite(
+                parkedEntry?.nextDronePayloadIndex
+              )
+                ? parkedEntry.nextDronePayloadIndex
+                : 0;
+              parkedDronePayload =
+                parkedPayloads[
+                  ((nextPayloadIndex % parkedPayloads.length) +
+                    parkedPayloads.length) %
+                    parkedPayloads.length
+                ];
+              parkedEntry.nextDronePayloadIndex =
+                (nextPayloadIndex + 1) % parkedPayloads.length;
+            }
           }
-        }
-        stopCaptureVehicleSounds();
-        if (isHelicopterAttack) {
-          stopFighterJetSound();
-          playHelicopterSound();
-        }
-        if (isDroneAttack) playDroneSound();
-        if (isFighterJetAttack) playFighterJetSound();
-        const primaryFx =
-          resolvedCaptureAnimationId === 'droneAttack'
-            ? await createCaptureDroneFx()
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? await createCaptureHelicopterFx()
-            : resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? await createCaptureJetFx()
-            : createCaptureMissileFx({ withTrail: true });
-        if (isFighterJetAttack || isHelicopterAttack) {
-          fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
-        }
-        const jetMissiles =
-          resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
-            ? [createCaptureMissileFx({ withTrail: true }), createCaptureMissileFx({ withTrail: true })]
-            : [];
-        const explosion = createCaptureExplosionFx();
-        scene.add(primaryFx.root);
-        jetMissiles.forEach((jetMissile) => {
-          jetMissile.root.visible = false;
-          scene.add(jetMissile.root);
-        });
-        scene.add(explosion.root);
-        captureFxRef.current = {
-          missile: primaryFx.root,
-          missiles: [primaryFx.root, ...jetMissiles.map((entry) => entry.root)],
-          explosion: explosion.root
-        };
-        playMissileLaunchSound();
+          stopCaptureVehicleSounds();
+          if (isHelicopterAttack) {
+            stopFighterJetSound();
+            playHelicopterSound();
+          }
+          if (isDroneAttack) playDroneSound();
+          if (isFighterJetAttack) playFighterJetSound();
+          const primaryFx =
+            runtimeCaptureAnimationId === 'droneAttack'
+              ? await createCaptureDroneFx()
+              : runtimeCaptureAnimationId === 'helicopterAttack'
+                ? await createCaptureHelicopterFx()
+                : runtimeCaptureAnimationId === 'fighterJetAttack'
+                  ? await createCaptureJetFx()
+                  : createCaptureMissileFx({ withTrail: true });
+          if (isFighterJetAttack || isHelicopterAttack) {
+            fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
+          }
+          const jetMissiles =
+            runtimeCaptureAnimationId === 'fighterJetAttack' ||
+            runtimeCaptureAnimationId === 'helicopterAttack'
+              ? [
+                  createCaptureMissileFx({ withTrail: true }),
+                  createCaptureMissileFx({ withTrail: true })
+                ]
+              : [];
+          const explosion = createCaptureExplosionFx();
+          scene.add(primaryFx.root);
+          jetMissiles.forEach((jetMissile) => {
+            jetMissile.root.visible = false;
+            scene.add(jetMissile.root);
+          });
+          scene.add(explosion.root);
+          captureFxRef.current = {
+            missile: primaryFx.root,
+            missiles: [
+              primaryFx.root,
+              ...jetMissiles.map((entry) => entry.root)
+            ],
+            explosion: explosion.root
+          };
+          playMissileLaunchSound();
 
-        const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
-        const missileLengthScale = (bishopHeight / 1.02) * 0.92;
-        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
-        const animationScaleFactor =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? 0.34
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? 0.24
-            : resolvedCaptureAnimationId === 'droneAttack'
-            ? 0.26
-            : 1;
-        const parkedScale =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? parkedEntry?.jet?.scale
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? parkedEntry?.helicopter?.scale
-            : resolvedCaptureAnimationId === 'droneAttack'
-            ? parkedEntry?.drone?.scale
-            : parkedEntry?.missile?.scale;
-        if (parkedScale?.isVector3) {
-          primaryFx.root.scale.copy(parkedScale);
-        } else {
-          primaryFx.root.scale.set(
-            missileLengthScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
-            missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
-            missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER
+          const { bishopHeight, bishopWidth } = getReferenceBishopSize(
+            attackerPlayer,
+            attackerToken
           );
-        }
-        if (jetMissiles.length) {
-          const jetMissileScale =
-            missileThicknessScale *
-            (isHelicopterAttack ? 0.68 : 0.78) *
-            CAPTURE_MISSILE_SIZE_MULTIPLIER;
-          jetMissiles.forEach((entry) => {
-            entry.root.scale.set(jetMissileScale, jetMissileScale, jetMissileScale);
-          });
-        }
-
-        const tokenWorldPos =
-          (isMissileTruckAttack ? null : parkedLaunch) ||
-          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
-          startPosition.clone();
-        const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
-        if (isDroneAttack && parkedDronePayload?.isObject3D) {
-          const parkedMissileWorld = new THREE.Vector3();
-          parkedDronePayload.getWorldPosition(parkedMissileWorld);
-          launchAnchor.copy(parkedMissileWorld);
-          if (Number.isFinite(tableSurfaceY)) {
-            launchAnchor.y = Math.max(launchAnchor.y, tableSurfaceY + 0.014);
-          }
-          parkedDronePayload.visible = false;
-        } else if (parkedVehicleToRestore?.isObject3D) {
-          parkedVehicleToRestore.visible = false;
-        }
-        if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) {
-          setCameraViewForTurn(0, CAMERA_BROADCAST_ANIMATION_MS, { force: true });
-        } else {
-          moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
-          setCameraFocus({
-            target: launchAnchor,
-            follow: false,
-            priority: 7,
-            ttl: 1.1,
-            offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
-            force: true
-          });
-        }
-        const resolvedImpactPoint = resolveLiveTokenPosition({
-          token: targetToken,
-          player: targetPlayer,
-          tokenIndex: targetTokenIndex,
-          fallbackPosition: impactPosition?.isVector3 === true ? impactPosition : targetPosition
-        });
-        const safeImpactPoint =
-          resolvedImpactPoint?.isVector3 === true
-            ? resolvedImpactPoint
-            : targetPosition?.clone?.() ?? launchAnchor.clone();
-        const impactAnchor = safeImpactPoint
-          .clone()
-          .add(new THREE.Vector3(0, Math.max(0.02, 0.04 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
-        const from = launchAnchor.clone();
-        const baseTravelTime =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? 2860
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? 3320
-            : resolvedCaptureAnimationId === 'droneAttack'
-            ? 1780
-            : 1780;
-        const airAttackSlowFactor =
-          resolvedCaptureAnimationId === 'fighterJetAttack' ||
-          resolvedCaptureAnimationId === 'helicopterAttack' ||
-          resolvedCaptureAnimationId === 'droneAttack'
-            ? CAPTURE_AIRCRAFT_SLOW_FACTOR
-            : 1;
-        const travelTime =
-          resolvedCaptureAnimationId === 'fighterJetAttack' ||
-          resolvedCaptureAnimationId === 'helicopterAttack'
-            ? baseTravelTime * 1.3 * airAttackSlowFactor
-            : baseTravelTime * airAttackSlowFactor;
-        const tunedTravelTime = travelTime * captureTuning.speed;
-        const explosionTime = 920;
-        const flyAwayDuration =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? 900
-            : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? 900
-            : 0;
-        const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
-        const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
-        const started = performance.now();
-        let previousTickAt = started;
-        let explosionTriggered = false;
-        let helicopterMissileImpactAt = null;
-
-        const updateExplosionRig = (elapsedSinceImpact) => {
-          if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
-            explosion.root.visible = false;
-            return;
-          }
-          explosion.root.visible = true;
-          const fireLife = clamp(1 - elapsedSinceImpact / 0.88, 0, 1);
-          const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.9 + elapsedSinceImpact * 1.75;
-          const smokeGrow = 0.82 + elapsedSinceImpact * 0.95;
-
-          explosion.flash.scale.setScalar(0.54 + elapsedSinceImpact * 1.25);
-          explosion.flash.material.opacity = clamp(fireLife * 1.08, 0, 1);
-          explosion.fire.forEach((mesh, i) => {
-            const angle = elapsedSinceImpact * 5 + i * 1.35;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.11),
-              0.09 + elapsedSinceImpact * 0.21 + i * 0.026,
-              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.1)
+          const missileLengthScale = (bishopHeight / 1.02) * 0.92;
+          const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
+          const animationScaleFactor =
+            resolvedCaptureAnimationId === 'fighterJetAttack'
+              ? 0.34
+              : resolvedCaptureAnimationId === 'helicopterAttack'
+                ? 0.24
+                : resolvedCaptureAnimationId === 'droneAttack'
+                  ? 0.26
+                  : 1;
+          const parkedScale =
+            resolvedCaptureAnimationId === 'fighterJetAttack'
+              ? parkedEntry?.jet?.scale
+              : resolvedCaptureAnimationId === 'helicopterAttack'
+                ? parkedEntry?.helicopter?.scale
+                : resolvedCaptureAnimationId === 'droneAttack'
+                  ? parkedEntry?.drone?.scale
+                  : parkedEntry?.missile?.scale;
+          if (parkedScale?.isVector3) {
+            primaryFx.root.scale.copy(parkedScale);
+          } else {
+            primaryFx.root.scale.set(
+              missileLengthScale *
+                animationScaleFactor *
+                CAPTURE_MISSILE_SIZE_MULTIPLIER,
+              missileThicknessScale *
+                animationScaleFactor *
+                CAPTURE_MISSILE_SIZE_MULTIPLIER,
+              missileThicknessScale *
+                animationScaleFactor *
+                CAPTURE_MISSILE_SIZE_MULTIPLIER
             );
-            mesh.scale.setScalar(fireGrow * (0.78 + i * 0.13));
-            mesh.material.opacity = clamp(fireLife * (1.02 - i * 0.08), 0, 1);
-          });
-          explosion.smoke.forEach((mesh, i) => {
-            const angle = i * 1.1 + elapsedSinceImpact * 1.8;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + i * 0.018),
-              0.12 + elapsedSinceImpact * (0.16 + i * 0.036),
-              Math.sin(angle) * (0.05 + i * 0.018)
-            );
-            mesh.scale.setScalar(smokeGrow * (0.66 + i * 0.12));
-            mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
-          });
-        };
+          }
+          if (jetMissiles.length) {
+            const jetMissileScale =
+              missileThicknessScale *
+              (isHelicopterAttack ? 0.68 : 0.78) *
+              CAPTURE_MISSILE_SIZE_MULTIPLIER;
+            jetMissiles.forEach((entry) => {
+              entry.root.scale.set(
+                jetMissileScale,
+                jetMissileScale,
+                jetMissileScale
+              );
+            });
+          }
 
-        const tick = () => {
-          const tickNow = performance.now();
-          const elapsed = tickNow - started;
-          const dt = clamp((tickNow - previousTickAt) / 1000, 1 / 240, 1 / 20);
-          previousTickAt = tickNow;
-          const liveFrom =
-            resolveLiveTokenPosition({
-              token: attackerToken,
-              player: attackerPlayer,
-              tokenIndex: attackerTokenIndex,
-              fallbackPosition: from
-            }) ?? from.clone();
-          const liveFromBase =
-            (isFighterJetAttack || isHelicopterAttack) && parkedLaunch?.isVector3
-              ? parkedLaunch
-              : liveFrom;
-          const liveTarget =
-            resolveLiveTokenPosition({
-              token: targetToken,
-              player: targetPlayer,
-              tokenIndex: targetTokenIndex,
-              fallbackPosition: safeImpactPoint
-            }) ?? safeImpactPoint.clone();
-          const dynamicFrom = liveFromBase.clone().add(new THREE.Vector3(0, bishopHeight * 0.5, 0));
-          const dynamicTo = liveTarget
+          const tokenWorldPos =
+            (isMissileTruckAttack ? null : parkedLaunch) ||
+            resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
+            startPosition.clone();
+          const launchAnchor = tokenWorldPos
             .clone()
-            .add(new THREE.Vector3(0, Math.max(0.024, 0.045 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
-          const arenaCenter =
-            boardLookTargetRef.current?.clone?.() ?? new THREE.Vector3(0, dynamicFrom.y, 0);
-          arenaCenter.y = dynamicFrom.y;
-          const fromOffset = dynamicFrom.clone().sub(arenaCenter).setY(0);
-          const toOffset = dynamicTo.clone().sub(arenaCenter).setY(0);
-          const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.96;
-          const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
-          const toRadius = Math.max(toOffset.length(), fallbackRadius);
-          const baseOrbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
-          const orbitalRadius = CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)
-            ? baseOrbitalRadius * CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR * captureTuning.inward
-            : baseOrbitalRadius;
-          const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
-          const toAngle = Math.atan2(toOffset.z, toOffset.x);
-          let angularDelta = toAngle - fromAngle;
-          if (angularDelta <= 0) angularDelta += Math.PI * 2;
-          if (selectedCaptureAnimationId === 'fighterJetAttack') {
-            angularDelta = Math.max(angularDelta + Math.PI * 0.6, Math.PI * 1.45);
-          } else if (angularDelta < Math.PI / 3) {
-            angularDelta += Math.PI * 2;
+            .add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
+          if (isDroneAttack && parkedDronePayload?.isObject3D) {
+            const parkedMissileWorld = new THREE.Vector3();
+            parkedDronePayload.getWorldPosition(parkedMissileWorld);
+            launchAnchor.copy(parkedMissileWorld);
+            if (Number.isFinite(tableSurfaceY)) {
+              launchAnchor.y = Math.max(launchAnchor.y, tableSurfaceY + 0.014);
+            }
+            parkedDronePayload.visible = false;
+          } else if (parkedVehicleToRestore?.isObject3D) {
+            parkedVehicleToRestore.visible = false;
           }
-          const cruiseAngle = fromAngle + angularDelta * 0.7;
-          const apexHeight =
-            selectedCaptureAnimationId === 'fighterJetAttack'
-              ? liveTarget.y + topStrikeLift.y * 0.54 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
-              : selectedCaptureAnimationId === 'helicopterAttack'
-              ? liveTarget.y + topStrikeLift.y * 0.72 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
-              : liveTarget.y + topStrikeLift.y;
-          const apex = new THREE.Vector3(
-            arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
-            apexHeight,
-            arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
-          );
-          const trackAttackCamera = (weaponPosition, targetPosition, shotProgress = 0.5) => {
-            if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
-            if (!CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) return;
-            const framing =
-              CAPTURE_ATTACK_CAMERA_FRAME[selectedCaptureAnimationId] ??
-              CAPTURE_ATTACK_CAMERA_FRAME.missileJavelin;
-            const dynamicWeight = clamp(
-              framing.focusWeight - shotProgress * 0.2,
-              framing.focusWeight - 0.18,
-              framing.focusWeight + 0.06
-            );
-            const cameraTarget = targetPosition.clone().lerp(weaponPosition, dynamicWeight);
-            cameraTarget.y += framing.targetLift;
-            const travelDir = weaponPosition.clone().sub(targetPosition).setY(0);
-            const followOffset =
-              travelDir.lengthSq() > 1e-6
-                ? travelDir.normalize().multiplyScalar(framing.followPullback).setY(framing.followLift)
-                : new THREE.Vector3(0, framing.followLift, framing.followPullback);
-            setCameraFocus({
-              object: primaryFx.root,
-              target: cameraTarget,
-              follow: true,
-              priority: 8,
-              ttl: 0,
-              offset: Math.max(0.008, (CAMERA_TARGET_LIFT - 0.012) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-              followOffset,
+          if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) {
+            setCameraViewForTurn(0, CAMERA_BROADCAST_ANIMATION_MS, {
               force: true
             });
-          };
-          const phaseSplit =
-            selectedCaptureAnimationId === 'fighterJetAttack'
-              ? 0.84
-            : selectedCaptureAnimationId === 'helicopterAttack'
-              ? 0.84
-              : selectedCaptureAnimationId === 'droneAttack'
-              ? 0.78
-              : 0.84;
-          if (elapsed < tunedTravelTime) {
-            const rawU = easeSmooth(elapsed / tunedTravelTime);
-            const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
-            const nextU = clamp(u + 0.02, 0, 1);
-            const pathAt = (v) => {
-              const t = clamp(v, 0, 1);
-              if (t < phaseSplit) {
-                const a = easeSmooth(t / phaseSplit);
-                const orbitAngle = fromAngle + angularDelta * a;
-                const ring = new THREE.Vector3(
-                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
-                  THREE.MathUtils.lerp(dynamicFrom.y, apex.y * captureTuning.height, a),
-                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
-                );
-                return dynamicFrom.clone().lerp(ring, 0.78 + a * 0.22);
-              }
-              const d = easeSmooth((t - phaseSplit) / (1 - phaseSplit));
-              if (selectedCaptureAnimationId === 'fighterJetAttack') {
-                const flyByEnd = dynamicTo
-                  .clone()
-                  .add(dynamicTo.clone().sub(arenaCenter).setY(0).normalize().multiplyScalar(orbitalRadius * 0.85))
-                  .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
-                return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
-              }
-              if (selectedCaptureAnimationId === 'helicopterAttack') {
-                const flyByEnd = dynamicTo
-                  .clone()
-                  .add(dynamicTo.clone().sub(arenaCenter).setY(0).normalize().multiplyScalar(orbitalRadius * 0.85))
-                  .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
-                return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
-              }
-              const isDroneStrike = selectedCaptureAnimationId === 'droneAttack';
-              if (isDroneStrike) {
-                return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
-              }
-              const strikeTop = new THREE.Vector3(dynamicTo.x, apex.y, dynamicTo.z);
-              if (selectedCaptureAnimationId === 'missileJavelin') {
-                return strikeTop.clone().lerp(dynamicTo, d);
-              }
-              const diveStart = new THREE.Vector3(
-                arenaCenter.x + Math.cos(fromAngle + angularDelta) * orbitalRadius,
-                apex.y,
-                arenaCenter.z + Math.sin(fromAngle + angularDelta) * orbitalRadius
-              );
-              return quadraticBezier(diveStart, apex.clone().lerp(dynamicTo, 0.36), dynamicTo, d);
-            };
-            const pos = pathAt(u);
-            const next = pathAt(nextU);
-            const dir = next.clone().sub(pos).normalize();
-            const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
-            primaryFx.root.visible = true;
-            primaryFx.root.position.copy(pos);
-            primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            trackAttackCamera(pos, dynamicTo, u);
-            const isVerticalImpactVehicle =
-              selectedCaptureAnimationId === 'missileJavelin' ||
-              selectedCaptureAnimationId === 'droneAttack';
-            if (isVerticalImpactVehicle && u > phaseSplit) {
-              primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
-            }
-            if (primaryFx.propeller) {
-              primaryFx.propeller.rotation.x += dt * 40;
-            }
-            spinHelicopterRotorAssembly(
-              {
-                helicopterRotor: primaryFx.rotor,
-                helicopterTailRotor: primaryFx.tailRotor,
-                helicopterRotorNodes: primaryFx.rotorNodes,
-                helicopterTopRotorAxis: primaryFx.topRotorAxis,
-                helicopterTailRotorAxis: primaryFx.tailRotorAxis
-              },
-              dt
+          } else {
+            moveCameraToHighestAllowedAngle(
+              launchAnchor,
+              Math.max(0.004, CAMERA_TARGET_LIFT - 0.018)
             );
-            primaryFx.trail.forEach((puff, i) => {
-              const isJetTrail = selectedCaptureAnimationId === 'fighterJetAttack';
-              if (isJetTrail) {
-                const lane = i % 2 === 0 ? -1 : 1;
-                const pairIndex = Math.floor(i / 2);
-                puff.position.set(
-                  -1.62 - pairIndex * 0.22,
-                  Math.sin(elapsed * 0.02 + i * 0.5) * 0.018,
-                  lane * 0.22 + Math.sin(elapsed * 0.012 + i * 0.4) * 0.016
-                );
-              } else {
-                puff.position.set(
-                  -0.55 - i * 0.16,
-                  Math.sin(elapsed * 0.02 + i) * 0.02,
-                  Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
-                );
-              }
-              const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
-              puff.scale.setScalar(s);
-              puff.material.opacity =
-                i < 2
-                  ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
-                  : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
+            setCameraFocus({
+              target: launchAnchor,
+              follow: false,
+              priority: 7,
+              ttl: 1.1,
+              offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
+              force: true
             });
-            if (selectedCaptureAnimationId === 'fighterJetAttack' && Array.isArray(primaryFx.exhaustTrail)) {
-              primaryFx.exhaustTrail.forEach((puff, i) => {
-                const laneIndex = i % 2;
-                const pairIndex = Math.floor(i / 2);
-                const laneSign = laneIndex === 0 ? -1 : 1;
-                const exhaustAnchors = Array.isArray(primaryFx.exhaustAnchors) ? primaryFx.exhaustAnchors : [];
-                const laneAnchor = exhaustAnchors[laneIndex] || new THREE.Vector3(-1.72, -0.04, laneSign * 0.22);
-                puff.position.set(
-                  laneAnchor.x - pairIndex * 0.24,
-                  laneAnchor.y + Math.sin(elapsed * 0.022 + i * 0.45) * 0.025,
-                  laneAnchor.z + Math.sin(elapsed * 0.013 + i * 0.33) * 0.02
-                );
-                const glowPulse = 0.82 + Math.sin(elapsed * 0.024 + i * 0.7) * 0.18;
-                const baseScale = pairIndex < 2 ? 0.86 : 1.02 + (pairIndex - 2) * 0.12;
-                puff.scale.setScalar(baseScale + glowPulse * 0.24);
-                puff.material.opacity =
-                  pairIndex < 2
-                    ? clamp(0.9 - u * 0.42 - pairIndex * 0.12, 0.25, 0.92)
-                    : clamp(0.34 - (pairIndex - 2) * 0.06 - u * 0.08, 0.06, 0.34);
-              });
-            }
-            if (
-              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
-              jetMissiles.length
-            ) {
-              const releaseStart = tunedTravelTime * 0.56;
-              const releaseEnd = tunedTravelTime * 0.96;
-              const missileTravel = Math.max(280, releaseEnd - releaseStart - 100);
-              const hitTop = dynamicTo.clone().add(new THREE.Vector3(0, Math.max(topStrikeHeight * 0.8, 0.38), 0));
-              jetMissiles.forEach((jetMissile, missileIndex) => {
-                const releaseTime = releaseStart + missileIndex * 140;
-                if (elapsed < releaseTime) {
-                  jetMissile.root.visible = false;
-                  return;
-                }
-                const missileU = clamp((elapsed - releaseTime) / missileTravel, 0, 1);
-                if (missileU <= 0 || missileU >= 1) {
-                  jetMissile.root.visible = false;
-                  return;
-                }
-                if (Math.abs(elapsed - releaseTime) < 30) {
-                  playMissileLaunchSound();
-                }
-                const sideOffset = missileIndex === 0 ? -0.045 : 0.045;
-                const launchPos = pos.clone().add(right.clone().multiplyScalar(sideOffset));
-                const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
-                missileEntry.y += topStrikeHeight * 0.12;
-                const missilePos =
-                  missileU < 0.74
-                    ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
-                    : missileEntry.clone().lerp(dynamicTo, (missileU - 0.74) / 0.26);
-                const missileNext = quadraticBezier(
-                  missileU < 0.74 ? launchPos : missileEntry,
-                  missileU < 0.74 ? missileEntry : missileEntry,
-                  dynamicTo,
-                  clamp(missileU + 0.03, 0, 1)
-                );
-                if (missileU >= 0.74) {
-                  missileNext.x = missilePos.x;
-                  missileNext.z = missilePos.z;
-                }
-                const missileDir = missileNext.clone().sub(missilePos).normalize();
-                jetMissile.root.visible = true;
-                jetMissile.root.position.copy(missilePos);
-                jetMissile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, missileDir);
-                if (
-                  selectedCaptureAnimationId === 'helicopterAttack' &&
-                  helicopterMissileImpactAt == null &&
-                  missileU >= 0.96
-                ) {
-                  helicopterMissileImpactAt = elapsed;
-                  explosion.root.position.copy(dynamicTo.clone().add(new THREE.Vector3(0, 0.02, 0)));
-                  playMissileImpactSound();
-                  playExplosionBombSound();
-                  playCapture();
-                }
-                jetMissile.trail.forEach((puff, i) => {
-                  puff.position.set(-0.5 - i * 0.14, Math.sin(elapsed * 0.024 + i + missileIndex) * 0.02, 0);
-                  puff.scale.setScalar(0.85 + i * 0.12 + missileU * 0.5);
-                });
-              });
-            }
-            if ((selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') && u > 0.88) {
-              const retreatDir = pos.clone().sub(dynamicTo).setY(0).normalize();
-              primaryFx.root.position.addScaledVector(retreatDir, (u - 0.88) * 1.5);
-            }
-            if (selectedCaptureAnimationId === 'helicopterAttack' && helicopterMissileImpactAt != null) {
-              const impactElapsed = (elapsed - helicopterMissileImpactAt) / 1000;
-              updateExplosionRig(impactElapsed);
-            } else {
-              updateExplosionRig(-1);
-            }
-            requestAnimationFrame(tick);
-            return;
           }
+          const resolvedImpactPoint = resolveLiveTokenPosition({
+            token: targetToken,
+            player: targetPlayer,
+            tokenIndex: targetTokenIndex,
+            fallbackPosition:
+              impactPosition?.isVector3 === true
+                ? impactPosition
+                : targetPosition
+          });
+          const safeImpactPoint =
+            resolvedImpactPoint?.isVector3 === true
+              ? resolvedImpactPoint
+              : (targetPosition?.clone?.() ?? launchAnchor.clone());
+          const impactAnchor = safeImpactPoint
+            .clone()
+            .add(
+              new THREE.Vector3(
+                0,
+                Math.max(0.02, 0.04 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION),
+                0
+              )
+            );
+          const from = launchAnchor.clone();
+          const baseTravelTime =
+            resolvedCaptureAnimationId === 'fighterJetAttack'
+              ? 2860
+              : resolvedCaptureAnimationId === 'helicopterAttack'
+                ? 3320
+                : resolvedCaptureAnimationId === 'droneAttack'
+                  ? 1780
+                  : 1780;
+          const airAttackSlowFactor =
+            resolvedCaptureAnimationId === 'fighterJetAttack' ||
+            resolvedCaptureAnimationId === 'helicopterAttack' ||
+            resolvedCaptureAnimationId === 'droneAttack'
+              ? CAPTURE_AIRCRAFT_SLOW_FACTOR
+              : 1;
+          const travelTime =
+            resolvedCaptureAnimationId === 'fighterJetAttack' ||
+            resolvedCaptureAnimationId === 'helicopterAttack'
+              ? baseTravelTime * 1.3 * airAttackSlowFactor
+              : baseTravelTime * airAttackSlowFactor;
+          const tunedTravelTime = travelTime * captureTuning.speed;
+          const explosionTime = 920;
+          const flyAwayDuration =
+            resolvedCaptureAnimationId === 'fighterJetAttack'
+              ? 900
+              : resolvedCaptureAnimationId === 'helicopterAttack'
+                ? 900
+                : 0;
+          const topStrikeHeight = Math.max(
+            bishopHeight * 1.55,
+            TILE_HALF_HEIGHT * 2.2
+          );
+          const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
+          const started = performance.now();
+          let previousTickAt = started;
+          let explosionTriggered = false;
+          let helicopterMissileImpactAt = null;
 
-          if (flyAwayDuration > 0 && elapsed < tunedTravelTime + flyAwayDuration) {
-            const flyAwayT = clamp((elapsed - tunedTravelTime) / flyAwayDuration, 0, 1);
-            const liveExitFrom =
+          const updateExplosionRig = (elapsedSinceImpact) => {
+            if (
+              elapsedSinceImpact < 0 ||
+              elapsedSinceImpact > explosionTime / 1000
+            ) {
+              explosion.root.visible = false;
+              return;
+            }
+            explosion.root.visible = true;
+            const fireLife = clamp(1 - elapsedSinceImpact / 0.88, 0, 1);
+            const smokeLife = clamp(
+              1 - elapsedSinceImpact / (explosionTime / 1000),
+              0,
+              1
+            );
+            const fireGrow = 0.9 + elapsedSinceImpact * 1.75;
+            const smokeGrow = 0.82 + elapsedSinceImpact * 0.95;
+
+            explosion.flash.scale.setScalar(0.54 + elapsedSinceImpact * 1.25);
+            explosion.flash.material.opacity = clamp(fireLife * 1.08, 0, 1);
+            explosion.fire.forEach((mesh, i) => {
+              const angle = elapsedSinceImpact * 5 + i * 1.35;
+              mesh.position.set(
+                Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.11),
+                0.09 + elapsedSinceImpact * 0.21 + i * 0.026,
+                Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.1)
+              );
+              mesh.scale.setScalar(fireGrow * (0.78 + i * 0.13));
+              mesh.material.opacity = clamp(fireLife * (1.02 - i * 0.08), 0, 1);
+            });
+            explosion.smoke.forEach((mesh, i) => {
+              const angle = i * 1.1 + elapsedSinceImpact * 1.8;
+              mesh.position.set(
+                Math.cos(angle) * (0.05 + i * 0.018),
+                0.12 + elapsedSinceImpact * (0.16 + i * 0.036),
+                Math.sin(angle) * (0.05 + i * 0.018)
+              );
+              mesh.scale.setScalar(smokeGrow * (0.66 + i * 0.12));
+              mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+            });
+          };
+
+          const tick = () => {
+            const tickNow = performance.now();
+            const elapsed = tickNow - started;
+            const dt = clamp(
+              (tickNow - previousTickAt) / 1000,
+              1 / 240,
+              1 / 20
+            );
+            previousTickAt = tickNow;
+            const liveFrom =
+              resolveLiveTokenPosition({
+                token: attackerToken,
+                player: attackerPlayer,
+                tokenIndex: attackerTokenIndex,
+                fallbackPosition: from
+              }) ?? from.clone();
+            const liveFromBase =
+              (isFighterJetAttack || isHelicopterAttack) &&
+              parkedLaunch?.isVector3
+                ? parkedLaunch
+                : liveFrom;
+            const liveTarget =
               resolveLiveTokenPosition({
                 token: targetToken,
                 player: targetPlayer,
                 tokenIndex: targetTokenIndex,
                 fallbackPosition: safeImpactPoint
               }) ?? safeImpactPoint.clone();
-            const flyAwayDir = liveExitFrom.clone().sub(arenaCenter).setY(0);
-            if (flyAwayDir.lengthSq() < 1e-6) {
-              flyAwayDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+            const dynamicFrom = liveFromBase
+              .clone()
+              .add(new THREE.Vector3(0, bishopHeight * 0.5, 0));
+            const dynamicTo = liveTarget
+              .clone()
+              .add(
+                new THREE.Vector3(
+                  0,
+                  Math.max(
+                    0.024,
+                    0.045 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION
+                  ),
+                  0
+                )
+              );
+            const arenaCenter =
+              boardLookTargetRef.current?.clone?.() ??
+              new THREE.Vector3(0, dynamicFrom.y, 0);
+            arenaCenter.y = dynamicFrom.y;
+            const fromOffset = dynamicFrom.clone().sub(arenaCenter).setY(0);
+            const toOffset = dynamicTo.clone().sub(arenaCenter).setY(0);
+            const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.96;
+            const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+            const toRadius = Math.max(toOffset.length(), fallbackRadius);
+            const baseOrbitalRadius = Math.max(
+              fromRadius,
+              toRadius,
+              BOARD_RADIUS * 1.02
+            );
+            const orbitalRadius = CAPTURE_AIR_ATTACK_ID_SET.has(
+              runtimeCaptureAnimationId
+            )
+              ? baseOrbitalRadius *
+                CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR *
+                captureTuning.inward
+              : baseOrbitalRadius;
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            if (runtimeCaptureAnimationId === 'fighterJetAttack') {
+              angularDelta = Math.max(
+                angularDelta + Math.PI * 0.6,
+                Math.PI * 1.45
+              );
+            } else if (angularDelta < Math.PI / 3) {
+              angularDelta += Math.PI * 2;
             }
-            flyAwayDir.normalize();
-            const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
-            const shouldLandAtPark =
-              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
-              parkedLaunch?.isVector3;
-            const parkedReturn =
-              shouldLandAtPark
-                ? parkedLaunch.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0))
-                : null;
-            const flyAwayEnd = parkedReturn
-              ? flyAwayStart
-                  .clone()
-                  .lerp(parkedReturn, easeSmooth(flyAwayT))
-                  .add(new THREE.Vector3(0, topStrikeHeight * 0.08, 0))
-              : flyAwayStart
-                  .clone()
-                  .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
-                  .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
-            const flyAwayPos = flyAwayStart.clone().lerp(flyAwayEnd, easeSmooth(flyAwayT));
-            const flyAwayNext = flyAwayStart.clone().lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
-            const flyAwayDirNow = flyAwayNext.sub(flyAwayPos).normalize();
-            primaryFx.root.visible = true;
-            primaryFx.root.position.copy(flyAwayPos);
-            primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, flyAwayDirNow);
-            trackAttackCamera(flyAwayPos, liveTarget, 1);
-            const fade = shouldLandAtPark ? clamp(1 - Math.max(0, flyAwayT - 0.86) / 0.14, 0, 1) : clamp(1 - flyAwayT * 1.1, 0, 1);
-            primaryFx.root.traverse((node) => {
-              if (!node?.isMesh) return;
-              const mats = Array.isArray(node.material) ? node.material : [node.material];
-              mats.forEach((mat) => {
-                if (!mat) return;
-                mat.transparent = true;
-                mat.opacity = fade;
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
+            const apexHeight =
+              runtimeCaptureAnimationId === 'fighterJetAttack'
+                ? liveTarget.y +
+                  topStrikeLift.y * 0.54 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
+                : runtimeCaptureAnimationId === 'helicopterAttack'
+                  ? liveTarget.y +
+                    topStrikeLift.y * 0.72 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
+                  : liveTarget.y + topStrikeLift.y;
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              apexHeight,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
+            const trackAttackCamera = (
+              weaponPosition,
+              targetPosition,
+              shotProgress = 0.5
+            ) => {
+              if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
+              if (!CAPTURE_AIR_ATTACK_ID_SET.has(runtimeCaptureAnimationId))
+                return;
+              const framing =
+                CAPTURE_ATTACK_CAMERA_FRAME[runtimeCaptureAnimationId] ??
+                CAPTURE_ATTACK_CAMERA_FRAME.missileJavelin;
+              const dynamicWeight = clamp(
+                framing.focusWeight - shotProgress * 0.2,
+                framing.focusWeight - 0.18,
+                framing.focusWeight + 0.06
+              );
+              const cameraTarget = targetPosition
+                .clone()
+                .lerp(weaponPosition, dynamicWeight);
+              cameraTarget.y += framing.targetLift;
+              const travelDir = weaponPosition
+                .clone()
+                .sub(targetPosition)
+                .setY(0);
+              const followOffset =
+                travelDir.lengthSq() > 1e-6
+                  ? travelDir
+                      .normalize()
+                      .multiplyScalar(framing.followPullback)
+                      .setY(framing.followLift)
+                  : new THREE.Vector3(
+                      0,
+                      framing.followLift,
+                      framing.followPullback
+                    );
+              setCameraFocus({
+                object: primaryFx.root,
+                target: cameraTarget,
+                follow: true,
+                priority: 8,
+                ttl: 0,
+                offset: Math.max(
+                  0.008,
+                  (CAMERA_TARGET_LIFT - 0.012) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR
+                ),
+                followOffset,
+                force: true
               });
-            });
-            if (shouldLandAtPark && parkedLaunch) {
-              const landingBlend = clamp((flyAwayT - 0.72) / 0.28, 0, 1);
-              const landed = parkedLaunch.clone();
-              landed.y = tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
-              primaryFx.root.position.lerp(landed, easeSmooth(landingBlend));
+            };
+            const phaseSplit =
+              runtimeCaptureAnimationId === 'fighterJetAttack'
+                ? 0.84
+                : runtimeCaptureAnimationId === 'helicopterAttack'
+                  ? 0.84
+                  : runtimeCaptureAnimationId === 'droneAttack'
+                    ? 0.78
+                    : 0.84;
+            if (elapsed < tunedTravelTime) {
+              const rawU = easeSmooth(elapsed / tunedTravelTime);
+              const u = remapTakeoffLandingProgress(
+                rawU,
+                captureTuning.takeoff,
+                captureTuning.landing
+              );
+              const nextU = clamp(u + 0.02, 0, 1);
+              const pathAt = (v) => {
+                const t = clamp(v, 0, 1);
+                if (t < phaseSplit) {
+                  const a = easeSmooth(t / phaseSplit);
+                  const orbitAngle = fromAngle + angularDelta * a;
+                  const ring = new THREE.Vector3(
+                    arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                    THREE.MathUtils.lerp(
+                      dynamicFrom.y,
+                      apex.y * captureTuning.height,
+                      a
+                    ),
+                    arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                  );
+                  return dynamicFrom.clone().lerp(ring, 0.78 + a * 0.22);
+                }
+                const d = easeSmooth((t - phaseSplit) / (1 - phaseSplit));
+                if (runtimeCaptureAnimationId === 'fighterJetAttack') {
+                  const flyByEnd = dynamicTo
+                    .clone()
+                    .add(
+                      dynamicTo
+                        .clone()
+                        .sub(arenaCenter)
+                        .setY(0)
+                        .normalize()
+                        .multiplyScalar(orbitalRadius * 0.85)
+                    )
+                    .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
+                  return quadraticBezier(
+                    apex,
+                    apex.clone().lerp(flyByEnd, 0.5),
+                    flyByEnd,
+                    d
+                  );
+                }
+                if (runtimeCaptureAnimationId === 'helicopterAttack') {
+                  const flyByEnd = dynamicTo
+                    .clone()
+                    .add(
+                      dynamicTo
+                        .clone()
+                        .sub(arenaCenter)
+                        .setY(0)
+                        .normalize()
+                        .multiplyScalar(orbitalRadius * 0.85)
+                    )
+                    .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
+                  return quadraticBezier(
+                    apex,
+                    apex.clone().lerp(flyByEnd, 0.5),
+                    flyByEnd,
+                    d
+                  );
+                }
+                const isDroneStrike =
+                  runtimeCaptureAnimationId === 'droneAttack';
+                if (isDroneStrike) {
+                  return quadraticBezier(
+                    apex,
+                    apex.clone().lerp(dynamicTo, 0.46),
+                    dynamicTo,
+                    d
+                  );
+                }
+                const strikeTop = new THREE.Vector3(
+                  dynamicTo.x,
+                  apex.y,
+                  dynamicTo.z
+                );
+                if (runtimeCaptureAnimationId === 'missileJavelin') {
+                  return strikeTop.clone().lerp(dynamicTo, d);
+                }
+                const diveStart = new THREE.Vector3(
+                  arenaCenter.x +
+                    Math.cos(fromAngle + angularDelta) * orbitalRadius,
+                  apex.y,
+                  arenaCenter.z +
+                    Math.sin(fromAngle + angularDelta) * orbitalRadius
+                );
+                return quadraticBezier(
+                  diveStart,
+                  apex.clone().lerp(dynamicTo, 0.36),
+                  dynamicTo,
+                  d
+                );
+              };
+              const pos = pathAt(u);
+              const next = pathAt(nextU);
+              const dir = next.clone().sub(pos).normalize();
+              const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
+              primaryFx.root.visible = true;
+              primaryFx.root.position.copy(pos);
+              primaryFx.root.quaternion.setFromUnitVectors(
+                MISSILE_FORWARD,
+                dir
+              );
+              trackAttackCamera(pos, dynamicTo, u);
+              const isVerticalImpactVehicle =
+                runtimeCaptureAnimationId === 'missileJavelin' ||
+                runtimeCaptureAnimationId === 'droneAttack';
+              if (isVerticalImpactVehicle && u > phaseSplit) {
+                primaryFx.root.quaternion.setFromUnitVectors(
+                  MISSILE_FORWARD,
+                  new THREE.Vector3(0, -1, 0)
+                );
+              }
+              if (primaryFx.propeller) {
+                primaryFx.propeller.rotation.x += dt * 40;
+              }
+              spinHelicopterRotorAssembly(
+                {
+                  helicopterRotor: primaryFx.rotor,
+                  helicopterTailRotor: primaryFx.tailRotor,
+                  helicopterRotorNodes: primaryFx.rotorNodes,
+                  helicopterTopRotorAxis: primaryFx.topRotorAxis,
+                  helicopterTailRotorAxis: primaryFx.tailRotorAxis
+                },
+                dt
+              );
+              primaryFx.trail.forEach((puff, i) => {
+                const isJetTrail =
+                  runtimeCaptureAnimationId === 'fighterJetAttack';
+                if (isJetTrail) {
+                  const lane = i % 2 === 0 ? -1 : 1;
+                  const pairIndex = Math.floor(i / 2);
+                  puff.position.set(
+                    -1.62 - pairIndex * 0.22,
+                    Math.sin(elapsed * 0.02 + i * 0.5) * 0.018,
+                    lane * 0.22 + Math.sin(elapsed * 0.012 + i * 0.4) * 0.016
+                  );
+                } else {
+                  puff.position.set(
+                    -0.55 - i * 0.16,
+                    Math.sin(elapsed * 0.02 + i) * 0.02,
+                    Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
+                  );
+                }
+                const s =
+                  0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
+                puff.scale.setScalar(s);
+                puff.material.opacity =
+                  i < 2
+                    ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
+                    : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
+              });
+              if (
+                runtimeCaptureAnimationId === 'fighterJetAttack' &&
+                Array.isArray(primaryFx.exhaustTrail)
+              ) {
+                primaryFx.exhaustTrail.forEach((puff, i) => {
+                  const laneIndex = i % 2;
+                  const pairIndex = Math.floor(i / 2);
+                  const laneSign = laneIndex === 0 ? -1 : 1;
+                  const exhaustAnchors = Array.isArray(primaryFx.exhaustAnchors)
+                    ? primaryFx.exhaustAnchors
+                    : [];
+                  const laneAnchor =
+                    exhaustAnchors[laneIndex] ||
+                    new THREE.Vector3(-1.72, -0.04, laneSign * 0.22);
+                  puff.position.set(
+                    laneAnchor.x - pairIndex * 0.24,
+                    laneAnchor.y + Math.sin(elapsed * 0.022 + i * 0.45) * 0.025,
+                    laneAnchor.z + Math.sin(elapsed * 0.013 + i * 0.33) * 0.02
+                  );
+                  const glowPulse =
+                    0.82 + Math.sin(elapsed * 0.024 + i * 0.7) * 0.18;
+                  const baseScale =
+                    pairIndex < 2 ? 0.86 : 1.02 + (pairIndex - 2) * 0.12;
+                  puff.scale.setScalar(baseScale + glowPulse * 0.24);
+                  puff.material.opacity =
+                    pairIndex < 2
+                      ? clamp(0.9 - u * 0.42 - pairIndex * 0.12, 0.25, 0.92)
+                      : clamp(
+                          0.34 - (pairIndex - 2) * 0.06 - u * 0.08,
+                          0.06,
+                          0.34
+                        );
+                });
+              }
+              if (
+                (runtimeCaptureAnimationId === 'fighterJetAttack' ||
+                  runtimeCaptureAnimationId === 'helicopterAttack') &&
+                jetMissiles.length
+              ) {
+                const releaseStart = tunedTravelTime * 0.56;
+                const releaseEnd = tunedTravelTime * 0.96;
+                const missileTravel = Math.max(
+                  280,
+                  releaseEnd - releaseStart - 100
+                );
+                const hitTop = dynamicTo
+                  .clone()
+                  .add(
+                    new THREE.Vector3(
+                      0,
+                      Math.max(topStrikeHeight * 0.8, 0.38),
+                      0
+                    )
+                  );
+                jetMissiles.forEach((jetMissile, missileIndex) => {
+                  const releaseTime = releaseStart + missileIndex * 140;
+                  if (elapsed < releaseTime) {
+                    jetMissile.root.visible = false;
+                    return;
+                  }
+                  const missileU = clamp(
+                    (elapsed - releaseTime) / missileTravel,
+                    0,
+                    1
+                  );
+                  if (missileU <= 0 || missileU >= 1) {
+                    jetMissile.root.visible = false;
+                    return;
+                  }
+                  if (Math.abs(elapsed - releaseTime) < 30) {
+                    playMissileLaunchSound();
+                  }
+                  const sideOffset = missileIndex === 0 ? -0.045 : 0.045;
+                  const launchPos = pos
+                    .clone()
+                    .add(right.clone().multiplyScalar(sideOffset));
+                  const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
+                  missileEntry.y += topStrikeHeight * 0.12;
+                  const missilePos =
+                    missileU < 0.74
+                      ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
+                      : missileEntry
+                          .clone()
+                          .lerp(dynamicTo, (missileU - 0.74) / 0.26);
+                  const missileNext = quadraticBezier(
+                    missileU < 0.74 ? launchPos : missileEntry,
+                    missileU < 0.74 ? missileEntry : missileEntry,
+                    dynamicTo,
+                    clamp(missileU + 0.03, 0, 1)
+                  );
+                  if (missileU >= 0.74) {
+                    missileNext.x = missilePos.x;
+                    missileNext.z = missilePos.z;
+                  }
+                  const missileDir = missileNext
+                    .clone()
+                    .sub(missilePos)
+                    .normalize();
+                  jetMissile.root.visible = true;
+                  jetMissile.root.position.copy(missilePos);
+                  jetMissile.root.quaternion.setFromUnitVectors(
+                    MISSILE_FORWARD,
+                    missileDir
+                  );
+                  if (
+                    runtimeCaptureAnimationId === 'helicopterAttack' &&
+                    helicopterMissileImpactAt == null &&
+                    missileU >= 0.96
+                  ) {
+                    helicopterMissileImpactAt = elapsed;
+                    explosion.root.position.copy(
+                      dynamicTo.clone().add(new THREE.Vector3(0, 0.02, 0))
+                    );
+                    playMissileImpactSound();
+                    playExplosionBombSound();
+                    playCapture();
+                  }
+                  jetMissile.trail.forEach((puff, i) => {
+                    puff.position.set(
+                      -0.5 - i * 0.14,
+                      Math.sin(elapsed * 0.024 + i + missileIndex) * 0.02,
+                      0
+                    );
+                    puff.scale.setScalar(0.85 + i * 0.12 + missileU * 0.5);
+                  });
+                });
+              }
+              if (
+                (runtimeCaptureAnimationId === 'fighterJetAttack' ||
+                  runtimeCaptureAnimationId === 'helicopterAttack') &&
+                u > 0.88
+              ) {
+                const retreatDir = pos
+                  .clone()
+                  .sub(dynamicTo)
+                  .setY(0)
+                  .normalize();
+                primaryFx.root.position.addScaledVector(
+                  retreatDir,
+                  (u - 0.88) * 1.5
+                );
+              }
+              if (
+                runtimeCaptureAnimationId === 'helicopterAttack' &&
+                helicopterMissileImpactAt != null
+              ) {
+                const impactElapsed =
+                  (elapsed - helicopterMissileImpactAt) / 1000;
+                updateExplosionRig(impactElapsed);
+              } else {
+                updateExplosionRig(-1);
+              }
+              requestAnimationFrame(tick);
+              return;
             }
-          } else {
-            primaryFx.root.visible = false;
-          }
-          jetMissiles.forEach((entry) => {
-            entry.root.visible = false;
-          });
-          const useHelicopterMissileImpact =
-            selectedCaptureAnimationId === 'helicopterAttack' && helicopterMissileImpactAt != null;
-          const explosionElapsed = useHelicopterMissileImpact
-            ? (elapsed - helicopterMissileImpactAt) / 1000
-            : (elapsed - tunedTravelTime) / 1000;
-          if (!useHelicopterMissileImpact) {
-            explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0)));
-            updateExplosionRig(explosionElapsed);
-            if (!explosionTriggered) {
-              explosionTriggered = true;
-              playMissileImpactSound();
-              playExplosionBombSound();
-              playCapture();
-            }
-          } else {
-            updateExplosionRig(explosionElapsed);
-          }
-          if (
-            elapsed < tunedTravelTime + Math.max(explosionTime, flyAwayDuration) ||
-            (useHelicopterMissileImpact && explosionElapsed < explosionTime / 1000)
-          ) {
-            requestAnimationFrame(tick);
-            return;
-          }
 
-          stopCaptureVehicleSounds();
-          if (parkedVehicleToRestore?.isObject3D && parkedLaunch?.isVector3) {
-            parkedVehicleToRestore.visible = true;
-            parkedVehicleToRestore.position.copy(parkedLaunch);
-            parkedVehicleToRestore.position.y = tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
-            orientCaptureVehicleTowardBoardCenter(parkedVehicleToRestore, boardLookTargetRef.current ?? new THREE.Vector3());
-          }
-          if (isDroneAttack && parkedDronePayload?.isObject3D) {
-            if (parkedDronePayload?.isObject3D) {
-              parkedDronePayload.visible = true;
+            if (
+              flyAwayDuration > 0 &&
+              elapsed < tunedTravelTime + flyAwayDuration
+            ) {
+              const flyAwayT = clamp(
+                (elapsed - tunedTravelTime) / flyAwayDuration,
+                0,
+                1
+              );
+              const liveExitFrom =
+                resolveLiveTokenPosition({
+                  token: targetToken,
+                  player: targetPlayer,
+                  tokenIndex: targetTokenIndex,
+                  fallbackPosition: safeImpactPoint
+                }) ?? safeImpactPoint.clone();
+              const flyAwayDir = liveExitFrom.clone().sub(arenaCenter).setY(0);
+              if (flyAwayDir.lengthSq() < 1e-6) {
+                flyAwayDir.set(
+                  Math.cos(fromAngle + angularDelta),
+                  0,
+                  Math.sin(fromAngle + angularDelta)
+                );
+              }
+              flyAwayDir.normalize();
+              const flyAwayStart = liveExitFrom
+                .clone()
+                .add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
+              const shouldLandAtPark =
+                (runtimeCaptureAnimationId === 'fighterJetAttack' ||
+                  runtimeCaptureAnimationId === 'helicopterAttack') &&
+                parkedLaunch?.isVector3;
+              const parkedReturn = shouldLandAtPark
+                ? parkedLaunch
+                    .clone()
+                    .add(new THREE.Vector3(0, bishopHeight * 0.52, 0))
+                : null;
+              const flyAwayEnd = parkedReturn
+                ? flyAwayStart
+                    .clone()
+                    .lerp(parkedReturn, easeSmooth(flyAwayT))
+                    .add(new THREE.Vector3(0, topStrikeHeight * 0.08, 0))
+                : flyAwayStart
+                    .clone()
+                    .add(
+                      flyAwayDir.multiplyScalar(
+                        orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)
+                      )
+                    )
+                    .add(
+                      new THREE.Vector3(
+                        0,
+                        topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08),
+                        0
+                      )
+                    );
+              const flyAwayPos = flyAwayStart
+                .clone()
+                .lerp(flyAwayEnd, easeSmooth(flyAwayT));
+              const flyAwayNext = flyAwayStart
+                .clone()
+                .lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
+              const flyAwayDirNow = flyAwayNext.sub(flyAwayPos).normalize();
+              primaryFx.root.visible = true;
+              primaryFx.root.position.copy(flyAwayPos);
+              primaryFx.root.quaternion.setFromUnitVectors(
+                MISSILE_FORWARD,
+                flyAwayDirNow
+              );
+              trackAttackCamera(flyAwayPos, liveTarget, 1);
+              const fade = shouldLandAtPark
+                ? clamp(1 - Math.max(0, flyAwayT - 0.86) / 0.14, 0, 1)
+                : clamp(1 - flyAwayT * 1.1, 0, 1);
+              primaryFx.root.traverse((node) => {
+                if (!node?.isMesh) return;
+                const mats = Array.isArray(node.material)
+                  ? node.material
+                  : [node.material];
+                mats.forEach((mat) => {
+                  if (!mat) return;
+                  mat.transparent = true;
+                  mat.opacity = fade;
+                });
+              });
+              if (shouldLandAtPark && parkedLaunch) {
+                const landingBlend = clamp((flyAwayT - 0.72) / 0.28, 0, 1);
+                const landed = parkedLaunch.clone();
+                landed.y = tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
+                primaryFx.root.position.lerp(landed, easeSmooth(landingBlend));
+              }
+            } else {
+              primaryFx.root.visible = false;
             }
-          }
-          if (isMissileTruckAttack && parkedReloadMissile?.isObject3D) {
-            if (parkedReloadMissileLocalPosition?.isVector3) {
-              parkedReloadMissile.position.copy(parkedReloadMissileLocalPosition);
+            jetMissiles.forEach((entry) => {
+              entry.root.visible = false;
+            });
+            const useHelicopterMissileImpact =
+              runtimeCaptureAnimationId === 'helicopterAttack' &&
+              helicopterMissileImpactAt != null;
+            const explosionElapsed = useHelicopterMissileImpact
+              ? (elapsed - helicopterMissileImpactAt) / 1000
+              : (elapsed - tunedTravelTime) / 1000;
+            if (!useHelicopterMissileImpact) {
+              explosion.root.position.copy(
+                liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0))
+              );
+              updateExplosionRig(explosionElapsed);
+              if (!explosionTriggered) {
+                explosionTriggered = true;
+                playMissileImpactSound();
+                playExplosionBombSound();
+                playCapture();
+              }
+            } else {
+              updateExplosionRig(explosionElapsed);
             }
-            if (parkedReloadMissileLocalRotation) {
-              parkedReloadMissile.rotation.set(
-                parkedReloadMissileLocalRotation.x,
-                parkedReloadMissileLocalRotation.y,
-                parkedReloadMissileLocalRotation.z
+            if (
+              elapsed <
+                tunedTravelTime + Math.max(explosionTime, flyAwayDuration) ||
+              (useHelicopterMissileImpact &&
+                explosionElapsed < explosionTime / 1000)
+            ) {
+              requestAnimationFrame(tick);
+              return;
+            }
+
+            stopCaptureVehicleSounds();
+            if (parkedVehicleToRestore?.isObject3D && parkedLaunch?.isVector3) {
+              parkedVehicleToRestore.visible = true;
+              parkedVehicleToRestore.position.copy(parkedLaunch);
+              parkedVehicleToRestore.position.y =
+                tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
+              orientCaptureVehicleTowardBoardCenter(
+                parkedVehicleToRestore,
+                boardLookTargetRef.current ?? new THREE.Vector3()
               );
             }
-            parkedReloadMissile.visible = true;
-          }
-          if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
-          jetMissiles.forEach((entry) => {
-            if (entry.root.parent) entry.root.parent.remove(entry.root);
-          });
-          if (explosion.root.parent) explosion.root.parent.remove(explosion.root);
-          captureFxRef.current = null;
-          resolve();
-        };
+            if (isDroneAttack && parkedDronePayload?.isObject3D) {
+              if (parkedDronePayload?.isObject3D) {
+                parkedDronePayload.visible = true;
+              }
+            }
+            if (isMissileTruckAttack && parkedReloadMissile?.isObject3D) {
+              if (parkedReloadMissileLocalPosition?.isVector3) {
+                parkedReloadMissile.position.copy(
+                  parkedReloadMissileLocalPosition
+                );
+              }
+              if (parkedReloadMissileLocalRotation) {
+                parkedReloadMissile.rotation.set(
+                  parkedReloadMissileLocalRotation.x,
+                  parkedReloadMissileLocalRotation.y,
+                  parkedReloadMissileLocalRotation.z
+                );
+              }
+              parkedReloadMissile.visible = true;
+            }
+            if (primaryFx.root.parent)
+              primaryFx.root.parent.remove(primaryFx.root);
+            jetMissiles.forEach((entry) => {
+              if (entry.root.parent) entry.root.parent.remove(entry.root);
+            });
+            if (explosion.root.parent)
+              explosion.root.parent.remove(explosion.root);
+            captureFxRef.current = null;
+            resolve();
+          };
           requestAnimationFrame(tick);
         } catch (error) {
           stopCaptureVehicleSounds();
-          if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = true;
+          if (parkedVehicleToRestore?.isObject3D)
+            parkedVehicleToRestore.visible = true;
           if (isDroneAttack && parkedDronePayload?.isObject3D) {
             if (parkedDronePayload?.isObject3D) {
               parkedDronePayload.visible = true;
@@ -8648,7 +10451,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           if (isMissileTruckAttack && parkedReloadMissile?.isObject3D) {
             if (parkedReloadMissileLocalPosition?.isVector3) {
-              parkedReloadMissile.position.copy(parkedReloadMissileLocalPosition);
+              parkedReloadMissile.position.copy(
+                parkedReloadMissileLocalPosition
+              );
             }
             if (parkedReloadMissileLocalRotation) {
               parkedReloadMissile.rotation.set(
@@ -8718,260 +10523,328 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   }, []);
 
-  const animateCameraPose = useCallback((toTarget, toPosition = null, duration = 300) => {
-    const resolvedDuration = resolveFrameSyncedDuration(duration, { min: 220, max: 1200 });
-    const controls = controlsRef.current;
-    const camera = cameraRef.current;
-    if (!controls || !camera || !toTarget) return;
-    const fromPosition = camera.position.clone();
-    const lockedSeatPosition = cameraSeatLockPositionRef.current?.isVector3
-      ? cameraSeatLockPositionRef.current
-      : null;
-    const destinationPosition =
-      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition
-        ? lockedSeatPosition.clone()
-        : toPosition?.isVector3
-          ? toPosition.clone()
-          : camera.position.clone();
-    if (!cameraTurnStateRef.current.currentTarget) {
-      cameraTurnStateRef.current.currentTarget = controls.target.clone();
-    }
-    const fromTarget = cameraTurnStateRef.current.currentTarget.clone();
-    const destination = toTarget.clone();
-    if (cameraFocusFrameRef.current) {
-      cancelAnimationFrame(cameraFocusFrameRef.current);
-      cameraFocusFrameRef.current = 0;
-    }
-    if (resolvedDuration <= 0) {
-      controls.target.copy(destination);
-      cameraTurnStateRef.current.currentTarget.copy(destination);
-      camera.position.copy(destinationPosition);
-      controls.update();
-      return;
-    }
-    const started = performance.now();
-    const step = () => {
-      const now = performance.now();
-      const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
-      const eased = easeSmooth(t);
-      controls.target.copy(fromTarget).lerp(destination, eased);
-      camera.position.copy(fromPosition).lerp(destinationPosition, eased);
-      cameraTurnStateRef.current.currentTarget.copy(controls.target);
-      controls.update();
-      if (t < 1) {
-        cameraFocusFrameRef.current = requestAnimationFrame(step);
-      } else {
+  const animateCameraPose = useCallback(
+    (toTarget, toPosition = null, duration = 300) => {
+      const resolvedDuration = resolveFrameSyncedDuration(duration, {
+        min: 220,
+        max: 1200
+      });
+      const controls = controlsRef.current;
+      const camera = cameraRef.current;
+      if (!controls || !camera || !toTarget) return;
+      const fromPosition = camera.position.clone();
+      const lockedSeatPosition = cameraSeatLockPositionRef.current?.isVector3
+        ? cameraSeatLockPositionRef.current
+        : null;
+      const destinationPosition =
+        LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition
+          ? lockedSeatPosition.clone()
+          : toPosition?.isVector3
+            ? toPosition.clone()
+            : camera.position.clone();
+      if (!cameraTurnStateRef.current.currentTarget) {
+        cameraTurnStateRef.current.currentTarget = controls.target.clone();
+      }
+      const fromTarget = cameraTurnStateRef.current.currentTarget.clone();
+      const destination = toTarget.clone();
+      if (cameraFocusFrameRef.current) {
+        cancelAnimationFrame(cameraFocusFrameRef.current);
         cameraFocusFrameRef.current = 0;
       }
-    };
-    cameraFocusFrameRef.current = requestAnimationFrame(step);
-  }, [resolveFrameSyncedDuration]);
-
-  const resolveTurnCameraState = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
-    const arena = arenaRef.current;
-    const camera = cameraRef.current;
-    if (!arena?.boardLookTarget || !camera) return null;
-    const anchors = Array.isArray(arena.seatAnchors) ? arena.seatAnchors : [];
-    const seatIndex = Number.isInteger(player) ? player : Number(player);
-    if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
-    const anchor = anchors[seatIndex];
-    if (!anchor) return null;
-
-    const boardLookTarget = arena.boardLookTarget;
-    const seatWorld = new THREE.Vector3();
-    anchor.getWorldPosition(seatWorld);
-    const sideBlend =
-      seatIndex === 1 || seatIndex === 3 ? CAMERA_SIDE_AVATAR_BLEND : CAMERA_BROADCAST_TARGET_BLEND;
-    const target = boardLookTarget
-      .clone()
-      .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * sideBlend);
-    target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
-    const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
-    if (direction.lengthSq() < 1e-6) return null;
-    direction.normalize();
-
-    const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-    if (isTopOrBottomSeat) {
-      const baseView = cameraTurnStateRef.current.baseTurnView;
-      if (!baseView) return null;
-      return {
-        position: camera.position.clone(),
-        target: baseView.target.clone()
-      };
-    }
-
-    const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
-    if (boardToCamera.lengthSq() > 1e-6) {
-      boardToCamera.normalize();
-      if (direction.dot(boardToCamera) >= 0.82) return null;
-    }
-
-    const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
-    const orbitDirection = boardToCamera.lengthSq() > 1e-6
-      ? boardToCamera.clone().lerp(desiredOrbitDirection, 0.8).normalize()
-      : desiredOrbitDirection;
-    if (!orbitDirection.lengthSq()) return null;
-
-    const position = camera.position.clone();
-    if (seatIndex === 0) {
-      const toCamera = position.clone().sub(boardLookTarget);
-      const horizontal = toCamera.clone().setY(0);
-      if (horizontal.lengthSq() > 1e-6) {
-        horizontal.normalize();
-        position.addScaledVector(horizontal, USER_TURN_CAMERA_PULLBACK);
+      if (resolvedDuration <= 0) {
+        controls.target.copy(destination);
+        cameraTurnStateRef.current.currentTarget.copy(destination);
+        camera.position.copy(destinationPosition);
+        controls.update();
+        return;
       }
-      position.y += USER_TURN_CAMERA_LIFT;
-    }
+      const started = performance.now();
+      const step = () => {
+        const now = performance.now();
+        const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
+        const eased = easeSmooth(t);
+        controls.target.copy(fromTarget).lerp(destination, eased);
+        camera.position.copy(fromPosition).lerp(destinationPosition, eased);
+        cameraTurnStateRef.current.currentTarget.copy(controls.target);
+        controls.update();
+        if (t < 1) {
+          cameraFocusFrameRef.current = requestAnimationFrame(step);
+        } else {
+          cameraFocusFrameRef.current = 0;
+        }
+      };
+      cameraFocusFrameRef.current = requestAnimationFrame(step);
+    },
+    [resolveFrameSyncedDuration]
+  );
 
-    return {
-      position,
-      target
-    };
-  }, []);
+  const resolveTurnCameraState = useCallback(
+    (player, offset = CAMERA_TARGET_LIFT) => {
+      const arena = arenaRef.current;
+      const camera = cameraRef.current;
+      if (!arena?.boardLookTarget || !camera) return null;
+      const anchors = Array.isArray(arena.seatAnchors) ? arena.seatAnchors : [];
+      const seatIndex = Number.isInteger(player) ? player : Number(player);
+      if (
+        !Number.isFinite(seatIndex) ||
+        seatIndex < 0 ||
+        seatIndex >= anchors.length
+      )
+        return null;
+      const anchor = anchors[seatIndex];
+      if (!anchor) return null;
 
-  const resolveFocusCameraState = useCallback((focusTarget, offset = CAMERA_TARGET_LIFT) => {
-    const camera = cameraRef.current;
-    const arena = arenaRef.current;
-    if (!camera || !arena?.boardLookTarget || !focusTarget?.isVector3) return null;
-    const boardLookTarget = arena.boardLookTarget;
-    const sideDistance = Math.min(
-      1,
-      Math.abs(focusTarget.x - boardLookTarget.x) / Math.max(BOARD_CLOTH_HALF * 0.75, 0.01)
-    );
-    const dynamicBlend = THREE.MathUtils.lerp(
-      CAMERA_BROADCAST_TARGET_BLEND,
-      CAMERA_BROADCAST_SIDE_BLEND,
-      sideDistance
-    );
-    const target = boardLookTarget.clone().lerp(focusTarget, dynamicBlend);
-    target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
+      const boardLookTarget = arena.boardLookTarget;
+      const seatWorld = new THREE.Vector3();
+      anchor.getWorldPosition(seatWorld);
+      const sideBlend =
+        seatIndex === 1 || seatIndex === 3
+          ? CAMERA_SIDE_AVATAR_BLEND
+          : CAMERA_BROADCAST_TARGET_BLEND;
+      const target = boardLookTarget
+        .clone()
+        .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * sideBlend);
+      target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
+      const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
+      if (direction.lengthSq() < 1e-6) return null;
+      direction.normalize();
 
-    return { position: camera.position.clone(), target };
-  }, []);
+      const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
+      if (isTopOrBottomSeat) {
+        const baseView = cameraTurnStateRef.current.baseTurnView;
+        if (!baseView) return null;
+        return {
+          position: camera.position.clone(),
+          target: baseView.target.clone()
+        };
+      }
 
-  const moveCameraToHighestAllowedAngle = useCallback((focusTarget, offset = CAMERA_TARGET_LIFT) => {
-    if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    const arena = arenaRef.current;
-    if (!camera || !controls || !arena?.boardLookTarget || !focusTarget?.isVector3) return;
+      const boardToCamera = camera.position
+        .clone()
+        .sub(boardLookTarget)
+        .setY(0);
+      if (boardToCamera.lengthSq() > 1e-6) {
+        boardToCamera.normalize();
+        if (direction.dot(boardToCamera) >= 0.82) return null;
+      }
 
-    const surfaceY = arena.tableInfo?.surfaceY ?? focusTarget.y;
-    const target = focusTarget.clone();
-    target.y = surfaceY + offset;
+      const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
+      const orbitDirection =
+        boardToCamera.lengthSq() > 1e-6
+          ? boardToCamera.clone().lerp(desiredOrbitDirection, 0.8).normalize()
+          : desiredOrbitDirection;
+      if (!orbitDirection.lengthSq()) return null;
 
-    const currentOffset = camera.position.clone().sub(controls.target);
-    const radius = clamp(currentOffset.length(), CAM.minR, CAM.maxR);
-    const horizontal = currentOffset.setY(0);
-    if (horizontal.lengthSq() < 1e-6) {
-      horizontal.set(0, 0, 1);
-    } else {
-      horizontal.normalize();
-    }
-    const highestPolar = clamp(controls.minPolarAngle, 0.001, Math.PI - 0.001);
-    const horizontalDistance = radius * Math.sin(highestPolar);
-    const verticalDistance = radius * Math.cos(highestPolar);
-    const position = target
-      .clone()
-      .addScaledVector(horizontal, horizontalDistance)
-      .add(new THREE.Vector3(0, verticalDistance, 0));
-    animateCameraPose(target, position, 220);
-  }, [animateCameraPose, isCamera2d]);
+      const position = camera.position.clone();
+      if (seatIndex === 0) {
+        const toCamera = position.clone().sub(boardLookTarget);
+        const horizontal = toCamera.clone().setY(0);
+        if (horizontal.lengthSq() > 1e-6) {
+          horizontal.normalize();
+          position.addScaledVector(horizontal, USER_TURN_CAMERA_PULLBACK);
+        }
+        position.y += USER_TURN_CAMERA_LIFT;
+      }
 
-  const resolveTurnLookTarget = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
-    const controls = controlsRef.current;
-    const arena = arenaRef.current;
-    if (!controls || !arena?.boardLookTarget) return null;
-    const baseTarget = arena.boardLookTarget.clone();
-    baseTarget.y = (arena.tableInfo?.surfaceY ?? baseTarget.y) + offset;
-
-    if (player === 3) {
-      baseTarget.x -= CAMERA_SIDE_LOOK_EXTRA;
-      return baseTarget;
-    }
-
-    if (player === 1) {
-      baseTarget.x += CAMERA_SIDE_LOOK_EXTRA;
-      return baseTarget;
-    }
-
-    return baseTarget;
-  }, []);
-
-  const shouldRespectUserCamera = useCallback(
-    (player) => {
-      if (player !== 0) return false;
-      if (lockUserTurnSeatViewRef.current || humanSelectionRef.current) return true;
-      const state = stateRef.current;
-      if (!state || state.winner) return false;
-      return state.turn === 0;
+      return {
+        position,
+        target
+      };
     },
     []
   );
 
-  const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
-    cancelCameraViewAnimation();
-    if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-    if (!force && (preserveUserTurnCameraRef.current || shouldRespectUserCamera(player))) return;
-    if (player !== 0) {
-      preserveUserTurnCameraRef.current = false;
-    }
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    if (player === 0) {
-      lockUserTurnSeatViewRef.current = true;
-      cameraLookStateRef.current.pitch = 0;
-      const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-      const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, boardLookTargetRef.current);
-      if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
-        cameraTurnStateRef.current.baseTurnView = {
-          position: facePose.position.clone(),
-          target: facePose.target.clone()
-        };
-        animateCameraPose(facePose.target, facePose.position, duration);
+  const resolveFocusCameraState = useCallback(
+    (focusTarget, offset = CAMERA_TARGET_LIFT) => {
+      const camera = cameraRef.current;
+      const arena = arenaRef.current;
+      if (!camera || !arena?.boardLookTarget || !focusTarget?.isVector3)
+        return null;
+      const boardLookTarget = arena.boardLookTarget;
+      const sideDistance = Math.min(
+        1,
+        Math.abs(focusTarget.x - boardLookTarget.x) /
+          Math.max(BOARD_CLOTH_HALF * 0.75, 0.01)
+      );
+      const dynamicBlend = THREE.MathUtils.lerp(
+        CAMERA_BROADCAST_TARGET_BLEND,
+        CAMERA_BROADCAST_SIDE_BLEND,
+        sideDistance
+      );
+      const target = boardLookTarget.clone().lerp(focusTarget, dynamicBlend);
+      target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
+
+      return { position: camera.position.clone(), target };
+    },
+    []
+  );
+
+  const moveCameraToHighestAllowedAngle = useCallback(
+    (focusTarget, offset = CAMERA_TARGET_LIFT) => {
+      if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      const arena = arenaRef.current;
+      if (
+        !camera ||
+        !controls ||
+        !arena?.boardLookTarget ||
+        !focusTarget?.isVector3
+      )
         return;
+
+      const surfaceY = arena.tableInfo?.surfaceY ?? focusTarget.y;
+      const target = focusTarget.clone();
+      target.y = surfaceY + offset;
+
+      const currentOffset = camera.position.clone().sub(controls.target);
+      const radius = clamp(currentOffset.length(), CAM.minR, CAM.maxR);
+      const horizontal = currentOffset.setY(0);
+      if (horizontal.lengthSq() < 1e-6) {
+        horizontal.set(0, 0, 1);
+      } else {
+        horizontal.normalize();
       }
-      const initialBottomView = initialBottomCameraViewRef.current;
-      if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
-        const boardLookTarget = boardLookTargetRef.current;
-        const alignedPosition = initialBottomView.position.clone();
-        const alignedTarget = initialBottomView.target.clone();
-        if (boardLookTarget?.isVector3) {
-          alignedPosition.x = boardLookTarget.x;
-          alignedTarget.x = boardLookTarget.x;
-          if (Math.abs(alignedTarget.z - boardLookTarget.z) > CAMERA_PLAYER_CENTER_X_EPSILON) {
-            alignedTarget.z = boardLookTarget.z;
-          }
-        }
-        cameraTurnStateRef.current.baseTurnView = {
-          position: alignedPosition,
-          target: alignedTarget
-        };
-        animateCameraPose(
-          cameraTurnStateRef.current.baseTurnView.target,
-          cameraTurnStateRef.current.baseTurnView.position,
-          duration
+      const highestPolar = clamp(
+        controls.minPolarAngle,
+        0.001,
+        Math.PI - 0.001
+      );
+      const horizontalDistance = radius * Math.sin(highestPolar);
+      const verticalDistance = radius * Math.cos(highestPolar);
+      const position = target
+        .clone()
+        .addScaledVector(horizontal, horizontalDistance)
+        .add(new THREE.Vector3(0, verticalDistance, 0));
+      animateCameraPose(target, position, 220);
+    },
+    [animateCameraPose, isCamera2d]
+  );
+
+  const resolveTurnLookTarget = useCallback(
+    (player, offset = CAMERA_TARGET_LIFT) => {
+      const controls = controlsRef.current;
+      const arena = arenaRef.current;
+      if (!controls || !arena?.boardLookTarget) return null;
+      const baseTarget = arena.boardLookTarget.clone();
+      baseTarget.y = (arena.tableInfo?.surfaceY ?? baseTarget.y) + offset;
+
+      if (player === 3) {
+        baseTarget.x -= CAMERA_SIDE_LOOK_EXTRA;
+        return baseTarget;
+      }
+
+      if (player === 1) {
+        baseTarget.x += CAMERA_SIDE_LOOK_EXTRA;
+        return baseTarget;
+      }
+
+      return baseTarget;
+    },
+    []
+  );
+
+  const shouldRespectUserCamera = useCallback((player) => {
+    if (player !== 0) return false;
+    if (lockUserTurnSeatViewRef.current || humanSelectionRef.current)
+      return true;
+    const state = stateRef.current;
+    if (!state || state.winner) return false;
+    return state.turn === 0;
+  }, []);
+
+  const setCameraViewForTurn = useCallback(
+    (
+      player,
+      duration = CAMERA_TURN_VIEW_DURATION_MS,
+      { force = false } = {}
+    ) => {
+      cancelCameraViewAnimation();
+      if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
+      if (
+        !force &&
+        (preserveUserTurnCameraRef.current || shouldRespectUserCamera(player))
+      )
+        return;
+      if (player !== 0) {
+        preserveUserTurnCameraRef.current = false;
+      }
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      if (player === 0) {
+        lockUserTurnSeatViewRef.current = true;
+        cameraLookStateRef.current.pitch = 0;
+        const bottomActorEntry = seatedHumanActorsRef.current?.find(
+          (entry) => entry?.playerIndex === 0
         );
-        return;
+        const facePose = resolveSeatedFaceCameraPose(
+          bottomActorEntry,
+          boardLookTargetRef.current
+        );
+        if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
+          cameraTurnStateRef.current.baseTurnView = {
+            position: facePose.position.clone(),
+            target: facePose.target.clone()
+          };
+          animateCameraPose(facePose.target, facePose.position, duration);
+          return;
+        }
+        const initialBottomView = initialBottomCameraViewRef.current;
+        if (
+          initialBottomView?.position?.isVector3 &&
+          initialBottomView?.target?.isVector3
+        ) {
+          const boardLookTarget = boardLookTargetRef.current;
+          const alignedPosition = initialBottomView.position.clone();
+          const alignedTarget = initialBottomView.target.clone();
+          if (boardLookTarget?.isVector3) {
+            alignedPosition.x = boardLookTarget.x;
+            alignedTarget.x = boardLookTarget.x;
+            if (
+              Math.abs(alignedTarget.z - boardLookTarget.z) >
+              CAMERA_PLAYER_CENTER_X_EPSILON
+            ) {
+              alignedTarget.z = boardLookTarget.z;
+            }
+          }
+          cameraTurnStateRef.current.baseTurnView = {
+            position: alignedPosition,
+            target: alignedTarget
+          };
+          animateCameraPose(
+            cameraTurnStateRef.current.baseTurnView.target,
+            cameraTurnStateRef.current.baseTurnView.position,
+            duration
+          );
+          return;
+        }
+        if (camera && controls) {
+          cameraTurnStateRef.current.baseTurnView = {
+            position: camera.position.clone(),
+            target: controls.target.clone()
+          };
+        }
       }
-      if (camera && controls) {
-        cameraTurnStateRef.current.baseTurnView = {
-          position: camera.position.clone(),
-          target: controls.target.clone()
-        };
-      }
-    }
-    lockUserTurnSeatViewRef.current = false;
-    const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
-    if (!nextView) return;
-    animateCameraPose(nextView.target, nextView.position, duration);
-  }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState, shouldRespectUserCamera]);
+      lockUserTurnSeatViewRef.current = false;
+      const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
+      if (!nextView) return;
+      animateCameraPose(nextView.target, nextView.position, duration);
+    },
+    [
+      animateCameraPose,
+      cancelCameraViewAnimation,
+      isCamera2d,
+      resolveTurnCameraState,
+      shouldRespectUserCamera
+    ]
+  );
 
   const setCameraFocus = useCallback(
     (focus = {}) => {
       const state = stateRef.current;
       const controls = controlsRef.current;
-      if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
+      if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED)
+        return;
       if (state.turn === 0 && lockUserTurnSeatViewRef.current) return;
       if (!focus.force && shouldRespectUserCamera(state.turn)) return;
       const {
@@ -8984,15 +10857,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         offset = CAMERA_TARGET_LIFT,
         followOffset = null
       } = focus;
-      if (!force && priority < cameraTurnStateRef.current.activePriority) return;
+      if (!force && priority < cameraTurnStateRef.current.activePriority)
+        return;
 
       let nextTarget = null;
       if (target?.isVector3) {
         nextTarget = target.clone();
-        nextTarget.y = (arenaRef.current?.tableInfo?.surfaceY ?? nextTarget.y) + offset;
+        nextTarget.y =
+          (arenaRef.current?.tableInfo?.surfaceY ?? nextTarget.y) + offset;
       } else if (object?.isObject3D) {
         nextTarget = object.getWorldPosition(new THREE.Vector3());
-        nextTarget.y = (arenaRef.current?.tableInfo?.surfaceY ?? nextTarget.y) + offset;
+        nextTarget.y =
+          (arenaRef.current?.tableInfo?.surfaceY ?? nextTarget.y) + offset;
       } else {
         const turnView = resolveTurnCameraState(state.turn, offset);
         if (turnView) {
@@ -9005,7 +10881,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       cameraTurnStateRef.current.activePriority = priority;
       cameraTurnStateRef.current.followObject =
-        !LUDO_CAMERA_BROADCAST_LOCKED_POSITION && follow && object?.isObject3D ? object : null;
+        !LUDO_CAMERA_BROADCAST_LOCKED_POSITION && follow && object?.isObject3D
+          ? object
+          : null;
 
       const nextFocusState = resolveFocusCameraState(nextTarget, offset);
       if (nextFocusState) {
@@ -9015,33 +10893,57 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             followOffset?.isVector3 === true
               ? followOffset.clone()
               : camera
-              ? camera.position.clone().sub(nextFocusState.target)
-              : null;
+                ? camera.position.clone().sub(nextFocusState.target)
+                : null;
         } else {
           cameraTurnStateRef.current.followOffset = null;
         }
-        animateCameraPose(nextFocusState.target, nextFocusState.position, CAMERA_BROADCAST_ANIMATION_MS);
+        animateCameraPose(
+          nextFocusState.target,
+          nextFocusState.position,
+          CAMERA_BROADCAST_ANIMATION_MS
+        );
       }
       if (ttl > 0) {
         if (cameraFocusTimeoutRef.current) {
           clearTimeout(cameraFocusTimeoutRef.current);
         }
-        cameraFocusTimeoutRef.current = window.setTimeout(() => {
-          cameraFocusTimeoutRef.current = null;
-          cameraTurnStateRef.current.activePriority = -Infinity;
-          cameraTurnStateRef.current.followObject = null;
-          cameraTurnStateRef.current.followOffset = null;
-          const returnTarget = resolveTurnLookTarget(stateRef.current?.turn ?? 0, CAMERA_TARGET_LIFT);
-          if (returnTarget) {
-            const restoreFocusState = resolveFocusCameraState(returnTarget, CAMERA_TARGET_LIFT);
-            if (restoreFocusState) {
-              animateCameraPose(restoreFocusState.target, restoreFocusState.position, CAMERA_RETURN_ANIMATION_MS);
+        cameraFocusTimeoutRef.current = window.setTimeout(
+          () => {
+            cameraFocusTimeoutRef.current = null;
+            cameraTurnStateRef.current.activePriority = -Infinity;
+            cameraTurnStateRef.current.followObject = null;
+            cameraTurnStateRef.current.followOffset = null;
+            const returnTarget = resolveTurnLookTarget(
+              stateRef.current?.turn ?? 0,
+              CAMERA_TARGET_LIFT
+            );
+            if (returnTarget) {
+              const restoreFocusState = resolveFocusCameraState(
+                returnTarget,
+                CAMERA_TARGET_LIFT
+              );
+              if (restoreFocusState) {
+                animateCameraPose(
+                  restoreFocusState.target,
+                  restoreFocusState.position,
+                  CAMERA_RETURN_ANIMATION_MS
+                );
+              }
             }
-          }
-        }, Math.max(0, ttl * 1000));
+          },
+          Math.max(0, ttl * 1000)
+        );
       }
     },
-    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget, shouldRespectUserCamera]
+    [
+      animateCameraPose,
+      isCamera2d,
+      resolveFocusCameraState,
+      resolveTurnCameraState,
+      resolveTurnLookTarget,
+      shouldRespectUserCamera
+    ]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
@@ -9058,18 +10960,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     if (progress < RING_STEPS + HOME_STEPS) {
       const homeStep = progress - RING_STEPS;
-      return state.homeColumns[player][homeStep].clone().add(TOKEN_TRACK_LIFT.clone());
+      return state.homeColumns[player][homeStep]
+        .clone()
+        .add(TOKEN_TRACK_LIFT.clone());
     }
-    return state.goalSlots[player][tokenIndex].clone().add(TOKEN_GOAL_LIFT.clone());
+    return state.goalSlots[player][tokenIndex]
+      .clone()
+      .add(TOKEN_GOAL_LIFT.clone());
   };
 
   const hasAnyTokenOnBoard = useCallback((player) => {
     const state = stateRef.current;
     if (!state?.progress?.[player]) return false;
-    return state.progress[player].some((progress) => Number.isFinite(progress) && progress >= 0 && progress < GOAL_PROGRESS);
+    return state.progress[player].some(
+      (progress) =>
+        Number.isFinite(progress) && progress >= 0 && progress < GOAL_PROGRESS
+    );
   }, []);
 
-  const scheduleMove = (player, tokenIndex, targetProgress, onComplete, options = {}) => {
+  const scheduleMove = (
+    player,
+    tokenIndex,
+    targetProgress,
+    onComplete,
+    options = {}
+  ) => {
     const state = stateRef.current;
     if (!state) return;
     const { skipCameraFollow = false } = options;
@@ -9077,23 +10992,45 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const fromProgress = state.progress[player][tokenIndex];
     const path = [];
     if (fromProgress < 0) {
-      path.push({ position: getWorldForProgress(player, -1, tokenIndex), progress: fromProgress });
-      path.push({ position: getWorldForProgress(player, 0, tokenIndex), progress: 0 });
+      path.push({
+        position: getWorldForProgress(player, -1, tokenIndex),
+        progress: fromProgress
+      });
+      path.push({
+        position: getWorldForProgress(player, 0, tokenIndex),
+        progress: 0
+      });
     } else {
       path.push({
         position: getWorldForProgress(player, fromProgress, tokenIndex),
         progress: fromProgress
       });
       for (let p = fromProgress + 1; p <= targetProgress; p++) {
-        path.push({ position: getWorldForProgress(player, p, tokenIndex), progress: p });
+        path.push({
+          position: getWorldForProgress(player, p, tokenIndex),
+          progress: p
+        });
       }
     }
     const token = state.tokens[player][tokenIndex];
     const pickupHelper = new THREE.Vector3();
     const placeHelper = new THREE.Vector3();
-    const hasPickupHelper = sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
-    const hasPlaceHelper = sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
-    const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
+    const hasPickupHelper = sampleHumanActionHelperPosition(
+      player,
+      'tokenPickup',
+      pickupHelper
+    );
+    const hasPlaceHelper = sampleHumanActionHelperPosition(
+      player,
+      'tokenPlace',
+      placeHelper
+    );
+    const pushPathNode = (
+      collection,
+      position,
+      progress = null,
+      viaHelper = null
+    ) => {
       collection.push({
         position,
         progress,
@@ -9103,11 +11040,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const animatedPath = [];
     if (path.length) {
       pushPathNode(animatedPath, path[0].position, path[0].progress);
-      if (hasPickupHelper && path.length > 1 && path[0].position.distanceTo(pickupHelper) > 1e-4) {
+      if (
+        hasPickupHelper &&
+        path.length > 1 &&
+        path[0].position.distanceTo(pickupHelper) > 1e-4
+      ) {
         pushPathNode(animatedPath, pickupHelper.clone(), null, 'pickup');
       }
       for (let i = 1; i < path.length; i += 1) {
-        if (hasPlaceHelper && i === path.length - 1 && path[i - 1].position.distanceTo(placeHelper) > 1e-4) {
+        if (
+          hasPlaceHelper &&
+          i === path.length - 1 &&
+          path[i - 1].position.distanceTo(placeHelper) > 1e-4
+        ) {
           pushPathNode(animatedPath, placeHelper.clone(), null, 'place');
         }
         pushPathNode(animatedPath, path[i].position, path[i].progress);
@@ -9121,20 +11066,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const from = fromNode.position;
       const to = toNode.position;
       const distance = from.distanceTo(to);
-      const baseDuration = Math.max(TOKEN_STEP_DURATION_SECONDS, distance / TOKEN_MOVE_SPEED);
+      const baseDuration = Math.max(
+        TOKEN_STEP_DURATION_SECONDS,
+        distance / TOKEN_MOVE_SPEED
+      );
       const helperDurationScale =
         toNode.viaHelper === 'pickup'
           ? 0.78
           : toNode.viaHelper === 'place'
-          ? 0.74
-          : 1;
+            ? 0.74
+            : 1;
       const minDuration =
         toNode.viaHelper === 'pickup'
           ? SEATED_HUMAN_TOKEN_PHASES.pickupMs / 1000
           : toNode.viaHelper === 'place'
-          ? SEATED_HUMAN_TOKEN_PHASES.placeMs / 1000
-          : 0.16;
-      const duration = Math.max(minDuration, baseDuration * helperDurationScale);
+            ? SEATED_HUMAN_TOKEN_PHASES.placeMs / 1000
+            : 0.16;
+      const duration = Math.max(
+        minDuration,
+        baseDuration * helperDurationScale
+      );
       segments.push({
         from,
         to,
@@ -9165,14 +11116,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (typeof onComplete === 'function') onComplete();
       return;
     }
-      if (token && shouldFollowCamera) {
-        setCameraFocus({
-          object: token,
-          follow: true,
-          priority: 6,
-          offset: CAMERA_TARGET_LIFT + 0.02
-        });
-      }
+    if (token && shouldFollowCamera) {
+      setCameraFocus({
+        object: token,
+        follow: true,
+        priority: 6,
+        offset: CAMERA_TARGET_LIFT + 0.02
+      });
+    }
     state.animation = {
       active: true,
       token,
@@ -9322,30 +11273,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return best ?? options[0] ?? null;
   };
 
-  const queueAiRoll = useCallback(
-    (delay = AI_ROLL_DELAY_MS) => {
-      if (aiTimeoutRef.current) {
-        clearTimeout(aiTimeoutRef.current);
+  const queueAiRoll = useCallback((delay = AI_ROLL_DELAY_MS) => {
+    if (aiTimeoutRef.current) {
+      clearTimeout(aiTimeoutRef.current);
+    }
+    aiTimeoutRef.current = window.setTimeout(() => {
+      aiTimeoutRef.current = null;
+      const nextState = stateRef.current;
+      if (!nextState || nextState.winner) return;
+      if (nextState.turn === 0) return;
+      if (nextState.animation) {
+        queueAiRoll(Math.min(400, delay));
+        return;
       }
-      aiTimeoutRef.current = window.setTimeout(() => {
-        aiTimeoutRef.current = null;
-        const nextState = stateRef.current;
-        if (!nextState || nextState.winner) return;
-        if (nextState.turn === 0) return;
-        if (nextState.animation) {
-          queueAiRoll(Math.min(400, delay));
-          return;
-        }
-        const diceObj = diceRef.current;
-        if (diceObj?.userData?.isRolling) {
-          queueAiRoll(Math.min(400, delay));
-          return;
-        }
-        rollDiceRef.current?.();
-      }, delay);
-    },
-    []
-  );
+      const diceObj = diceRef.current;
+      if (diceObj?.userData?.isRolling) {
+        queueAiRoll(Math.min(400, delay));
+        return;
+      }
+      rollDiceRef.current?.();
+    }, delay);
+  }, []);
 
   const scheduleDiceClear = useCallback(() => {
     if (diceClearTimeoutRef.current) {
@@ -9378,7 +11326,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lockUserTurnSeatViewRef.current = shouldLockHumanCamera;
       if (!shouldLockHumanCamera) {
         setCameraViewForTurn(nextTurn);
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
+        setCameraFocus({
+          target: resolveTurnLookTarget(nextTurn),
+          priority: 1,
+          force: true
+        });
       } else {
         setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       }
@@ -9398,8 +11350,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 'You rolled a 6 — rolling again'
             : 'Your turn — dice rolling soon'
           : extraTurn
-          ? `${COLOR_NAMES[nextTurn]} rolled a 6 — rolling again`
-          : `${COLOR_NAMES[nextTurn]} to roll`;
+            ? `${COLOR_NAMES[nextTurn]} rolled a 6 — rolling again`
+            : `${COLOR_NAMES[nextTurn]} to roll`;
       return {
         ...s,
         turn: nextTurn,
@@ -9434,12 +11386,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const state = stateRef.current;
     if (!state) return [];
     if (landingProgress < 0 || landingProgress >= RING_STEPS) return [];
-    const landingIdx = (PLAYER_START_INDEX[player] + landingProgress) % RING_STEPS;
+    const landingIdx =
+      (PLAYER_START_INDEX[player] + landingProgress) % RING_STEPS;
     const victims = [];
     for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
-        if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS) continue;
+        if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS)
+          continue;
         const idx = (PLAYER_START_INDEX[p] + state.progress[p][t]) % RING_STEPS;
         if (idx === landingIdx) {
           victims.push({ player: p, token: t });
@@ -9499,9 +11453,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (entering) {
       const seatSideTarget = getWorldForProgress(player, 0, tokenIndex);
       const isSideSeat = player === 1 || player === 3;
-      const enteringOffset = isSideSeat ? CAMERA_TARGET_LIFT + 0.035 : CAMERA_TARGET_LIFT + 0.02;
+      const enteringOffset = isSideSeat
+        ? CAMERA_TARGET_LIFT + 0.035
+        : CAMERA_TARGET_LIFT + 0.02;
       if (player !== 0) {
-        setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+        setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, {
+          force: true
+        });
         setCameraFocus({
           target: seatSideTarget,
           follow: false,
@@ -9529,12 +11487,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     const { skipCameraFollow = false } = options;
     if (hasCapture) {
-      const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
+      const attackerStartPos =
+        state.tokens[player][tokenIndex].position.clone();
       const firstVictim = captureVictims[0];
       const victimToken = state.tokens[firstVictim.player][firstVictim.token];
       const victimPos =
         victimToken?.position?.clone?.() ??
-        getWorldForProgress(firstVictim.player, state.progress[firstVictim.player][firstVictim.token], firstVictim.token);
+        getWorldForProgress(
+          firstVictim.player,
+          state.progress[firstVictim.player][firstVictim.token],
+          firstVictim.token
+        );
       const impactPos = victimPos.clone();
       void playCaptureMissileSequence({
         attackerToken: state.tokens[player][tokenIndex],
@@ -9546,23 +11509,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         targetTokenIndex: firstVictim.token,
         targetPosition: victimPos,
         impactPosition: impactPos
-      }).then(() => {
-        applyCaptureVictims(captureVictims);
-        if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow });
-          return;
-        }
-        finalizeMove();
-      }).catch(() => {
-        applyCaptureVictims(captureVictims);
-        if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow });
-          return;
-        }
-        finalizeMove();
-      });
+      })
+        .then(() => {
+          applyCaptureVictims(captureVictims);
+          if (entering || target !== current) {
+            scheduleMove(player, tokenIndex, target, finalizeMove, {
+              skipCameraFollow
+            });
+            return;
+          }
+          finalizeMove();
+        })
+        .catch(() => {
+          applyCaptureVictims(captureVictims);
+          if (entering || target !== current) {
+            scheduleMove(player, tokenIndex, target, finalizeMove, {
+              skipCameraFollow
+            });
+            return;
+          }
+          finalizeMove();
+        });
     } else if (entering || target !== current) {
-      scheduleMove(player, tokenIndex, target, applyResult, { skipCameraFollow });
+      scheduleMove(player, tokenIndex, target, applyResult, {
+        skipCameraFollow
+      });
     } else {
       void applyResult();
     }
@@ -9572,10 +11543,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const state = stateRef.current;
     if (!state) return [];
     const list = [];
+    const requireSingleEntryPlacement =
+      player === 0 && state.progress[player].every((prog) => prog < 0);
     for (let i = 0; i < 4; i++) {
       const prog = state.progress[player][i];
       if (prog < 0) {
-        if (roll === 6) list.push({ token: i, entering: true });
+        if (roll === 6) {
+          list.push({ token: i, entering: true });
+          if (requireSingleEntryPlacement) {
+            break;
+          }
+        }
         continue;
       }
       const target = prog + roll;
@@ -9584,15 +11562,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return list;
   };
 
-  const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
-    if (!out?.isVector3) return false;
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    return sampleSeatedActionHelper(actorEntry, helperKey, out);
-  }, []);
+  const sampleHumanActionHelperPosition = useCallback(
+    (player, helperKey, out) => {
+      if (!out?.isVector3) return false;
+      const actorEntry = seatedHumanActorsRef.current?.find(
+        (entry) => entry?.playerIndex === player
+      );
+      return sampleSeatedActionHelper(actorEntry, helperKey, out);
+    },
+    []
+  );
 
   const sampleSeatedContactEffectorPosition = useCallback((player, out) => {
     if (!out?.isVector3) return false;
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
+    const actorEntry = seatedHumanActorsRef.current?.find(
+      (entry) => entry?.playerIndex === player
+    );
     if (!actorEntry) return false;
     const effector = actorEntry?.actionHelpers?.contactEffector;
     if (effector?.isObject3D) {
@@ -9607,36 +11592,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return true;
   }, []);
 
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 220 } = {}) => {
-    if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
-    const parent = dice.parent;
-    const worldTarget = new THREE.Vector3();
-    const localTarget = new THREE.Vector3();
-    const start = performance.now();
-    return new Promise((resolve) => {
-      const step = () => {
-        if (!dice?.isObject3D || !parent?.isObject3D) {
-          resolve();
-          return;
-        }
-        const elapsed = performance.now() - start;
-        const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        if (sampleSeatedContactEffectorPosition(player, worldTarget)) {
-          worldTarget.y -= DICE_SIZE * 0.14;
-          localTarget.copy(worldTarget);
-          parent.worldToLocal(localTarget);
-          const blend = 0.24 + (1 - Math.pow(1 - phase, 2)) * 0.58;
-          dice.position.lerp(localTarget, blend);
-        }
-        if (phase < 1) {
-          requestAnimationFrame(step);
-        } else {
-          resolve();
-        }
-      };
-      requestAnimationFrame(step);
-    });
-  }, [sampleSeatedContactEffectorPosition]);
+  const syncDiceToThrowHand = useCallback(
+    (player, dice, { duration = 220 } = {}) => {
+      if (!dice?.isObject3D || !dice.parent?.isObject3D)
+        return Promise.resolve();
+      const parent = dice.parent;
+      const worldTarget = new THREE.Vector3();
+      const localTarget = new THREE.Vector3();
+      const start = performance.now();
+      return new Promise((resolve) => {
+        const step = () => {
+          if (!dice?.isObject3D || !parent?.isObject3D) {
+            resolve();
+            return;
+          }
+          const elapsed = performance.now() - start;
+          const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
+          if (sampleSeatedContactEffectorPosition(player, worldTarget)) {
+            worldTarget.y -= DICE_SIZE * 0.14;
+            localTarget.copy(worldTarget);
+            parent.worldToLocal(localTarget);
+            const blend = 0.24 + (1 - Math.pow(1 - phase, 2)) * 0.58;
+            dice.position.lerp(localTarget, blend);
+          }
+          if (phase < 1) {
+            requestAnimationFrame(step);
+          } else {
+            resolve();
+          }
+        };
+        requestAnimationFrame(step);
+      });
+    },
+    [sampleSeatedContactEffectorPosition]
+  );
 
   const rollDice = async () => {
     const state = stateRef.current;
@@ -9652,14 +11641,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
-    const baseTarget = rollTargets?.[player]?.clone() ?? new THREE.Vector3(0, baseHeight, 0);
+    const baseTarget =
+      rollTargets?.[player]?.clone() ?? new THREE.Vector3(0, baseHeight, 0);
     baseTarget.x = THREE.MathUtils.clamp(baseTarget.x, -clothLimit, clothLimit);
     baseTarget.z = THREE.MathUtils.clamp(baseTarget.z, -clothLimit, clothLimit);
     baseTarget.y = baseHeight;
     stopDiceTransition();
     dice.userData.isRolling = true;
     if (!isHumanTurn) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, {
+        force: true
+      });
       setCameraFocus({
         object: dice,
         follow: false,
@@ -9685,11 +11677,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwLateral = clamp(localDir.x * 2.1, -1, 1);
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
-    beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
+    beginDiceThrowPose(player, {
+      lateral: throwLateral,
+      forward: throwForward
+    });
     await syncDiceToThrowHand(player, dice, { duration: 230 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
-      duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
+      duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, {
+        min: 620,
+        max: 1800
+      }),
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
@@ -9701,7 +11699,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     setUi((s) => ({
       ...s,
       dice: value,
-      status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
+      status:
+        player === 0
+          ? `You rolled ${value}`
+          : `${COLOR_NAMES[player]} rolled ${value}`
     }));
     if (value === 6) {
       playSixRollSound();
@@ -9709,7 +11710,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
     const hasBoardMoveOption = options.some((option) => !option.entering);
-    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length || !hasBoardMoveOption;
+    const keepTurnCameraFraming =
+      !hasBoardTokenBeforeRoll || !options.length || !hasBoardMoveOption;
     scheduleDiceClear();
     if (!keepTurnCameraFraming) {
       if (!(isHumanTurn && lockUserTurnSeatViewRef.current)) {
@@ -9723,14 +11725,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         });
       }
     } else if (!isHumanTurn) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, {
+        force: true
+      });
     }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
-      const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
+      const upcomingTurn =
+        value === 6 ? player : (player + playerCycle - 1) % playerCycle;
       if (upcomingTurn !== 0) {
-        setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-        setCameraFocus({ target: resolveTurnLookTarget(upcomingTurn), priority: 1, force: true });
+        setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, {
+          force: true
+        });
+        setCameraFocus({
+          target: resolveTurnLookTarget(upcomingTurn),
+          priority: 1,
+          force: true
+        });
       } else {
         preserveUserTurnCameraRef.current = true;
       }
@@ -9744,15 +11755,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
-      beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+      beginHumanSelection(value, options, {
+        skipCameraFollow: !hasBoardTokenBeforeRoll
+      });
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
     if (!choice) {
       const playerCycle = Math.max(1, activePlayerCount);
-      const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      setCameraFocus({ target: resolveTurnLookTarget(upcomingTurn), priority: 1, force: true });
+      const upcomingTurn =
+        value === 6 ? player : (player + playerCycle - 1) % playerCycle;
+      setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, {
+        force: true
+      });
+      setCameraFocus({
+        target: resolveTurnLookTarget(upcomingTurn),
+        priority: 1,
+        force: true
+      });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
@@ -9798,7 +11818,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
-              aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
+              aria-label={
+                configOpen
+                  ? 'Close game settings menu'
+                  : 'Open game settings menu'
+              }
               className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <span className="text-base leading-none">☰</span>
@@ -9809,7 +11833,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                  <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
+                    Table Setup
+                  </span>
                   <p className="mt-1 text-[0.7rem] text-white/70">
                     Personalize the board, tokens, and arena staging.
                   </p>
@@ -9820,19 +11846,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   aria-label="Close customization"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m6 6 12 12M18 6 6 18"
+                    />
                   </svg>
                 </button>
               </div>
               <div className="mt-4 flex-1 space-y-3 touch-pan-y overscroll-contain">
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">Table surfaces, tokens, and seating.</p>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
+                    Personalize Arena
+                  </p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">
+                    Table surfaces, tokens, and seating.
+                  </p>
                   <div className="mt-3 space-y-4">
                     {customizationSections.map(({ key, label, options }) => (
                       <div key={key} className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">
+                          {label}
+                        </p>
                         <div className="grid grid-cols-2 gap-2">
                           {options.map((option) => {
                             const selected = appearance[key] === option.idx;
@@ -9841,7 +11884,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                               <button
                                 key={option.id ?? option.idx}
                                 type="button"
-                                onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
+                                onClick={() =>
+                                  setAppearance((prev) => ({
+                                    ...prev,
+                                    [key]: option.idx
+                                  }))
+                                }
                                 aria-pressed={selected}
                                 disabled={disabled}
                                 className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
@@ -9937,6 +11985,38 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           )}
         </div>
+        {captureQuickSwapOpen && (
+          <div className="pointer-events-auto absolute right-4 top-[12rem] z-30 w-52 rounded-2xl border border-white/20 bg-black/75 p-3 shadow-2xl backdrop-blur">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.3em] text-sky-100/80">
+              Weapon Quick Swap
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {CAPTURE_ANIMATION_OPTIONS.map((option, idx) => {
+                const active = appearance.captureAnimation === idx;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      setAppearance((prev) => ({
+                        ...prev,
+                        captureAnimation: idx
+                      }));
+                      setCaptureQuickSwapOpen(false);
+                    }}
+                    className={`rounded-xl border px-2 py-2 text-[0.6rem] font-semibold leading-tight transition ${
+                      active
+                        ? 'border-sky-300 bg-sky-300/20 text-sky-100'
+                        : 'border-white/15 bg-white/5 text-white/80'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <BottomLeftIcons
           className="absolute right-4 top-[5.2rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
@@ -9946,20 +12026,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           buttonClassName="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           iconClassName="h-5 w-5"
           labelClassName="sr-only"
-          muteIconOn={(
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+          muteIconOn={
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
               <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
               <path d="M16 9.5 20 13.5" />
               <path d="M20 9.5 16 13.5" />
             </svg>
-          )}
-          muteIconOff={(
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+          }
+          muteIconOff={
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
               <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
               <path d="M15.5 8.5c1.5 1.2 2.5 2.6 2.5 4.5s-1 3.3-2.5 4.5" />
               <path d="M18.5 6.5c2.2 1.8 3.5 3.9 3.5 6.5s-1.3 4.7-3.5 6.5" />
             </svg>
-          )}
+          }
         />
         <BottomLeftIcons
           className="absolute right-4 top-[8.7rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
@@ -10004,7 +12100,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
-            const selfBottomOffset = player.index === 0 ? SELF_AVATAR_BOTTOM_OFFSET_PERCENT : 0;
+            const selfBottomOffset =
+              player.index === 0 ? SELF_AVATAR_BOTTOM_OFFSET_PERCENT : 0;
             const positionStyle = anchor
               ? {
                   position: 'absolute',
@@ -10019,7 +12116,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const avatarSize = anchor
+              ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2)
+              : 1;
             const isTurn = ui.turn === player.index;
             return (
               <div
@@ -10048,7 +12147,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
           <span>{bubble.text}</span>
-          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+          <img
+            src={bubble.photoUrl}
+            alt="avatar"
+            className="w-5 h-5 rounded-full"
+          />
         </div>
       ))}
       <div className="pointer-events-auto">
@@ -10065,15 +12168,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           onClose={() => setShowChat(false)}
           onSend={(text) => {
             const id = Date.now();
-            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: userPhotoUrl }]);
+            setChatBubbles((bubbles) => [
+              ...bubbles,
+              { id, text, photoUrl: userPhotoUrl }
+            ]);
             if (soundEnabled) {
               const audio = new Audio(chatBeep);
               audio.volume = getGameVolume();
               audio.play().catch(() => {});
             }
             setTimeout(
-              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
-              3000,
+              () =>
+                setChatBubbles((bubbles) =>
+                  bubbles.filter((bubble) => bubble.id !== id)
+                ),
+              3000
             );
           }}
         />
@@ -10084,12 +12193,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           onClose={() => setShowGift(false)}
           players={players.map((player) => ({
             ...player,
-            id: player.id ?? (player.isAI ? `ludo-ai-${player.index}` : resolvedAccountId),
+            id:
+              player.id ??
+              (player.isAI ? `ludo-ai-${player.index}` : resolvedAccountId),
             name: player.name
           }))}
           senderIndex={0}
           onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const start = document.querySelector(
+              `[data-player-index="${from}"]`
+            );
             const end = document.querySelector(`[data-player-index="${to}"]`);
             if (start && end) {
               const s = start.getBoundingClientRect();
@@ -10097,7 +12210,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const cx = window.innerWidth / 2;
               const cy = window.innerHeight / 2;
               let icon;
-              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+              if (
+                typeof gift.icon === 'string' &&
+                gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+              ) {
                 icon = document.createElement('img');
                 icon.src = gift.icon;
                 icon.className = 'w-5 h-5';
@@ -10164,11 +12280,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               }
               const animation = icon.animate(
                 [
-                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                  {
+                    transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
+                  },
+                  {
+                    transform: `translate(${cx}px, ${cy}px) scale(3)`,
+                    offset: 0.5
+                  },
+                  {
+                    transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
+                  }
                 ],
-                { duration: 3500, easing: 'linear' },
+                { duration: 3500, easing: 'linear' }
               );
               animation.onfinish = () => icon.remove();
             }
@@ -10190,8 +12313,9 @@ async function buildLudoBoard(
 
   const lightBoardMat = cloneBoardMaterial(null, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
-  let defaultTokenTypeSequence =
-    tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
+  let defaultTokenTypeSequence = tokenStyleOption?.typeSequence?.length
+    ? tokenStyleOption.typeSequence
+    : TOKEN_TYPE_SEQUENCE;
   const useAbgTokens = true;
   const abgAssets = useAbgTokens ? await getAbgAssets() : null;
   const abgPrototypes = abgAssets?.proto ?? null;
@@ -10211,7 +12335,9 @@ async function buildLudoBoard(
     const baseIntensity = mat?.emissiveIntensity ?? 0;
     const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
     const highlightColor = baseColor.clone().offsetHSL(0.01, 0.35, 0.02);
-    const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.72);
+    const highlightEmissive = baseColor
+      .clone()
+      .lerp(new THREE.Color(0xffffff), 0.72);
     mesh.userData = {
       ...mesh.userData,
       boardTile: {
@@ -10235,8 +12361,8 @@ async function buildLudoBoard(
   const startPads = getHomeStartPads(half, playerCount);
   const goalSlots = getGoalSlots(half, playerCount);
   const ringPath = buildRingFromGrid(cellToWorld);
-  const homeColumnPositions = HOME_COLUMN_COORDS.slice(0, playerCount).map((coords) =>
-    coords.map(([r, c]) => cellToWorld(r, c))
+  const homeColumnPositions = HOME_COLUMN_COORDS.slice(0, playerCount).map(
+    (coords) => coords.map(([r, c]) => cellToWorld(r, c))
   );
   const diceRollTargets = startPads.map((pads) => {
     if (!Array.isArray(pads) || !pads.length) {
@@ -10261,7 +12387,8 @@ async function buildLudoBoard(
       const columnIndex = getHomeColumnIndex(r, c);
       const inCenter = r >= 6 && r <= 8 && c >= 6 && c <= 8;
       const inCross = (r >= 6 && r <= 8) || (c >= 6 && c <= 8);
-      const inTrimmedOuter = r < 2 || r > LUDO_GRID - 3 || c < 2 || c > LUDO_GRID - 3;
+      const inTrimmedOuter =
+        r < 2 || r > LUDO_GRID - 3 || c < 2 || c > LUDO_GRID - 3;
       if (homeIndex !== -1) {
         continue;
       }
@@ -10270,7 +12397,10 @@ async function buildLudoBoard(
       }
       if (columnIndex !== -1 && columnIndex < playerCount) {
         const baseColor = playerColors[columnIndex];
-        const mesh = new THREE.Mesh(tileGeo, cloneBoardMaterial(darkBoardMat, baseColor));
+        const mesh = new THREE.Mesh(
+          tileGeo,
+          cloneBoardMaterial(darkBoardMat, baseColor)
+        );
         mesh.position.copy(pos);
         registerTile(mesh);
         const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
@@ -10283,7 +12413,10 @@ async function buildLudoBoard(
       if (TRACK_KEY_SET.has(key)) {
         const isSafe = SAFE_TRACK_KEY_SET.has(key);
         const baseColor = isSafe ? 0xf4e3bd : 0xfef9ef;
-        const mesh = new THREE.Mesh(tileGeo, cloneBoardMaterial(isSafe ? darkBoardMat : lightBoardMat, baseColor));
+        const mesh = new THREE.Mesh(
+          tileGeo,
+          cloneBoardMaterial(isSafe ? darkBoardMat : lightBoardMat, baseColor)
+        );
         mesh.position.copy(pos);
         registerTile(mesh);
         const trackIndex = TRACK_INDEX_BY_KEY.get(key);
@@ -10324,7 +12457,8 @@ async function buildLudoBoard(
       }
       if (!token) {
         const fallbackProto =
-          resolveAbgPrototype(abgPrototypes, 'w', type) ?? resolveAbgPrototype(abgPrototypes, 'w', 'p');
+          resolveAbgPrototype(abgPrototypes, 'w', type) ??
+          resolveAbgPrototype(abgPrototypes, 'w', 'p');
         token = cloneAbgToken(fallbackProto) || new THREE.Group();
         if (tokenTint) {
           tintGltfToken(token, tokenTint);
@@ -10370,12 +12504,16 @@ async function buildLudoBoard(
   });
 
   const dice = makeDice();
-  dice.userData.homeLandingTargets = diceRollTargets.map((target) => target.clone());
+  dice.userData.homeLandingTargets = diceRollTargets.map((target) =>
+    target.clone()
+  );
   dice.userData.rollTargets = diceRollTargets.map((target) => target.clone());
   const clothHalf = BOARD_CLOTH_HALF;
   const railHeight = DICE_BASE_HEIGHT;
   const diceAnchor = new THREE.Vector3(0, railHeight, 0);
-  const railPositions = Array.from({ length: playerCount }, () => diceAnchor.clone());
+  const railPositions = Array.from({ length: playerCount }, () =>
+    diceAnchor.clone()
+  );
   dice.position.copy(diceAnchor);
   dice.userData.railPositions = railPositions.map((pos) => pos.clone());
   dice.userData.baseHeight = DICE_BASE_HEIGHT;
@@ -10485,10 +12623,15 @@ export default function LudoBattleRoyal() {
   const capacityParam = parseInt(params.get('capacity') ?? '', 10);
   const aiParam = parseInt(params.get('ai') ?? '', 10);
   const parsedCapacity = clampPlayerCount(capacityParam);
-  const requestedAiCount = clamp(Math.max(0, aiParam || 0), 0, DEFAULT_PLAYER_COUNT - 1);
-  const playerCount = tableId === 'practice'
-    ? clampPlayerCount(1 + requestedAiCount)
-    : parsedCapacity;
+  const requestedAiCount = clamp(
+    Math.max(0, aiParam || 0),
+    0,
+    DEFAULT_PLAYER_COUNT - 1
+  );
+  const playerCount =
+    tableId === 'practice'
+      ? clampPlayerCount(1 + requestedAiCount)
+      : parsedCapacity;
   const flagsParam = params.get('flags');
   const mode = params.get('mode') || 'local';
   const onlineTableId = params.get('tableId') || params.get('table') || '';
@@ -10512,7 +12655,10 @@ export default function LudoBattleRoyal() {
         name: username || getTelegramUsername() || 'Player',
         avatar
       });
-      socket.emit('confirmReady', { accountId: resolvedAccountId, tableId: onlineTableId });
+      socket.emit('confirmReady', {
+        accountId: resolvedAccountId,
+        tableId: onlineTableId
+      });
     };
 
     syncRuntime().catch(() => {});
@@ -10520,7 +12666,10 @@ export default function LudoBattleRoyal() {
     return () => {
       cancelled = true;
       if (resolvedAccountId) {
-        socket.emit('leaveLobby', { accountId: resolvedAccountId, tableId: onlineTableId });
+        socket.emit('leaveLobby', {
+          accountId: resolvedAccountId,
+          tableId: onlineTableId
+        });
       }
     };
   }, [mode, onlineTableId, accountIdParam, username, avatar]);
@@ -10530,7 +12679,9 @@ export default function LudoBattleRoyal() {
     const indices = flagsParam
       .split(',')
       .map((value) => parseInt(value, 10))
-      .filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < FLAG_EMOJIS.length);
+      .filter(
+        (idx) => Number.isFinite(idx) && idx >= 0 && idx < FLAG_EMOJIS.length
+      );
     if (!indices.length) return null;
     return indices.map((idx) => FLAG_EMOJIS[idx]);
   }, [flagsParam]);
