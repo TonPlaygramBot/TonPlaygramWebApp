@@ -16,8 +16,6 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
-import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -257,6 +255,45 @@ function safeLocalStorageRemove(key) {
 }
 
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
+const SNOOKER_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SNOOKER_HUMAN_SCALE = 1.18;
+const SNOOKER_HUMAN_YAW_FIX = Math.PI;
+
+const createSnookerHumanRig = () => ({
+  root: new THREE.Group(),
+  modelRoot: new THREE.Group(),
+  model: null,
+  loaded: false,
+  yaw: 0,
+  breathT: 0
+});
+
+const normalizeSnookerHumanModel = (model) => {
+  model.scale.setScalar(SNOOKER_HUMAN_SCALE);
+  model.rotation.set(0, SNOOKER_HUMAN_YAW_FIX, 0);
+  model.position.set(0, 0, 0);
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box.min.y, -center.z);
+};
+
+const chooseSnookerHumanEdgePosition = (cueBallWorld, aimForward, playW, playH) => {
+  const edgeMargin = BALL_R * 14;
+  const desiredShootDistance = BALL_R * 26;
+  const desired = cueBallWorld.clone().addScaledVector(aimForward, -desiredShootDistance);
+  const xEdge = playW / 2 + edgeMargin;
+  const zEdge = playH / 2 + edgeMargin;
+  const candidates = [
+    new THREE.Vector3(-xEdge, CUE_Y - BALL_R, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, CUE_Y - BALL_R, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), CUE_Y - BALL_R, -zEdge),
+    new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), CUE_Y - BALL_R, zEdge)
+  ];
+  return candidates.sort(
+    (a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired)
+  )[0];
+};
 
 const wait = (ms = 0) =>
   new Promise((resolve) => {
@@ -13584,6 +13621,8 @@ const powerRef = useRef(hud.power);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
+  const humanRigRef = useRef(null);
+  const humanAnchorRef = useRef(new THREE.Vector3());
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -20722,6 +20761,34 @@ const powerRef = useRef(hud.power);
       cueStick.visible = false;
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
+      const humanRig = createSnookerHumanRig();
+      humanRig.root.visible = false;
+      humanRig.modelRoot.visible = false;
+      table.add(humanRig.root, humanRig.modelRoot);
+      humanRigRef.current = humanRig;
+      new GLTFLoader().setCrossOrigin('anonymous').load(
+        SNOOKER_HUMAN_URL,
+        (gltf) => {
+          if (!humanRigRef.current || humanRigRef.current !== humanRig) return;
+          const model = gltf.scene;
+          normalizeSnookerHumanModel(model);
+          model.traverse((obj) => {
+            const mesh = obj;
+            if (!mesh?.isMesh) return;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+          });
+          humanRig.model = model;
+          humanRig.modelRoot.add(model);
+          humanRig.modelRoot.visible = true;
+          humanRig.loaded = true;
+        },
+        undefined,
+        () => {
+          if (!humanRigRef.current || humanRigRef.current !== humanRig) return;
+          humanRig.loaded = true;
+        }
+      );
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -25187,6 +25254,33 @@ const powerRef = useRef(hud.power);
           if (precisionArea) precisionArea.visible = false;
         }
         chalkAssistTargetRef.current = shouldSlowAim;
+        const humanRig = humanRigRef.current;
+        if (humanRig?.modelRoot) {
+          const showHuman = cueStick.visible && !replayActive;
+          humanRig.root.visible = showHuman;
+          humanRig.modelRoot.visible = showHuman && Boolean(humanRig.model);
+          if (showHuman && cue?.pos) {
+            const cueBallWorld = new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y);
+            const cueForward = new THREE.Vector3(
+              Math.sin(cueStick.rotation.y - Math.PI),
+              0,
+              Math.cos(cueStick.rotation.y - Math.PI)
+            ).normalize();
+            const anchor = chooseSnookerHumanEdgePosition(
+              cueBallWorld,
+              cueForward,
+              PLAY_W,
+              PLAY_H
+            );
+            humanAnchorRef.current.copy(anchor);
+            humanRig.breathT += dt * (shooting ? 0.45 : 0.9);
+            const breathLift = Math.sin(humanRig.breathT) * BALL_R * 0.1;
+            humanRig.modelRoot.position.copy(anchor);
+            humanRig.modelRoot.position.y += breathLift - BALL_R * 0.25;
+            humanRig.yaw = Math.atan2(cueForward.x, cueForward.z);
+            humanRig.modelRoot.rotation.set(0, humanRig.yaw, 0);
+          }
+        }
 
         // Fizika
         balls.forEach((ball) => {
@@ -26262,51 +26356,45 @@ const powerRef = useRef(hud.power);
     return () => window.removeEventListener('resize', computeInsets);
   }, [isPortrait, uiScale]);
 
-  // --------------------------------------------------
-  // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
-  // --------------------------------------------------
-  const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
-  useEffect(() => {
-    if (!showPowerSlider) {
-      return undefined;
-    }
-    const mount = sliderRef.current;
-    if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
-      mount,
-      value: powerRef.current * 100,
-      cueSrc: '/assets/snooker/cue.webp',
-      labels: true,
-      onChange: (v) => applyPower(v / 100),
-      onStart: () => {
-        captureCueStickAnchor();
-      },
-      onCommit: () => {
-        fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+  const showShootButton = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
+  const chargeFrameRef = useRef(null);
+  const chargingShotRef = useRef(false);
+  const stopChargingShot = useCallback(
+    (fire = false) => {
+      chargingShotRef.current = false;
+      if (chargeFrameRef.current) {
+        cancelAnimationFrame(chargeFrameRef.current);
+        chargeFrameRef.current = null;
       }
-    });
-    sliderInstanceRef.current = slider;
-    applySliderLock();
-    return () => {
-      sliderInstanceRef.current = null;
-      slider.destroy();
+      if (fire && powerRef.current > 0.02) {
+        fireRef.current?.();
+      }
+      applyPower(0);
+      cuePullCurrentRef.current = 0;
+      cuePullTargetRef.current = 0;
+    },
+    [applyPower]
+  );
+  const startChargingShot = useCallback(() => {
+    if (hud.turn !== 0 || hud.over || shotActive) return;
+    captureCueStickAnchor();
+    chargingShotRef.current = true;
+    const startedAt = performance.now();
+    const tick = () => {
+      if (!chargingShotRef.current) return;
+      const elapsed = performance.now() - startedAt;
+      const normalized = THREE.MathUtils.clamp(elapsed / 1500, 0, 1);
+      applyPower(normalized);
+      chargeFrameRef.current = requestAnimationFrame(tick);
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
-  useEffect(() => {
-    if (shotActive || hud.over || hud.turn !== 0) return;
-    const slider = sliderInstanceRef.current;
-    if (slider) {
-      slider.set(slider.min, { animate: true });
-    }
-    applyPower(0);
-    cuePullCurrentRef.current = 0;
-    cuePullTargetRef.current = 0;
-  }, [applyPower, hud.over, hud.turn, shotActive]);
+    tick();
+  }, [applyPower, captureCueStickAnchor, hud.over, hud.turn, shotActive]);
+  useEffect(
+    () => () => {
+      stopChargingShot(false);
+    },
+    [stopChargingShot]
+  );
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
@@ -28088,20 +28176,27 @@ const powerRef = useRef(hud.power);
           </span>
         </div>
       )}
-      {/* Power Slider */}
-      {showPowerSlider && !replayActive && (
+      {/* Human-driven shot charge (replaces power slider) */}
+      {showShootButton && !replayActive && (
         <div
           className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
-          <div
-            ref={sliderRef}
+          <button
+            type="button"
+            onPointerDown={() => startChargingShot()}
+            onPointerUp={() => stopChargingShot(true)}
+            onPointerCancel={() => stopChargingShot(false)}
+            onPointerLeave={() => stopChargingShot(false)}
+            className="rounded-2xl border border-white/60 bg-black/55 px-5 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-[0_16px_34px_rgba(0,0,0,0.45)]"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'top right'
             }}
-          />
+          >
+            Hold to Shoot
+          </button>
         </div>
       )}
 
