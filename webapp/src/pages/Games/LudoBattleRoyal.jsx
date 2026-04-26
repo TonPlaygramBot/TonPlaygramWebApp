@@ -2187,8 +2187,10 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.014 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.024 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.104 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.03 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -4795,6 +4797,12 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_UP_DICE_RELEASE,
       SEATED_HELPER_FORWARD_DICE_RELEASE
     ),
+    diceHold: createHelper(
+      'diceHoldHelper',
+      SEATED_HELPER_RIGHT_DICE,
+      SEATED_HELPER_UP_DICE_HOLD,
+      SEATED_HELPER_FORWARD_DICE_HOLD
+    ),
     tokenPickup: createHelper(
       'tokenPickupHelper',
       SEATED_HELPER_RIGHT_TOKEN,
@@ -6923,12 +6931,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     requestAnimationFrame(step);
   };
 
+  const resolveDiceHoldContactTarget = (player, fallbackTarget = null) => {
+    const dice = diceRef.current;
+    if (!dice?.isObject3D) return fallbackTarget ?? null;
+    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
+    if (!actorEntry) return fallbackTarget ?? null;
+    const helperWorld = new THREE.Vector3();
+    const sampled =
+      sampleSeatedActionHelper(actorEntry, 'diceHold', helperWorld) ||
+      sampleSeatedActionHelper(actorEntry, 'dicePickup', helperWorld);
+    if (!sampled) return fallbackTarget ?? null;
+    const parent = dice.parent;
+    const local = helperWorld.clone();
+    if (parent?.worldToLocal) {
+      parent.worldToLocal(local);
+    }
+    // Keep the dice slightly under the fingertip so the grasp appears like physical contact.
+    local.y -= DICE_SIZE * 0.08;
+    return local;
+  };
+
   const moveDiceToRail = (player, immediate = false) => {
     const dice = diceRef.current;
     if (!dice) return;
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
-    const target = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
+    const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
+    const target = resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
