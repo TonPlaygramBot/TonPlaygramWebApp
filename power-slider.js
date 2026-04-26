@@ -105,7 +105,7 @@ export class PowerSlider {
     return this.value;
   }
 
-  set(v, { animate = false } = {}) {
+  set(v, { animate = false, emitChange = true } = {}) {
     const value = this._clamp(this._step(v));
     this.value = value;
     if (!animate) this.el.classList.add('ps-no-animate');
@@ -113,22 +113,22 @@ export class PowerSlider {
     this._update(animate);
     if (!animate)
       requestAnimationFrame(() => this.el.classList.remove('ps-no-animate'));
-    if (typeof this.onChange === 'function') this.onChange(value);
+    if (emitChange && typeof this.onChange === 'function') this.onChange(value);
   }
 
-  animateTo(v, { duration = 160 } = {}) {
+  animateTo(v, { duration = 160, emitChange = true } = {}) {
     this._cancelReturnAnimation();
     const target = this._clamp(this._step(v));
     const start = this.value;
     if (!Number.isFinite(duration) || duration <= 0 || Math.abs(target - start) < 1e-6) {
-      this.set(target, { animate: true });
+      this.set(target, { animate: true, emitChange });
       return;
     }
     const startedAt = performance.now();
     const step = (now) => {
       const t = Math.min(1, Math.max(0, (now - startedAt) / duration));
       const eased = 1 - Math.pow(1 - t, 3);
-      this.set(start + (target - start) * eased, { animate: true });
+      this.set(start + (target - start) * eased, { animate: true, emitChange });
       if (t >= 1) {
         this._returnAnimFrame = null;
         return;
@@ -138,8 +138,8 @@ export class PowerSlider {
     this._returnAnimFrame = requestAnimationFrame(step);
   }
 
-  animateToMin({ duration = 160 } = {}) {
-    this.animateTo(this.min, { duration });
+  animateToMin({ duration = 160, emitChange = true } = {}) {
+    this.animateTo(this.min, { duration, emitChange });
   }
 
   lock() {
