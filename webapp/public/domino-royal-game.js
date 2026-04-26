@@ -6028,6 +6028,8 @@ const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
 let humanSeatBadgeAnchor = null;
+const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 82;
+const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
@@ -6246,28 +6248,28 @@ function updateSeatBadgePositions() {
   chairs.forEach((wrapper, idx) => {
     const badge = seatBadges[idx];
     if (!badge) return;
-    const faceAnchor = seatFaceAnchors[idx];
-    const world = faceAnchor
-      ? faceAnchor.getWorldPosition(projectedSeatTarget)
-      : wrapper.getWorldPosition(projectedSeatTarget);
-    if (!faceAnchor) {
-      world.y +=
-        CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
-    }
+    const world = wrapper.getWorldPosition(projectedSeatTarget);
+    world.y +=
+      CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
     world.project(camera);
     const projectedX = (world.x * 0.5 + 0.5) * rect.width + rect.left;
     const projectedY = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
-    badge.style.left = `${projectedX}px`;
-    badge.style.top = `${projectedY}px`;
+    let x = projectedX;
+    let y = projectedY;
+    if (idx === human) {
+      const anchorX =
+        rect.left + rect.width * 0.5 + HUMAN_SEAT_BADGE_LEFT_OFFSET;
+      const anchorY = rect.top + rect.height - HUMAN_SEAT_BADGE_BOTTOM_OFFSET;
+      if (!humanSeatBadgeAnchor) humanSeatBadgeAnchor = { x: anchorX, y: anchorY };
+      humanSeatBadgeAnchor.x = anchorX;
+      humanSeatBadgeAnchor.y = anchorY;
+      x = humanSeatBadgeAnchor.x;
+      y = humanSeatBadgeAnchor.y;
+    }
+    badge.style.left = `${x}px`;
+    badge.style.top = `${y}px`;
     badge.style.opacity =
       idx === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
-    if (idx === human) {
-      if (!humanSeatBadgeAnchor) {
-        humanSeatBadgeAnchor = { x: projectedX, y: projectedY };
-      }
-      humanSeatBadgeAnchor.x = projectedX;
-      humanSeatBadgeAnchor.y = projectedY;
-    }
   });
   anchorSelfVideoToBottomSeat();
 }
@@ -7671,299 +7673,6 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenColorMap',
   'sheenRoughnessMap'
 ]);
-const HUMAN_CHARACTER_DISABLED = true;
-const seatedHumans = [];
-const seatFaceAnchors = [];
-const seatCharacterHelpers = [];
-
-function normalizeHumanBoneName(value = '') {
-  return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function getModelBones(root) {
-  const bones = [];
-  root.traverse((obj) => {
-    if (obj?.isBone) bones.push(obj);
-  });
-  return bones;
-}
-
-function findModelBone(bones, aliases = []) {
-  const normalizedAliases = aliases.map((alias) => normalizeHumanBoneName(alias));
-  for (const alias of normalizedAliases) {
-    const exact = bones.find((bone) => normalizeHumanBoneName(bone.name) === alias);
-    if (exact) return exact;
-  }
-  for (const alias of normalizedAliases) {
-    const partial = bones.find((bone) => normalizeHumanBoneName(bone.name).includes(alias));
-    if (partial) return partial;
-  }
-  return null;
-}
-
-function captureModelRestPose(root) {
-  const rest = new Map();
-  getModelBones(root).forEach((bone) => rest.set(bone, bone.quaternion.clone()));
-  return rest;
-}
-
-function composeModelBone(rest, bone, euler) {
-  if (!bone) return;
-  const base = rest.get(bone);
-  if (!base) return;
-  bone.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(euler));
-}
-
-function buildHumanBoneMap(root) {
-  const bones = getModelBones(root);
-  const map = {
-    hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
-    spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
-    spine1: findModelBone(bones, ['spine1', 'spine01', 'mixamorigspine1', 'chest']),
-    spine2: findModelBone(bones, ['spine2', 'spine02', 'mixamorigspine2', 'upperchest']),
-    neck: findModelBone(bones, ['neck', 'mixamorigneck', 'wolf3dneck']),
-    head: findModelBone(bones, ['head', 'mixamorighead', 'wolf3dhead']),
-    leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
-    leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
-    leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
-    rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
-    rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
-    rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
-    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
-    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
-    leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
-    leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
-    rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
-    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf'])
-  };
-  map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
-  map.spine1 ??= map.spine2 ?? map.spine;
-  map.spine2 ??= map.spine1 ?? map.spine;
-  map.leftArm ??= map.leftShoulder;
-  map.rightArm ??= map.rightShoulder;
-  map.leftForeArm ??= map.leftArm;
-  map.rightForeArm ??= map.rightArm;
-  map.leftLeg ??= map.leftUpLeg;
-  map.rightLeg ??= map.rightUpLeg;
-  return map;
-}
-
-function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockStrength = 0) {
-  const { root, bones, rest, baseScale = 1 } = seatHuman;
-  rest.forEach((quat, bone) => bone.quaternion.copy(quat));
-  const breathe = Math.sin(timeSeconds * 1.1) * 0.018;
-  root.scale.setScalar(baseScale);
-
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.12 - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.34 + breathe - knockStrength * 0.15, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.22 - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12 - knockStrength * 0.03, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.neck, new THREE.Euler(-0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ'));
-
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.5, 0.13, 0.1, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.5, -0.13, -0.1, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-
-  const rightReach = actionStrength;
-  const rightKnock = knockStrength;
-  // Baseline: both arms stay in a stable "holding dominos" seated pose.
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.04, -0.34, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.84, 0.18, -0.36, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.1, 0.16, -0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.2, 0.08, -0.04, 'XYZ'));
-
-  let targetBiasY = -0.04;
-  let targetBiasZ = 0.18;
-  if (seatHuman?.action?.targetWorld && seatHuman?.root?.parent?.worldToLocal) {
-    const targetLocal = seatHuman.root.parent.worldToLocal(
-      seatHuman.action.targetWorld.clone()
-    );
-    const horizontal = Math.hypot(targetLocal.x, targetLocal.z) || 1;
-    targetBiasY = THREE.MathUtils.clamp(targetLocal.x / horizontal, -0.32, 0.32);
-    targetBiasZ = THREE.MathUtils.clamp(-targetLocal.z / horizontal, -0.34, 0.34);
-  }
-
-  composeModelBone(
-    rest,
-    bones.rightShoulder,
-    new THREE.Euler(
-      -0.18 + rightReach * 0.58 - rightKnock * 0.2,
-      -0.18 + targetBiasY * 0.52,
-      0.28 + targetBiasZ * 0.36,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightArm,
-    new THREE.Euler(
-      -0.86 + rightReach * 1.78 + rightKnock * 1.06,
-      -0.2 - rightReach * 0.24 + targetBiasY * 0.4,
-      0.24 + targetBiasZ * 0.34,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightForeArm,
-    new THREE.Euler(
-      -1.22 + rightReach * 1.4 + rightKnock * 1.65,
-      -0.12 + targetBiasY * 0.35,
-      0.14 + targetBiasZ * 0.2,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightHand,
-    new THREE.Euler(-0.24 + rightReach * 0.7, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
-  );
-}
-
-async function ensureHumanTemplate() {
-  throw new Error('Domino Royal seated human character is disabled');
-}
-
-function clearSeatedHumans() {
-  while (seatedHumans.length) {
-    const seatHuman = seatedHumans.pop();
-    seatHuman?.root?.parent?.remove(seatHuman.root);
-    seatHuman?.root?.traverse?.((obj) => {
-      if (obj?.isMesh && obj.geometry?.dispose) obj.geometry.dispose();
-      const materials = Array.isArray(obj?.material) ? obj.material : [obj?.material];
-      materials.forEach((material) => material?.dispose?.());
-    });
-  }
-  seatFaceAnchors.length = 0;
-  seatCharacterHelpers.length = 0;
-}
-
-function createSeatCharacterHelper({ chairSize, seatBottomOffset }) {
-  const helper = new THREE.Object3D();
-  const seatY = chairSize.y - seatBottomOffset;
-  const seatDepth = chairSize.z * -0.2;
-  helper.position.set(0, seatY + -0.125 * MODEL_SCALE * STOOL_SCALE, seatDepth);
-  helper.userData = {
-    seatBottomOffset,
-    chairSize: chairSize.clone(),
-    seatY,
-    seatDepth
-  };
-  return helper;
-}
-
-function fitHumanToSeat(root, seatHelper, chairSize) {
-  const bounds = new THREE.Box3().setFromObject(root);
-  const size = bounds.getSize(new THREE.Vector3());
-  const baseHeight = Math.max(
-    0.1,
-    size.y,
-    1.74
-  );
-  const targetHeightFromChair = Math.max(
-    0.9,
-    chairSize.y * 2.7 * 1.02
-  );
-  const targetHeightFromLudo = 1.74 * 3.24;
-  const targetHeight = Math.max(targetHeightFromChair, targetHeightFromLudo);
-  const scaleFix = targetHeight / baseHeight;
-  root.scale.multiplyScalar(scaleFix);
-  root.position.copy(seatHelper.position);
-}
-
-function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null) {
-  if (HUMAN_CHARACTER_DISABLED) return;
-  const seatHuman = seatedHumans[seatIndex];
-  if (!seatHuman) return;
-  const now = performance.now();
-  const actionTarget = targetWorld instanceof THREE.Vector3 ? targetWorld.clone() : null;
-  if (action === 'knock') {
-    seatHuman.action = {
-      type: 'knock',
-      startMs: now,
-      durationMs: 720,
-      targetWorld: actionTarget
-    };
-    return;
-  }
-  seatHuman.action = {
-    type: 'place',
-    startMs: now,
-    durationMs: 950,
-    targetWorld: actionTarget
-  };
-}
-
-function syncSeatHumans(nowMs = performance.now()) {
-  if (HUMAN_CHARACTER_DISABLED) return;
-  if (!seatedHumans.length) return;
-  const nowSeconds = nowMs / 1000;
-  seatedHumans.forEach((seatHuman) => {
-    if (!seatHuman?.root) return;
-    let placeStrength = 0;
-    let knockStrength = 0;
-    if (seatHuman.action) {
-      const progress = Math.min(
-        1,
-        Math.max(0, (nowMs - seatHuman.action.startMs) / Math.max(1, seatHuman.action.durationMs))
-      );
-      if (seatHuman.action.type === 'place') {
-        placeStrength = Math.sin(progress * Math.PI);
-      } else if (seatHuman.action.type === 'knock') {
-        knockStrength = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
-      }
-      if (progress >= 1) {
-        seatHuman.action = null;
-      }
-    }
-    applyLoadedHumanPose(seatHuman, nowSeconds, placeStrength, knockStrength);
-  });
-}
-
-async function placeSeatedHumans(seatBottomOffset, chairSize) {
-  if (HUMAN_CHARACTER_DISABLED) {
-    clearSeatedHumans();
-    return;
-  }
-  clearSeatedHumans();
-  let humanTemplateData = null;
-  try {
-    humanTemplateData = await ensureHumanTemplate();
-  } catch (error) {
-    console.warn('Ludo seated human model failed to load for Domino seats', error);
-    return;
-  }
-  CHAIR_SEAT_ANGLES.forEach((_angle, index) => {
-    const wrapper = chairs[index];
-    if (!wrapper) return;
-    const seatHelper = createSeatCharacterHelper({ chairSize, seatBottomOffset });
-    wrapper.add(seatHelper);
-    seatCharacterHelpers[index] = seatHelper;
-    const root = humanTemplateData.template.clone(true);
-    root.rotation.y = Math.PI;
-    fitHumanToSeat(root, seatHelper, chairSize);
-    root.position.y += 0.045;
-    wrapper.add(root);
-    const faceAnchor = new THREE.Object3D();
-    faceAnchor.position.set(0, 0.62, 0.08);
-    root.add(faceAnchor);
-    seatFaceAnchors[index] = faceAnchor;
-    const seatHuman = {
-      root,
-      action: null
-    };
-
-    const bones = buildHumanBoneMap(root);
-    seatHuman.bones = bones;
-    seatHuman.rest = captureModelRestPose(root);
-    seatHuman.baseScale = 1;
-
-    seatedHumans[index] = seatHuman;
-    triggerSeatHumanAction(index, 'place');
-  });
-}
 
 function disposeChairResources(root) {
   root.traverse((child) => {
@@ -8006,9 +7715,8 @@ function placeChairsWithOption(option, chairData, token) {
   }
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
-  const chairSize = chairTemplateBounds.getSize(new THREE.Vector3());
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
-  const labelDepth = -chairSize.z * 0.35;
+  const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
@@ -8041,9 +7749,6 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
-  placeSeatedHumans(seatBottomOffset, chairSize).catch((error) => {
-    console.warn('Failed to place seated humans', error);
-  });
   syncArenaGroundToFurniture();
 }
 
@@ -9525,11 +9230,6 @@ function placeOnBoard(tile, side, options = {}) {
   } else {
     renderChain();
   }
-  triggerSeatHumanAction(
-    current,
-    'place',
-    new THREE.Vector3(segment.x, CHAIN_TILE_Y, segment.z)
-  );
   SFX.place();
   return { success: true, segment, end: updatedEnd };
 }
@@ -10602,7 +10302,6 @@ function schedulePassTurnAdvance(
   playerIndex = current,
   delayMs = PASS_TURN_ADVANCE_DELAY_MS
 ) {
-  triggerSeatHumanAction(playerIndex, 'knock');
   showPassBubble(playerIndex);
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
@@ -11045,7 +10744,6 @@ function shutdownDominoRoyal(reason = 'unknown') {
     anchoredSelfVideoElement = null;
     controls.enabled = false;
     scene.visible = false;
-    clearSeatedHumans();
     if (seatOverlay?.parentNode) {
       seatOverlay.parentNode.removeChild(seatOverlay);
     }
@@ -11088,7 +10786,6 @@ function tick(now) {
     updateEntrySequence(current);
     updateDrawAnimations(current);
     updatePlacementAnimations(current);
-    syncSeatHumans(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
