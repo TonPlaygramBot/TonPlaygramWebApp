@@ -15,12 +15,20 @@ const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
   author: 'Mixamo / Adobe (sample avatars)'
 });
 
+const DEFAULT_SEATED_HUMAN_ADAPTER = Object.freeze({
+  seatedScaleMultiplier: 1,
+  seatedYawOffset: 0,
+  seatedYOffset: 0,
+  seatedZOffset: 0
+});
+
 export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-current',
     label: 'Current Avatar',
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     thumbnail: swatchThumbnail(['#2f6f8a', '#1e293b', '#b48d6b']),
+    seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
@@ -63,6 +71,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'Y-Bot',
     modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/YBot.glb'],
     thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#9ca3af']),
+    seatedAdapter: {
+      seatedScaleMultiplier: 0.95,
+      seatedYawOffset: Math.PI
+    },
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
@@ -70,6 +82,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'X-Bot',
     modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'],
     thumbnail: swatchThumbnail(['#334155', '#0f172a', '#94a3b8']),
+    seatedAdapter: {
+      seatedScaleMultiplier: 0.95,
+      seatedYawOffset: Math.PI
+    },
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
@@ -77,6 +93,11 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'Soldier',
     modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb'],
     thumbnail: swatchThumbnail(['#3f6212', '#1f2937', '#b8a083']),
+    seatedAdapter: {
+      seatedScaleMultiplier: 0.89,
+      seatedYawOffset: Math.PI,
+      seatedYOffset: -0.01
+    },
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
