@@ -431,27 +431,15 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
-const SEATED_HUMAN_DEFAULT_SEAT_CALIBRATION = Object.freeze({
-  scale: 1,
-  yOffset: 0,
-  zOffset: 0
-});
-const SEATED_HUMAN_MODEL_CALIBRATION = Object.freeze({
-  'webgl-vietnam-human': { scale: 0.88, yOffset: -0.05, zOffset: 0.022 },
-  'webgl-human-body-a': { scale: 0.84, yOffset: -0.07, zOffset: 0.028 },
-  'webgl-human-body-b': { scale: 0.84, yOffset: -0.07, zOffset: 0.028 },
-  'webgl-ai-teacher': { scale: 0.92, yOffset: -0.045, zOffset: 0.02 },
-  'webgl-ai-teacher-1': { scale: 0.92, yOffset: -0.045, zOffset: 0.02 }
-});
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.18;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.84;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.68;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.54;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.6;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.58;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.34;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.02; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
@@ -463,16 +451,16 @@ const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger con
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = -0.014;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = -0.004;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.006;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 const SEATED_HUMAN_FINGER_HELPER_RADIUS = 0.012;
 const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.32;
 const SEATED_HUMAN_REACH_SIDE_GAIN = 0.22;
-const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.82;
-const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.72;
+const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.68;
+const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.58;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -912,22 +900,6 @@ function computeSeatedHumanScale(actorTemplate) {
   );
 }
 
-function createNormalizedSeatedHumanRoot(root) {
-  if (!root) return root;
-  root.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(root);
-  if (!Number.isFinite(bounds.min.x) || !Number.isFinite(bounds.max.x)) return root;
-  const centerX = (bounds.min.x + bounds.max.x) * 0.5;
-  const centerZ = (bounds.min.z + bounds.max.z) * 0.5;
-  const floorY = bounds.min.y;
-  const pivot = new THREE.Group();
-  root.position.x -= centerX;
-  root.position.y -= floorY;
-  root.position.z -= centerZ;
-  pivot.add(root);
-  return pivot;
-}
-
 async function loadSeatedHumanTemplate(option, renderer = null) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
@@ -957,7 +929,6 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
     if (!root) {
       throw lastError || new Error('Missing seated human scene');
     }
-    root = createNormalizedSeatedHumanRoot(root);
     const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
     const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
     const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
@@ -972,12 +943,8 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
       const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
-        const hasOriginalTexture = Boolean(
-          mat?.map || mat?.emissiveMap || mat?.metalnessMap || mat?.roughnessMap || mat?.normalMap
-        );
-        if (!hasOriginalTexture) {
-          mat.map = fallbackTex;
-        }
+        if (!mat?.map) mat.map = fallbackTex;
+        if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
         mat.needsUpdate = true;
@@ -9307,19 +9274,12 @@ function Chess3D({
     seatedHumanMoveActionsRef.current.clear();
     try {
       const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
-      const seatedCalibration =
-        SEATED_HUMAN_MODEL_CALIBRATION[humanCharacterOption?.id] || SEATED_HUMAN_DEFAULT_SEAT_CALIBRATION;
       const baseScale =
-        (humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate)) *
-        (seatedCalibration.scale || 1);
+        humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkinned(humanTemplate);
         actor.scale.setScalar(baseScale);
-        actor.position.set(
-          0,
-          SEATED_HUMAN_SEAT_Y_OFFSET + (seatedCalibration.yOffset || 0),
-          SEATED_HUMAN_SEAT_Z_OFFSET + (seatedCalibration.zOffset || 0)
-        );
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
@@ -13498,7 +13458,7 @@ function Chess3D({
           if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
-            grip = 0;
+            grip = 0.05;
           } else if (u < 0.44) {
             mode = 'gripPiece';
             intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
@@ -13510,11 +13470,7 @@ function Chess3D({
           } else {
             mode = 'placePiece';
             intensity = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
-            if (action.isCapture) {
-              grip = intensity < 0.78 ? 1 : clamp01(1 - (intensity - 0.78) / 0.22);
-            } else {
-              grip = clamp01(1 - intensity * 1.05);
-            }
+            grip = action.isCapture ? 1 - intensity * 0.2 : 1 - intensity * 0.9;
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip, {
             forwardReach: action.forwardReach,
