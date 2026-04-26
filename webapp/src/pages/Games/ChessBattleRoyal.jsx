@@ -872,6 +872,18 @@ function normalizeHumanModelUrlCandidates(modelUrls = []) {
   };
   modelUrls.forEach((url) => {
     push(url);
+    const normalizedUrl = `${url || ''}`.trim();
+    const lowerUrl = normalizedUrl.toLowerCase();
+    if (lowerUrl.endsWith('.glb')) {
+      push(normalizedUrl.replace(/\.glb(\?.*)?$/i, '.gltf$1'));
+    } else if (lowerUrl.endsWith('.gltf')) {
+      push(normalizedUrl.replace(/\.gltf(\?.*)?$/i, '.glb$1'));
+    }
+    if (lowerUrl.includes('/gltf/')) {
+      push(normalizedUrl.replace(/\/gltf\//i, '/glTF-Binary/'));
+      push(normalizedUrl.replace(/\/gltf\//i, '/glb/'));
+      push(normalizedUrl.replace(/\/gltf\//i, '/GLB/'));
+    }
     const rawGithubMatch = url.match(
       /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/
     );
@@ -882,6 +894,13 @@ function normalizeHumanModelUrlCandidates(modelUrls = []) {
     }
   });
   return next;
+}
+
+function applyTextureQualityToMaterialMap(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
 }
 
 function getRenderableMeshBounds(object) {
@@ -925,7 +944,7 @@ function computeSeatedHumanScale(actorTemplate) {
   );
 }
 
-async function loadSeatedHumanTemplate(option, renderer = null) {
+async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 1) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
   const cacheKey = selectedOption.id || fallbackOption.id || 'default';
@@ -955,9 +974,13 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
       throw lastError || new Error('Missing seated human scene');
     }
     normalizeSeatedHumanRootToChair(root);
+    const selectedAdapter = selectedOption?.seatedAdapter || {};
     const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
     const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
     const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+    applyTextureQualityToMaterialMap(skinTex, maxAnisotropy);
+    applyTextureQualityToMaterialMap(clothTex, maxAnisotropy);
+    applyTextureQualityToMaterialMap(hairTex, maxAnisotropy);
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
       obj.castShadow = true;
@@ -972,14 +995,35 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
       mats.forEach((mat) => {
         if (!hasOriginalTexture && !mat?.map) mat.map = fallbackTex;
         if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-        if (mat?.map) applySRGBColorSpace(mat.map);
-        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        if (mat?.map) {
+          applySRGBColorSpace(mat.map);
+          applyTextureQualityToMaterialMap(mat.map, maxAnisotropy);
+        }
+        if (mat?.emissiveMap) {
+          applySRGBColorSpace(mat.emissiveMap);
+          applyTextureQualityToMaterialMap(mat.emissiveMap, maxAnisotropy);
+        }
         mat.needsUpdate = true;
       });
     });
+    const seatedScaleMultiplier = Number.isFinite(selectedAdapter?.seatedScaleMultiplier)
+      ? selectedAdapter.seatedScaleMultiplier
+      : 1;
+    const seatedYawOffset = Number.isFinite(selectedAdapter?.seatedYawOffset)
+      ? selectedAdapter.seatedYawOffset
+      : 0;
+    const seatedYOffset = Number.isFinite(selectedAdapter?.seatedYOffset)
+      ? selectedAdapter.seatedYOffset
+      : 0;
+    const seatedZOffset = Number.isFinite(selectedAdapter?.seatedZOffset)
+      ? selectedAdapter.seatedZOffset
+      : 0;
     root.userData = {
       ...(root.userData || {}),
-      seatedHumanScale: computeSeatedHumanScale(root)
+      seatedHumanScale: computeSeatedHumanScale(root) * seatedScaleMultiplier,
+      seatedYawOffset,
+      seatedYOffset,
+      seatedZOffset
     };
     return root;
   })();
@@ -8714,18 +8758,35 @@ function Chess3D({
 
     const selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
     if (selectedHumanCharacterId !== (arena.selectedHumanCharacterId ?? 'default')) {
-      void loadSeatedHumanTemplate(humanCharacterOption, arena.renderer)
+      void loadSeatedHumanTemplate(
+        humanCharacterOption,
+        arena.renderer,
+        arena.maxAnisotropy || 1
+      )
         .then((humanTemplate) => {
           if (!arenaRef.current) return;
           const baseScale =
             humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
+          const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
+            ? humanTemplate.userData.seatedYawOffset
+            : 0;
+          const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
+            ? humanTemplate.userData.seatedYOffset
+            : 0;
+          const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
+            ? humanTemplate.userData.seatedZOffset
+            : 0;
           const nextActors = [];
           (arena.chairs || []).forEach((chair, playerIndex) => {
             if (!chair?.group) return;
             const actor = cloneSkinned(humanTemplate);
             actor.scale.setScalar(baseScale);
-            actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
-            actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+            actor.position.set(
+              0,
+              SEATED_HUMAN_SEAT_Y_OFFSET + seatedYOffset,
+              SEATED_HUMAN_SEAT_Z_OFFSET + seatedZOffset
+            );
+            actor.rotation.set(0, SEATED_HUMAN_FACING_Y + seatedYawOffset, 0);
             chair.group.add(actor);
             const rig = saveBoneRig(actor);
             applySeatedHumanPose(rig, 'idle', 1, 0);
@@ -9300,14 +9361,31 @@ function Chess3D({
     seatedHumanMoveActionsRef.current.forEach((action) => disposeSeatedHumanMoveAction(action));
     seatedHumanMoveActionsRef.current.clear();
     try {
-      const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
+      const humanTemplate = await loadSeatedHumanTemplate(
+        humanCharacterOption,
+        renderer,
+        maxAnisotropy || 1
+      );
       const baseScale =
         humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
+      const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
+        ? humanTemplate.userData.seatedYawOffset
+        : 0;
+      const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
+        ? humanTemplate.userData.seatedYOffset
+        : 0;
+      const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
+        ? humanTemplate.userData.seatedZOffset
+        : 0;
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkinned(humanTemplate);
         actor.scale.setScalar(baseScale);
-        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
-        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+        actor.position.set(
+          0,
+          SEATED_HUMAN_SEAT_Y_OFFSET + seatedYOffset,
+          SEATED_HUMAN_SEAT_Z_OFFSET + seatedZOffset
+        );
+        actor.rotation.set(0, SEATED_HUMAN_FACING_Y + seatedYawOffset, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1, 0);
