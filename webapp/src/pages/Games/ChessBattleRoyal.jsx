@@ -442,7 +442,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.16;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.64; // Push board/chairs/avatars visually lower on portrait screens.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.9; // Push board/chairs/avatars lower on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -453,9 +453,12 @@ const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.006;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
-const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
+const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = false;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
+const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.32;
+const SEATED_HUMAN_REACH_SIDE_GAIN = 0.22;
+const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.68;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -719,7 +722,7 @@ function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6
   return tex;
 }
 
-function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, motionProfile = null) {
   if (!rig) return;
   resetBoneRig(rig);
   const t = smooth01(intensity);
@@ -755,6 +758,8 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   let wristZ = 0.02;
   let chestX = 0.16;
   let headX = -0.03;
+  const forwardReach = clamp01(motionProfile?.forwardReach, 0);
+  const sideReach = THREE.MathUtils.clamp(motionProfile?.sideReach ?? 0, -1, 1);
 
   if (mode === 'reachPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.92, t);
@@ -805,6 +810,19 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
     headX = THREE.MathUtils.lerp(headX, 0.11, t);
   }
+
+  const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
+  const reachSideDelta = sideReach * SEATED_HUMAN_REACH_SIDE_GAIN;
+  shoulderX = THREE.MathUtils.lerp(shoulderX, shoulderX - reachForwardDelta, t);
+  shoulderY = THREE.MathUtils.lerp(shoulderY, shoulderY + reachSideDelta * 0.32, t);
+  shoulderZ = THREE.MathUtils.lerp(shoulderZ, shoulderZ - reachSideDelta * 0.5, t);
+  forearmX = THREE.MathUtils.lerp(forearmX, forearmX - reachForwardDelta * 0.88, t);
+  forearmY = THREE.MathUtils.lerp(forearmY, forearmY + reachSideDelta * 0.22, t);
+  forearmZ = THREE.MathUtils.lerp(forearmZ, forearmZ - reachSideDelta * 0.36, t);
+  wristY = THREE.MathUtils.lerp(wristY, wristY + reachSideDelta * 0.2, t);
+  wristZ = THREE.MathUtils.lerp(wristZ, wristZ - reachSideDelta * 0.16, t);
+  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5, t);
+  headX = THREE.MathUtils.lerp(headX, headX + reachForwardDelta * 0.22, t);
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
@@ -12399,6 +12417,10 @@ function Chess3D({
       if (useHumanHandMove) {
         const nowMs = performance.now();
         const liveFrom = m.getWorldPosition(new THREE.Vector3());
+        const normalizedFromForwardReach = moverSeatIndex === 0 ? 1 - sel.r / 7 : sel.r / 7;
+        const normalizedToForwardReach = moverSeatIndex === 0 ? 1 - rr / 7 : rr / 7;
+        const forwardReach = clamp01((normalizedFromForwardReach + normalizedToForwardReach) * 0.5);
+        const sideReach = THREE.MathUtils.clamp(((cc + sel.c) * 0.5 - 3.5) / 3.5, -1, 1);
         const existingAction = seatedHumanMoveActionsRef.current.get(moverSeatIndex);
         if (existingAction) {
           disposeSeatedHumanMoveAction(existingAction);
@@ -12410,6 +12432,9 @@ function Chess3D({
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
           isCapture: Boolean(capturedPiece),
+          forwardReach,
+          sideReach,
+          gripOffset: null,
           startMs: nowMs + Math.max(0, moveDelayMs),
           durationMs: SEATED_HUMAN_MOVE_DURATION_MS,
           handHelper: null,
@@ -13421,7 +13446,10 @@ function Chess3D({
             intensity = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
             grip = action.isCapture ? 1 - intensity * 0.2 : 1 - intensity * 0.9;
           }
-          applySeatedHumanPose(entry.rig, mode, intensity, grip);
+          applySeatedHumanPose(entry.rig, mode, intensity, grip, {
+            forwardReach: action.forwardReach,
+            sideReach: action.sideReach
+          });
           if (action?.mesh) {
             if (SEATED_HUMAN_CONTACT_HELPERS_ENABLED && !action.handHelper && !action.pieceHelper) {
               const helpers = createSeatedHumanContactHelpers();
@@ -13458,12 +13486,18 @@ function Chess3D({
               const gripT = smoothEase(
                 clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
               );
-              action.mesh.position.lerpVectors(liftedFrom, holdWorld, gripT);
+              const blendedGrip = liveFrom.clone().lerp(holdWorld, SEATED_HUMAN_GRIP_CONTACT_BLEND);
+              action.mesh.position.lerpVectors(liftedFrom, blendedGrip, gripT);
+              if (!action.gripOffset && gripT >= 0.96) {
+                action.gripOffset = action.mesh.position.clone().sub(holdWorld);
+              }
             } else if (u < carryPhaseEnd) {
               const carryT = smoothEase(
                 clamp01((u - 0.44) / (carryPhaseEnd - 0.44))
               );
-              const carryTarget = holdWorld.clone().lerp(liftedTo, carryT);
+              const gripOffset = action.gripOffset || new THREE.Vector3();
+              const gripContact = holdWorld.clone().add(gripOffset);
+              const carryTarget = gripContact.clone().lerp(liftedTo, carryT);
               carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
               action.mesh.position.copy(carryTarget);
             } else {
