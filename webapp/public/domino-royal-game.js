@@ -2021,6 +2021,32 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 );
 
 const CHAIR_MODEL_URLS = Object.freeze([]);
+const DOMINO_SEATED_HUMAN_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb']
+  },
+  {
+    id: 'webgl-vietnam-human',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb']
+  },
+  {
+    id: 'webgl-human-body-a',
+    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb']
+  },
+  {
+    id: 'webgl-human-body-b',
+    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb']
+  },
+  {
+    id: 'webgl-ai-teacher',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb']
+  },
+  {
+    id: 'webgl-ai-teacher-1',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb']
+  }
+]);
 const polyhavenModelCache = new Map();
 const polyhavenFilesManifestCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -2310,6 +2336,14 @@ let chairTemplatePromise = null;
 let chairTemplateBounds = null;
 let chairBuildToken = 0;
 const chairTemplateCache = new Map();
+const seatedHumanTemplatePromiseById = new Map();
+const seatedHumanActors = [];
+const DOMINO_SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const DOMINO_SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const DOMINO_SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.6;
+const DOMINO_SEATED_HUMAN_SEAT_Y_OFFSET = -0.88 * MODEL_SCALE * STOOL_SCALE;
+const DOMINO_SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.08;
+const DOMINO_SEATED_HUMAN_FACING_Y = 0;
 
 function buildProceduralChairTemplate() {
   const chair = new THREE.Group();
@@ -2369,6 +2403,98 @@ function buildProceduralChairTemplate() {
     },
     preserveMaterials: false
   };
+}
+
+function measureObjectHeight(object) {
+  if (!object) return DOMINO_SEATED_HUMAN_BASE_HEIGHT;
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) {
+    return DOMINO_SEATED_HUMAN_BASE_HEIGHT;
+  }
+  return Math.max(0.01, box.max.y - box.min.y);
+}
+
+function disposeSeatedHumans() {
+  while (seatedHumanActors.length) {
+    const actor = seatedHumanActors.pop();
+    actor?.parent?.remove(actor);
+  }
+}
+
+async function loadDominoSeatedHumanTemplate(option = DOMINO_SEATED_HUMAN_OPTIONS[0]) {
+  const fallbackOption = DOMINO_SEATED_HUMAN_OPTIONS[0] || {};
+  const resolved = option?.id ? option : fallbackOption;
+  const cacheKey = resolved?.id || fallbackOption?.id || 'domino-human-default';
+  if (seatedHumanTemplatePromiseById.has(cacheKey)) {
+    return seatedHumanTemplatePromiseById.get(cacheKey);
+  }
+  const promise = (async () => {
+    const urls = (resolved?.modelUrls || fallbackOption?.modelUrls || []).filter(Boolean);
+    if (!urls.length) return null;
+    const loader = createConfiguredGltfLoader();
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const root = gltf?.scene || gltf?.scenes?.[0] || null;
+        if (!root) continue;
+        prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+        const measuredHeight = measureObjectHeight(root);
+        const seatedScale =
+          (DOMINO_SEATED_HUMAN_TARGET_HEIGHT / Math.max(measuredHeight, 0.01)) *
+          DOMINO_SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+        root.userData = root.userData || {};
+        root.userData.seatedHumanScale = seatedScale;
+        return root;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Failed to load domino seated human: ${cacheKey}`);
+  })();
+  seatedHumanTemplatePromiseById.set(cacheKey, promise);
+  return promise;
+}
+
+async function attachSeatedHumansToChairs(token) {
+  const localToken = token;
+  disposeSeatedHumans();
+  const seatSurfaceY =
+    (CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness * 0.52) *
+    CHAIR_VISUAL_SCALE;
+  for (let index = 0; index < chairs.length; index += 1) {
+    if (localToken !== chairBuildToken) return;
+    const wrapper = chairs[index];
+    if (!wrapper) continue;
+    const option =
+      DOMINO_SEATED_HUMAN_OPTIONS[index % DOMINO_SEATED_HUMAN_OPTIONS.length] ||
+      DOMINO_SEATED_HUMAN_OPTIONS[0];
+    let template = null;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      template = await loadDominoSeatedHumanTemplate(option);
+    } catch (error) {
+      console.warn('Domino seated human load failed, using default', option?.id, error);
+      // eslint-disable-next-line no-await-in-loop
+      template = await loadDominoSeatedHumanTemplate(DOMINO_SEATED_HUMAN_OPTIONS[0]);
+    }
+    if (!template) continue;
+    const actor = template.clone(true);
+    const seatedScale =
+      template.userData?.seatedHumanScale ??
+      ((DOMINO_SEATED_HUMAN_TARGET_HEIGHT / Math.max(DOMINO_SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+        DOMINO_SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER);
+    actor.scale.setScalar(seatedScale);
+    actor.position.set(
+      0,
+      seatSurfaceY + DOMINO_SEATED_HUMAN_SEAT_Y_OFFSET,
+      DOMINO_SEATED_HUMAN_SEAT_Z_OFFSET
+    );
+    actor.rotation.set(0, DOMINO_SEATED_HUMAN_FACING_Y, 0);
+    wrapper.add(actor);
+    seatedHumanActors.push(actor);
+  }
 }
 
 function fitChairModelToFootprint(model) {
@@ -7708,6 +7834,7 @@ function placeChairsWithOption(option, chairData, token) {
   disposeSeatAvatars();
   disposeSeatNameTags();
   disposeSeatBadges();
+  disposeSeatedHumans();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -7749,6 +7876,9 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
+  attachSeatedHumansToChairs(token).catch((error) => {
+    console.warn('Unable to attach domino seated humans', error);
+  });
   syncArenaGroundToFurniture();
 }
 
