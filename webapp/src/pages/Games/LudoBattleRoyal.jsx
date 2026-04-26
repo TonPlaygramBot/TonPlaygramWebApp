@@ -2058,9 +2058,9 @@ const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 170,
-  gripMs: 120,
-  holdMs: 130,
+  reachMs: 250,
+  gripMs: 180,
+  holdMs: 220,
   windupMs: 300,
   releaseMs: 260,
   followMs: 520
@@ -2076,15 +2076,6 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
-  'reachDice',
-  'gripDice',
-  'holdDice',
-  'reachToken',
-  'gripToken',
-  'carryToken',
-  'placeToken'
-]);
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
@@ -4632,12 +4623,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
   }
 
-  if (SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET.has(mode)) {
-    wristX -= 0.22 * t;
-    wristZ += 0.28 * t;
-    forearmZ += 0.09 * t;
-  }
-
   if (bodyLockedMode) {
     chestX = 0.12;
     chestY = 0;
@@ -6797,8 +6782,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     beginDiceHoldPose(player, { startMs: performance.now() - 220 });
     animateDicePosition(dice, target, {
-      duration: 260,
-      lift: 0.03,
+      duration: 520,
+      lift: 0.05,
       onComplete: () => beginDiceHoldPose(player)
     });
   };
@@ -10258,7 +10243,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return true;
   }, []);
 
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 28 } = {}) => {
+  const syncDiceToThrowHand = useCallback((player, dice, { duration = 90 } = {}) => {
     if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
     const parent = dice.parent;
     const worldTarget = new THREE.Vector3();
@@ -10289,7 +10274,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         const elapsed = performance.now() - start;
         const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
+        const blend = 0.7 + (1 - Math.pow(1 - phase, 2)) * 0.3;
         snapToHand(blend);
         if (phase < 1) {
           requestAnimationFrame(step);
