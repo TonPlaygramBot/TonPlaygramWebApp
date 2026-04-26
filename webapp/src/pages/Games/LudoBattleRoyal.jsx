@@ -104,13 +104,28 @@ const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
+const CAPTURE_PARK_SIDE_SIGN_BY_TYPE = Object.freeze({
+  fighter: -1,
+  helicopter: -1,
+  drone: -1,
+  missile: 1,
+  firearmRack: -1
+});
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   fighter: 0.03,
   helicopter: 0.03,
   drone: 0.03,
-  missile: 0.08
+  missile: 0.08,
+  firearmRack: 0.02
 };
+const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
+  fighter: 0.014,
+  helicopter: 0.014,
+  drone: 0.012,
+  missile: 0.032,
+  firearmRack: 0.044
+});
 // Lift parked capture vehicles slightly so they read a bit higher on portrait screens.
 const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
@@ -283,7 +298,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.y = 0.024;
+  weaponHolder.position.set(0, 0.026, -0.006);
   weaponHolder.rotation.z = -0.08;
   root.add(weaponHolder);
 
@@ -302,7 +317,30 @@ async function createCaptureWeaponRackFx() {
   actionButton.position.set(0.098, 0.024, -0.008);
   root.add(actionButton);
 
-  return { root, weaponHolder, actionButton, selectedCaptureAnimationId: null };
+  const actionButtonHit = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.013, 0.013, 0.01, 16),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+  );
+  actionButtonHit.name = 'captureActionButtonHit';
+  actionButtonHit.position.copy(actionButton.position);
+  root.add(actionButtonHit);
+
+  const weaponRackHit = new THREE.Mesh(
+    new THREE.SphereGeometry(0.02, 12, 8),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+  );
+  weaponRackHit.name = 'captureWeaponRackHit';
+  weaponRackHit.position.set(0, 0.028, -0.006);
+  root.add(weaponRackHit);
+
+  return {
+    root,
+    weaponHolder,
+    actionButton,
+    actionButtonHit,
+    weaponRackHit,
+    selectedCaptureAnimationId: null
+  };
 }
 
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
@@ -322,8 +360,9 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   entry.selectedCaptureAnimationId = captureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
-  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
+  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 0.92);
   clone.rotation.y = Math.PI * 0.5;
+  clone.position.set(0, 0, -0.004);
   entry.weaponHolder.add(clone);
 }
 
@@ -5690,12 +5729,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
     const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
+    const sideSign = CAPTURE_PARK_SIDE_SIGN_BY_TYPE[vehicleType] ?? 1;
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
+    const outwardOffset = CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE[vehicleType] ?? CAPTURE_PARK_OUTWARD_OFFSET;
     const park = kingPos
       .clone()
-      .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET)
+      .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * sideSign)
       .addScaledVector(inward, forwardOffset)
-      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
+      .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
   }, [getKingTokenPositionForPlayer]);
@@ -5724,11 +5765,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const showActionButton =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack' ||
-          selectedCaptureAnimationId === 'missileJavelin';
+          selectedCaptureAnimationId === 'droneAttack';
         entry.weaponRack.visible = showFirearm || showActionButton;
         if (entry.actionButton?.isObject3D) {
           entry.actionButton.visible = showActionButton;
           entry.actionButton.position.y = showActionButton ? 0.024 : 0.018;
+        }
+        if (entry.actionButtonHit?.isObject3D) {
+          entry.actionButtonHit.visible = showActionButton;
+        }
+        if (entry.weaponRackHit?.isObject3D) {
+          entry.weaponRackHit.visible = showFirearm;
         }
         if (showFirearm) void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
       }
@@ -5779,7 +5826,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
       const missilePark = resolveCaptureParkingAnchors(playerIndex, 'missile');
       const droneTruckPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
+      const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'firearmRack');
       if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark || !weaponRackPark) continue;
       jetFx.root.position.copy(jetPark);
       helicopterFx.root.position.copy(helicopterPark);
@@ -5821,6 +5868,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         weaponRack: weaponRackFx.root,
         weaponHolder: weaponRackFx.weaponHolder ?? null,
         actionButton: weaponRackFx.actionButton ?? null,
+        actionButtonHit: weaponRackFx.actionButtonHit ?? null,
+        weaponRackHit: weaponRackFx.weaponRackHit ?? null,
         selectedCaptureAnimationId: null,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
@@ -7672,7 +7721,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!state || state.turn !== 0 || state.animation || state.winner) return false;
       const humanEntry = parkedCaptureVehiclesRef.current.get(0);
       const interactiveTargets = [
-        humanEntry?.weaponRack,
+        humanEntry?.actionButtonHit,
+        humanEntry?.weaponRackHit,
         humanEntry?.jet,
         humanEntry?.helicopter,
         humanEntry?.droneTruck,
