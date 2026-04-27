@@ -3223,7 +3223,7 @@ export default function Store() {
                   <img
                     src={detailMedia.zoom}
                     alt={`${detailMedia.alt} zoom preview`}
-                    className="h-56 w-full object-cover transition duration-300 ease-out group-hover:scale-[1.02]"
+                    className="h-56 w-full bg-black/50 object-contain p-2 transition duration-300 ease-out group-hover:scale-[1.02]"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/70" />
