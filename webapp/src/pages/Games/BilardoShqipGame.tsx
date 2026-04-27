@@ -140,7 +140,21 @@ const POOL_ROYALE_TABLE_STYLE = Object.freeze({
   sidePocketOutset: 0.052,
   cornerPocketRadius: 0.096,
   sidePocketRadius: 0.104,
+  sidePocketMouthWidth: 0.32,
+  cornerPocketMouthWidth: 0.24,
+  railCapHeight: 0.032,
+  chromeRingRadiusScale: 1.14,
+  chromeRingTube: 0.008,
   chalkSize: [0.05, 0.026, 0.05] as [number, number, number],
+  finish: {
+    cloth: 0x105f3c,
+    rail: 0xb8b3aa,
+    base: 0xa89f95,
+    trim: 0xd6d0c7,
+    pocketCore: 0x050505,
+    chrome: 0xbfc5cf,
+    leg: 0x2a2523,
+  },
 });
 const stillMoving = (balls: BallState[]) => balls.some((ball) => ball.vel.lengthSq() > CFG.minSpeed2);
 
@@ -316,24 +330,49 @@ function addTable(scene: THREE.Scene) {
   tableGroup.position.y = CFG.tableTopY;
   scene.add(tableGroup);
 
-  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], material(0x105f3c, 0.92, 0));
-
-  const wood = material(0x4a2c1a, 0.46);
-  const cushion = material(0x124a2e, 0.86, 0);
+  const finish = POOL_ROYALE_TABLE_STYLE.finish;
+  const clothMat = material(finish.cloth, 0.92, 0);
+  const railMat = new THREE.MeshStandardMaterial({ color: finish.rail, roughness: 0.46, metalness: 0.08 });
+  const baseMat = new THREE.MeshStandardMaterial({ color: finish.base, roughness: 0.55, metalness: 0.04 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: finish.trim, roughness: 0.38, metalness: 0.12 });
+  const cushionMat = material(finish.cloth, 0.84, 0.01);
+  const chromeMat = new THREE.MeshStandardMaterial({ color: finish.chrome, roughness: 0.24, metalness: 0.86 });
+  const pocketMat = material(finish.pocketCore, 0.58, 0);
+  const legMat = material(finish.leg, 0.75, 0.01);
   const railY = CFG.railH / 2 - CFG.topThickness;
   const cushionY = 0.06 + CFG.cushionH / 2;
+  const outerW = CFG.tableW + 0.34;
+  const outerL = CFG.tableL + 0.34;
+
+  addBox(tableGroup, [CFG.tableW + 0.1, CFG.topThickness, CFG.tableL + 0.1], [0, -CFG.topThickness / 2, 0], clothMat);
+  addBox(tableGroup, [outerW, 0.1, outerL], [0, -CFG.topThickness - 0.045, 0], baseMat);
+
   [
-    [[CFG.railW, CFG.railH, CFG.tableL + 0.34], [-(CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset), railY, 0], wood],
-    [[CFG.railW, CFG.railH, CFG.tableL + 0.34], [CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset, railY, 0], wood],
-    [[CFG.tableW + 0.34, CFG.railH, CFG.railW], [0, railY, -(CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset)], wood],
-    [[CFG.tableW + 0.34, CFG.railH, CFG.railW], [0, railY, CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset], wood],
-    [[CFG.cushionT, CFG.cushionH, CFG.tableL + 0.38], [-(CFG.tableW / 2 + CFG.cushionT / 2 - 0.01), cushionY, 0], cushion],
-    [[CFG.cushionT, CFG.cushionH, CFG.tableL + 0.38], [CFG.tableW / 2 + CFG.cushionT / 2 - 0.01, cushionY, 0], cushion],
-    [[CFG.tableW + 0.18, CFG.cushionH, CFG.cushionT], [0, cushionY, -(CFG.tableL / 2 + CFG.cushionT / 2 - 0.01)], cushion],
-    [[CFG.tableW + 0.18, CFG.cushionH, CFG.cushionT], [0, cushionY, CFG.tableL / 2 + CFG.cushionT / 2 - 0.01], cushion],
+    [[CFG.railW, CFG.railH, outerL], [-(CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset), railY, 0], railMat],
+    [[CFG.railW, CFG.railH, outerL], [CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset, railY, 0], railMat],
+    [[outerW, CFG.railH, CFG.railW], [0, railY, -(CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset)], railMat],
+    [[outerW, CFG.railH, CFG.railW], [0, railY, CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset], railMat],
+    [[CFG.cushionT, CFG.cushionH, CFG.tableL + 0.38], [-(CFG.tableW / 2 + CFG.cushionT / 2 - 0.01), cushionY, 0], cushionMat],
+    [[CFG.cushionT, CFG.cushionH, CFG.tableL + 0.38], [CFG.tableW / 2 + CFG.cushionT / 2 - 0.01, cushionY, 0], cushionMat],
+    [[CFG.tableW + 0.18, CFG.cushionH, CFG.cushionT], [0, cushionY, -(CFG.tableL / 2 + CFG.cushionT / 2 - 0.01)], cushionMat],
+    [[CFG.tableW + 0.18, CFG.cushionH, CFG.cushionT], [0, cushionY, CFG.tableL / 2 + CFG.cushionT / 2 - 0.01], cushionMat],
+    [[outerW + 0.035, POOL_ROYALE_TABLE_STYLE.railCapHeight, CFG.railW * 0.66], [0, railY + CFG.railH / 2 + POOL_ROYALE_TABLE_STYLE.railCapHeight / 2, -(CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset)], trimMat],
+    [[outerW + 0.035, POOL_ROYALE_TABLE_STYLE.railCapHeight, CFG.railW * 0.66], [0, railY + CFG.railH / 2 + POOL_ROYALE_TABLE_STYLE.railCapHeight / 2, CFG.tableL / 2 + CFG.railW / 2 - CFG.railInset], trimMat],
+    [[CFG.railW * 0.66, POOL_ROYALE_TABLE_STYLE.railCapHeight, outerL + 0.035], [-(CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset), railY + CFG.railH / 2 + POOL_ROYALE_TABLE_STYLE.railCapHeight / 2, 0], trimMat],
+    [[CFG.railW * 0.66, POOL_ROYALE_TABLE_STYLE.railCapHeight, outerL + 0.035], [CFG.tableW / 2 + CFG.railW / 2 - CFG.railInset, railY + CFG.railH / 2 + POOL_ROYALE_TABLE_STYLE.railCapHeight / 2, 0], trimMat],
   ].forEach(([size, pos, matArg]) => addBox(tableGroup, size as [number, number, number], pos as [number, number, number], matArg as THREE.Material));
 
-  const pocketMat = material(0x050505, 0.6, 0);
+  const carvePocketMouth = (isSidePocket: boolean, x: number, z: number, rotationY: number) => {
+    const width = isSidePocket ? POOL_ROYALE_TABLE_STYLE.sidePocketMouthWidth : POOL_ROYALE_TABLE_STYLE.cornerPocketMouthWidth;
+    const mouth = new THREE.Mesh(
+      new THREE.BoxGeometry(width, CFG.railH + 0.04, CFG.railW * 1.35),
+      pocketMat
+    );
+    mouth.position.set(x, railY + 0.02, z);
+    mouth.rotation.y = rotationY;
+    tableGroup.add(mouth);
+  };
+
   getPocketPositions().forEach((p, index) => {
     const isSidePocket = index >= 4;
     const pocketRadius = isSidePocket
@@ -343,6 +382,30 @@ function addTable(scene: THREE.Scene) {
     pocket.rotation.x = Math.PI / 2;
     pocket.position.set(p.x, 0.016, p.z);
     tableGroup.add(pocket);
+
+    const chromeRing = new THREE.Mesh(
+      new THREE.TorusGeometry(
+        pocketRadius * POOL_ROYALE_TABLE_STYLE.chromeRingRadiusScale,
+        POOL_ROYALE_TABLE_STYLE.chromeRingTube,
+        16,
+        44
+      ),
+      chromeMat
+    );
+    chromeRing.rotation.x = Math.PI / 2;
+    chromeRing.position.set(p.x, railY + CFG.railH * 0.5 + 0.006, p.z);
+    tableGroup.add(chromeRing);
+
+    if (isSidePocket) {
+      carvePocketMouth(
+        true,
+        p.x * 0.96,
+        0,
+        0
+      );
+    } else {
+      carvePocketMouth(false, p.x * 0.955, p.z * 0.955, p.x * p.z > 0 ? -Math.PI / 4 : Math.PI / 4);
+    }
   });
 
   const chalkMat = material(0x3656bd, 0.78, 0.04);
@@ -355,7 +418,6 @@ function addTable(scene: THREE.Scene) {
   ].forEach((pos) => addBox(tableGroup, [chalkW, chalkH, chalkD], pos as [number, number, number], chalkMat));
 
   const legHeight = CFG.tableTopY - 0.03;
-  const legMat = material(0x392114, 0.75, 0.01);
   [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => addBox(tableGroup, [CFG.legW, legHeight, CFG.legD], [sx * (CFG.tableW / 2 - CFG.legInset), -legHeight / 2, sz * (CFG.tableL / 2 - CFG.legInset)], legMat)));
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), material(0x1d232a, 0.96, 0));
