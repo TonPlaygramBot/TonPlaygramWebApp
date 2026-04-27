@@ -187,22 +187,12 @@ export function createBilardoHumanRig(scene, opts = {}) {
             ? [obj.material]
             : [];
         mats.forEach((m) => {
-          ['map', 'emissiveMap'].forEach((colorKey) => {
-            if (!m?.[colorKey]) return;
-            m[colorKey].colorSpace = THREE.SRGBColorSpace;
-          });
-          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((textureKey) => {
-            if (!m?.[textureKey]) return;
-            m[textureKey].anisotropy = Math.max(m[textureKey].anisotropy || 1, opts?.textureAnisotropy ?? 8);
-            m[textureKey].needsUpdate = true;
-          });
           if (m?.map) {
-            m.map.flipY = false;
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            m.map.anisotropy = Math.max(m.map.anisotropy || 1, opts?.textureAnisotropy ?? 8);
+            m.map.needsUpdate = true;
           }
-          if (m) {
-            m.envMapIntensity = Math.max(0.9, m.envMapIntensity ?? 1);
-            m.needsUpdate = true;
-          }
+          if (m) m.needsUpdate = true;
         });
       });
       human.bones = buildAvatarBones(model);
@@ -517,39 +507,17 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const tableL = opts.tableL ?? 3.6;
   const edgeMargin = opts.edgeMargin ?? 0.58;
   const desiredShootDistance = opts.desiredShootDistance ?? 1.06;
-  const railClearance = opts.railClearance ?? Math.max(0.08, edgeMargin * 0.18);
-  const cornerBias = opts.cornerBias ?? Math.max(0.12, edgeMargin * 0.34);
 
   const desired = cueBallWorld.clone().addScaledVector(aimForward, -desiredShootDistance);
   const xEdge = tableW / 2 + edgeMargin;
   const zEdge = tableL / 2 + edgeMargin;
-  const xMin = -xEdge + railClearance;
-  const xMax = xEdge - railClearance;
-  const zMin = -zEdge + railClearance;
-  const zMax = zEdge - railClearance;
-  const clampRail = (value, min, max) =>
-    min <= max ? clamp(value, min, max) : (min + max) / 2;
   const candidates = [
-    new THREE.Vector3(-xEdge, 0, clampRail(desired.z, zMin + cornerBias, zMax - cornerBias)),
-    new THREE.Vector3(xEdge, 0, clampRail(desired.z, zMin + cornerBias, zMax - cornerBias)),
-    new THREE.Vector3(clampRail(desired.x, xMin + cornerBias, xMax - cornerBias), 0, -zEdge),
-    new THREE.Vector3(clampRail(desired.x, xMin + cornerBias, xMax - cornerBias), 0, zEdge),
-    new THREE.Vector3(-xEdge, 0, clampRail(desired.z, zMin, zMax)),
-    new THREE.Vector3(xEdge, 0, clampRail(desired.z, zMin, zMax)),
-    new THREE.Vector3(clampRail(desired.x, xMin, xMax), 0, -zEdge),
-    new THREE.Vector3(clampRail(desired.x, xMin, xMax), 0, zEdge)
+    new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)
   ];
-  return candidates
-    .sort((a, b) => {
-      const aRailInset = Math.min(Math.abs(Math.abs(a.x) - xEdge), Math.abs(Math.abs(a.z) - zEdge));
-      const bRailInset = Math.min(Math.abs(Math.abs(b.x) - xEdge), Math.abs(Math.abs(b.z) - zEdge));
-      const aCorner = Math.min(xEdge - Math.abs(a.x), zEdge - Math.abs(a.z));
-      const bCorner = Math.min(xEdge - Math.abs(b.x), zEdge - Math.abs(b.z));
-      const aScore = a.distanceToSquared(desired) + aRailInset * 0.35 - aCorner * 0.18;
-      const bScore = b.distanceToSquared(desired) + bRailInset * 0.35 - bCorner * 0.18;
-      return aScore - bScore;
-    })[0]
-    .clone();
+  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
 
 export function updateBilardoHumanPose(human, dt, frameData) {
