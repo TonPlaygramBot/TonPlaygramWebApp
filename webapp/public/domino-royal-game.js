@@ -984,8 +984,8 @@ const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
 const CHAIR_VISUAL_SCALE = 1.3;
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.45 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.7;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -8133,13 +8133,11 @@ async function attachSeatedHumanActors(token) {
       if (token !== chairBuildToken) return;
       const chairRoot = chairs[index];
       if (!chairRoot) continue;
-      const humanIndex =
-        index === HUMAN_SEAT_INDEX
-          ? appearance.humanCharacter
-          : (index - 1 + DOMINO_HUMAN_CHARACTER_OPTIONS.length) %
-            DOMINO_HUMAN_CHARACTER_OPTIONS.length;
+      const selectedHumanIndex = Number.isFinite(appearance?.humanCharacter)
+        ? appearance.humanCharacter
+        : 0;
       const option =
-        DOMINO_HUMAN_CHARACTER_OPTIONS[humanIndex] ??
+        DOMINO_HUMAN_CHARACTER_OPTIONS[selectedHumanIndex] ??
         DOMINO_HUMAN_CHARACTER_OPTIONS[0];
       let template;
       try {
