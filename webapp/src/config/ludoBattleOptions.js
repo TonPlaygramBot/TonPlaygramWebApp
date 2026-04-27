@@ -105,135 +105,97 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'missileJavelin',
     label: 'Javelin Missile',
-    description: 'Perimeter missile orbit with a spear-like terminal strike.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f680.png'
+    description: 'Perimeter missile orbit with a spear-like terminal strike.'
   },
   {
     id: 'droneAttack',
     label: 'Drone Attack',
-    description: 'Attack drone sweep adapted from Chess Battle Royal scale.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f6f8.png'
+    description: 'Attack drone sweep adapted from Chess Battle Royal scale.'
   },
   {
     id: 'fighterJetAttack',
     label: 'Fighter Jet Attack',
-    description: 'Fast fighter jet strike with right-hand red launch button trigger.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u2708_fe0f.png'
+    description: 'Fast fighter jet strike with right-hand red launch button trigger.'
   },
   {
     id: 'helicopterAttack',
     label: 'Helicopter Strike',
-    description: 'Attack helicopter run that launches twin missiles after button press.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f681.png'
-  },
-  {
-    id: 'mrtkGunAttack',
-    label: 'MRTK Gun',
-    description: 'Mixed Reality Toolkit gun pickup with sequential fallback source loading.',
-    thumbnail:
-      'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f52b.png'
-  },
-  {
-    id: 'pistolHolsterAttack',
-    label: 'Pistol Holster',
-    description: 'Pistol-in-holster sidearm animation using original source model fallback URLs.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f45d.png'
-  },
-  {
-    id: 'fpsGunAttack',
-    label: 'FPS Gun',
-    description: 'FPS-styled firearm takedown using open-source scene model fallbacks.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Attack helicopter run that launches twin missiles after button press.'
   },
   {
     id: 'glockSidearmAttack',
     label: 'Glock Sidearm',
-    description: 'Pick the Glock from the table, aim, and fire before taking the tile.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f52b.png'
+    description: 'Pick the Glock from the table, aim, and fire before taking the tile.'
   },
   {
     id: 'pistolSidearmAttack',
     label: 'Pistol Sidearm',
-    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f52b.png'
+    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.'
   },
   {
     id: 'assaultRifleAttack',
     label: 'Assault Rifle',
-    description: 'AR burst capture with short aim hold and original GLB texture materials.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'AR burst capture with short aim hold and original GLB texture materials.'
   },
   {
     id: 'uziSprayAttack',
     label: 'Uzi Spray',
-    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f525.png'
+    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.'
   },
   {
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
-    description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f525.png'
+    description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.'
   },
   {
     id: 'krsvBurstAttack',
     label: 'KRSV Burst',
-    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f525.png'
+    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.'
   },
   {
     id: 'smithSidearmAttack',
     label: 'Smith Sidearm',
-    description: 'Smith sidearm takedown with original Gunify texture maps.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f52b.png'
+    description: 'Smith sidearm takedown with original Gunify texture maps.'
   },
   {
     id: 'mosinMarksmanAttack',
     label: 'Mosin Marksman',
-    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.'
   },
   {
     id: 'sigsauerTacticalAttack',
     label: 'SigSauer Tactical',
-    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f52b.png'
+    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.'
   },
   {
     id: 'grenadeBlastAttack',
     label: 'Grenade Blast',
-    description: 'Grenade capture with preserved GLB textures and quick throw/pickup pacing.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f4a3.png'
+    description: 'Grenade capture with preserved GLB textures and quick throw/pickup pacing.'
   },
   {
     id: 'shotgunBlastAttack',
     label: 'Shotgun Blast',
-    description: 'Short-range tactical shotgun blast with fast pickup timing.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Short-range tactical shotgun blast with fast pickup timing.'
   },
   {
     id: 'sniperShotAttack',
     label: 'Sniper Shot',
-    description: 'Precision long-barrel sniper takedown sequence.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Precision long-barrel sniper takedown sequence.'
   },
   {
     id: 'smgBurstAttack',
     label: 'SMG Burst',
-    description: 'Compact SMG burst animation with controlled recoil.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f525.png'
+    description: 'Compact SMG burst animation with controlled recoil.'
   },
   {
     id: 'compactCarbineAttack',
     label: 'Compact Carbine',
-    description: 'Open-source compact carbine-style pickup and burst capture animation.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Open-source compact carbine-style pickup and burst capture animation.'
   },
   {
     id: 'marksmanDmrAttack',
     label: 'Marksman DMR',
-    description: 'Open-source designated marksman rifle attack with controlled right-hand aim.',
-    thumbnail: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/128/emoji_u1f3af.png'
+    description: 'Open-source designated marksman rifle attack with controlled right-hand aim.'
   }
 
 ]);

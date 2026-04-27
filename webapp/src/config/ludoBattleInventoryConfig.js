@@ -31,16 +31,6 @@ const reduceLabels = (options) =>
     return acc;
   }, {});
 
-const uniqueByName = (items) => {
-  const used = new Set();
-  return items.filter((item) => {
-    const key = `${item?.name || ''}`.trim().toLowerCase();
-    if (!key || used.has(key)) return false;
-    used.add(key);
-    return true;
-  });
-};
-
 export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tables: Object.freeze(reduceLabels(MURLAN_TABLE_THEMES)),
   tableFinish: Object.freeze(reduceLabels(MURLAN_TABLE_FINISHES)),
@@ -140,17 +130,15 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     description: 'Unlock an alternate piece identity for your pawns.',
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
-  ...uniqueByName(
-    CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
-      id: `ludo-capture-animation-${option.id}`,
-      type: 'captureAnimation',
-      optionId: option.id,
-      name: option.label,
-      price: 950 + idx * 120,
-      description: option.description,
-      thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
-    }))
-  ),
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+    id: `ludo-capture-animation-${option.id}`,
+    type: 'captureAnimation',
+    optionId: option.id,
+    name: option.label,
+    price: 950 + idx * 120,
+    description: option.description,
+    thumbnail: swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
+  })),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
     type: 'humanCharacter',

@@ -136,9 +136,6 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
-  'mrtkGunAttack',
-  'pistolHolsterAttack',
-  'fpsGunAttack',
   'glockSidearmAttack',
   'pistolSidearmAttack',
   'assaultRifleAttack',
@@ -156,34 +153,6 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'marksmanDmrAttack'
 ]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
-  mrtkGunAttack: {
-    label: 'MRTK Gun',
-    urls: [
-      'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
-      'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
-      'https://raw.githubusercontent.com/Microsoft/MixedRealityToolkit/master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
-      'https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb'
-    ],
-    scale: 0.138
-  },
-  pistolHolsterAttack: {
-    label: 'Pistol Holster',
-    urls: [
-      'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
-      'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
-    ],
-    scale: 0.132
-  },
-  fpsGunAttack: {
-    label: 'FPS Gun',
-    urls: [
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
-    ],
-    scale: 0.15
-  },
   glockSidearmAttack: {
     label: 'Glock',
     urls: [
@@ -343,9 +312,6 @@ function applyModelQualityToObject(root) {
 }
 
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
-  mrtkGunAttack: 18,
-  pistolHolsterAttack: 14,
-  fpsGunAttack: 28,
   glockSidearmAttack: 17,
   pistolSidearmAttack: 16,
   assaultRifleAttack: 30,
@@ -367,21 +333,6 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     position: [0.018, -0.002, 0.086],
     rotation: [-1.5, -0.02, -1.56],
     muzzleOffset: [0.0, 0.012, 0.2]
-  },
-  mrtkGunAttack: {
-    position: [0.021, -0.002, 0.094],
-    rotation: [-1.48, -0.04, -1.56],
-    muzzleOffset: [0, 0.013, 0.214]
-  },
-  pistolHolsterAttack: {
-    position: [0.02, -0.002, 0.09],
-    rotation: [-1.5, -0.04, -1.57],
-    muzzleOffset: [0, 0.013, 0.206]
-  },
-  fpsGunAttack: {
-    position: [0.024, -0.003, 0.105],
-    rotation: [-1.45, -0.04, -1.55],
-    muzzleOffset: [0, 0.014, 0.228]
   },
   glockSidearmAttack: {
     position: [0.018, 0.0, 0.082],
@@ -456,9 +407,6 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
-  mrtkGunAttack: 1.08,
-  pistolHolsterAttack: 1.02,
-  fpsGunAttack: 1.15,
   glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.0,
   uziSprayAttack: 1.06,
@@ -6247,16 +6195,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     [ludoInventory]
   );
   const quickSwapCaptureOptions = useMemo(
-    () => {
-      const seen = new Set();
-      return CAPTURE_ANIMATION_OPTIONS.filter((option) => {
-        if (!isLudoOptionUnlocked('captureAnimation', option.id, ludoInventory)) return false;
-        const key = `${option?.label || ''}`.trim().toLowerCase();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    },
+    () =>
+      CAPTURE_ANIMATION_OPTIONS.filter((option) =>
+        isLudoOptionUnlocked('captureAnimation', option.id, ludoInventory)
+      ),
     [ludoInventory]
   );
   const arenaRef = useRef(null);
@@ -11193,24 +11135,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       <div className="absolute inset-0 pointer-events-none">
         {weaponSwapPopup && (
           <div
-            className="pointer-events-auto absolute z-30 w-64 max-w-[88vw] rounded-2xl border border-white/20 bg-black/90 p-2.5 shadow-2xl backdrop-blur"
+            className="pointer-events-auto absolute z-30 w-48 rounded-xl border border-white/20 bg-black/85 p-2 shadow-2xl backdrop-blur"
             style={{
-              left: clamp(weaponSwapPopup.x - 104, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268),
-              top: clamp(weaponSwapPopup.y - 16, 96, (typeof window !== 'undefined' ? window.innerHeight : 640) - 332)
+              left: clamp(weaponSwapPopup.x - 80, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 200),
+              top: clamp(weaponSwapPopup.y - 12, 96, (typeof window !== 'undefined' ? window.innerHeight : 640) - 170)
             }}
           >
-            <div className="flex items-center justify-between gap-2 px-1 pb-1">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
-              <button
-                type="button"
-                className="rounded-md border border-white/25 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/85 transition hover:bg-white/20"
-                onClick={() => setWeaponSwapPopup(null)}
-                aria-label="Close quick weapon swap"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+            <p className="px-1 pb-1 text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
+            <div className="grid grid-cols-2 gap-1">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
@@ -11218,7 +11150,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <button
                     key={option.id}
                     type="button"
-                    className={`flex items-center gap-2 rounded-lg border px-1.5 py-1.5 text-left text-[10px] font-semibold ${
+                    className={`rounded-md border px-1.5 py-1 text-[10px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
@@ -11226,20 +11158,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       setWeaponSwapPopup(null);
                     }}
                   >
-                    <span className="inline-flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-md border border-white/20 bg-slate-900/80">
-                      {option.thumbnail ? (
-                        <img
-                          src={option.thumbnail}
-                          alt={option.label}
-                          className="h-full w-full object-cover"
-                          draggable={false}
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="text-sm">🔫</span>
-                      )}
-                    </span>
-                    <span className="line-clamp-2">{option.label}</span>
+                    {option.label}
                   </button>
                 );
               })}
