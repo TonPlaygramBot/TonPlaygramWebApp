@@ -18,7 +18,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PowerSlider } from '../../../../power-slider.js';
+import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -81,8 +81,6 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   BILARDO_MIN_RELEASE_POWER,
-  BILARDO_STRIKE_CONTACT_THRESHOLD,
-  BILARDO_STRIKE_TIME_MS,
   bilardoCueSpeed
 } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
@@ -15530,16 +15528,6 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
-const MANUAL_STRIKE_TIME_MS = BILARDO_STRIKE_TIME_MS;
-const MANUAL_STRIKE_THRESHOLD = BILARDO_STRIKE_CONTACT_THRESHOLD;
-const [manualShotState, setManualShotState] = useState('idle'); // idle | dragging | striking
-const manualShotStateRef = useRef('idle');
-const manualStrikeStartedAtRef = useRef(0);
-const manualStrikeDidHitRef = useRef(false);
-const manualStrikePowerRef = useRef(0);
-useEffect(() => {
-  manualShotStateRef.current = manualShotState;
-}, [manualShotState]);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -24726,18 +24714,11 @@ useEffect(() => {
           const isShooter = anim.seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
-          const draggingSlider =
-            manualShotStateRef.current === 'dragging' ||
-            Boolean(sliderInstanceRef.current?.dragging);
-          const sliderPowerActive =
-            manualShotStateRef.current !== 'idle' || (powerRef.current ?? 0) > 0.01;
+          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
+          const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (
-            (isShotActive && anim.seat === shotSeat && shotAge < 420) ||
-            (isShooter && manualShotStateRef.current === 'striking')
-          )
-            mode = 'strike';
+          else if (isShotActive && anim.seat === shotSeat && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
@@ -27463,8 +27444,6 @@ useEffect(() => {
             shotImpactApplied = true;
             applyShotAtImpact(shotImpactPayload);
           };
-          const useBilardoImmediateImpact =
-            manualShotStateRef.current === 'striking';
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -27482,11 +27461,6 @@ useEffect(() => {
             };
           }
           if (ENABLE_CUE_STROKE_ANIMATION) {
-            if (useBilardoImmediateImpact) {
-              // Bilardo Shqip behavior: impact happens at strike trigger time, not
-              // later inside the cue animation timeline.
-              applyShotImpactOnce();
-            }
             cueStick.visible = true;
             cueAnimating = true;
             lastCueIdlePoseRef.current = {
@@ -27511,13 +27485,11 @@ useEffect(() => {
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
               strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              // Slider release should drive an immediate forward strike from the
-              // currently pulled cue position back to contact.
-              forwardOnly: true,
+              forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: false
             };
           } else {
             applyShotImpactOnce();
@@ -33341,71 +33313,6 @@ useEffect(() => {
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const onPowerDragStart = useCallback(() => {
-    captureCueStickAnchor();
-    manualStrikeDidHitRef.current = false;
-    setManualShotState('dragging');
-  }, [captureCueStickAnchor]);
-  const onPowerDrag = useCallback((powerRatio = 0) => {
-    const clamped = clampPower(powerRatio, 0);
-    shotPowerRef.current = clamped;
-    applyPower(clamped);
-  }, [applyPower, clampPower]);
-  const onPowerRelease = useCallback((powerRatio = null) => {
-    const sourcePower = Math.max(
-      Number.isFinite(powerRatio) ? powerRatio : 0,
-      Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-      Number.isFinite(powerRef.current) ? powerRef.current : 0
-    );
-    const latchedPower = clampPower(sourcePower, 0);
-    shotPowerRef.current = latchedPower;
-    manualStrikePowerRef.current = latchedPower;
-    applyPower(latchedPower);
-    manualStrikeDidHitRef.current = false;
-    manualStrikeStartedAtRef.current = performance.now();
-    const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
-    setManualShotState(shouldStrike ? 'striking' : 'idle');
-  }, [applyPower, clampPower]);
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      if (manualShotStateRef.current !== 'striking') return;
-      const start = manualStrikeStartedAtRef.current || 0;
-      if (start <= 0) return;
-      const strikeNorm = THREE.MathUtils.clamp(
-        (performance.now() - start) / MANUAL_STRIKE_TIME_MS,
-        0,
-        1
-      );
-      if (!manualStrikeDidHitRef.current && strikeNorm > MANUAL_STRIKE_THRESHOLD) {
-        manualStrikeDidHitRef.current = true;
-        fireRef.current?.(
-          manualStrikePowerRef.current ??
-            shotPowerRef.current ??
-            powerRef.current ??
-            0
-        );
-      }
-      if (strikeNorm >= 1) {
-        if (!shootingRef.current && manualStrikePowerRef.current > BILARDO_MIN_RELEASE_POWER) {
-          fireRef.current?.(manualStrikePowerRef.current);
-        }
-        setManualShotState('idle');
-        manualStrikeStartedAtRef.current = 0;
-        manualStrikePowerRef.current = 0;
-        requestAnimationFrame(() => {
-          const slider = sliderInstanceRef.current;
-          if (slider) slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [applyPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33413,16 +33320,21 @@ useEffect(() => {
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new PowerSlider({
+    const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '',
-      theme: 'pool-royale',
+      cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => onPowerDrag((v ?? 0) / 100),
-      onStart: () => onPowerDragStart(),
+      onChange: (v) => applyPower(v / 100),
+      onStart: () => {
+        captureCueStickAnchor();
+      },
       onCommit: () => {
-        onPowerRelease(clampPower(powerRef.current, 0));
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -33431,7 +33343,7 @@ useEffect(() => {
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, clampPower, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
