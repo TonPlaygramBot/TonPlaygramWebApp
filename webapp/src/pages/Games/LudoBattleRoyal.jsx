@@ -174,6 +174,17 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'marksmanDmrAttack',
   'compactCarbineAttack'
 ]);
+const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
+  'mrtkGunAttack',
+  'pistolHolsterAttack',
+  'glockSidearmAttack',
+  'pistolSidearmAttack',
+  'uziSprayAttack',
+  'smgBurstAttack',
+  'smithSidearmAttack',
+  'sigsauerTacticalAttack',
+  'grenadeBlastAttack'
+]);
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
@@ -439,13 +450,13 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.014, 0.22]
   },
   assaultRifleAttack: {
-    position: [0.034, -0.004, 0.123],
-    rotation: [-1.43, -0.04, -1.55],
+    position: [0.035, -0.004, 0.125],
+    rotation: [-1.44, -0.04, -1.555],
     muzzleOffset: [0, 0.014, 0.244]
   },
   ak47VolleyAttack: {
-    position: [0.036, -0.004, 0.127],
-    rotation: [-1.42, -0.04, -1.55],
+    position: [0.036, -0.004, 0.128],
+    rotation: [-1.43, -0.04, -1.555],
     muzzleOffset: [0, 0.014, 0.256]
   },
   krsvBurstAttack: {
@@ -469,13 +480,13 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.013, 0.208]
   },
   compactCarbineAttack: {
-    position: [0.024, -0.003, 0.105],
-    rotation: [-1.44, -0.04, -1.55],
+    position: [0.034, -0.004, 0.122],
+    rotation: [-1.44, -0.04, -1.555],
     muzzleOffset: [0, 0.014, 0.228]
   },
   marksmanDmrAttack: {
-    position: [0.027, -0.004, 0.12],
-    rotation: [-1.4, -0.04, -1.56],
+    position: [0.036, -0.004, 0.13],
+    rotation: [-1.41, -0.04, -1.56],
     muzzleOffset: [0, 0.015, 0.25]
   },
   shotgunBlastAttack: {
@@ -491,23 +502,25 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
-  mrtkGunAttack: 1.04,
-  pistolHolsterAttack: 1.0,
-  fpsGunAttack: 1.62,
+  // Keep glock as the grip-size baseline and upscale all other firearms so
+  // seated humans keep a consistent hand fit around the trigger/handle zone.
+  mrtkGunAttack: 1.16,
+  pistolHolsterAttack: 1.14,
+  fpsGunAttack: 1.72,
   glockSidearmAttack: 0.98,
-  pistolSidearmAttack: 1.0,
-  uziSprayAttack: 1.06,
-  smgBurstAttack: 1.1,
-  compactCarbineAttack: 1.14,
-  assaultRifleAttack: 1.34,
-  ak47VolleyAttack: 1.42,
-  krsvBurstAttack: 1.38,
-  smithSidearmAttack: 1.0,
-  mosinMarksmanAttack: 1.48,
-  sigsauerTacticalAttack: 1.08,
-  shotgunBlastAttack: 1.4,
-  marksmanDmrAttack: 1.26,
-  sniperShotAttack: 1.52,
+  pistolSidearmAttack: 1.16,
+  uziSprayAttack: 1.2,
+  smgBurstAttack: 1.22,
+  compactCarbineAttack: 1.34,
+  assaultRifleAttack: 1.56,
+  ak47VolleyAttack: 1.64,
+  krsvBurstAttack: 1.58,
+  smithSidearmAttack: 1.15,
+  mosinMarksmanAttack: 1.72,
+  sigsauerTacticalAttack: 1.2,
+  shotgunBlastAttack: 1.7,
+  marksmanDmrAttack: 1.48,
+  sniperShotAttack: 1.76,
   grenadeBlastAttack: 1.12
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
@@ -765,7 +778,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
     weapon.position.sub(gripLocal);
   }
-  const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId);
+  const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId) && !FIREARM_SINGLE_HAND_ONLY_IDS.has(captureAnimationId);
   const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
   const offhandTarget = new THREE.Object3D();
   if (sourceLeftGrip?.isObject3D) {
