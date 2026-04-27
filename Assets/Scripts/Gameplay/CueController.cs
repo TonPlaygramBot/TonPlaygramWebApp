@@ -26,6 +26,12 @@ namespace Aiming
         public float contactTipGap = 0.001f;
         public float baseCueOffset = 0.12f;
         public float pullRange = 0.34f;
+        [Tooltip("Optional world-space anchor (usually grip hand) that keeps cue stick seated inside the player's hand.")]
+        public Transform externalGripAnchor;
+        [Tooltip("Distance from cue root to hand grip point used when locking cue to hand.")]
+        [Range(0.05f, 1.2f)] public float externalGripDistanceFromCueRoot = 0.36f;
+        [Tooltip("Small world-space offset to fine-tune cue seating in palm/fingers when hand lock is enabled.")]
+        public Vector3 externalGripWorldOffset = new Vector3(0f, 0.012f, 0f);
 
         [Header("Aiming feel")]
         [Range(1f, 30f)] public float rotationDamping = 14f;
@@ -360,7 +366,8 @@ namespace Aiming
 
             Vector3 anchor = _cueAnchorPosition + spinOffset;
             float cueDistance = baseCueOffset + _currentCueDepth;
-            transform.position = anchor - (_aimDirection * cueDistance);
+            Vector3 defaultCueRoot = anchor - (_aimDirection * cueDistance);
+            transform.position = ResolveCueRootFromGripAnchor(defaultCueRoot, _aimDirection);
 
             Quaternion baseRotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
             Quaternion wobbleRotation = Quaternion.AngleAxis(_dynamicWobble * Mathf.Rad2Deg, Vector3.up);
@@ -372,6 +379,18 @@ namespace Aiming
             }
 
             SyncCueCameraStroke();
+        }
+
+        Vector3 ResolveCueRootFromGripAnchor(Vector3 fallbackRoot, Vector3 aimDirection)
+        {
+            if (externalGripAnchor == null)
+            {
+                return fallbackRoot;
+            }
+
+            float gripDistance = Mathf.Max(0.05f, externalGripDistanceFromCueRoot);
+            Vector3 gripWorld = externalGripAnchor.position + externalGripWorldOffset;
+            return gripWorld - (aimDirection * gripDistance);
         }
 
         void SyncCueCameraStroke()
