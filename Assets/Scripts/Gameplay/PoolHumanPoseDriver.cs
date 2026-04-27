@@ -36,8 +36,8 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        public float edgeMargin = 0.58f;
-        public float desiredShootDistance = 1.06f;
+        public float edgeMargin = 0.34f;
+        public float desiredShootDistance = 0.9f;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
         [Min(0.6f)] public float bodyScaleMultiplier = 1.12f;
 
@@ -49,11 +49,13 @@ namespace Aiming
         [Range(0.05f, 1f)] public float lateralResponse = 0.42f;
 
         [Header("Cue relation")]
-        public float bridgeDist = 0.24f;
+        public float bridgeDist = 0.2f;
         public float gripRatio = 0.76f;
         public float stanceHeight = 0f;
         [Tooltip("How much closer to the table edge the chest/head moves while aiming.")]
         [Range(0f, 0.2f)] public float tableLeanDepth = 0.08f;
+        [Tooltip("Extra right-hand pull distance, matching the live power slider pullback.")]
+        [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
 
         [Header("Visual fidelity")]
         [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
@@ -107,9 +109,12 @@ namespace Aiming
             Vector3 bridgeHandTarget = cueBall + (aimForward * -bridgeDistance) + (aimSide * (-0.018f * s));
             bridgeHandTarget.y = ResolveTableY(cueBall.y) + ResolveBridgeHeightOffset(bridgeMode, s);
 
-            Vector3 cueTip = cueController.cueTip != null ? cueController.cueTip.position : cueBall;
-            Vector3 cueBase = cueController.transform.position;
-            Vector3 gripHandTarget = Vector3.Lerp(cueTip, cueBase, gripRatio);
+            float handPull = cueController.CurrentPullNormalized * gripPullRange * s;
+            Vector3 gripHandTarget =
+                bridgeHandTarget +
+                (aimForward * (-(0.44f * s + handPull))) +
+                (Vector3.up * (0.03f * s)) +
+                (aimSide * (0.022f * s));
 
             float standingYaw = YawFromForward(aimForward);
             Vector3 idleRightHandTarget = rootTarget + RotateAroundY(new Vector3(0.22f, 1.18f, 0.04f) * s, standingYaw);
@@ -309,9 +314,9 @@ namespace Aiming
                                 (side * (-0.025f * t * s));
 
             Vector3 rightElbow = rightHandWorld +
-                                 (Vector3.up * Lerp(0.19f, 0.43f, t) * s) +
-                                 (side * Lerp(0.03f, 0.06f, t) * s) +
-                                 (forward * Lerp(-0.03f, 0.02f, t) * s);
+                                 (Vector3.up * Lerp(0.19f, 0.4f, t) * s) +
+                                 (side * Lerp(0.03f, 0.07f, t) * s) +
+                                 (forward * Lerp(-0.03f, 0.01f, t) * s);
 
             Vector3 leftKnee = Vector3.Lerp(leftHipWorld, leftFootWorld, 0.53f) +
                                (Vector3.up * Lerp(0.18f, 0.11f, t) * s) +

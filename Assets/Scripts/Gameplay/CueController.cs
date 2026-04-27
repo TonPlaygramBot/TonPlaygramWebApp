@@ -64,6 +64,7 @@ namespace Aiming
         Vector3 _cueAnchorPosition;
         float _currentCueDepth;
         float _chargedCueDepth;
+        float _latchedPullDistance;
         float _power;
         float _latchedShotPower;
         Vector2 _liveSpinInput;
@@ -79,6 +80,19 @@ namespace Aiming
 
         public ShotState CurrentShotState => _shotState;
         public Vector3 CurrentAimDirection => _aimDirection;
+        public float CurrentPullNormalized
+        {
+            get
+            {
+                if (pullRange <= 0.0001f)
+                {
+                    return 0f;
+                }
+
+                float pulled = Mathf.Max(0f, _currentCueDepth - idleTipGap);
+                return Mathf.Clamp01(pulled / pullRange);
+            }
+        }
 
         void Awake()
         {
@@ -119,7 +133,7 @@ namespace Aiming
 
             if (_shotState == ShotState.Dragging)
             {
-                float pull = pullRange * EaseOutCubic(_power);
+                float pull = PullDistanceFromPower(_power);
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
                 UpdateCuePose();
@@ -138,7 +152,8 @@ namespace Aiming
             _shotState = ShotState.Dragging;
             _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
             _latchedShotPower = 0f;
-            _chargedCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
+            _latchedPullDistance = 0f;
+            _chargedCueDepth = idleTipGap + PullDistanceFromPower(_power);
             _currentCueDepth = _chargedCueDepth;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
@@ -162,6 +177,7 @@ namespace Aiming
             _shotState = ShotState.Idle;
             _power = 0f;
             _latchedShotPower = 0f;
+            _latchedPullDistance = 0f;
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
@@ -178,8 +194,9 @@ namespace Aiming
                 return;
             }
 
+            _latchedPullDistance = Mathf.Max(0f, _chargedCueDepth - idleTipGap);
             float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
-            _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower);
+            _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower, _latchedPullDistance);
             if (_latchedShotPower <= 0f)
             {
                 _shotState = ShotState.Idle;
@@ -237,7 +254,7 @@ namespace Aiming
         {
             float hitT = Mathf.Clamp01(hitProgress);
             float activePower = _shotState == ShotState.Dragging ? _power : _latchedShotPower;
-            float pull = pullRange * EaseOutCubic(activePower);
+            float pull = _shotState == ShotState.Striking ? _latchedPullDistance : PullDistanceFromPower(activePower);
 
             if (_shotState == ShotState.Idle)
             {
@@ -410,6 +427,7 @@ namespace Aiming
             _shotState = ShotState.Idle;
             _power = 0f;
             _latchedShotPower = 0f;
+            _latchedPullDistance = 0f;
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
@@ -418,9 +436,10 @@ namespace Aiming
             ResetTipScale();
         }
 
-        float ResolveReleasedShotPower(float sliderPower, float recoveredPower)
+        float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float pullDistance)
         {
-            float raw = Mathf.Clamp01(Mathf.Max(sliderPower, recoveredPower));
+            float pullNorm = pullRange > 0.0001f ? Mathf.Clamp01(pullDistance / pullRange) : 0f;
+            float raw = Mathf.Clamp01(Mathf.Max(Mathf.Max(sliderPower, recoveredPower), pullNorm));
             if (raw <= 0f)
             {
                 return 0f;
@@ -479,6 +498,16 @@ namespace Aiming
             }
 
             cueTip.localScale = _tipBaseScale;
+        }
+
+        float PullDistanceFromPower(float normalizedPower)
+        {
+            if (pullRange <= 0.0001f)
+            {
+                return 0f;
+            }
+
+            return pullRange * EaseOutCubic(normalizedPower);
         }
 
         static float EaseOutCubic(float t)
