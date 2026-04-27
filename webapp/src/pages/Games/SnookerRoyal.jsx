@@ -94,7 +94,10 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { BILARDO_STRIKE_TIME_MS } from './shared/bilardoShotModel';
+import {
+  BILARDO_MIN_RELEASE_POWER,
+  BILARDO_STRIKE_TIME_MS
+} from './shared/bilardoShotModel';
 import {
   createBilardoHumanRig,
   chooseHumanEdgePosition,
@@ -108,11 +111,11 @@ const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/
 const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.18;
-const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
-const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.1;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.8;
+const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 1;
+const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 11.2;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 19.3;
 const SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD = 0.42;
-const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = 0.035;
+const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = BILARDO_MIN_RELEASE_POWER;
 const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
 const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
@@ -11189,7 +11192,7 @@ function SnookerRoyalGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
-  const rules = useMemo(() => new SnookerRoyalRules(variantKey), [variantKey]);
+  const rules = useMemo(() => new SnookerRoyalRules('bilardo-shqip'), []);
   const tournamentMode = playType === 'tournament';
   const tournamentPlayers = useMemo(() => {
     const params = new URLSearchParams(location.search);
