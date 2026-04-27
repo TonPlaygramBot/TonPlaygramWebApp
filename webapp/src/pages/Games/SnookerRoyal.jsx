@@ -109,8 +109,10 @@ const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.18;
 const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
-const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.9;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 17.2;
+const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.1;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.8;
+const SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD = 0.42;
+const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = 0.035;
 const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
 const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
@@ -20817,6 +20819,25 @@ const powerRef = useRef(hud.power);
         if (options.cueBack) humanPoseContext.cueBack.copy(options.cueBack);
         if (options.cueTip) humanPoseContext.cueTip.copy(options.cueTip);
       };
+      const resolveSnookerHumanPoseState = (
+        preferredState,
+        powerValue,
+        { forcePose = false } = {}
+      ) => {
+        if (preferredState === 'striking') return 'striking';
+        if (forcePose) return 'dragging';
+        const cameraBlend = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        );
+        const cameraLowered =
+          cameraBlend <= SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD;
+        const hasPull =
+          THREE.MathUtils.clamp(powerValue ?? 0, 0, 1) >=
+          SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD;
+        return cameraLowered || hasPull ? 'dragging' : 'idle';
+      };
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -25014,7 +25035,7 @@ const powerRef = useRef(hud.power);
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           updateSnookerHumanFromAim(aimDir2D, powerStrength, {
-            state: 'dragging',
+            state: resolveSnookerHumanPoseState('dragging', powerStrength),
             cueBack: TMP_VEC3_BUTT,
             cueTip: tipTarget
           });
@@ -25173,7 +25194,7 @@ const powerRef = useRef(hud.power);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateSnookerHumanFromAim(remoteAimDir, powerStrength, {
-            state: 'dragging',
+            state: resolveSnookerHumanPoseState('dragging', powerStrength),
             cueBack: TMP_VEC3_BUTT,
             cueTip: tipTarget
           });
@@ -25278,7 +25299,9 @@ const powerRef = useRef(hud.power);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateSnookerHumanFromAim(planDir, powerTarget, {
-            state: 'dragging',
+            state: resolveSnookerHumanPoseState('dragging', powerTarget, {
+              forcePose: true
+            }),
             cueBack: TMP_VEC3_BUTT,
             cueTip: tipTarget
           });
@@ -25295,7 +25318,9 @@ const powerRef = useRef(hud.power);
           }
           if (!cueAnimating) cueStick.visible = false;
           updateSnookerHumanFromAim(aimDirRef.current, powerRef.current ?? 0, {
-            state: cueAnimating ? 'striking' : 'idle',
+            state: cueAnimating
+              ? 'striking'
+              : resolveSnookerHumanPoseState('idle', powerRef.current ?? 0),
             cueBack: TMP_VEC3_BUTT,
             cueTip: cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET)
           });
@@ -25319,7 +25344,10 @@ const powerRef = useRef(hud.power);
             tableW: PLAY_W,
             tableL: PLAY_H,
             edgeMargin: Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.2),
-            desiredShootDistance: Math.max(cueLen * 0.56, BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR)
+            desiredShootDistance: Math.max(
+              cueLen * 0.36,
+              BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR
+            )
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
