@@ -1649,11 +1649,6 @@ const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance whi
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
-const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const SNOOKER_HUMAN_EDGE_MARGIN = 0.58;
-const SNOOKER_HUMAN_SHOOT_DISTANCE = 1.06;
-const SNOOKER_HUMAN_MOVE_LAMBDA = 5.6;
-const SNOOKER_HUMAN_ROT_LAMBDA = 8.5;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
@@ -13589,12 +13584,6 @@ const powerRef = useRef(hud.power);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
-  const humanPlayerRootRef = useRef(null);
-  const humanPlayerModelRef = useRef(null);
-  const humanPlayerHeightRef = useRef(1.8);
-  const humanPlayerTargetRef = useRef(new THREE.Vector3());
-  const humanPlayerYawRef = useRef(0);
-  const humanPlayerLoadedRef = useRef(false);
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -20732,99 +20721,6 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanPlayerRoot = new THREE.Group();
-      humanPlayerRoot.visible = false;
-      table.add(humanPlayerRoot);
-      humanPlayerRootRef.current = humanPlayerRoot;
-      humanPlayerModelRef.current = null;
-      humanPlayerLoadedRef.current = false;
-      humanPlayerHeightRef.current = 1.8;
-      const humanLoader = new GLTFLoader();
-      humanLoader
-        .loadAsync(BILARDO_SHQIP_HUMAN_URL)
-        .then((gltf) => {
-          const source = gltf?.scene || gltf?.scenes?.[0];
-          if (!source || !humanPlayerRoot.parent) return;
-          const model = source.clone(true);
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
-          const bbox = new THREE.Box3().setFromObject(model);
-          const size = bbox.getSize(new THREE.Vector3());
-          const center = bbox.getCenter(new THREE.Vector3());
-          const baseHeight = Math.max(size.y, 1e-4);
-          humanPlayerHeightRef.current = baseHeight;
-          model.position.sub(center);
-          model.position.y += size.y * 0.5;
-          model.rotation.set(0, Math.PI, 0);
-          humanPlayerRoot.add(model);
-          humanPlayerModelRef.current = model;
-          humanPlayerLoadedRef.current = true;
-        })
-        .catch((error) => {
-          console.warn('Snooker Royal failed to load Bilardo Shqip human model', error);
-        });
-      const updateHumanPlayerPose = (aimDir, shotProgress = 0) => {
-        const root = humanPlayerRootRef.current;
-        const model = humanPlayerModelRef.current;
-        const cueBall = cueRef.current;
-        if (!root || !model || !cueBall?.pos || !aimDir) return;
-        const floorY = FLOOR_Y;
-        const tableSurfaceY = TABLE_Y + TABLE.THICK;
-        const targetHeight = Math.max((tableSurfaceY - floorY) * 2, 1e-3);
-        const modelHeight = Math.max(humanPlayerHeightRef.current || 1.8, 1e-3);
-        const humanScale = targetHeight / modelHeight;
-        model.scale.setScalar(humanScale);
-
-        const dir2 = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 1);
-        if (dir2.lengthSq() < 1e-6) dir2.set(0, 1);
-        dir2.normalize();
-        const desired = TMP_VEC3_A.set(
-          cueBall.pos.x - dir2.x * SNOOKER_HUMAN_SHOOT_DISTANCE,
-          floorY,
-          cueBall.pos.y - dir2.y * SNOOKER_HUMAN_SHOOT_DISTANCE
-        );
-        const halfW = PLAY_W * 0.5;
-        const halfH = PLAY_H * 0.5;
-        const xEdge = halfW + SNOOKER_HUMAN_EDGE_MARGIN;
-        const zEdge = halfH + SNOOKER_HUMAN_EDGE_MARGIN;
-        const candidates = [
-          TMP_VEC3_B.set(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-          TMP_VEC3_C.set(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-          TMP_VEC3_D.set(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
-          TMP_VEC3_E.set(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
-        ];
-        let best = candidates[0];
-        let bestDist = best.distanceToSquared(desired);
-        for (let i = 1; i < candidates.length; i += 1) {
-          const dist = candidates[i].distanceToSquared(desired);
-          if (dist < bestDist) {
-            best = candidates[i];
-            bestDist = dist;
-          }
-        }
-        humanPlayerTargetRef.current.copy(best);
-        const dt = 1 / 60;
-        root.position.lerp(
-          humanPlayerTargetRef.current,
-          1 - Math.exp(-SNOOKER_HUMAN_MOVE_LAMBDA * dt)
-        );
-        const targetYaw = Math.atan2(-dir2.x, -dir2.y);
-        const currentYaw = humanPlayerYawRef.current;
-        const nextYaw = THREE.MathUtils.lerp(
-          currentYaw,
-          targetYaw,
-          1 - Math.exp(-SNOOKER_HUMAN_ROT_LAMBDA * dt)
-        );
-        humanPlayerYawRef.current = nextYaw;
-        root.rotation.set(0, nextYaw, 0);
-        const lean = THREE.MathUtils.clamp(shotProgress, 0, 1) * 0.22;
-        model.position.y = (targetHeight * 0.5) - lean * targetHeight * 0.14;
-        root.visible = cueStick.visible;
-      };
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -25017,7 +24913,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          updateHumanPlayerPose(aimDir2D, powerStrength);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -25172,7 +25067,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateHumanPlayerPose(remoteAimDir, powerStrength);
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -25273,7 +25167,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateHumanPlayerPose(planDir, powerTarget);
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -25286,9 +25179,6 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
-          if (humanPlayerRootRef.current) {
-            humanPlayerRootRef.current.visible = cueStick.visible;
-          }
           updateChalkVisibility(null);
         }
 
