@@ -53,12 +53,6 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
 
-const HIDDEN_LUDO_CAPTURE_STORE_OPTION_IDS = new Set([
-  'mrtkGunAttack',
-  'pistolHolsterAttack',
-  'pistolSidearmAttack'
-]);
-
 const uniqueStoreItemsByName = (items) => {
   const seen = new Set();
   return items.filter((item) => {
@@ -146,17 +140,15 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     description: 'Unlock an alternate piece identity for your pawns.',
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
-  ...CAPTURE_ANIMATION_OPTIONS.slice(1)
-    .filter((option) => !HIDDEN_LUDO_CAPTURE_STORE_OPTION_IDS.has(option.id))
-    .map((option, idx) => ({
-      id: `ludo-capture-animation-${option.id}`,
-      type: 'captureAnimation',
-      optionId: option.id,
-      name: option.label,
-      price: 950 + idx * 120,
-      description: option.description,
-      thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
-    })),
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+    id: `ludo-capture-animation-${option.id}`,
+    type: 'captureAnimation',
+    optionId: option.id,
+    name: option.label,
+    price: 950 + idx * 120,
+    description: option.description,
+    thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
+  })),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
     type: 'humanCharacter',
