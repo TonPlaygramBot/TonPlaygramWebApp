@@ -109,10 +109,8 @@ const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.18;
 const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
-const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.1;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.8;
-const SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD = 0.42;
-const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = 0.035;
+const SNOOKER_HUMAN_EDGE_MARGIN = 0.62;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
 const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
@@ -20826,17 +20824,7 @@ const powerRef = useRef(hud.power);
       ) => {
         if (preferredState === 'striking') return 'striking';
         if (forcePose) return 'dragging';
-        const cameraBlend = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const cameraLowered =
-          cameraBlend <= SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD;
-        const hasPull =
-          THREE.MathUtils.clamp(powerValue ?? 0, 0, 1) >=
-          SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD;
-        return cameraLowered || hasPull ? 'dragging' : 'idle';
+        return preferredState === 'idle' ? 'idle' : 'dragging';
       };
 
       const closeCueGallery = () => {
@@ -25343,10 +25331,10 @@ const powerRef = useRef(hud.power);
           const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
             tableW: PLAY_W,
             tableL: PLAY_H,
-            edgeMargin: Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.2),
+            edgeMargin: SNOOKER_HUMAN_EDGE_MARGIN,
             desiredShootDistance: Math.max(
               cueLen * 0.36,
-              BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR
+              SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE
             )
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
