@@ -61,25 +61,6 @@ export class BilardoShqipRules {
     };
   }
 
-
-  applySnapshot(snapshot?: Partial<ReturnType<BilardoShqipRules["getSnapshot"]>> | null) {
-    if (!snapshot || typeof snapshot !== 'object') return;
-    const scoreA = Number(snapshot.scores?.A);
-    const scoreB = Number(snapshot.scores?.B);
-    this.scores = {
-      A: Number.isFinite(scoreA) ? Math.max(0, Math.floor(scoreA)) : 0,
-      B: Number.isFinite(scoreB) ? Math.max(0, Math.floor(scoreB)) : 0
-    };
-    this.currentPlayer = snapshot.currentPlayer === 'B' ? 'B' : 'A';
-    this.winner = snapshot.winner === 'A' || snapshot.winner === 'B' ? snapshot.winner : null;
-    this.cueBallInHand = Boolean(snapshot.cueBallInHand);
-    const ballsRemainingRaw = Number(snapshot.ballsRemaining);
-    const ballsRemaining = Number.isFinite(ballsRemainingRaw)
-      ? Math.max(0, Math.min(15, Math.floor(ballsRemainingRaw)))
-      : 15;
-    this.ballsOnTable = new Set(Array.from({ length: ballsRemaining }, (_, index) => index + 1));
-  }
-
   resolveShot(summary: BilardoShotSummary): BilardoShotResult {
     const active = this.currentPlayer;
     const opponent: BilardoPlayer = active === 'A' ? 'B' : 'A';
