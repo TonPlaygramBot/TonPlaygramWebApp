@@ -145,7 +145,27 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
-    description: 'Heavy AK volley using GLB texture maps while preserving vehicle attacks.'
+    description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.'
+  },
+  {
+    id: 'krsvBurstAttack',
+    label: 'KRSV Burst',
+    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.'
+  },
+  {
+    id: 'smithSidearmAttack',
+    label: 'Smith Sidearm',
+    description: 'Smith sidearm takedown with original Gunify texture maps.'
+  },
+  {
+    id: 'mosinMarksmanAttack',
+    label: 'Mosin Marksman',
+    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.'
+  },
+  {
+    id: 'sigsauerTacticalAttack',
+    label: 'SigSauer Tactical',
+    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.'
   },
   {
     id: 'grenadeBlastAttack',
