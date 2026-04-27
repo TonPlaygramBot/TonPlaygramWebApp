@@ -33747,9 +33747,8 @@ useEffect(() => {
       labels: true,
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
-      onCommit: (value) => {
-        const committedRatio = Number.isFinite(value) ? value / 100 : powerRef.current;
-        onPowerRelease(clampPower(committedRatio, 0));
+      onCommit: () => {
+        onPowerRelease(clampPower(powerRef.current, 0));
       }
     });
     sliderInstanceRef.current = slider;
