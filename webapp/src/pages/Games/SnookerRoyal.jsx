@@ -109,11 +109,17 @@ const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.18;
 const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
-const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.1;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.8;
-const SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD = 0.42;
-const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = 0.035;
-const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
+const BILARDO_EDGE_MARGIN = 0.62;
+const BILARDO_DESIRED_SHOOT_DISTANCE = 1.06;
+const BILARDO_PULL_TO_POSE_THRESHOLD = 0.035;
+const BILARDO_CUE_HAND_GRIP_RATIO = 0.76;
+const BILARDO_BRIDGE_HAND_BACK_FROM_BALL = 0.245;
+const BILARDO_BRIDGE_HAND_SIDE = -0.008;
+const BILARDO_BRIDGE_CUE_LIFT = 0.026;
+const BILARDO_CUE_LENGTH = 1.46;
+const BILARDO_BRIDGE_DIST = 0.24;
+const BILARDO_IDLE_GAP = 0.012;
+const BILARDO_PULL_RANGE = 0.42;
 const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
 function safePolygonUnion(...parts) {
@@ -20791,13 +20797,8 @@ const powerRef = useRef(hud.power);
       humanActor.modelRoot.scale.setScalar(snookerFinalHumanScale);
       humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
 
-      const bilardoSharedPose = {
-        bridgeHandBackFromBall: 0.245,
-        bridgeHandSide: -0.008,
-        gripRatio: SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO,
-        idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
-        idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
-      };
+      const bilardoIdleRightOffset = new THREE.Vector3(0.24, 1.12, 0.02);
+      const bilardoIdleLeftOffset = new THREE.Vector3(-0.18, 1.08, 0.03);
 
       const humanPoseContext = {
         aimDir: new THREE.Vector2(0, 1),
@@ -20826,17 +20827,10 @@ const powerRef = useRef(hud.power);
       ) => {
         if (preferredState === 'striking') return 'striking';
         if (forcePose) return 'dragging';
-        const cameraBlend = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const cameraLowered =
-          cameraBlend <= SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD;
         const hasPull =
           THREE.MathUtils.clamp(powerValue ?? 0, 0, 1) >=
-          SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD;
-        return cameraLowered || hasPull ? 'dragging' : 'idle';
+          BILARDO_PULL_TO_POSE_THRESHOLD;
+        return hasPull ? 'dragging' : 'idle';
       };
 
       const closeCueGallery = () => {
@@ -25343,36 +25337,68 @@ const powerRef = useRef(hud.power);
           const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
             tableW: PLAY_W,
             tableL: PLAY_H,
-            edgeMargin: Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.2),
+            edgeMargin: Math.max(
+              BILARDO_EDGE_MARGIN,
+              SIDE_RAIL_INNER_THICKNESS * 1.2
+            ),
             desiredShootDistance: Math.max(
               cueLen * 0.36,
-              BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR
+              BILARDO_DESIRED_SHOOT_DISTANCE
             )
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
           const bridgeTarget = cueBallWorld
             .clone()
-            .addScaledVector(aimForward, -bilardoSharedPose.bridgeHandBackFromBall)
-            .addScaledVector(aimSide, bilardoSharedPose.bridgeHandSide)
-            .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
-          const gripTarget = humanPoseContext.cueTip
+            .addScaledVector(aimForward, -BILARDO_BRIDGE_HAND_BACK_FROM_BALL)
+            .addScaledVector(aimSide, BILARDO_BRIDGE_HAND_SIDE)
+            .setY(BALL_CENTER_Y - BALL_R + 0.012);
+          const bridgeCuePoint = bridgeTarget
             .clone()
-            .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio)
-            .addScaledVector(aimForward, SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET);
+            .addScaledVector(aimForward, 0.01)
+            .add(new THREE.Vector3(0, BILARDO_BRIDGE_CUE_LIFT, 0));
+          const activePower = THREE.MathUtils.clamp(humanPoseContext.power ?? 0, 0, 1);
+          const pull = BILARDO_PULL_RANGE * easeOutCubic(activePower);
+          const gap = BILARDO_IDLE_GAP + pull;
+          const cueTipShoot = cueBallWorld
+            .clone()
+            .addScaledVector(aimForward, -(BALL_R + gap));
+          const cueBackShoot = bridgeCuePoint
+            .clone()
+            .addScaledVector(
+              aimForward,
+              -(BILARDO_CUE_LENGTH - BILARDO_BRIDGE_DIST - BALL_R - gap)
+            )
+            .add(new THREE.Vector3(0, 0.028, 0));
           const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
+          let cueBackVisual = cueBackShoot.clone();
+          let cueTipVisual = cueTipShoot.clone();
+          if (humanPoseContext.state === 'idle') {
+            const idleDir = new THREE.Vector3(0.16, 0.74, -0.22)
+              .applyAxisAngle(Y_AXIS, standingYaw)
+              .normalize();
+            const idleRightBase = rootTarget
+              .clone()
+              .add(bilardoIdleRightOffset.clone().applyAxisAngle(Y_AXIS, standingYaw));
+            cueBackVisual = idleRightBase.clone().addScaledVector(idleDir, -0.22);
+            cueTipVisual = idleRightBase.clone().addScaledVector(idleDir, 0.96);
+          }
+          const gripTarget = cueTipVisual
+            .clone()
+            .lerp(cueBackVisual.clone(), BILARDO_CUE_HAND_GRIP_RATIO)
+            .addScaledVector(aimForward, SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET);
           const upAxis = new THREE.Vector3(0, 1, 0);
           const idleRight = rootTarget
             .clone()
             .add(
-              bilardoSharedPose.idleRightOffset
+              bilardoIdleRightOffset
                 .clone()
                 .applyAxisAngle(upAxis, standingYaw)
             );
           const idleLeft = rootTarget
             .clone()
             .add(
-              bilardoSharedPose.idleLeftOffset
+              bilardoIdleLeftOffset
                 .clone()
                 .applyAxisAngle(upAxis, standingYaw)
             );
@@ -25384,8 +25410,8 @@ const powerRef = useRef(hud.power);
             gripTarget,
             idleRight,
             idleLeft,
-            cueBack: humanPoseContext.cueBack,
-            cueTip: humanPoseContext.cueTip,
+            cueBack: cueBackVisual,
+            cueTip: cueTipVisual,
             power: humanPoseContext.power
           });
         }
