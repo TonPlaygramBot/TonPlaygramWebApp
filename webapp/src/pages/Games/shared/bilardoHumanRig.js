@@ -181,8 +181,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
       bridgePalmTableLift: opts.bridgePalmTableLift ?? 0.012,
       chinToCueHeight: opts.chinToCueHeight ?? 0.11,
       cueArmElbowRise: opts.cueArmElbowRise ?? 0.43,
-      upperBodyBend: opts.upperBodyBend ?? 1,
-      legBend: opts.legBend ?? 0.38,
       tableTopY: opts.tableTopY ?? 0.84
     }
   };
@@ -403,34 +401,6 @@ function poseFingers(fingers, mode, weight) {
       finger.rotation.z += (index ? -0.03 : ring ? 0.04 : pinky ? 0.07 : 0) * w;
       return;
     }
-    if (mode === 'closedBridge') {
-      if (thumb) {
-        finger.rotation.x += 0.18 * w;
-        finger.rotation.y += -0.56 * w;
-        finger.rotation.z += 0.26 * w;
-      } else if (index) {
-        finger.rotation.x += (base ? 0.38 : tip ? 0.58 : 0.68) * w;
-        finger.rotation.y += -0.12 * w;
-        finger.rotation.z += -0.2 * w;
-      } else if (middle || ring || pinky) {
-        finger.rotation.x += (base ? 0.24 : tip ? 0.4 : 0.5) * w;
-        finger.rotation.y += (ring || pinky ? 0.12 : 0.02) * w;
-        finger.rotation.z += (ring ? 0.08 : pinky ? 0.14 : 0.02) * w;
-      }
-      return;
-    }
-    if (mode === 'railBridge') {
-      if (thumb) {
-        finger.rotation.x += 0.05 * w;
-        finger.rotation.y += 0.35 * w;
-        finger.rotation.z += -0.22 * w;
-      } else {
-        finger.rotation.x += (base ? 0.06 : tip ? 0.1 : 0.14) * w;
-        finger.rotation.y += (ring || pinky ? 0.08 : -0.03) * w;
-        finger.rotation.z += (index ? -0.04 : ring ? 0.04 : pinky ? 0.09 : 0) * w;
-      }
-      return;
-    }
     if (thumb) {
       finger.rotation.x += -0.04 * w;
       finger.rotation.y += 0.62 * w;
@@ -557,7 +527,7 @@ function driveHuman(human, frame) {
     .clone()
     .addScaledVector(frame.forward, 0.012 * ik)
     .addScaledVector(frame.side, -0.006 * ik)
-    .addScaledVector(UP, -0.01 * ik + (frame.bridgeHeightOffset ?? 0));
+    .addScaledVector(UP, -0.01 * ik);
   const leftElbow = frame.leftElbow
     .clone()
     .addScaledVector(frame.forward, 0.02 * ik)
@@ -574,32 +544,15 @@ function driveHuman(human, frame) {
   );
   twistBone(b.leftUpperArm, frame.forward, -0.16 * ik);
   twistBone(b.leftLowerArm, frame.forward, 0.05 * ik);
-  const bridgePose = frame.bridgePose ?? 'open';
-  const bridgeRoll =
-    bridgePose === 'closed'
-      ? -0.1
-      : bridgePose === 'rail'
-        ? -0.3
-        : bridgePose === 'high'
-          ? -0.05
-          : -0.22;
   setHandBasis(
     b.leftHand,
     frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.2).normalize(),
     UP.clone().multiplyScalar(0.96).addScaledVector(frame.forward, -0.08).addScaledVector(frame.side, -0.04).normalize(),
     cueDir,
-    bridgeRoll * ik,
+    -0.22 * ik,
     0.98 * ik
   );
-  poseFingers(
-    human.leftFingers,
-    bridgePose === 'closed'
-      ? 'closedBridge'
-      : bridgePose === 'rail'
-        ? 'railBridge'
-        : 'bridge',
-    ik
-  );
+  poseFingers(human.leftFingers, 'bridge', ik);
 }
 
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
@@ -725,19 +678,17 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     .addScaledVector(UP, lerp(0.18, cfg.cueArmElbowRise, t))
     .addScaledVector(side, lerp(0.03, 0.07, t))
     .addScaledVector(forward, lerp(-0.03, 0, t));
-  const legBend = clamp01(cfg.legBend);
-  const upperBodyBend = clamp01(cfg.upperBodyBend);
   const leftKnee = leftHip
     .clone()
     .lerp(leftFoot, 0.53)
-    .addScaledVector(UP, lerp(0.18, lerp(0.16, 0.1, legBend), t))
-    .addScaledVector(forward, 0.052 * t * legBend)
+    .addScaledVector(UP, lerp(0.18, 0.105, t))
+    .addScaledVector(forward, 0.052 * t)
     .addScaledVector(side, -0.016 * t);
   const rightKnee = rightHip
     .clone()
     .lerp(rightFoot, 0.52)
-    .addScaledVector(UP, lerp(0.18, lerp(0.16, 0.08, legBend), t))
-    .addScaledVector(forward, -0.032 * t * legBend)
+    .addScaledVector(UP, lerp(0.18, 0.08, t))
+    .addScaledVector(forward, -0.032 * t)
     .addScaledVector(side, 0.018 * t);
 
   human.root.visible = true;
@@ -751,10 +702,10 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     side,
     up: UP,
     rootWorld,
-    torsoCenterWorld: torso.clone().addScaledVector(forward, -0.06 * t * upperBodyBend),
-    chestCenterWorld: chest.clone().addScaledVector(forward, -0.12 * t * upperBodyBend),
-    neckWorld: neck.clone().addScaledVector(forward, -0.13 * t * upperBodyBend),
-    headCenterWorld: head.clone().addScaledVector(forward, -0.1 * t * upperBodyBend),
+    torsoCenterWorld: torso,
+    chestCenterWorld: chest,
+    neckWorld: neck,
+    headCenterWorld: head,
     leftElbow,
     rightElbow,
     leftHandWorld: leftHand,
@@ -764,7 +715,6 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     leftFootWorld: leftFoot,
     rightFootWorld: rightFoot,
     cueBackWorld: frameData.cueBack,
-    cueTipWorld: frameData.cueTip,
-    bridgePose: frameData.bridgePose ?? 'open'
+    cueTipWorld: frameData.cueTip
   });
 }
