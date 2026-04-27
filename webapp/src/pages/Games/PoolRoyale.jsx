@@ -33351,15 +33351,11 @@ useEffect(() => {
     applyPower(clamped);
   }, [applyPower, clampPower]);
   const onPowerRelease = useCallback((powerRatio = null) => {
-    const providedPower = Number.isFinite(powerRatio)
-      ? clampPower(powerRatio, 0)
-      : null;
-    const sourcePower =
-      providedPower ??
-      Math.max(
-        Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-        Number.isFinite(powerRef.current) ? powerRef.current : 0
-      );
+    const sourcePower = Math.max(
+      Number.isFinite(powerRatio) ? powerRatio : 0,
+      Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+      Number.isFinite(powerRef.current) ? powerRef.current : 0
+    );
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
     manualStrikePowerRef.current = latchedPower;
@@ -33424,11 +33420,8 @@ useEffect(() => {
       labels: true,
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
-      onCommit: (committedValue) => {
-        const powerRatio = Number.isFinite(committedValue)
-          ? clampPower((committedValue ?? 0) / 100, 0)
-          : clampPower(powerRef.current, 0);
-        onPowerRelease(powerRatio);
+      onCommit: () => {
+        onPowerRelease(clampPower(powerRef.current, 0));
       }
     });
     sliderInstanceRef.current = slider;
