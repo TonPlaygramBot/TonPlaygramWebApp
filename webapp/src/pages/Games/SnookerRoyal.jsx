@@ -109,8 +109,9 @@ const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.32;
 const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.42;
-const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 6.9;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 16.6;
+const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.8;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.4;
+const SNOOKER_HUMAN_RAIL_CLEARANCE_FACTOR = 2.5;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -20802,6 +20803,41 @@ const powerRef = useRef(hud.power);
         cueBack: new THREE.Vector3(),
         cueTip: new THREE.Vector3()
       };
+      const humanRailHelperRoot = new THREE.Group();
+      humanRailHelperRoot.name = 'SnookerHumanRailHelpers';
+      table.add(humanRailHelperRoot);
+      const humanRootHelper = new THREE.Mesh(
+        new THREE.SphereGeometry(BALL_R * 0.22, 18, 12),
+        new THREE.MeshBasicMaterial({ color: 0xff6f3c, transparent: true, opacity: 0.82 })
+      );
+      const humanBridgeHelper = new THREE.Mesh(
+        new THREE.SphereGeometry(BALL_R * 0.17, 16, 10),
+        new THREE.MeshBasicMaterial({ color: 0x5ac8ff, transparent: true, opacity: 0.8 })
+      );
+      const humanGripHelper = new THREE.Mesh(
+        new THREE.SphereGeometry(BALL_R * 0.17, 16, 10),
+        new THREE.MeshBasicMaterial({ color: 0x9dff7a, transparent: true, opacity: 0.8 })
+      );
+      const createRailRectHelper = (halfW, halfL, color) => {
+        const points = [
+          new THREE.Vector3(-halfW, FLOOR_Y + BALL_R * 0.12, -halfL),
+          new THREE.Vector3(halfW, FLOOR_Y + BALL_R * 0.12, -halfL),
+          new THREE.Vector3(halfW, FLOOR_Y + BALL_R * 0.12, halfL),
+          new THREE.Vector3(-halfW, FLOOR_Y + BALL_R * 0.12, halfL),
+          new THREE.Vector3(-halfW, FLOOR_Y + BALL_R * 0.12, -halfL)
+        ];
+        return new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.72 })
+        );
+      };
+      const humanOuterRailHelper = createRailRectHelper(
+        PLAY_W / 2 + Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.65),
+        PLAY_H / 2 + Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.65),
+        0xff9d00
+      );
+      const humanInnerRailHelper = createRailRectHelper(PLAY_W / 2, PLAY_H / 2, 0xffffff);
+      humanRailHelperRoot.add(humanOuterRailHelper, humanInnerRailHelper, humanRootHelper, humanBridgeHelper, humanGripHelper);
       const updateSnookerHumanFromAim = (aimDirection, power = 0, options = {}) => {
         if (!humanActor || !cue?.pos) return;
         humanPoseContext.aimDir.set(aimDirection?.x ?? 0, aimDirection?.y ?? 1);
@@ -25317,7 +25353,9 @@ const powerRef = useRef(hud.power);
             tableW: PLAY_W,
             tableL: PLAY_H,
             edgeMargin: Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.65),
-            desiredShootDistance: Math.max(cueLen * 0.54, BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR)
+            desiredShootDistance: Math.max(cueLen * 0.49, BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR),
+            railClearance: Math.max(BALL_R * SNOOKER_HUMAN_RAIL_CLEARANCE_FACTOR, SIDE_RAIL_INNER_THICKNESS * 0.35),
+            cornerBias: Math.max(BALL_R * 2.05, SIDE_RAIL_INNER_THICKNESS * 0.55)
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
@@ -25328,7 +25366,12 @@ const powerRef = useRef(hud.power);
             .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
           const gripTarget = humanPoseContext.cueTip
             .clone()
-            .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio);
+            .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio)
+            .addScaledVector(aimForward, -BALL_R * 0.34)
+            .addScaledVector(new THREE.Vector3(0, 1, 0), -BALL_R * 0.08);
+          humanRootHelper.position.copy(rootTarget);
+          humanBridgeHelper.position.copy(bridgeTarget);
+          humanGripHelper.position.copy(gripTarget);
           const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
           const upAxis = new THREE.Vector3(0, 1, 0);
           const idleRight = rootTarget
