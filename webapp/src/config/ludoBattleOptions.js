@@ -253,8 +253,8 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'compactCarbineAttack',
-    label: 'Compact Carbine',
-    description: 'Open-source compact carbine-style pickup and burst capture animation.',
+    label: 'Combat Carbine',
+    description: 'Open-source combat carbine pickup and burst capture animation.',
     thumbnail: captureWeaponThumb('🪖', '#1f2937')
   },
   {
@@ -326,14 +326,6 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     description: 'Open WebGL GLB body variant using the same seated character animation logic.',
     modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb'],
     source: 'msorkhpar/3d-human-model-vite GitHub',
-    license: 'Check repository license'
-  },
-  {
-    id: 'webgl-human-body-b',
-    label: 'Human Body B',
-    description: 'Open WebGL GLB body variant matched to default seated sizing/orientation.',
-    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb'],
-    source: 'bddicken/humanbody GitHub',
     license: 'Check repository license'
   },
   {
