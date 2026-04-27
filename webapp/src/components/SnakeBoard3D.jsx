@@ -26,8 +26,10 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH =
+  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH =
+  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
@@ -79,7 +81,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const HUMAN_MODEL_URL =
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
@@ -98,9 +101,11 @@ const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
-  CHAIR_SIZE_SCALE
-);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  1.3162499970197679,
+  1.9173749900311232,
+  1.7001562547683715
+).multiplyScalar(CHAIR_SIZE_SCALE);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
@@ -118,7 +123,12 @@ const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   helicopter: ['helicopter.glb'],
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
-  javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
+  javelin: [
+    'javelin_missile.glb',
+    'javelin.glb',
+    'missile_javelin.glb',
+    'missile.glb'
+  ]
 });
 const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
@@ -143,7 +153,10 @@ const LEVEL_TILE_COUNTS = (() => {
   });
 })();
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
-const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
+const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce(
+  (sum, count) => sum + count,
+  0
+);
 const RAW_BOARD_SIZE = 1.125;
 const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06; // make board footprint visibly wider
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
@@ -243,7 +256,8 @@ const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
 const TOKEN_SCALE_MULTIPLIER = 1.62;
-const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
+const TOKEN_RADIUS =
+  TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
@@ -253,13 +267,16 @@ const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const GROUND_FLOOR_OUTWARD_SCALE = 1.08;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
-const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
+const TOKEN_MULTI_OCCUPANT_RADIUS =
+  TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
 // Keep parked weapons on explicit side parking slots around the board.
 const TOP_SEAT_WEAPON_REST_RAIL_INSET = -TILE_SIZE * 0.08;
-const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
+const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(
+  new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET)
+);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
@@ -267,7 +284,9 @@ const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TOP_SEAT_WEAPON_REST_RAIL_INSET
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
-const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
+const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(
+  new Array(DEFAULT_PLAYER_COUNT).fill(0)
+);
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
@@ -288,13 +307,8 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08
 ]);
-const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
-]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
+const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([0, 0, 0, 0]);
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.92;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.8;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
@@ -306,11 +320,11 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   // Lift parked weapons higher so they sit at bishop-token visual height on portrait screens.
-  fighter: -TOKEN_HEIGHT * 0.22,
-  helicopter: -TOKEN_HEIGHT * 0.2,
-  drone: -TOKEN_HEIGHT * 0.23,
-  supportTruck: -TOKEN_HEIGHT * 0.2,
-  javelin: -TOKEN_HEIGHT * 0.22
+  fighter: -TOKEN_HEIGHT * 0.3,
+  helicopter: -TOKEN_HEIGHT * 0.28,
+  drone: -TOKEN_HEIGHT * 0.31,
+  supportTruck: -TOKEN_HEIGHT * 0.28,
+  javelin: -TOKEN_HEIGHT * 0.3
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -324,29 +338,69 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat (yellow): bottom-left marker near logo plate.
-  Object.freeze({ radial: TILE_SIZE * 0.18, lateral: TILE_SIZE * 0.64, y: TILE_SIZE * 0.5 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.18,
+    lateral: TILE_SIZE * 0.64,
+    y: TILE_SIZE * 0.5
+  }),
   // Right seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: -TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.08,
+    lateral: -TILE_SIZE * 0.7,
+    y: TILE_SIZE * 0.5
+  }),
   // Top seat (yellow): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 0.52, lateral: -TILE_SIZE * 0.42, y: TILE_SIZE * 0.56 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.52,
+    lateral: -TILE_SIZE * 0.42,
+    y: TILE_SIZE * 0.56
+  }),
   // Left seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 })
+  Object.freeze({
+    radial: TILE_SIZE * 0.08,
+    lateral: TILE_SIZE * 0.7,
+    y: TILE_SIZE * 0.5
+  })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat (red): bottom-right marker.
-  Object.freeze({ radial: TILE_SIZE * 0.72, lateral: -TILE_SIZE * 0.78, y: TILE_SIZE * 1.72 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.72,
+    lateral: -TILE_SIZE * 0.78,
+    y: TILE_SIZE * 1.72
+  }),
   // Right seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: TILE_SIZE * 0.68, y: TILE_SIZE * 1.72 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.5,
+    lateral: TILE_SIZE * 0.68,
+    y: TILE_SIZE * 1.72
+  }),
   // Top seat (red): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 0.96, lateral: TILE_SIZE * 0.48, y: TILE_SIZE * 1.8 }),
+  Object.freeze({
+    radial: TILE_SIZE * 0.96,
+    lateral: TILE_SIZE * 0.48,
+    y: TILE_SIZE * 1.8
+  }),
   // Left seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: -TILE_SIZE * 0.68, y: TILE_SIZE * 1.72 })
+  Object.freeze({
+    radial: TILE_SIZE * 0.5,
+    lateral: -TILE_SIZE * 0.68,
+    y: TILE_SIZE * 1.72
+  })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
-const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 1.32;
-const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.2;
+const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 1.96;
+const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.28;
+const WEAPON_BUTTON_TYPES = new Set([
+  'fighter',
+  'helicopter',
+  'drone',
+  'supportTruck'
+]);
+const WEAPON_BUTTON_OFFSET_FORWARD = TILE_SIZE * 0.26;
+const WEAPON_BUTTON_OFFSET_UP = TOKEN_HEIGHT * 0.55;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -366,10 +420,12 @@ const LEVEL_START_INDICES = LEVEL_TILE_COUNTS.reduce((starts, count, index) => {
   }
   return starts;
 }, []);
-const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) => ({
-  from: start + LEVEL_TILE_COUNTS[index] - 1,
-  to: LEVEL_START_INDICES[index + 1]
-}));
+const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map(
+  (start, index) => ({
+    from: start + LEVEL_TILE_COUNTS[index] - 1,
+    to: LEVEL_START_INDICES[index + 1]
+  })
+);
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
@@ -431,7 +487,7 @@ const DICE_SEAT_ADJUSTMENTS = [
     },
     forward: {
       // Blue (turn anchor): near bottom-center. Purple (result): slightly inward.
-      start: -TILE_SIZE * 1.2,
+      start: -TILE_SIZE * 1.34,
       bounce: -TILE_SIZE * 0.92,
       base: -TILE_SIZE * 0.62
     }
@@ -449,7 +505,7 @@ const DICE_SEAT_ADJUSTMENTS = [
     },
     forward: {
       // Blue (turn anchor): right side. Purple (result): inside-right edge.
-      start: -TILE_SIZE * 1.28,
+      start: -TILE_SIZE * 1.38,
       bounce: -TILE_SIZE * 1.0,
       base: -TILE_SIZE * 0.66
     }
@@ -467,7 +523,7 @@ const DICE_SEAT_ADJUSTMENTS = [
     },
     forward: {
       // Blue (turn anchor): top-center. Purple (result): inward toward board center.
-      start: -TILE_SIZE * 1.28,
+      start: -TILE_SIZE * 1.42,
       bounce: -TILE_SIZE * 1.0,
       base: -TILE_SIZE * 0.68
     }
@@ -485,7 +541,7 @@ const DICE_SEAT_ADJUSTMENTS = [
     },
     forward: {
       // Blue (turn anchor): left side. Purple (result): inside-left edge.
-      start: -TILE_SIZE * 1.28,
+      start: -TILE_SIZE * 1.38,
       bounce: -TILE_SIZE * 1.0,
       base: -TILE_SIZE * 0.66
     }
@@ -510,9 +566,18 @@ const toThreeColor = (value, fallback) => {
 };
 
 const createHighlightColors = (boardTheme = {}) => ({
-  normal: toThreeColor(boardTheme.highlightNormal, DEFAULT_HIGHLIGHT_COLORS.normal),
-  snake: toThreeColor(boardTheme.highlightSnake, DEFAULT_HIGHLIGHT_COLORS.snake),
-  ladder: toThreeColor(boardTheme.highlightLadder, DEFAULT_HIGHLIGHT_COLORS.ladder)
+  normal: toThreeColor(
+    boardTheme.highlightNormal,
+    DEFAULT_HIGHLIGHT_COLORS.normal
+  ),
+  snake: toThreeColor(
+    boardTheme.highlightSnake,
+    DEFAULT_HIGHLIGHT_COLORS.snake
+  ),
+  ladder: toThreeColor(
+    boardTheme.highlightLadder,
+    DEFAULT_HIGHLIGHT_COLORS.ladder
+  )
 });
 
 const LADDER_BASE_LIFT = TILE_SIZE * 0.12;
@@ -531,22 +596,54 @@ const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
 const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.16;
 const SNAKE_NECK_LIFT_RATIO = 0.34;
 const SNAKE_TAIL_LIFT_RATIO = 0.28;
-const CAPTURE_MISSILE_FLIGHT_MS = 620;
-const CAPTURE_EXPLOSION_MS = 560;
-const CAPTURE_TOKEN_ADVANCE_MS = 420;
+const CAPTURE_PRELAUNCH_BUTTON_PRESS_MS = 320;
+const CAPTURE_MISSILE_FLIGHT_MS = 760;
+const CAPTURE_EXPLOSION_MS = 820;
+const CAPTURE_TOKEN_ADVANCE_MS = 560;
 const CAPTURE_CENTER_STAGE_LIFT = TOKEN_HEIGHT * 7.6;
-const CAPTURE_RETURN_MS = 620;
+const CAPTURE_RETURN_MS = 760;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
+const CAPTURE_SHELL_COUNT = 4;
 // Keep Snake & Ladder capture tuning aligned with Ludo Battle Royale flight behaviour,
 // while staying isolated in this file so changes here never alter other games.
 const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
-  fighter: Object.freeze({ speed: 0.92, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  helicopter: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  drone: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  fighter: Object.freeze({
+    speed: 0.92,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  }),
+  helicopter: Object.freeze({
+    speed: 0.94,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  }),
+  drone: Object.freeze({
+    speed: 0.86,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  }),
   // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
-  javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
+  javelin: Object.freeze({
+    speed: 0.86,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  }),
+  supportTruck: Object.freeze({
+    speed: 0.86,
+    height: 0.92,
+    inward: 0.94,
+    takeoff: 0.22,
+    landing: 0.26
+  })
 });
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   fighter: 0,
@@ -578,7 +675,8 @@ function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  const target =
+    amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
 }
@@ -604,7 +702,11 @@ function buildPerimeterSequence(size) {
 }
 
 function rotateSequenceToClosestPoint(sequence, scorePoint) {
-  if (!Array.isArray(sequence) || sequence.length <= 1 || typeof scorePoint !== 'function') {
+  if (
+    !Array.isArray(sequence) ||
+    sequence.length <= 1 ||
+    typeof scorePoint !== 'function'
+  ) {
     return sequence;
   }
   let bestIndex = 0;
@@ -627,16 +729,20 @@ function buildSpiralGrid(size) {
   let top = 0;
   let bottom = size - 1;
   while (left <= right && top <= bottom) {
-    for (let col = left; col <= right; col += 1) cells.push({ row: bottom, col });
+    for (let col = left; col <= right; col += 1)
+      cells.push({ row: bottom, col });
     bottom -= 1;
-    for (let row = bottom; row >= top; row -= 1) cells.push({ row, col: right });
+    for (let row = bottom; row >= top; row -= 1)
+      cells.push({ row, col: right });
     right -= 1;
     if (top <= bottom) {
-      for (let col = right; col >= left; col -= 1) cells.push({ row: top, col });
+      for (let col = right; col >= left; col -= 1)
+        cells.push({ row: top, col });
       top += 1;
     }
     if (left <= right) {
-      for (let row = top; row <= bottom; row += 1) cells.push({ row, col: left });
+      for (let row = top; row <= bottom; row += 1)
+        cells.push({ row, col: left });
       left += 1;
     }
   }
@@ -731,7 +837,14 @@ function getTileLevelById(tileId) {
   return 0;
 }
 
-function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
+function addPavementLayer(
+  parent,
+  size,
+  thickness,
+  bottomY,
+  meshes,
+  material = null
+) {
   const pavementMaterial =
     material ||
     new THREE.MeshStandardMaterial({
@@ -740,7 +853,10 @@ function addPavementLayer(parent, size, thickness, bottomY, meshes, material = n
       metalness: 0.35,
       envMapIntensity: 0.6
     });
-  const pavement = new THREE.Mesh(new THREE.BoxGeometry(size, thickness, size), pavementMaterial);
+  const pavement = new THREE.Mesh(
+    new THREE.BoxGeometry(size, thickness, size),
+    pavementMaterial
+  );
   pavement.position.y = bottomY - thickness / 2;
   pavement.receiveShadow = true;
   parent.add(pavement);
@@ -841,7 +957,7 @@ function createCaptureVehicleTexture(kind = 'fighter') {
     const x = (i * 37) % 256;
     const y = (i * 53) % 256;
     ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
-    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
+    ctx.globalAlpha = 0.42 + (i % 4) * 0.12;
     ctx.fillRect(x, y, w, h);
   }
   ctx.globalAlpha = 1;
@@ -894,7 +1010,8 @@ function applyCaptureTextureToOpaqueMeshes(root, kind = 'fighter') {
   root.traverse((obj) => {
     if (!obj?.isMesh) return;
     const mat = obj.material;
-    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1)
+      return;
     obj.material = createCaptureVehicleMaterial(kind);
     obj.castShadow = true;
     obj.receiveShadow = true;
@@ -906,7 +1023,9 @@ function applyCaptureVehicleLook(root, kind = 'fighter') {
   root?.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
     materials.forEach((mat) => {
       if (!mat?.color) return;
       if (/window|cockpit|glass|canopy|windshield/.test(name)) {
@@ -942,16 +1061,23 @@ function collectRotorNodes(root, kind = 'fighter') {
     const pos = new THREE.Vector3();
     node.getWorldPosition(pos);
     if (!topRotor || pos.y > topRotor.y) topRotor = { node, y: pos.y };
-    if (!tailRotor || Math.abs(pos.x) > Math.abs(tailRotor.x)) tailRotor = { node, x: pos.x };
+    if (!tailRotor || Math.abs(pos.x) > Math.abs(tailRotor.x))
+      tailRotor = { node, x: pos.x };
   });
-  return { all, topRotor: topRotor?.node || null, tailRotor: tailRotor?.node || null };
+  return {
+    all,
+    topRotor: topRotor?.node || null,
+    tailRotor: tailRotor?.node || null
+  };
 }
 
 function spinCaptureRotors(rig, dtSeconds = 0) {
   if (!rig || dtSeconds <= 0) return;
   const speed = 32;
-  if (rig.topRotor) rig.topRotor.rotateOnAxis(new THREE.Vector3(0, 1, 0), dtSeconds * speed);
-  if (rig.tailRotor) rig.tailRotor.rotateOnAxis(new THREE.Vector3(1, 0, 0), dtSeconds * speed);
+  if (rig.topRotor)
+    rig.topRotor.rotateOnAxis(new THREE.Vector3(0, 1, 0), dtSeconds * speed);
+  if (rig.tailRotor)
+    rig.tailRotor.rotateOnAxis(new THREE.Vector3(1, 0, 0), dtSeconds * speed);
   const excluded = new Set([rig.topRotor, rig.tailRotor]);
   rig.rotorNodes?.forEach((node) => {
     if (!node || excluded.has(node)) return;
@@ -1015,7 +1141,8 @@ function buildChessPiecePrototypes(scene) {
 }
 
 async function loadChessPiecePrototypes(renderer = null) {
-  if (SNAKE_TOKEN_PROTOTYPE_CACHE.pieces) return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
+  if (SNAKE_TOKEN_PROTOTYPE_CACHE.pieces)
+    return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
   if (!SNAKE_TOKEN_PROTOTYPE_CACHE.promise) {
     const loader = createConfiguredGLTFLoader(renderer);
     SNAKE_TOKEN_PROTOTYPE_CACHE.promise = (async () => {
@@ -1034,7 +1161,8 @@ async function loadChessPiecePrototypes(renderer = null) {
       return prototypes;
     })();
   }
-  SNAKE_TOKEN_PROTOTYPE_CACHE.pieces = await SNAKE_TOKEN_PROTOTYPE_CACHE.promise;
+  SNAKE_TOKEN_PROTOTYPE_CACHE.pieces =
+    await SNAKE_TOKEN_PROTOTYPE_CACHE.promise;
   return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
 }
 
@@ -1099,14 +1227,18 @@ function applyHeadPresetToMeshes(meshes, preset) {
   list.forEach((mesh) => {
     const heads = collectHeadMeshes(mesh);
     heads.forEach((head) => {
-      const mats = Array.isArray(head.material) ? head.material : [head.material];
+      const mats = Array.isArray(head.material)
+        ? head.material
+        : [head.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (mat.color?.set) {
           mat.color.set(baseMaterial.color);
         }
-        if ('metalness' in mat) mat.metalness = clamp01(baseMaterial.metalness ?? 0);
-        if ('roughness' in mat) mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
+        if ('metalness' in mat)
+          mat.metalness = clamp01(baseMaterial.metalness ?? 0);
+        if ('roughness' in mat)
+          mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
         mat.transparent = baseMaterial.transparent;
         mat.transmission = clamp01(baseMaterial.transmission ?? 0);
         mat.ior = baseMaterial.ior ?? 1.5;
@@ -1185,11 +1317,19 @@ function addChromeRailings(
     const direction = end.clone().sub(start);
     const length = direction.length();
     if (length < 1e-4) return null;
-    const geom = new THREE.CylinderGeometry(RAIL_RADIUS, RAIL_RADIUS, length, 16);
+    const geom = new THREE.CylinderGeometry(
+      RAIL_RADIUS,
+      RAIL_RADIUS,
+      length,
+      16
+    );
     const rail = new THREE.Mesh(geom, material.clone());
     const center = start.clone().addScaledVector(direction, 0.5);
     rail.position.copy(center);
-    rail.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    rail.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      direction.normalize()
+    );
     rail.position.y = height;
     return rail;
   };
@@ -1215,7 +1355,12 @@ function addChromeRailings(
     postCache.add(key);
     const height = upperY - topY;
     if (height <= 0) return;
-    const geom = new THREE.CylinderGeometry(RAIL_RADIUS * 1.25, RAIL_RADIUS * 1.25, height, 16);
+    const geom = new THREE.CylinderGeometry(
+      RAIL_RADIUS * 1.25,
+      RAIL_RADIUS * 1.25,
+      height,
+      16
+    );
     const post = new THREE.Mesh(geom, material.clone());
     post.position.set(x, topY + height / 2, z);
     addMesh(post);
@@ -1394,7 +1539,11 @@ function createChairClothTexture(chairOption, renderer) {
   ctx.strokeStyle = seam;
   ctx.lineWidth = lineWidth;
   ctx.globalAlpha = 0.9;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+  for (
+    let offset = -canvas.height;
+    offset <= canvas.width + canvas.height;
+    offset += spacing
+  ) {
     ctx.beginPath();
     ctx.moveTo(offset, 0);
     ctx.lineTo(offset - canvas.height, canvas.height);
@@ -1410,7 +1559,11 @@ function createChairClothTexture(chairOption, renderer) {
   ctx.strokeStyle = adjustHexColor(highlight, 0.18);
   ctx.lineWidth = lineWidth * 0.55;
   ctx.globalAlpha = 0.55;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+  for (
+    let offset = -canvas.height;
+    offset <= canvas.width + canvas.height;
+    offset += spacing
+  ) {
     ctx.beginPath();
     ctx.moveTo(offset + halfSpacing, 0);
     ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
@@ -1495,7 +1648,11 @@ function applyOriginalTextureMapping(root) {
     node.castShadow = true;
     node.receiveShadow = true;
     node.frustumCulled = false;
-    const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : node.material
+        ? [node.material]
+        : [];
     materials.forEach((material) => {
       if (material?.map) {
         applySRGBColorSpace(material.map);
@@ -1510,9 +1667,21 @@ function applyOriginalTextureMapping(root) {
   });
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTextureMapping = false } = {}) {
+function normalizeMaterialTextures(
+  material,
+  maxAnisotropy = 8,
+  { preserveGltfTextureMapping = false } = {}
+) {
   if (!material) return;
-  const maps = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap'];
+  const maps = [
+    'map',
+    'emissiveMap',
+    'normalMap',
+    'roughnessMap',
+    'metalnessMap',
+    'aoMap',
+    'alphaMap'
+  ];
   maps.forEach((key) => {
     const tex = material[key];
     if (!tex) return;
@@ -1527,7 +1696,10 @@ function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTe
   });
 }
 
-function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+function createSeatedHumanFallbackTexture(
+  primary = '#cdb8a0',
+  secondary = '#8a6a4e'
+) {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -1563,7 +1735,9 @@ function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6
 }
 
 function normalizeHumanBoneName(value = '') {
-  return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function getModelBones(root) {
@@ -1575,13 +1749,19 @@ function getModelBones(root) {
 }
 
 function findModelBone(bones, aliases = []) {
-  const normalizedAliases = aliases.map((alias) => normalizeHumanBoneName(alias));
+  const normalizedAliases = aliases.map((alias) =>
+    normalizeHumanBoneName(alias)
+  );
   for (const alias of normalizedAliases) {
-    const exact = bones.find((bone) => normalizeHumanBoneName(bone.name) === alias);
+    const exact = bones.find(
+      (bone) => normalizeHumanBoneName(bone.name) === alias
+    );
     if (exact) return exact;
   }
   for (const alias of normalizedAliases) {
-    const partial = bones.find((bone) => normalizeHumanBoneName(bone.name).includes(alias));
+    const partial = bones.find((bone) =>
+      normalizeHumanBoneName(bone.name).includes(alias)
+    );
     if (partial) return partial;
   }
   return null;
@@ -1602,7 +1782,9 @@ function composeModelBone(rest, bone, euler) {
   if (!bone) return;
   const base = rest.get(bone);
   if (!base) return;
-  bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(euler));
+  bone.quaternion
+    .copy(base.quaternion)
+    .multiply(new THREE.Quaternion().setFromEuler(euler));
 }
 
 function offsetModelBone(rest, bone, x = 0, y = 0, z = 0) {
@@ -1631,25 +1813,74 @@ function moveHumanLegRootsToFront(bones, rest, amount) {
 function buildHumanBoneMap(root) {
   const bones = getModelBones(root);
   const map = {
-    hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
+    hips: findModelBone(bones, [
+      'hips',
+      'mixamorighips',
+      'pelvis',
+      'wolf3dhips'
+    ]),
     spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
-    spine1: findModelBone(bones, ['spine1', 'spine01', 'mixamorigspine1', 'chest']),
-    spine2: findModelBone(bones, ['spine2', 'spine02', 'mixamorigspine2', 'upperchest']),
+    spine1: findModelBone(bones, [
+      'spine1',
+      'spine01',
+      'mixamorigspine1',
+      'chest'
+    ]),
+    spine2: findModelBone(bones, [
+      'spine2',
+      'spine02',
+      'mixamorigspine2',
+      'upperchest'
+    ]),
     neck: findModelBone(bones, ['neck', 'mixamorigneck', 'wolf3dneck']),
     head: findModelBone(bones, ['head', 'mixamorighead', 'wolf3dhead']),
-    leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
-    leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
-    leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
-    rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
-    rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
-    rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
+    leftShoulder: findModelBone(bones, [
+      'leftshoulder',
+      'mixamorigleftshoulder'
+    ]),
+    leftArm: findModelBone(bones, [
+      'leftarm',
+      'mixamorigleftarm',
+      'leftupperarm'
+    ]),
+    leftForeArm: findModelBone(bones, [
+      'leftforearm',
+      'mixamorigleftforearm',
+      'leftlowerarm'
+    ]),
+    rightShoulder: findModelBone(bones, [
+      'rightshoulder',
+      'mixamorigrightshoulder'
+    ]),
+    rightArm: findModelBone(bones, [
+      'rightarm',
+      'mixamorigrightarm',
+      'rightupperarm'
+    ]),
+    rightForeArm: findModelBone(bones, [
+      'rightforearm',
+      'mixamorigrightforearm',
+      'rightlowerarm'
+    ]),
     leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
     rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
-    leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
+    leftUpLeg: findModelBone(bones, [
+      'leftupleg',
+      'mixamorigleftupleg',
+      'leftthigh'
+    ]),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     leftFoot: findModelBone(bones, ['leftfoot', 'mixamorigleftfoot']),
-    rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
-    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf']),
+    rightUpLeg: findModelBone(bones, [
+      'rightupleg',
+      'mixamorigrightupleg',
+      'rightthigh'
+    ]),
+    rightLeg: findModelBone(bones, [
+      'rightleg',
+      'mixamorigrightleg',
+      'rightcalf'
+    ]),
     rightFoot: findModelBone(bones, ['rightfoot', 'mixamorigrightfoot'])
   };
   map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
@@ -1684,28 +1915,98 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
     bones.hips,
     new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
   );
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.spine,
+    new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ')
+  );
   composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine2, new THREE.Euler(0, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.leftUpLeg,
+    new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightUpLeg,
+    new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.leftLeg,
+    new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightLeg,
+    new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.leftFoot,
+    new THREE.Euler(0.26, 0.03, 0.02, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightFoot,
+    new THREE.Euler(0.26, -0.02, -0.01, 'XYZ')
+  );
 
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.leftArm,
+    new THREE.Euler(-0.28 - dynamicLean * 0.06, 0.12, 0.96, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightArm,
+    new THREE.Euler(
+      -0.2 - dynamicLean * 0.42,
+      -0.02,
+      -0.72 + dynamicLean * 0.2,
+      'XYZ'
+    )
+  );
+  composeModelBone(
+    rest,
+    bones.leftForeArm,
+    new THREE.Euler(-0.62 + dynamicLean * 0.3, 0.05, -0.24, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightForeArm,
+    new THREE.Euler(
+      -0.5 - dynamicLean * 0.52,
+      -0.04,
+      0.14 - dynamicLean * 0.12,
+      'XYZ'
+    )
+  );
+  composeModelBone(
+    rest,
+    bones.leftHand,
+    new THREE.Euler(-0.16 + dynamicLean * 0.2, 0, 0, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightHand,
+    new THREE.Euler(
+      -0.08 - dynamicLean * 0.34,
+      0,
+      0.06 - dynamicLean * 0.18,
+      'XYZ'
+    )
+  );
 }
 
-function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
+function alignSeatedHumanFeetToGround(
+  seatHuman,
+  groundY = SEATED_HUMAN_FOOT_GROUND_Y
+) {
   const { root, bones } = seatHuman || {};
   if (!root || !bones) return;
   root.updateMatrixWorld(true);
@@ -1720,7 +2021,6 @@ function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GRO
   root.position.y += groundY - minFootY;
   root.updateMatrixWorld(true);
 }
-
 
 async function loadSeatedHumanTemplate(renderer) {
   if (HUMAN_MODEL_CACHE.template) return HUMAN_MODEL_CACHE.template;
@@ -1745,11 +2045,17 @@ async function loadSeatedHumanTemplate(renderer) {
         const useSkin = /head|face|neck|ear|hand/.test(meshName);
         const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
         const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const materials = Array.isArray(obj.material)
+          ? obj.material
+          : obj.material
+            ? [obj.material]
+            : [];
         materials.forEach((mat) => {
           if (!mat?.map) mat.map = fallbackTex;
           if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+          normalizeMaterialTextures(mat, 8, {
+            preserveGltfTextureMapping: true
+          });
           if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
           mat.needsUpdate = true;
         });
@@ -1778,7 +2084,11 @@ function prepareLoadedModel(model) {
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const targetMax = Math.max(
+    TARGET_CHAIR_SIZE.x,
+    TARGET_CHAIR_SIZE.y,
+    TARGET_CHAIR_SIZE.z
+  );
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -1868,7 +2178,11 @@ function fitTableModelToArena(model) {
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
 
   if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
+    model.scale.set(
+      model.scale.x * scaleXZ,
+      model.scale.y * scaleY,
+      model.scale.z * scaleXZ
+    );
   }
 
   const scaledBox = new THREE.Box3().setFromObject(model);
@@ -1899,13 +2213,18 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
   if (!renderer || !variant) return null;
   const assetId = variant.assetId || variant.id || 'neon_photostudio';
   const resolutions =
-    Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+    Array.isArray(variant.preferredResolutions) &&
+    variant.preferredResolutions.length
       ? variant.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
   const urls = [];
   resolutions.forEach((res) => {
-    urls.push(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${assetId}_${res}.hdr`);
-    urls.push(`https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${assetId}_${res}.exr`);
+    urls.push(
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${assetId}_${res}.hdr`
+    );
+    urls.push(
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${assetId}_${res}.exr`
+    );
   });
 
   for (const url of urls) {
@@ -1963,7 +2282,10 @@ function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
   const seatColor = theme?.seatColor ?? DEFAULT_CHAIR_OPTION.primary;
-  const legColor = theme?.legColor ?? DEFAULT_CHAIR_OPTION.legColor ?? DEFAULT_STOOL_THEME.legColor;
+  const legColor =
+    theme?.legColor ??
+    DEFAULT_CHAIR_OPTION.legColor ??
+    DEFAULT_STOOL_THEME.legColor;
   if (mats.seat?.color) {
     mats.seat.color.set(seatColor);
     mats.seat.needsUpdate = true;
@@ -1988,7 +2310,12 @@ function applyChairThemeMaterials(three, theme) {
 
 function disposeChairMaterials(materials) {
   if (!materials) return;
-  const mats = [materials.seat, materials.leg, ...(materials.upholstery ?? []), ...(materials.metal ?? [])];
+  const mats = [
+    materials.seat,
+    materials.leg,
+    ...(materials.upholstery ?? []),
+    ...(materials.metal ?? [])
+  ];
   mats.forEach((mat) => {
     if (!mat) return;
     if (mat.map) mat.map.dispose?.();
@@ -2011,7 +2338,10 @@ function createProceduralChair(theme) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  const seatMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
+    seatMaterial
+  );
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
@@ -2021,12 +2351,20 @@ function createProceduralChair(theme) {
     new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
     seatMaterial
   );
-  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.position.set(
+    0,
+    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
+    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
+  );
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
 
-  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armGeometry = new THREE.BoxGeometry(
+    ARM_THICKNESS,
+    ARM_HEIGHT,
+    ARM_DEPTH
+  );
   const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
   const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
   const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
@@ -2042,7 +2380,12 @@ function createProceduralChair(theme) {
   chair.add(rightArm);
 
   const legMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    new THREE.CylinderGeometry(
+      0.16 * MODEL_SCALE * STOOL_SCALE,
+      0.2 * MODEL_SCALE * STOOL_SCALE,
+      BASE_COLUMN_HEIGHT,
+      18
+    ),
     legMaterial
   );
   legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -2051,10 +2394,16 @@ function createProceduralChair(theme) {
   chair.add(legMesh);
 
   const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    new THREE.CylinderGeometry(
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.08 * MODEL_SCALE,
+      24
+    ),
     legMaterial
   );
-  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.position.y =
+    legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
   foot.castShadow = true;
   foot.receiveShadow = true;
   chair.add(foot);
@@ -2101,7 +2450,10 @@ function createStraightArmrest(side, material) {
   const topLength = ARM_DEPTH * 1.1;
   const topThickness = ARM_THICKNESS * 0.65;
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength),
+    material
+  );
   top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
   top.castShadow = true;
   top.receiveShadow = true;
@@ -2109,10 +2461,18 @@ function createStraightArmrest(side, material) {
 
   const createSupport = (zOffset) => {
     const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
+      new THREE.BoxGeometry(
+        ARM_THICKNESS * 0.6,
+        supportHeight,
+        ARM_THICKNESS * 0.7
+      ),
       material
     );
-    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
+    support.position.set(
+      0,
+      baseHeight + supportHeight / 2,
+      top.position.z + zOffset
+    );
     support.castShadow = true;
     support.receiveShadow = true;
     return support;
@@ -2123,29 +2483,49 @@ function createStraightArmrest(side, material) {
   group.add(frontSupport, rearSupport);
 
   const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
+    new THREE.BoxGeometry(
+      ARM_THICKNESS * 0.45,
+      supportHeight * 0.92,
+      ARM_DEPTH * 0.85
+    ),
     material
   );
-  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
+  sidePanel.position.set(
+    0,
+    baseHeight + supportHeight * 0.46,
+    top.position.z - ARM_DEPTH * 0.02
+  );
   sidePanel.castShadow = true;
   sidePanel.receiveShadow = true;
   group.add(sidePanel);
 
   const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
+    new THREE.BoxGeometry(
+      ARM_THICKNESS * 0.7,
+      topThickness * 0.7,
+      topLength * 0.8
+    ),
     material
   );
-  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
+  handRest.position.set(
+    0,
+    top.position.y + topThickness * 0.45,
+    top.position.z
+  );
   handRest.castShadow = true;
   handRest.receiveShadow = true;
   group.add(handRest);
 
   group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
 
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+  return {
+    group,
+    meshes: [top, frontSupport, rearSupport, sidePanel, handRest]
+  };
 }
 
-const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const easeInOut = (t) =>
+  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 function remapTakeoffLandingProgress(progress, takeoff = 0.2, landing = 0.24) {
@@ -2182,10 +2562,14 @@ function createCameraTransitionAnimation(
 ) {
   if (!camera || !controls || !toPosition || !toTarget) return null;
   const startPosition = camera.position.clone();
-  const startTarget = controls?.target ? controls.target.clone() : new THREE.Vector3();
+  const startTarget = controls?.target
+    ? controls.target.clone()
+    : new THREE.Vector3();
   const goalPosition = toPosition.clone();
   const goalTarget = toTarget.clone();
-  const finalPosition = returnPosition ? returnPosition.clone() : startPosition.clone();
+  const finalPosition = returnPosition
+    ? returnPosition.clone()
+    : startPosition.clone();
   const finalTarget = returnTarget ? returnTarget.clone() : startTarget.clone();
   const tempPosition = new THREE.Vector3();
   const tempTarget = new THREE.Vector3();
@@ -2205,7 +2589,10 @@ function createCameraTransitionAnimation(
     update: (now) => {
       const elapsed = now - start;
       if (elapsed <= durationIn) {
-        const t = durationIn > 0 ? easeInOut(Math.min(Math.max(elapsed / durationIn, 0), 1)) : 1;
+        const t =
+          durationIn > 0
+            ? easeInOut(Math.min(Math.max(elapsed / durationIn, 0), 1))
+            : 1;
         tempPosition.copy(startPosition).lerp(goalPosition, t);
         tempTarget.copy(startTarget).lerp(goalTarget, t);
         applyFrame(tempPosition, tempTarget);
@@ -2216,9 +2603,15 @@ function createCameraTransitionAnimation(
         return false;
       }
       if (elapsed <= total) {
-        const t = durationOut > 0
-          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / durationOut, 0), 1))
-          : 1;
+        const t =
+          durationOut > 0
+            ? easeInOut(
+                Math.min(
+                  Math.max((elapsed - durationIn - hold) / durationOut, 0),
+                  1
+                )
+              )
+            : 1;
         tempPosition.copy(goalPosition).lerp(finalPosition, t);
         tempTarget.copy(goalTarget).lerp(finalTarget, t);
         applyFrame(tempPosition, tempTarget);
@@ -2248,28 +2641,57 @@ function createBoardRotationAnimation(board, toRotationY, { onComplete } = {}) {
   const rotationRoot = board?.rotationRoot;
   if (!rotationRoot || !Number.isFinite(toRotationY)) return null;
   const fromRotation = rotationRoot.rotation.y;
-  const targetRotation = fromRotation + normalizeAngle(toRotationY - fromRotation);
+  const targetRotation =
+    fromRotation + normalizeAngle(toRotationY - fromRotation);
   const start = performance.now();
-  const total = BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION + BOARD_AUTO_ROTATE_OUT_DURATION;
+  const total =
+    BOARD_AUTO_ROTATE_IN_DURATION +
+    BOARD_AUTO_ROTATE_HOLD_DURATION +
+    BOARD_AUTO_ROTATE_OUT_DURATION;
 
   return {
     type: 'boardAutoRotate',
     update: (now) => {
       const elapsed = now - start;
       if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION) {
-        const t = easeInOut(Math.min(Math.max(elapsed / BOARD_AUTO_ROTATE_IN_DURATION, 0), 1));
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(fromRotation, targetRotation, t);
+        const t = easeInOut(
+          Math.min(Math.max(elapsed / BOARD_AUTO_ROTATE_IN_DURATION, 0), 1)
+        );
+        rotationRoot.rotation.y = THREE.MathUtils.lerp(
+          fromRotation,
+          targetRotation,
+          t
+        );
         return false;
       }
-      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION) {
+      if (
+        elapsed <=
+        BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION
+      ) {
         rotationRoot.rotation.y = targetRotation;
         return false;
       }
       if (elapsed <= total) {
-        const t = BOARD_AUTO_ROTATE_OUT_DURATION > 0
-          ? easeInOut(Math.min(Math.max((elapsed - BOARD_AUTO_ROTATE_IN_DURATION - BOARD_AUTO_ROTATE_HOLD_DURATION) / BOARD_AUTO_ROTATE_OUT_DURATION, 0), 1))
-          : 1;
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(targetRotation, fromRotation, t);
+        const t =
+          BOARD_AUTO_ROTATE_OUT_DURATION > 0
+            ? easeInOut(
+                Math.min(
+                  Math.max(
+                    (elapsed -
+                      BOARD_AUTO_ROTATE_IN_DURATION -
+                      BOARD_AUTO_ROTATE_HOLD_DURATION) /
+                      BOARD_AUTO_ROTATE_OUT_DURATION,
+                    0
+                  ),
+                  1
+                )
+              )
+            : 1;
+        rotationRoot.rotation.y = THREE.MathUtils.lerp(
+          targetRotation,
+          fromRotation,
+          t
+        );
         return false;
       }
       rotationRoot.rotation.y = fromRotation;
@@ -2281,7 +2703,9 @@ function createBoardRotationAnimation(board, toRotationY, { onComplete } = {}) {
 
 function computeBoardFacingRotation(board, camera, tileIndex) {
   if (!board || !camera || tileIndex == null) return null;
-  const tile = board.indexToPosition.get(tileIndex) || board.serpentineIndexToXZ(tileIndex);
+  const tile =
+    board.indexToPosition.get(tileIndex) ||
+    board.serpentineIndexToXZ(tileIndex);
   const boardLookTarget = board.boardLookTarget;
   if (!tile || !boardLookTarget) return null;
   const localDir = tile.clone().setY(0);
@@ -2300,10 +2724,15 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const rawSeatIndex = Number.isFinite(player?.seatIndex)
     ? Number(player.seatIndex)
     : Number.isInteger(turnIndex)
-    ? turnIndex
-    : Number(turnIndex);
+      ? turnIndex
+      : Number(turnIndex);
   const seatIndex = Math.trunc(rawSeatIndex);
-  if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
+  if (
+    !Number.isFinite(seatIndex) ||
+    seatIndex < 0 ||
+    seatIndex >= anchors.length
+  )
+    return null;
   const anchor = anchors[seatIndex];
   const boardLookTarget = board.boardLookTarget;
   if (!anchor || !boardLookTarget) return null;
@@ -2348,7 +2777,9 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
 
 function computeDiceCameraFocusState(board, camera) {
   if (!board || !camera) return null;
-  const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
+  const diceSet = Array.isArray(board.diceSet)
+    ? board.diceSet.filter((die) => die?.visible)
+    : [];
   if (!diceSet.length) return null;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return null;
@@ -2367,9 +2798,13 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!board || !camera) return null;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return null;
-  const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
+  const toPos = (
+    board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex)
+  )?.clone();
   if (!toPos) return null;
-  const fromPos = (board.indexToPosition.get(fromIndex) || board.serpentineIndexToXZ(fromIndex))?.clone();
+  const fromPos = (
+    board.indexToPosition.get(fromIndex) || board.serpentineIndexToXZ(fromIndex)
+  )?.clone();
   const pathDir = fromPos
     ? toPos.clone().sub(fromPos).setY(0)
     : toPos.clone().sub(boardLookTarget).setY(0);
@@ -2383,7 +2818,8 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   target.y += TILE_SIZE * 0.24;
   const position = camera.position.clone();
   const inTopHalf = toPos.z < boardLookTarget.z - TILE_SIZE * 0.18;
-  const onTopSideLane = inTopHalf && Math.abs(toPos.x - boardLookTarget.x) > TILE_SIZE * 0.55;
+  const onTopSideLane =
+    inTopHalf && Math.abs(toPos.x - boardLookTarget.x) > TILE_SIZE * 0.55;
   if (onTopSideLane) {
     position.y += TILE_SIZE * 0.36;
     const towardTarget = target.clone().sub(position).setY(0);
@@ -2428,8 +2864,12 @@ function makeDice(theme = {}) {
 
   const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: toThreeColor(theme.body, '#ffffff'),
-    metalness: Number.isFinite(theme.bodyMetalness) ? theme.bodyMetalness : 0.25,
-    roughness: Number.isFinite(theme.bodyRoughness) ? theme.bodyRoughness : 0.35,
+    metalness: Number.isFinite(theme.bodyMetalness)
+      ? theme.bodyMetalness
+      : 0.25,
+    roughness: Number.isFinite(theme.bodyRoughness)
+      ? theme.bodyRoughness
+      : 0.35,
     clearcoat: 1,
     clearcoatRoughness: 0.15,
     reflectivity: 0.75,
@@ -2462,7 +2902,13 @@ function makeDice(theme = {}) {
   });
 
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, DICE_CORNER_RADIUS),
+    new RoundedBoxGeometry(
+      DICE_SIZE,
+      DICE_SIZE,
+      DICE_SIZE,
+      6,
+      DICE_CORNER_RADIUS
+    ),
     bodyMaterial
   );
   body.castShadow = true;
@@ -2480,7 +2926,11 @@ function makeDice(theme = {}) {
   );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
-  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
+  const pipRimGeo = new THREE.RingGeometry(
+    DICE_PIP_RIM_INNER,
+    DICE_PIP_RIM_OUTER,
+    64
+  );
   const half = DICE_SIZE / 2;
   const faceDepth = half - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -2536,7 +2986,10 @@ function makeDice(theme = {}) {
 
   faces.forEach(({ normal, points }) => {
     const n = normal.clone().normalize();
-    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const helper =
+      Math.abs(n.y) > 0.9
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(0, 1, 0);
     const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
 
@@ -2550,14 +3003,18 @@ function makeDice(theme = {}) {
       pip.castShadow = true;
       pip.receiveShadow = true;
       pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
-      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      pip.quaternion.copy(
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n)
+      );
       dice.add(pip);
 
       const rim = new THREE.Mesh(pipRimGeo, rimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
       rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
-      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      rim.quaternion.copy(
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n)
+      );
       dice.add(rim);
     });
   });
@@ -2631,9 +3088,12 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const sideBounceBoost = isSideSeat ? SIDE_SEAT_THROW_BOUNCE_EXTRA : 0;
   const sideSettleBoost = isSideSeat ? SIDE_SEAT_THROW_SETTLE_EXTRA : 0;
 
-  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
-  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
-  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
+  const startBaseDistance =
+    baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
+  const bounceBaseDistance =
+    boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
+  const settleDistanceBase =
+    settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
 
   const applyAxisOffsets = (vec, phase) => {
     const front = frontAdjust?.[phase];
@@ -2651,30 +3111,34 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.08;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.06;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.08;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.05;
 
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.18;
+    const bounceDistance =
+      bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.04;
     const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
+      bounceDistance + DICE_SIZE * 0.18,
+      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.12
     );
 
     const start = centerLocal
       .clone()
       .addScaledVector(awayFromBoard, startDistance)
       .addScaledVector(lateral, offset * 0.9 + lateralJitter);
-    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
+    start.y =
+      diceBaseY +
+      DICE_THROW_HEIGHT * 0.92 +
+      Math.random() * (DICE_THROW_HEIGHT * 0.08);
     applyAxisOffsets(start, 'start');
 
     const bounce = centerLocal
       .clone()
       .addScaledVector(awayFromBoard, bounceDistance)
       .addScaledVector(lateral, offset * 0.35 + bounceJitter);
-    bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
+    bounce.y = diceBaseY + DICE_SIZE * (0.16 + Math.random() * 0.06);
     applyAxisOffsets(bounce, 'bounce');
 
     const base = centerLocal
@@ -2705,22 +3169,28 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
 function createDiceRollAnimation(
   diceArray,
-  {
-    basePositions,
-    baseY,
-    startPositions = []
-  }
+  { basePositions, baseY, startPositions = [] }
 ) {
   const start = performance.now();
-  const spinVectors = diceArray.map(() =>
-    new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
+  const spinVectors = diceArray.map(
+    () =>
+      new THREE.Vector3(
+        1.2 + Math.random() * 0.7,
+        1.35 + Math.random() * 0.65,
+        1.05 + Math.random() * 0.75
+      )
   );
-  const wobbleVectors = diceArray.map(() => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16));
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.9 + Math.random() * 0.25));
+  const wobbleVectors = diceArray.map(
+    () =>
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 0.16,
+        0,
+        (Math.random() - 0.5) * 0.16
+      )
+  );
+  const bounceHeights = diceArray.map(
+    () => DICE_BOUNCE_HEIGHT * (0.9 + Math.random() * 0.25)
+  );
 
   return {
     type: 'diceRoll',
@@ -2733,8 +3203,14 @@ function createDiceRollAnimation(
         const startPos = startPositions[index] ?? base;
         const position = startPos.clone().lerp(base, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * DICE_SIZE * 0.48);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeights[index] * (1 - eased * 0.45);
+        position.addScaledVector(
+          wobbleVectors[index],
+          wobbleStrength * DICE_SIZE * 0.48
+        );
+        const bounce =
+          Math.sin(Math.min(1, eased * 1.25) * Math.PI) *
+          bounceHeights[index] *
+          (1 - eased * 0.45);
         position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
@@ -2756,7 +3232,10 @@ function createDiceRollAnimation(
   };
 }
 
-function createDiceSettleAnimation(diceArray, { basePositions, baseY, startStates = [] }) {
+function createDiceSettleAnimation(
+  diceArray,
+  { basePositions, baseY, startStates = [] }
+) {
   const start = performance.now();
   const startPositions = diceArray.map((die, index) => {
     const state = startStates[index];
@@ -2772,8 +3251,11 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
     base ? new THREE.Vector3(base.x, baseY, base.z) : null
   );
   const targetQuaternions = diceArray.map((die) => {
-    if (die.userData?.targetQuaternion) return die.userData.targetQuaternion.clone();
-    const fallback = getDiceOrientationQuaternion(die.userData?.currentValue ?? 1);
+    if (die.userData?.targetQuaternion)
+      return die.userData.targetQuaternion.clone();
+    const fallback = getDiceOrientationQuaternion(
+      die.userData?.currentValue ?? 1
+    );
     die.userData.targetQuaternion = fallback.clone();
     return fallback;
   });
@@ -2820,9 +3302,19 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
 
 function createDiceHandoffAnimation(
   diceArray,
-  { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION, delay = DICE_RESULT_HOLD_DURATION }
+  {
+    basePositions,
+    baseY,
+    duration = TURN_CAMERA_TURN_IN_DURATION,
+    delay = DICE_RESULT_HOLD_DURATION
+  }
 ) {
-  if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
+  if (
+    !Array.isArray(diceArray) ||
+    !diceArray.length ||
+    !Array.isArray(basePositions) ||
+    !basePositions.length
+  ) {
     return null;
   }
   const startPositions = diceArray.map((die) => die.position.clone());
@@ -2900,42 +3392,81 @@ function createTileMaterialSet(baseColor, palette = {}) {
     : baseColor.clone().lerp(new THREE.Color(0xffffff), topBlend);
   const sideBase = toThreeColor(palette.side, TILE_SIDE_COLOR);
   const bottomBase = toThreeColor(palette.bottom, TILE_BOTTOM_COLOR);
-  const sideColor = sideBase.clone().lerp(topColor.clone(), Number.isFinite(palette.sideBlend) ? palette.sideBlend : 0.35);
+  const sideColor = sideBase
+    .clone()
+    .lerp(
+      topColor.clone(),
+      Number.isFinite(palette.sideBlend) ? palette.sideBlend : 0.35
+    );
   const bottomColor = bottomBase
     .clone()
-    .lerp(topColor.clone(), Number.isFinite(palette.bottomBlend) ? palette.bottomBlend : 0.2);
+    .lerp(
+      topColor.clone(),
+      Number.isFinite(palette.bottomBlend) ? palette.bottomBlend : 0.2
+    );
 
   const topMaterial = new THREE.MeshStandardMaterial({
     color: topColor,
-    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.48,
-    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.18,
+    roughness: Number.isFinite(palette.topRoughness)
+      ? palette.topRoughness
+      : 0.48,
+    metalness: Number.isFinite(palette.topMetalness)
+      ? palette.topMetalness
+      : 0.18,
     emissive: toThreeColor(palette.topEmissive, 0x101321),
-    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.18,
-    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.45
+    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity)
+      ? palette.topEmissiveIntensity
+      : 0.18,
+    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity)
+      ? palette.topEnvMapIntensity
+      : 0.45
   });
   topMaterial.shadowSide = THREE.DoubleSide;
 
   const sideMaterial = new THREE.MeshStandardMaterial({
     color: sideColor,
-    roughness: Number.isFinite(palette.sideRoughness) ? palette.sideRoughness : 0.62,
-    metalness: Number.isFinite(palette.sideMetalness) ? palette.sideMetalness : 0.12,
+    roughness: Number.isFinite(palette.sideRoughness)
+      ? palette.sideRoughness
+      : 0.62,
+    metalness: Number.isFinite(palette.sideMetalness)
+      ? palette.sideMetalness
+      : 0.12,
     emissive: toThreeColor(palette.sideEmissive, 0x080c18),
-    emissiveIntensity: Number.isFinite(palette.sideEmissiveIntensity) ? palette.sideEmissiveIntensity : 0.14,
-    envMapIntensity: Number.isFinite(palette.sideEnvMapIntensity) ? palette.sideEnvMapIntensity : 0.32
+    emissiveIntensity: Number.isFinite(palette.sideEmissiveIntensity)
+      ? palette.sideEmissiveIntensity
+      : 0.14,
+    envMapIntensity: Number.isFinite(palette.sideEnvMapIntensity)
+      ? palette.sideEnvMapIntensity
+      : 0.32
   });
   sideMaterial.shadowSide = THREE.FrontSide;
 
   const bottomMaterial = new THREE.MeshStandardMaterial({
     color: bottomColor,
-    roughness: Number.isFinite(palette.bottomRoughness) ? palette.bottomRoughness : 0.7,
-    metalness: Number.isFinite(palette.bottomMetalness) ? palette.bottomMetalness : 0.08,
+    roughness: Number.isFinite(palette.bottomRoughness)
+      ? palette.bottomRoughness
+      : 0.7,
+    metalness: Number.isFinite(palette.bottomMetalness)
+      ? palette.bottomMetalness
+      : 0.08,
     emissive: toThreeColor(palette.bottomEmissive, 0x05070e),
-    emissiveIntensity: Number.isFinite(palette.bottomEmissiveIntensity) ? palette.bottomEmissiveIntensity : 0.1,
-    envMapIntensity: Number.isFinite(palette.bottomEnvMapIntensity) ? palette.bottomEnvMapIntensity : 0.24
+    emissiveIntensity: Number.isFinite(palette.bottomEmissiveIntensity)
+      ? palette.bottomEmissiveIntensity
+      : 0.1,
+    envMapIntensity: Number.isFinite(palette.bottomEnvMapIntensity)
+      ? palette.bottomEnvMapIntensity
+      : 0.24
   });
 
   return {
-    materials: [sideMaterial, sideMaterial, topMaterial, bottomMaterial, sideMaterial, sideMaterial],
+    materials: [
+      sideMaterial,
+      sideMaterial,
+      topMaterial,
+      bottomMaterial,
+      sideMaterial,
+      sideMaterial
+    ],
     topMaterial,
     sideMaterial,
     bottomMaterial
@@ -2943,7 +3474,8 @@ function createTileMaterialSet(baseColor, palette = {}) {
 }
 
 function resetTileAppearance(tile) {
-  const { topMaterial, sideMaterial, bottomMaterial, baseColor } = tile.userData ?? {};
+  const { topMaterial, sideMaterial, bottomMaterial, baseColor } =
+    tile.userData ?? {};
   if (topMaterial && baseColor) {
     topMaterial.color.copy(baseColor);
     topMaterial.emissive?.setRGB(0, 0, 0);
@@ -3096,7 +3628,7 @@ function makeSnakeTexture(theme = {}) {
   };
   for (let y = 0; y < 16; y++) {
     for (let x = 0; x < 32; x++) {
-      const cx = x * 8 + ((y % 2) * 4);
+      const cx = x * 8 + (y % 2) * 4;
       const cy = y * 8 + 4;
       diamond(cx, cy, 6, 4);
     }
@@ -3195,7 +3727,14 @@ function createJumpLaneResolver(entries = []) {
   return (start) => laneByStart.get(start) ?? { lane: 0, direction: 1 };
 }
 
-function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
+function buildArena(
+  scene,
+  renderer,
+  host,
+  cameraRef,
+  disposeHandlers,
+  appearanceOptions = {}
+) {
   const arenaTheme = appearanceOptions.arena ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
   const stoolTheme = appearanceOptions.stoolTheme || DEFAULT_STOOL_THEME;
@@ -3241,9 +3780,15 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const arenaGroup = new THREE.Group();
   scene.add(arenaGroup);
 
-  const woodOption = TABLE_WOOD_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-  const clothOption = TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-  const baseOption = TABLE_BASE_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableBase] ?? TABLE_BASE_OPTIONS[0];
+  const woodOption =
+    TABLE_WOOD_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableWood] ??
+    TABLE_WOOD_OPTIONS[0];
+  const clothOption =
+    TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableCloth] ??
+    TABLE_CLOTH_OPTIONS[0];
+  const baseOption =
+    TABLE_BASE_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableBase] ??
+    TABLE_BASE_OPTIONS[0];
   const shapeOption = TABLE_SHAPE_OPTIONS[0];
   const resolvedWoodOption = tableFinish?.grainId
     ? {
@@ -3270,13 +3815,23 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     shapeOption,
     rotationY: 0
   });
-  tableInfo = { ...tableInfo, radius: tableInfo.radius ?? TABLE_RADIUS, themeId: tableTheme?.id };
-  applyTableMaterials(tableInfo.materials, { woodOption: resolvedWoodOption, clothOption, baseOption }, renderer);
+  tableInfo = {
+    ...tableInfo,
+    radius: tableInfo.radius ?? TABLE_RADIUS,
+    themeId: tableTheme?.id
+  };
+  applyTableMaterials(
+    tableInfo.materials,
+    { woodOption: resolvedWoodOption, clothOption, baseOption },
+    renderer
+  );
 
   let activeTableGroup = tableInfo.group;
   tableRoot.add(activeTableGroup);
   const isPortrait = host.clientHeight > host.clientWidth;
-  const cameraTuning = isPortrait ? PORTRAIT_CAMERA_TUNING : LANDSCAPE_CAMERA_TUNING;
+  const cameraTuning = isPortrait
+    ? PORTRAIT_CAMERA_TUNING
+    : LANDSCAPE_CAMERA_TUNING;
   const initialCameraDistanceFactor = isPortrait
     ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR
     : LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR;
@@ -3329,9 +3884,18 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     TABLE_HEIGHT + cameraHeightOffset,
     Math.sin(cameraSeatAngle) * cameraRadius
   );
-  const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
-  const desiredInitialCameraRadius = clamp(CAM.maxR * initialCameraDistanceFactor, CAM.minR, CAM.maxR);
-  camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
+  const initialCameraDirection = camera.position
+    .clone()
+    .sub(boardLookTarget)
+    .normalize();
+  const desiredInitialCameraRadius = clamp(
+    CAM.maxR * initialCameraDistanceFactor,
+    CAM.minR,
+    CAM.maxR
+  );
+  camera.position
+    .copy(boardLookTarget)
+    .add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
   camera.lookAt(boardLookTarget);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -3342,7 +3906,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.zoomSpeed = 0;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
-  controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
+  controls.touches = {
+    ONE: THREE.TOUCH.NONE,
+    TWO: THREE.TOUCH.NONE,
+    THREE: THREE.TOUCH.NONE
+  };
   controls.mouseButtons = {
     LEFT: THREE.MOUSE.NONE,
     MIDDLE: THREE.MOUSE.NONE,
@@ -3386,8 +3954,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   cameraRef.current = camera;
 
   const chairTheme = {
-    seatColor: stoolTheme.seatColor || stoolTheme.primary || chairOption.primary,
-    legColor: stoolTheme.legColor || chairOption.legColor || DEFAULT_STOOL_THEME.legColor,
+    seatColor:
+      stoolTheme.seatColor || stoolTheme.primary || chairOption.primary,
+    legColor:
+      stoolTheme.legColor ||
+      chairOption.legColor ||
+      DEFAULT_STOOL_THEME.legColor,
     primary: stoolTheme.primary || stoolTheme.seatColor,
     accent: stoolTheme.accentColor || stoolTheme.accent,
     highlight: stoolTheme.highlight,
@@ -3413,10 +3985,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     });
   };
   for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-    const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
+    const fallbackAngle =
+      Math.PI / 2 -
+      HUMAN_SEAT_ROTATION_OFFSET -
+      (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
     const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatRadius = chairRadius + (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+    const seatRadius =
+      chairRadius + (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
@@ -3427,7 +4003,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     group.add(avatarAnchor);
 
     const humanAnchor = new THREE.Object3D();
-    const humanSeatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (i === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+    const humanSeatZOffset =
+      SEATED_HUMAN_SEAT_Z_OFFSET +
+      (i === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
     humanAnchor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, humanSeatZOffset);
     humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
@@ -3438,7 +4016,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     }
 
     arenaGroup.add(group);
-    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor });
+    chairs.push({
+      group,
+      anchor: avatarAnchor,
+      model: chairModel,
+      humanAnchor
+    });
   }
 
   loadChairTemplate(chairTheme, renderer)
@@ -3449,7 +4032,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       chairMaterials = nextBuild.materials;
       applyChairThemeMaterials({ chairMaterials }, chairTheme);
       refreshChairInstances();
-      if (prevMaterials !== chairMaterials) disposeChairMaterials(prevMaterials);
+      if (prevMaterials !== chairMaterials)
+        disposeChairMaterials(prevMaterials);
     })
     .catch(() => {});
 
@@ -3461,7 +4045,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
         const baseScale =
-          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+          (SEATED_HUMAN_TARGET_HEIGHT /
+            Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+          SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
         instance.scale.setScalar(baseScale);
         chair.humanAnchor.add(instance);
         seatedHumans[seatIndex] = {
@@ -3556,7 +4142,11 @@ function buildSnakeBoard(
   const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.94, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.94,
+        metalness: 0.04
+      })
     );
     mesh.position.y = y;
     mesh.castShadow = true;
@@ -3568,9 +4158,24 @@ function buildSnakeBoard(
 
   const preciseTiles = createPreciseSnakeTiles(preciseBoardScale);
   const levelBounds = [
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY }
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minZ: Number.POSITIVE_INFINITY,
+      maxZ: Number.NEGATIVE_INFINITY
+    },
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minZ: Number.POSITIVE_INFINITY,
+      maxZ: Number.NEGATIVE_INFINITY
+    },
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minZ: Number.POSITIVE_INFINITY,
+      maxZ: Number.NEGATIVE_INFINITY
+    }
   ];
   const levelMargins = [TILE_SIZE * 0.44, TILE_SIZE * 0.4, TILE_SIZE * 0.36];
   preciseTiles.forEach((tileSpec) => {
@@ -3583,7 +4188,12 @@ function buildSnakeBoard(
     bounds.maxZ = Math.max(bounds.maxZ, tileSpec.z + half);
   });
   const levelDimensions = levelBounds.map((bounds, index) => {
-    if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.maxX) || !Number.isFinite(bounds.minZ) || !Number.isFinite(bounds.maxZ)) {
+    if (
+      !Number.isFinite(bounds.minX) ||
+      !Number.isFinite(bounds.maxX) ||
+      !Number.isFinite(bounds.minZ) ||
+      !Number.isFinite(bounds.maxZ)
+    ) {
       return {
         sizeX: 10.2 * preciseBoardScale,
         sizeZ: 10.2 * preciseBoardScale,
@@ -3592,8 +4202,14 @@ function buildSnakeBoard(
       };
     }
     const margin = levelMargins[index] ?? TILE_SIZE * 0.7;
-    const sizeX = Math.max(TILE_SIZE * 3.6, bounds.maxX - bounds.minX + margin * 2);
-    const sizeZ = Math.max(TILE_SIZE * 3.6, bounds.maxZ - bounds.minZ + margin * 2);
+    const sizeX = Math.max(
+      TILE_SIZE * 3.6,
+      bounds.maxX - bounds.minX + margin * 2
+    );
+    const sizeZ = Math.max(
+      TILE_SIZE * 3.6,
+      bounds.maxZ - bounds.minZ + margin * 2
+    );
     return {
       sizeX,
       sizeZ,
@@ -3609,7 +4225,13 @@ function buildSnakeBoard(
     -0.36 * preciseBoardScale,
     '#5a5a5a'
   );
-  addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
+  addLayer(
+    levelDimensions[0].sizeX,
+    0.24 * preciseBoardScale,
+    levelDimensions[0].sizeZ,
+    -0.05 * preciseBoardScale,
+    '#444f5d'
+  );
   addLayer(
     levelDimensions[1].sizeX * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
@@ -3633,10 +4255,16 @@ function buildSnakeBoard(
   );
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
-      ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
+      ? SPIRAL_REFERENCE_COLORS[
+          (tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length
+        ]
       : new THREE.Color(tileSpec.color);
     const materialSet = createTileMaterialSet(baseColor, boardTheme);
-    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileHeight, tileSpec.size);
+    const tileGeo = new THREE.BoxGeometry(
+      tileSpec.size,
+      tileHeight,
+      tileSpec.size
+    );
     const tile = new THREE.Mesh(tileGeo, materialSet.materials);
     tile.position.set(tileSpec.x, tileSpec.y, tileSpec.z);
     tile.castShadow = true;
@@ -3648,18 +4276,32 @@ function buildSnakeBoard(
     tile.userData.baseColor = materialSet.topMaterial.color.clone();
     tileGroup.add(tile);
     tileMeshes.set(tileSpec.id, tile);
-    const topPosition = new THREE.Vector3(tileSpec.x, tileSpec.y + tileHeight / 2, tileSpec.z);
+    const topPosition = new THREE.Vector3(
+      tileSpec.x,
+      tileSpec.y + tileHeight / 2,
+      tileSpec.z
+    );
     indexToPosition.set(tileSpec.id, topPosition);
 
     const label = createTileLabel(tileSpec.id);
-    label.position.set(tileSpec.x, topPosition.y + TILE_LABEL_OFFSET, tileSpec.z);
+    label.position.set(
+      tileSpec.x,
+      topPosition.y + TILE_LABEL_OFFSET,
+      tileSpec.z
+    );
     labelGroup.add(label);
   });
 
   const levelPlacements = [
     { tileTopY: 0.07 * preciseBoardScale + tileHeight },
-    { tileTopY: (0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight },
-    { tileTopY: (1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight }
+    {
+      tileTopY:
+        (0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight
+    },
+    {
+      tileTopY:
+        (1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight
+    }
   ];
   railingInfos.push(
     {
@@ -3686,32 +4328,34 @@ function buildSnakeBoard(
   );
 
   if (SHOW_BOARD_RAILS) {
-    railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
-      const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
-      const startPos = indexToPosition.get(startIndex);
-      const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
-      let gapCenter;
-      if (entryConfig.center != null) {
-        gapCenter = entryConfig.center;
-      } else if (startPos) {
-        gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
-      } else {
-        gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
+    railingInfos.forEach(
+      ({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
+        const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
+        const startPos = indexToPosition.get(startIndex);
+        const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
+        let gapCenter;
+        if (entryConfig.center != null) {
+          gapCenter = entryConfig.center;
+        } else if (startPos) {
+          gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
+        } else {
+          gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
+        }
+        addChromeRailings(
+          platformGroup,
+          {
+            halfSize,
+            topY,
+            railHeight: RAIL_HEIGHT,
+            gapWidth,
+            gapCenter,
+            entrySide: entryConfig.side,
+            addNet: levelIndex > 0
+          },
+          platformMeshes
+        );
       }
-      addChromeRailings(
-        platformGroup,
-        {
-          halfSize,
-          topY,
-          railHeight: RAIL_HEIGHT,
-          gapWidth,
-          gapCenter,
-          entrySide: entryConfig.side,
-          addNet: levelIndex > 0
-        },
-        platformMeshes
-      );
-    });
+    );
   }
 
   const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
@@ -3720,7 +4364,9 @@ function buildSnakeBoard(
     levelPlacements[0].tileTopY,
     -baseHalf - TILE_SIZE * 0.6
   );
-  const apexTop = levelPlacements[levelPlacements.length - 1]?.tileTopY ?? levelPlacements[0].tileTopY;
+  const apexTop =
+    levelPlacements[levelPlacements.length - 1]?.tileTopY ??
+    levelPlacements[0].tileTopY;
 
   const serpentineIndexToXZ = (index) => {
     if (index < 1) {
@@ -3793,7 +4439,9 @@ function buildSnakeBoard(
     const bounds = new THREE.Box3().setFromObject(boardRoot);
     const center = new THREE.Vector3();
     bounds.getCenter(center);
-    const targetY = Number.isFinite(boardLookTarget.y) ? boardLookTarget.y : center.y;
+    const targetY = Number.isFinite(boardLookTarget.y)
+      ? boardLookTarget.y
+      : center.y;
     center.y = targetY;
     boardLookTarget.copy(center);
     onTargetChange?.();
@@ -3822,7 +4470,12 @@ function buildSnakeBoard(
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+function updateTilesHighlight(
+  tileMeshes,
+  highlight,
+  trail,
+  highlightColors = DEFAULT_HIGHLIGHT_COLORS
+) {
   if (!tileMeshes) return;
   const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
@@ -3839,13 +4492,20 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
-      const color = highlight?.color ? toThreeColor(highlight.color, colors.normal) : colors[highlight.type] ?? colors.normal;
+      const color = highlight?.color
+        ? toThreeColor(highlight.color, colors.normal)
+        : (colors[highlight.type] ?? colors.normal);
       applyTileHighlight(tile, color);
     }
   }
 }
 
-function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customInset = null) {
+function getSeatRailLayout(
+  board,
+  seatIndex,
+  fallbackRadiusOffset = 0,
+  customInset = null
+) {
   const anchor = board?.seatAnchors?.[seatIndex];
   const boardLookTarget = board?.boardLookTarget;
   const boardRoot = board?.boardRoot;
@@ -3869,12 +4529,13 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
 
   // Keep parked items on the wooden rim (not on chairs), centered in portrait.
   const rimBlendBySeat = [0.58, 0.56, 0.52, 0.56];
-  let restRadius = rimMin + (rimMax - rimMin) * (rimBlendBySeat[seatIndex] ?? 0.56);
+  let restRadius =
+    rimMin + (rimMax - rimMin) * (rimBlendBySeat[seatIndex] ?? 0.56);
   restRadius += TOKEN_REST_EXTRA_RADIAL_BY_SEAT[seatIndex] ?? 0;
 
   const inset = Number.isFinite(customInset)
     ? customInset
-    : TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? 0;
+    : (TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? 0);
   restRadius -= inset * 0.08;
   restRadius += fallbackRadiusOffset * 0.25;
   restRadius = THREE.MathUtils.clamp(restRadius, rimMin + 0.04, rimMax - 0.05);
@@ -3904,11 +4565,14 @@ function getSeatSideParkingLayout(board, seatIndex, targetGroup = null) {
   const seatDirection = seatDirections[seatIndex];
   if (!seatDirection) return null;
   const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-  const sideBaseRadius = BOARD_RADIUS + TILE_SIZE * 1.02 + WEAPON_PARKING_SIDE_EXTRA_RADIUS;
+  const sideBaseRadius =
+    BOARD_RADIUS + TILE_SIZE * 1.02 + WEAPON_PARKING_SIDE_EXTRA_RADIUS;
   const tableSurfaceY = Number.isFinite(board?.tableInfo?.surfaceY)
     ? board.tableInfo.surfaceY
     : (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR;
-  const world = boardLookTarget.clone().addScaledVector(seatDirection, sideBaseRadius);
+  const world = boardLookTarget
+    .clone()
+    .addScaledVector(seatDirection, sideBaseRadius);
   world.y = tableSurfaceY + WEAPON_TABLE_SURFACE_Y_OFFSET;
   const local = world.clone();
   if (targetGroup?.parent) {
@@ -3941,8 +4605,14 @@ function updateTokens(
 ) {
   if (!boardTokensGroup || !reserveTokensGroup) return;
   const existing = new Map([
-    ...boardTokensGroup.children.map((child) => [child.userData?.playerIndex, child]),
-    ...reserveTokensGroup.children.map((child) => [child.userData?.playerIndex, child])
+    ...boardTokensGroup.children.map((child) => [
+      child.userData?.playerIndex,
+      child
+    ]),
+    ...reserveTokensGroup.children.map((child) => [
+      child.userData?.playerIndex,
+      child
+    ])
   ]);
 
   const occupancy = new Map();
@@ -3955,31 +4625,60 @@ function updateTokens(
 
   const keep = new Set();
 
-  const accentTarget = toThreeColor(tokenTheme.accentTarget, TOKEN_ACCENT_TARGET);
-  const sheenBlend = Number.isFinite(tokenTheme.sheenBlend) ? tokenTheme.sheenBlend : 0.55;
-  const accentBlend = Number.isFinite(tokenTheme.accentBlend) ? tokenTheme.accentBlend : sheenBlend;
-  const coreRoughness = Number.isFinite(tokenTheme.coreRoughness) ? tokenTheme.coreRoughness : 0.32;
-  const coreMetalness = Number.isFinite(tokenTheme.coreMetalness) ? tokenTheme.coreMetalness : 0.45;
-  const coreClearcoat = Number.isFinite(tokenTheme.coreClearcoat) ? tokenTheme.coreClearcoat : 0.36;
-  const coreClearcoatRoughness = Number.isFinite(tokenTheme.coreClearcoatRoughness)
+  const accentTarget = toThreeColor(
+    tokenTheme.accentTarget,
+    TOKEN_ACCENT_TARGET
+  );
+  const sheenBlend = Number.isFinite(tokenTheme.sheenBlend)
+    ? tokenTheme.sheenBlend
+    : 0.55;
+  const accentBlend = Number.isFinite(tokenTheme.accentBlend)
+    ? tokenTheme.accentBlend
+    : sheenBlend;
+  const coreRoughness = Number.isFinite(tokenTheme.coreRoughness)
+    ? tokenTheme.coreRoughness
+    : 0.32;
+  const coreMetalness = Number.isFinite(tokenTheme.coreMetalness)
+    ? tokenTheme.coreMetalness
+    : 0.45;
+  const coreClearcoat = Number.isFinite(tokenTheme.coreClearcoat)
+    ? tokenTheme.coreClearcoat
+    : 0.36;
+  const coreClearcoatRoughness = Number.isFinite(
+    tokenTheme.coreClearcoatRoughness
+  )
     ? tokenTheme.coreClearcoatRoughness
     : 0.22;
-  const coreSheen = Number.isFinite(tokenTheme.coreSheen) ? tokenTheme.coreSheen : 0.35;
-  const accentRoughness = Number.isFinite(tokenTheme.accentRoughness) ? tokenTheme.accentRoughness : 0.24;
-  const accentMetalness = Number.isFinite(tokenTheme.accentMetalness) ? tokenTheme.accentMetalness : 0.82;
-  const accentClearcoat = Number.isFinite(tokenTheme.accentClearcoat) ? tokenTheme.accentClearcoat : 0.18;
-  const accentClearcoatRoughness = Number.isFinite(tokenTheme.accentClearcoatRoughness)
+  const coreSheen = Number.isFinite(tokenTheme.coreSheen)
+    ? tokenTheme.coreSheen
+    : 0.35;
+  const accentRoughness = Number.isFinite(tokenTheme.accentRoughness)
+    ? tokenTheme.accentRoughness
+    : 0.24;
+  const accentMetalness = Number.isFinite(tokenTheme.accentMetalness)
+    ? tokenTheme.accentMetalness
+    : 0.82;
+  const accentClearcoat = Number.isFinite(tokenTheme.accentClearcoat)
+    ? tokenTheme.accentClearcoat
+    : 0.18;
+  const accentClearcoatRoughness = Number.isFinite(
+    tokenTheme.accentClearcoatRoughness
+  )
     ? tokenTheme.accentClearcoatRoughness
     : 0.25;
 
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
-    const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    const seatIndex = Number.isFinite(player?.seatIndex)
+      ? player.seatIndex
+      : index;
     const playerShape = player?.tokenShape ?? tokenShape;
     const desiredShapeId = playerShape?.id || 'default';
     const desiredPieceType = playerShape?.pieceType || null;
-    const basePiecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+    const basePiecePrototype = desiredPieceType
+      ? tokenPrototypes?.[desiredPieceType]
+      : null;
     const headPreset = player?.headPreset || null;
     const headPresetId = player?.headPresetId || 'current';
     if (
@@ -4001,7 +4700,9 @@ function updateTokens(
     }
     if (!token) {
       token = new THREE.Group();
-      const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
+      const baseColor = new THREE.Color(
+        player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]
+      );
       const piecePrototype = basePiecePrototype;
       let coreMaterial = null;
       let accentMaterial = null;
@@ -4013,11 +4714,15 @@ function updateTokens(
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
-              child.material = child.material.map((material) => material?.clone?.() ?? material);
+              child.material = child.material.map(
+                (material) => material?.clone?.() ?? material
+              );
             } else if (child.material?.clone) {
               child.material = child.material.clone();
             }
-            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            const mats = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
             mats.forEach((mat) => {
               if (mat?.color?.set) pieceMaterials.push(mat);
             });
@@ -4046,12 +4751,23 @@ function updateTokens(
 
         const baseHeight = TOKEN_HEIGHT * 0.24;
         const bodyHeight = TOKEN_HEIGHT * 0.46;
-        const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
+        const leftoverHeight = Math.max(
+          TOKEN_HEIGHT - (baseHeight + bodyHeight),
+          TOKEN_HEIGHT * 0.18
+        );
         const headHeight = leftoverHeight * 0.65;
-        const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
+        const crestHeight = Math.max(
+          leftoverHeight - headHeight,
+          TOKEN_HEIGHT * 0.08
+        );
 
         const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
+          new THREE.CylinderGeometry(
+            TOKEN_RADIUS * 1.45,
+            TOKEN_RADIUS * 1.65,
+            baseHeight,
+            48
+          ),
           accentMaterial
         );
         base.position.y = baseHeight / 2;
@@ -4060,7 +4776,12 @@ function updateTokens(
         token.add(base);
 
         const body = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
+          new THREE.CylinderGeometry(
+            TOKEN_RADIUS * 1.05,
+            TOKEN_RADIUS * 0.82,
+            bodyHeight,
+            48
+          ),
           coreMaterial
         );
         body.position.y = baseHeight + bodyHeight / 2;
@@ -4069,7 +4790,12 @@ function updateTokens(
         token.add(body);
 
         const collar = new THREE.Mesh(
-          new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
+          new THREE.TorusGeometry(
+            TOKEN_RADIUS * 0.95,
+            TOKEN_HEIGHT * 0.06,
+            24,
+            48
+          ),
           accentMaterial
         );
         collar.rotation.x = Math.PI / 2;
@@ -4079,7 +4805,13 @@ function updateTokens(
         token.add(collar);
 
         const head = new THREE.Mesh(
-          new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
+          new RoundedBoxGeometry(
+            TOKEN_RADIUS * 1.3,
+            headHeight,
+            TOKEN_RADIUS * 1.3,
+            6,
+            TOKEN_RADIUS * 0.45
+          ),
           coreMaterial
         );
         head.position.y = baseHeight + bodyHeight + headHeight / 2;
@@ -4088,10 +4820,16 @@ function updateTokens(
         token.add(head);
 
         const crest = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
+          new THREE.CylinderGeometry(
+            TOKEN_RADIUS * 0.55,
+            TOKEN_RADIUS * 0.7,
+            crestHeight,
+            32
+          ),
           accentMaterial
         );
-        crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
+        crest.position.y =
+          baseHeight + bodyHeight + headHeight + crestHeight / 2;
         crest.castShadow = true;
         crest.receiveShadow = true;
         token.add(crest);
@@ -4114,7 +4852,9 @@ function updateTokens(
 
     const mat = token.userData.coreMaterial || token.userData.material;
     const accentMat = token.userData.accentMaterial || null;
-    const targetColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
+    const targetColor = new THREE.Color(
+      player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]
+    );
 
     if (mat) {
       mat.color.copy(targetColor);
@@ -4165,7 +4905,10 @@ function updateTokens(
 
     if (accentMat) {
       if (emissiveHex === 0x000000) {
-        const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
+        const glow = targetColor
+          .clone()
+          .lerp(accentTarget, 0.6)
+          .multiplyScalar(0.15);
         accentMat.emissive.copy(glow);
         accentMat.emissiveIntensity = 1;
       } else {
@@ -4183,7 +4926,10 @@ function updateTokens(
       let offsetX = 0;
       let offsetZ = 0;
       if (occupantCount > 1) {
-        const radius = Math.min(TOKEN_MULTI_OCCUPANT_RADIUS, TOKEN_RADIUS * 1.15);
+        const radius = Math.min(
+          TOKEN_MULTI_OCCUPANT_RADIUS,
+          TOKEN_RADIUS * 1.15
+        );
         const offsetIndex = tilePlayers.indexOf(index);
         const indexForAngle = offsetIndex >= 0 ? offsetIndex : 0;
         const angle = (indexForAngle / occupantCount) * Math.PI * 2;
@@ -4191,7 +4937,9 @@ function updateTokens(
         offsetZ = Math.sin(angle) * radius;
       }
       const basePos = indexToPosition.get(rawPosition);
-      const baseVector = basePos ? basePos.clone() : serpentineIndexToXZ(rawPosition).clone();
+      const baseVector = basePos
+        ? basePos.clone()
+        : serpentineIndexToXZ(rawPosition).clone();
       baseVector.x += offsetX;
       baseVector.z += offsetZ;
       baseVector.y += TOKEN_HEIGHT * 0.02;
@@ -4203,29 +4951,48 @@ function updateTokens(
           seatIndex
         );
         if (railLayout) {
-          const sideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+          const sideSign =
+            TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ??
+            (seatIndex % 2 === 0 ? -1 : 1);
           const lateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-          const portraitShift = TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
+          const portraitShift =
+            TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
           worldPos = railLayout.railLocal
             .clone()
-            .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge);
+            .addScaledVector(
+              railLayout.lateral,
+              sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge
+            );
           if (portraitShift) {
             worldPos
-              .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
+              .addScaledVector(
+                railLayout.seatDirection,
+                portraitShift.radial ?? 0
+              )
               .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
           }
-          worldPos.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-          worldPos.y = railLayout.railHeightY + (portraitShift?.y ?? 0) + PARKING_VERTICAL_LIFT;
+          worldPos.addScaledVector(
+            BOARD_FRONT_VECTOR,
+            -PARKING_TOP_SCREEN_WORLD_SHIFT
+          );
+          worldPos.y =
+            railLayout.railHeightY +
+            (portraitShift?.y ?? 0) +
+            PARKING_VERTICAL_LIFT;
         }
       }
       if (!worldPos) {
         const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
         worldPos = serpentineIndexToXZ(fallbackIndex).clone();
-        worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+        worldPos.y =
+          (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) +
+          TOKEN_HEIGHT * 0.02;
       }
     }
 
-    const targetGroup = hasBoardPosition ? boardTokensGroup : reserveTokensGroup;
+    const targetGroup = hasBoardPosition
+      ? boardTokensGroup
+      : reserveTokensGroup;
     if (token.parent !== targetGroup) {
       targetGroup.add(token);
     }
@@ -4248,7 +5015,14 @@ function updateTokens(
   });
 }
 
-function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, railTexture, theme = {}) {
+function updateLadders(
+  group,
+  ladders,
+  indexToPosition,
+  serpentineIndexToXZ,
+  railTexture,
+  theme = {}
+) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -4283,12 +5057,17 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
   const resolveLadderLane = createJumpLaneResolver(ladderEntries);
   ladderEntries.forEach(([start, end]) => {
     const laneConfig = resolveLadderLane(start);
-    const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
+    const A = (
+      indexToPosition.get(start) || serpentineIndexToXZ(start)
+    ).clone();
     const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
     const dir = B.clone().sub(A);
     const len = dir.length();
     const up = new THREE.Vector3(0, 1, 0);
-    const forward = dir.lengthSq() > 1e-6 ? dir.clone().normalize() : new THREE.Vector3(0, 0, 1);
+    const forward =
+      dir.lengthSq() > 1e-6
+        ? dir.clone().normalize()
+        : new THREE.Vector3(0, 0, 1);
     const rightBase = new THREE.Vector3().crossVectors(forward, up);
     if (rightBase.lengthSq() < 1e-6) {
       rightBase.set(1, 0, 0);
@@ -4297,23 +5076,41 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     }
     const railOffset = TILE_SIZE * 0.115;
     const laneLift = laneConfig.lane * TILE_SIZE * 0.036;
-    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.028;
+    const laneSideOffset =
+      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.028;
     const baseLift = LADDER_BASE_LIFT;
-    const laneVector = rightBase.clone().multiplyScalar(laneSideOffset).addScaledVector(up, laneLift);
-    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.48);
-    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.48);
+    const laneVector = rightBase
+      .clone()
+      .multiplyScalar(laneSideOffset)
+      .addScaledVector(up, laneLift);
+    const startPoint = pullPointTowardCenter(
+      A.clone().addScaledVector(up, baseLift).add(laneVector),
+      TILE_EDGE_INSET * 0.48
+    );
+    const endPoint = pullPointTowardCenter(
+      B.clone().addScaledVector(up, baseLift).add(laneVector),
+      TILE_EDGE_INSET * 0.48
+    );
     const arcHeight = Math.max(
       LADDER_CLEARANCE,
-      LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE + laneConfig.lane * TILE_SIZE * 0.06
+      LADDER_ARCH_BASE +
+        len * LADDER_ARCH_SCALE +
+        laneConfig.lane * TILE_SIZE * 0.06
     );
-    const sway = (LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE) * laneConfig.direction;
+    const sway =
+      (LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE) * laneConfig.direction;
     const oneThird = startPoint.clone().lerp(endPoint, 0.34);
     const twoThird = startPoint.clone().lerp(endPoint, 0.66);
     oneThird.y += arcHeight * LADDER_INNER_LIFT_RATIO;
     twoThird.y += arcHeight * LADDER_OUTER_LIFT_RATIO;
     oneThird.addScaledVector(rightBase, sway * 0.9);
     twoThird.addScaledVector(rightBase, -sway * 0.7);
-    const centerCurve = new THREE.CatmullRomCurve3([startPoint, oneThird, twoThird, endPoint]);
+    const centerCurve = new THREE.CatmullRomCurve3([
+      startPoint,
+      oneThird,
+      twoThird,
+      endPoint
+    ]);
     centerCurve.curveType = 'centripetal';
     const leftCurve = new THREE.CatmullRomCurve3([
       startPoint.clone().addScaledVector(rightBase, -railOffset),
@@ -4330,8 +5127,20 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     ]);
     rightCurve.curveType = 'centripetal';
 
-    const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
-    const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
+    const railGeomA = new THREE.TubeGeometry(
+      leftCurve,
+      64,
+      TILE_SIZE * 0.05,
+      12,
+      false
+    );
+    const railGeomB = new THREE.TubeGeometry(
+      rightCurve,
+      64,
+      TILE_SIZE * 0.05,
+      12,
+      false
+    );
     const railA = new THREE.Mesh(railGeomA, matRail.clone());
     const railB = new THREE.Mesh(railGeomB, matRail.clone());
     const repeat = Math.max(3, len / (TILE_SIZE * 0.35));
@@ -4342,12 +5151,17 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     const rungStep = TILE_SIZE * 0.5;
     const rungCount = Math.max(4, Math.floor(len / rungStep));
     for (let i = 1; i < rungCount; i++) {
-        const t = i / rungCount;
-        const point = centerCurve.getPoint(t);
-        const rungGeom = new THREE.CylinderGeometry(TILE_SIZE * 0.04, TILE_SIZE * 0.04, railOffset * 2, 12);
-        const rung = new THREE.Mesh(rungGeom, matRung);
-        rung.position.copy(point);
-        rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rightBase);
+      const t = i / rungCount;
+      const point = centerCurve.getPoint(t);
+      const rungGeom = new THREE.CylinderGeometry(
+        TILE_SIZE * 0.04,
+        TILE_SIZE * 0.04,
+        railOffset * 2,
+        12
+      );
+      const rung = new THREE.Mesh(rungGeom, matRung);
+      rung.position.copy(point);
+      rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rightBase);
       group.add(rung);
     }
 
@@ -4359,7 +5173,14 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
   });
 }
 
-function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snakeTexture, theme = {}) {
+function updateSnakes(
+  group,
+  snakes,
+  indexToPosition,
+  serpentineIndexToXZ,
+  snakeTexture,
+  theme = {}
+) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -4406,30 +5227,55 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
 
   entries.forEach(([start, end]) => {
     const laneConfig = resolveSnakeLane(start);
-    const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
-    const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
+    const baseStart = (
+      indexToPosition.get(start) || serpentineIndexToXZ(start)
+    ).clone();
+    const baseEnd = (
+      indexToPosition.get(end) || serpentineIndexToXZ(end)
+    ).clone();
     const segment = baseEnd.clone().sub(baseStart);
-    const forward = segment.lengthSq() > 1e-6 ? segment.clone().normalize() : new THREE.Vector3(0, 0, 1);
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+    const forward =
+      segment.lengthSq() > 1e-6
+        ? segment.clone().normalize()
+        : new THREE.Vector3(0, 0, 1);
+    const right = new THREE.Vector3().crossVectors(
+      forward,
+      new THREE.Vector3(0, 1, 0)
+    );
     if (right.lengthSq() < 1e-6) {
       right.set(1, 0, 0);
     } else {
       right.normalize();
     }
     const laneLift = laneConfig.lane * TILE_SIZE * 0.032;
-    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.03;
-    const laneVector = right.clone().multiplyScalar(laneSideOffset).add(new THREE.Vector3(0, laneLift, 0));
+    const laneSideOffset =
+      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.03;
+    const laneVector = right
+      .clone()
+      .multiplyScalar(laneSideOffset)
+      .add(new THREE.Vector3(0, laneLift, 0));
     const startPoint = pullPointTowardCenter(
-      baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
+      baseStart
+        .clone()
+        .add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0))
+        .add(laneVector),
       TILE_EDGE_INSET * 0.46
     );
     const endPoint = pullPointTowardCenter(
-      baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
+      baseEnd
+        .clone()
+        .add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0))
+        .add(laneVector),
       TILE_EDGE_INSET * 0.46
     );
     const pathLen = startPoint.distanceTo(endPoint);
-    const arch = Math.max(SNAKE_CURVE_CLEARANCE, SNAKE_ARCH_BASE + pathLen * SNAKE_ARCH_SCALE);
-    const lateral = (SNAKE_LATERAL_BASE + pathLen * SNAKE_LATERAL_SCALE) * laneConfig.direction;
+    const arch = Math.max(
+      SNAKE_CURVE_CLEARANCE,
+      SNAKE_ARCH_BASE + pathLen * SNAKE_ARCH_SCALE
+    );
+    const lateral =
+      (SNAKE_LATERAL_BASE + pathLen * SNAKE_LATERAL_SCALE) *
+      laneConfig.direction;
     const controlA = startPoint.clone().lerp(endPoint, 0.26);
     const controlB = startPoint.clone().lerp(endPoint, 0.52);
     const controlC = startPoint.clone().lerp(endPoint, 0.78);
@@ -4439,14 +5285,26 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     controlA.addScaledVector(right, lateral * 1.1);
     controlB.addScaledVector(right, -lateral * 0.7);
     controlC.addScaledVector(right, lateral * 0.55);
-    const fullCurve = new THREE.CatmullRomCurve3([startPoint, controlA, controlB, controlC, endPoint]);
+    const fullCurve = new THREE.CatmullRomCurve3([
+      startPoint,
+      controlA,
+      controlB,
+      controlC,
+      endPoint
+    ]);
     fullCurve.curveType = 'centripetal';
 
     const bodyRadius = TILE_SIZE * 0.066;
     const mainCurve = sampleSubCurve(fullCurve, 0.03, 0.8, 18);
-    const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
+    const bodyMain = new THREE.Mesh(
+      new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false),
+      matBody.clone()
+    );
     const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.78));
-    bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
+    bodyMain.material.map.repeat.set(
+      Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))),
+      2
+    );
     group.add(bodyMain);
 
     group.userData.paths.set(start, {
@@ -4462,7 +5320,10 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     ];
     tailSegments.forEach(([t0, t1, r]) => {
       const segCurve = sampleSubCurve(fullCurve, t0, t1, 12);
-      const seg = new THREE.Mesh(new THREE.TubeGeometry(segCurve, 64, r, 14, false), matBody.clone());
+      const seg = new THREE.Mesh(
+        new THREE.TubeGeometry(segCurve, 64, r, 14, false),
+        matBody.clone()
+      );
       seg.material.map.repeat.x = Math.max(2, Math.ceil((t1 - t0) * 20));
       group.add(seg);
     });
@@ -4475,7 +5336,17 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const headGeom = new THREE.SphereGeometry(headR, 20, 16);
     const head = new THREE.Mesh(headGeom, matHead);
     headGroup.add(head);
-    const hood = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.72, headR * 1.72, headR * 2.1, 20, 1, true), matHead);
+    const hood = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        headR * 0.72,
+        headR * 1.72,
+        headR * 2.1,
+        20,
+        1,
+        true
+      ),
+      matHead
+    );
     hood.rotation.x = Math.PI / 2;
     hood.position.z = -headR;
     headGroup.add(hood);
@@ -4490,18 +5361,32 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     eyeL.position.set(-headR * 0.45, headR * 0.33, headR * 0.4);
     eyeR.position.set(headR * 0.45, headR * 0.33, headR * 0.4);
     headGroup.add(eyeL, eyeR);
-    const tongue = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.05, headR * 0.05, headR * 2.1, 8, 1), matTongue);
+    const tongue = new THREE.Mesh(
+      new THREE.CylinderGeometry(headR * 0.05, headR * 0.05, headR * 2.1, 8, 1),
+      matTongue
+    );
     tongue.rotation.x = Math.PI / 2;
     tongue.position.z = headR * 1.75;
     headGroup.add(tongue);
-    const headPos = startPoint.clone().add(tA.clone().multiplyScalar(headR * 0.82));
+    const headPos = startPoint
+      .clone()
+      .add(tA.clone().multiplyScalar(headR * 0.82));
     headGroup.position.copy(headPos);
-    headGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tA.clone());
+    headGroup.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      tA.clone()
+    );
     group.add(headGroup);
 
-    const tailTip = new THREE.Mesh(new THREE.ConeGeometry(bodyRadius * 0.58, bodyRadius * 1.8, 12), matTail);
+    const tailTip = new THREE.Mesh(
+      new THREE.ConeGeometry(bodyRadius * 0.58, bodyRadius * 1.8, 12),
+      matTail
+    );
     tailTip.position.copy(endPoint.clone());
-    tailTip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tB.clone());
+    tailTip.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      tB.clone()
+    );
     group.add(tailTip);
   });
 }
@@ -4523,14 +5408,35 @@ function quadraticBezier(a, b, c, t) {
 
 function createCaptureVehicleFallbackMesh(kind = 'fighter') {
   const root = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
-  const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
-  const finMat = new THREE.MeshStandardMaterial({ color: '#7f868d', roughness: 0.58, metalness: 0.12 });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: '#c9ced3',
+    roughness: 0.42,
+    metalness: 0.12
+  });
+  const noseMat = new THREE.MeshStandardMaterial({
+    color: '#f0f2f4',
+    roughness: 0.32,
+    metalness: 0.16
+  });
+  const finMat = new THREE.MeshStandardMaterial({
+    color: '#7f868d',
+    roughness: 0.58,
+    metalness: 0.12
+  });
   if (kind === 'supportTruck') {
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.22, 0.3), bodyMat);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.28), noseMat);
+    const chassis = new THREE.Mesh(
+      new THREE.BoxGeometry(0.95, 0.22, 0.3),
+      bodyMat
+    );
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.2, 0.28),
+      noseMat
+    );
     cabin.position.set(0.26, 0.2, 0);
-    const launcher = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), finMat);
+    const launcher = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.1, 0.22),
+      finMat
+    );
     launcher.position.set(-0.2, 0.24, 0);
     root.add(chassis, cabin, launcher);
   } else {
@@ -4539,31 +5445,60 @@ function createCaptureVehicleFallbackMesh(kind = 'fighter') {
       const javelinBodyMat = createCaptureVehicleMaterial('missile');
       const javelinNoseMat = createCaptureVehicleMaterial('missile');
       const javelinFinMat = createCaptureVehicleMaterial('missile');
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.72, 14), javelinBodyMat);
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.06, 0.72, 14),
+        javelinBodyMat
+      );
       body.rotation.z = Math.PI / 2;
-      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 14), javelinNoseMat);
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.055, 0.18, 14),
+        javelinNoseMat
+      );
       nose.position.set(0.45, 0, 0);
       nose.rotation.z = -Math.PI / 2;
-      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.16), javelinFinMat);
+      const finA = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.02, 0.16),
+        javelinFinMat
+      );
       finA.position.set(-0.18, 0, 0);
-      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.02), javelinFinMat);
+      const finB = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.16, 0.02),
+        javelinFinMat
+      );
       finB.position.set(-0.18, 0, 0);
-      const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.14, 14), javelinFinMat);
+      const engine = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.055, 0.14, 14),
+        javelinFinMat
+      );
       engine.rotation.z = Math.PI / 2;
       engine.position.set(-0.42, 0, 0);
       root.add(body, nose, finA, finB, engine);
     } else {
       const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
+        new THREE.CylinderGeometry(
+          kind === 'drone' ? 0.06 : 0.08,
+          kind === 'drone' ? 0.06 : 0.09,
+          1,
+          16
+        ),
         bodyMat
       );
       body.rotation.z = Math.PI / 2;
-      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.095, 0.24, 16),
+        noseMat
+      );
       nose.position.set(0.6, 0, 0);
       nose.rotation.z = -Math.PI / 2;
-      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
+      const finA = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24),
+        finMat
+      );
       finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
-      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+      const finB = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02),
+        finMat
+      );
       finB.position.set(-0.25, 0, 0);
       root.add(body, nose, finA, finB);
     }
@@ -4601,7 +5536,6 @@ function normalizeCaptureVehicleModel(model) {
   return model;
 }
 
-
 const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
@@ -4631,8 +5565,10 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
 function decodeGlb(buffer) {
   const view = new DataView(buffer);
   if (view.byteLength < 20) throw new Error('GLB too small to parse');
-  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Asset is not a GLB file');
-  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
+  if (view.getUint32(0, true) !== GLB_MAGIC)
+    throw new Error('Asset is not a GLB file');
+  if (view.getUint32(4, true) !== GLB_VERSION)
+    throw new Error('Unsupported GLB version');
 
   const totalLength = view.getUint32(8, true);
   const bytes = new Uint8Array(buffer, 0, totalLength);
@@ -4674,7 +5610,8 @@ function createMinimalGlbBuffer(json, binChunk) {
     paddedBin.set(binChunk);
   }
 
-  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
+  const totalLength =
+    12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
   const buffer = new ArrayBuffer(totalLength);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -4751,8 +5688,10 @@ function parseObjectFromBuffer(loader, buffer) {
 async function blobToDataUri(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
+    reader.onload = () =>
+      resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () =>
+      reject(new Error('Failed to convert blob to data URI'));
     reader.readAsDataURL(blob);
   });
 }
@@ -4774,7 +5713,13 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+async function resolveExternalImageToDataUri(
+  imageUri,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache
+) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
@@ -4783,7 +5728,10 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
     supportTruck: ['#6b7280', '#4b5563'],
     javelin: ['#5b6470', '#39414d']
   };
-  const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
+  const [primary, secondary] = placeholderColors[kind] ?? [
+    '#6e7681',
+    '#4f5861'
+  ];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
   const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
   for (const candidate of candidates) {
@@ -4806,7 +5754,13 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   return placeholderDataUri;
 }
 
-async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+async function patchGlbImagesToDataUris(
+  buffer,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache
+) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -4816,7 +5770,13 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
     const image = images[i];
     if (typeof image.uri === 'string') {
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      image.uri = await resolveExternalImageToDataUri(
+        image.uri,
+        kind,
+        sourceUrl,
+        modelUrls,
+        cache
+      );
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
@@ -4824,7 +5784,8 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
     if (typeof image.bufferView === 'number') {
       const bytes = extractBufferViewBytes(cloned, binChunk, image.bufferView);
       if (bytes?.length) {
-        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
+        const mimeType =
+          typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
         image.uri = bytesToDataUri(bytes, mimeType);
         delete image.bufferView;
         image.mimeType = mimeType;
@@ -4836,7 +5797,9 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
 }
 
 async function loadCaptureVehicleModel(kind = 'fighter') {
-  const files = SNAKE_CAPTURE_VEHICLE_MODEL_FILES[kind] || SNAKE_CAPTURE_VEHICLE_MODEL_FILES.fighter;
+  const files =
+    SNAKE_CAPTURE_VEHICLE_MODEL_FILES[kind] ||
+    SNAKE_CAPTURE_VEHICLE_MODEL_FILES.fighter;
   const fileList = Array.isArray(files) ? files : [files];
   const cacheKey = `${kind}:${fileList.join('|')}`;
   if (!SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
@@ -4847,15 +5810,26 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
         const imageCache = new Map();
 
         for (const file of fileList) {
-          const urls = SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
+          const urls = SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS.map(
+            (host) => `${host}/${file}`
+          );
           for (const url of urls) {
             try {
               // eslint-disable-next-line no-await-in-loop
               const rawBuffer = await fetchBuffer(url);
               // eslint-disable-next-line no-await-in-loop
-              const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, kind, url, urls, imageCache);
+              const patchedBuffer = await patchGlbImagesToDataUris(
+                rawBuffer,
+                kind,
+                url,
+                urls,
+                imageCache
+              );
               // eslint-disable-next-line no-await-in-loop
-              const modelRoot = await parseObjectFromBuffer(loader, patchedBuffer);
+              const modelRoot = await parseObjectFromBuffer(
+                loader,
+                patchedBuffer
+              );
               if (!modelRoot) continue;
               prepareLoadedModel(modelRoot);
               return normalizeCaptureVehicleModel(modelRoot);
@@ -4929,7 +5903,10 @@ function createCaptureVehicleRig(kind = 'fighter') {
 
   const trail = [];
   for (let i = 0; i < 4; i += 1) {
-    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.08 + i * 0.02, 16, 16), smokeMat.clone());
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08 + i * 0.02, 16, 16),
+      smokeMat.clone()
+    );
     puff.position.set(-0.55 - i * 0.14, 0, 0);
     puff.castShadow = true;
     puff.userData.trailPuff = true;
@@ -4957,7 +5934,13 @@ function createCaptureExplosionRig() {
   const root = new THREE.Group();
   const flash = new THREE.Mesh(
     new THREE.SphereGeometry(0.18, 16, 16),
-    new THREE.MeshStandardMaterial({ color: '#ffe59a', roughness: 0.08, metalness: 0, transparent: true, opacity: 1 })
+    new THREE.MeshStandardMaterial({
+      color: '#ffe59a',
+      roughness: 0.08,
+      metalness: 0,
+      transparent: true,
+      opacity: 1
+    })
   );
   flash.position.set(0, 0.25, 0);
   flash.castShadow = true;
@@ -4985,15 +5968,91 @@ function createCaptureExplosionRig() {
   for (let i = 0; i < 6; i += 1) {
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.18 + i * 0.035, 16, 16),
-      new THREE.MeshStandardMaterial({ color: '#646b72', roughness: 1, metalness: 0, transparent: true, opacity: 0.42 - i * 0.04 })
+      new THREE.MeshStandardMaterial({
+        color: '#646b72',
+        roughness: 1,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.42 - i * 0.04
+      })
     );
     mesh.position.set(0, 0.18 + i * 0.08, 0);
     mesh.castShadow = true;
     smoke.push(mesh);
     root.add(mesh);
   }
+  const debris = [];
+  for (let i = 0; i < 7; i += 1) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        TOKEN_HEIGHT * 0.42,
+        TOKEN_HEIGHT * 0.2,
+        TOKEN_HEIGHT * 0.28
+      ),
+      new THREE.MeshStandardMaterial({
+        color: i % 2 === 0 ? '#4b5563' : '#6b7280',
+        roughness: 0.95,
+        metalness: 0.04
+      })
+    );
+    mesh.visible = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    root.add(mesh);
+    debris.push(mesh);
+  }
+  const shellCasings = [];
+  for (let i = 0; i < CAPTURE_SHELL_COUNT; i += 1) {
+    const shell = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        TOKEN_HEIGHT * 0.06,
+        TOKEN_HEIGHT * 0.06,
+        TOKEN_HEIGHT * 0.32,
+        8
+      ),
+      new THREE.MeshStandardMaterial({
+        color: '#b08d57',
+        roughness: 0.32,
+        metalness: 0.82
+      })
+    );
+    shell.rotation.z = Math.PI / 2;
+    shell.visible = false;
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    root.add(shell);
+    shellCasings.push(shell);
+  }
+  const scorch = new THREE.Mesh(
+    new THREE.CircleGeometry(TOKEN_HEIGHT * 1.1, 24),
+    new THREE.MeshStandardMaterial({
+      color: '#202225',
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.76,
+      depthWrite: false
+    })
+  );
+  scorch.rotation.x = -Math.PI / 2;
+  scorch.visible = false;
+  root.add(scorch);
+  const blood = new THREE.Mesh(
+    new THREE.CircleGeometry(TOKEN_HEIGHT * 0.6, 20),
+    new THREE.MeshStandardMaterial({
+      color: '#7f1d1d',
+      roughness: 0.94,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false
+    })
+  );
+  blood.rotation.x = -Math.PI / 2;
+  blood.visible = false;
+  root.add(blood);
   root.visible = false;
-  return { root, flash, fire, smoke };
+  return { root, flash, fire, smoke, debris, shellCasings, scorch, blood };
 }
 
 function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
@@ -5028,20 +6087,106 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
     mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
     mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
   });
+  const impactDone = elapsedSinceImpact >= 0.5;
+  if (rig.scorch) {
+    rig.scorch.visible = impactDone;
+    rig.scorch.position.set(0, 0.01, 0);
+    rig.scorch.scale.setScalar(1 + elapsedSinceImpact * 1.8);
+    rig.scorch.material.opacity = 0.64 * smokeLife + 0.12;
+  }
+  if (rig.blood) {
+    rig.blood.visible = impactDone;
+    rig.blood.position.set(TOKEN_HEIGHT * 0.24, 0.011, -TOKEN_HEIGHT * 0.12);
+    rig.blood.scale.setScalar(1 + elapsedSinceImpact * 0.75);
+    rig.blood.material.opacity = 0.3 * smokeLife + 0.08;
+  }
+  if (Array.isArray(rig.debris)) {
+    rig.debris.forEach((mesh, i) => {
+      const seed = i * 0.81;
+      const spread = TOKEN_HEIGHT * (0.38 + i * 0.16);
+      mesh.visible = impactDone;
+      mesh.position.set(
+        Math.cos(seed) * spread,
+        0.02 + (i % 3) * TOKEN_HEIGHT * 0.03,
+        Math.sin(seed * 1.12) * spread
+      );
+      mesh.rotation.set(0.2 * i, seed * 0.7, -0.1 * i);
+    });
+  }
+  if (Array.isArray(rig.shellCasings)) {
+    rig.shellCasings.forEach((shell, i) => {
+      const side = i % 2 === 0 ? 1 : -1;
+      shell.visible = impactDone;
+      shell.position.set(
+        side * TOKEN_HEIGHT * (0.62 + i * 0.16),
+        0.03,
+        TOKEN_HEIGHT * (0.1 + i * 0.08)
+      );
+      shell.rotation.set(Math.PI / 2, i * 0.9, side * 0.26);
+    });
+  }
 }
 
 function createSeatWeaponMesh(weaponType = 'fighter') {
   const rig = createCaptureVehicleRig(weaponType);
-  const group = rig.root;
+  const group = new THREE.Group();
+  group.add(rig.root);
+  const buttonGroup = new THREE.Group();
+  buttonGroup.visible = WEAPON_BUTTON_TYPES.has(weaponType);
+  buttonGroup.userData.baseY = WEAPON_BUTTON_OFFSET_UP;
+  const buttonBase = new THREE.Mesh(
+    new RoundedBoxGeometry(
+      TOKEN_HEIGHT * 1.25,
+      TOKEN_HEIGHT * 0.34,
+      TOKEN_HEIGHT * 1.05,
+      4,
+      TOKEN_HEIGHT * 0.09
+    ),
+    new THREE.MeshStandardMaterial({
+      color: '#2b3037',
+      roughness: 0.82,
+      metalness: 0.14
+    })
+  );
+  const buttonCap = new THREE.Mesh(
+    new RoundedBoxGeometry(
+      TOKEN_HEIGHT * 0.92,
+      TOKEN_HEIGHT * 0.18,
+      TOKEN_HEIGHT * 0.78,
+      4,
+      TOKEN_HEIGHT * 0.08
+    ),
+    new THREE.MeshStandardMaterial({
+      color: '#d11f1f',
+      roughness: 0.38,
+      metalness: 0.18
+    })
+  );
+  buttonBase.castShadow = true;
+  buttonBase.receiveShadow = true;
+  buttonCap.castShadow = true;
+  buttonCap.receiveShadow = true;
+  buttonCap.position.y = TOKEN_HEIGHT * 0.15;
+  buttonGroup.add(buttonBase, buttonCap);
+  buttonGroup.position.set(
+    0,
+    WEAPON_BUTTON_OFFSET_UP,
+    WEAPON_BUTTON_OFFSET_FORWARD
+  );
+  buttonGroup.userData.cap = buttonCap;
+  buttonGroup.userData.press = 0;
+  group.add(buttonGroup);
+  group.userData.buttonGroup = buttonGroup;
   group.visible = true;
   const displayScale =
     weaponType === 'supportTruck'
       ? TOKEN_HEIGHT * 0.8
       : weaponType === 'drone'
-      ? TOKEN_HEIGHT * 0.75
-      : TOKEN_HEIGHT * 0.85;
+        ? TOKEN_HEIGHT * 0.75
+        : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[weaponType] ?? TOKEN_HEIGHT * 1.48;
+  group.position.y -=
+    WEAPON_PARKED_Y_DROP_BY_KIND[weaponType] ?? TOKEN_HEIGHT * 1.48;
   group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
   group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[weaponType] ?? 0;
   rig.trail?.forEach((puff) => {
@@ -5057,16 +6202,36 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   return group;
 }
 
+function setWeaponButtonPress(holder, press = 0) {
+  const safePress = clamp01(press);
+  const meshRoot = holder?.children?.[0];
+  const buttonGroup = meshRoot?.userData?.buttonGroup;
+  const cap = buttonGroup?.userData?.cap;
+  if (!buttonGroup || !cap) return;
+  buttonGroup.userData.press = safePress;
+  cap.position.y = TOKEN_HEIGHT * (0.15 - safePress * 0.11);
+  cap.material.emissive = cap.material.emissive || new THREE.Color('#000000');
+  cap.material.emissive.set('#5f0a0a').multiplyScalar(0.28 + safePress * 0.56);
+}
+
 function updateSeatWeaponDisplays(board, players = []) {
   if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
   const anchors = board.seatAnchors;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return;
   const keep = new Set();
-  const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
+  const fallbackOrder = [
+    'drone',
+    'fighter',
+    'helicopter',
+    'supportTruck',
+    'javelin'
+  ];
   const playersBySeat = new Map();
   players.forEach((player, index) => {
-    const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    const seatIndex = Number.isFinite(player?.seatIndex)
+      ? player.seatIndex
+      : index;
     if (!Number.isFinite(seatIndex)) return;
     if (seatIndex < 0 || seatIndex >= anchors.length) return;
     if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, player);
@@ -5083,10 +6248,12 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder = new THREE.Group();
       holder.userData.weaponType = null;
       board.weaponDisplayGroup.add(holder);
-      if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
+      if (!board.weaponDisplayGroup.userData.byPlayer)
+        board.weaponDisplayGroup.userData.byPlayer = new Map();
       board.weaponDisplayGroup.userData.byPlayer.set(holderKey, holder);
     }
-    const weaponType = player?.weaponType || fallbackOrder[seatIndex % fallbackOrder.length];
+    const weaponType =
+      player?.weaponType || fallbackOrder[seatIndex % fallbackOrder.length];
     if (holder.userData.weaponType !== weaponType) {
       while (holder.children.length) {
         const child = holder.children.pop();
@@ -5095,27 +6262,51 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
-    const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
+    holder.userData.playerIndex = Number.isInteger(player?.playerIndex)
+      ? player.playerIndex
+      : Number.isInteger(player?.index)
+        ? player.index
+        : Number.isInteger(player?.id)
+          ? player.id
+          : Number.isInteger(player?.userIndex)
+            ? player.userIndex
+            : Number.isInteger(player?.seatIndex)
+              ? player.seatIndex
+              : seatIndex;
+    holder.userData.seatIndex = seatIndex;
+    const railLayout = getSeatSideParkingLayout(
+      board,
+      seatIndex,
+      board.weaponDisplayGroup
+    );
     if (railLayout) {
-      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+      const sideSign =
+        WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ??
+        (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
+      const portraitShift =
+        WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
       holder.position
         .copy(railLayout.railLocal)
         .addScaledVector(
           railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
+          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
+            lateralNudge
         )
         .addScaledVector(
           railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+          WEAPON_PARKING_OUTWARD_OFFSET +
+            (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
         );
       if (portraitShift) {
         holder.position
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
       }
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+      holder.position.addScaledVector(
+        BOARD_FRONT_VECTOR,
+        -PARKING_TOP_SCREEN_WORLD_SHIFT
+      );
       holder.position.y += PARKING_VERTICAL_LIFT;
     } else {
       const seatWorld = new THREE.Vector3();
@@ -5128,10 +6319,30 @@ function updateSeatWeaponDisplays(board, players = []) {
       const markerPos = boardLookTarget
         .clone()
         .addScaledVector(seatDirection, radius)
-        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+        .addScaledVector(
+          lateral,
+          (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22
+        );
       holder.position.copy(markerPos);
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
+      holder.position.addScaledVector(
+        BOARD_FRONT_VECTOR,
+        -PARKING_TOP_SCREEN_WORLD_SHIFT
+      );
+      holder.position.y =
+        (board.baseLevelTop ?? 0) +
+        WEAPON_PARKING_Y_FROM_GROUND_FLOOR +
+        PARKING_VERTICAL_LIFT;
+    }
+    if (WEAPON_BUTTON_TYPES.has(weaponType)) {
+      holder.position.set(
+        0,
+        (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR,
+        -TOKEN_REST_MIN_RADIUS - TILE_SIZE * 3.4
+      );
+      holder.position.addScaledVector(
+        BOARD_FRONT_VECTOR,
+        -PARKING_TOP_SCREEN_WORLD_SHIFT * 0.35
+      );
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
@@ -5140,12 +6351,55 @@ function updateSeatWeaponDisplays(board, players = []) {
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
   if (!(byPlayer instanceof Map)) return;
+  if (!board.weaponDisplayGroup.userData.bySeatIndex)
+    board.weaponDisplayGroup.userData.bySeatIndex = new Map();
+  if (!board.weaponDisplayGroup.userData.byPlayerIndex)
+    board.weaponDisplayGroup.userData.byPlayerIndex = new Map();
+  board.weaponDisplayGroup.userData.bySeatIndex.clear();
+  board.weaponDisplayGroup.userData.byPlayerIndex.clear();
+  byPlayer.forEach((group) => {
+    if (Number.isInteger(group?.userData?.seatIndex)) {
+      board.weaponDisplayGroup.userData.bySeatIndex.set(
+        group.userData.seatIndex,
+        group
+      );
+    }
+    if (Number.isInteger(group?.userData?.playerIndex)) {
+      board.weaponDisplayGroup.userData.byPlayerIndex.set(
+        group.userData.playerIndex,
+        group
+      );
+    }
+  });
   byPlayer.forEach((group, key) => {
     if (!keep.has(key)) {
       group.parent?.remove(group);
       byPlayer.delete(key);
     }
   });
+}
+
+function resolveSeatIndexForPlayer(players = [], attackerIndex = null) {
+  if (!Array.isArray(players) || !Number.isInteger(attackerIndex)) return null;
+  const bySeat = players.find(
+    (player) =>
+      Number.isInteger(player?.seatIndex) && player.seatIndex === attackerIndex
+  );
+  if (bySeat && Number.isInteger(bySeat.seatIndex)) return bySeat.seatIndex;
+  const matchByIndex = players.find((player, index) => {
+    if (
+      Number.isInteger(player?.playerIndex) &&
+      player.playerIndex === attackerIndex
+    )
+      return true;
+    if (Number.isInteger(player?.id) && player.id === attackerIndex)
+      return true;
+    return index === attackerIndex;
+  });
+  if (!matchByIndex) return null;
+  if (Number.isInteger(matchByIndex.seatIndex)) return matchByIndex.seatIndex;
+  const fallbackIdx = players.indexOf(matchByIndex);
+  return fallbackIdx >= 0 ? fallbackIdx : null;
 }
 
 export default function SnakeBoard3D({
@@ -5187,7 +6441,12 @@ export default function SnakeBoard3D({
   const railTextureRef = useRef(null);
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
-  const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
+  const diceStateRef = useRef({
+    currentId: null,
+    basePositions: [],
+    baseY: 0,
+    count: 0
+  });
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
   const diceTapCallbackRef = useRef(null);
@@ -5208,9 +6467,15 @@ export default function SnakeBoard3D({
   const frameAccumulatorRef = useRef(0);
   const captureFxIdRef = useRef(null);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
-  const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
+  const fallbackAppearanceKey = useMemo(
+    () => JSON.stringify(appearance ?? {}),
+    [appearance]
+  );
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
-  const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
+  const appearanceMemo = useMemo(
+    () => appearance || {},
+    [keyForEffect, appearance]
+  );
   const tokenTheme = appearanceMemo?.token;
   const tokenShape = appearanceMemo?.tokenShape;
   const snakeTheme = appearanceMemo?.snakeSkin;
@@ -5242,7 +6507,12 @@ export default function SnakeBoard3D({
     if (previousTurnRef.current === currentTurn) return;
     previousTurnRef.current = currentTurn;
 
-    const focusState = computeTurnCameraFocusState(board, camera, currentTurn, players);
+    const focusState = computeTurnCameraFocusState(
+      board,
+      camera,
+      currentTurn,
+      players
+    );
     if (!focusState) return;
     turnCameraStateRef.current = {
       position: focusState.position.clone(),
@@ -5266,13 +6536,23 @@ export default function SnakeBoard3D({
 
     // Keep dice handoff synchronized with turn camera focus so both move together.
     if (diceStateRef.current?.currentId == null) {
-      const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
+      const seatCount = Array.isArray(board.seatAnchors)
+        ? board.seatAnchors.length
+        : 0;
       if (seatCount > 0) {
         const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
-        const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
+        const visibleDice = Array.isArray(board.diceSet)
+          ? board.diceSet.filter((die) => die?.visible)
+          : [];
         if (visibleDice.length) {
-          const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
-          const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
+          const layout = computeDiceThrowLayout(
+            board,
+            seatIndex,
+            visibleDice.length
+          );
+          const basePositions = Array.isArray(layout.basePositions)
+            ? layout.basePositions
+            : [];
           if (basePositions.length) {
             removeAnimationsByType(animationsRef.current, 'diceHandoff');
             const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
@@ -5319,16 +6599,26 @@ export default function SnakeBoard3D({
       const topDownTarget = boardLookTarget.clone();
       topDownTarget.y = board?.tableInfo?.surfaceY ?? boardLookTarget.y;
       const topDownDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_RADIUS_FACTOR;
-      const topDownPosition = topDownTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
+      const topDownPosition = topDownTarget
+        .clone()
+        .add(new THREE.Vector3(0, topDownDistance, 0.0001));
       const clampedTopDownPosition = topDownPosition.clone().sub(topDownTarget);
-      const spherical = new THREE.Spherical().setFromVector3(clampedTopDownPosition);
+      const spherical = new THREE.Spherical().setFromVector3(
+        clampedTopDownPosition
+      );
       spherical.radius = clamp(
         spherical.radius,
         CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR,
         CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
       );
-      spherical.phi = clamp(spherical.phi, CAMERA_TOPDOWN_MIN_POLAR, CAMERA_TOPDOWN_MAX_POLAR);
-      camera.position.copy(topDownTarget).add(new THREE.Vector3().setFromSpherical(spherical));
+      spherical.phi = clamp(
+        spherical.phi,
+        CAMERA_TOPDOWN_MIN_POLAR,
+        CAMERA_TOPDOWN_MAX_POLAR
+      );
+      camera.position
+        .copy(topDownTarget)
+        .add(new THREE.Vector3().setFromSpherical(spherical));
       controls.target.copy(topDownTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
@@ -5338,9 +6628,15 @@ export default function SnakeBoard3D({
       const lockedAzimuth = controls.getAzimuthalAngle();
       controls.minAzimuthAngle = lockedAzimuth;
       controls.maxAzimuthAngle = lockedAzimuth;
-      controls.minDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR;
-      controls.maxDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR;
-      controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
+      controls.minDistance =
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR;
+      controls.maxDistance =
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR;
+      controls.touches = {
+        ONE: THREE.TOUCH.NONE,
+        TWO: THREE.TOUCH.NONE,
+        THREE: THREE.TOUCH.NONE
+      };
       controls.mouseButtons = {
         LEFT: THREE.MOUSE.NONE,
         MIDDLE: THREE.MOUSE.NONE,
@@ -5363,7 +6659,11 @@ export default function SnakeBoard3D({
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
       controls.minDistance = restore.minDistance ?? CAM.minR;
       controls.maxDistance = restore.maxDistance ?? CAM.maxR;
-      controls.touches = restore.touches || { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
+      controls.touches = restore.touches || {
+        ONE: THREE.TOUCH.NONE,
+        TWO: THREE.TOUCH.NONE,
+        THREE: THREE.TOUCH.NONE
+      };
       controls.mouseButtons = restore.mouseButtons || {
         LEFT: THREE.MOUSE.NONE,
         MIDDLE: THREE.MOUSE.NONE,
@@ -5375,7 +6675,10 @@ export default function SnakeBoard3D({
   }, [cameraViewMode]);
 
   useEffect(() => {
-    seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
+    seatCallbackRef.current =
+      typeof onSeatPositionsChange === 'function'
+        ? onSeatPositionsChange
+        : null;
     return () => {
       if (!onSeatPositionsChange) return;
       seatCallbackRef.current = null;
@@ -5383,7 +6686,8 @@ export default function SnakeBoard3D({
   }, [onSeatPositionsChange]);
 
   useEffect(() => {
-    diceAnchorCallbackRef.current = typeof onDiceAnchorChange === 'function' ? onDiceAnchorChange : null;
+    diceAnchorCallbackRef.current =
+      typeof onDiceAnchorChange === 'function' ? onDiceAnchorChange : null;
     return () => {
       if (!onDiceAnchorChange) return;
       diceAnchorCallbackRef.current = null;
@@ -5391,7 +6695,8 @@ export default function SnakeBoard3D({
   }, [onDiceAnchorChange]);
 
   useEffect(() => {
-    diceTapCallbackRef.current = typeof onDiceTap === 'function' ? onDiceTap : null;
+    diceTapCallbackRef.current =
+      typeof onDiceTap === 'function' ? onDiceTap : null;
     return () => {
       diceTapCallbackRef.current = null;
     };
@@ -5428,7 +6733,11 @@ export default function SnakeBoard3D({
     const mount = mountRef.current;
     if (!mount) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
     renderer.shadowMap.enabled = true;
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -5449,7 +6758,14 @@ export default function SnakeBoard3D({
     const handlers = disposeHandlers.current;
     handlers.length = 0;
 
-    const arena = buildArena(scene, renderer, mount, cameraRef, handlers, appearanceMemo);
+    const arena = buildArena(
+      scene,
+      renderer,
+      mount,
+      cameraRef,
+      handlers,
+      appearanceMemo
+    );
     const board = buildSnakeBoard(
       arena.boardGroup,
       arena.boardLookTarget,
@@ -5480,11 +6796,17 @@ export default function SnakeBoard3D({
       javelin: createCaptureVehicleRig('javelin')
     };
     const captureExplosion = createCaptureExplosionRig();
-    Object.values(captureVehicles).forEach((vehicle) => scene.add(vehicle.root));
+    Object.values(captureVehicles).forEach((vehicle) =>
+      scene.add(vehicle.root)
+    );
     scene.add(captureExplosion.root);
-    boardRef.current.captureFx = { vehicles: captureVehicles, explosion: captureExplosion };
+    boardRef.current.captureFx = {
+      vehicles: captureVehicles,
+      explosion: captureExplosion
+    };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
-    fixedSeatCameraPositionRef.current = arena.startCameraState?.position?.clone?.() ?? null;
+    fixedSeatCameraPositionRef.current =
+      arena.startCameraState?.position?.clone?.() ?? null;
     const getCameraConstraints = () => {
       if (cameraViewModeRef.current === '2d') {
         return {
@@ -5502,19 +6824,28 @@ export default function SnakeBoard3D({
       };
     };
     const clampCameraPosition = (position, target) => {
-      const { minPolar, maxPolar, minRadius, maxRadius } = getCameraConstraints();
+      const { minPolar, maxPolar, minRadius, maxRadius } =
+        getCameraConstraints();
       const offset = position.clone().sub(target);
       const spherical = new THREE.Spherical().setFromVector3(offset);
       if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
         spherical.radius = minRadius;
         spherical.theta = Math.PI / 2;
         spherical.phi = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, initialCameraDistanceFactor),
+          THREE.MathUtils.lerp(
+            CAM.phiMin,
+            CAM.phiMax,
+            initialCameraDistanceFactor
+          ),
           minPolar,
           maxPolar
         );
       }
-      spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
+      spherical.radius = THREE.MathUtils.clamp(
+        spherical.radius,
+        minRadius,
+        maxRadius
+      );
       spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
       const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
       return target.clone().add(clampedOffset);
@@ -5558,7 +6889,11 @@ export default function SnakeBoard3D({
     };
     const onPointerMove = (event) => {
       if (pinchState.pointers.has(event.pointerId)) {
-        pinchState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, pointerType: event.pointerType });
+        pinchState.pointers.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+          pointerType: event.pointerType
+        });
       }
       if (dragState.pointerId !== event.pointerId) return;
       const deltaX = event.clientX - dragState.lastX;
@@ -5592,7 +6927,11 @@ export default function SnakeBoard3D({
           : fixedCamera.y;
         const maxLift = TOKEN_HEIGHT * 15;
         const liftDelta = deltaY * -0.0034;
-        const nextY = clamp(fixedCamera.y + liftDelta, minCameraY, minCameraY + maxLift);
+        const nextY = clamp(
+          fixedCamera.y + liftDelta,
+          minCameraY,
+          minCameraY + maxLift
+        );
         const appliedLift = nextY - fixedCamera.y;
         fixedCamera.y = nextY;
         if (Math.abs(appliedLift) > 1e-6) {
@@ -5627,9 +6966,15 @@ export default function SnakeBoard3D({
     const onPointerEnd = (event) => {
       const isTrackedPointer = dragState.pointerId === event.pointerId;
       if (isTrackedPointer) {
-        const moved = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+        const moved = Math.hypot(
+          event.clientX - dragState.startX,
+          event.clientY - dragState.startY
+        );
         const elapsed = performance.now() - dragState.startTime;
-        if (moved <= POINTER_TAP_MAX_DISTANCE && elapsed <= POINTER_TAP_MAX_DURATION_MS) {
+        if (
+          moved <= POINTER_TAP_MAX_DISTANCE &&
+          elapsed <= POINTER_TAP_MAX_DURATION_MS
+        ) {
           tryHandleDiceTap(event);
         }
       }
@@ -5644,7 +6989,9 @@ export default function SnakeBoard3D({
       const isTopDown = cameraViewModeRef.current === '2d';
       if (!isTopDown) return;
       event.preventDefault();
-      const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR : CAMERA_3D_ZOOM_WHEEL_FACTOR;
+      const factor = isTopDown
+        ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR
+        : CAMERA_3D_ZOOM_WHEEL_FACTOR;
       const bounds = isTopDown ? [0.86, 1.24] : [0.88, 1.14];
       const zoomScale = 1 + event.deltaY * factor;
       applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
@@ -5667,7 +7014,9 @@ export default function SnakeBoard3D({
           pinchState.mode = cameraViewModeRef.current;
           return;
         }
-        const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR : CAMERA_3D_ZOOM_PINCH_FACTOR;
+        const factor = isTopDown
+          ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR
+          : CAMERA_3D_ZOOM_PINCH_FACTOR;
         const bounds = isTopDown ? [0.82, 1.28] : [0.9, 1.12];
         const zoomScale = 1 - deltaDistance * factor;
         applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
@@ -5705,13 +7054,22 @@ export default function SnakeBoard3D({
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
     handlers.push(() => {
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      renderer.domElement.removeEventListener('pointerdown', onTouchPointerDown);
+      renderer.domElement.removeEventListener(
+        'pointerdown',
+        onTouchPointerDown
+      );
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
-      renderer.domElement.removeEventListener('pointermove', onTouchPointerMove);
+      renderer.domElement.removeEventListener(
+        'pointermove',
+        onTouchPointerMove
+      );
       renderer.domElement.removeEventListener('pointerup', onPointerEnd);
       renderer.domElement.removeEventListener('pointerup', onTouchPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerEnd);
-      renderer.domElement.removeEventListener('pointercancel', onTouchPointerUp);
+      renderer.domElement.removeEventListener(
+        'pointercancel',
+        onTouchPointerUp
+      );
       renderer.domElement.removeEventListener('wheel', onWheel);
     });
 
@@ -5775,7 +7133,9 @@ export default function SnakeBoard3D({
         });
       }
       if (Array.isArray(board?.seatedHumans) && board.seatedHumans.length) {
-        const activeTurn = Number.isInteger(currentTurnRef.current) ? currentTurnRef.current : -1;
+        const activeTurn = Number.isInteger(currentTurnRef.current)
+          ? currentTurnRef.current
+          : -1;
         const isThrowing = diceEventRef.current?.phase === 'start';
         board.seatedHumans.forEach((seatHuman, seatIndex) => {
           if (!seatHuman?.root) return;
@@ -5783,11 +7143,16 @@ export default function SnakeBoard3D({
           const root = seatHuman.root;
           const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.004;
           const throwLean = isActiveSeat && isThrowing ? 0.18 : 0;
+          const attackBlend = clamp01(seatHuman?.userData?.attackBlend ?? 0);
           root.position.y = breathe;
           root.rotation.x = 0;
           root.rotation.y = 0;
           root.rotation.z = 0;
-          applySeatedHumanPose(seatHuman, now * 0.001, throwLean);
+          applySeatedHumanPose(
+            seatHuman,
+            now * 0.001,
+            throwLean + attackBlend * 0.36
+          );
           alignSeatedHumanFeetToGround(seatHuman);
         });
       }
@@ -5806,7 +7171,9 @@ export default function SnakeBoard3D({
           const { accent, fill, target } = board.diceLights;
           if (target) target.position.copy(DICE_CENTER_VECTOR);
           if (accent?.userData?.offset) {
-            accent.position.copy(DICE_CENTER_VECTOR).add(accent.userData.offset);
+            accent.position
+              .copy(DICE_CENTER_VECTOR)
+              .add(accent.userData.offset);
           }
           if (fill?.userData?.offset) {
             fill.position.copy(DICE_CENTER_VECTOR).add(fill.userData.offset);
@@ -5816,7 +7183,10 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
-        if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current) {
+        if (
+          cameraViewModeRef.current !== '2d' &&
+          fixedSeatCameraPositionRef.current
+        ) {
           camera.position.copy(fixedSeatCameraPositionRef.current);
         }
         const minCameraY = startCameraMinYRef.current;
@@ -5887,7 +7257,10 @@ export default function SnakeBoard3D({
         }
         if (cameraViewModeRef.current !== '2d') {
           const look = headLookRef.current;
-          const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
+          const baseTarget =
+            board?.controls?.target ||
+            board?.boardLookTarget ||
+            arena.boardLookTarget;
           if (baseTarget) {
             const forward = baseTarget.clone().sub(camera.position);
             const focusDistance = forward.length();
@@ -5896,7 +7269,9 @@ export default function SnakeBoard3D({
               const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
               if (right.lengthSq() > 1e-6) {
                 right.normalize();
-                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+                const up = new THREE.Vector3()
+                  .crossVectors(right, forward)
+                  .normalize();
                 const lookTarget = baseTarget
                   .clone()
                   .addScaledVector(right, look.yaw * focusDistance * 0.52)
@@ -5936,7 +7311,8 @@ export default function SnakeBoard3D({
       scene.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry?.dispose?.();
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose?.());
+          if (Array.isArray(obj.material))
+            obj.material.forEach((m) => m.dispose?.());
           else obj.material?.dispose?.();
         }
       });
@@ -5953,7 +7329,8 @@ export default function SnakeBoard3D({
     if (offsetPopup) {
       const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
-        const color = offsetPopup.type === 'snake' ? colors.snake : colors.ladder;
+        const color =
+          offsetPopup.type === 'snake' ? colors.snake : colors.ladder;
         applyTileHighlight(tile, color);
       }
     }
@@ -5962,19 +7339,26 @@ export default function SnakeBoard3D({
   useEffect(() => {
     if (!boardRef.current) return;
     const board = boardRef.current;
-    updateTokens(board.boardTokensGroup, board.reserveTokensGroup, players, board.indexToPosition, board.serpentineIndexToXZ, {
-      burning,
-      rollingIndex,
-      currentTurn,
-      baseLevelTop: board.baseLevelTop,
-      tokenTheme,
-      tokenShape,
-      tokenPrototypes: board.tokenPrototypes,
-      seatAnchors: board.seatAnchors,
-      boardLookTarget: board.boardLookTarget,
-      boardRoot: board.root,
-      tableInfo: board.tableInfo
-    });
+    updateTokens(
+      board.boardTokensGroup,
+      board.reserveTokensGroup,
+      players,
+      board.indexToPosition,
+      board.serpentineIndexToXZ,
+      {
+        burning,
+        rollingIndex,
+        currentTurn,
+        baseLevelTop: board.baseLevelTop,
+        tokenTheme,
+        tokenShape,
+        tokenPrototypes: board.tokenPrototypes,
+        seatAnchors: board.seatAnchors,
+        boardLookTarget: board.boardLookTarget,
+        boardRoot: board.root,
+        tableInfo: board.tableInfo
+      }
+    );
     updateSeatWeaponDisplays(board, players);
 
     const sanitizedPositions = players.map((player) => {
@@ -5983,7 +7367,10 @@ export default function SnakeBoard3D({
     });
     const previous = prevPlayerPositionsRef.current;
     let movement = null;
-    if (Array.isArray(previous) && previous.length === sanitizedPositions.length) {
+    if (
+      Array.isArray(previous) &&
+      previous.length === sanitizedPositions.length
+    ) {
       const movements = [];
       sanitizedPositions.forEach((pos, index) => {
         const prev = previous[index];
@@ -5999,27 +7386,47 @@ export default function SnakeBoard3D({
     }
     prevPlayerPositionsRef.current = sanitizedPositions;
 
-    if (cameraViewMode !== '2d' && movement && shouldFollowTileChange(movement.from, movement.to)) {
+    if (
+      cameraViewMode !== '2d' &&
+      movement &&
+      shouldFollowTileChange(movement.from, movement.to)
+    ) {
       const camera = cameraRef.current;
       const controls = board.controls;
-      const facingRotation = computeBoardFacingRotation(board, camera, movement.to);
+      const facingRotation = computeBoardFacingRotation(
+        board,
+        camera,
+        movement.to
+      );
       if (camera && controls && Number.isFinite(facingRotation)) {
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
         removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
+        const rotateAnimation = createBoardRotationAnimation(
+          board,
+          facingRotation
+        );
         if (rotateAnimation) animationsRef.current.push(rotateAnimation);
-        const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
+        const followState = computeTokenFollowCameraState(
+          board,
+          camera,
+          movement.from,
+          movement.to
+        );
         if (followState) {
-          const followAnimation = createCameraTransitionAnimation(camera, controls, {
-            toPosition: followState.position,
-            toTarget: followState.target,
-            durationIn: 320,
-            hold: 0,
-            durationOut: 0,
-            type: 'cameraTokenFollow',
-            lockPosition: true
-          });
+          const followAnimation = createCameraTransitionAnimation(
+            camera,
+            controls,
+            {
+              toPosition: followState.position,
+              toTarget: followState.target,
+              durationIn: 320,
+              hold: 0,
+              durationOut: 0,
+              type: 'cameraTokenFollow',
+              lockPosition: true
+            }
+          );
           if (followAnimation) animationsRef.current.push(followAnimation);
         }
       }
@@ -6064,8 +7471,12 @@ export default function SnakeBoard3D({
     if (!slide || !boardRef.current) return;
     const board = boardRef.current;
     const token =
-      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === slide.playerIndex) ||
-      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === slide.playerIndex);
+      board.boardTokensGroup?.children?.find(
+        (child) => child.userData?.playerIndex === slide.playerIndex
+      ) ||
+      board.reserveTokensGroup?.children?.find(
+        (child) => child.userData?.playerIndex === slide.playerIndex
+      );
     if (!token) {
       onSlideComplete?.(slide.id, false);
       return;
@@ -6075,13 +7486,22 @@ export default function SnakeBoard3D({
         ? board.laddersGroup?.userData?.paths
         : board.snakesGroup?.userData?.paths;
     const startBase = token.position.clone();
-    const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
+    const endBase = (
+      board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)
+    ).clone();
     startBase.y = startBase.y ?? token.parent?.position?.y ?? 0;
     endBase.y = endBase.y ?? token.parent?.position?.y ?? 0;
     let pathInfo = pathMap?.get(slide.from);
     if (!pathInfo) {
-      const fallbackCurve = new THREE.LineCurve3(startBase.clone(), endBase.clone());
-      pathInfo = { curve: fallbackCurve, start: startBase.clone(), end: endBase.clone() };
+      const fallbackCurve = new THREE.LineCurve3(
+        startBase.clone(),
+        endBase.clone()
+      );
+      pathInfo = {
+        curve: fallbackCurve,
+        start: startBase.clone(),
+        end: endBase.clone()
+      };
     }
     const curve = pathInfo.curve;
     token.userData.isSliding = true;
@@ -6090,26 +7510,47 @@ export default function SnakeBoard3D({
     const lift = TOKEN_HEIGHT * 0.6;
     const camera = cameraRef.current;
     const controls = board.controls;
-    if (cameraViewMode !== '2d' && camera && controls && shouldFollowTileChange(slide.from, slide.to)) {
-      const facingRotation = computeBoardFacingRotation(board, camera, slide.to);
+    if (
+      cameraViewMode !== '2d' &&
+      camera &&
+      controls &&
+      shouldFollowTileChange(slide.from, slide.to)
+    ) {
+      const facingRotation = computeBoardFacingRotation(
+        board,
+        camera,
+        slide.to
+      );
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
       removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
       if (Number.isFinite(facingRotation)) {
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
+        const rotateAnimation = createBoardRotationAnimation(
+          board,
+          facingRotation
+        );
         if (rotateAnimation) animationsRef.current.push(rotateAnimation);
       }
-      const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
+      const followState = computeTokenFollowCameraState(
+        board,
+        camera,
+        slide.from,
+        slide.to
+      );
       if (followState) {
-        const followAnimation = createCameraTransitionAnimation(camera, controls, {
-          toPosition: followState.position,
-          toTarget: followState.target,
-          durationIn: 320,
-          hold: 0,
-          durationOut: 0,
-          type: 'cameraTokenFollow',
-          lockPosition: true
-        });
+        const followAnimation = createCameraTransitionAnimation(
+          camera,
+          controls,
+          {
+            toPosition: followState.position,
+            toTarget: followState.target,
+            durationIn: 320,
+            hold: 0,
+            durationOut: 0,
+            type: 'cameraTokenFollow',
+            lockPosition: true
+          }
+        );
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
@@ -6119,14 +7560,23 @@ export default function SnakeBoard3D({
         let pos;
         if (t < 0.18) {
           const local = easeInOut(t / 0.18);
-          const target = curve.getPoint(0).clone().add(new THREE.Vector3(0, lift, 0));
+          const target = curve
+            .getPoint(0)
+            .clone()
+            .add(new THREE.Vector3(0, lift, 0));
           pos = startBase.clone().lerp(target, local);
         } else if (t < 0.9) {
           const local = easeInOut((t - 0.18) / 0.72);
-          pos = curve.getPoint(local).clone().add(new THREE.Vector3(0, lift * 0.4, 0));
+          pos = curve
+            .getPoint(local)
+            .clone()
+            .add(new THREE.Vector3(0, lift * 0.4, 0));
         } else {
           const local = easeOutCubic((t - 0.9) / 0.1);
-          const from = curve.getPoint(1).clone().add(new THREE.Vector3(0, lift * 0.25, 0));
+          const from = curve
+            .getPoint(1)
+            .clone()
+            .add(new THREE.Vector3(0, lift * 0.25, 0));
           pos = from.lerp(endBase, Math.min(1, local));
         }
         token.position.copy(pos);
@@ -6152,19 +7602,27 @@ export default function SnakeBoard3D({
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       removeAnimationsByType(animationsRef.current, 'diceHandoff');
-      const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
+      const count = Math.max(
+        1,
+        Math.min(diceEvent.count ?? diceSet.length, diceSet.length)
+      );
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
         ? diceEvent.seatIndex
         : Number.isInteger(diceEvent.playerIndex)
-        ? diceEvent.playerIndex
-        : Number.isInteger(prevState.seatIndex)
-        ? prevState.seatIndex
-        : Number.isInteger(prevState.lastSeatIndex)
-        ? prevState.lastSeatIndex
+          ? diceEvent.playerIndex
+          : Number.isInteger(prevState.seatIndex)
+            ? prevState.seatIndex
+            : Number.isInteger(prevState.lastSeatIndex)
+              ? prevState.lastSeatIndex
+              : 0;
+      const seatCount = Array.isArray(board.seatAnchors)
+        ? board.seatAnchors.length
         : 0;
-      const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-      const seatIndex = seatCount > 0 ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex)) : Math.max(0, rawSeatIndex);
+      const seatIndex =
+        seatCount > 0
+          ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex))
+          : Math.max(0, rawSeatIndex);
       const layout = computeDiceThrowLayout(board, seatIndex, count);
       const spacing = DICE_SIZE * 1.35;
       const centerOffset = (count - 1) / 2;
@@ -6179,17 +7637,27 @@ export default function SnakeBoard3D({
         const visible = index < count;
         die.visible = visible;
         if (!visible) return;
-        const fallbackBase = new THREE.Vector3((index - centerOffset) * spacing, diceBaseY, diceAnchorZ);
+        const fallbackBase = new THREE.Vector3(
+          (index - centerOffset) * spacing,
+          diceBaseY,
+          diceAnchorZ
+        );
         const base = layout.basePositions?.[visibleIndex] ?? fallbackBase;
         const start = layout.startPositions?.[visibleIndex] ?? base.clone();
-        const travel = layout.travelVectors?.[visibleIndex] ?? base.clone().sub(start);
+        const travel =
+          layout.travelVectors?.[visibleIndex] ?? base.clone().sub(start);
         const bounce = layout.bouncePoints?.[visibleIndex] ?? base.clone();
-        const retreat = layout.retreatVectors?.[visibleIndex] ?? base.clone().sub(bounce);
+        const retreat =
+          layout.retreatVectors?.[visibleIndex] ?? base.clone().sub(bounce);
         const normal = layout.edgeNormals?.[visibleIndex]
           ? layout.edgeNormals[visibleIndex].clone()
           : new THREE.Vector3(0, 0, 0);
         die.position.copy(start);
-        die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        die.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
         basePositions.push(base.clone());
         startPositions.push(start.clone());
         travelVectors.push(travel.clone());
@@ -6213,19 +7681,25 @@ export default function SnakeBoard3D({
         const diceCameraState = computeDiceCameraFocusState(board, camera);
         if (camera && controls && diceCameraState && cameraViewMode !== '2d') {
           removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-          const restoreState = turnCameraStateRef.current || captureCameraState(camera, controls);
-          const diceCameraAnimation = createCameraTransitionAnimation(camera, controls, {
-            toPosition: camera.position.clone(),
-            toTarget: diceCameraState.target,
-            durationIn: DICE_CAMERA_LOOK_IN_DURATION,
-            hold: DICE_CAMERA_LOOK_HOLD_DURATION,
-            durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
-            type: 'cameraDiceZoom',
-            lockPosition: true,
-            returnPosition: restoreState?.position,
-            returnTarget: restoreState?.target
-          });
-          if (diceCameraAnimation) animationsRef.current.push(diceCameraAnimation);
+          const restoreState =
+            turnCameraStateRef.current || captureCameraState(camera, controls);
+          const diceCameraAnimation = createCameraTransitionAnimation(
+            camera,
+            controls,
+            {
+              toPosition: camera.position.clone(),
+              toTarget: diceCameraState.target,
+              durationIn: DICE_CAMERA_LOOK_IN_DURATION,
+              hold: DICE_CAMERA_LOOK_HOLD_DURATION,
+              durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
+              type: 'cameraDiceZoom',
+              lockPosition: true,
+              returnPosition: restoreState?.position,
+              returnTarget: restoreState?.target
+            }
+          );
+          if (diceCameraAnimation)
+            animationsRef.current.push(diceCameraAnimation);
         }
 
         const rollAnimation = createDiceRollAnimation(active, {
@@ -6265,11 +7739,22 @@ export default function SnakeBoard3D({
         });
         if (settleAnimation) animationsRef.current.push(settleAnimation);
 
-        const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
+        const seatCount = Array.isArray(board.seatAnchors)
+          ? board.seatAnchors.length
+          : 0;
         if (seatCount > 0) {
-          const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn || 0));
-          const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
-          const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
+          const seatIndex = Math.max(
+            0,
+            Math.min(seatCount - 1, currentTurn || 0)
+          );
+          const handoffLayout = computeDiceThrowLayout(
+            board,
+            seatIndex,
+            active.length
+          );
+          const handoffBases = Array.isArray(handoffLayout.basePositions)
+            ? handoffLayout.basePositions
+            : [];
           if (handoffBases.length) {
             removeAnimationsByType(animationsRef.current, 'diceHandoff');
             const handoffAnimation = createDiceHandoffAnimation(active, {
@@ -6281,21 +7766,33 @@ export default function SnakeBoard3D({
             const camera = cameraRef.current;
             const controls = board?.controls;
             if (camera && controls && cameraViewMode !== '2d') {
-              const focusState = computeTurnCameraFocusState(board, camera, seatIndex, players);
+              const focusState = computeTurnCameraFocusState(
+                board,
+                camera,
+                seatIndex,
+                players
+              );
               if (focusState) {
-                removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+                removeAnimationsByType(
+                  animationsRef.current,
+                  'cameraTurnFocus'
+                );
                 removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-                const turnAnimation = createCameraTransitionAnimation(camera, controls, {
-                  toPosition: focusState.position,
-                  toTarget: focusState.target,
-                  durationIn: TURN_CAMERA_TURN_IN_DURATION,
-                  hold: 0,
-                  durationOut: 0,
-                  type: 'cameraTurnFocus',
-                  lockPosition: true,
-                  returnPosition: focusState.position,
-                  returnTarget: focusState.target
-                });
+                const turnAnimation = createCameraTransitionAnimation(
+                  camera,
+                  controls,
+                  {
+                    toPosition: focusState.position,
+                    toTarget: focusState.target,
+                    durationIn: TURN_CAMERA_TURN_IN_DURATION,
+                    hold: 0,
+                    durationOut: 0,
+                    type: 'cameraTurnFocus',
+                    lockPosition: true,
+                    returnPosition: focusState.position,
+                    returnTarget: focusState.target
+                  }
+                );
                 if (turnAnimation) animationsRef.current.push(turnAnimation);
               }
             }
@@ -6320,37 +7817,80 @@ export default function SnakeBoard3D({
     const board = boardRef.current;
     const vehicleKind = captureEvent.weaponType || 'fighter';
     const vehicleMap = board.captureFx?.vehicles || {};
-    const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
-    const missileProjectile = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
+    const primaryVehicle =
+      vehicleMap[vehicleKind] ||
+      vehicleMap.fighter ||
+      Object.values(vehicleMap)[0];
+    const missileProjectile =
+      vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const explosion = board.captureFx?.explosion;
     if (!primaryVehicle || !missileProjectile || !explosion) {
       onCaptureAnimationComplete?.(captureEvent.id);
       return;
     }
     const attacker =
-      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex) ||
-      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex);
+      board.boardTokensGroup?.children?.find(
+        (child) => child.userData?.playerIndex === captureEvent.attackerIndex
+      ) ||
+      board.reserveTokensGroup?.children?.find(
+        (child) => child.userData?.playerIndex === captureEvent.attackerIndex
+      );
     if (!attacker) {
       onCaptureAnimationComplete?.(captureEvent.id);
       return;
     }
-    const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
-    const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
+    const startPos = (
+      board.indexToPosition.get(captureEvent.fromCell) ||
+      board.serpentineIndexToXZ(captureEvent.fromCell)
+    ).clone();
+    const targetPos = (
+      board.indexToPosition.get(captureEvent.targetCell) ||
+      board.serpentineIndexToXZ(captureEvent.targetCell)
+    ).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const attackerSeatIndex = resolveSeatIndexForPlayer(
+      players,
+      captureEvent.attackerIndex
+    );
+    const parkedHolder =
+      board.weaponDisplayGroup?.userData?.byPlayerIndex?.get(
+        captureEvent.attackerIndex
+      ) ||
+      (Number.isInteger(attackerSeatIndex)
+        ? board.weaponDisplayGroup?.userData?.bySeatIndex?.get(
+            attackerSeatIndex
+          )
+        : null) ||
+      board.weaponDisplayGroup?.userData?.byPlayer?.get(
+        `seat-${attackerSeatIndex}`
+      ) ||
+      null;
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
-    const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const launch = launchOrigin
+      .clone()
+      .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
     const captureTuning =
-      LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON[vehicleKind] || LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON.javelin;
+      LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON[vehicleKind] ||
+      LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON.javelin;
     const centerStage = launch
       .clone()
       .lerp(board.boardLookTarget, captureTuning.inward)
       .setY(launch.y + CAPTURE_CENTER_STAGE_LIFT * captureTuning.height);
-    const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
-    const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
-    const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
-    const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const impact = targetPos
+      .clone()
+      .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+    const impactTop = impact
+      .clone()
+      .add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
+    const parkedTop = launch
+      .clone()
+      .add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
+    const attackerHolder = parkedHolder;
+    const attackerSeatHuman =
+      Number.isInteger(attackerSeatIndex) && Array.isArray(board.seatedHumans)
+        ? board.seatedHumans[attackerSeatIndex] || null
+        : null;
     if (attackerHolder) attackerHolder.visible = false;
 
     attacker.position.copy(startPos);
@@ -6363,22 +7903,52 @@ export default function SnakeBoard3D({
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
-    primaryVehicle.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
-    missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
+    const vehicleScaleBoost =
+      vehicleKind === 'fighter' ||
+      vehicleKind === 'helicopter' ||
+      vehicleKind === 'drone' ||
+      vehicleKind === 'supportTruck'
+        ? 3
+        : 1;
+    primaryVehicle.root.scale.set(
+      tokenHeight * vehicleScaleBoost,
+      tokenHeight * 0.38 * vehicleScaleBoost,
+      tokenHeight * 0.38 * vehicleScaleBoost
+    );
+    missileProjectile.root.scale.set(
+      tokenHeight * 0.85,
+      tokenHeight * 0.22,
+      tokenHeight * 0.22
+    );
 
     const startTime = performance.now();
-    const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
+    const preLaunchDuration = CAPTURE_PRELAUNCH_BUTTON_PRESS_MS;
+    const stageFlightDuration =
+      CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
-    const isDroneLikeAircraft = vehicleKind === 'drone' || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
-    const isReturningAircraft = vehicleKind === 'fighter' || vehicleKind === 'helicopter';
-    const volleyCount = vehicleKind === 'supportTruck' ? 1 : (isReturningAircraft ? 1 : CAPTURE_MULTI_SHOT_COUNT);
+    const isDroneLikeAircraft =
+      vehicleKind === 'drone' ||
+      vehicleKind === 'fighter' ||
+      vehicleKind === 'helicopter';
+    const isReturningAircraft =
+      vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const volleyCount =
+      vehicleKind === 'supportTruck'
+        ? 1
+        : isReturningAircraft
+          ? 1
+          : CAPTURE_MULTI_SHOT_COUNT;
     const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
-    const volleyDuration = volleyCount * perMissileFlight + Math.max(0, volleyCount - 1) * perMissileGap;
+    const volleyDuration =
+      volleyCount * perMissileFlight +
+      Math.max(0, volleyCount - 1) * perMissileGap;
     const droneAttackDuration = Math.round(CAPTURE_MISSILE_FLIGHT_MS * 1.45);
     const droneLaunchProgress = 0.68;
-    const aircraftLaunchDuration = Math.round(droneAttackDuration * droneLaunchProgress);
+    const aircraftLaunchDuration = Math.round(
+      droneAttackDuration * droneLaunchProgress
+    );
     const returnDuration = CAPTURE_RETURN_MS;
     let aircraftMissileLaunchStartedAt = null;
     let aircraftMissileLaunchFrom = null;
@@ -6387,32 +7957,47 @@ export default function SnakeBoard3D({
     if (cameraViewMode !== '2d' && camera && controls) {
       const focusTarget = launch.clone().lerp(centerStage, 0.6);
       const currentOffset = camera.position.clone().sub(controls.target);
-      const desiredTarget = focusTarget.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
+      const desiredTarget = focusTarget
+        .clone()
+        .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
       const desiredPosition = desiredTarget.clone().add(currentOffset);
-      const captureCameraAnimation = createCameraTransitionAnimation(camera, controls, {
-        toPosition: desiredPosition,
-        toTarget: desiredTarget,
-        durationIn: 180,
-        hold: Math.max(140, stageFlightDuration - 220),
-        durationOut: 200,
-        type: 'cameraCaptureFocus',
-        lockPosition: true,
-        returnPosition: turnCameraStateRef.current?.position,
-        returnTarget: turnCameraStateRef.current?.target
-      });
-      if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
+      const captureCameraAnimation = createCameraTransitionAnimation(
+        camera,
+        controls,
+        {
+          toPosition: desiredPosition,
+          toTarget: desiredTarget,
+          durationIn: 180,
+          hold: Math.max(140, stageFlightDuration - 220),
+          durationOut: 200,
+          type: 'cameraCaptureFocus',
+          lockPosition: true,
+          returnPosition: turnCameraStateRef.current?.position,
+          returnTarget: turnCameraStateRef.current?.target
+        }
+      );
+      if (captureCameraAnimation)
+        animationsRef.current.push(captureCameraAnimation);
     }
     const carrierPathAt = (uRaw) => {
       const u = clamp01(uRaw);
       const carrierControl = launch.clone().lerp(centerStage, 0.5);
-      carrierControl.y += (vehicleKind === 'helicopter' ? TOKEN_HEIGHT * 3.6 : TOKEN_HEIGHT * 2.7) * captureTuning.height;
+      carrierControl.y +=
+        (vehicleKind === 'helicopter'
+          ? TOKEN_HEIGHT * 3.6
+          : TOKEN_HEIGHT * 2.7) * captureTuning.height;
       return quadraticBezier(launch, carrierControl, centerStage, u);
     };
     const droneStrikePathAt = (uRaw) => {
       const u = clamp01(uRaw);
       if (u <= 0.68) {
         const local = clamp01(u / 0.68);
-        const strikeControl = centerStage.clone().lerp(impactTop, 0.55).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.4 * captureTuning.height, 0));
+        const strikeControl = centerStage
+          .clone()
+          .lerp(impactTop, 0.55)
+          .add(
+            new THREE.Vector3(0, TOKEN_HEIGHT * 1.4 * captureTuning.height, 0)
+          );
         return quadraticBezier(centerStage, strikeControl, impactTop, local);
       }
       const local = clamp01((u - 0.68) / 0.32);
@@ -6422,12 +8007,22 @@ export default function SnakeBoard3D({
       const u = clamp01(uRaw);
       if (u <= 0.55) {
         const local = clamp01(u / 0.55);
-        const control = fromPos.clone().lerp(centerStage, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2 * captureTuning.height, 0));
+        const control = fromPos
+          .clone()
+          .lerp(centerStage, 0.5)
+          .add(
+            new THREE.Vector3(0, TOKEN_HEIGHT * 1.2 * captureTuning.height, 0)
+          );
         return quadraticBezier(fromPos, control, centerStage, local);
       }
       if (u <= 0.82) {
         const local = clamp01((u - 0.55) / 0.27);
-        const control = centerStage.clone().lerp(impactTop, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6 * captureTuning.height, 0));
+        const control = centerStage
+          .clone()
+          .lerp(impactTop, 0.5)
+          .add(
+            new THREE.Vector3(0, TOKEN_HEIGHT * 1.6 * captureTuning.height, 0)
+          );
         return quadraticBezier(centerStage, control, impactTop, local);
       }
       const local = clamp01((u - 0.82) / 0.18);
@@ -6435,36 +8030,77 @@ export default function SnakeBoard3D({
     };
     const returnPathAt = (uRaw) => {
       const u = clamp01(uRaw);
-      const control = centerStage.clone().lerp(parkedTop, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+      const control = centerStage
+        .clone()
+        .lerp(parkedTop, 0.5)
+        .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
       return quadraticBezier(centerStage, control, parkedTop, u);
     };
 
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
+        if (elapsed <= preLaunchDuration) {
+          const pressT = easeInOut(clamp01(elapsed / preLaunchDuration));
+          if (attackerSeatHuman) {
+            attackerSeatHuman.userData ||= {};
+            attackerSeatHuman.userData.attackBlend = pressT;
+          }
+          if (attackerHolder) {
+            setWeaponButtonPress(attackerHolder, pressT);
+          }
+          primaryVehicle.root.visible = false;
+          missileProjectile.root.visible = false;
+          updateCaptureExplosionRig(explosion, -1);
+          return false;
+        }
+        if (attackerSeatHuman?.userData) {
+          attackerSeatHuman.userData.attackBlend = 0;
+        }
+        if (attackerHolder) {
+          setWeaponButtonPress(attackerHolder, 0);
+        }
+        const combatElapsed = elapsed - preLaunchDuration;
         const setCameraTrack = (focus) => {
           if (cameraViewMode === '2d' || !camera || !controls || !focus) return;
-          const trackOffset = new THREE.Vector3(TOKEN_HEIGHT * 11, TOKEN_HEIGHT * 7.2, TOKEN_HEIGHT * 11);
-          const targetPos = focus.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.35, 0));
+          const trackOffset = new THREE.Vector3(
+            TOKEN_HEIGHT * 11,
+            TOKEN_HEIGHT * 7.2,
+            TOKEN_HEIGHT * 11
+          );
+          const targetPos = focus
+            .clone()
+            .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.35, 0));
           const desiredPos = targetPos.clone().add(trackOffset);
           controls.target.lerp(targetPos, 0.22);
           camera.position.lerp(desiredPos, 0.18);
           controls.update();
         };
 
-        if (elapsed <= stageFlightDuration) {
-          const rawU = easeInOut(clamp01(elapsed / stageFlightDuration));
-          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
+        if (combatElapsed <= stageFlightDuration) {
+          const rawU = easeInOut(clamp01(combatElapsed / stageFlightDuration));
+          const u = remapTakeoffLandingProgress(
+            rawU,
+            captureTuning.takeoff,
+            captureTuning.landing
+          );
           const nextU = clamp01(u + 0.03);
           const pos = carrierPathAt(u);
           const next = carrierPathAt(nextU);
           const dir = next.clone().sub(pos).normalize();
           primaryVehicle.root.visible = vehicleKind !== 'supportTruck';
           primaryVehicle.root.position.copy(pos);
-          primaryVehicle.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          primaryVehicle.root.quaternion.setFromUnitVectors(
+            new THREE.Vector3(1, 0, 0),
+            dir
+          );
           spinCaptureRotors(primaryVehicle, 1 / 60);
           primaryVehicle.trail.forEach((puff, i) => {
-            puff.position.set(-0.38 - i * 0.12, Math.sin(now * 0.01 * 8 + i) * 0.015, 0);
+            puff.position.set(
+              -0.38 - i * 0.12,
+              Math.sin(now * 0.01 * 8 + i) * 0.015,
+              0
+            );
             const s = 0.8 + i * 0.16 + ((now * 0.0018 + i * 0.2) % 1) * 0.5;
             puff.scale.setScalar(s);
             puff.material.opacity = 0.24 - i * 0.035;
@@ -6473,34 +8109,54 @@ export default function SnakeBoard3D({
           updateCaptureExplosionRig(explosion, -1);
           return false;
         }
-        const attackElapsed = elapsed - stageFlightDuration;
+        const attackElapsed = combatElapsed - stageFlightDuration;
         if (vehicleKind === 'drone' && attackElapsed <= droneAttackDuration) {
           const rawU = easeInOut(clamp01(attackElapsed / droneAttackDuration));
-          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
+          const u = remapTakeoffLandingProgress(
+            rawU,
+            captureTuning.takeoff,
+            captureTuning.landing
+          );
           const nextU = clamp01(u + 0.02);
           const pos = droneStrikePathAt(u);
           const next = droneStrikePathAt(nextU);
           const dir = next.clone().sub(pos).normalize();
           primaryVehicle.root.visible = true;
           primaryVehicle.root.position.copy(pos);
-          primaryVehicle.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          primaryVehicle.root.quaternion.setFromUnitVectors(
+            new THREE.Vector3(1, 0, 0),
+            dir
+          );
           spinCaptureRotors(primaryVehicle, 1 / 60);
           setCameraTrack(primaryVehicle.root.position);
           updateCaptureExplosionRig(explosion, -1);
           return false;
         }
         if (isReturningAircraft && attackElapsed <= aircraftLaunchDuration) {
-          const rawU = easeInOut(clamp01(attackElapsed / aircraftLaunchDuration));
-          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing) * droneLaunchProgress;
+          const rawU = easeInOut(
+            clamp01(attackElapsed / aircraftLaunchDuration)
+          );
+          const u =
+            remapTakeoffLandingProgress(
+              rawU,
+              captureTuning.takeoff,
+              captureTuning.landing
+            ) * droneLaunchProgress;
           const nextU = clamp01(u + 0.02);
           const pos = droneStrikePathAt(u);
           const next = droneStrikePathAt(nextU);
           const dir = next.clone().sub(pos).normalize();
           primaryVehicle.root.visible = true;
           primaryVehicle.root.position.copy(pos);
-          primaryVehicle.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          primaryVehicle.root.quaternion.setFromUnitVectors(
+            new THREE.Vector3(1, 0, 0),
+            dir
+          );
           spinCaptureRotors(primaryVehicle, 1 / 60);
-          if (!aircraftMissileLaunchFrom || attackElapsed >= aircraftLaunchDuration - 20) {
+          if (
+            !aircraftMissileLaunchFrom ||
+            attackElapsed >= aircraftLaunchDuration - 20
+          ) {
             aircraftMissileLaunchFrom = pos.clone();
           }
           setCameraTrack(primaryVehicle.root.position);
@@ -6515,14 +8171,21 @@ export default function SnakeBoard3D({
           const missileElapsed = attackElapsed - aircraftMissileLaunchStartedAt;
           if (missileElapsed <= perMissileFlight) {
             const rawU = easeInOut(clamp01(missileElapsed / perMissileFlight));
-            const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
+            const u = remapTakeoffLandingProgress(
+              rawU,
+              captureTuning.takeoff,
+              captureTuning.landing
+            );
             const from = aircraftMissileLaunchFrom || centerStage;
             const pos = missilePathAt(u, from);
             const next = missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
-            missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+            missileProjectile.root.quaternion.setFromUnitVectors(
+              new THREE.Vector3(1, 0, 0),
+              dir
+            );
           } else {
             missileProjectile.root.visible = false;
           }
@@ -6532,7 +8195,11 @@ export default function SnakeBoard3D({
             const pos = returnPathAt(returnT);
             primaryVehicle.root.visible = true;
             primaryVehicle.root.position.copy(pos);
-            setCameraTrack(missileProjectile.root.visible ? missileProjectile.root.position : pos);
+            setCameraTrack(
+              missileProjectile.root.visible
+                ? missileProjectile.root.position
+                : pos
+            );
             updateCaptureExplosionRig(explosion, -1);
             return false;
           }
@@ -6558,6 +8225,8 @@ export default function SnakeBoard3D({
             primaryVehicle.root.visible = false;
             missileProjectile.root.visible = false;
             if (attackerHolder) attackerHolder.visible = true;
+            if (attackerSeatHuman?.userData)
+              attackerSeatHuman.userData.attackBlend = 0;
             onCaptureAnimationComplete?.(captureEvent.id);
             return true;
           }
@@ -6565,7 +8234,10 @@ export default function SnakeBoard3D({
         }
         if (attackElapsed <= volleyDuration && !isDroneLikeAircraft) {
           const cycleDuration = perMissileFlight + perMissileGap;
-          const cycleIndex = Math.min(volleyCount - 1, Math.floor(attackElapsed / cycleDuration));
+          const cycleIndex = Math.min(
+            volleyCount - 1,
+            Math.floor(attackElapsed / cycleDuration)
+          );
           const cycleElapsed = attackElapsed - cycleIndex * cycleDuration;
           const missileActive = cycleElapsed <= perMissileFlight;
           if (vehicleKind === 'supportTruck') {
@@ -6577,24 +8249,36 @@ export default function SnakeBoard3D({
           }
           if (missileActive) {
             const rawU = easeInOut(clamp01(cycleElapsed / perMissileFlight));
-            const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
-            const from = vehicleKind === 'supportTruck' ? parkedTop : centerStage;
+            const u = remapTakeoffLandingProgress(
+              rawU,
+              captureTuning.takeoff,
+              captureTuning.landing
+            );
+            const from =
+              vehicleKind === 'supportTruck' ? parkedTop : centerStage;
             const pos = missilePathAt(u, from);
             const next = missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
-            missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+            missileProjectile.root.quaternion.setFromUnitVectors(
+              new THREE.Vector3(1, 0, 0),
+              dir
+            );
             setCameraTrack(missileProjectile.root.position);
           } else {
             missileProjectile.root.visible = false;
-            setCameraTrack(vehicleKind === 'supportTruck' ? parkedTop : centerStage);
+            setCameraTrack(
+              vehicleKind === 'supportTruck' ? parkedTop : centerStage
+            );
           }
           updateCaptureExplosionRig(explosion, -1);
           return false;
         }
         missileProjectile.root.visible = false;
-        const impactElapsed = attackElapsed - (vehicleKind === 'drone' ? droneAttackDuration : volleyDuration);
+        const impactElapsed =
+          attackElapsed -
+          (vehicleKind === 'drone' ? droneAttackDuration : volleyDuration);
         if (impactElapsed <= impactDuration) {
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
@@ -6625,13 +8309,15 @@ export default function SnakeBoard3D({
           primaryVehicle.root.visible = false;
           missileProjectile.root.visible = false;
           if (attackerHolder) attackerHolder.visible = true;
+          if (attackerSeatHuman?.userData)
+            attackerSeatHuman.userData.attackBlend = 0;
           onCaptureAnimationComplete?.(captureEvent.id);
           return true;
         }
         return false;
       }
     });
-  }, [captureEvent, onCaptureAnimationComplete]);
+  }, [captureEvent, onCaptureAnimationComplete, players]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
