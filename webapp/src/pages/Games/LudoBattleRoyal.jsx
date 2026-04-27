@@ -557,9 +557,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
           const root = gltf?.scene || gltf?.scenes?.[0] || null;
           if (root) {
-            if (Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
-              root.userData.animationClips = gltf.animations;
-            }
             loadedRoot = root;
             break;
           }
@@ -586,9 +583,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // eslint-disable-next-line no-await-in-loop
         const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
         loadedRoot = gltf?.scene || gltf?.scenes?.[0] || null;
-        if (loadedRoot && Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
-          loadedRoot.userData.animationClips = gltf.animations;
-        }
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrls[i], error);
@@ -638,38 +632,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   return loadCaptureWeaponModel(fallbackId);
 }
 
-function startCaptureWeaponAnimation({
-  sourceModel,
-  targetModel,
-  mixersStore,
-  loopMode = THREE.LoopRepeat
-}) {
-  if (!sourceModel?.userData?.animationClips?.length || !targetModel?.isObject3D || !mixersStore) return null;
-  const mixer = new THREE.AnimationMixer(targetModel);
-  sourceModel.userData.animationClips.forEach((clip) => {
-    const action = mixer.clipAction(clip);
-    action.setLoop(loopMode, Infinity);
-    action.clampWhenFinished = false;
-    action.enabled = true;
-    action.play();
-  });
-  mixersStore.add(mixer);
-  targetModel.userData.captureWeaponMixer = mixer;
-  return mixer;
-}
-
-function stopCaptureWeaponMixersForObjectTree(rootObject, mixersStore) {
-  if (!rootObject?.isObject3D || !mixersStore) return;
-  rootObject.traverse((node) => {
-    const mixer = node?.userData?.captureWeaponMixer;
-    if (!mixer) return;
-    if (mixersStore?.delete) mixersStore.delete(mixer);
-    mixer.stopAllAction?.();
-    mixer.uncacheRoot?.(node);
-    delete node.userData.captureWeaponMixer;
-  });
-}
-
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -683,13 +645,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     FIREARM_ATTACH_WORLD_SCALE_BOOST * (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
   weapon.scale.multiplyScalar(scaleBoost);
   rightHand.add(weapon);
-  const weaponMixers = attackerEntry?.weaponAnimationMixers;
-  startCaptureWeaponAnimation({
-    sourceModel: modelTemplate,
-    targetModel: weapon,
-    mixersStore: weaponMixers,
-    loopMode: THREE.LoopRepeat
-  });
   const muzzle = new THREE.Object3D();
   muzzle.position.set(...(tuning.muzzleOffset || FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
   weapon.add(muzzle);
@@ -697,12 +652,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     weapon,
     muzzle,
     release: () => {
-      const mixer = weapon.userData?.captureWeaponMixer;
-      if (mixer && weaponMixers?.delete) {
-        weaponMixers.delete(mixer);
-      }
-      mixer?.stopAllAction?.();
-      mixer?.uncacheRoot?.(weapon);
       weapon.parent?.remove?.(weapon);
     }
   };
@@ -759,17 +708,11 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
-    entry.weaponHolder.children.forEach((child) => {
-      stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-    });
     entry.weaponHolder.clear();
     entry.selectedCaptureAnimationId = null;
     return;
   }
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
-  entry.weaponHolder.children.forEach((child) => {
-    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-  });
   entry.weaponHolder.clear();
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
   if (!weaponModel) {
@@ -777,9 +720,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
-  entry.weaponHolder.children.forEach((child) => {
-    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-  });
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
   const baseAlignPositionY = clone.position.y;
@@ -795,12 +735,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayTuning.position[1];
   clone.position.z += displayTuning.position[2];
   clone.rotation.set(...displayTuning.rotation);
-  startCaptureWeaponAnimation({
-    sourceModel: weaponModel,
-    targetModel: clone,
-    mixersStore: entry.weaponAnimationMixers,
-    loopMode: THREE.LoopRepeat
-  });
   entry.weaponHolder.add(clone);
 }
 
@@ -6103,7 +6037,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
   const parkedCaptureVehiclesRef = useRef(new Map());
-  const weaponAnimationMixersRef = useRef(new Set());
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -6590,9 +6523,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (showFirearm) {
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
         } else {
-          entry?.weaponHolder?.children?.forEach?.((child) => {
-            stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-          });
           entry.weaponHolder?.clear?.();
           entry.selectedCaptureAnimationId = null;
         }
@@ -6685,7 +6615,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         droneTruck: droneTruckFx.root,
         weaponRack: weaponRackFx.root,
         weaponHolder: weaponRackFx.weaponHolder ?? null,
-        weaponAnimationMixers: weaponAnimationMixersRef.current,
         actionButton: weaponRackFx.actionButton ?? null,
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
@@ -8754,11 +8683,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
       const delta = appliedDeltaMs / 1000;
       // Keep parked aircraft static; rotor/propeller animation only runs during active strikes.
-      if (weaponAnimationMixersRef.current.size > 0) {
-        weaponAnimationMixersRef.current.forEach((mixer) => {
-          mixer?.update?.(delta);
-        });
-      }
 
       const state = stateRef.current;
       if (state?.animation?.active) {
@@ -9104,20 +9028,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         captureFxRef.current = null;
       }
       parkedCaptureVehiclesRef.current.forEach((entry) => {
-        entry?.weaponHolder?.children?.forEach?.((child) => {
-          stopCaptureWeaponMixersForObjectTree(child, weaponAnimationMixersRef.current);
-        });
         entry?.jet?.parent?.remove?.(entry.jet);
         entry?.helicopter?.parent?.remove?.(entry.helicopter);
         entry?.drone?.parent?.remove?.(entry.drone);
         entry?.missile?.parent?.remove?.(entry.missile);
         entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
-        entry?.weaponRack?.parent?.remove?.(entry.weaponRack);
       });
-      weaponAnimationMixersRef.current.forEach((mixer) => {
-        mixer?.stopAllAction?.();
-      });
-      weaponAnimationMixersRef.current.clear();
       parkedCaptureVehiclesRef.current.clear();
       arenaRef.current = null;
       rendererRef.current = null;
