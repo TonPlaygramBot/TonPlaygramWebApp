@@ -13,6 +13,28 @@ const dampScalar = (current, target, lambda, dt) =>
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+let fallbackHumanAlbedoTexture = null;
+
+function getFallbackHumanAlbedoTexture() {
+  if (fallbackHumanAlbedoTexture) return fallbackHumanAlbedoTexture;
+  const canvas = globalThis?.document?.createElement?.('canvas');
+  if (!canvas) return null;
+  canvas.width = 4;
+  canvas.height = 4;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#c7a88d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#8b6c54';
+  ctx.fillRect(0, 0, 2, 2);
+  ctx.fillRect(2, 2, 2, 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.flipY = false;
+  tex.needsUpdate = true;
+  fallbackHumanAlbedoTexture = tex;
+  return fallbackHumanAlbedoTexture;
+}
 
 function makeBasisQuaternion(side, up, forward) {
   BASIS_MAT.makeBasis(
@@ -187,12 +209,27 @@ export function createBilardoHumanRig(scene, opts = {}) {
             ? [obj.material]
             : [];
         mats.forEach((m) => {
-          if (m?.map) {
-            m.map.colorSpace = THREE.SRGBColorSpace;
-            m.map.anisotropy = Math.max(m.map.anisotropy || 1, opts?.textureAnisotropy ?? 8);
-            m.map.needsUpdate = true;
+          if (!m) return;
+          const ensureTexture = (tex, isColor = false) => {
+            if (!tex) return;
+            if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
+            tex.flipY = false;
+            tex.anisotropy = Math.max(tex.anisotropy || 1, opts?.textureAnisotropy ?? 8);
+            tex.needsUpdate = true;
+          };
+          if (!m.map) {
+            m.map = getFallbackHumanAlbedoTexture();
           }
-          if (m) m.needsUpdate = true;
+          ensureTexture(m.map, true);
+          ensureTexture(m.emissiveMap, true);
+          ensureTexture(m.normalMap, false);
+          ensureTexture(m.roughnessMap, false);
+          ensureTexture(m.metalnessMap, false);
+          ensureTexture(m.aoMap, false);
+          if (m.color?.setHex) m.color.setHex(0xffffff);
+          if (typeof m.opacity === 'number' && m.opacity < 1) m.opacity = 1;
+          if (m.transparent) m.transparent = false;
+          m.needsUpdate = true;
         });
       });
       human.bones = buildAvatarBones(model);
