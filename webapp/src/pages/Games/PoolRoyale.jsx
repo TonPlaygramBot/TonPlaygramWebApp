@@ -1933,7 +1933,7 @@ const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilar
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // raise launch speed so cue-ball movement remains clear on release
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER = 2; // keep standing humans at 2x table-surface height
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
@@ -19525,7 +19525,8 @@ useEffect(() => {
       };
       const loadFirstAvailableGltf = async (urls = []) => {
         if (!hospitalityLoaderRef.current) {
-          hospitalityLoaderRef.current = createConfiguredGLTFLoader(rendererRef.current);
+          hospitalityLoaderRef.current = new GLTFLoader();
+          hospitalityLoaderRef.current.setCrossOrigin('anonymous');
         }
         const loader = hospitalityLoaderRef.current;
         let lastError = null;
@@ -19704,20 +19705,6 @@ useEffect(() => {
               if (!child?.isMesh) return;
               child.castShadow = true;
               child.receiveShadow = true;
-              const materials = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              materials.forEach((material) => {
-                if (!material) return;
-                ['map', 'emissiveMap'].forEach((key) => {
-                  const texture = material[key];
-                  if (!texture) return;
-                  applySRGBColorSpace(texture);
-                  texture.flipY = false;
-                  texture.needsUpdate = true;
-                });
-                material.needsUpdate = true;
-              });
             });
             seatedHumanTemplateRef.current = model;
             return model;
@@ -24427,181 +24414,6 @@ useEffect(() => {
         basis.makeBasis(side.clone().normalize(), up, forward.clone().normalize());
         return new THREE.Quaternion().setFromRotationMatrix(basis);
       };
-      const cleanAvatarBoneName = (name = '') =>
-        `${name}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const findAvatarBone = (allBones, aliases = []) => {
-        const normalizedAliases = aliases.map(cleanAvatarBoneName);
-        const prepared = allBones.map((bone) => ({
-          bone,
-          name: cleanAvatarBoneName(bone?.name || '')
-        }));
-        for (const alias of normalizedAliases) {
-          const exact = prepared.find((entry) => entry.name === alias || entry.name.endsWith(alias));
-          if (exact) return exact.bone;
-        }
-        for (const alias of normalizedAliases) {
-          const fuzzy = prepared.find((entry) => entry.name.includes(alias));
-          if (fuzzy) return fuzzy.bone;
-        }
-        return undefined;
-      };
-      const buildAvatarBones = (model) => {
-        const allBones = [];
-        model?.traverse?.((child) => {
-          if (child?.isBone) allBones.push(child);
-        });
-        const find = (...aliases) => findAvatarBone(allBones, aliases);
-        return {
-          hips: find('hips', 'pelvis', 'mixamorigHips'),
-          spine: find('spine', 'spine01', 'mixamorigSpine'),
-          chest: find('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'),
-          neck: find('neck', 'mixamorigNeck'),
-          head: find('head', 'mixamorigHead'),
-          leftUpperArm: find('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'),
-          leftLowerArm: find('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'),
-          leftHand: find('lefthand', 'handl', 'mixamorigLeftHand'),
-          rightUpperArm: find('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'),
-          rightLowerArm: find('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'),
-          rightHand: find('righthand', 'handr', 'mixamorigRightHand'),
-          leftUpperLeg: find('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'),
-          leftLowerLeg: find('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'),
-          leftFoot: find('leftfoot', 'footl', 'mixamorigLeftFoot'),
-          rightUpperLeg: find('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'),
-          rightLowerLeg: find('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'),
-          rightFoot: find('rightfoot', 'footr', 'mixamorigRightFoot')
-        };
-      };
-      const collectFingerBones = (handBone) => {
-        const bones = [];
-        handBone?.traverse?.((node) => {
-          if (!node?.isBone || node === handBone) return;
-          const normalized = cleanAvatarBoneName(node.name);
-          if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((part) => normalized.includes(part))) {
-            bones.push(node);
-          }
-        });
-        return bones;
-      };
-      const firstBoneChild = (bone) => bone?.children?.find((child) => child?.isBone) || null;
-      const setBoneWorldQuaternion = (bone, worldQ) => {
-        if (!bone || !worldQ) return;
-        const parentQ = new THREE.Quaternion();
-        bone.parent?.getWorldQuaternion?.(parentQ);
-        bone.quaternion.copy(parentQ.invert().multiply(worldQ));
-        bone.updateMatrixWorld(true);
-      };
-      const rotateBoneToward = (bone, target, strength = 1, fallbackDir = new THREE.Vector3(0, 1, 0)) => {
-        if (!bone || !target || strength <= 0) return;
-        const origin = bone.getWorldPosition(new THREE.Vector3());
-        const childPos =
-          firstBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) ||
-          origin.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25);
-        const currentDir = childPos.sub(origin).normalize();
-        const desiredDir = target.clone().sub(origin);
-        if (desiredDir.lengthSq() < 1e-6 || currentDir.lengthSq() < 1e-6) return;
-        const delta = new THREE.Quaternion().slerpQuaternions(
-          new THREE.Quaternion(),
-          new THREE.Quaternion().setFromUnitVectors(currentDir, desiredDir.normalize()),
-          THREE.MathUtils.clamp(strength, 0, 1)
-        );
-        setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
-      };
-      const twistBone = (bone, axis, amount) => {
-        if (!bone || !axis || Math.abs(amount) < 1e-5) return;
-        const worldQ = new THREE.Quaternion()
-          .setFromAxisAngle(axis.clone().normalize(), amount)
-          .multiply(bone.getWorldQuaternion(new THREE.Quaternion()));
-        setBoneWorldQuaternion(bone, worldQ);
-      };
-      const aimTwoBone = (upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) => {
-        for (let i = 0; i < 2; i += 1) {
-          rotateBoneToward(upper, elbow, upperStrength, pole);
-          rotateBoneToward(lower, hand, lowerStrength, pole);
-          twistBone(upper, pole, 0.025 * upperStrength);
-        }
-      };
-      const setHandBasis = (bone, side, _up, forward, roll = 0, strength = 1) => {
-        if (!bone || strength <= 0) return;
-        const q = makeHumanoidBasis(side, forward);
-        if (Math.abs(roll) > 1e-4) {
-          q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
-        }
-        setBoneWorldQuaternion(
-          bone,
-          bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, THREE.MathUtils.clamp(strength, 0, 1))
-        );
-      };
-      const poseFingers = (fingers, mode = 'idle', weight = 1) => {
-        const w = THREE.MathUtils.clamp(weight, 0, 1);
-        fingers?.forEach?.((finger, index) => {
-          const n = cleanAvatarBoneName(finger?.name);
-          const thumb = n.includes('thumb');
-          const indexFinger = n.includes('index');
-          const middle = n.includes('middle');
-          const ring = n.includes('ring');
-          const pinky = n.includes('pinky') || n.includes('little');
-          const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal'));
-          const tip = n.includes('3') || n.includes('distal');
-          if (mode === 'idle') {
-            finger.rotation.x += 0.02 * w;
-            finger.rotation.z += 0.01 * w * (index % 2 ? -1 : 1);
-            return;
-          }
-          if (mode === 'grip') {
-            if (thumb) {
-              finger.rotation.x += 0.22 * w;
-              finger.rotation.y += -0.42 * w;
-              finger.rotation.z += 0.22 * w;
-              return;
-            }
-            const curl = indexFinger
-              ? base
-                ? 0.42
-                : tip
-                  ? 0.48
-                  : 0.62
-              : middle
-                ? base
-                  ? 0.54
-                  : tip
-                    ? 0.58
-                    : 0.78
-                : ring
-                  ? base
-                    ? 0.48
-                    : tip
-                      ? 0.52
-                      : 0.68
-                  : pinky
-                    ? base
-                      ? 0.42
-                      : tip
-                        ? 0.46
-                        : 0.6
-                    : 0;
-            finger.rotation.x += curl * w;
-            finger.rotation.z += (indexFinger ? -0.03 : ring ? 0.04 : pinky ? 0.07 : 0) * w;
-            return;
-          }
-          if (thumb) {
-            finger.rotation.x += -0.04 * w;
-            finger.rotation.y += 0.62 * w;
-            finger.rotation.z += -0.58 * w;
-          } else if (indexFinger) {
-            finger.rotation.x += (base ? 0.12 : tip ? 0.22 : 0.28) * w;
-            finger.rotation.y += -0.26 * w;
-            finger.rotation.z += -0.2 * w;
-          } else if (middle) {
-            finger.rotation.x += (base ? 0.1 : tip ? 0.18 : 0.22) * w;
-            finger.rotation.y += -0.04 * w;
-            finger.rotation.z += -0.04 * w;
-          } else if (ring || pinky) {
-            finger.rotation.x += (base ? (ring ? 0.03 : 0.02) : tip ? (ring ? 0.1 : 0.08) : ring ? 0.12 : 0.1) * w;
-            finger.rotation.y += (ring ? 0.08 : 0.16) * w;
-            finger.rotation.z += (ring ? 0.16 : 0.28) * w;
-          }
-        });
-      };
 
       const createBridgeHandGroup = (skinMat) => {
         const group = new THREE.Group();
@@ -24662,18 +24474,13 @@ useEffect(() => {
         model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
         model.updateMatrixWorld(true);
       };
-      const resolvePlayerHumanHeight = () => {
-        const tableSurfaceY = TABLE_Y + TABLE.THICK;
-        const surfaceHeight = Math.max(0.85, tableSurfaceY - floorY);
-        return surfaceHeight * HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER;
-      };
 
       const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = resolvePlayerHumanHeight();
+        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         if (template) {
           const avatar = template.clone(true);
@@ -24685,28 +24492,6 @@ useEffect(() => {
             child.frustumCulled = false;
           });
           rigGroup.add(avatar);
-          const bones = buildAvatarBones(avatar);
-          const leftFingers = collectFingerBones(bones.leftHand);
-          const rightFingers = collectFingerBones(bones.rightHand);
-          const restQuats = new Map();
-          [...Object.values(bones), ...leftFingers, ...rightFingers].forEach((bone) => {
-            if (bone?.quaternion) restQuats.set(bone, bone.quaternion.clone());
-          });
-          const activeGlb = Boolean(
-            bones.hips &&
-              bones.spine &&
-              bones.head &&
-              bones.leftUpperArm &&
-              bones.leftLowerArm &&
-              bones.leftHand &&
-              bones.rightUpperArm &&
-              bones.rightLowerArm &&
-              bones.rightHand &&
-              bones.leftUpperLeg &&
-              bones.leftLowerLeg &&
-              bones.rightUpperLeg &&
-              bones.rightLowerLeg
-          );
           rigGroup.userData.anim = {
             seat,
             mode: 'idle',
@@ -24714,11 +24499,6 @@ useEffect(() => {
             humanHeight,
             scale,
             model: avatar,
-            bones,
-            leftFingers,
-            rightFingers,
-            restQuats,
-            activeGlb,
             poseT: 0,
             walkT: 0,
             yaw: facingY,
@@ -24938,6 +24718,8 @@ useEffect(() => {
         const isInsideTableBlocker = (point) =>
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
+        const desiredRoot = chooseEdgeTarget(normalizedAim);
+
         rigs.forEach((rig) => {
           const anim = rig?.anim;
           if (!anim) return;
@@ -24963,9 +24745,10 @@ useEffect(() => {
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const seatAim = isShooter ? normalizedAim : normalizedAim.clone().multiplyScalar(-1);
-          const desiredRoot = chooseEdgeTarget(seatAim);
-          const perimeterTarget = clampToWalkPerimeter(desiredRoot);
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+          const perimeterTarget = clampToWalkPerimeter(seatTarget);
           if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
           anim.rootTarget.copy(perimeterTarget);
           if (!Number.isFinite(anim.walkPerimeterT)) {
@@ -24992,7 +24775,20 @@ useEffect(() => {
           rig.group.rotation.y = anim.yaw;
 
           const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const upAxis = new THREE.Vector3(0, 1, 0);
+          if (anim.model && !anim.pelvis) {
+            const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+            const idle = 1 - t;
+            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
+            const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+            const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+            anim.model.position.set(0, 0.006 * breath - 0.018 * t, 0.01 * walk);
+            anim.model.rotation.set(
+              -0.08 * t - 0.02 * walk,
+              0,
+              (anim.seat === activeSeat ? -1 : 1) * 0.014 * idle
+            );
+            return;
+          }
           const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
           const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
@@ -25025,17 +24821,10 @@ useEffect(() => {
             humanShotState === 'dragging'
               ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
               : 0;
-          const strikeNorm = (() => {
-            if (humanShotState !== 'striking') return 0;
-            if (isShooter && manualStrikeStartedAtRef.current > 0) {
-              return THREE.MathUtils.clamp(
-                (nowMs - manualStrikeStartedAtRef.current) / MANUAL_STRIKE_TIME_MS,
-                0,
-                1
-              );
-            }
-            return THREE.MathUtils.clamp(shotAge / MANUAL_STRIKE_TIME_MS, 0, 1);
-          })();
+          const strikeNorm =
+            humanShotState === 'striking'
+              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
+              : 0;
           let cueBallGap = BALL_R * 1.22;
           if (humanShotState === 'dragging') {
             cueBallGap += pull + practiceStroke;
@@ -25074,159 +24863,6 @@ useEffect(() => {
 
           const leftKnee = leftHipWorld.clone().lerp(leftFootWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.11, t) * scale).addScaledVector(aimForward, 0.04 * t * scale);
           const rightKnee = rightHipWorld.clone().lerp(rightFootWorld, 0.52).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.08, t) * scale).addScaledVector(aimForward, -0.03 * t * scale);
-
-          if (anim.activeGlb && anim.model && anim.bones) {
-            const idle = 1 - t;
-            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
-            const b = anim.bones;
-            anim.model.position.set(0, 0.006 * breath - 0.018 * t, 0.01 * walk);
-            anim.model.rotation.set(0, 0, 0);
-            anim.model.updateMatrixWorld(true);
-            anim.restQuats?.forEach?.((quat, bone) => bone?.quaternion?.copy?.(quat));
-            anim.model.updateMatrixWorld(true);
-            const cueDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
-            const shotQ = makeHumanoidBasis(side, aimForward);
-
-            if (moveAmount > 0.001 && idle > 0.001) {
-              const s = Math.sin((anim.walkT ?? 0) * 6.2);
-              const c = Math.cos((anim.walkT ?? 0) * 6.2);
-              const w = THREE.MathUtils.clamp(moveAmount * 18, 0, 1) * idle;
-              if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
-              if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
-              if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w;
-              if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w;
-              if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w;
-              if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w;
-              if (b.spine) b.spine.rotation.z += c * 0.025 * w;
-              if (b.hips) b.hips.rotation.z -= c * 0.018 * w;
-            }
-
-            const rightGrip = rightHandWorld
-              .clone()
-              .addScaledVector(cueDir, -0.028 * (0.25 + 0.75 * t))
-              .addScaledVector(upAxis, 0.006 * t);
-            const rightIdleElbow = rightGrip
-              .clone()
-              .addScaledVector(upAxis, 0.24 + 0.19 * t)
-              .addScaledVector(side, 0.09)
-              .addScaledVector(aimForward, -0.03 * idle);
-            const rightHold = 0.56 + 0.4 * t;
-            const blendedRightElbow = rightElbow.clone().lerp(rightIdleElbow, idle * 0.68);
-            aimTwoBone(
-              b.rightUpperArm,
-              b.rightLowerArm,
-              blendedRightElbow,
-              rightGrip,
-              side.clone().addScaledVector(upAxis, 0.22).normalize(),
-              rightHold,
-              rightHold
-            );
-            setHandBasis(
-              b.rightHand,
-              side.clone().addScaledVector(upAxis, -0.08).normalize(),
-              upAxis
-                .clone()
-                .multiplyScalar(0.76)
-                .addScaledVector(side, 0.18)
-                .addScaledVector(aimForward, -0.1)
-                .normalize(),
-              cueDir,
-              0.08 * idle + 0.2 * t + 0.03 * strikeNorm,
-              0.78 + 0.18 * t
-            );
-            poseFingers(anim.rightFingers, 'grip', 0.58 + 0.28 * t);
-
-            if (t < 0.025) {
-              poseFingers(anim.leftFingers, 'idle', 1);
-              return;
-            }
-
-            rotateBoneToward(b.hips, torsoCenterWorld, (0.16 + 0.44 * t) * t, aimForward);
-            twistBone(b.hips, side, -0.075 * t);
-            twistBone(b.hips, aimForward, -0.04 * t);
-            rotateBoneToward(b.spine, chestCenterWorld, (0.38 + 0.36 * t) * t, aimForward);
-            twistBone(b.spine, side, -0.23 * t);
-            twistBone(b.spine, aimForward, -0.055 * t);
-            rotateBoneToward(b.chest, neckWorld, (0.52 + 0.3 * t) * t, aimForward);
-            twistBone(b.chest, side, -0.35 * t);
-            twistBone(b.chest, aimForward, -0.035 * t);
-            rotateBoneToward(b.neck, headCenterWorld, 0.66 * t, aimForward);
-            twistBone(b.neck, side, -0.13 * t);
-            if (b.head) {
-              setBoneWorldQuaternion(
-                b.head,
-                b.head
-                  .getWorldQuaternion(new THREE.Quaternion())
-                  .slerp(
-                    shotQ
-                      .clone()
-                      .multiply(new THREE.Quaternion().setFromAxisAngle(side, -0.12 * t))
-                      .multiply(new THREE.Quaternion().setFromAxisAngle(aimForward, -0.025 * t)),
-                    0.74 * t
-                  )
-              );
-            }
-
-            const leftHandTarget = leftHandWorld
-              .clone()
-              .addScaledVector(aimForward, 0.012 * t)
-              .addScaledVector(side, -0.006 * t)
-              .addScaledVector(upAxis, -0.01 * t);
-            const leftElbowTarget = leftElbow
-              .clone()
-              .addScaledVector(aimForward, 0.02 * t)
-              .addScaledVector(side, -0.03 * t)
-              .addScaledVector(upAxis, -0.005 * t);
-            aimTwoBone(
-              b.leftUpperArm,
-              b.leftLowerArm,
-              leftElbowTarget,
-              leftHandTarget,
-              side.clone().multiplyScalar(-1).addScaledVector(upAxis, 0.14).normalize(),
-              0.95 * t,
-              0.99 * t
-            );
-            twistBone(b.leftUpperArm, aimForward, -0.16 * t);
-            twistBone(b.leftLowerArm, aimForward, 0.05 * t);
-            setHandBasis(
-              b.leftHand,
-              side.clone().multiplyScalar(-1).addScaledVector(aimForward, -0.2).normalize(),
-              upAxis
-                .clone()
-                .multiplyScalar(0.96)
-                .addScaledVector(aimForward, -0.08)
-                .addScaledVector(side, -0.04)
-                .normalize(),
-              cueDir,
-              -0.22 * t,
-              0.98 * t
-            );
-            poseFingers(anim.leftFingers, 'bridge', t);
-
-            aimTwoBone(
-              b.leftUpperLeg,
-              b.leftLowerLeg,
-              leftKnee,
-              leftFootWorld,
-              aimForward.clone().addScaledVector(upAxis, 0.12).normalize(),
-              0.68 * t,
-              0.84 * t
-            );
-            twistBone(b.leftUpperLeg, aimForward, -0.07 * t);
-            setHandBasis(b.leftFoot, side, upAxis, aimForward, -0.1 * t, 0.68 * t);
-            aimTwoBone(
-              b.rightUpperLeg,
-              b.rightLowerLeg,
-              rightKnee,
-              rightFootWorld,
-              aimForward.clone().multiplyScalar(-1).addScaledVector(upAxis, 0.1).normalize(),
-              0.68 * t,
-              0.84 * t
-            );
-            twistBone(b.rightUpperLeg, aimForward, 0.06 * t);
-            setHandBasis(b.rightFoot, side, upAxis, aimForward, 0.07 * t, 0.68 * t);
-            return;
-          }
 
           const bodyQ = makeHumanoidBasis(side, aimForward);
           anim.pelvis.position.copy(hipCenterWorld);
