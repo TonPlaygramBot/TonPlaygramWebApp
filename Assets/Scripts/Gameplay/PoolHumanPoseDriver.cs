@@ -38,20 +38,37 @@ namespace Aiming
         public float sourceTableWidth = 2f;
         public float edgeMargin = 0.58f;
         public float desiredShootDistance = 1.06f;
+        [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
+        [Min(0.6f)] public float bodyScaleMultiplier = 1.12f;
 
         [Header("Smoothing")]
         public float poseLambda = 9f;
         public float moveLambda = 5.6f;
         public float rotLambda = 8.5f;
+        [Tooltip("Lower values slow rail-to-rail side movement to feel heavier and more realistic.")]
+        [Range(0.05f, 1f)] public float lateralResponse = 0.42f;
 
         [Header("Cue relation")]
         public float bridgeDist = 0.24f;
         public float gripRatio = 0.76f;
         public float stanceHeight = 0f;
+        [Tooltip("How much closer to the table edge the chest/head moves while aiming.")]
+        [Range(0f, 0.2f)] public float tableLeanDepth = 0.08f;
+
+        [Header("Visual fidelity")]
+        [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
+        public Renderer[] originalTextureRenderers;
+        Material[][] _originalSharedMaterials;
 
         float _poseT;
         float _walkT;
         float _yaw;
+        float _lateralEdgeCoord;
+
+        void Awake()
+        {
+            CacheOriginalMaterials();
+        }
 
         void LateUpdate()
         {
@@ -60,8 +77,10 @@ namespace Aiming
                 return;
             }
 
+            EnsureOriginalMaterials();
+
             float dt = Mathf.Max(0f, Time.deltaTime);
-            float s = ComputeScaleFactor();
+            float s = ComputeScaleFactor() * bodyScaleMultiplier;
 
             Vector3 cueBall = cueController.cueBall.position;
             Vector3 aimForward = cueController.CurrentAimDirection;
@@ -73,11 +92,20 @@ namespace Aiming
             aimForward.Normalize();
 
             Vector3 aimSide = new Vector3(aimForward.z, 0f, -aimForward.x).normalized;
-            Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s);
+            Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s, cueController.CurrentShotState);
 
+            BridgeMode bridgeMode = ResolveBridgeMode(cueBall);
             float bridgeDistance = bridgeDist * s;
+            if (bridgeMode == BridgeMode.Rail)
+            {
+                bridgeDistance *= 0.88f;
+            }
+            else if (bridgeMode == BridgeMode.High)
+            {
+                bridgeDistance *= 1.07f;
+            }
             Vector3 bridgeHandTarget = cueBall + (aimForward * -bridgeDistance) + (aimSide * (-0.018f * s));
-            bridgeHandTarget.y = ResolveTableY(cueBall.y) + (0.02f * s);
+            bridgeHandTarget.y = ResolveTableY(cueBall.y) + ResolveBridgeHeightOffset(bridgeMode, s);
 
             Vector3 cueTip = cueController.cueTip != null ? cueController.cueTip.position : cueBall;
             Vector3 cueBase = cueController.transform.position;
@@ -96,6 +124,7 @@ namespace Aiming
                 gripHandTarget,
                 idleRightHandTarget,
                 idleLeftHandTarget,
+                bridgeMode,
                 s);
         }
 
@@ -115,14 +144,73 @@ namespace Aiming
             return (widthScale + lengthScale) * 0.5f;
         }
 
+        void CacheOriginalMaterials()
+        {
+            if (originalTextureRenderers == null || originalTextureRenderers.Length == 0)
+            {
+                return;
+            }
+
+            _originalSharedMaterials = new Material[originalTextureRenderers.Length][];
+            for (int i = 0; i < originalTextureRenderers.Length; i++)
+            {
+                Renderer renderer = originalTextureRenderers[i];
+                _originalSharedMaterials[i] = renderer != null ? renderer.sharedMaterials : null;
+            }
+        }
+
+        void EnsureOriginalMaterials()
+        {
+            if (_originalSharedMaterials == null || originalTextureRenderers == null)
+            {
+                return;
+            }
+
+            int count = Mathf.Min(originalTextureRenderers.Length, _originalSharedMaterials.Length);
+            for (int i = 0; i < count; i++)
+            {
+                Renderer renderer = originalTextureRenderers[i];
+                Material[] cached = _originalSharedMaterials[i];
+                if (renderer == null || cached == null || cached.Length == 0)
+                {
+                    continue;
+                }
+
+                Material[] current = renderer.sharedMaterials;
+                bool different = current == null || current.Length != cached.Length;
+                if (!different)
+                {
+                    for (int m = 0; m < current.Length; m++)
+                    {
+                        if (current[m] != cached[m])
+                        {
+                            different = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (different)
+                {
+                    renderer.sharedMaterials = cached;
+                }
+            }
+        }
+
         float ResolveTableY(float cueBallY)
         {
             return cueBallY - cueController.ballRadius + stanceHeight;
         }
 
-        Vector3 ChooseHumanEdgePosition(Vector3 cueBallWorld, Vector3 aimForward, float s)
+        Vector3 ChooseHumanEdgePosition(Vector3 cueBallWorld, Vector3 aimForward, float s, CueController.ShotState shotState)
         {
-            Vector3 desired = cueBallWorld + (aimForward * (-desiredShootDistance * s));
+            float approachDistance = desiredShootDistance * s;
+            if (shotState != CueController.ShotState.Idle)
+            {
+                approachDistance = Mathf.Max(0.08f, approachDistance - (tableLeanDepth * s));
+            }
+
+            Vector3 desired = cueBallWorld + (aimForward * -approachDistance);
 
             float halfW = cueController.tableBounds.size.x * 0.5f;
             float halfL = cueController.tableBounds.size.z * 0.5f;
@@ -137,6 +225,10 @@ namespace Aiming
                 new Vector3(Mathf.Clamp(desired.x, -xEdge, xEdge), 0f, zEdge)
             };
 
+            bool sideRail = Mathf.Abs(desired.x) > Mathf.Abs(desired.z);
+            float targetEdgeCoord = sideRail ? desired.z : desired.x;
+            _lateralEdgeCoord = DampScalar(_lateralEdgeCoord, targetEdgeCoord, lateralResponse * 9f, Mathf.Max(0f, Time.deltaTime));
+
             Vector3 best = candidates[0];
             float bestDist = (best - desired).sqrMagnitude;
             for (int i = 1; i < candidates.Length; i++)
@@ -147,6 +239,15 @@ namespace Aiming
                     best = candidates[i];
                     bestDist = dist;
                 }
+            }
+
+            if (Mathf.Abs(best.x) >= xEdge - 0.0001f)
+            {
+                best.z = Mathf.Clamp(_lateralEdgeCoord, -zEdge, zEdge);
+            }
+            else if (Mathf.Abs(best.z) >= zEdge - 0.0001f)
+            {
+                best.x = Mathf.Clamp(_lateralEdgeCoord, -xEdge, xEdge);
             }
 
             best.y = stanceHeight;
@@ -162,6 +263,7 @@ namespace Aiming
             Vector3 gripHandTarget,
             Vector3 idleRightHandTarget,
             Vector3 idleLeftHandTarget,
+            BridgeMode bridgeMode,
             float s)
         {
             float targetPose = shotState == CueController.ShotState.Idle ? 0f : 1f;
@@ -194,8 +296,8 @@ namespace Aiming
 
             Vector3 leftFootStand = new Vector3(-0.13f, 0.035f, 0.03f + (walk * 0.03f)) * s;
             Vector3 rightFootStand = new Vector3(0.13f, 0.035f, -0.03f - (walk * 0.03f)) * s;
-            Vector3 frontFootShoot = new Vector3(-0.22f, 0.035f, -0.34f) * s;
-            Vector3 rearFootShoot = new Vector3(0.26f, 0.035f, 0.34f) * s;
+            Vector3 frontFootShoot = new Vector3(-0.24f, 0.035f, -0.38f) * s;
+            Vector3 rearFootShoot = new Vector3(0.27f, 0.035f, 0.36f) * s;
             Vector3 leftFootWorld = LocalToWorld(Vector3.Lerp(leftFootStand, frontFootShoot, t));
             Vector3 rightFootWorld = LocalToWorld(Vector3.Lerp(rightFootStand, rearFootShoot, t));
 
@@ -217,6 +319,16 @@ namespace Aiming
             Vector3 rightKnee = Vector3.Lerp(rightHipWorld, rightFootWorld, 0.52f) +
                                 (Vector3.up * Lerp(0.18f, 0.08f, t) * s) +
                                 (forward * (-0.03f * t * s));
+
+            if (bridgeMode == BridgeMode.High)
+            {
+                leftElbow += Vector3.up * (0.025f * s);
+                rightElbow += Vector3.up * (0.02f * s);
+            }
+            else if (bridgeMode == BridgeMode.Rail)
+            {
+                leftElbow += side * (-0.015f * s);
+            }
 
             SetNodePose(pelvis, hipCenterWorld, side, forward, new Vector3(Lerp(0f, -0.08f, t), 0f, 0f));
             SetNodePose(torso, torsoCenterWorld, side, forward, new Vector3(Lerp(0f, -0.28f, t), 0f, 0f));
@@ -240,6 +352,43 @@ namespace Aiming
 
             SetNodePose(leftFoot, leftFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, -0.24f * t, 0f));
             SetNodePose(rightFoot, rightFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, 0.16f * t, 0f));
+        }
+
+        enum BridgeMode
+        {
+            Standard,
+            Rail,
+            High
+        }
+
+        BridgeMode ResolveBridgeMode(Vector3 cueBall)
+        {
+            float halfW = cueController.tableBounds.extents.x;
+            float halfL = cueController.tableBounds.extents.z;
+            float distRail = Mathf.Min(
+                halfW - Mathf.Abs(cueBall.x - cueController.tableBounds.center.x),
+                halfL - Mathf.Abs(cueBall.z - cueController.tableBounds.center.z));
+
+            if (distRail <= cueController.ballRadius * 1.7f)
+            {
+                return BridgeMode.Rail;
+            }
+
+            bool elevatedStroke = cueController.CurrentShotState == CueController.ShotState.Striking && cueController.spinInput.y > 0.45f;
+            return elevatedStroke ? BridgeMode.High : BridgeMode.Standard;
+        }
+
+        float ResolveBridgeHeightOffset(BridgeMode mode, float s)
+        {
+            switch (mode)
+            {
+                case BridgeMode.Rail:
+                    return 0.028f * s;
+                case BridgeMode.High:
+                    return 0.04f * s;
+                default:
+                    return 0.02f * s;
+            }
         }
 
         static float DampScalar(float current, float target, float lambda, float dt)
