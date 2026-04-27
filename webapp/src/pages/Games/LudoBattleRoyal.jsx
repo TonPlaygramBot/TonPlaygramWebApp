@@ -155,6 +155,27 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'compactCarbineAttack',
   'marksmanDmrAttack'
 ]);
+const LARGE_RACK_FIREARM_IDS = new Set([
+  'assaultRifleAttack',
+  'ak47VolleyAttack',
+  'mosinMarksmanAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'marksmanDmrAttack',
+  'compactCarbineAttack'
+]);
+const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
+  default: Object.freeze({
+    targetSizeMultiplier: 1.06,
+    position: [0, 0, -0.004],
+    rotation: [0, Math.PI * 0.5, 0]
+  }),
+  large: Object.freeze({
+    targetHeight: 0.42,
+    position: [0.078, 0, -0.018],
+    rotation: [0, Math.PI * 0.5, 0]
+  })
+});
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -637,16 +658,9 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0.04, 0.032, -0.018);
-  weaponHolder.rotation.z = -0.08;
+  weaponHolder.position.set(0.078, 0.026, -0.024);
+  weaponHolder.rotation.z = -0.03;
   root.add(weaponHolder);
-
-  const buttonBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.035, 0.02, 24),
-    createCaptureVehicleMaterial('truck', { color: '#0f172a', roughness: 0.4, metalness: 0.34 })
-  );
-  buttonBase.position.set(0.074, 0.016, -0.022);
-  root.add(buttonBase);
 
   const actionButton = new THREE.Mesh(
     new THREE.CylinderGeometry(0.024, 0.026, 0.015, 28),
@@ -669,7 +683,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0.04, 0.032, -0.018);
+  weaponRackHit.position.set(0.078, 0.026, -0.024);
   root.add(weaponRackHit);
 
   return {
@@ -699,9 +713,18 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   entry.selectedCaptureAnimationId = captureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
-  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
-  clone.rotation.y = Math.PI * 0.5;
-  clone.position.set(0, 0, -0.004);
+  const isLargeRackFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
+  const displayTuning = isLargeRackFirearm
+    ? FIREARM_RACK_DISPLAY_TUNING.large
+    : FIREARM_RACK_DISPLAY_TUNING.default;
+  if (isLargeRackFirearm) {
+    fitObjectToTargetHeight(clone, displayTuning.targetHeight);
+    alignObjectBottomToY(clone, 0);
+  } else {
+    fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier);
+  }
+  clone.position.set(...displayTuning.position);
+  clone.rotation.set(...displayTuning.rotation);
   entry.weaponHolder.add(clone);
 }
 
