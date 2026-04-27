@@ -164,6 +164,16 @@ const LARGE_RACK_FIREARM_IDS = new Set([
   'marksmanDmrAttack',
   'compactCarbineAttack'
 ]);
+const FIREARM_TWO_HANDED_IDS = new Set([
+  'fpsGunAttack',
+  'assaultRifleAttack',
+  'ak47VolleyAttack',
+  'mosinMarksmanAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'marksmanDmrAttack',
+  'compactCarbineAttack'
+]);
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
@@ -389,7 +399,8 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
     position: [0.018, -0.002, 0.086],
     rotation: [-1.5, -0.02, -1.56],
-    muzzleOffset: [0.0, 0.012, 0.2]
+    muzzleOffset: [0.0, 0.012, 0.2],
+    offhandOffset: [-0.02, -0.002, 0.068]
   },
   mrtkGunAttack: {
     position: [0.02, -0.002, 0.092],
@@ -402,9 +413,10 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.012, 0.2]
   },
   fpsGunAttack: {
-    position: [0.031, -0.003, 0.114],
-    rotation: [-1.46, -0.04, -1.56],
-    muzzleOffset: [0, 0.014, 0.232]
+    position: [0.034, -0.004, 0.122],
+    rotation: [-1.45, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.248],
+    offhandOffset: [-0.023, -0.002, 0.082]
   },
   glockSidearmAttack: {
     position: [0.018, 0.0, 0.082],
@@ -481,7 +493,7 @@ const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   mrtkGunAttack: 1.04,
   pistolHolsterAttack: 1.0,
-  fpsGunAttack: 1.28,
+  fpsGunAttack: 1.62,
   glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.0,
   uziSprayAttack: 1.06,
@@ -504,6 +516,7 @@ const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
 const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
 const FIREARM_TARGET_RETICLE_SIZE = 0.04;
+const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -520,6 +533,23 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   const forward = target.clone().sub(root.position).setY(0);
   if (forward.lengthSq() < 1e-6) return;
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
+}
+
+function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
+  if (muted) return false;
+  const config = CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
+  const sourceUrl = Array.isArray(config?.soundUrls) ? config.soundUrls.find(Boolean) : null;
+  if (!sourceUrl) return false;
+  let audio = FIREARM_SOURCE_AUDIO_CACHE.get(sourceUrl);
+  if (!audio) {
+    audio = new Audio(sourceUrl);
+    audio.preload = 'auto';
+    FIREARM_SOURCE_AUDIO_CACHE.set(sourceUrl, audio);
+  }
+  audio.volume = clamp(volume, 0, 1);
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+  return true;
 }
 
 async function loadCaptureWeaponModel(captureAnimationId) {
@@ -557,6 +587,9 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
           const root = gltf?.scene || gltf?.scenes?.[0] || null;
           if (root) {
+            if (Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
+              root.userData.animationClips = gltf.animations;
+            }
             loadedRoot = root;
             break;
           }
@@ -583,6 +616,9 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // eslint-disable-next-line no-await-in-loop
         const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
         loadedRoot = gltf?.scene || gltf?.scenes?.[0] || null;
+        if (loadedRoot && Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
+          loadedRoot.userData.animationClips = gltf.animations;
+        }
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrls[i], error);
@@ -598,6 +634,13 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       if (!root) return null;
       root.traverse((node) => {
         if (!node?.isMesh) return;
+        if (
+          normalizedCaptureAnimationId === 'fpsGunAttack' &&
+          `${node?.name || ''}`.toLowerCase().includes('armmesh')
+        ) {
+          node.visible = false;
+          return;
+        }
         node.castShadow = true;
         node.receiveShadow = true;
         node.frustumCulled = false;
@@ -632,6 +675,68 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   return loadCaptureWeaponModel(fallbackId);
 }
 
+function startCaptureWeaponAnimation({
+  sourceModel,
+  targetModel,
+  mixersStore,
+  loopMode = THREE.LoopRepeat,
+  paused = false
+}) {
+  if (!sourceModel?.userData?.animationClips?.length || !targetModel?.isObject3D || !mixersStore) return null;
+  const mixer = new THREE.AnimationMixer(targetModel);
+  const actions = [];
+  sourceModel.userData.animationClips.forEach((clip) => {
+    const action = mixer.clipAction(clip);
+    action.setLoop(loopMode, Infinity);
+    action.clampWhenFinished = false;
+    action.enabled = true;
+    action.paused = !!paused;
+    action.play();
+    actions.push(action);
+  });
+  mixersStore.add(mixer);
+  targetModel.userData.captureWeaponMixer = mixer;
+  targetModel.userData.captureWeaponActions = actions;
+  return { mixer, actions };
+}
+
+function stopCaptureWeaponMixersForObjectTree(rootObject, mixersStore) {
+  if (!rootObject?.isObject3D || !mixersStore) return;
+  rootObject.traverse((node) => {
+    const mixer = node?.userData?.captureWeaponMixer;
+    if (!mixer) return;
+    if (mixersStore?.delete) mixersStore.delete(mixer);
+    mixer.stopAllAction?.();
+    mixer.uncacheRoot?.(node);
+    delete node.userData.captureWeaponMixer;
+    delete node.userData.captureWeaponActions;
+  });
+}
+
+function setCaptureWeaponAnimationPaused(weaponObject, paused = false) {
+  const actions = weaponObject?.userData?.captureWeaponActions;
+  if (!Array.isArray(actions)) return;
+  actions.forEach((action) => {
+    if (!action) return;
+    action.paused = !!paused;
+    if (!paused) action.play();
+  });
+}
+
+function findObjectByNeedles(root, needles = []) {
+  if (!root?.isObject3D || !Array.isArray(needles) || needles.length === 0) return null;
+  const lowered = needles.map((needle) => `${needle}`.toLowerCase());
+  let match = null;
+  root.traverse((node) => {
+    if (match || !node?.isObject3D || !node?.name) return;
+    const name = node.name.toLowerCase();
+    if (lowered.some((needle) => name.includes(needle))) {
+      match = node;
+    }
+  });
+  return match;
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -645,13 +750,50 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     FIREARM_ATTACH_WORLD_SCALE_BOOST * (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
   weapon.scale.multiplyScalar(scaleBoost);
   rightHand.add(weapon);
+  const weaponMixers = attackerEntry?.weaponAnimationMixers;
+  startCaptureWeaponAnimation({
+    sourceModel: modelTemplate,
+    targetModel: weapon,
+    mixersStore: weaponMixers,
+    loopMode: THREE.LoopRepeat,
+    paused: true
+  });
+  weapon.updateMatrixWorld?.(true);
+  const sourceRightGrip = findObjectByNeedles(weapon, ['r_wrist', 'right_wrist']);
+  if (sourceRightGrip?.isObject3D) {
+    sourceRightGrip.updateMatrixWorld?.(true);
+    const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
+    weapon.position.sub(gripLocal);
+  }
+  const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId);
+  const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
+  const offhandTarget = new THREE.Object3D();
+  if (sourceLeftGrip?.isObject3D) {
+    sourceLeftGrip.updateMatrixWorld?.(true);
+    const offhandLocal = weapon.worldToLocal(sourceLeftGrip.getWorldPosition(new THREE.Vector3()));
+    offhandTarget.position.copy(offhandLocal);
+  } else {
+    offhandTarget.position.set(...(tuning.offhandOffset || FIREARM_HAND_ATTACH_TUNING.default.offhandOffset));
+  }
+  offhandTarget.name = 'offhandTarget';
+  weapon.add(offhandTarget);
   const muzzle = new THREE.Object3D();
   muzzle.position.set(...(tuning.muzzleOffset || FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
   weapon.add(muzzle);
   return {
     weapon,
     muzzle,
+    offhandTarget,
+    twoHanded,
     release: () => {
+      const mixer = weapon.userData?.captureWeaponMixer;
+      if (mixer && weaponMixers?.delete) {
+        weaponMixers.delete(mixer);
+      }
+      mixer?.stopAllAction?.();
+      mixer?.uncacheRoot?.(weapon);
+      delete weapon.userData.captureWeaponMixer;
+      delete weapon.userData.captureWeaponActions;
       weapon.parent?.remove?.(weapon);
     }
   };
@@ -708,11 +850,17 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
+    entry.weaponHolder.children.forEach((child) => {
+      stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
+    });
     entry.weaponHolder.clear();
     entry.selectedCaptureAnimationId = null;
     return;
   }
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
+  entry.weaponHolder.children.forEach((child) => {
+    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
+  });
   entry.weaponHolder.clear();
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
   if (!weaponModel) {
@@ -720,6 +868,9 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
+  entry.weaponHolder.children.forEach((child) => {
+    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
+  });
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
   const baseAlignPositionY = clone.position.y;
@@ -5449,6 +5600,53 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKe
   }
 }
 
+function solveSeatedLeftArmContactIK(entry, targetWorld, weight = 1) {
+  const rig = entry?.rig;
+  const actor = entry?.actor;
+  if (!rig || !actor?.isObject3D || !targetWorld?.isVector3) return;
+  const upper = rig.leftUpperArm;
+  const lower = rig.leftForeArm;
+  const hand = rig.leftHand;
+  if (!upper?.isBone || !lower?.isBone || !hand?.isBone) return;
+  const blend = clamp(weight, 0, 1);
+  if (blend <= 1e-4) return;
+  const endPos = new THREE.Vector3();
+  const jointPos = new THREE.Vector3();
+  const toEnd = new THREE.Vector3();
+  const toTarget = new THREE.Vector3();
+  const axis = new THREE.Vector3();
+  const worldDeltaQ = new THREE.Quaternion();
+
+  const applyBoneStep = (bone) => {
+    bone.updateMatrixWorld?.(true);
+    hand.updateMatrixWorld?.(true);
+    bone.getWorldPosition(jointPos);
+    hand.getWorldPosition(endPos);
+    toEnd.copy(endPos).sub(jointPos);
+    toTarget.copy(targetWorld).sub(jointPos);
+    const endLen = toEnd.length();
+    const targetLen = toTarget.length();
+    if (endLen < 1e-6 || targetLen < 1e-6) return;
+    toEnd.multiplyScalar(1 / endLen);
+    toTarget.multiplyScalar(1 / targetLen);
+    const cosTheta = clamp(toEnd.dot(toTarget), -1, 1);
+    const angle = Math.acos(cosTheta);
+    if (!Number.isFinite(angle) || angle < 1e-5) return;
+    axis.crossVectors(toEnd, toTarget);
+    if (axis.lengthSq() < 1e-8) return;
+    axis.normalize();
+    const limited = Math.min(angle, SEATED_CONTACT_IK_MAX_STEP_RAD) * blend;
+    worldDeltaQ.setFromAxisAngle(axis, limited);
+    applyWorldRotationDeltaToBone(bone, worldDeltaQ);
+  };
+
+  actor.updateMatrixWorld(true);
+  for (let i = 0; i < SEATED_CONTACT_IK_ITERATIONS; i += 1) {
+    applyBoneStep(lower);
+    applyBoneStep(upper);
+  }
+}
+
 function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs) {
   const basePose = {
     mode: 'idle',
@@ -6037,6 +6235,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
   const parkedCaptureVehiclesRef = useRef(new Map());
+  const weaponAnimationMixersRef = useRef(new Set());
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -6523,6 +6722,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (showFirearm) {
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
         } else {
+          entry?.weaponHolder?.children?.forEach?.((child) => {
+            stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
+          });
           entry.weaponHolder?.clear?.();
           entry.selectedCaptureAnimationId = null;
         }
@@ -6615,6 +6817,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         droneTruck: droneTruckFx.root,
         weaponRack: weaponRackFx.root,
         weaponHolder: weaponRackFx.weaponHolder ?? null,
+        weaponAnimationMixers: weaponAnimationMixersRef.current,
         actionButton: weaponRackFx.actionButton ?? null,
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
@@ -8683,6 +8886,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
       const delta = appliedDeltaMs / 1000;
       // Keep parked aircraft static; rotor/propeller animation only runs during active strikes.
+      if (weaponAnimationMixersRef.current.size > 0) {
+        weaponAnimationMixersRef.current.forEach((mixer) => {
+          mixer?.update?.(delta);
+        });
+      }
 
       const state = stateRef.current;
       if (state?.animation?.active) {
@@ -9028,12 +9236,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         captureFxRef.current = null;
       }
       parkedCaptureVehiclesRef.current.forEach((entry) => {
+        entry?.weaponHolder?.children?.forEach?.((child) => {
+          stopCaptureWeaponMixersForObjectTree(child, weaponAnimationMixersRef.current);
+        });
         entry?.jet?.parent?.remove?.(entry.jet);
         entry?.helicopter?.parent?.remove?.(entry.helicopter);
         entry?.drone?.parent?.remove?.(entry.drone);
         entry?.missile?.parent?.remove?.(entry.missile);
         entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
+        entry?.weaponRack?.parent?.remove?.(entry.weaponRack);
       });
+      weaponAnimationMixersRef.current.forEach((mixer) => {
+        mixer?.stopAllAction?.();
+      });
+      weaponAnimationMixersRef.current.clear();
       parkedCaptureVehiclesRef.current.clear();
       arenaRef.current = null;
       rendererRef.current = null;
@@ -9270,10 +9486,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const elapsed = performance.now() - volleyStart;
             const elapsedShooting = Math.max(0, elapsed - preFireLeadMs);
             const shotIdx = Math.floor(elapsedShooting / cadenceMs);
+            const weaponAnimationActive =
+              elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
             if (handWeaponAttachment?.muzzle?.isObject3D) {
               handWeaponAttachment.muzzle.updateMatrixWorld?.(true);
               handWeaponAttachment.muzzle.getWorldPosition(muzzleOrigin);
             }
+            setCaptureWeaponAnimationPaused(handWeaponAttachment?.weapon, !weaponAnimationActive);
             if (elapsed < pickupLeadMs && handWeaponAttachment?.weapon?.isObject3D && rackWorld.isVector3) {
               const blend = easeInOutSine01(elapsed / Math.max(1, pickupLeadMs));
               const parent = handWeaponAttachment.weapon.parent;
@@ -9295,6 +9514,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               } else {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.02) * 0.006;
               }
+            }
+            if (handWeaponAttachment?.twoHanded && handWeaponAttachment?.offhandTarget?.isObject3D) {
+              handWeaponAttachment.offhandTarget.updateMatrixWorld?.(true);
+              const offhandWorld = handWeaponAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
+              solveSeatedLeftArmContactIK(attackerEntry, offhandWorld, elapsed >= pickupLeadMs ? 0.95 : 0.5);
             }
             const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
             const aimDir = muzzleTarget.clone().sub(muzzleOrigin).setY(0);
@@ -9328,6 +9552,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (elapsedShooting % cadenceMs < 16) {
                 playFirearmShotSound();
                 playFirearmShellSound();
+                playCaptureWeaponSourceSound(resolvedCaptureAnimationId, {
+                  volume: 0.8 * getGameVolume(),
+                  muted: !settingsRef.current.soundEnabled
+                });
               }
               const pulse = 1 - ((elapsedShooting % cadenceMs) / Math.max(1, cadenceMs));
               muzzleFx.flash.scale.setScalar(0.76 + pulse * 1.08);
