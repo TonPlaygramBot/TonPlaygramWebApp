@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-26-domino-human-store-v36';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-27-domino-human-seating-v37';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -143,7 +143,9 @@ export default function DominoRoyalArena() {
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
         }
         #status {
-          display: none !important;
+          display: block !important;
+          opacity: 0;
+          pointer-events: none;
           background: linear-gradient(
             145deg,
             rgba(8, 18, 40, 0.96),

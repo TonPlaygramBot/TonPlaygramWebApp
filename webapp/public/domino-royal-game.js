@@ -979,12 +979,15 @@ const CHAIR_GAP = 0.152 * MODEL_SCALE; // mirrors Snake & Ladder AI chair gap
 const CHAIR_OUTWARD_OFFSET = 0;
 const CHAIR_RADIUS =
   TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
+const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
 const CHAIR_VISUAL_SCALE = 1.3;
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.45 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
@@ -1017,10 +1020,10 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(180)
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
-  CHAIR_RADIUS,
-  CHAIR_RADIUS,
-  CHAIR_RADIUS,
-  CHAIR_RADIUS
+  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK + SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK,
+  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
+  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
+  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK
 ]);
 const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
@@ -8152,7 +8155,10 @@ async function attachSeatedHumanActors(token) {
       const actorScale =
         template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template);
       actor.scale.setScalar(actorScale);
-      actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+      const seatZOffset =
+        SEATED_HUMAN_SEAT_Z_OFFSET +
+        (index === HUMAN_SEAT_INDEX ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+      actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
       actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
       const rig = saveBoneRig(actor);
       applySeatedHumanPose(rig);
@@ -8516,6 +8522,16 @@ function tileKey(tile) {
 function setStatus(t) {
   statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t;
 }
+
+function revealStatus(message = '') {
+  if (!statusEl) return;
+  statusEl.style.display = 'block';
+  statusEl.style.opacity = '1';
+  if (message) {
+    statusEl.textContent = message;
+  }
+}
+
 
 let contextLost = false;
 let contextLossReloadTimer = null;
@@ -9369,8 +9385,18 @@ function startGame({ resetRace = true } = {}) {
   if (idx < 0) {
     idx = 0;
   }
-  const t = players[starter].hand.splice(idx, 1)[0];
+  const t = players[starter]?.hand?.splice(idx, 1)?.[0];
   const firstTile = canonTile(t) || t;
+  if (!firstTile || typeof firstTile.a !== 'number' || typeof firstTile.b !== 'number') {
+    console.warn('Domino start hand invalid, rebuilding round.');
+    setStatus('Rebalancing seats and reloading hand...');
+    boneyard = shuffle(genSet());
+    players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+    drawAnimations.length = 0;
+    dealOpeningHands();
+    players.forEach((p) => shuffle(p.hand));
+    return startGame({ resetRace: false });
+  }
   const firstRot = firstTile.a === firstTile.b ? Math.PI / 2 : 0;
   chain.push({
     tile: firstTile,
@@ -10181,14 +10207,14 @@ async function bootstrapDominoRoyal() {
     setControlEnabled(true);
   } catch (error) {
     console.error('Domino Royal failed to start', error);
-    setStatus('Unable to start match. Please reload.');
+    revealStatus('Unable to start match. Please reload.');
     setControlEnabled(false);
   }
 }
 
 bootstrapDominoRoyal().catch((error) => {
   console.error('Domino Royal bootstrap failed', error);
-  setStatus('Unable to start match. Please reload.');
+  revealStatus('Unable to start match. Please reload.');
   setControlEnabled(false);
 });
 
