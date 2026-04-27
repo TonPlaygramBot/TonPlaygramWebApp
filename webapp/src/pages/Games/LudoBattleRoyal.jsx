@@ -136,12 +136,9 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
-  'mrtkGunAttack',
-  'pistolHolsterAttack',
+  'assaultRifleAttack',
   'fpsGunAttack',
   'glockSidearmAttack',
-  'pistolSidearmAttack',
-  'assaultRifleAttack',
   'uziSprayAttack',
   'ak47VolleyAttack',
   'krsvBurstAttack',
@@ -156,7 +153,6 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'marksmanDmrAttack'
 ]);
 const LARGE_RACK_FIREARM_IDS = new Set([
-  'assaultRifleAttack',
   'ak47VolleyAttack',
   'mosinMarksmanAttack',
   'shotgunBlastAttack',
@@ -175,10 +171,7 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'compactCarbineAttack'
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
-  'mrtkGunAttack',
-  'pistolHolsterAttack',
   'glockSidearmAttack',
-  'pistolSidearmAttack',
   'uziSprayAttack',
   'smgBurstAttack',
   'smithSidearmAttack',
@@ -186,15 +179,16 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'grenadeBlastAttack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
-  fpsGunAttack: 3.2,
-  glockSidearmAttack: 2.2,
-  uziSprayAttack: 1.8,
-  smgBurstAttack: 1.8,
+  fpsGunAttack: 2.2,
+  glockSidearmAttack: 1,
+  uziSprayAttack: 1.65,
+  smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
   krsvBurstAttack: 2.2,
-  smithSidearmAttack: 2.2,
+  smithSidearmAttack: 1,
   mosinMarksmanAttack: 3.5,
   sniperShotAttack: 2.8,
+  shotgunBlastAttack: 2.2,
   grenadeBlastAttack: 0.45
 });
 
@@ -237,7 +231,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
     ],
-    scale: 0.284
+    scale: 0.24
   },
   glockSidearmAttack: {
     label: 'Glock',
@@ -245,7 +239,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
       'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'
     ],
-    scale: 0.2
+    scale: 0.13
   },
   pistolSidearmAttack: {
     label: 'Pistol Sidearm',
@@ -263,7 +257,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.2175,
+    scale: 0.13,
     textureOverrideUrls: [
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
     ]
@@ -274,7 +268,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
     ],
-    scale: 0.218
+    scale: 0.2
   },
   ak47VolleyAttack: {
     label: 'AK-47',
@@ -298,7 +292,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
     ],
-    scale: 0.2
+    scale: 0.13
   },
   mosinMarksmanAttack: {
     label: 'Mosin',
@@ -339,7 +333,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf'
     ],
-    scale: 0.238
+    scale: 0.24
   },
   sniperShotAttack: {
     label: 'Sniper Shot',
@@ -355,7 +349,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
-    scale: 0.218
+    scale: 0.2
   },
   compactCarbineAttack: {
     label: 'Compact Carbine',
@@ -528,19 +522,19 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // seated humans keep a consistent hand fit around the trigger/handle zone.
   mrtkGunAttack: 1.16,
   pistolHolsterAttack: 1.14,
-  fpsGunAttack: 5.5,
-  glockSidearmAttack: 2.2,
+  fpsGunAttack: 3.2,
+  glockSidearmAttack: 1.2,
   pistolSidearmAttack: 1.16,
-  uziSprayAttack: 2,
-  smgBurstAttack: 2,
+  uziSprayAttack: 1.85,
+  smgBurstAttack: 1.85,
   compactCarbineAttack: 1.34,
-  assaultRifleAttack: 1.56,
+  assaultRifleAttack: 1.2,
   ak47VolleyAttack: 3.2,
   krsvBurstAttack: 3.2,
-  smithSidearmAttack: 2.2,
+  smithSidearmAttack: 1.2,
   mosinMarksmanAttack: 6,
   sigsauerTacticalAttack: 1.2,
-  shotgunBlastAttack: 1.7,
+  shotgunBlastAttack: 3.2,
   marksmanDmrAttack: 1.48,
   sniperShotAttack: 5.2,
   grenadeBlastAttack: 0.55
@@ -6580,10 +6574,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
-  const aiLoadoutByPlayer = useMemo(
-    () => createAiUniqueLoadout(activePlayerCount, appearance),
-    [activePlayerCount, appearance]
-  );
+  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
