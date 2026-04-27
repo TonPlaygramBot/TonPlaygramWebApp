@@ -71,6 +71,7 @@ namespace Aiming
         float _latchedPullDistance;
         float _power;
         float _latchedShotPower;
+        float _previousSliderPower;
         Vector2 _liveSpinInput;
         Vector2 _latchedShotSpin;
         ShotState _shotState = ShotState.Idle;
@@ -134,7 +135,16 @@ namespace Aiming
 
         public void SetChargePower(float normalizedPower)
         {
-            _power = Mathf.Clamp01(normalizedPower);
+            float nextPower = Mathf.Clamp01(normalizedPower);
+            float threshold = Mathf.Max(releaseTriggerThresholdNormalized, 0.001f);
+            bool shouldArmCharge = nextPower > threshold;
+
+            if (_shotState == ShotState.Idle && shouldArmCharge)
+            {
+                BeginCharge();
+            }
+
+            _power = nextPower;
 
             if (_shotState == ShotState.Dragging)
             {
@@ -142,7 +152,22 @@ namespace Aiming
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
                 UpdateCuePose();
+
+                bool sliderDroppedToRelease = _previousSliderPower > threshold && _power <= threshold;
+                if (sliderDroppedToRelease)
+                {
+                    if (HasValidReleaseGesture(_chargedCueDepth - idleTipGap))
+                    {
+                        ReleaseAndStrike();
+                    }
+                    else
+                    {
+                        CancelCharge();
+                    }
+                }
             }
+
+            _previousSliderPower = nextPower;
         }
 
         public void BeginCharge()
@@ -160,6 +185,7 @@ namespace Aiming
             _latchedPullDistance = 0f;
             _chargedCueDepth = idleTipGap + PullDistanceFromPower(_power);
             _currentCueDepth = _chargedCueDepth;
+            _previousSliderPower = Mathf.Max(_previousSliderPower, _power);
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
             gameObject.SetActive(true);
@@ -202,6 +228,7 @@ namespace Aiming
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
+            _previousSliderPower = 0f;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
             ResetTipScale();
@@ -461,6 +488,7 @@ namespace Aiming
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
+            _previousSliderPower = 0f;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
             ResetTipScale();
