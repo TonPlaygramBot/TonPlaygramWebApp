@@ -40,6 +40,8 @@ namespace Aiming
         [Range(0f, 0.5f)] public float minimumShotPowerNormalized = 0.06f;
         [Tooltip("Minimum pull/slider amount required to arm release when camera is not lowered (Bilardo parity).")]
         [Range(0f, 0.25f)] public float releaseTriggerThresholdNormalized = 0.02f;
+        [Tooltip("When UI release is valid but slider callbacks are missing, still fire a minimum-power shot like Snooker/Bilardo.")]
+        public bool forceMinimumPowerOnValidRelease = true;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.88f;
@@ -214,8 +216,16 @@ namespace Aiming
             }
 
             _latchedPullDistance = Mathf.Max(0f, _chargedCueDepth - idleTipGap);
-            float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
+            float livePullDistance = Mathf.Max(0f, _currentCueDepth - idleTipGap);
+            _latchedPullDistance = Mathf.Max(_latchedPullDistance, livePullDistance);
+
+            float recoveredPower = RecoverPowerFromCueDepth(Mathf.Max(_chargedCueDepth, _currentCueDepth));
             _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower, _latchedPullDistance);
+            if (_latchedShotPower <= 0f && forceMinimumPowerOnValidRelease && HasValidReleaseGesture(_latchedPullDistance))
+            {
+                _latchedShotPower = minimumShotPowerNormalized;
+            }
+
             if (_latchedShotPower <= 0f)
             {
                 _shotState = ShotState.Idle;
@@ -472,6 +482,17 @@ namespace Aiming
             }
 
             return Mathf.Max(minimumShotPowerNormalized, raw);
+        }
+
+        bool HasValidReleaseGesture(float pullDistance)
+        {
+            if (_cameraLowered)
+            {
+                return true;
+            }
+
+            float pullNorm = pullRange > 0.0001f ? Mathf.Clamp01(pullDistance / pullRange) : 0f;
+            return pullNorm > releaseTriggerThresholdNormalized;
         }
 
         void ApplyStrikeImpulse(Vector3 strikeDirection, float shotPower)
