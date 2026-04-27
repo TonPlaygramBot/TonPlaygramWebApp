@@ -155,6 +155,26 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'compactCarbineAttack',
   'marksmanDmrAttack'
 ]);
+const QUICK_SWAP_WEAPON_ICON = Object.freeze({
+  mrtkGunAttack: '🔫',
+  pistolHolsterAttack: '🧰',
+  fpsGunAttack: '🎯',
+  glockSidearmAttack: '🔫',
+  pistolSidearmAttack: '🔫',
+  assaultRifleAttack: '🪖',
+  uziSprayAttack: '⚡',
+  ak47VolleyAttack: '🪖',
+  krsvBurstAttack: '🎖️',
+  smithSidearmAttack: '🔫',
+  mosinMarksmanAttack: '🎯',
+  sigsauerTacticalAttack: '🛡️',
+  grenadeBlastAttack: '💣',
+  shotgunBlastAttack: '🧨',
+  sniperShotAttack: '🎯',
+  smgBurstAttack: '⚡',
+  compactCarbineAttack: '🪖',
+  marksmanDmrAttack: '🎯'
+});
 const LARGE_RACK_FIREARM_IDS = new Set([
   'assaultRifleAttack',
   'ak47VolleyAttack',
@@ -166,14 +186,14 @@ const LARGE_RACK_FIREARM_IDS = new Set([
 ]);
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
-    targetSizeMultiplier: 1.06,
-    position: [0, 0, -0.004],
+    targetSizeMultiplier: 1.12,
+    position: [0.006, 0.002, -0.003],
     rotation: [0, Math.PI * 0.5, 0]
   }),
   large: Object.freeze({
-    targetSizeMultiplier: 1.9,
-    position: [0.08, 0, -0.014],
-    rotation: [0, Math.PI * 0.04, Math.PI * 0.02]
+    targetSizeMultiplier: 2.18,
+    position: [0.096, 0.004, -0.012],
+    rotation: [0, Math.PI * 0.03, Math.PI * 0.024]
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -185,7 +205,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/Microsoft/MixedRealityToolkit/master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
       'https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb'
     ],
-    scale: 0.132
+    scale: 0.148
   },
   pistolHolsterAttack: {
     label: 'Pistol Holster',
@@ -193,7 +213,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
       'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
     ],
-    scale: 0.138
+    scale: 0.152
   },
   fpsGunAttack: {
     label: 'FPS Gun',
@@ -203,7 +223,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
     ],
-    scale: 0.142
+    scale: 0.164
   },
   glockSidearmAttack: {
     label: 'Glock',
@@ -216,11 +236,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   pistolSidearmAttack: {
     label: 'Pistol',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb',
       'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/pistol.glb'
     ],
-    scale: 0.115
+    scale: 0.132
   },
   assaultRifleAttack: {
     label: 'Assault Rifle',
@@ -240,7 +260,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.14
   },
   ak47VolleyAttack: {
-    label: 'AK-47',
+    label: 'AK47',
     urls: [
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
@@ -272,7 +292,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.205
   },
   sigsauerTacticalAttack: {
-    label: 'SigSauer',
+    label: 'SIG Sauer',
     urls: [
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
@@ -286,23 +306,27 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
-    scale: 0.19
+    scale: 0.214
   },
   shotgunBlastAttack: {
     label: 'Shotgun',
     urls: [
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/shotgun/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/shotgun/scene.gltf',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
-    scale: 0.228
+    scale: 0.246
   },
   sniperShotAttack: {
     label: 'Sniper Rifle',
     urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
       'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
     ],
-    scale: 0.248
+    scale: 0.272
   },
   smgBurstAttack: {
     label: 'SMG',
@@ -400,9 +424,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.012, 0.2]
   },
   fpsGunAttack: {
-    position: [0.022, -0.003, 0.098],
-    rotation: [-1.46, -0.04, -1.56],
-    muzzleOffset: [0, 0.014, 0.224]
+    position: [0.034, -0.006, 0.116],
+    rotation: [-1.44, -0.07, -1.55],
+    muzzleOffset: [0, 0.014, 0.248]
   },
   glockSidearmAttack: {
     position: [0.018, 0.0, 0.082],
@@ -430,14 +454,14 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.014, 0.235]
   },
   ak47VolleyAttack: {
-    position: [0.027, -0.004, 0.113],
-    rotation: [-1.42, -0.04, -1.55],
-    muzzleOffset: [0, 0.014, 0.245]
+    position: [0.04, -0.007, 0.136],
+    rotation: [-1.39, -0.08, -1.54],
+    muzzleOffset: [0, 0.014, 0.274]
   },
   krsvBurstAttack: {
-    position: [0.026, -0.004, 0.111],
-    rotation: [-1.43, -0.04, -1.55],
-    muzzleOffset: [0, 0.014, 0.238]
+    position: [0.038, -0.007, 0.132],
+    rotation: [-1.4, -0.08, -1.54],
+    muzzleOffset: [0, 0.014, 0.266]
   },
   smithSidearmAttack: {
     position: [0.019, -0.001, 0.084],
@@ -445,9 +469,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.012, 0.194]
   },
   mosinMarksmanAttack: {
-    position: [0.029, -0.005, 0.131],
-    rotation: [-1.38, -0.04, -1.58],
-    muzzleOffset: [0, 0.015, 0.262]
+    position: [0.041, -0.008, 0.152],
+    rotation: [-1.34, -0.08, -1.56],
+    muzzleOffset: [0, 0.015, 0.292]
   },
   sigsauerTacticalAttack: {
     position: [0.021, -0.002, 0.09],
@@ -465,35 +489,35 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.25]
   },
   shotgunBlastAttack: {
-    position: [0.027, -0.006, 0.114],
-    rotation: [-1.4, -0.05, -1.56],
-    muzzleOffset: [0, 0.014, 0.24]
+    position: [0.039, -0.008, 0.14],
+    rotation: [-1.36, -0.09, -1.54],
+    muzzleOffset: [0, 0.014, 0.278]
   },
   sniperShotAttack: {
-    position: [0.029, -0.005, 0.13],
-    rotation: [-1.38, -0.04, -1.58],
-    muzzleOffset: [0, 0.015, 0.26]
+    position: [0.042, -0.008, 0.158],
+    rotation: [-1.33, -0.09, -1.56],
+    muzzleOffset: [0, 0.015, 0.298]
   }
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   mrtkGunAttack: 1.04,
   pistolHolsterAttack: 1.0,
-  fpsGunAttack: 1.08,
+  fpsGunAttack: 1.3,
   glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.0,
   uziSprayAttack: 1.06,
   smgBurstAttack: 1.1,
   compactCarbineAttack: 1.14,
   assaultRifleAttack: 1.18,
-  ak47VolleyAttack: 1.22,
-  krsvBurstAttack: 1.2,
+  ak47VolleyAttack: 1.46,
+  krsvBurstAttack: 1.38,
   smithSidearmAttack: 1.0,
-  mosinMarksmanAttack: 1.28,
+  mosinMarksmanAttack: 1.48,
   sigsauerTacticalAttack: 1.08,
-  shotgunBlastAttack: 1.2,
+  shotgunBlastAttack: 1.42,
   marksmanDmrAttack: 1.26,
-  sniperShotAttack: 1.3,
+  sniperShotAttack: 1.52,
   grenadeBlastAttack: 1.12
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
@@ -2633,8 +2657,8 @@ const SEATED_HELPER_UP_DICE_PICKUP = 0.004 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.018 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_HOLD = 0.088 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_HOLD = 0.003 * MODEL_SCALE;
-const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.035;
-const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.008;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.008;
+const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.0015;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -11226,23 +11250,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       <div className="absolute inset-0 pointer-events-none">
         {weaponSwapPopup && (
           <div
-            className="pointer-events-auto absolute z-30 w-[min(96vw,25rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2.5 shadow-2xl backdrop-blur"
+            className="pointer-events-auto absolute z-30 w-[min(96vw,22rem)] max-h-[64vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2 shadow-2xl backdrop-blur"
             style={{
-              left: clamp(weaponSwapPopup.x - 140, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 336),
-              top: clamp(weaponSwapPopup.y - 16, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 420)
+              left: clamp(weaponSwapPopup.x - 128, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 320),
+              top: clamp(weaponSwapPopup.y - 14, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 390)
             }}
           >
-            <div className="mb-2 flex items-center justify-between gap-2 px-1">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
+            <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
+              <p className="text-[9px] uppercase tracking-[0.24em] text-sky-200/80">Quick Weapon Swap</p>
               <button
                 type="button"
                 onClick={() => setWeaponSwapPopup(null)}
-                className="rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/90 hover:bg-white/20"
+                className="rounded-md border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/90 hover:bg-white/20"
               >
                 Close
               </button>
             </div>
-            <div className="grid max-h-[54vh] grid-cols-2 gap-2 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+            <div className="grid max-h-[51vh] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5 touch-pan-y overscroll-contain">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
@@ -11250,25 +11274,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-xl border text-[10px] font-semibold ${
-                      selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
+                    className={`overflow-hidden rounded-lg border px-1 py-1 text-left text-[9px] font-semibold leading-tight ${
+                      selected ? 'border-sky-300 bg-sky-400/20 text-white' : 'border-white/20 bg-white/5 text-white/85'
                     }`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                       setWeaponSwapPopup(null);
                     }}
                   >
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/12 text-[11px]">
+                        {QUICK_SWAP_WEAPON_ICON[option.id] ?? '⚔️'}
+                      </span>
+                      <span className="text-[9px] uppercase tracking-[0.12em] text-white/90">
+                        {option.label}
+                      </span>
+                    </div>
                     {option.thumbnail ? (
                       <img
                         src={option.thumbnail}
                         alt={`${option.label} thumbnail`}
-                        className="h-16 w-full object-cover"
+                        className="h-11 w-full rounded-md object-cover"
                         loading="lazy"
                       />
-                    ) : (
-                      <div className="h-16 w-full bg-slate-900/60" />
-                    )}
-                    <div className="px-1.5 py-1">{option.label}</div>
+                    ) : null}
                   </button>
                 );
               })}
