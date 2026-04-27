@@ -156,6 +156,18 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     thumbnail: captureWeaponThumb('🚁', '#0f766e')
   },
   {
+    id: 'mrtkGunAttack',
+    label: 'MRTK Gun',
+    description: 'Mixed Reality Toolkit Gun.glb pickup and burst attack.',
+    thumbnail: captureWeaponThumb('🔫', '#075985')
+  },
+  {
+    id: 'pistolHolsterAttack',
+    label: 'Pistol Holster',
+    description: 'Holstered pistol model from SAM_ASSET-PISTOL-IN-HOLSTER.glb.',
+    thumbnail: captureWeaponThumb('🧰', '#0f766e')
+  },
+  {
     id: 'fpsGunAttack',
     label: 'FPS Gun',
     description: 'FPS Gun scene.gltf pickup with preserved mesh/material shape.',
@@ -166,6 +178,12 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     label: 'Glock Sidearm',
     description: 'Pick the Glock from the table, aim, and fire before taking the tile.',
     thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.glockSidearmAttack
+  },
+  {
+    id: 'pistolSidearmAttack',
+    label: 'Pistol Sidearm',
+    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.',
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.pistolSidearmAttack
   },
   {
     id: 'assaultRifleAttack',
