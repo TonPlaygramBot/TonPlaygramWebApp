@@ -90,7 +90,6 @@ export default function DominoRoyalArena() {
           left: auto !important;
           top: calc(8.15rem + env(safe-area-inset-top, 0px)) !important;
           margin: 0 !important;
-          z-index: 60 !important;
         }
         #configButton {
           top: calc(4.55rem + env(safe-area-inset-top, 0px)) !important;
@@ -100,7 +99,6 @@ export default function DominoRoyalArena() {
           display: flex !important;
           align-items: center;
           gap: 0.5rem;
-          z-index: 60 !important;
         }
         #configButton span:first-child { font-size: 1.05rem; line-height: 1; }
         #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
@@ -109,7 +107,6 @@ export default function DominoRoyalArena() {
           right: calc(0.38rem + env(safe-area-inset-right, 0px)) !important;
           left: auto !important;
           bottom: auto !important;
-          z-index: 60 !important;
         }
         #railControls {
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
@@ -124,7 +121,6 @@ export default function DominoRoyalArena() {
           box-shadow: none !important;
           padding: 0 !important;
           backdrop-filter: none !important;
-          z-index: 55 !important;
         }
         #railControls button {
           min-width: clamp(5.5rem, 26vw, 7.2rem) !important;
@@ -139,7 +135,6 @@ export default function DominoRoyalArena() {
         #quickActions .quick-action {
           position: fixed !important;
           bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) + clamp(2.8rem, 8vh, 3.4rem)) !important;
-          z-index: 60 !important;
         }
         #quickActions .quick-action[data-action="gift"] {
           right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
