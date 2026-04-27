@@ -321,6 +321,22 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     license: 'Check repository license'
   },
   {
+    id: 'webgl-human-body-a',
+    label: 'Human Body A',
+    description: 'Open WebGL GLB body variant using the same seated character animation logic.',
+    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb'],
+    source: 'msorkhpar/3d-human-model-vite GitHub',
+    license: 'Check repository license'
+  },
+  {
+    id: 'webgl-human-body-b',
+    label: 'Human Body B',
+    description: 'Open WebGL GLB body variant matched to default seated sizing/orientation.',
+    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb'],
+    source: 'bddicken/humanbody GitHub',
+    license: 'Check repository license'
+  },
+  {
     id: 'webgl-ai-teacher',
     label: 'AI Teacher',
     description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
