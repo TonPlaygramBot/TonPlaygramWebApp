@@ -13,38 +13,6 @@ const dampScalar = (current, target, lambda, dt) =>
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-let fallbackHumanAlbedoTexture = null;
-
-function getFallbackHumanAlbedoTexture() {
-  if (fallbackHumanAlbedoTexture) return fallbackHumanAlbedoTexture;
-  const canvas = globalThis?.document?.createElement?.('canvas');
-  if (!canvas) return null;
-  canvas.width = 4;
-  canvas.height = 4;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.fillStyle = '#c7a88d';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#8b6c54';
-  ctx.fillRect(0, 0, 2, 2);
-  ctx.fillRect(2, 2, 2, 2);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.flipY = false;
-  tex.needsUpdate = true;
-  fallbackHumanAlbedoTexture = tex;
-  return fallbackHumanAlbedoTexture;
-}
-
-function hasRenderableTexture(tex) {
-  if (!tex) return false;
-  const image = tex.image ?? tex.source?.data ?? null;
-  if (!image) return false;
-  const width = Number(image.width ?? image.videoWidth ?? 0);
-  const height = Number(image.height ?? image.videoHeight ?? 0);
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return true;
-  return width > 0 && height > 0;
-}
 
 function makeBasisQuaternion(side, up, forward) {
   BASIS_MAT.makeBasis(
@@ -109,27 +77,21 @@ function collectFingerBones(hand) {
 
 function createFallbackHuman() {
   const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x5d7286, roughness: 0.75, metalness: 0.02 });
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd3b0, roughness: 0.9, metalness: 0.0 });
-
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.62, 6, 12), bodyMat);
-  torso.position.set(0, 1.25, 0);
-  const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.28, 6, 10), bodyMat);
-  hips.position.set(0, 0.86, 0);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), skinMat);
-  head.position.set(0, 1.8, 0.04);
-  const lLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.64, 6, 10), bodyMat);
-  lLeg.position.set(-0.11, 0.36, 0);
-  const rLeg = lLeg.clone();
-  rLeg.position.x = 0.11;
-  const lArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.52, 6, 10), bodyMat);
-  lArm.position.set(-0.3, 1.25, -0.04);
-  lArm.rotation.z = 0.25;
-  const rArm = lArm.clone();
-  rArm.position.x = 0.3;
-  rArm.rotation.z = -0.35;
-
-  group.add(torso, hips, head, lLeg, rLeg, lArm, rArm);
+  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
+  const addBox = (size, pos, mat) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    group.add(mesh);
+  };
+  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
+  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
+  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
+  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
+  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
+  head.position.set(0, 1.7, 0);
+  group.add(head);
   group.traverse((child) => {
     if (child.isMesh) {
       child.castShadow = true;
@@ -220,30 +182,9 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
-          const ensureTexture = (tex, isColor = false) => {
-            if (!tex) return;
-            if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
-            tex.flipY = false;
-            tex.anisotropy = Math.max(tex.anisotropy || 1, opts?.textureAnisotropy ?? 8);
-            tex.needsUpdate = true;
-          };
-          if (!hasRenderableTexture(m.map)) {
-            m.map = getFallbackHumanAlbedoTexture();
-          }
-          ensureTexture(m.map, true);
-          ensureTexture(m.emissiveMap, true);
-          ensureTexture(m.normalMap, false);
-          ensureTexture(m.roughnessMap, false);
-          ensureTexture(m.metalnessMap, false);
-          ensureTexture(m.aoMap, false);
-          if (m.color?.setHex) m.color.setHex(0xffffff);
-          if (typeof m.opacity === 'number' && m.opacity <= 0) m.opacity = 1;
-          if (!m.transparent && m.alphaMap) m.transparent = true;
-          if (m.transparent && !m.alphaMap && typeof m.opacity === 'number' && m.opacity >= 1) {
-            m.transparent = false;
-          }
-          if ('side' in m && m.side !== THREE.DoubleSide) {
-            m.side = THREE.DoubleSide;
+          if (m.map) {
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            m.map.needsUpdate = true;
           }
           m.needsUpdate = true;
         });
@@ -558,7 +499,7 @@ function driveHuman(human, frame) {
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const tableW = opts.tableW ?? 2.0;
   const tableL = opts.tableL ?? 3.6;
-  const edgeMargin = opts.edgeMargin ?? 0.58;
+  const edgeMargin = opts.edgeMargin ?? 0.62;
   const desiredShootDistance = opts.desiredShootDistance ?? 1.06;
 
   const desired = cueBallWorld.clone().addScaledVector(aimForward, -desiredShootDistance);
