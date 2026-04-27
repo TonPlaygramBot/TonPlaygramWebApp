@@ -25344,7 +25344,9 @@ const powerRef = useRef(hud.power);
               BILARDO_DESIRED_SHOOT_DISTANCE
             )
           });
-          rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
+          // Keep the avatar root on the same floor plane used by Bilardo Shqip so
+          // the stance stays grounded while bending to shoot.
+          rootTarget.y = FLOOR_Y;
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
           const bridgeTarget = cueBallWorld
             .clone()
