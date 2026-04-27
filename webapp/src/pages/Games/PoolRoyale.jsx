@@ -1933,7 +1933,7 @@ const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilar
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // raise launch speed so cue-ball movement remains clear on release
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_TO_TABLE_SURFACE_RATIO = 2; // keep player humans exactly 2x the table-surface height above floor
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
@@ -19703,18 +19703,8 @@ useEffect(() => {
             }
             model.traverse((child) => {
               if (!child?.isMesh) return;
-              const materials = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              const compatibleMaterials = materials.map((mat) =>
-                cloneHumanGltfMaterialForWebGL(mat)
-              );
-              child.material = Array.isArray(child.material)
-                ? compatibleMaterials
-                : compatibleMaterials[0] ?? child.material;
               child.castShadow = true;
               child.receiveShadow = true;
-              child.frustumCulled = false;
             });
             seatedHumanTemplateRef.current = model;
             return model;
@@ -24471,37 +24461,6 @@ useEffect(() => {
         return group;
       };
 
-      const adaptHumanGltfTextureForWebGL = (texture, { isColor = false } = {}) => {
-        if (!texture) return;
-        if (isColor) applySRGBColorSpace(texture);
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = resolveTextureAnisotropy(16);
-        texture.needsUpdate = true;
-      };
-
-      const cloneHumanGltfMaterialForWebGL = (material) => {
-        if (!material) return material;
-        const clone = material.clone ? material.clone() : material;
-        const colorMaps = new Set(['map', 'emissiveMap']);
-        [
-          'map',
-          'emissiveMap',
-          'normalMap',
-          'roughnessMap',
-          'metalnessMap',
-          'aoMap',
-          'alphaMap'
-        ].forEach((key) => {
-          if (clone[key]) {
-            adaptHumanGltfTextureForWebGL(clone[key], { isColor: colorMaps.has(key) });
-          }
-        });
-        clone.needsUpdate = true;
-        return clone;
-      };
-
       const fitPlayerHumanModelHeight = (model, targetHeight) => {
         if (!model || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
         model.updateMatrixWorld(true);
@@ -24521,8 +24480,7 @@ useEffect(() => {
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const tableSurfaceHeight = Math.max(TABLE_Y + TABLE.THICK - floorY, 0.01);
-        const humanHeight = tableSurfaceHeight * HUMAN_PLAYER_HEIGHT_TO_TABLE_SURFACE_RATIO;
+        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         if (template) {
           const avatar = template.clone(true);
