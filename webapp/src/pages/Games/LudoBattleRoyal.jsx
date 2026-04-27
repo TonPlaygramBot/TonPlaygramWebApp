@@ -289,62 +289,81 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
-    position: [0.017, -0.01, 0.078],
+    position: [0.017, -0.006, 0.082],
     rotation: [-1.5, -0.02, -1.56],
     muzzleOffset: [0.0, 0.012, 0.2]
   },
   glockSidearmAttack: {
-    position: [0.016, -0.009, 0.074],
+    position: [0.017, -0.004, 0.078],
     rotation: [-1.52, -0.03, -1.58],
     muzzleOffset: [0, 0.012, 0.19]
   },
   pistolSidearmAttack: {
-    position: [0.017, -0.01, 0.076],
+    position: [0.018, -0.005, 0.08],
     rotation: [-1.51, -0.03, -1.58],
     muzzleOffset: [0, 0.012, 0.195]
   },
   uziSprayAttack: {
-    position: [0.02, -0.012, 0.088],
+    position: [0.021, -0.007, 0.094],
     rotation: [-1.47, -0.04, -1.56],
     muzzleOffset: [0, 0.014, 0.215]
   },
   smgBurstAttack: {
-    position: [0.021, -0.012, 0.09],
+    position: [0.022, -0.007, 0.095],
     rotation: [-1.46, -0.04, -1.56],
     muzzleOffset: [0, 0.014, 0.22]
   },
   assaultRifleAttack: {
-    position: [0.023, -0.013, 0.098],
+    position: [0.024, -0.008, 0.105],
     rotation: [-1.43, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.235]
   },
   ak47VolleyAttack: {
-    position: [0.024, -0.013, 0.102],
+    position: [0.026, -0.008, 0.109],
     rotation: [-1.42, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.245]
   },
   compactCarbineAttack: {
-    position: [0.022, -0.012, 0.095],
+    position: [0.023, -0.007, 0.101],
     rotation: [-1.44, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.228]
   },
   marksmanDmrAttack: {
-    position: [0.024, -0.013, 0.108],
+    position: [0.026, -0.008, 0.116],
     rotation: [-1.4, -0.04, -1.56],
     muzzleOffset: [0, 0.015, 0.25]
   },
   shotgunBlastAttack: {
-    position: [0.024, -0.016, 0.102],
+    position: [0.026, -0.01, 0.11],
     rotation: [-1.4, -0.05, -1.56],
     muzzleOffset: [0, 0.014, 0.24]
   },
   sniperShotAttack: {
-    position: [0.026, -0.015, 0.118],
+    position: [0.028, -0.009, 0.126],
     rotation: [-1.38, -0.04, -1.58],
     muzzleOffset: [0, 0.015, 0.26]
   }
 });
-const FIREARM_VOLLEY_SLOW_FACTOR = 1.18;
+const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.12;
+const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
+  glockSidearmAttack: 0.92,
+  pistolSidearmAttack: 0.94,
+  uziSprayAttack: 1.0,
+  smgBurstAttack: 1.04,
+  compactCarbineAttack: 1.08,
+  assaultRifleAttack: 1.12,
+  ak47VolleyAttack: 1.16,
+  shotgunBlastAttack: 1.14,
+  marksmanDmrAttack: 1.2,
+  sniperShotAttack: 1.24,
+  grenadeBlastAttack: 1.08
+});
+const FIREARM_VOLLEY_SLOW_FACTOR = 1.42;
+const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
+const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
+const FIREARM_CAMERA_LIFT = 0.048;
+const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
+const FIREARM_TARGET_RETICLE_SIZE = 0.04;
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -468,7 +487,9 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
-  weapon.scale.multiplyScalar(1);
+  const scaleBoost =
+    FIREARM_ATTACH_WORLD_SCALE_BOOST * (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
+  weapon.scale.multiplyScalar(scaleBoost);
   rightHand.add(weapon);
   const muzzle = new THREE.Object3D();
   muzzle.position.set(...(tuning.muzzleOffset || FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
@@ -1880,6 +1901,37 @@ function createCaptureMuzzleFx() {
   return { root, flash, smoke };
 }
 
+function createCaptureTargetReticleFx(size = FIREARM_TARGET_RETICLE_SIZE) {
+  const root = new THREE.Group();
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(size * 0.62, size, 48),
+    new THREE.MeshBasicMaterial({
+      color: '#ff3f3f',
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  root.add(ring);
+  const lineMaterial = new THREE.MeshBasicMaterial({
+    color: '#ff8f8f',
+    transparent: true,
+    opacity: 0.86,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const horizontal = new THREE.Mesh(new THREE.PlaneGeometry(size * 1.55, size * 0.07), lineMaterial.clone());
+  horizontal.rotation.x = -Math.PI / 2;
+  root.add(horizontal);
+  const vertical = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.07, size * 1.55), lineMaterial.clone());
+  vertical.rotation.x = -Math.PI / 2;
+  root.add(vertical);
+  root.visible = false;
+  return { root, ring, horizontal, vertical };
+}
+
 const TOKEN_BREAK_PROFILE_BY_WEAPON = Object.freeze({
   firearm: { count: 14, sizeMin: 0.012, sizeMax: 0.03, impulse: 0.66, lingerMs: 1700, upward: 0.2 },
   explosive: { count: 20, sizeMin: 0.016, sizeMax: 0.04, impulse: 0.9, lingerMs: 2400, upward: 0.3 },
@@ -2358,15 +2410,15 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.059 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.074 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.012 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.018 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.006 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.005 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.067 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.026 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.078 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.01 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.12;
-const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
+const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.03;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -2381,7 +2433,7 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
-const SEATED_CONTACT_DICE_Y_OFFSET = 0.004;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.01;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
 const seatedHumanTemplatePromiseById = new Map();
@@ -8958,15 +9010,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 85 : 42) * FIREARM_VOLLEY_SLOW_FACTOR;
+          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
-          const durationMs = pickupLeadMs + shots * cadenceMs + 420;
+          const durationMs = pickupLeadMs + shots * cadenceMs + 560;
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
-          const shells = Array.from({ length: Math.max(12, Math.min(34, shots)) }, () => createCaptureShellCasingFx());
+          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
+          const targetReticle = createCaptureTargetReticleFx();
           scene.add(muzzleFx.root);
           tracers.forEach((entry) => scene.add(entry.root));
           shells.forEach((entry) => scene.add(entry));
+          scene.add(targetReticle.root);
           let shatterDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
           const tickFirearm = () => {
@@ -8988,27 +9042,54 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             if (targetToken?.isObject3D) {
               const liveTargetPos = targetToken.getWorldPosition(new THREE.Vector3());
-              muzzleTarget.copy(liveTargetPos).add(new THREE.Vector3(0, 0.03, 0));
+              muzzleTarget.copy(liveTargetPos).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
               const parent = handWeaponAttachment.weapon.parent;
               const targetLocal = parent.worldToLocal(muzzleTarget.clone());
               handWeaponAttachment.weapon.lookAt(targetLocal);
             }
+            const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
+            const aimDir = muzzleTarget.clone().sub(muzzleOrigin).setY(0);
+            const followOffset =
+              aimDir.lengthSq() > 1e-7
+                ? aimDir
+                    .normalize()
+                    .multiplyScalar(FIREARM_CAMERA_SIDE_PULLBACK)
+                    .setY(FIREARM_CAMERA_LIFT)
+                : new THREE.Vector3(0, FIREARM_CAMERA_LIFT, FIREARM_CAMERA_SIDE_PULLBACK);
+            setCameraFocus({
+              target: cameraMid,
+              object: handWeaponAttachment?.weapon,
+              follow: true,
+              priority: 9,
+              ttl: 0,
+              offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.014) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+              followOffset,
+              force: true
+            });
             muzzleFx.root.position.copy(muzzleOrigin);
             muzzleFx.root.visible = elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
+            targetReticle.root.position.copy(muzzleTarget);
+            targetReticle.root.position.y += 0.003;
+            targetReticle.root.visible = elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
+            const reticlePulse = 0.86 + Math.sin(elapsed * 0.012) * 0.16;
+            targetReticle.ring.scale.setScalar(reticlePulse);
+            targetReticle.horizontal.material.opacity = clamp(0.5 + reticlePulse * 0.4, 0, 1);
+            targetReticle.vertical.material.opacity = clamp(0.5 + reticlePulse * 0.4, 0, 1);
             if (elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs) {
               if (elapsedShooting % cadenceMs < 16) {
                 playFirearmShotSound();
                 playFirearmShellSound();
               }
               const pulse = 1 - ((elapsedShooting % cadenceMs) / Math.max(1, cadenceMs));
-              muzzleFx.flash.scale.setScalar(0.8 + pulse * 0.8);
-              muzzleFx.flash.material.opacity = clamp(0.15 + pulse * 0.9, 0, 1);
-              muzzleFx.smoke.scale.setScalar(0.75 + pulse * 0.3);
-              muzzleFx.smoke.material.opacity = clamp(0.06 + pulse * 0.2, 0, 0.35);
+              muzzleFx.flash.scale.setScalar(0.76 + pulse * 1.08);
+              muzzleFx.flash.material.opacity = clamp(0.18 + pulse * 0.92, 0, 1);
+              muzzleFx.smoke.scale.setScalar(0.72 + pulse * 0.56);
+              muzzleFx.smoke.material.opacity = clamp(0.14 + pulse * 0.34, 0, 0.6);
             } else {
               muzzleFx.root.visible = false;
+              targetReticle.root.visible = false;
             }
             tracers.forEach((entry, idx) => {
               const active = idx <= shotIdx && idx > shotIdx - 2;
@@ -9032,13 +9113,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               shell.visible = true;
               if (shellLife < 18) shellBase.copy(muzzleOrigin);
               shell.position.set(
-                shellBase.x + shellLife * 0.00022,
-                shellBase.y + 0.02 + Math.sin((shellLife / 620) * Math.PI) * 0.04 - shellLife * 0.00008,
-                shellBase.z - shellLife * 0.00018
+                shellBase.x + shellLife * 0.00026,
+                shellBase.y + 0.018 + Math.sin((shellLife / 620) * Math.PI) * 0.046 - shellLife * 0.0001,
+                shellBase.z - shellLife * 0.00021
               );
-              shell.rotation.x += 0.28;
-              shell.rotation.y += 0.19;
-              shell.rotation.z += 0.22;
+              shell.rotation.x += 0.34;
+              shell.rotation.y += 0.26;
+              shell.rotation.z += 0.28;
             });
             const impactPhase = clamp((elapsedShooting - shots * cadenceMs * 0.72) / Math.max(140, shots * cadenceMs * 0.28), 0, 1);
             if (!shatterDone && impactPhase >= 0.92) {
@@ -9060,7 +9141,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, ...tracers.map((entry) => entry.root), ...shells].forEach((obj) => {
+            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
             handWeaponAttachment?.release?.();
