@@ -53,7 +53,11 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
 
-const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set();
+const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
+  'mrtkGunAttack',
+  'pistolHolsterAttack',
+  'pistolSidearmAttack'
+]);
 
 const uniqueStoreItemsByName = (items) => {
   const seen = new Set();
