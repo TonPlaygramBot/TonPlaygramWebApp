@@ -20771,8 +20771,18 @@ const powerRef = useRef(hud.power);
         0.9,
         14
       );
-      humanActor.modelRoot.scale.setScalar(snookerHumanScaleFactor);
-      humanActor.fallback.scale.setScalar(snookerHumanScaleFactor);
+      const snookerHumanScaleBoost = 2;
+      const snookerFinalHumanScale = snookerHumanScaleFactor * snookerHumanScaleBoost;
+      humanActor.modelRoot.scale.setScalar(snookerFinalHumanScale);
+      humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
+
+      const bilardoSharedPose = {
+        bridgeHandBackFromBall: 0.245,
+        bridgeHandSide: -0.008,
+        gripRatio: 0.76,
+        idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
+        idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
+      };
 
       const humanPoseContext = {
         aimDir: new THREE.Vector2(0, 1),
@@ -25302,20 +25312,28 @@ const powerRef = useRef(hud.power);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
           const bridgeTarget = cueBallWorld
             .clone()
-            .addScaledVector(aimForward, -Math.max(BALL_R * 5.6, cueLen * 0.16))
-            .addScaledVector(aimSide, -BALL_R * 0.18)
+            .addScaledVector(aimForward, -bilardoSharedPose.bridgeHandBackFromBall)
+            .addScaledVector(aimSide, bilardoSharedPose.bridgeHandSide)
             .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
           const gripTarget = humanPoseContext.cueTip
             .clone()
-            .lerp(humanPoseContext.cueBack.clone(), 0.76);
+            .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio);
           const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
           const upAxis = new THREE.Vector3(0, 1, 0);
           const idleRight = rootTarget
             .clone()
-            .add(new THREE.Vector3(0.24, 1.12, 0.02).applyAxisAngle(upAxis, standingYaw));
+            .add(
+              bilardoSharedPose.idleRightOffset
+                .clone()
+                .applyAxisAngle(upAxis, standingYaw)
+            );
           const idleLeft = rootTarget
             .clone()
-            .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(upAxis, standingYaw));
+            .add(
+              bilardoSharedPose.idleLeftOffset
+                .clone()
+                .applyAxisAngle(upAxis, standingYaw)
+            );
           updateBilardoHumanPose(humanActor, deltaSeconds, {
             state: humanPoseContext.state,
             rootTarget,
