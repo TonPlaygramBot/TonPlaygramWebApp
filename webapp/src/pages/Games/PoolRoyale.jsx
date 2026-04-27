@@ -1933,7 +1933,7 @@ const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilar
 const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // raise launch speed so cue-ball movement remains clear on release
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
+const HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER = 2; // keep standing humans at 2x table-surface height
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
@@ -19525,8 +19525,7 @@ useEffect(() => {
       };
       const loadFirstAvailableGltf = async (urls = []) => {
         if (!hospitalityLoaderRef.current) {
-          hospitalityLoaderRef.current = new GLTFLoader();
-          hospitalityLoaderRef.current.setCrossOrigin('anonymous');
+          hospitalityLoaderRef.current = createConfiguredGLTFLoader(rendererRef.current);
         }
         const loader = hospitalityLoaderRef.current;
         let lastError = null;
@@ -19705,6 +19704,35 @@ useEffect(() => {
               if (!child?.isMesh) return;
               child.castShadow = true;
               child.receiveShadow = true;
+              const materials = Array.isArray(child.material)
+                ? child.material
+                : [child.material];
+              materials.forEach((material) => {
+                if (!material) return;
+                const colorMapKeys = ['map', 'emissiveMap'];
+                const linearMapKeys = [
+                  'normalMap',
+                  'roughnessMap',
+                  'metalnessMap',
+                  'aoMap',
+                  'alphaMap'
+                ];
+                colorMapKeys.forEach((key) => {
+                  const texture = material[key];
+                  if (!texture) return;
+                  applySRGBColorSpace(texture);
+                  texture.flipY = false;
+                  texture.needsUpdate = true;
+                });
+                linearMapKeys.forEach((key) => {
+                  const texture = material[key];
+                  if (!texture) return;
+                  texture.colorSpace = THREE.NoColorSpace;
+                  texture.flipY = false;
+                  texture.needsUpdate = true;
+                });
+                material.needsUpdate = true;
+              });
             });
             seatedHumanTemplateRef.current = model;
             return model;
@@ -24474,13 +24502,18 @@ useEffect(() => {
         model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
         model.updateMatrixWorld(true);
       };
+      const resolvePlayerHumanHeight = () => {
+        const tableSurfaceY = TABLE_Y + TABLE.THICK;
+        const surfaceHeight = Math.max(0.85, tableSurfaceY - floorY);
+        return surfaceHeight * HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER;
+      };
 
       const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+        const humanHeight = resolvePlayerHumanHeight();
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         if (template) {
           const avatar = template.clone(true);
@@ -24718,8 +24751,6 @@ useEffect(() => {
         const isInsideTableBlocker = (point) =>
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
-        const desiredRoot = chooseEdgeTarget(normalizedAim);
-
         rigs.forEach((rig) => {
           const anim = rig?.anim;
           if (!anim) return;
@@ -24745,10 +24776,9 @@ useEffect(() => {
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          const perimeterTarget = clampToWalkPerimeter(seatTarget);
+          const seatAim = isShooter ? normalizedAim : normalizedAim.clone().multiplyScalar(-1);
+          const desiredRoot = chooseEdgeTarget(seatAim);
+          const perimeterTarget = clampToWalkPerimeter(desiredRoot);
           if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
           anim.rootTarget.copy(perimeterTarget);
           if (!Number.isFinite(anim.walkPerimeterT)) {
