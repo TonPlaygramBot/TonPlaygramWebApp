@@ -289,9 +289,49 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
-    position: [0.02, -0.014, 0.082],
-    rotation: [-1.46, -0.06, -1.52],
+    position: [0.017, -0.01, 0.078],
+    rotation: [-1.5, -0.02, -1.56],
     muzzleOffset: [0.0, 0.012, 0.2]
+  },
+  glockSidearmAttack: {
+    position: [0.016, -0.009, 0.074],
+    rotation: [-1.52, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.19]
+  },
+  pistolSidearmAttack: {
+    position: [0.017, -0.01, 0.076],
+    rotation: [-1.51, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.195]
+  },
+  uziSprayAttack: {
+    position: [0.02, -0.012, 0.088],
+    rotation: [-1.47, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.215]
+  },
+  smgBurstAttack: {
+    position: [0.021, -0.012, 0.09],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.22]
+  },
+  assaultRifleAttack: {
+    position: [0.023, -0.013, 0.098],
+    rotation: [-1.43, -0.04, -1.55],
+    muzzleOffset: [0, 0.014, 0.235]
+  },
+  ak47VolleyAttack: {
+    position: [0.024, -0.013, 0.102],
+    rotation: [-1.42, -0.04, -1.55],
+    muzzleOffset: [0, 0.014, 0.245]
+  },
+  compactCarbineAttack: {
+    position: [0.022, -0.012, 0.095],
+    rotation: [-1.44, -0.04, -1.55],
+    muzzleOffset: [0, 0.014, 0.228]
+  },
+  marksmanDmrAttack: {
+    position: [0.024, -0.013, 0.108],
+    rotation: [-1.4, -0.04, -1.56],
+    muzzleOffset: [0, 0.015, 0.25]
   },
   shotgunBlastAttack: {
     position: [0.024, -0.016, 0.102],
@@ -2318,13 +2358,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.064 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.059 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.006 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.024 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.018 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.072 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.032 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.067 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.026 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.12;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
