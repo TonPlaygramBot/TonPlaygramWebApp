@@ -107,6 +107,10 @@ const BASIS_TRANSCODER_PATH =
 const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
+const SNOOKER_HUMAN_BASE_SCALE = 1.32;
+const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.42;
+const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 6.9;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 16.6;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -20756,7 +20760,8 @@ const powerRef = useRef(hud.power);
         loader: humanLoader,
         modelUrl: BILARDO_SHARED_HUMAN_GLTF_URL,
         tableTopY: BALL_CENTER_Y - BALL_R,
-        humanScale: 1.24,
+        humanScale: SNOOKER_HUMAN_BASE_SCALE,
+        textureAnisotropy: Math.min(renderer.capabilities?.getMaxAnisotropy?.() || 8, 16),
         humanVisualYawFix: Math.PI,
         strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
         moveLambda: 3.15,
@@ -20777,7 +20782,7 @@ const powerRef = useRef(hud.power);
         0.9,
         14
       );
-      const snookerHumanScaleBoost = 2.18;
+      const snookerHumanScaleBoost = SNOOKER_HUMAN_VISUAL_SCALE_BOOST;
       const snookerFinalHumanScale = snookerHumanScaleFactor * snookerHumanScaleBoost;
       humanActor.modelRoot.scale.setScalar(snookerFinalHumanScale);
       humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
@@ -25311,8 +25316,8 @@ const powerRef = useRef(hud.power);
           const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
             tableW: PLAY_W,
             tableL: PLAY_H,
-            edgeMargin: Math.max(BALL_R * 8.4, SIDE_RAIL_INNER_THICKNESS * 2.2),
-            desiredShootDistance: Math.max(cueLen * 0.64, BALL_R * 18.8)
+            edgeMargin: Math.max(BALL_R * SNOOKER_HUMAN_EDGE_MARGIN_FACTOR, SIDE_RAIL_INNER_THICKNESS * 1.65),
+            desiredShootDistance: Math.max(cueLen * 0.54, BALL_R * SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR)
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();

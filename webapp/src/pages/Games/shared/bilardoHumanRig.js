@@ -189,6 +189,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
         mats.forEach((m) => {
           if (m?.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
+            m.map.anisotropy = Math.max(m.map.anisotropy || 1, opts?.textureAnisotropy ?? 8);
             m.map.needsUpdate = true;
           }
           if (m) m.needsUpdate = true;
