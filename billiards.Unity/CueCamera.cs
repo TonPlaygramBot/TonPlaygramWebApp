@@ -91,6 +91,22 @@ public class CueCamera : MonoBehaviour
     public float maxCueAimLowering = 0.7f;
 
     [Header("Cue aim framing")]
+    // Optional first-person eye anchor on the human rig. When assigned, lowering
+    // the cue camera blends into the player's dominant-eye view so the avatar
+    // eyes are not visible in frame.
+    public Transform playerEyeAnchor;
+    // How strongly the lowered cue camera should blend into first-person view.
+    [Range(0f, 1f)]
+    public float eyeViewBlendStrength = 1f;
+    // Lowering amount where first-person blending begins.
+    [Range(0f, 1f)]
+    public float eyeViewStartLowering = 0.45f;
+    // Distance in front of the eye anchor used for the look target.
+    public float eyeViewLookAhead = 1.1f;
+    // Slight inward offset to avoid clipping through eyebrows/face meshes.
+    public float eyeViewForwardOffset = 0.03f;
+    // Vertical offset to center the cue in first-person framing.
+    public float eyeViewHeightOffset = -0.005f;
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
@@ -325,6 +341,7 @@ public class CueCamera : MonoBehaviour
     private float cueStickStrokeVisual;
     private float smoothedCueDistance;
     private bool hasSmoothedCueDistance;
+    private float eyeViewBlend;
     private float cueStrikeHoldUntilTime;
     private bool forceImmediateRailOverheadOnNextShot;
     private bool holdCueAimDuringShot;
@@ -732,6 +749,7 @@ public class CueCamera : MonoBehaviour
 
         ApplyCueAimZoom(blend, deltaTime);
         ApplyCameraAt(focus, cueAimForward, distance, height, minimumHeightOffset, lookTarget);
+        ApplyEyeViewOverride(cueAimForward, blend, deltaTime);
 
         Vector3 flatForward = new Vector3(cueAimForward.x, 0f, cueAimForward.z);
         if (flatForward.sqrMagnitude > 0.0001f)
@@ -771,6 +789,41 @@ public class CueCamera : MonoBehaviour
 
         Quaternion fallback = Quaternion.Euler(0f, GetShortRailYaw(cueAimSideSign), 0f);
         return fallback * Vector3.forward;
+    }
+
+    private void ApplyEyeViewOverride(Vector3 cueForward, float cueLoweringBlend, float deltaTime)
+    {
+        float targetBlend = 0f;
+        if (!shotInProgress && playerEyeAnchor != null)
+        {
+            float start = Mathf.Clamp01(eyeViewStartLowering);
+            float loweringWindow = Mathf.Max(0.0001f, 1f - start);
+            float loweringT = Mathf.Clamp01((cueLoweringBlend - start) / loweringWindow);
+            targetBlend = loweringT * Mathf.Clamp01(eyeViewBlendStrength);
+        }
+
+        float blendLerp = 1f - Mathf.Exp(-Mathf.Max(0f, cueAxisSmoothSpeed) * Mathf.Max(0f, deltaTime));
+        eyeViewBlend = Mathf.Lerp(eyeViewBlend, targetBlend, blendLerp);
+        if (eyeViewBlend <= 0.0001f || playerEyeAnchor == null)
+        {
+            return;
+        }
+
+        Vector3 eyePos = playerEyeAnchor.position +
+                         (cueForward * Mathf.Max(0f, eyeViewForwardOffset)) +
+                         (Vector3.up * eyeViewHeightOffset);
+        Vector3 eyeLookTarget = eyePos +
+                                (cueForward * Mathf.Max(0.1f, eyeViewLookAhead)) +
+                                (Vector3.up * cueBallLookOffset);
+        Vector3 lookDir = eyeLookTarget - eyePos;
+        if (lookDir.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Quaternion eyeRotation = Quaternion.LookRotation(lookDir.normalized, Vector3.up);
+        transform.position = Vector3.Lerp(transform.position, eyePos, eyeViewBlend);
+        transform.rotation = Quaternion.Slerp(transform.rotation, eyeRotation, eyeViewBlend);
     }
 
     private float ResolveCueAimDistance(
