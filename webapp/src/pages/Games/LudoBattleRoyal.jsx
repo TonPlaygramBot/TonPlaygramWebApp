@@ -136,6 +136,9 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
+  'mrtkGunAttack',
+  'pistolHolsterAttack',
+  'fpsGunAttack',
   'glockSidearmAttack',
   'pistolSidearmAttack',
   'assaultRifleAttack',
@@ -153,6 +156,34 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'marksmanDmrAttack'
 ]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
+  mrtkGunAttack: {
+    label: 'MRTK Gun',
+    urls: [
+      'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://raw.githubusercontent.com/Microsoft/MixedRealityToolkit/master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb'
+    ],
+    scale: 0.132
+  },
+  pistolHolsterAttack: {
+    label: 'Pistol Holster',
+    urls: [
+      'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+      'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
+    ],
+    scale: 0.138
+  },
+  fpsGunAttack: {
+    label: 'FPS Gun',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
+    ],
+    scale: 0.142
+  },
   glockSidearmAttack: {
     label: 'Glock',
     urls: [
@@ -312,6 +343,9 @@ function applyModelQualityToObject(root) {
 }
 
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
+  mrtkGunAttack: 22,
+  pistolHolsterAttack: 14,
+  fpsGunAttack: 24,
   glockSidearmAttack: 17,
   pistolSidearmAttack: 16,
   assaultRifleAttack: 30,
@@ -333,6 +367,21 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     position: [0.018, -0.002, 0.086],
     rotation: [-1.5, -0.02, -1.56],
     muzzleOffset: [0.0, 0.012, 0.2]
+  },
+  mrtkGunAttack: {
+    position: [0.02, -0.002, 0.092],
+    rotation: [-1.49, -0.04, -1.56],
+    muzzleOffset: [0, 0.013, 0.22]
+  },
+  pistolHolsterAttack: {
+    position: [0.018, -0.002, 0.086],
+    rotation: [-1.5, -0.03, -1.57],
+    muzzleOffset: [0, 0.012, 0.2]
+  },
+  fpsGunAttack: {
+    position: [0.022, -0.003, 0.098],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.224]
   },
   glockSidearmAttack: {
     position: [0.018, 0.0, 0.082],
@@ -407,6 +456,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
+  mrtkGunAttack: 1.04,
+  pistolHolsterAttack: 1.0,
+  fpsGunAttack: 1.08,
   glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.0,
   uziSprayAttack: 1.06,
@@ -7259,9 +7311,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         );
       case 'captureAnimation':
         return (
-          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.65rem] leading-tight text-slate-100">
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-            <div className="relative flex flex-col items-center gap-0.5">
+          <div className="relative flex h-16 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.65rem] leading-tight text-slate-100">
+            {option?.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={`${option?.label || 'Weapon'} thumbnail`}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/45 via-transparent to-black/55" />
+            <div className="relative flex flex-col items-center gap-0.5 px-1">
               <span className="font-semibold">{option.label}</span>
               {option.description ? <span className="text-[0.56rem] text-slate-200/80">{option.description}</span> : null}
             </div>
@@ -11135,14 +11195,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       <div className="absolute inset-0 pointer-events-none">
         {weaponSwapPopup && (
           <div
-            className="pointer-events-auto absolute z-30 w-48 rounded-xl border border-white/20 bg-black/85 p-2 shadow-2xl backdrop-blur"
+            className="pointer-events-auto absolute z-30 w-[min(96vw,25rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2.5 shadow-2xl backdrop-blur"
             style={{
-              left: clamp(weaponSwapPopup.x - 80, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 200),
-              top: clamp(weaponSwapPopup.y - 12, 96, (typeof window !== 'undefined' ? window.innerHeight : 640) - 170)
+              left: clamp(weaponSwapPopup.x - 140, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 336),
+              top: clamp(weaponSwapPopup.y - 16, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 420)
             }}
           >
-            <p className="px-1 pb-1 text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
-            <div className="grid grid-cols-2 gap-1">
+            <div className="mb-2 flex items-center justify-between gap-2 px-1">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
+              <button
+                type="button"
+                onClick={() => setWeaponSwapPopup(null)}
+                className="rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/90 hover:bg-white/20"
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid max-h-[54vh] grid-cols-2 gap-2 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
@@ -11150,7 +11219,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <button
                     key={option.id}
                     type="button"
-                    className={`rounded-md border px-1.5 py-1 text-[10px] font-semibold ${
+                    className={`overflow-hidden rounded-xl border text-[10px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
@@ -11158,7 +11227,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       setWeaponSwapPopup(null);
                     }}
                   >
-                    {option.label}
+                    {option.thumbnail ? (
+                      <img
+                        src={option.thumbnail}
+                        alt={`${option.label} thumbnail`}
+                        className="h-16 w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-16 w-full bg-slate-900/60" />
+                    )}
+                    <div className="px-1.5 py-1">{option.label}</div>
                   </button>
                 );
               })}

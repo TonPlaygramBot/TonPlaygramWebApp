@@ -53,7 +53,17 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
 
-export const LUDO_BATTLE_STORE_ITEMS = [
+const uniqueStoreItemsByName = (items) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = `${item?.type || ''}:${String(item?.name || '').trim().toLowerCase()}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `ludo-table-finish-${finish.id}`,
     type: 'tableFinish',
@@ -137,7 +147,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     name: option.label,
     price: 950 + idx * 120,
     description: option.description,
-    thumbnail: swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
+    thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
   })),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
@@ -150,7 +160,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#334155', '#64748b', '#f59e0b'])
   })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
-];
+]);
 
 export const LUDO_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0]?.id, label: MURLAN_TABLE_THEMES[0]?.label },
