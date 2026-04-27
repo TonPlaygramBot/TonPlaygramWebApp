@@ -116,6 +116,20 @@ const captureWeaponThumb = (icon = '⚔️', accent = '#0ea5e9') =>
     </svg>`
   )}`;
 
+const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
+  glockSidearmAttack: 'https://raw.githubusercontent.com/webaverse/pistol/master/homer.png',
+  pistolSidearmAttack: 'https://raw.githubusercontent.com/webaverse/pistol/master/homer.png',
+  assaultRifleAttack: 'https://raw.githubusercontent.com/webaverse/pistol/master/homer.png',
+  ak47VolleyAttack:
+    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
+  smithSidearmAttack:
+    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/textures/Wood_baseColor.jpeg',
+  shotgunBlastAttack:
+    'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/textures/shotgun_baseColor.png',
+  sniperShotAttack:
+    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/textures/Mosin_baseColor.png'
+});
+
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'missileJavelin',
@@ -163,19 +177,19 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'glockSidearmAttack',
     label: 'Glock Sidearm',
     description: 'Pick the Glock from the table, aim, and fire before taking the tile.',
-    thumbnail: captureWeaponThumb('🔫', '#2563eb')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.glockSidearmAttack
   },
   {
     id: 'pistolSidearmAttack',
     label: 'Pistol Sidearm',
     description: 'Classic pistol takedown with right-hand pickup using original GLB textures.',
-    thumbnail: captureWeaponThumb('🔫', '#0284c7')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.pistolSidearmAttack
   },
   {
     id: 'assaultRifleAttack',
     label: 'Assault Rifle',
     description: 'AR burst capture with short aim hold and original GLB texture materials.',
-    thumbnail: captureWeaponThumb('🪖', '#334155')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.assaultRifleAttack
   },
   {
     id: 'uziSprayAttack',
@@ -187,7 +201,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
     description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.',
-    thumbnail: captureWeaponThumb('🪖', '#7f1d1d')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.ak47VolleyAttack
   },
   {
     id: 'krsvBurstAttack',
@@ -199,7 +213,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'smithSidearmAttack',
     label: 'Smith Sidearm',
     description: 'Smith sidearm takedown with original Gunify texture maps.',
-    thumbnail: captureWeaponThumb('🔫', '#155e75')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.smithSidearmAttack
   },
   {
     id: 'mosinMarksmanAttack',
@@ -223,13 +237,13 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'shotgunBlastAttack',
     label: 'Shotgun Blast',
     description: 'Short-range tactical shotgun blast with fast pickup timing.',
-    thumbnail: captureWeaponThumb('🧨', '#92400e')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.shotgunBlastAttack
   },
   {
     id: 'sniperShotAttack',
     label: 'Sniper Shot',
     description: 'Precision long-barrel sniper takedown sequence.',
-    thumbnail: captureWeaponThumb('🎯', '#312e81')
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.sniperShotAttack
   },
   {
     id: 'smgBurstAttack',
