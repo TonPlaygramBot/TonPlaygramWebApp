@@ -15537,6 +15537,7 @@ const manualShotStateRef = useRef('idle');
 const manualStrikeStartedAtRef = useRef(0);
 const manualStrikeDidHitRef = useRef(false);
 const manualStrikePowerRef = useRef(0);
+const lastSliderDragPowerRef = useRef(0);
 useEffect(() => {
   manualShotStateRef.current = manualShotState;
 }, [manualShotState]);
@@ -27288,6 +27289,7 @@ useEffect(() => {
         }
         const sourcePower = Math.max(
           Number.isFinite(committedPowerOverride) ? committedPowerOverride : 0,
+          Number.isFinite(lastSliderDragPowerRef.current) ? lastSliderDragPowerRef.current : 0,
           Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
           Number.isFinite(powerRef.current) ? powerRef.current : 0
         );
@@ -33670,12 +33672,14 @@ useEffect(() => {
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
     const clamped = clampPower(powerRatio, 0);
+    lastSliderDragPowerRef.current = clamped;
     shotPowerRef.current = clamped;
     applyPower(clamped);
   }, [applyPower, clampPower]);
   const onPowerRelease = useCallback((powerRatio = null) => {
     const sourcePower = Math.max(
       Number.isFinite(powerRatio) ? powerRatio : 0,
+      Number.isFinite(lastSliderDragPowerRef.current) ? lastSliderDragPowerRef.current : 0,
       Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
       Number.isFinite(powerRef.current) ? powerRef.current : 0
     );
@@ -33704,7 +33708,11 @@ useEffect(() => {
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
       onCommit: (value) => {
-        const committedRatio = Number.isFinite(value) ? value / 100 : powerRef.current;
+        const sliderCommittedValue =
+          Number.isFinite(value) ? value : sliderInstanceRef.current?.get?.();
+        const committedRatio = Number.isFinite(sliderCommittedValue)
+          ? sliderCommittedValue / 100
+          : powerRef.current;
         onPowerRelease(clampPower(committedRatio, 0));
         slider.animateToMin({ duration: 180 });
       }
