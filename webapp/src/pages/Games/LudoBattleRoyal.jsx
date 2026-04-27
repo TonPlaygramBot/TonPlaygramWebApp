@@ -64,23 +64,6 @@ import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.j
 import { socket } from '../../utils/socket.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const QUICK_SWAP_WEAPON_GLYPH_BY_ID = Object.freeze({
-  mrtkGunAttack: 'M4 24 L42 24 L52 28 L60 28 L60 34 L4 34 Z M28 20 L44 20',
-  pistolHolsterAttack: 'M8 26 L44 26 L52 31 L8 31 Z M30 22 L42 22',
-  fpsGunAttack: 'M4 24 L48 24 L58 29 L4 29 Z M28 20 L44 20 M22 30 L22 38',
-  glockSidearmAttack: 'M8 24 L42 24 L50 30 L8 30 Z M20 30 L20 38',
-  pistolSidearmAttack: 'M8 24 L42 24 L50 30 L8 30 Z M20 30 L20 38',
-  assaultRifleAttack: 'M4 22 L52 22 L60 28 L4 28 Z M24 28 L24 38 M52 20 L58 16',
-  uziSprayAttack: 'M8 23 L38 23 L46 28 L8 28 Z M20 28 L20 37',
-  ak47VolleyAttack: 'M4 22 L54 22 L62 29 L4 29 Z M26 29 L22 40 M50 21 L58 16',
-  krsvBurstAttack: 'M4 22 L52 22 L60 29 L4 29 Z M23 29 L23 39',
-  smithSidearmAttack: 'M8 24 L42 24 L50 30 L8 30 Z M20 30 L20 38',
-  mosinMarksmanAttack: 'M2 23 L58 23 L62 26 L2 26 Z M46 20 L58 18',
-  sigsauerTacticalAttack: 'M8 24 L42 24 L50 30 L8 30 Z M20 30 L20 38',
-  grenadeBlastAttack: 'M30 20 A10 10 0 1 0 30.01 20 M26 10 L34 10 L34 14 L26 14 Z',
-  shotgunBlastAttack: 'M2 23 L56 23 L62 27 L2 27 Z M16 27 L16 39',
-  sniperShotAttack: 'M2 22 L58 22 L62 25 L2 25 Z M36 18 L48 18 M46 19 L46 14'
-});
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -265,7 +248,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.16
   },
   krsvBurstAttack: {
-    label: 'KRSV Burst',
+    label: 'KRSV',
     urls: [
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
@@ -289,7 +272,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.205
   },
   sigsauerTacticalAttack: {
-    label: 'SigSauer Tactical',
+    label: 'SigSauer',
     urls: [
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
@@ -297,7 +280,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.13
   },
   grenadeBlastAttack: {
-    label: 'Grenade Blast',
+    label: 'Grenade',
     urls: [
       'https://cdn.jsdelivr.net/gh/friuns2/bingextension@main/grenade.glb',
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
@@ -306,10 +289,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.19
   },
   shotgunBlastAttack: {
-    label: 'Shotgun Blast',
+    label: 'Shotgun',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Shotgun/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Shotgun/scene.gltf',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
@@ -419,7 +400,7 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.012, 0.2]
   },
   fpsGunAttack: {
-    position: [0.03, -0.004, 0.112],
+    position: [0.022, -0.003, 0.098],
     rotation: [-1.46, -0.04, -1.56],
     muzzleOffset: [0, 0.014, 0.224]
   },
@@ -444,17 +425,17 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.014, 0.22]
   },
   assaultRifleAttack: {
-    position: [0.032, -0.005, 0.12],
+    position: [0.025, -0.004, 0.109],
     rotation: [-1.43, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.235]
   },
   ak47VolleyAttack: {
-    position: [0.034, -0.005, 0.126],
+    position: [0.027, -0.004, 0.113],
     rotation: [-1.42, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.245]
   },
   krsvBurstAttack: {
-    position: [0.033, -0.005, 0.123],
+    position: [0.026, -0.004, 0.111],
     rotation: [-1.43, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.238]
   },
@@ -464,7 +445,7 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.012, 0.194]
   },
   mosinMarksmanAttack: {
-    position: [0.036, -0.006, 0.142],
+    position: [0.029, -0.005, 0.131],
     rotation: [-1.38, -0.04, -1.58],
     muzzleOffset: [0, 0.015, 0.262]
   },
@@ -484,12 +465,12 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.25]
   },
   shotgunBlastAttack: {
-    position: [0.034, -0.006, 0.126],
+    position: [0.027, -0.006, 0.114],
     rotation: [-1.4, -0.05, -1.56],
     muzzleOffset: [0, 0.014, 0.24]
   },
   sniperShotAttack: {
-    position: [0.036, -0.006, 0.142],
+    position: [0.029, -0.005, 0.13],
     rotation: [-1.38, -0.04, -1.58],
     muzzleOffset: [0, 0.015, 0.26]
   }
@@ -498,21 +479,21 @@ const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   mrtkGunAttack: 1.04,
   pistolHolsterAttack: 1.0,
-  fpsGunAttack: 1.24,
+  fpsGunAttack: 1.08,
   glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.0,
   uziSprayAttack: 1.06,
   smgBurstAttack: 1.1,
   compactCarbineAttack: 1.14,
-  assaultRifleAttack: 1.28,
-  ak47VolleyAttack: 1.34,
-  krsvBurstAttack: 1.32,
+  assaultRifleAttack: 1.18,
+  ak47VolleyAttack: 1.22,
+  krsvBurstAttack: 1.2,
   smithSidearmAttack: 1.0,
-  mosinMarksmanAttack: 1.38,
+  mosinMarksmanAttack: 1.28,
   sigsauerTacticalAttack: 1.08,
-  shotgunBlastAttack: 1.34,
+  shotgunBlastAttack: 1.2,
   marksmanDmrAttack: 1.26,
-  sniperShotAttack: 1.42,
+  sniperShotAttack: 1.3,
   grenadeBlastAttack: 1.12
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
@@ -2647,12 +2628,12 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
 ]);
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.084 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.154 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = 0.006 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = 0.001 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_PICKUP = 0.004 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.018 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_HOLD = 0.088 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_HOLD = 0.003 * MODEL_SCALE;
-const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.01;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.035;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.008;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
@@ -11245,14 +11226,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       <div className="absolute inset-0 pointer-events-none">
         {weaponSwapPopup && (
           <div
-            className="pointer-events-auto absolute z-30 w-[min(96vw,23rem)] max-h-[70vh] overflow-hidden rounded-2xl border border-white/20 bg-black/90 p-2 shadow-2xl backdrop-blur"
+            className="pointer-events-auto absolute z-30 w-[min(96vw,25rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2.5 shadow-2xl backdrop-blur"
             style={{
-              left: clamp(weaponSwapPopup.x - 132, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 320),
-              top: clamp(weaponSwapPopup.y - 12, 80, (typeof window !== 'undefined' ? window.innerHeight : 640) - 440)
+              left: clamp(weaponSwapPopup.x - 140, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 336),
+              top: clamp(weaponSwapPopup.y - 16, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 420)
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-2 px-1">
-              <p className="text-[9px] uppercase tracking-[0.24em] text-sky-200/80">Quick Weapon Swap</p>
+              <p className="text-[10px] uppercase tracking-[0.28em] text-sky-200/80">Quick Weapon Swap</p>
               <button
                 type="button"
                 onClick={() => setWeaponSwapPopup(null)}
@@ -11261,29 +11242,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 Close
               </button>
             </div>
-            <div className="grid max-h-[58vh] grid-cols-3 gap-1.5 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+            <div className="grid max-h-[54vh] grid-cols-2 gap-2 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
-                const glyphPath = QUICK_SWAP_WEAPON_GLYPH_BY_ID[option.id] || QUICK_SWAP_WEAPON_GLYPH_BY_ID.pistolSidearmAttack;
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-xl border px-1.5 py-1 text-[9px] font-semibold ${
-                      selected ? 'border-sky-300 bg-sky-400/20 text-white' : 'border-white/20 bg-white/5 text-white/85'
+                    className={`overflow-hidden rounded-xl border text-[10px] font-semibold ${
+                      selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                       setWeaponSwapPopup(null);
                     }}
                   >
-                    <div className="flex h-12 w-full items-center justify-center rounded-lg border border-white/10 bg-slate-900/70">
-                      <svg viewBox="0 0 64 46" className="h-7 w-11" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round">
-                        <path d={glyphPath} />
-                      </svg>
-                    </div>
-                    <div className="mt-1 min-h-[1.8rem] leading-tight">{option.label}</div>
+                    {option.thumbnail ? (
+                      <img
+                        src={option.thumbnail}
+                        alt={`${option.label} thumbnail`}
+                        className="h-16 w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-16 w-full bg-slate-900/60" />
+                    )}
+                    <div className="px-1.5 py-1">{option.label}</div>
                   </button>
                 );
               })}
