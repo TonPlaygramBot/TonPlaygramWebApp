@@ -80,10 +80,8 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
-  BILARDO_MIN_RELEASE_POWER,
   BILARDO_STRIKE_CONTACT_THRESHOLD,
   BILARDO_STRIKE_TIME_MS,
-  bilardoCueSpeed
 } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -1928,11 +1926,7 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
-const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
-const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
-const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // raise launch speed so cue-ball movement remains clear on release
-const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
+const MIN_SHOT_POWER_TO_FIRE = 0; // match Snooker Royale: allow the full 0..1 power range without an extra release gate
 const HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER = 2; // keep standing humans at 2x table-surface height
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
@@ -27139,8 +27133,8 @@ useEffect(() => {
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const referenceSpeed = bilardoCueSpeed(clampedPower) * POOL_ROYALE_CUE_SPEED_BOOST;
-        cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
+        const shotVelocity = payload.base?.clone?.() ?? shotDir3.clone().multiplyScalar(0);
+        cue.vel.copy(shotVelocity);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
@@ -27158,7 +27152,7 @@ useEffect(() => {
           .copy(sideAxis)
           .multiplyScalar(offsetScaled.x * BALL_R)
           .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
-        const impulseMag = BALL_MASS * referenceSpeed;
+        const impulseMag = BALL_MASS * cue.vel.length();
         const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
         const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
         if (cue.omega) {
@@ -27353,9 +27347,6 @@ useEffect(() => {
         if (shotPrediction.railNormal) replayTags.add('bank');
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
-          const referenceCueSpeed =
-            REFERENCE_CUE_SPEED_BASE +
-            REFERENCE_CUE_SPEED_RANGE * Math.pow(clampedPower, REFERENCE_CUE_SPEED_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -27382,9 +27373,11 @@ useEffect(() => {
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
-            .multiplyScalar(referenceCueSpeed);
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -33687,7 +33680,7 @@ useEffect(() => {
     applyPower(latchedPower);
     manualStrikeDidHitRef.current = false;
     manualStrikeStartedAtRef.current = performance.now();
-    const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
+    const shouldStrike = latchedPower > MIN_SHOT_POWER_TO_FIRE;
     setManualShotState(shouldStrike ? 'striking' : 'idle');
   }, [applyPower, clampPower]);
   useEffect(() => {
@@ -33712,7 +33705,7 @@ useEffect(() => {
         );
       }
       if (strikeNorm >= 1) {
-        if (!shootingRef.current && manualStrikePowerRef.current > BILARDO_MIN_RELEASE_POWER) {
+        if (!shootingRef.current && manualStrikePowerRef.current > MIN_SHOT_POWER_TO_FIRE) {
           fireRef.current?.(manualStrikePowerRef.current);
         }
         setManualShotState('idle');
