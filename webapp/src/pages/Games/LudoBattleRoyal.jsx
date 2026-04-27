@@ -390,29 +390,12 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   return promise;
 }
 
-async function resolveFirstAvailableCaptureWeaponModel(preferredCaptureAnimationId) {
-  const candidateIds = [
-    preferredCaptureAnimationId,
-    ...Array.from(FIREARM_CAPTURE_ANIMATION_IDS).filter((id) => id !== preferredCaptureAnimationId)
-  ];
-  for (const captureAnimationId of candidateIds) {
-    // eslint-disable-next-line no-await-in-loop
-    const model = await loadCaptureWeaponModel(captureAnimationId);
-    if (model?.isObject3D) {
-      return { captureAnimationId, model };
-    }
-  }
-  return null;
-}
-
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
-  const resolved = await resolveFirstAvailableCaptureWeaponModel(captureAnimationId);
-  if (!resolved?.model?.isObject3D) return null;
-  const resolvedCaptureAnimationId = resolved.captureAnimationId;
-  const modelTemplate = resolved.model;
-  const tuning = FIREARM_HAND_ATTACH_TUNING[resolvedCaptureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
+  const modelTemplate = await loadCaptureWeaponModel(captureAnimationId);
+  if (!modelTemplate?.isObject3D) return null;
+  const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
@@ -424,7 +407,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   return {
     weapon,
     muzzle,
-    captureAnimationId: resolvedCaptureAnimationId,
     release: () => {
       weapon.parent?.remove?.(weapon);
     }
@@ -488,13 +470,12 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   }
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
   entry.weaponHolder.clear();
-  const resolved = await resolveFirstAvailableCaptureWeaponModel(captureAnimationId);
-  if (!resolved?.model?.isObject3D) {
+  const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
+  if (!weaponModel) {
     entry.selectedCaptureAnimationId = null;
     return;
   }
-  const weaponModel = resolved.model;
-  entry.selectedCaptureAnimationId = resolved.captureAnimationId;
+  entry.selectedCaptureAnimationId = captureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
   fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
@@ -2202,7 +2183,7 @@ const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.9;
 const TABLE_SIDE_EXPANSION_FACTOR = 1;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
-const CHAIR_GLOBAL_SCALE = 0.64;
+const CHAIR_GLOBAL_SCALE = 0.58;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2271,9 +2252,9 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.9;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.22 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
@@ -2308,13 +2289,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.058 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.074 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.002 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.009 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.006 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.068 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.011 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.086 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.022 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.045;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
@@ -2331,25 +2312,9 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
-const SEATED_CONTACT_DICE_Y_OFFSET = 0.002;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.004;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
-const SEATED_IDLE_ARMREST_POSE = Object.freeze({
-  leftUpperArm: [-0.22, 0.18, 0.78],
-  leftForeArm: [-0.82, 0.12, -0.08],
-  leftHand: [0.02, -0.04, 0.1],
-  rightUpperArm: [-0.2, -0.16, -0.76],
-  rightForeArm: [-0.84, -0.06, 0.12],
-  rightHand: [0.04, 0.04, -0.02]
-});
-const SEATED_IDLE_NO_ARMREST_POSE = Object.freeze({
-  leftUpperArm: [0.08, 0.04, 0.08],
-  leftForeArm: [-0.02, 0.01, 0.02],
-  leftHand: [0.04, 0.01, 0],
-  rightUpperArm: [0.1, -0.04, -0.08],
-  rightForeArm: [-0.06, 0.02, 0.02],
-  rightHand: [0.02, -0.01, 0]
-});
 const seatedHumanTemplatePromiseById = new Map();
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -2367,19 +2332,6 @@ const stabilizeChairModelRenderState = (root) => {
     obj.receiveShadow = true;
     obj.frustumCulled = false;
   });
-};
-
-const detectChairHasArmrests = (root) => {
-  if (!root?.isObject3D) return false;
-  let armrestScore = 0;
-  root.traverse((obj) => {
-    if (!obj?.isObject3D) return;
-    const n = `${obj.name || ''}`.toLowerCase();
-    if (!n) return;
-    if (/armrest|arm_rest|chairarm|arm_l|arm_r/.test(n)) armrestScore += 2;
-    else if (/\barm\b/.test(n)) armrestScore += 1;
-  });
-  return armrestScore >= 2;
 };
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -2500,7 +2452,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 
-function createAiUniqueLoadout(activePlayerCount, takenHumanCharacterIndex = null) {
+function createAiUniqueLoadout(activePlayerCount) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
@@ -2521,10 +2473,7 @@ function createAiUniqueLoadout(activePlayerCount, takenHumanCharacterIndex = nul
 
   const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
   const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
-  const humanPoolBase = Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx).filter(
-    (idx) => idx !== takenHumanCharacterIndex
-  );
-  const humanPool = shuffle(humanPoolBase.length ? humanPoolBase : [0]);
+  const humanPool = shuffle(Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx));
 
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
@@ -4734,15 +4683,7 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
 }
 
-function applySeatedHumanPose(
-  rig,
-  mode = 'idle',
-  intensity = 1,
-  handGrip = 0,
-  throwBias = {},
-  motionTuning = {},
-  { hasArmrests = true } = {}
-) {
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}, motionTuning = {}) {
   if (!rig) return;
   resetBoneRig(rig);
   const t = smoother01(intensity);
@@ -4767,27 +4708,19 @@ function applySeatedHumanPose(
   addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
   addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
 
-  const idleArmPose = hasArmrests ? SEATED_IDLE_ARMREST_POSE : SEATED_IDLE_NO_ARMREST_POSE;
-  addBoneRot(
-    rig,
-    rig.leftUpperArm,
-    idleArmPose.leftUpperArm[0],
-    idleArmPose.leftUpperArm[1],
-    idleArmPose.leftUpperArm[2],
-    1
-  );
-  addBoneRot(rig, rig.leftForeArm, idleArmPose.leftForeArm[0], idleArmPose.leftForeArm[1], idleArmPose.leftForeArm[2], 1);
-  addBoneRot(rig, rig.leftHand, idleArmPose.leftHand[0], idleArmPose.leftHand[1], idleArmPose.leftHand[2], 1);
+  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
+  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
+  addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
 
-  let shoulderX = idleArmPose.rightUpperArm[0];
-  let shoulderY = idleArmPose.rightUpperArm[1];
-  let shoulderZ = idleArmPose.rightUpperArm[2];
-  let forearmX = idleArmPose.rightForeArm[0];
-  let forearmY = idleArmPose.rightForeArm[1];
-  let forearmZ = idleArmPose.rightForeArm[2];
-  let wristX = idleArmPose.rightHand[0];
-  let wristY = idleArmPose.rightHand[1];
-  let wristZ = idleArmPose.rightHand[2];
+  let shoulderX = -0.20;
+  let shoulderY = -0.02;
+  let shoulderZ = -0.72;
+  let forearmX = -0.50;
+  let forearmY = -0.04;
+  let forearmZ = 0.14;
+  let wristX = -0.08;
+  let wristY = 0;
+  let wristZ = 0.06;
   let chestX = 0.12;
   let chestY = 0;
   let headX = -0.06;
@@ -5059,7 +4992,7 @@ function sampleSeatedObjectContactTarget(entry, object, kind, out) {
   }
   direction.copy(effector).sub(center);
   if (kind === 'dice') {
-    const radius = DICE_SIZE * 0.32;
+    const radius = DICE_SIZE * 0.52;
     if (direction.lengthSq() < 1e-8) direction.set(0, 0.1, 1);
     direction.normalize();
     out.copy(center).addScaledVector(direction, radius);
@@ -5218,7 +5151,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       ...basePose,
       mode: 'holdDice',
       intensity: 1,
-      handGrip: playerIndex === 0 ? 0.82 : 0.94,
+      handGrip: playerIndex === 0 ? 0.2 : 0.92,
       motionTuning: { idleBreathAmp: 0.008, precision: 1.08 }
     };
   }
@@ -5415,14 +5348,6 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             materials.forEach((mat) => {
               if (!mat?.map) mat.map = fallbackTex;
               if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-              if (!useSkin && !useHair) {
-                mat.roughness = clamp(Number.isFinite(mat.roughness) ? mat.roughness : 0.72, 0.55, 0.95);
-                mat.metalness = clamp(Number.isFinite(mat.metalness) ? mat.metalness : 0.08, 0, 0.18);
-                if (mat.map) {
-                  mat.map.anisotropy = Math.max(mat.map.anisotropy || 1, Math.min(12, activeModelTextureAnisotropy));
-                  mat.map.needsUpdate = true;
-                }
-              }
               normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
               if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
               mat.needsUpdate = true;
@@ -6008,10 +5933,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
-  const aiLoadoutByPlayer = useMemo(
-    () => createAiUniqueLoadout(activePlayerCount, appearance.humanCharacter ?? 0),
-    [activePlayerCount, appearance.humanCharacter]
-  );
+  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
@@ -7978,17 +7900,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const chairModel = chairTemplate.clone(true);
       stabilizeChairModelRenderState(chairModel);
-      const hasArmrests = detectChairHasArmrests(chairModel);
       group.add(chairModel);
       group.userData.chairModel = chairModel;
-      group.userData.hasArmrests = hasArmrests;
 
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
       group.add(avatarAnchor);
 
       arenaGroup.add(group);
-      chairs.push({ group, anchor: avatarAnchor, hasArmrests });
+      chairs.push({ group, anchor: avatarAnchor });
     }
     seatedHumanActorsRef.current = [];
     try {
@@ -8016,7 +7936,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
-        applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, { hasArmrests: Boolean(chair?.hasArmrests) });
+        applySeatedHumanPose(rig, 'idle', 1);
         alignSeatedHumanFeetToGroundPlane(actor, rig);
         const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig, actionHelpers });
@@ -8444,8 +8364,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             pose.intensity,
             pose.handGrip,
             throwBias,
-            pose.motionTuning,
-            { hasArmrests: Boolean(arenaRef.current?.chairs?.[playerIndex]?.hasArmrests) }
+            pose.motionTuning
           );
           let hasContactTarget = false;
           const poseToHelperKey = {
