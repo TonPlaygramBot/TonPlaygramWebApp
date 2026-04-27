@@ -148,7 +148,9 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     price: 950 + idx * 120,
     description: option.description,
     thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
-  })),
+  })).filter((item) =>
+    !['mrtkGunAttack', 'pistolHolsterAttack', 'pistolSidearmAttack'].includes(item.optionId)
+  ),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
     type: 'humanCharacter',
