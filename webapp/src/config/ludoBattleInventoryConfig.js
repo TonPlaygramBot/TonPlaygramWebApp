@@ -147,7 +147,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     name: option.label,
     price: 950 + idx * 120,
     description: option.description,
-    thumbnail: option.thumbnail || ''
+    thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
   })),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
