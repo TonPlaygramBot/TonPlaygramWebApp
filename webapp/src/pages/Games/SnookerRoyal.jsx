@@ -107,10 +107,12 @@ const BASIS_TRANSCODER_PATH =
 const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
-const SNOOKER_HUMAN_BASE_SCALE = 1.32;
+const SNOOKER_HUMAN_BASE_SCALE = 1.18;
 const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
 const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.9;
-const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 18.8;
+const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 17.2;
+const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
+const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -20790,7 +20792,7 @@ const powerRef = useRef(hud.power);
       const bilardoSharedPose = {
         bridgeHandBackFromBall: 0.245,
         bridgeHandSide: -0.008,
-        gripRatio: 0.78,
+        gripRatio: SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO,
         idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
         idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
       };
@@ -25329,7 +25331,7 @@ const powerRef = useRef(hud.power);
           const gripTarget = humanPoseContext.cueTip
             .clone()
             .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio)
-            .addScaledVector(aimForward, -0.016);
+            .addScaledVector(aimForward, SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET);
           const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
           const upAxis = new THREE.Vector3(0, 1, 0);
           const idleRight = rootTarget
