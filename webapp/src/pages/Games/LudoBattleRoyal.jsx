@@ -224,7 +224,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
     ],
-    scale: 0.142
+    scale: 0.284
   },
   glockSidearmAttack: {
     label: 'Glock',
@@ -232,7 +232,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
       'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'
     ],
-    scale: 0.125
+    scale: 0.2
   },
   pistolSidearmAttack: {
     label: 'Pistol Sidearm',
@@ -246,9 +246,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   assaultRifleAttack: {
     label: 'Assault Rifle',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
-      'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf'
     ],
     scale: 0.145
   },
@@ -258,7 +257,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
     ],
-    scale: 0.14
+    scale: 0.218
   },
   ak47VolleyAttack: {
     label: 'AK-47',
@@ -266,7 +265,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
-    scale: 0.16
+    scale: 0.24
   },
   krsvBurstAttack: {
     label: 'KRSV',
@@ -274,7 +273,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
     ],
-    scale: 0.148
+    scale: 0.24
   },
   smithSidearmAttack: {
     label: 'Smith',
@@ -282,7 +281,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
     ],
-    scale: 0.122
+    scale: 0.2
   },
   mosinMarksmanAttack: {
     label: 'Mosin',
@@ -290,13 +289,13 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
     ],
-    scale: 0.205
+    scale: 0.5125
   },
   sigsauerTacticalAttack: {
     label: 'SigSauer Tactical',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf'
     ],
     scale: 0.13
   },
@@ -307,7 +306,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
-    scale: 0.19
+    scale: 0.12
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
@@ -325,7 +324,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
     ],
-    scale: 0.252
+    scale: 0.504
   },
   smgBurstAttack: {
     label: 'SMG',
@@ -506,22 +505,22 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // seated humans keep a consistent hand fit around the trigger/handle zone.
   mrtkGunAttack: 1.16,
   pistolHolsterAttack: 1.14,
-  fpsGunAttack: 1.72,
-  glockSidearmAttack: 0.98,
+  fpsGunAttack: 3.44,
+  glockSidearmAttack: 1.22,
   pistolSidearmAttack: 1.16,
-  uziSprayAttack: 1.2,
+  uziSprayAttack: 1.22,
   smgBurstAttack: 1.22,
   compactCarbineAttack: 1.34,
   assaultRifleAttack: 1.56,
-  ak47VolleyAttack: 1.64,
-  krsvBurstAttack: 1.58,
-  smithSidearmAttack: 1.15,
-  mosinMarksmanAttack: 1.72,
+  ak47VolleyAttack: 2.46,
+  krsvBurstAttack: 2.46,
+  smithSidearmAttack: 1.22,
+  mosinMarksmanAttack: 4.3,
   sigsauerTacticalAttack: 1.2,
   shotgunBlastAttack: 1.7,
   marksmanDmrAttack: 1.48,
-  sniperShotAttack: 1.76,
-  grenadeBlastAttack: 1.12
+  sniperShotAttack: 3.52,
+  grenadeBlastAttack: 0.86
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
@@ -530,6 +529,11 @@ const FIREARM_CAMERA_LIFT = 0.048;
 const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
 const FIREARM_TARGET_RETICLE_SIZE = 0.04;
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
+const CAPTURE_WEAPON_TEXTURE_FALLBACK_BY_ID = Object.freeze({
+  assaultRifleAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
+  sigsauerTacticalAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg',
+  grenadeBlastAttack: 'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f4a3.png'
+});
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
@@ -645,6 +649,21 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     try {
       const root = loadedRoot;
       if (!root) return null;
+      const fallbackTextureUrl = CAPTURE_WEAPON_TEXTURE_FALLBACK_BY_ID[normalizedCaptureAnimationId];
+      const fallbackTexturePromise = fallbackTextureUrl
+        ? (async () => {
+            try {
+              const texture = await new THREE.TextureLoader().loadAsync(fallbackTextureUrl);
+              applySRGBColorSpace(texture);
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              return texture;
+            } catch (error) {
+              return null;
+            }
+          })()
+        : Promise.resolve(null);
+      const fallbackTexture = await fallbackTexturePromise;
       root.traverse((node) => {
         if (!node?.isMesh) return;
         if (
@@ -660,6 +679,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         node.visible = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
+          if (!material?.map && fallbackTexture) material.map = fallbackTexture;
           if (material?.map) applySRGBColorSpace(material.map);
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           material.transparent = false;
@@ -2755,7 +2775,7 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.6;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
@@ -2794,13 +2814,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
 ]);
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.084 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.154 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = 0.0032 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.011 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.024 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.088 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = 0.013 * MODEL_SCALE;
-const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.035;
-const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.008;
+const SEATED_HELPER_RIGHT_DICE = 0.0008 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.007 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.016 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.081 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = 0.0072 * MODEL_SCALE;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
+const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.002;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -2815,7 +2835,7 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
-const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
+const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
 const seatedHumanTemplatePromiseById = new Map();
