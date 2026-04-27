@@ -1084,32 +1084,6 @@ const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb']
   }
 ]);
-
-function createAiUniqueHumanCharacterLoadout(
-  activePlayerCount,
-  selectedHumanIndex = 0
-) {
-  const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
-  const maxCharacterIndex = Math.max(0, DOMINO_HUMAN_CHARACTER_OPTIONS.length - 1);
-  const humanIndex = THREE.MathUtils.clamp(
-    Number.isFinite(selectedHumanIndex) ? Math.round(selectedHumanIndex) : 0,
-    0,
-    maxCharacterIndex
-  );
-  const byPlayer = Array.from({ length: totalPlayers }, () => humanIndex);
-  if (totalPlayers <= 1 || DOMINO_HUMAN_CHARACTER_OPTIONS.length <= 1) {
-    return byPlayer;
-  }
-  const aiSeatIndexes = Array.from({ length: totalPlayers - 1 }, (_, idx) => idx + 1);
-  const pool = Array.from({ length: DOMINO_HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx).filter(
-    (idx) => idx !== humanIndex
-  );
-  const shuffledPool = shuffle([...pool]);
-  aiSeatIndexes.forEach((seatIndex, aiIdx) => {
-    byPlayer[seatIndex] = shuffledPool[aiIdx % shuffledPool.length] ?? humanIndex;
-  });
-  return byPlayer;
-}
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
@@ -4262,17 +4236,6 @@ const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalAren
 const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV3';
 let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
-let seatHumanCharacterLoadout = createAiUniqueHumanCharacterLoadout(
-  N,
-  appearance?.humanCharacter
-);
-
-function refreshSeatHumanCharacterLoadout() {
-  seatHumanCharacterLoadout = createAiUniqueHumanCharacterLoadout(
-    N,
-    appearance?.humanCharacter
-  );
-}
 
 function normalizeAppearance(raw) {
   const normalized = {
@@ -7269,7 +7232,6 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = sanitizeAppearance(appearance);
-  refreshSeatHumanCharacterLoadout();
   applyEnvironmentHdri(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
@@ -8171,11 +8133,9 @@ async function attachSeatedHumanActors(token) {
       if (token !== chairBuildToken) return;
       const chairRoot = chairs[index];
       if (!chairRoot) continue;
-      const selectedHumanIndex = Number.isFinite(seatHumanCharacterLoadout[index])
-        ? seatHumanCharacterLoadout[index]
-        : Number.isFinite(appearance?.humanCharacter)
-          ? appearance.humanCharacter
-          : 0;
+      const selectedHumanIndex = Number.isFinite(appearance?.humanCharacter)
+        ? appearance.humanCharacter
+        : 0;
       const option =
         DOMINO_HUMAN_CHARACTER_OPTIONS[selectedHumanIndex] ??
         DOMINO_HUMAN_CHARACTER_OPTIONS[0];
@@ -8672,7 +8632,6 @@ const isPointsRace =
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
 }
-refreshSeatHumanCharacterLoadout();
 const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
 const stakeToken = urlParams.get('token') || 'TPC';
 if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
