@@ -155,6 +155,27 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'compactCarbineAttack',
   'marksmanDmrAttack'
 ]);
+const LARGE_RACK_FIREARM_IDS = new Set([
+  'assaultRifleAttack',
+  'ak47VolleyAttack',
+  'mosinMarksmanAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'marksmanDmrAttack',
+  'compactCarbineAttack'
+]);
+const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
+  default: Object.freeze({
+    targetSizeMultiplier: 1.06,
+    position: [0, 0, -0.004],
+    rotation: [0, Math.PI * 0.5, 0]
+  }),
+  large: Object.freeze({
+    targetSizeMultiplier: 1.9,
+    position: [0.08, 0, -0.014],
+    rotation: [0, Math.PI * 0.04, Math.PI * 0.02]
+  })
+});
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -699,9 +720,19 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   entry.selectedCaptureAnimationId = captureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
-  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
-  clone.rotation.y = Math.PI * 0.5;
-  clone.position.set(0, 0, -0.004);
+  const baseAlignPositionY = clone.position.y;
+  alignObjectBottomToY(clone, 0);
+  const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
+    ? FIREARM_RACK_DISPLAY_TUNING.large
+    : FIREARM_RACK_DISPLAY_TUNING.default;
+  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier);
+  if (!LARGE_RACK_FIREARM_IDS.has(captureAnimationId)) {
+    clone.position.y = baseAlignPositionY;
+  }
+  clone.position.x += displayTuning.position[0];
+  clone.position.y += displayTuning.position[1];
+  clone.position.z += displayTuning.position[2];
+  clone.rotation.set(...displayTuning.rotation);
   entry.weaponHolder.add(clone);
 }
 
