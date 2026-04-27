@@ -1,4 +1,5 @@
 import { Ball, BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
+import { BilardoShqipRules } from './BilardoShqipRules';
 
 type HudInfo = {
   next: string;
@@ -133,9 +134,48 @@ function isBallState(value: unknown): value is Ball {
 }
 
 export class SnookerRoyalRules {
-  constructor(_variant?: string | null) {}
+  private readonly variantMode: 'snooker' | 'bilardo-shqip';
+
+  private bilardoEngine: BilardoShqipRules | null = null;
+
+  constructor(variant?: string | null) {
+    this.variantMode =
+      typeof variant === 'string' && variant.toLowerCase() === 'bilardo-shqip'
+        ? 'bilardo-shqip'
+        : 'snooker';
+  }
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
+    if (this.variantMode === 'bilardo-shqip') {
+      this.bilardoEngine = new BilardoShqipRules(61);
+      const snapshot = this.bilardoEngine.getSnapshot();
+      return {
+        balls: buildInitialBalls(),
+        activePlayer: snapshot.currentPlayer,
+        players: {
+          A: { id: 'A', name: playerA, score: snapshot.scores.A },
+          B: { id: 'B', name: playerB, score: snapshot.scores.B }
+        },
+        currentBreak: 0,
+        phase: 'REDS_AND_COLORS',
+        redsRemaining: snapshot.ballsRemaining,
+        ballOn: [String(snapshot.nextRequiredBall ?? '-')],
+        frameOver: false,
+        colorOnAfterRed: false,
+        freeBall: false,
+        meta: {
+          variant: 'bilardo-shqip',
+          hud: {
+            next: snapshot.nextRequiredBall != null ? `ball ${snapshot.nextRequiredBall}` : 'race complete',
+            phase: 'bilardo shqip',
+            scores: snapshot.scores
+          },
+          state: {
+            ballInHand: snapshot.cueBallInHand
+          }
+        }
+      };
+    }
     const base: FrameState = {
       balls: buildInitialBalls(),
       activePlayer: 'A',
@@ -162,6 +202,87 @@ export class SnookerRoyalRules {
   }
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
+    if (this.variantMode === 'bilardo-shqip') {
+      if (!this.bilardoEngine) {
+        this.bilardoEngine = new BilardoShqipRules(61);
+      }
+      const normalizeBallNumber = (value: unknown): number | null => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          const rounded = Math.round(value);
+          return rounded >= 1 && rounded <= 15 ? rounded : null;
+        }
+        if (typeof value === 'string') {
+          const lower = value.toLowerCase();
+          if (lower === 'cue' || lower === 'cue_ball') return null;
+          const match = lower.match(/\d+/);
+          if (!match) return null;
+          const parsed = Number.parseInt(match[0], 10);
+          return parsed >= 1 && parsed <= 15 ? parsed : null;
+        }
+        return null;
+      };
+      const hitEvent = events.find((event) => event.type === 'HIT') as
+        | { type: 'HIT'; firstContact?: unknown; ballId?: unknown }
+        | undefined;
+      const firstContact = normalizeBallNumber(hitEvent?.firstContact ?? hitEvent?.ballId);
+      const pottedBallNumbers = events
+        .filter((event) => event.type === 'POTTED')
+        .map((event) => {
+          const potted = event as { type: 'POTTED'; ball?: unknown; ballId?: unknown };
+          return normalizeBallNumber(potted.ballId ?? potted.ball);
+        })
+        .filter((value): value is number => value != null);
+      const cueBallPotted =
+        Boolean(context.cueBallPotted) ||
+        events.some((event) => {
+          if (event.type !== 'POTTED') return false;
+          const potted = event as { type: 'POTTED'; ball?: unknown; ballId?: unknown };
+          const raw = potted.ballId ?? potted.ball;
+          if (typeof raw !== 'string') return false;
+          const normalized = raw.toLowerCase();
+          return normalized === 'cue' || normalized === 'cue_ball';
+        });
+      const resolved = this.bilardoEngine.resolveShot({
+        firstContact,
+        potted: pottedBallNumbers,
+        cueBallPotted
+      });
+      const snapshot = this.bilardoEngine.getSnapshot();
+      const nextRequiredBall = snapshot.nextRequiredBall;
+      return {
+        ...state,
+        activePlayer: resolved.nextPlayer,
+        players: {
+          A: { ...state.players.A, score: resolved.scores.A },
+          B: { ...state.players.B, score: resolved.scores.B }
+        },
+        currentBreak: resolved.keepTurn ? resolved.scored : 0,
+        phase: 'REDS_AND_COLORS',
+        redsRemaining: snapshot.ballsRemaining,
+        colorOnAfterRed: false,
+        freeBall: false,
+        ballOn: [String(nextRequiredBall ?? '-')],
+        frameOver: Boolean(resolved.winner),
+        winner: resolved.winner ?? undefined,
+        foul: resolved.foul
+          ? {
+              points: 4,
+              reason: resolved.reason ?? 'foul'
+            }
+          : undefined,
+        meta: {
+          variant: 'bilardo-shqip',
+          hud: {
+            next: nextRequiredBall != null ? `ball ${nextRequiredBall}` : 'race complete',
+            phase: 'bilardo shqip',
+            scores: resolved.scores
+          },
+          state: {
+            ballInHand: resolved.cueBallInHand
+          }
+        }
+      };
+    }
     const meta = state.meta as SnookerMeta | undefined;
     const colorsRemaining = Array.isArray(meta?.colorsRemaining)
       ? [...meta.colorsRemaining]
