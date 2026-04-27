@@ -15532,8 +15532,6 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
-const MANUAL_STRIKE_TIME_MS = BILARDO_STRIKE_TIME_MS;
-const MANUAL_STRIKE_THRESHOLD = BILARDO_STRIKE_CONTACT_THRESHOLD;
 const [manualShotState, setManualShotState] = useState('idle'); // idle | dragging | striking
 const manualShotStateRef = useRef('idle');
 const manualStrikeStartedAtRef = useRef(0);
@@ -33669,8 +33667,6 @@ useEffect(() => {
   const sliderRef = useRef(null);
   const onPowerDragStart = useCallback(() => {
     captureCueStickAnchor();
-    manualStrikeDidHitRef.current = false;
-    setManualShotState('dragging');
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
     const clamped = clampPower(powerRatio, 0);
@@ -33685,53 +33681,13 @@ useEffect(() => {
     );
     const latchedPower = clampPower(sourcePower, 0);
     shotPowerRef.current = latchedPower;
-    manualStrikePowerRef.current = latchedPower;
     applyPower(latchedPower);
+    manualStrikePowerRef.current = latchedPower;
     manualStrikeDidHitRef.current = false;
-    manualStrikeStartedAtRef.current = performance.now();
-    const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
-    setManualShotState(shouldStrike ? 'striking' : 'idle');
+    manualStrikeStartedAtRef.current = 0;
+    setManualShotState('idle');
+    fireRef.current?.(latchedPower);
   }, [applyPower, clampPower]);
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      if (manualShotStateRef.current !== 'striking') return;
-      const start = manualStrikeStartedAtRef.current || 0;
-      if (start <= 0) return;
-      const strikeNorm = THREE.MathUtils.clamp(
-        (performance.now() - start) / MANUAL_STRIKE_TIME_MS,
-        0,
-        1
-      );
-      if (!manualStrikeDidHitRef.current && strikeNorm > MANUAL_STRIKE_THRESHOLD) {
-        manualStrikeDidHitRef.current = true;
-        fireRef.current?.(
-          manualStrikePowerRef.current ??
-            shotPowerRef.current ??
-            powerRef.current ??
-            0
-        );
-      }
-      if (strikeNorm >= 1) {
-        if (!shootingRef.current && manualStrikePowerRef.current > BILARDO_MIN_RELEASE_POWER) {
-          fireRef.current?.(manualStrikePowerRef.current);
-        }
-        setManualShotState('idle');
-        manualStrikeStartedAtRef.current = 0;
-        manualStrikePowerRef.current = 0;
-        requestAnimationFrame(() => {
-          const slider = sliderInstanceRef.current;
-          if (slider) slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [applyPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33750,6 +33706,7 @@ useEffect(() => {
       onCommit: (value) => {
         const committedRatio = Number.isFinite(value) ? value / 100 : powerRef.current;
         onPowerRelease(clampPower(committedRatio, 0));
+        slider.animateToMin({ duration: 180 });
       }
     });
     sliderInstanceRef.current = slider;
