@@ -108,7 +108,7 @@ const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/
 const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
 const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
 const SNOOKER_HUMAN_BASE_SCALE = 1.32;
-const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.42;
+const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
 const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 6.9;
 const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 16.6;
 
@@ -20764,12 +20764,12 @@ const powerRef = useRef(hud.power);
         textureAnisotropy: Math.min(renderer.capabilities?.getMaxAnisotropy?.() || 8, 16),
         humanVisualYawFix: Math.PI,
         strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
-        moveLambda: 3.15,
-        rotLambda: 7.35,
-        stanceWidth: 0.56,
-        bridgePalmTableLift: 0.009,
-        chinToCueHeight: 0.122,
-        cueArmElbowRise: 0.47
+        moveLambda: 5.6,
+        rotLambda: 8.5,
+        stanceWidth: 0.52,
+        bridgePalmTableLift: 0.012,
+        chinToCueHeight: 0.11,
+        cueArmElbowRise: 0.43
       });
       humanActor.root.visible = true;
       const snookerTableTopFromGround = Math.max(
@@ -20788,8 +20788,8 @@ const powerRef = useRef(hud.power);
       humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
 
       const bilardoSharedPose = {
-        bridgeHandBackFromBall: 0.218,
-        bridgeHandSide: -0.014,
+        bridgeHandBackFromBall: 0.245,
+        bridgeHandSide: -0.008,
         gripRatio: 0.76,
         idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
         idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
