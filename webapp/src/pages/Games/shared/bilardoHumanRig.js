@@ -36,6 +36,16 @@ function getFallbackHumanAlbedoTexture() {
   return fallbackHumanAlbedoTexture;
 }
 
+function hasRenderableTexture(tex) {
+  if (!tex) return false;
+  const image = tex.image ?? tex.source?.data ?? null;
+  if (!image) return false;
+  const width = Number(image.width ?? image.videoWidth ?? 0);
+  const height = Number(image.height ?? image.videoHeight ?? 0);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return true;
+  return width > 0 && height > 0;
+}
+
 function makeBasisQuaternion(side, up, forward) {
   BASIS_MAT.makeBasis(
     side.clone().normalize(),
@@ -217,7 +227,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
             tex.anisotropy = Math.max(tex.anisotropy || 1, opts?.textureAnisotropy ?? 8);
             tex.needsUpdate = true;
           };
-          if (!m.map) {
+          if (!hasRenderableTexture(m.map)) {
             m.map = getFallbackHumanAlbedoTexture();
           }
           ensureTexture(m.map, true);
@@ -227,8 +237,14 @@ export function createBilardoHumanRig(scene, opts = {}) {
           ensureTexture(m.metalnessMap, false);
           ensureTexture(m.aoMap, false);
           if (m.color?.setHex) m.color.setHex(0xffffff);
-          if (typeof m.opacity === 'number' && m.opacity < 1) m.opacity = 1;
-          if (m.transparent) m.transparent = false;
+          if (typeof m.opacity === 'number' && m.opacity <= 0) m.opacity = 1;
+          if (!m.transparent && m.alphaMap) m.transparent = true;
+          if (m.transparent && !m.alphaMap && typeof m.opacity === 'number' && m.opacity >= 1) {
+            m.transparent = false;
+          }
+          if ('side' in m && m.side !== THREE.DoubleSide) {
+            m.side = THREE.DoubleSide;
+          }
           m.needsUpdate = true;
         });
       });
