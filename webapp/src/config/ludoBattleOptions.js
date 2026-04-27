@@ -115,8 +115,6 @@ const captureWeaponThumb = (icon = '⚔️', accent = '#0ea5e9') =>
       <text x="160" y="112" text-anchor="middle" font-size="72">${icon}</text>
     </svg>`
   )}`;
-const githubRepoThumb = (repo, cacheKey = 'ludo-capture') =>
-  `https://opengraph.githubassets.com/${encodeURIComponent(cacheKey)}/${repo}`;
 
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
@@ -165,19 +163,19 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'glockSidearmAttack',
     label: 'Glock Sidearm',
     description: 'Pick the Glock from the table, aim, and fire before taking the tile.',
-    thumbnail: githubRepoThumb('webaverse/pistol', 'glock-sidearm')
+    thumbnail: captureWeaponThumb('🔫', '#2563eb')
   },
   {
     id: 'pistolSidearmAttack',
     label: 'Pistol Sidearm',
     description: 'Classic pistol takedown with right-hand pickup using original GLB textures.',
-    thumbnail: githubRepoThumb('webaverse/pistol', 'pistol-sidearm')
+    thumbnail: captureWeaponThumb('🔫', '#0284c7')
   },
   {
     id: 'assaultRifleAttack',
     label: 'Assault Rifle',
     description: 'AR burst capture with short aim hold and original GLB texture materials.',
-    thumbnail: githubRepoThumb('webaverse/pistol', 'assault-rifle')
+    thumbnail: captureWeaponThumb('🪖', '#334155')
   },
   {
     id: 'uziSprayAttack',
@@ -189,7 +187,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
     description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.',
-    thumbnail: githubRepoThumb('KrishBharadwaj5678/Gunify', 'ak47-volley')
+    thumbnail: captureWeaponThumb('🪖', '#7f1d1d')
   },
   {
     id: 'krsvBurstAttack',
@@ -201,7 +199,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'smithSidearmAttack',
     label: 'Smith Sidearm',
     description: 'Smith sidearm takedown with original Gunify texture maps.',
-    thumbnail: githubRepoThumb('KrishBharadwaj5678/Gunify', 'smith-sidearm')
+    thumbnail: captureWeaponThumb('🔫', '#155e75')
   },
   {
     id: 'mosinMarksmanAttack',
@@ -225,13 +223,13 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'shotgunBlastAttack',
     label: 'Shotgun Blast',
     description: 'Short-range tactical shotgun blast with fast pickup timing.',
-    thumbnail: githubRepoThumb('webaverse/pistol', 'shotgun-blast')
+    thumbnail: captureWeaponThumb('🧨', '#92400e')
   },
   {
     id: 'sniperShotAttack',
     label: 'Sniper Shot',
     description: 'Precision long-barrel sniper takedown sequence.',
-    thumbnail: githubRepoThumb('LazerMaker/gun-models-ak47-and-supprest-pistol-', 'sniper-shot')
+    thumbnail: captureWeaponThumb('🎯', '#312e81')
   },
   {
     id: 'smgBurstAttack',

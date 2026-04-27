@@ -109,7 +109,7 @@ const CAPTURE_PARK_SIDE_SIGN_BY_TYPE = Object.freeze({
   helicopter: -1,
   drone: -1,
   missile: 1,
-  firearmRack: 1
+  firearmRack: -1
 });
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
@@ -154,23 +154,6 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'smgBurstAttack',
   'compactCarbineAttack',
   'marksmanDmrAttack'
-]);
-const LARGE_FIREARM_CAPTURE_ANIMATION_IDS = new Set([
-  'assaultRifleAttack',
-  'ak47VolleyAttack',
-  'mosinMarksmanAttack',
-  'shotgunBlastAttack',
-  'sniperShotAttack',
-  'marksmanDmrAttack',
-  'compactCarbineAttack',
-  'krsvBurstAttack'
-]);
-const SIDEARM_CAPTURE_ANIMATION_IDS = new Set([
-  'glockSidearmAttack',
-  'pistolSidearmAttack',
-  'smithSidearmAttack',
-  'pistolHolsterAttack',
-  'sigsauerTacticalAttack'
 ]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
@@ -716,26 +699,9 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   entry.selectedCaptureAnimationId = captureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
-  const isLargeWeapon = LARGE_FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId);
-  const isSidearm = SIDEARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId);
-  clone.traverse((node) => {
-    if (!node?.isMesh) return;
-    const nodeName = String(node.name || '').toLowerCase();
-    if (isSidearm && /(support|stand|holder|pedestal|round)/i.test(nodeName)) {
-      node.parent?.remove?.(node);
-    }
-  });
-  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * (isLargeWeapon ? 1.95 : isSidearm ? 1.25 : 1.45));
-  if (isSidearm) {
-    clone.rotation.set(-Math.PI * 0.5, Math.PI * 0.52, 0);
-    clone.position.set(0.012, 0.001, -0.008);
-  } else if (isLargeWeapon) {
-    clone.rotation.set(0, Math.PI * 0.5, 0);
-    clone.position.set(0.012, 0, -0.008);
-  } else {
-    clone.rotation.set(-Math.PI * 0.12, Math.PI * 0.5, 0);
-    clone.position.set(0.01, 0, -0.006);
-  }
+  fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
+  clone.rotation.y = Math.PI * 0.5;
+  clone.position.set(0, 0, -0.004);
   entry.weaponHolder.add(clone);
 }
 
@@ -11265,7 +11231,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       <img
                         src={option.thumbnail}
                         alt={`${option.label} thumbnail`}
-                        className="h-16 w-full bg-slate-950/60 object-contain p-1"
+                        className="h-16 w-full object-cover"
                         loading="lazy"
                       />
                     ) : (
