@@ -64,6 +64,7 @@ import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.j
 import { socket } from '../../utils/socket.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const delayMs = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -336,31 +337,37 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     const imageCache = new Map();
     let loadedRoot = null;
     for (let i = 0; i < candidateUrls.length; i += 1) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const rawBuffer = await fetchBuffer(candidateUrls[i]);
-        // eslint-disable-next-line no-await-in-loop
-        const patchedBuffer = await patchGlbImagesToDataUris(
-          rawBuffer,
-          'fighter',
-          candidateUrls[i],
-          candidateUrls,
-          imageCache
-        );
-        // eslint-disable-next-line no-await-in-loop
-        loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-      } catch (error) {
-        // ignore patched path and try direct loader fallback below
-      }
-      if (loadedRoot) break;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(candidateUrls[i]);
-        loadedRoot = gltf?.scene || gltf?.scenes?.[0] || null;
-      } catch (error) {
-        if (i === candidateUrls.length - 1) {
-          console.warn('Capture weapon model load failed', captureAnimationId, candidateUrls[i], error);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const rawBuffer = await fetchBuffer(candidateUrls[i]);
+          // eslint-disable-next-line no-await-in-loop
+          const patchedBuffer = await patchGlbImagesToDataUris(
+            rawBuffer,
+            'fighter',
+            candidateUrls[i],
+            candidateUrls,
+            imageCache
+          );
+          // eslint-disable-next-line no-await-in-loop
+          loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
+        } catch (error) {
+          // ignore patched path and try direct loader fallback below
         }
+        if (loadedRoot) break;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const gltf = await loader.loadAsync(candidateUrls[i]);
+          loadedRoot = gltf?.scene || gltf?.scenes?.[0] || null;
+        } catch (error) {
+          if (i === candidateUrls.length - 1 && attempt === 1) {
+            console.warn('Capture weapon model load failed', captureAnimationId, candidateUrls[i], error);
+          }
+        }
+        if (loadedRoot) break;
+        // Give remote hosts a little extra time before switching away from this URL.
+        // eslint-disable-next-line no-await-in-loop
+        await delayMs(220);
       }
       if (loadedRoot) break;
     }
@@ -390,12 +397,33 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   return promise;
 }
 
+async function resolveLoadedFirearmCaptureAnimationId(primaryId) {
+  const candidates = [];
+  if (FIREARM_CAPTURE_ANIMATION_IDS.has(primaryId)) candidates.push(primaryId);
+  FIREARM_CAPTURE_ANIMATION_IDS.forEach((id) => {
+    if (!candidates.includes(id)) candidates.push(id);
+  });
+  for (const candidate of candidates) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const model = await loadCaptureWeaponModel(candidate);
+      if (model?.isObject3D) return candidate;
+    } catch (error) {
+      // Continue to the next firearm candidate.
+    }
+  }
+  return null;
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
-  const modelTemplate = await loadCaptureWeaponModel(captureAnimationId);
+  const loadedCaptureAnimationId = await resolveLoadedFirearmCaptureAnimationId(captureAnimationId);
+  const modelTemplate = loadedCaptureAnimationId
+    ? await loadCaptureWeaponModel(loadedCaptureAnimationId)
+    : null;
   if (!modelTemplate?.isObject3D) return null;
-  const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
+  const tuning = FIREARM_HAND_ATTACH_TUNING[loadedCaptureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
@@ -470,12 +498,13 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   }
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
   entry.weaponHolder.clear();
-  const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
+  const loadedCaptureAnimationId = await resolveLoadedFirearmCaptureAnimationId(captureAnimationId);
+  const weaponModel = loadedCaptureAnimationId ? await loadCaptureWeaponModel(loadedCaptureAnimationId) : null;
   if (!weaponModel) {
     entry.selectedCaptureAnimationId = null;
     return;
   }
-  entry.selectedCaptureAnimationId = captureAnimationId;
+  entry.selectedCaptureAnimationId = loadedCaptureAnimationId;
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
   fitObjectToTargetSize(clone, CAPTURE_PARK_BOX_TARGET_SIZE * 1.06);
@@ -2183,7 +2212,7 @@ const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.9;
 const TABLE_SIDE_EXPANSION_FACTOR = 1;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
-const CHAIR_GLOBAL_SCALE = 0.58;
+const CHAIR_GLOBAL_SCALE = 0.66;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2254,7 +2283,7 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.45 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
@@ -2289,13 +2318,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.074 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.006 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = -0.016 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.086 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = -0.022 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.058 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.128 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.001 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.008 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.014 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.064 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.012 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.045;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = 0.055;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
@@ -2333,6 +2362,19 @@ const stabilizeChairModelRenderState = (root) => {
     obj.frustumCulled = false;
   });
 };
+
+function detectChairArmrests(theme, chairModel) {
+  const id = `${theme?.id || theme?.assetId || ''}`.toLowerCase();
+  if (/(arm|lounge|barber|wheelchair)/.test(id)) return true;
+  if (/(school|dining|monobloc|stool)/.test(id)) return false;
+  let sideSupportHits = 0;
+  chairModel?.traverse?.((obj) => {
+    if (!obj?.isMesh || sideSupportHits >= 2) return;
+    const lower = `${obj.name || ''}`.toLowerCase();
+    if (/(arm|handle|support)/.test(lower)) sideSupportHits += 1;
+  });
+  return sideSupportHits >= 2;
+}
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '84%' },
@@ -2452,13 +2494,30 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 
-function createAiUniqueLoadout(activePlayerCount) {
+function createAiUniqueLoadout(activePlayerCount, userLoadout = {}) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
     captureAnimationIndex: 0,
     humanCharacterIndex: 0
   }));
+  byPlayer[0] = {
+    tokenPieceIndex: clamp(
+      Number.isFinite(Number(userLoadout?.tokenPieceIndex)) ? Math.round(Number(userLoadout.tokenPieceIndex)) : 0,
+      0,
+      Math.max(0, TOKEN_PIECE_OPTIONS.length - 1)
+    ),
+    captureAnimationIndex: clamp(
+      Number.isFinite(Number(userLoadout?.captureAnimationIndex)) ? Math.round(Number(userLoadout.captureAnimationIndex)) : 0,
+      0,
+      Math.max(0, CAPTURE_ANIMATION_OPTIONS.length - 1)
+    ),
+    humanCharacterIndex: clamp(
+      Number.isFinite(Number(userLoadout?.humanCharacterIndex)) ? Math.round(Number(userLoadout.humanCharacterIndex)) : 0,
+      0,
+      Math.max(0, HUMAN_CHARACTER_OPTIONS.length - 1)
+    )
+  };
   const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
   if (!aiIndexes.length) return byPlayer;
 
@@ -2471,9 +2530,15 @@ function createAiUniqueLoadout(activePlayerCount) {
     return copy;
   };
 
-  const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
-  const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
-  const humanPool = shuffle(Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx));
+  const createUniquePool = (count, excludedIndex = 0) => {
+    const base = shuffle(Array.from({ length: count }, (_, idx) => idx));
+    const filtered = base.filter((idx) => idx !== excludedIndex);
+    return filtered.length ? [...filtered, excludedIndex] : base;
+  };
+
+  const piecePool = createUniquePool(TOKEN_PIECE_OPTIONS.length, byPlayer[0].tokenPieceIndex);
+  const capturePool = createUniquePool(CAPTURE_ANIMATION_OPTIONS.length, byPlayer[0].captureAnimationIndex);
+  const humanPool = createUniquePool(HUMAN_CHARACTER_OPTIONS.length, byPlayer[0].humanCharacterIndex);
 
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
@@ -4686,6 +4751,7 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
 function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}, motionTuning = {}) {
   if (!rig) return;
   resetBoneRig(rig);
+  const hasArmrests = rig?.meta?.hasArmrests !== false;
   const t = smoother01(intensity);
   const breathe = Math.sin(performance.now() * 0.002) * (motionTuning.idleBreathAmp ?? SEATED_HUMAN_MOTION_TUNING.idleBreathAmp);
   const precision = clamp(motionTuning?.precision ?? 1, 0.8, 1.35);
@@ -4708,17 +4774,23 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
   addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
 
-  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
-  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
-  addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
+  if (hasArmrests) {
+    addBoneRot(rig, rig.leftUpperArm, -0.34, 0.1, 1.06, 1);
+    addBoneRot(rig, rig.leftForeArm, -0.78, 0.06, -0.08, 1);
+    addBoneRot(rig, rig.leftHand, -0.14, 0, 0.1, 1);
+  } else {
+    addBoneRot(rig, rig.leftUpperArm, -0.08, 0.05, 0.18, 1);
+    addBoneRot(rig, rig.leftForeArm, -0.08, 0, 0.02, 1);
+    addBoneRot(rig, rig.leftHand, -0.02, 0, 0, 1);
+  }
 
-  let shoulderX = -0.20;
-  let shoulderY = -0.02;
-  let shoulderZ = -0.72;
-  let forearmX = -0.50;
-  let forearmY = -0.04;
-  let forearmZ = 0.14;
-  let wristX = -0.08;
+  let shoulderX = hasArmrests ? -0.26 : -0.08;
+  let shoulderY = hasArmrests ? -0.04 : 0.04;
+  let shoulderZ = hasArmrests ? -0.82 : -0.22;
+  let forearmX = hasArmrests ? -0.54 : -0.12;
+  let forearmY = hasArmrests ? -0.05 : 0;
+  let forearmZ = hasArmrests ? 0.16 : 0.04;
+  let wristX = hasArmrests ? -0.08 : -0.02;
   let wristY = 0;
   let wristZ = 0.06;
   let chestX = 0.12;
@@ -5307,27 +5379,32 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
         patchedLoader.setCrossOrigin('anonymous');
         const imageCache = new Map();
         for (const url of urls) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const rawBuffer = await fetchBuffer(url);
-            // eslint-disable-next-line no-await-in-loop
-            const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, 'fighter', url, urls, imageCache);
-            // eslint-disable-next-line no-await-in-loop
-            const patchedRoot = await parseObjectFromBuffer(patchedLoader, patchedBuffer);
-            if (patchedRoot) {
-              gltf = { scene: patchedRoot };
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const rawBuffer = await fetchBuffer(url);
+              // eslint-disable-next-line no-await-in-loop
+              const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, 'fighter', url, urls, imageCache);
+              // eslint-disable-next-line no-await-in-loop
+              const patchedRoot = await parseObjectFromBuffer(patchedLoader, patchedBuffer);
+              if (patchedRoot) {
+                gltf = { scene: patchedRoot };
+              }
+              if (gltf) break;
+            } catch (error) {
+              // ignore patched path and retry with default loader
             }
-            if (gltf) break;
-          } catch (error) {
-            // ignore patched path and retry with default loader
-          }
-          try {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              gltf = await loader.loadAsync(url);
+              if (gltf) break;
+            } catch (error) {
+              lastError = error;
+            }
             // eslint-disable-next-line no-await-in-loop
-            gltf = await loader.loadAsync(url);
-            if (gltf) break;
-          } catch (error) {
-            lastError = error;
+            await delayMs(280);
           }
+          if (gltf) break;
         }
         if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
         const root = gltf?.scene || gltf?.scenes?.[0];
@@ -5347,8 +5424,15 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
             materials.forEach((mat) => {
               if (!mat?.map) mat.map = fallbackTex;
+              if (mat?.map) {
+                applySRGBColorSpace(mat.map);
+                mat.map.needsUpdate = true;
+              }
+              if (mat?.normalMap) mat.normalScale?.set?.(0.9, 0.9);
               if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-              normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+              normalizeMaterialTextures(mat, Math.max(activeModelTextureAnisotropy, 6), {
+                preserveGltfTextureMapping: true
+              });
               if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
               mat.needsUpdate = true;
             });
@@ -5933,7 +6017,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
-  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
+  const aiLoadoutByPlayer = useMemo(
+    () =>
+      createAiUniqueLoadout(activePlayerCount, {
+        tokenPieceIndex: appearance?.tokenPiece ?? 0,
+        captureAnimationIndex: appearance?.captureAnimation ?? 0,
+        humanCharacterIndex: appearance?.humanCharacter ?? 0
+      }),
+    [activePlayerCount, appearance?.captureAnimation, appearance?.humanCharacter, appearance?.tokenPiece]
+  );
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
@@ -5970,13 +6062,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = CAM.minR;
-      controls.maxDistance = max2dDistance;
+      controls.minDistance = topDownDistance;
+      controls.maxDistance = topDownDistance;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = false;
@@ -7900,6 +7992,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const chairModel = chairTemplate.clone(true);
       stabilizeChairModelRenderState(chairModel);
+      group.userData.hasArmrests = detectChairArmrests(stoolTheme, chairModel);
       group.add(chairModel);
       group.userData.chairModel = chairModel;
 
@@ -7914,21 +8007,35 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     try {
       const baseScale =
         (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+      const claimedHumanOptionIds = new Set();
       for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
         const chair = chairs[playerIndex];
         const humanIndex =
           playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0 : appearanceRef.current?.humanCharacter ?? 0;
         const humanOption = HUMAN_CHARACTER_OPTIONS[humanIndex] ?? HUMAN_CHARACTER_OPTIONS[0];
         let humanTemplate = null;
+        let resolvedHumanOption = humanOption;
         try {
           // eslint-disable-next-line no-await-in-loop
           humanTemplate = await loadSeatedHumanTemplate(renderer, humanOption);
         } catch (error) {
-          console.warn('AI/human seat model failed, falling back to default seated avatar', playerIndex, humanOption?.id, error);
-          // eslint-disable-next-line no-await-in-loop
-          humanTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
+          console.warn('AI/human seat model failed, trying alternate seated avatar', playerIndex, humanOption?.id, error);
+          const fallbackCandidates = HUMAN_CHARACTER_OPTIONS.filter(
+            (option) => option?.id && option.id !== humanOption?.id && !claimedHumanOptionIds.has(option.id)
+          );
+          for (const fallbackOption of fallbackCandidates) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              humanTemplate = await loadSeatedHumanTemplate(renderer, fallbackOption);
+              resolvedHumanOption = fallbackOption;
+              break;
+            } catch (fallbackError) {
+              // Try the next candidate until one resolves.
+            }
+          }
         }
         if (!humanTemplate) continue;
+        if (resolvedHumanOption?.id) claimedHumanOptionIds.add(resolvedHumanOption.id);
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
         const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
@@ -7936,6 +8043,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
+        rig.meta = {
+          ...(rig.meta || {}),
+          hasArmrests: chair?.group?.userData?.hasArmrests !== false
+        };
         applySeatedHumanPose(rig, 'idle', 1);
         alignSeatedHumanFeetToGroundPlane(actor, rig);
         const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
