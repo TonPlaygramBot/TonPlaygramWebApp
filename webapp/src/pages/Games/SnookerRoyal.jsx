@@ -28,7 +28,7 @@ import {
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
+import { SnookerRoyalBilardoAdapter } from '../../../../src/rules/SnookerRoyalBilardoAdapter.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
@@ -94,7 +94,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { BILARDO_STRIKE_TIME_MS } from './shared/bilardoShotModel';
+import { BILARDO_MIN_RELEASE_POWER, BILARDO_STRIKE_TIME_MS, bilardoCueSpeed } from './shared/bilardoShotModel';
 import {
   createBilardoHumanRig,
   chooseHumanEdgePosition,
@@ -11189,7 +11189,7 @@ function SnookerRoyalGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
-  const rules = useMemo(() => new SnookerRoyalRules(variantKey), [variantKey]);
+  const rules = useMemo(() => new SnookerRoyalBilardoAdapter(61), []);
   const tournamentMode = playType === 'tournament';
   const tournamentPlayers = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -21801,8 +21801,9 @@ const powerRef = useRef(hud.power);
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          lastShotPower = clampedPower;
-          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          const releasePower = clampedPower < BILARDO_MIN_RELEASE_POWER ? 0 : clampedPower;
+          lastShotPower = releasePower;
+          const isMaxPowerShot = releasePower >= MAX_POWER_BOUNCE_THRESHOLD;
           powerImpactHoldRef.current = isMaxPowerShot
             ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
             : 0;
@@ -21816,7 +21817,7 @@ const powerRef = useRef(hud.power);
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
           );
-          const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
+          const isPowerShot = releasePower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
@@ -21824,11 +21825,10 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const speedBase = bilardoCueSpeed(releasePower) * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(speedBase);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
