@@ -141,6 +141,10 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'uziSprayAttack',
   'ak47VolleyAttack',
+  'krsvBurstAttack',
+  'smithSidearmAttack',
+  'mosinMarksmanAttack',
+  'sigsauerTacticalAttack',
   'grenadeBlastAttack',
   'shotgunBlastAttack',
   'sniperShotAttack',
@@ -177,18 +181,51 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   uziSprayAttack: {
     label: 'Uzi',
-    url: 'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+    urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
+    ],
     scale: 0.14
   },
   ak47VolleyAttack: {
     label: 'AK-47',
     urls: [
-      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb',
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
-      'https://raw.githubusercontent.com/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb',
-      'https://cdn.statically.io/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb'
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
     scale: 0.16
+  },
+  krsvBurstAttack: {
+    label: 'KRSV',
+    urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
+    ],
+    scale: 0.148
+  },
+  smithSidearmAttack: {
+    label: 'Smith',
+    urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
+    ],
+    scale: 0.122
+  },
+  mosinMarksmanAttack: {
+    label: 'Mosin',
+    urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
+    ],
+    scale: 0.205
+  },
+  sigsauerTacticalAttack: {
+    label: 'SigSauer',
+    urls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
+    ],
+    scale: 0.13
   },
   grenadeBlastAttack: {
     label: 'Grenade',
@@ -280,6 +317,10 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   assaultRifleAttack: 30,
   uziSprayAttack: 32,
   ak47VolleyAttack: 30,
+  krsvBurstAttack: 30,
+  smithSidearmAttack: 16,
+  mosinMarksmanAttack: 10,
+  sigsauerTacticalAttack: 20,
   grenadeBlastAttack: 1,
   shotgunBlastAttack: 8,
   sniperShotAttack: 10,
@@ -323,6 +364,26 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     rotation: [-1.42, -0.04, -1.55],
     muzzleOffset: [0, 0.014, 0.245]
   },
+  krsvBurstAttack: {
+    position: [0.026, -0.004, 0.111],
+    rotation: [-1.43, -0.04, -1.55],
+    muzzleOffset: [0, 0.014, 0.238]
+  },
+  smithSidearmAttack: {
+    position: [0.019, -0.001, 0.084],
+    rotation: [-1.51, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.194]
+  },
+  mosinMarksmanAttack: {
+    position: [0.029, -0.005, 0.131],
+    rotation: [-1.38, -0.04, -1.58],
+    muzzleOffset: [0, 0.015, 0.262]
+  },
+  sigsauerTacticalAttack: {
+    position: [0.021, -0.002, 0.09],
+    rotation: [-1.49, -0.04, -1.57],
+    muzzleOffset: [0, 0.013, 0.208]
+  },
   compactCarbineAttack: {
     position: [0.024, -0.003, 0.105],
     rotation: [-1.44, -0.04, -1.55],
@@ -353,6 +414,10 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   compactCarbineAttack: 1.14,
   assaultRifleAttack: 1.18,
   ak47VolleyAttack: 1.22,
+  krsvBurstAttack: 1.2,
+  smithSidearmAttack: 1.0,
+  mosinMarksmanAttack: 1.28,
+  sigsauerTacticalAttack: 1.08,
   shotgunBlastAttack: 1.2,
   marksmanDmrAttack: 1.26,
   sniperShotAttack: 1.3,
@@ -406,8 +471,22 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     loader.setCrossOrigin?.('anonymous');
     const imageCache = new Map();
     let loadedRoot = null;
+    const isGltfAssetUrl = (url = '') => {
+      const normalized = `${url}`.split('?')[0].split('#')[0].toLowerCase();
+      return normalized.endsWith('.gltf');
+    };
     for (let i = 0; i < candidateUrls.length; i += 1) {
       try {
+        if (isGltfAssetUrl(candidateUrls[i])) {
+          // eslint-disable-next-line no-await-in-loop
+          const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
+          const root = gltf?.scene || gltf?.scenes?.[0] || null;
+          if (root) {
+            loadedRoot = root;
+            break;
+          }
+          continue;
+        }
         // eslint-disable-next-line no-await-in-loop
         const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrls[i]));
         if (!rawBuffer) continue;
