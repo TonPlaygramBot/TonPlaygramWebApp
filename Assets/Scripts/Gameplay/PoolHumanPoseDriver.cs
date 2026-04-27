@@ -36,8 +36,8 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        public float edgeMargin = 0.34f;
-        public float desiredShootDistance = 0.9f;
+        public float edgeMargin = 0.21f;
+        public float desiredShootDistance = 0.74f;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
         [Min(0.6f)] public float bodyScaleMultiplier = 1.12f;
 
@@ -56,6 +56,14 @@ namespace Aiming
         [Range(0f, 0.2f)] public float tableLeanDepth = 0.08f;
         [Tooltip("Extra right-hand pull distance, matching the live power slider pullback.")]
         [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
+        [Tooltip("Right hand grip point from cue root towards cue tip (meters).")]
+        [Range(0.05f, 0.9f)] public float rightHandGripFromCueRoot = 0.36f;
+        [Tooltip("Small right-hand vertical offset so fingers wrap the cue instead of intersecting it.")]
+        [Range(-0.1f, 0.15f)] public float rightHandVerticalOffset = 0.025f;
+        [Tooltip("Moves chest/head closer to cue line to mimic real snooker stance.")]
+        [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.085f;
+        [Tooltip("Makes lead shoulder slightly lower for realistic bridge alignment.")]
+        [Range(0f, 0.16f)] public float shoulderDrop = 0.055f;
 
         [Header("Visual fidelity")]
         [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
@@ -66,6 +74,7 @@ namespace Aiming
         float _walkT;
         float _yaw;
         float _lateralEdgeCoord;
+        Vector3[] _railHelpers = new Vector3[4];
 
         void Awake()
         {
@@ -95,6 +104,7 @@ namespace Aiming
 
             Vector3 aimSide = new Vector3(aimForward.z, 0f, -aimForward.x).normalized;
             Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s, cueController.CurrentShotState);
+            CacheRailHelpers();
 
             BridgeMode bridgeMode = ResolveBridgeMode(cueBall);
             float bridgeDistance = bridgeDist * s;
@@ -110,11 +120,7 @@ namespace Aiming
             bridgeHandTarget.y = ResolveTableY(cueBall.y) + ResolveBridgeHeightOffset(bridgeMode, s);
 
             float handPull = cueController.CurrentPullNormalized * gripPullRange * s;
-            Vector3 gripHandTarget =
-                bridgeHandTarget +
-                (aimForward * (-(0.44f * s + handPull))) +
-                (Vector3.up * (0.03f * s)) +
-                (aimSide * (0.022f * s));
+            Vector3 gripHandTarget = ResolveRightHandGripTarget(aimForward, aimSide, bridgeHandTarget, handPull, s);
 
             float standingYaw = YawFromForward(aimForward);
             Vector3 idleRightHandTarget = rootTarget + RotateAroundY(new Vector3(0.22f, 1.18f, 0.04f) * s, standingYaw);
@@ -290,11 +296,11 @@ namespace Aiming
 
             Vector3 hipCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.02f, 0.98f, t), Lerp(0f, 0.02f, t)) * s);
             Vector3 torsoCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.28f, 1.13f, t), Lerp(0f, -0.16f, t)) * s);
-            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.22f, t), Lerp(0.01f, -0.38f, t)) * s);
-            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.22f, t), Lerp(0.02f, -0.61f, t)) * s);
-            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.27f, t), Lerp(0.04f, -0.71f, t)) * s);
+            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.22f, t), Lerp(0.01f, -0.38f, t)) * s) + (forward * (chinToCueForwardBias * 0.72f * t * s));
+            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.22f, t), Lerp(0.02f, -0.61f, t)) * s) + (forward * (chinToCueForwardBias * 0.9f * t * s));
+            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.27f, t), Lerp(0.04f, -0.71f, t)) * s) + (forward * (chinToCueForwardBias * t * s));
 
-            Vector3 leftShoulderWorld = LocalToWorld(new Vector3(-0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.42f, t)) * s);
+            Vector3 leftShoulderWorld = LocalToWorld(new Vector3(-0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.42f, t)) * s) + (Vector3.down * (shoulderDrop * t * s));
             Vector3 rightShoulderWorld = LocalToWorld(new Vector3(0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.35f, t)) * s);
             Vector3 leftHipWorld = LocalToWorld(new Vector3(-0.12f, 0.93f, 0.02f) * s);
             Vector3 rightHipWorld = LocalToWorld(new Vector3(0.12f, 0.93f, 0.02f) * s);
@@ -357,6 +363,79 @@ namespace Aiming
 
             SetNodePose(leftFoot, leftFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, -0.24f * t, 0f));
             SetNodePose(rightFoot, rightFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, 0.16f * t, 0f));
+        }
+
+        Vector3 ResolveRightHandGripTarget(Vector3 aimForward, Vector3 aimSide, Vector3 fallbackTarget, float handPull, float s)
+        {
+            if (cueController != null && cueController.cueTip != null)
+            {
+                Transform cueRoot = cueController.transform;
+                Vector3 cueTipPos = cueController.cueTip.position;
+                Vector3 cueRootPos = cueRoot.position;
+                Vector3 cueVector = cueTipPos - cueRootPos;
+                if (cueVector.sqrMagnitude > 1e-6f)
+                {
+                    Vector3 cueDir = cueVector.normalized;
+                    float cueLength = cueVector.magnitude;
+                    float gripDistance = Mathf.Clamp(rightHandGripFromCueRoot * s, 0.05f, cueLength - 0.03f);
+                    Vector3 grip = cueRootPos + (cueDir * gripDistance);
+                    grip += (cueDir * -handPull);
+                    grip += (Vector3.up * (rightHandVerticalOffset * s));
+                    grip += (aimSide * (0.018f * s));
+                    return grip;
+                }
+            }
+
+            return fallbackTarget +
+                   (aimForward * (-handPull)) +
+                   (Vector3.up * (rightHandVerticalOffset * s)) +
+                   (aimSide * (0.022f * s));
+        }
+
+        void CacheRailHelpers()
+        {
+            if (cueController == null)
+            {
+                return;
+            }
+
+            Bounds bounds = cueController.tableBounds;
+            Vector3 c = bounds.center;
+            Vector3 e = bounds.extents;
+            float y = stanceHeight;
+            _railHelpers[0] = new Vector3(c.x, y, c.z - e.z); // short near
+            _railHelpers[1] = new Vector3(c.x, y, c.z + e.z); // short far
+            _railHelpers[2] = new Vector3(c.x - e.x, y, c.z); // long left
+            _railHelpers[3] = new Vector3(c.x + e.x, y, c.z); // long right
+        }
+
+        void OnDrawGizmosSelected()
+        {
+            if (cueController == null)
+            {
+                return;
+            }
+
+            CacheRailHelpers();
+            Gizmos.color = new Color(0.1f, 0.8f, 0.95f, 0.85f);
+            Bounds b = cueController.tableBounds;
+            Gizmos.DrawWireCube(b.center, b.size);
+
+            Gizmos.color = new Color(1f, 0.78f, 0.15f, 0.92f);
+            for (int i = 0; i < _railHelpers.Length; i++)
+            {
+                Gizmos.DrawSphere(_railHelpers[i], 0.045f);
+            }
+
+            if (root != null)
+            {
+                Gizmos.color = new Color(0.4f, 1f, 0.45f, 0.9f);
+                Gizmos.DrawSphere(root.position, 0.055f);
+                for (int i = 0; i < _railHelpers.Length; i++)
+                {
+                    Gizmos.DrawLine(root.position, _railHelpers[i]);
+                }
+            }
         }
 
         enum BridgeMode
