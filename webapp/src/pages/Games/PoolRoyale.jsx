@@ -1560,7 +1560,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // match Snooker Royale: disable max-power bounce lift path
+const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
@@ -1820,7 +1820,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = 0; // match Snooker Royale rail spin throw behavior
+const RAIL_SPIN_THROW_SCALE = 0.09; // re-enable a mild rail throw so cue-ball side-spin follows the shown direction after cushion contact
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
@@ -1831,6 +1831,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
+const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
+const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
+const SHOT_GLOBAL_POWER_SCALE = 1.068; // +20% shot pace so standard and power shots travel farther
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1840,11 +1843,14 @@ const SHOT_FORCE_BOOST =
   0.85 *
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE;
+  SHOT_POWER_INCREASE *
+  SHOT_POWER_ADJUSTMENT *
+  SHOT_POWER_BOOST *
+  SHOT_GLOBAL_POWER_SCALE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
+const SHOT_MIN_FACTOR = 0;
+const SHOT_POWER_RANGE = 1;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -1922,6 +1928,9 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
+const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
+const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
+const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // raise launch speed so cue-ball movement remains clear on release
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_TO_SURFACE_MULTIPLIER = 2; // keep standing humans at 2x table-surface height
@@ -1936,9 +1945,11 @@ const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.245;
+const HUMAN_BRIDGE_HAND_SIDE_OFFSET = -0.008;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.42; // transition the shooter into cue-address pose once camera is lowered toward cue view
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
-const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 2.05; // keep players closer to the table so the cue-address pose reaches naturally
+const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.2; // allow shooters to approach the rail while still preventing table clipping
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -25011,8 +25022,8 @@ useEffect(() => {
 
           const bridgeHandTarget = cueWorld
             .clone()
-            .addScaledVector(aimForward, -(TABLE.W * 0.12))
-            .addScaledVector(side, -0.018 * scale)
+            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE_OFFSET)
             .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
 
           const humanShotState =
@@ -27342,25 +27353,19 @@ useEffect(() => {
             : null
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
-          const intentTimestamp = performance.now();
-          if (shotPrediction.ballId && !isShortShot) {
-            const isDirectHit =
-              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
-            pocketSwitchIntentRef.current = {
-              ballId: shotPrediction.ballId,
-              allowEarly: isDirectHit,
-              forced: isDirectHit,
-              createdAt: intentTimestamp
-            };
-          } else {
-            pocketSwitchIntentRef.current = null;
-          }
+          pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
+          const referenceCueSpeed =
+            REFERENCE_CUE_SPEED_BASE +
+            REFERENCE_CUE_SPEED_RANGE * Math.pow(clampedPower, REFERENCE_CUE_SPEED_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          powerImpactHoldRef.current = isMaxPowerShot
-            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
-            : 0;
+          if (isMaxPowerShot) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            );
+          }
           if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -27379,11 +27384,9 @@ useEffect(() => {
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = aimDir
+          const base = shotAimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(referenceCueSpeed);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
