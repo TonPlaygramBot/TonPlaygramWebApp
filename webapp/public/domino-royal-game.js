@@ -7,7 +7,6 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { SkeletonUtils } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -8150,7 +8149,7 @@ async function attachSeatedHumanActors(token) {
         template = await loadSeatedHumanTemplate(DOMINO_HUMAN_CHARACTER_OPTIONS[0]);
       }
       if (!template || token !== chairBuildToken) return;
-      const actor = SkeletonUtils.clone(template);
+      const actor = template.clone(true);
       const actorScale =
         template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template);
       actor.scale.setScalar(actorScale);
