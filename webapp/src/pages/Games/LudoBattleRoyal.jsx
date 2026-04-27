@@ -174,18 +174,6 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'marksmanDmrAttack',
   'compactCarbineAttack'
 ]);
-const FIREARM_ONE_HANDED_IDS = new Set([
-  'mrtkGunAttack',
-  'pistolHolsterAttack',
-  'glockSidearmAttack',
-  'pistolSidearmAttack',
-  'uziSprayAttack',
-  'krsvBurstAttack',
-  'smithSidearmAttack',
-  'sigsauerTacticalAttack',
-  'grenadeBlastAttack',
-  'smgBurstAttack'
-]);
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
@@ -503,40 +491,25 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
-  mrtkGunAttack: 1.12,
-  pistolHolsterAttack: 1.08,
-  fpsGunAttack: 1.66,
+  mrtkGunAttack: 1.04,
+  pistolHolsterAttack: 1.0,
+  fpsGunAttack: 1.62,
   glockSidearmAttack: 0.98,
-  pistolSidearmAttack: 1.08,
-  uziSprayAttack: 1.2,
-  smgBurstAttack: 1.2,
-  compactCarbineAttack: 1.42,
-  assaultRifleAttack: 1.56,
-  ak47VolleyAttack: 1.62,
-  krsvBurstAttack: 1.22,
-  smithSidearmAttack: 1.08,
-  mosinMarksmanAttack: 1.66,
-  sigsauerTacticalAttack: 1.16,
-  shotgunBlastAttack: 1.62,
-  marksmanDmrAttack: 1.52,
-  sniperShotAttack: 1.7,
-  grenadeBlastAttack: 1.18
+  pistolSidearmAttack: 1.0,
+  uziSprayAttack: 1.06,
+  smgBurstAttack: 1.1,
+  compactCarbineAttack: 1.14,
+  assaultRifleAttack: 1.34,
+  ak47VolleyAttack: 1.42,
+  krsvBurstAttack: 1.38,
+  smithSidearmAttack: 1.0,
+  mosinMarksmanAttack: 1.48,
+  sigsauerTacticalAttack: 1.08,
+  shotgunBlastAttack: 1.4,
+  marksmanDmrAttack: 1.26,
+  sniperShotAttack: 1.52,
+  grenadeBlastAttack: 1.12
 });
-const FIREARM_FPS_REFERENCE_RIGHT_HAND = Object.freeze({
-  position: [...FIREARM_HAND_ATTACH_TUNING.fpsGunAttack.position],
-  rotation: [...FIREARM_HAND_ATTACH_TUNING.fpsGunAttack.rotation]
-});
-
-function resolveFirearmAttachTuning(captureAnimationId) {
-  const base = FIREARM_HAND_ATTACH_TUNING.default;
-  const config = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || base;
-  return {
-    position: [...FIREARM_FPS_REFERENCE_RIGHT_HAND.position],
-    rotation: [...FIREARM_FPS_REFERENCE_RIGHT_HAND.rotation],
-    muzzleOffset: [...(config.muzzleOffset || base.muzzleOffset)],
-    offhandOffset: [...(config.offhandOffset || base.offhandOffset)]
-  };
-}
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
@@ -769,7 +742,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   if (!rightHand?.isBone) return null;
   const modelTemplate = await loadCaptureWeaponModel(captureAnimationId);
   if (!modelTemplate?.isObject3D) return null;
-  const tuning = resolveFirearmAttachTuning(captureAnimationId);
+  const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
@@ -793,14 +766,13 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     weapon.position.sub(gripLocal);
   }
   const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId);
-  const oneHanded = FIREARM_ONE_HANDED_IDS.has(captureAnimationId) || !twoHanded;
   const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
   const offhandTarget = new THREE.Object3D();
-  if (twoHanded && sourceLeftGrip?.isObject3D) {
+  if (sourceLeftGrip?.isObject3D) {
     sourceLeftGrip.updateMatrixWorld?.(true);
     const offhandLocal = weapon.worldToLocal(sourceLeftGrip.getWorldPosition(new THREE.Vector3()));
     offhandTarget.position.copy(offhandLocal);
-  } else if (twoHanded) {
+  } else {
     offhandTarget.position.set(...(tuning.offhandOffset || FIREARM_HAND_ATTACH_TUNING.default.offhandOffset));
   }
   offhandTarget.name = 'offhandTarget';
@@ -813,7 +785,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     muzzle,
     offhandTarget,
     twoHanded,
-    oneHanded,
     release: () => {
       const mixer = weapon.userData?.captureWeaponMixer;
       if (mixer && weaponMixers?.delete) {
