@@ -60,7 +60,7 @@ namespace Aiming
         [Tooltip("Extra right-hand pull distance, matching the live power slider pullback.")]
         [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
         [Tooltip("Right hand grip point from cue root towards cue tip (meters).")]
-        [Range(0.05f, 0.9f)] public float rightHandGripFromCueRoot = 0.36f;
+        [Range(0.05f, 0.9f)] public float rightHandGripFromCueRoot = 0.18f;
         [Tooltip("Small right-hand vertical offset so fingers wrap the cue instead of intersecting it.")]
         [Range(-0.1f, 0.15f)] public float rightHandVerticalOffset = 0.025f;
         [Tooltip("Moves chest/head closer to cue line to mimic real snooker stance.")]
@@ -80,6 +80,10 @@ namespace Aiming
         Vector3[] _railHelpers = new Vector3[4];
         Vector3 _perimeterRootTarget;
         bool _hasPerimeterTarget;
+        bool _strikePoseLocked;
+        Vector3 _lockedStrikeRootTarget;
+        Vector3 _lockedStrikeBridgeTarget;
+        Vector3 _lockedStrikeAimForward;
 
         void Awake()
         {
@@ -124,6 +128,7 @@ namespace Aiming
             }
             Vector3 bridgeHandTarget = cueBall + (aimForward * -bridgeDistance) + (aimSide * (-0.018f * s));
             bridgeHandTarget.y = ResolveTableY(cueBall.y) + ResolveBridgeHeightOffset(bridgeMode, s);
+            bridgeHandTarget += aimSide * ResolveBridgeSideOffset(bridgeMode, s);
 
             float handPull = cueController.CurrentPullNormalized * gripPullRange * s;
             Vector3 gripHandTarget = ResolveRightHandGripTarget(aimForward, aimSide, bridgeHandTarget, handPull, s);
@@ -131,6 +136,18 @@ namespace Aiming
             float standingYaw = YawFromForward(aimForward);
             Vector3 idleRightHandTarget = rootTarget + RotateAroundY(new Vector3(0.22f, 1.18f, 0.04f) * s, standingYaw);
             Vector3 idleLeftHandTarget = rootTarget + RotateAroundY(new Vector3(-0.16f, 1.1f, -0.02f) * s, standingYaw);
+            ResolveStrikePoseLock(
+                cueController.CurrentShotState,
+                navigatedRootTarget,
+                bridgeHandTarget,
+                aimForward);
+
+            if (_strikePoseLocked)
+            {
+                navigatedRootTarget = _lockedStrikeRootTarget;
+                bridgeHandTarget = _lockedStrikeBridgeTarget;
+                aimForward = _lockedStrikeAimForward;
+            }
 
             UpdateHumanPose(
                 dt,
@@ -429,11 +446,11 @@ namespace Aiming
 
             Vector3 LocalToWorld(Vector3 v) => RotateAroundY(v, _yaw) + root.position;
 
-            Vector3 hipCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.02f, 0.98f, t), Lerp(0f, 0.02f, t)) * s);
-            Vector3 torsoCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.28f, 1.13f, t), Lerp(0f, -0.16f, t)) * s);
-            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.22f, t), Lerp(0.01f, -0.38f, t)) * s) + (forward * (chinToCueForwardBias * 0.72f * t * s));
-            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.22f, t), Lerp(0.02f, -0.61f, t)) * s) + (forward * (chinToCueForwardBias * 0.9f * t * s));
-            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.27f, t), Lerp(0.04f, -0.71f, t)) * s) + (forward * (chinToCueForwardBias * t * s));
+            Vector3 hipCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.02f, 1f, t), Lerp(0f, 0.01f, t)) * s);
+            Vector3 torsoCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.28f, 1.18f, t), Lerp(0f, -0.12f, t)) * s);
+            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.26f, t), Lerp(0.01f, -0.34f, t)) * s) + (forward * (chinToCueForwardBias * 0.72f * t * s));
+            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.3f, t), Lerp(0.02f, -0.53f, t)) * s) + (forward * (chinToCueForwardBias * 0.9f * t * s));
+            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.35f, t), Lerp(0.04f, -0.61f, t)) * s) + (forward * (chinToCueForwardBias * t * s));
 
             Vector3 leftShoulderWorld = LocalToWorld(new Vector3(-0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.42f, t)) * s) + (Vector3.down * (shoulderDrop * t * s));
             Vector3 rightShoulderWorld = LocalToWorld(new Vector3(0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.35f, t)) * s);
@@ -442,8 +459,8 @@ namespace Aiming
 
             Vector3 leftFootStand = new Vector3(-0.13f, 0.035f, 0.03f + (walk * 0.03f)) * s;
             Vector3 rightFootStand = new Vector3(0.13f, 0.035f, -0.03f - (walk * 0.03f)) * s;
-            Vector3 frontFootShoot = new Vector3(-0.24f, 0.035f, -0.38f) * s;
-            Vector3 rearFootShoot = new Vector3(0.27f, 0.035f, 0.36f) * s;
+            Vector3 frontFootShoot = new Vector3(-0.16f, 0.035f, -0.33f) * s;
+            Vector3 rearFootShoot = new Vector3(0.18f, 0.035f, 0.31f) * s;
             Vector3 leftFootWorld = LocalToWorld(Vector3.Lerp(leftFootStand, frontFootShoot, t));
             Vector3 rightFootWorld = LocalToWorld(Vector3.Lerp(rightFootStand, rearFootShoot, t));
 
@@ -512,7 +529,7 @@ namespace Aiming
                 {
                     Vector3 cueDir = cueVector.normalized;
                     float cueLength = cueVector.magnitude;
-                    float gripDistance = Mathf.Clamp(rightHandGripFromCueRoot * s, 0.05f, cueLength - 0.03f);
+                    float gripDistance = Mathf.Clamp(rightHandGripFromCueRoot, 0.05f, cueLength - 0.03f);
                     Vector3 grip = cueRootPos + (cueDir * gripDistance);
                     grip += (cueDir * -handPull);
                     grip += (Vector3.up * (rightHandVerticalOffset * s));
@@ -576,6 +593,7 @@ namespace Aiming
         enum BridgeMode
         {
             Standard,
+            Closed,
             Rail,
             High
         }
@@ -594,7 +612,13 @@ namespace Aiming
             }
 
             bool elevatedStroke = cueController.CurrentShotState == CueController.ShotState.Striking && cueController.spinInput.y > 0.45f;
-            return elevatedStroke ? BridgeMode.High : BridgeMode.Standard;
+            if (elevatedStroke)
+            {
+                return BridgeMode.High;
+            }
+
+            bool closedBridge = cueController.CurrentPullNormalized > 0.65f || cueController.CurrentShotState == CueController.ShotState.Striking;
+            return closedBridge ? BridgeMode.Closed : BridgeMode.Standard;
         }
 
         float ResolveBridgeHeightOffset(BridgeMode mode, float s)
@@ -605,9 +629,48 @@ namespace Aiming
                     return 0.028f * s;
                 case BridgeMode.High:
                     return 0.04f * s;
+                case BridgeMode.Closed:
+                    return 0.024f * s;
                 default:
                     return 0.02f * s;
             }
+        }
+
+        float ResolveBridgeSideOffset(BridgeMode mode, float s)
+        {
+            switch (mode)
+            {
+                case BridgeMode.Rail:
+                    return -0.012f * s;
+                case BridgeMode.High:
+                    return 0.006f * s;
+                case BridgeMode.Closed:
+                    return -0.006f * s;
+                default:
+                    return 0f;
+            }
+        }
+
+        void ResolveStrikePoseLock(
+            CueController.ShotState shotState,
+            Vector3 rootTarget,
+            Vector3 bridgeTarget,
+            Vector3 aimForward)
+        {
+            if (shotState == CueController.ShotState.Striking)
+            {
+                if (!_strikePoseLocked)
+                {
+                    _strikePoseLocked = true;
+                    _lockedStrikeRootTarget = rootTarget;
+                    _lockedStrikeBridgeTarget = bridgeTarget;
+                    _lockedStrikeAimForward = aimForward;
+                }
+
+                return;
+            }
+
+            _strikePoseLocked = false;
         }
 
         static float DampScalar(float current, float target, float lambda, float dt)
