@@ -33688,9 +33688,12 @@ useEffect(() => {
     manualStrikePowerRef.current = latchedPower;
     applyPower(latchedPower);
     manualStrikeDidHitRef.current = false;
-    manualStrikeStartedAtRef.current = performance.now();
+    manualStrikeStartedAtRef.current = 0;
     const shouldStrike = latchedPower > BILARDO_MIN_RELEASE_POWER;
-    setManualShotState(shouldStrike ? 'striking' : 'idle');
+    if (shouldStrike) {
+      fireRef.current?.(latchedPower);
+    }
+    setManualShotState('idle');
   }, [applyPower, clampPower]);
   useEffect(() => {
     let raf = 0;
@@ -33748,7 +33751,7 @@ useEffect(() => {
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
       onCommit: () => {
-        onPowerRelease(clampPower(powerRef.current, 0));
+        onPowerRelease(slider.get() / 100);
       }
     });
     sliderInstanceRef.current = slider;
