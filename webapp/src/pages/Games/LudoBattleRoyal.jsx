@@ -502,25 +502,25 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
-  // Per-weapon overrides tuned for in-game readability on portrait mobile screens.
-  // Values intentionally diverge (e.g. FPS vs Glock) based on requested visual balance.
+  // Keep glock as the grip-size baseline and upscale all other firearms so
+  // seated humans keep a consistent hand fit around the trigger/handle zone.
   mrtkGunAttack: 1.16,
   pistolHolsterAttack: 1.14,
-  fpsGunAttack: 3.44,
-  glockSidearmAttack: 1.36,
+  fpsGunAttack: 1.72,
+  glockSidearmAttack: 0.98,
   pistolSidearmAttack: 1.16,
-  uziSprayAttack: 1.22,
+  uziSprayAttack: 1.2,
   smgBurstAttack: 1.22,
   compactCarbineAttack: 1.34,
   assaultRifleAttack: 1.56,
-  ak47VolleyAttack: 2.46,
+  ak47VolleyAttack: 1.64,
   krsvBurstAttack: 1.58,
   smithSidearmAttack: 1.15,
   mosinMarksmanAttack: 1.72,
   sigsauerTacticalAttack: 1.2,
   shotgunBlastAttack: 1.7,
   marksmanDmrAttack: 1.48,
-  sniperShotAttack: 3.52,
+  sniperShotAttack: 1.76,
   grenadeBlastAttack: 1.12
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
