@@ -101,101 +101,153 @@ export const TOKEN_PIECE_OPTIONS = Object.freeze([
   { id: 'pieceKing', label: 'Play as King', type: 'k', symbol: '♔' }
 ]);
 
+const captureWeaponThumb = (icon = '⚔️', accent = '#0ea5e9') =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0f172a" />
+          <stop offset="100%" stop-color="${accent}" />
+        </linearGradient>
+      </defs>
+      <rect width="320" height="180" rx="18" fill="url(#bg)" />
+      <rect x="14" y="14" width="292" height="152" rx="14" fill="rgba(255,255,255,0.08)" />
+      <text x="160" y="112" text-anchor="middle" font-size="72">${icon}</text>
+    </svg>`
+  )}`;
+
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'missileJavelin',
     label: 'Javelin Missile',
-    description: 'Perimeter missile orbit with a spear-like terminal strike.'
+    description: 'Perimeter missile orbit with a spear-like terminal strike.',
+    thumbnail: captureWeaponThumb('🚀', '#1d4ed8')
   },
   {
     id: 'droneAttack',
     label: 'Drone Attack',
-    description: 'Attack drone sweep adapted from Chess Battle Royal scale.'
+    description: 'Attack drone sweep adapted from Chess Battle Royal scale.',
+    thumbnail: captureWeaponThumb('🛸', '#0ea5e9')
   },
   {
     id: 'fighterJetAttack',
     label: 'Fighter Jet Attack',
-    description: 'Fast fighter jet strike with right-hand red launch button trigger.'
+    description: 'Fast fighter jet strike with right-hand red launch button trigger.',
+    thumbnail: captureWeaponThumb('✈️', '#2563eb')
   },
   {
     id: 'helicopterAttack',
     label: 'Helicopter Strike',
-    description: 'Attack helicopter run that launches twin missiles after button press.'
+    description: 'Attack helicopter run that launches twin missiles after button press.',
+    thumbnail: captureWeaponThumb('🚁', '#0f766e')
+  },
+  {
+    id: 'mrtkGunAttack',
+    label: 'MRTK Gun',
+    description: 'Mixed Reality Toolkit Gun.glb pickup and burst attack.',
+    thumbnail: captureWeaponThumb('🔫', '#075985')
+  },
+  {
+    id: 'pistolHolsterAttack',
+    label: 'Pistol Holster',
+    description: 'Holstered pistol model from SAM_ASSET-PISTOL-IN-HOLSTER.glb.',
+    thumbnail: captureWeaponThumb('🧰', '#0f766e')
+  },
+  {
+    id: 'fpsGunAttack',
+    label: 'FPS Gun',
+    description: 'FPS Gun scene.gltf pickup with preserved mesh/material shape.',
+    thumbnail: captureWeaponThumb('🎯', '#7c3aed')
   },
   {
     id: 'glockSidearmAttack',
     label: 'Glock Sidearm',
-    description: 'Pick the Glock from the table, aim, and fire before taking the tile.'
+    description: 'Pick the Glock from the table, aim, and fire before taking the tile.',
+    thumbnail: captureWeaponThumb('🔫', '#2563eb')
   },
   {
     id: 'pistolSidearmAttack',
     label: 'Pistol Sidearm',
-    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.'
+    description: 'Classic pistol takedown with right-hand pickup using original GLB textures.',
+    thumbnail: captureWeaponThumb('🔫', '#0284c7')
   },
   {
     id: 'assaultRifleAttack',
     label: 'Assault Rifle',
-    description: 'AR burst capture with short aim hold and original GLB texture materials.'
+    description: 'AR burst capture with short aim hold and original GLB texture materials.',
+    thumbnail: captureWeaponThumb('🪖', '#334155')
   },
   {
     id: 'uziSprayAttack',
     label: 'Uzi Spray',
-    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.'
+    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.',
+    thumbnail: captureWeaponThumb('🔫', '#1e293b')
   },
   {
     id: 'ak47VolleyAttack',
     label: 'AK-47 Volley',
-    description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.'
+    description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.',
+    thumbnail: captureWeaponThumb('🪖', '#7f1d1d')
   },
   {
     id: 'krsvBurstAttack',
     label: 'KRSV Burst',
-    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.'
+    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.',
+    thumbnail: captureWeaponThumb('🎖️', '#6d28d9')
   },
   {
     id: 'smithSidearmAttack',
     label: 'Smith Sidearm',
-    description: 'Smith sidearm takedown with original Gunify texture maps.'
+    description: 'Smith sidearm takedown with original Gunify texture maps.',
+    thumbnail: captureWeaponThumb('🔫', '#155e75')
   },
   {
     id: 'mosinMarksmanAttack',
     label: 'Mosin Marksman',
-    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.'
+    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.',
+    thumbnail: captureWeaponThumb('🎯', '#0f172a')
   },
   {
     id: 'sigsauerTacticalAttack',
     label: 'SigSauer Tactical',
-    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.'
+    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.',
+    thumbnail: captureWeaponThumb('🔫', '#1d4ed8')
   },
   {
     id: 'grenadeBlastAttack',
     label: 'Grenade Blast',
-    description: 'Grenade capture with preserved GLB textures and quick throw/pickup pacing.'
+    description: 'Grenade capture with preserved GLB textures and quick throw/pickup pacing.',
+    thumbnail: captureWeaponThumb('💣', '#9a3412')
   },
   {
     id: 'shotgunBlastAttack',
     label: 'Shotgun Blast',
-    description: 'Short-range tactical shotgun blast with fast pickup timing.'
+    description: 'Short-range tactical shotgun blast with fast pickup timing.',
+    thumbnail: captureWeaponThumb('🧨', '#92400e')
   },
   {
     id: 'sniperShotAttack',
     label: 'Sniper Shot',
-    description: 'Precision long-barrel sniper takedown sequence.'
+    description: 'Precision long-barrel sniper takedown sequence.',
+    thumbnail: captureWeaponThumb('🎯', '#312e81')
   },
   {
     id: 'smgBurstAttack',
     label: 'SMG Burst',
-    description: 'Compact SMG burst animation with controlled recoil.'
+    description: 'Compact SMG burst animation with controlled recoil.',
+    thumbnail: captureWeaponThumb('🔫', '#0f172a')
   },
   {
     id: 'compactCarbineAttack',
     label: 'Compact Carbine',
-    description: 'Open-source compact carbine-style pickup and burst capture animation.'
+    description: 'Open-source compact carbine-style pickup and burst capture animation.',
+    thumbnail: captureWeaponThumb('🪖', '#1f2937')
   },
   {
     id: 'marksmanDmrAttack',
     label: 'Marksman DMR',
-    description: 'Open-source designated marksman rifle attack with controlled right-hand aim.'
+    description: 'Open-source designated marksman rifle attack with controlled right-hand aim.',
+    thumbnail: captureWeaponThumb('🎯', '#334155')
   }
 
 ]);
