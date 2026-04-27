@@ -94,17 +94,10 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { BILARDO_STRIKE_TIME_MS } from './shared/bilardoShotModel';
-import {
-  createBilardoHumanRig,
-  chooseHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -20730,38 +20723,6 @@ const powerRef = useRef(hud.power);
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
-      const humanLoader = createConfiguredGLTFLoader(renderer);
-      const humanActor = createBilardoHumanRig(scene, {
-        loader: humanLoader,
-        modelUrl: BILARDO_SHARED_HUMAN_GLTF_URL,
-        tableTopY: BALL_CENTER_Y - BALL_R,
-        humanScale: 1.18,
-        humanVisualYawFix: Math.PI,
-        strikeTime: BILARDO_STRIKE_TIME_MS / 1000
-      });
-      humanActor.root.visible = true;
-
-      const humanPoseContext = {
-        aimDir: new THREE.Vector2(0, 1),
-        power: 0,
-        state: 'idle',
-        cueBack: new THREE.Vector3(),
-        cueTip: new THREE.Vector3()
-      };
-      const updateSnookerHumanFromAim = (aimDirection, power = 0, options = {}) => {
-        if (!humanActor || !cue?.pos) return;
-        humanPoseContext.aimDir.set(aimDirection?.x ?? 0, aimDirection?.y ?? 1);
-        if (humanPoseContext.aimDir.lengthSq() < 1e-6) {
-          humanPoseContext.aimDir.set(0, 1);
-        } else {
-          humanPoseContext.aimDir.normalize();
-        }
-        humanPoseContext.power = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        humanPoseContext.state = options.state || humanPoseContext.state || 'idle';
-        if (options.cueBack) humanPoseContext.cueBack.copy(options.cueBack);
-        if (options.cueTip) humanPoseContext.cueTip.copy(options.cueTip);
-      };
-
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
         const state = cueGalleryStateRef.current;
@@ -22180,11 +22141,6 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-            updateSnookerHumanFromAim(aimDir, clampedPower, {
-              state: 'striking',
-              cueBack: TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET),
-              cueTip: cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET)
-            });
             requestAnimationFrame(animateStroke);
           };
           requestAnimationFrame(animateStroke);
@@ -24957,11 +24913,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(aimDir2D, powerStrength, {
-            state: 'dragging',
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -25116,11 +25067,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(remoteAimDir, powerStrength, {
-            state: 'dragging',
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -25221,11 +25167,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(planDir, powerTarget, {
-            state: 'dragging',
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -25238,11 +25179,6 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
-          updateSnookerHumanFromAim(aimDirRef.current, powerRef.current ?? 0, {
-            state: cueAnimating ? 'striking' : 'idle',
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET)
-          });
           updateChalkVisibility(null);
         }
 
@@ -25251,51 +25187,6 @@ const powerRef = useRef(hud.power);
           if (precisionArea) precisionArea.visible = false;
         }
         chalkAssistTargetRef.current = shouldSlowAim;
-
-        if (humanActor && cue?.pos) {
-          const aimForward = new THREE.Vector3(
-            humanPoseContext.aimDir.x,
-            0,
-            humanPoseContext.aimDir.y
-          ).normalize();
-          const cueBallWorld = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
-            tableW: PLAY_W,
-            tableL: PLAY_H,
-            edgeMargin: Math.max(BALL_R * 8.4, SIDE_RAIL_INNER_THICKNESS * 2.2),
-            desiredShootDistance: Math.max(cueLen * 0.72, BALL_R * 22)
-          });
-          rootTarget.y = BALL_CENTER_Y - BALL_R * 2;
-          const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const bridgeTarget = cueBallWorld
-            .clone()
-            .addScaledVector(aimForward, -Math.max(BALL_R * 5.6, cueLen * 0.16))
-            .addScaledVector(aimSide, -BALL_R * 0.18)
-            .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
-          const gripTarget = humanPoseContext.cueTip
-            .clone()
-            .lerp(humanPoseContext.cueBack.clone(), 0.76);
-          const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-          const upAxis = new THREE.Vector3(0, 1, 0);
-          const idleRight = rootTarget
-            .clone()
-            .add(new THREE.Vector3(0.24, 1.12, 0.02).applyAxisAngle(upAxis, standingYaw));
-          const idleLeft = rootTarget
-            .clone()
-            .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(upAxis, standingYaw));
-          updateBilardoHumanPose(humanActor, deltaSeconds, {
-            state: humanPoseContext.state,
-            rootTarget,
-            aimForward,
-            bridgeTarget,
-            gripTarget,
-            idleRight,
-            idleLeft,
-            cueBack: humanPoseContext.cueBack,
-            cueTip: humanPoseContext.cueTip,
-            power: humanPoseContext.power
-          });
-        }
 
         // Fizika
         balls.forEach((ball) => {
