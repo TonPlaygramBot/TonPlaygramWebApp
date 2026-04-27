@@ -117,8 +117,8 @@ const captureWeaponThumb = (icon = '⚔️', accent = '#0ea5e9') =>
   )}`;
 
 const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
-  glockSidearmAttack: 'https://raw.githubusercontent.com/webaverse/pistol/master/glock.png',
-  pistolSidearmAttack: 'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.png',
+  glockSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg',
+  pistolSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
   assaultRifleAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
   ak47VolleyAttack:
     'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
@@ -199,7 +199,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'ak47VolleyAttack',
-    label: 'AK47 Volley',
+    label: 'AK-47 Volley',
     description: 'Heavy AK volley using Gunify AK47 GLTF textures with original material maps preserved.',
     thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.ak47VolleyAttack
   },
@@ -223,7 +223,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'sigsauerTacticalAttack',
-    label: 'SIG Sauer Tactical',
+    label: 'SigSauer Tactical',
     description: 'SigSauer tactical burst using Gunify GLTF texture/material files.',
     thumbnail: captureWeaponThumb('🔫', '#1d4ed8')
   },
