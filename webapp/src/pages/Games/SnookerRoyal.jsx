@@ -113,10 +113,8 @@ const SNOOKER_HUMAN_EDGE_MARGIN_FACTOR = 4.1;
 const SNOOKER_HUMAN_DESIRED_SHOOT_DISTANCE_FACTOR = 13.8;
 const SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD = 0.42;
 const SNOOKER_HUMAN_PULL_TO_POSE_THRESHOLD = 0.035;
-const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.9;
-const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = -0.04;
-const SNOOKER_HUMAN_EYE_CAMERA_BLEND_START = 0.33;
-const SNOOKER_HUMAN_EYE_CAMERA_BLEND_END = 0.06;
+const SNOOKER_HUMAN_CUE_HAND_GRIP_RATIO = 0.76;
+const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -13498,7 +13496,6 @@ const powerRef = useRef(hud.power);
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
-  const humanActorRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -17867,43 +17864,6 @@ const powerRef = useRef(hud.power);
             }
           }
           camera.lookAt(lookTarget);
-          const cueViewBlend = THREE.MathUtils.clamp(
-            (SNOOKER_HUMAN_EYE_CAMERA_BLEND_START - (cameraBlendRef.current ?? 1)) /
-              Math.max(
-                SNOOKER_HUMAN_EYE_CAMERA_BLEND_START - SNOOKER_HUMAN_EYE_CAMERA_BLEND_END,
-                1e-4
-              ),
-            0,
-            1
-          );
-          if (cueViewBlend > 1e-4) {
-            const actor = humanActorRef.current;
-            const actorHead = new THREE.Vector3();
-            if (actor?.activeGlb && actor.bones?.head) {
-              actor.bones.head.getWorldPosition(actorHead);
-            } else if (actor?.root) {
-              actorHead.copy(actor.root.position).add(new THREE.Vector3(0, 1.52, 0));
-            }
-            if (actor && actorHead.lengthSq() > 1e-6) {
-              const cueBall = cue?.pos
-                ? new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y)
-                : lookTarget.clone();
-              const eyeForward = cueBall.clone().sub(actorHead).setY(0);
-              if (eyeForward.lengthSq() < 1e-6) eyeForward.set(0, 0, 1);
-              eyeForward.normalize();
-              const eyePos = actorHead
-                .clone()
-                .addScaledVector(eyeForward, BALL_R * 0.9)
-                .addScaledVector(UP, BALL_R * 0.1);
-              const eyeLook = cueBall
-                .clone()
-                .addScaledVector(eyeForward, BALL_R * 2.2)
-                .setY(BALL_CENTER_Y + BALL_R * 0.16);
-              camera.position.lerp(eyePos, cueViewBlend);
-              lookTarget.lerp(eyeLook, cueViewBlend);
-              camera.lookAt(lookTarget);
-            }
-          }
           renderCamera = camera;
           broadcastArgs.focusWorld =
             broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
@@ -20810,14 +20770,11 @@ const powerRef = useRef(hud.power);
         strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
         moveLambda: 5.6,
         rotLambda: 8.5,
-        stanceWidth: 0.46,
+        stanceWidth: 0.52,
         bridgePalmTableLift: 0.012,
         chinToCueHeight: 0.11,
-        cueArmElbowRise: 0.39,
-        upperBodyBend: 1,
-        legBend: 0.25
+        cueArmElbowRise: 0.43
       });
-      humanActorRef.current = humanActor;
       humanActor.root.visible = true;
       const snookerTableTopFromGround = Math.max(
         0.25,
@@ -20846,8 +20803,6 @@ const powerRef = useRef(hud.power);
         aimDir: new THREE.Vector2(0, 1),
         power: 0,
         state: 'idle',
-        bridgePose: 'open',
-        bridgeHeightOffset: 0,
         cueBack: new THREE.Vector3(),
         cueTip: new THREE.Vector3()
       };
@@ -20861,10 +20816,6 @@ const powerRef = useRef(hud.power);
         }
         humanPoseContext.power = THREE.MathUtils.clamp(power ?? 0, 0, 1);
         humanPoseContext.state = options.state || humanPoseContext.state || 'idle';
-        if (options.bridgePose) humanPoseContext.bridgePose = options.bridgePose;
-        if (Number.isFinite(options.bridgeHeightOffset)) {
-          humanPoseContext.bridgeHeightOffset = options.bridgeHeightOffset;
-        }
         if (options.cueBack) humanPoseContext.cueBack.copy(options.cueBack);
         if (options.cueTip) humanPoseContext.cueTip.copy(options.cueTip);
       };
@@ -25400,28 +25351,11 @@ const powerRef = useRef(hud.power);
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const distToRailX = PLAY_W * 0.5 - Math.abs(cueBallWorld.x);
-          const distToRailZ = PLAY_H * 0.5 - Math.abs(cueBallWorld.z);
-          const railTightThreshold = BALL_R * 2.3;
-          const nearRail = Math.min(distToRailX, distToRailZ) <= railTightThreshold;
-          const requestedLowCamera = (cameraBlendRef.current ?? 1) <= SNOOKER_HUMAN_CAMERA_LOWERED_BLEND_THRESHOLD;
-          const strongPull = (humanPoseContext.power ?? 0) >= 0.7;
-          const bridgePose = nearRail ? 'rail' : strongPull ? 'closed' : requestedLowCamera ? 'low' : 'open';
-          const bridgeHeightOffset =
-            bridgePose === 'low'
-              ? -BALL_R * 0.02
-              : bridgePose === 'rail'
-                ? BALL_R * 0.015
-                : bridgePose === 'closed'
-                  ? BALL_R * 0.006
-                  : 0;
-          humanPoseContext.bridgePose = bridgePose;
-          humanPoseContext.bridgeHeightOffset = bridgeHeightOffset;
           const bridgeTarget = cueBallWorld
             .clone()
             .addScaledVector(aimForward, -bilardoSharedPose.bridgeHandBackFromBall)
             .addScaledVector(aimSide, bilardoSharedPose.bridgeHandSide)
-            .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24 + bridgeHeightOffset);
+            .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
           const gripTarget = humanPoseContext.cueTip
             .clone()
             .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio)
@@ -25452,9 +25386,7 @@ const powerRef = useRef(hud.power);
             idleLeft,
             cueBack: humanPoseContext.cueBack,
             cueTip: humanPoseContext.cueTip,
-            power: humanPoseContext.power,
-            bridgePose: humanPoseContext.bridgePose,
-            bridgeHeightOffset: humanPoseContext.bridgeHeightOffset
+            power: humanPoseContext.power
           });
         }
 
