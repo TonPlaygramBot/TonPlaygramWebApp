@@ -524,23 +524,25 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
 });
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
-  // Keep glock as the grip-size baseline and upscale all other firearms so
-  // seated humans keep a consistent hand fit around the trigger/handle zone.
+  // Per weapon balancing for consistent on-screen hand fit and requested class sizing.
   mrtkGunAttack: 1.16,
   pistolHolsterAttack: 1.14,
-  fpsGunAttack: 5.5,
-  glockSidearmAttack: 2.2,
+  // Match these sidearms/rifles to the SigSauer Tactical on-screen size.
+  fpsGunAttack: 2.7,
+  glockSidearmAttack: 0.78,
   pistolSidearmAttack: 1.16,
-  uziSprayAttack: 2,
-  smgBurstAttack: 2,
+  // Keep Uzi/SMG slightly smaller than the SigSauer Tactical.
+  uziSprayAttack: 0.72,
+  smgBurstAttack: 0.72,
   compactCarbineAttack: 1.34,
-  assaultRifleAttack: 1.56,
+  assaultRifleAttack: 0.72,
   ak47VolleyAttack: 3.2,
   krsvBurstAttack: 3.2,
-  smithSidearmAttack: 2.2,
+  smithSidearmAttack: 0.78,
   mosinMarksmanAttack: 6,
   sigsauerTacticalAttack: 1.2,
-  shotgunBlastAttack: 1.7,
+  // Match these to AK-47 size.
+  shotgunBlastAttack: 3.2,
   marksmanDmrAttack: 1.48,
   sniperShotAttack: 5.2,
   grenadeBlastAttack: 0.55
@@ -3002,7 +3004,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 
-function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANCE) {
+function createAiUniqueLoadout(activePlayerCount) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
@@ -3021,25 +3023,9 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
     return copy;
   };
 
-  const playerTokenPieceIndex = Math.max(0, Math.min(TOKEN_PIECE_OPTIONS.length - 1, Number(appearance?.tokenPiece) || 0));
-  const playerCaptureIndex = Math.max(
-    0,
-    Math.min(CAPTURE_ANIMATION_OPTIONS.length - 1, Number(appearance?.captureAnimation) || 0)
-  );
-  const playerHumanIndex = Math.max(
-    0,
-    Math.min(HUMAN_CHARACTER_OPTIONS.length - 1, Number(appearance?.humanCharacter) || 0)
-  );
-
-  const piecePool = shuffle(
-    Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerTokenPieceIndex)
-  );
-  const capturePool = shuffle(
-    Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerCaptureIndex)
-  );
-  const humanPool = shuffle(
-    Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerHumanIndex)
-  );
+  const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
+  const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
+  const humanPool = shuffle(Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx));
 
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
@@ -6580,10 +6566,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
-  const aiLoadoutByPlayer = useMemo(
-    () => createAiUniqueLoadout(activePlayerCount, appearance),
-    [activePlayerCount, appearance]
-  );
+  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
