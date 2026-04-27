@@ -37,7 +37,7 @@ namespace Aiming
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
         public float edgeMargin = 0.21f;
-        public float desiredShootDistance = 0.74f;
+        public float desiredShootDistance = 0.65f;
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
@@ -56,7 +56,7 @@ namespace Aiming
         public float gripRatio = 0.76f;
         public float stanceHeight = 0f;
         [Tooltip("How much closer to the table edge the chest/head moves while aiming.")]
-        [Range(0f, 0.2f)] public float tableLeanDepth = 0.08f;
+        [Range(0f, 0.2f)] public float tableLeanDepth = 0.11f;
         [Tooltip("Extra right-hand pull distance, matching the live power slider pullback.")]
         [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
         [Tooltip("Right hand grip point from cue root towards cue tip (meters).")]
@@ -67,6 +67,8 @@ namespace Aiming
         [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.085f;
         [Tooltip("Makes lead shoulder slightly lower for realistic bridge alignment.")]
         [Range(0f, 0.16f)] public float shoulderDrop = 0.055f;
+        [Tooltip("When enabled, cue root follows grip hand so stick always stays in palm/fingers (Bilardo-style).")]
+        public bool lockCueToGripHand = true;
 
         [Header("Visual fidelity")]
         [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
@@ -127,6 +129,13 @@ namespace Aiming
 
             float handPull = cueController.CurrentPullNormalized * gripPullRange * s;
             Vector3 gripHandTarget = ResolveRightHandGripTarget(aimForward, aimSide, bridgeHandTarget, handPull, s);
+
+            if (lockCueToGripHand && cueController != null)
+            {
+                cueController.externalGripAnchor = gripHand;
+                cueController.externalGripDistanceFromCueRoot = Mathf.Max(0.05f, rightHandGripFromCueRoot * s);
+                cueController.externalGripWorldOffset = (Vector3.up * (rightHandVerticalOffset * s)) + (aimSide * (0.012f * s));
+            }
 
             float standingYaw = YawFromForward(aimForward);
             Vector3 idleRightHandTarget = rootTarget + RotateAroundY(new Vector3(0.22f, 1.18f, 0.04f) * s, standingYaw);
@@ -516,7 +525,7 @@ namespace Aiming
                     Vector3 grip = cueRootPos + (cueDir * gripDistance);
                     grip += (cueDir * -handPull);
                     grip += (Vector3.up * (rightHandVerticalOffset * s));
-                    grip += (aimSide * (0.018f * s));
+                    grip += (aimSide * (0.012f * s));
                     return grip;
                 }
             }
@@ -524,7 +533,7 @@ namespace Aiming
             return fallbackTarget +
                    (aimForward * (-handPull)) +
                    (Vector3.up * (rightHandVerticalOffset * s)) +
-                   (aimSide * (0.022f * s));
+                   (aimSide * (0.012f * s));
         }
 
         void CacheRailHelpers()
