@@ -20756,9 +20756,15 @@ const powerRef = useRef(hud.power);
         loader: humanLoader,
         modelUrl: BILARDO_SHARED_HUMAN_GLTF_URL,
         tableTopY: BALL_CENTER_Y - BALL_R,
-        humanScale: 1.18,
+        humanScale: 1.24,
         humanVisualYawFix: Math.PI,
-        strikeTime: BILARDO_STRIKE_TIME_MS / 1000
+        strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
+        moveLambda: 3.15,
+        rotLambda: 7.35,
+        stanceWidth: 0.56,
+        bridgePalmTableLift: 0.009,
+        chinToCueHeight: 0.122,
+        cueArmElbowRise: 0.47
       });
       humanActor.root.visible = true;
       const snookerTableTopFromGround = Math.max(
@@ -20771,14 +20777,14 @@ const powerRef = useRef(hud.power);
         0.9,
         14
       );
-      const snookerHumanScaleBoost = 2;
+      const snookerHumanScaleBoost = 2.18;
       const snookerFinalHumanScale = snookerHumanScaleFactor * snookerHumanScaleBoost;
       humanActor.modelRoot.scale.setScalar(snookerFinalHumanScale);
       humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
 
       const bilardoSharedPose = {
-        bridgeHandBackFromBall: 0.245,
-        bridgeHandSide: -0.008,
+        bridgeHandBackFromBall: 0.218,
+        bridgeHandSide: -0.014,
         gripRatio: 0.76,
         idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
         idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
@@ -25306,7 +25312,7 @@ const powerRef = useRef(hud.power);
             tableW: PLAY_W,
             tableL: PLAY_H,
             edgeMargin: Math.max(BALL_R * 8.4, SIDE_RAIL_INNER_THICKNESS * 2.2),
-            desiredShootDistance: Math.max(cueLen * 0.72, BALL_R * 22)
+            desiredShootDistance: Math.max(cueLen * 0.64, BALL_R * 18.8)
           });
           rootTarget.y = FLOOR_Y + Math.max(BALL_R * 0.08, 0.03);
           const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
