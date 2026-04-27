@@ -98,7 +98,6 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -121,26 +120,6 @@ function safePolygonDifference(subject, ...clips) {
     console.error('Snooker Royal polygon difference failed', err);
     return validSubject;
   }
-}
-
-function createSnookerHumanFallback() {
-  const group = new THREE.Group();
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.7, metalness: 0.05 });
-  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.82, metalness: 0 });
-  const legs = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.7, 8, 12), bodyMaterial);
-  legs.position.set(0, 0.55, 0);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.62, 8, 12), bodyMaterial);
-  torso.position.set(0, 1.26, 0);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), headMaterial);
-  head.position.set(0, 1.86, 0.02);
-  group.add(legs, torso, head);
-  group.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-  return group;
 }
 
 function applyTablePhysicsSpec(meta) {
@@ -20744,84 +20723,6 @@ const powerRef = useRef(hud.power);
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
-      const humanActor = {
-        root: new THREE.Group(),
-        modelRoot: new THREE.Group(),
-        model: null,
-        fallback: createSnookerHumanFallback(),
-        loaded: false,
-        height: 1.9,
-        yaw: 0
-      };
-      humanActor.root.add(humanActor.modelRoot);
-      humanActor.root.add(humanActor.fallback);
-      humanActor.modelRoot.visible = false;
-      humanActor.root.visible = true;
-      table.add(humanActor.root);
-
-      const updateSnookerHumanFromAim = (aimDirection, power = 0, options = {}) => {
-        if (!humanActor?.root || !cue?.pos) return;
-        const dir = new THREE.Vector3(aimDirection?.x ?? 0, 0, aimDirection?.y ?? 1);
-        if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
-        dir.normalize();
-        const side = new THREE.Vector3(-dir.z, 0, dir.x);
-        if (side.lengthSq() > 1e-6) side.normalize();
-        const posePhase = THREE.MathUtils.clamp(options.posePhase ?? 0, 0, 1);
-        const swing = THREE.MathUtils.clamp(options.swing ?? 0, -1, 1);
-        const behindDistance = cueLen * (0.86 + posePhase * 0.09);
-        const lateral = cueLen * (0.12 + (power || 0) * 0.08);
-        const rootPos = new THREE.Vector3(cue.pos.x, 0, cue.pos.y)
-          .addScaledVector(dir, behindDistance)
-          .addScaledVector(side, lateral);
-        const halfHeightOnTable = humanActor.height * 0.5;
-        const tableY = BALL_CENTER_Y - BALL_R;
-        rootPos.y = tableY - halfHeightOnTable;
-        humanActor.root.position.copy(rootPos);
-        humanActor.yaw = Math.atan2(dir.x, dir.z) + Math.PI;
-        humanActor.root.rotation.set(-0.07 * posePhase - 0.08 * Math.abs(swing), humanActor.yaw, 0.03 * swing);
-        const shoulderDip = 0.03 + posePhase * 0.035;
-        humanActor.modelRoot.position.set(0.04 * swing, shoulderDip, -0.04 * posePhase);
-        humanActor.fallback.position.copy(humanActor.modelRoot.position);
-        humanActor.fallback.rotation.set(0, 0.35 * swing, 0.12 * posePhase);
-      };
-
-      loader.load(
-        BILARDO_SHARED_HUMAN_GLTF_URL,
-        (gltf) => {
-          if (disposed) return;
-          const model = gltf?.scene || gltf?.scenes?.[0];
-          if (!model) return;
-          const rawBox = new THREE.Box3().setFromObject(model);
-          const rawHeight = Math.max(rawBox.max.y - rawBox.min.y, 1e-4);
-          const targetHeight = Math.max((BALL_CENTER_Y - BALL_R) * 2, 0.1);
-          const scale = targetHeight / rawHeight;
-          model.scale.setScalar(scale);
-          model.updateMatrixWorld(true);
-          const scaledBox = new THREE.Box3().setFromObject(model);
-          const scaledHeight = Math.max(scaledBox.max.y - scaledBox.min.y, targetHeight);
-          model.position.y -= scaledBox.min.y;
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
-          humanActor.height = scaledHeight;
-          humanActor.model = model;
-          humanActor.modelRoot.clear();
-          humanActor.modelRoot.add(model);
-          humanActor.modelRoot.visible = true;
-          humanActor.fallback.visible = false;
-          humanActor.loaded = true;
-        },
-        undefined,
-        () => {
-          humanActor.modelRoot.visible = false;
-          humanActor.fallback.visible = true;
-          humanActor.loaded = true;
-        }
-      );
-
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
         const state = cueGalleryStateRef.current;
@@ -22210,10 +22111,8 @@ const powerRef = useRef(hud.power);
               strikeWindowRatio: 0.12,
               hitArmRatio: 0.88
             });
-            let humanSwing = 0;
             if (sample.phase === 'pullback') {
               cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
-              humanSwing = -sample.t;
             } else if (sample.phase === 'release' || sample.phase === 'strike') {
               const strikeEase = easeOutCubic(sample.t);
               const dynamicFollow =
@@ -22222,14 +22121,11 @@ const powerRef = useRef(hud.power);
               if (dynamicFollow > 1e-6) {
                 cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
               }
-              humanSwing = sample.t;
             } else if (sample.phase === 'hold') {
               cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
-              humanSwing = 0.35 * (1 - sample.t);
             } else if (now <= returnTime && returnDuration > 0) {
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
-              humanSwing = 0.2 * (1 - t);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
@@ -22245,10 +22141,6 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-            updateSnookerHumanFromAim(aimDir, clampedPower, {
-              posePhase: 1,
-              swing: humanSwing
-            });
             requestAnimationFrame(animateStroke);
           };
           requestAnimationFrame(animateStroke);
@@ -25021,10 +24913,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(aimDir2D, powerStrength, {
-            posePhase: 1,
-            swing: 0
-          });
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -25179,10 +25067,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(remoteAimDir, powerStrength, {
-            posePhase: 1,
-            swing: 0
-          });
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -25283,10 +25167,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(planDir, powerTarget, {
-            posePhase: 1,
-            swing: 0
-          });
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -25299,10 +25179,6 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
-          updateSnookerHumanFromAim(aimDirRef.current, powerRef.current ?? 0, {
-            posePhase: cueAnimating ? 1 : 0,
-            swing: 0
-          });
           updateChalkVisibility(null);
         }
 
