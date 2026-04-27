@@ -70,13 +70,14 @@ type ShotPlan = { yaw: number; power: number; target: BallState | null; pocket: 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const CFG = {
   tableTopY: 0.84,
-  tableW: 2.0,
-  tableL: 3.6,
+  // Match Pool Royale's 2:1 table footprint and spacing envelope.
+  tableW: 2.16,
+  tableL: 4.32,
   topThickness: 0.09,
-  railW: 0.15,
+  railW: 0.17,
   railH: 0.08,
-  railInset: 0.03,
-  cushionT: 0.18,
+  railInset: 0.018,
+  cushionT: 0.19,
   cushionH: 0.1,
   legW: 0.16,
   legD: 0.16,
@@ -93,7 +94,7 @@ const CFG = {
   cueLength: 1.46,
   bridgeDist: 0.24,
   gripRatio: 0.76,
-  edgeMargin: 0.58,
+  edgeMargin: 0.62,
   desiredShootDistance: 1.06,
   poseLambda: 9,
   moveLambda: 5.6,
@@ -132,8 +133,15 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const UP = Y_AXIS;
 const BASIS_MAT = new THREE.Matrix4();
 const RACE_TO_POINTS = 61;
-const CUE_BALL_RESPOT = new THREE.Vector3(0, CFG.ballR, 1.02);
+const CUE_BALL_RESPOT = new THREE.Vector3(0, CFG.ballR, CFG.tableL * 0.283);
 const POCKET_CAPTURE_RADIUS = CFG.ballR * 1.52;
+const POOL_ROYALE_TABLE_STYLE = Object.freeze({
+  cornerPocketInset: 0.06,
+  sidePocketOutset: 0.052,
+  cornerPocketRadius: 0.096,
+  sidePocketRadius: 0.104,
+  chalkSize: [0.05, 0.026, 0.05] as [number, number, number],
+});
 const stillMoving = (balls: BallState[]) => balls.some((ball) => ball.vel.lengthSq() > CFG.minSpeed2);
 
 
@@ -281,9 +289,19 @@ function rackPositions(origin: THREE.Vector3) {
   return out;
 }
 function getPocketPositions() {
-  const hw = CFG.tableW / 2 - 0.02;
-  const hl = CFG.tableL / 2 - 0.02;
-  return [new THREE.Vector3(-hw, 0, -hl), new THREE.Vector3(hw, 0, -hl), new THREE.Vector3(-hw, 0, hl), new THREE.Vector3(hw, 0, hl), new THREE.Vector3(-hw, 0, 0), new THREE.Vector3(hw, 0, 0)];
+  const hw = CFG.tableW / 2;
+  const hl = CFG.tableL / 2;
+  const cornerX = hw - POOL_ROYALE_TABLE_STYLE.cornerPocketInset;
+  const cornerZ = hl - POOL_ROYALE_TABLE_STYLE.cornerPocketInset;
+  const sideX = hw + POOL_ROYALE_TABLE_STYLE.sidePocketOutset;
+  return [
+    new THREE.Vector3(-cornerX, 0, -cornerZ),
+    new THREE.Vector3(cornerX, 0, -cornerZ),
+    new THREE.Vector3(-cornerX, 0, cornerZ),
+    new THREE.Vector3(cornerX, 0, cornerZ),
+    new THREE.Vector3(-sideX, 0, 0),
+    new THREE.Vector3(sideX, 0, 0),
+  ];
 }
 
 function addBox(group: THREE.Group, size: [number, number, number], pos: [number, number, number], mat: THREE.Material) {
@@ -316,12 +334,25 @@ function addTable(scene: THREE.Scene) {
   ].forEach(([size, pos, matArg]) => addBox(tableGroup, size as [number, number, number], pos as [number, number, number], matArg as THREE.Material));
 
   const pocketMat = material(0x050505, 0.6, 0);
-  getPocketPositions().forEach((p) => {
-    const pocket = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.012, 28), pocketMat);
+  getPocketPositions().forEach((p, index) => {
+    const isSidePocket = index >= 4;
+    const pocketRadius = isSidePocket
+      ? POOL_ROYALE_TABLE_STYLE.sidePocketRadius
+      : POOL_ROYALE_TABLE_STYLE.cornerPocketRadius;
+    const pocket = new THREE.Mesh(new THREE.CylinderGeometry(pocketRadius, pocketRadius, 0.014, 36), pocketMat);
     pocket.rotation.x = Math.PI / 2;
     pocket.position.set(p.x, 0.016, p.z);
     tableGroup.add(pocket);
   });
+
+  const chalkMat = material(0x3656bd, 0.78, 0.04);
+  const [chalkW, chalkH, chalkD] = POOL_ROYALE_TABLE_STYLE.chalkSize;
+  [
+    [0, 0.04, -(CFG.tableL / 2 + CFG.railW * 0.35)],
+    [0, 0.04, CFG.tableL / 2 + CFG.railW * 0.35],
+    [-(CFG.tableW / 2 + CFG.railW * 0.35), 0.04, 0],
+    [CFG.tableW / 2 + CFG.railW * 0.35, 0.04, 0],
+  ].forEach((pos) => addBox(tableGroup, [chalkW, chalkH, chalkD], pos as [number, number, number], chalkMat));
 
   const legHeight = CFG.tableTopY - 0.03;
   const legMat = material(0x392114, 0.75, 0.01);
@@ -336,9 +367,9 @@ function addTable(scene: THREE.Scene) {
 function addBalls(tableGroup: THREE.Group) {
   const balls: BallState[] = [];
   const cueBall = createBall(0, BALL_COLORS[0], BALL_PATTERNS[0], true);
-  cueBall.pos.set(0, CFG.ballR, 1.02);
+  cueBall.pos.copy(CUE_BALL_RESPOT);
   balls.push(cueBall);
-  rackPositions(new THREE.Vector3(0, CFG.ballR, -0.78)).forEach((p, i) => {
+  rackPositions(new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.215)).forEach((p, i) => {
     const b = createBall(i + 1, BALL_COLORS[i + 1], BALL_PATTERNS[i + 1]);
     b.pos.copy(p);
     balls.push(b);
