@@ -231,8 +231,8 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
-    position: [0.08, 0, -0.014],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
+    position: [0.086, 0, -0.016],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
@@ -244,9 +244,9 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.258,
-    inward: -0.012,
-    outward: 0.096
+    side: 0.266,
+    inward: -0.01,
+    outward: 0.108
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
