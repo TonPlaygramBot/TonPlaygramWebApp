@@ -3252,22 +3252,40 @@ export default function SnakeAndLadder() {
 
   const playerHeadPreset = resolvedAppearance?.pawnHead?.preset ?? null;
   const playerHeadPresetId = resolvedAppearance?.pawnHead?.id ?? 'current';
+  const fallbackCaptureWeaponId = useCallback(
+    (orderIndex = 0) => {
+      if (!CAPTURE_WEAPON_OPTIONS.length) return 'drone';
+      const normalizedIndex = ((Math.trunc(orderIndex) % CAPTURE_WEAPON_OPTIONS.length) + CAPTURE_WEAPON_OPTIONS.length) %
+        CAPTURE_WEAPON_OPTIONS.length;
+      return CAPTURE_WEAPON_OPTIONS[normalizedIndex]?.id || 'drone';
+    },
+    []
+  );
   const selectedCaptureWeaponId =
     resolvedAppearance?.captureWeapon?.id &&
     isSnakeOptionUnlocked('captureWeapon', normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id), snakeInventory)
       ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
-      : CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
+      : fallbackCaptureWeaponId(0);
 
   const players = isMultiplayer
-    ? mpPlayers.map((p, i) => ({
-        id: p.id,
-        position: p.position,
-        photoUrl: p.photoUrl || '/assets/icons/profile.svg',
-        type: 'normal',
-        color: playerColors[i] || '#fff',
-        seatIndex: seatAssignments.get(i),
-        weaponType: CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone'
-      }))
+    ? mpPlayers.map((p, i) => {
+        const seatIndex = seatAssignments.get(i);
+        const orderIndex = Number.isFinite(seatIndex) ? seatIndex + 1 : i + 1;
+        const isLocalPlayer =
+          accountId != null &&
+          p?.id != null &&
+          String(p.id) === String(accountId);
+        return {
+          id: p.id,
+          position: p.position,
+          photoUrl: p.photoUrl || '/assets/icons/profile.svg',
+          type: 'normal',
+          color: playerColors[i] || '#fff',
+          seatIndex,
+          // Keep local quick-swap weapon synced to parked display (same as Ludo-style behaviour).
+          weaponType: isLocalPlayer ? selectedCaptureWeaponId : fallbackCaptureWeaponId(orderIndex)
+        };
+      })
     : [
         {
           position: pos,
@@ -3286,7 +3304,7 @@ export default function SnakeAndLadder() {
           type: 'normal',
           color: playerColors[i + 1],
           seatIndex: i + 1,
-          weaponType: aiWeaponLoadout[i] || CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone',
+          weaponType: aiWeaponLoadout[i] || fallbackCaptureWeaponId(i + 1),
           tokenShape: aiTokenShapes[i] || TOKEN_SHAPE_OPTIONS[i % TOKEN_SHAPE_OPTIONS.length],
           headPreset: null,
           headPresetId: 'current'
