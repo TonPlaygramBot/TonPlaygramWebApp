@@ -113,6 +113,31 @@ function normalizeHuman(model, opts) {
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
+function applyOriginalGltfMaterialConfig(material, textureAnisotropy = null) {
+  if (!material) return;
+  const textureSlots = [
+    { key: 'map', color: true },
+    { key: 'emissiveMap', color: true },
+    { key: 'metalnessMap' },
+    { key: 'roughnessMap' },
+    { key: 'normalMap' },
+    { key: 'aoMap' },
+    { key: 'lightMap' },
+    { key: 'alphaMap' },
+    { key: 'bumpMap' }
+  ];
+  textureSlots.forEach(({ key, color = false }) => {
+    const tex = material[key];
+    if (!tex) return;
+    // Keep glTF UV orientation/mapping conventions when textures are swapped or post-processed.
+    tex.flipY = false;
+    if (color) tex.colorSpace = THREE.SRGBColorSpace;
+    if (textureAnisotropy != null) tex.anisotropy = textureAnisotropy;
+    tex.needsUpdate = true;
+  });
+  material.needsUpdate = true;
+}
+
 export function createBilardoHumanRig(scene, opts = {}) {
   const textureAnisotropy = Number.isFinite(opts?.textureAnisotropy)
     ? Math.max(1, opts.textureAnisotropy)
@@ -185,12 +210,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
-          if (m.map) {
-            m.map.colorSpace = THREE.SRGBColorSpace;
-            if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
-            m.map.needsUpdate = true;
-          }
-          m.needsUpdate = true;
+          applyOriginalGltfMaterialConfig(m, textureAnisotropy);
         });
       });
       human.bones = buildAvatarBones(model);
@@ -598,18 +618,24 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     .lerp(
       frameData.bridgeTarget
         .clone()
-        .addScaledVector(forward, -0.026 * t)
+        .addScaledVector(forward, -0.034 * t)
         .addScaledVector(side, -0.018 * t)
         .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
         .addScaledVector(UP, -0.006 * human.settleT),
       t
     );
+  const pullBack = Math.max(0, frameData.power ?? 0);
+  const pullBackDistance = 0.16 * pullBack * t;
+  const strikeTravel =
+    state === 'striking'
+      ? 0.09 * clamp01(human.strikeClock / Math.max(cfg.strikeTime, 1e-4))
+      : 0;
   const rightHand = frameData.idleRight
     .clone()
     .lerp(
       frameData.gripTarget
         .clone()
-        .addScaledVector(forward, 0.032 * stroke * t + 0.052 * follow * power)
+        .addScaledVector(forward, pullBackDistance + 0.032 * stroke * t - strikeTravel + 0.052 * follow * power)
         .addScaledVector(UP, -0.007 * follow),
       t
     );
