@@ -1944,6 +1944,11 @@ const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
+const HUMAN_CUE_VIEW_HEIGHT_OFFSET = 0.026; // raise camera slightly above the cue shaft
+const HUMAN_CUE_VIEW_SIDE_OFFSET = 0.038; // shift toward bridge-hand side so the left hand stays visible
+const HUMAN_CUE_VIEW_BACK_OFFSET = 0.072; // pull camera behind cue butt for a true rear-cue perspective
+const HUMAN_CUE_VIEW_MIN_BLEND = 0.08; // engage player cue view only once cue camera is lowered enough
+const HUMAN_CUE_VIEW_SMOOTH = 0.58; // smooth cue-view blending for portrait stability
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -15292,6 +15297,7 @@ function PoolRoyaleGame({
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
   const playerCharacterRigsRef = useRef([]);
+  const cuePlayerViewRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
@@ -20383,6 +20389,42 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
+        const resolveCueStickPlayerView = () => {
+          if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
+          const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+          const cueBias = 1 - cueBlend;
+          if (cueBias <= HUMAN_CUE_VIEW_MIN_BLEND) return null;
+          const cueView = cuePlayerViewRef.current;
+          if (!cueView?.cueBack || !cueView?.aimForward || !cueView?.bridgeTarget) return null;
+          const aimForward = cueView.aimForward.clone().setY(0);
+          if (aimForward.lengthSq() <= 1e-6) return null;
+          aimForward.normalize();
+          const side = cueView.side
+            ? cueView.side.clone().setY(0)
+            : new THREE.Vector3(aimForward.z, 0, -aimForward.x);
+          if (side.lengthSq() <= 1e-6) return null;
+          side.normalize();
+          const camPos = cueView.cueBack
+            .clone()
+            .addScaledVector(aimForward, -HUMAN_CUE_VIEW_BACK_OFFSET)
+            .addScaledVector(side, -HUMAN_CUE_VIEW_SIDE_OFFSET)
+            .addScaledVector(UP, HUMAN_CUE_VIEW_HEIGHT_OFFSET);
+          const cueBall = cueView.cueBall ?? cueView.cueTip;
+          const eyeTarget = cueBall
+            .clone()
+            .addScaledVector(aimForward, BALL_R * 6.4)
+            .setY(Math.max(TABLE_Y + TABLE.THICK + BALL_R * 0.65, cueView.bridgeTarget.y + BALL_R * 0.2));
+          return {
+            blend: THREE.MathUtils.clamp(
+              (cueBias - HUMAN_CUE_VIEW_MIN_BLEND) / (1 - HUMAN_CUE_VIEW_MIN_BLEND),
+              0,
+              1
+            ),
+            position: camPos,
+            target: eyeTarget
+          };
+        };
+
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -21606,6 +21648,20 @@ const shotPowerRef = useRef(0);
               TMP_SPH.radius = sph.radius;
               TMP_SPH.phi = sph.phi;
               syncBlendToSpherical();
+            }
+          }
+          const cuePlayerView = resolveCueStickPlayerView();
+          if (cuePlayerView) {
+            const lerpT = THREE.MathUtils.clamp(
+              cuePlayerView.blend * HUMAN_CUE_VIEW_SMOOTH,
+              0,
+              1
+            );
+            if (lerpT > 1e-4) {
+              camera.position.lerp(cuePlayerView.position, lerpT);
+              lookTarget = lookTarget
+                ? lookTarget.clone().lerp(cuePlayerView.target, lerpT)
+                : cuePlayerView.target.clone();
             }
           }
           camera.lookAt(lookTarget);
@@ -24643,6 +24699,7 @@ const shotPowerRef = useRef(0);
         const hudState = hudRef.current;
         const isReplay = Boolean(replayPlaybackRef.current);
         const isShotActive = Boolean(shootingRef.current);
+        cuePlayerViewRef.current = null;
         const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
         const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
         const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
@@ -24765,6 +24822,24 @@ const shotPowerRef = useRef(0);
               edgeMargin: HUMAN_EDGE_MARGIN,
               desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
             }).setY(floorY);
+            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
+            if (isInsideTableBlocker(perimeterRoot)) {
+              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
+            }
+            if (!Number.isFinite(human.walkPerimeterT)) {
+              human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
+            }
+            const humanTargetT = pointToPerimeterT(perimeterRoot);
+            const humanLoopDelta =
+              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
+            const humanMaxStepT =
+              (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) /
+              (4 * (walkHalfX + walkHalfZ));
+            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
+              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
+              1
+            );
+            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
             const state =
               mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
@@ -24798,17 +24873,27 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(1.46 - 0.24 - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
+            if (isHumanShooter && (state === 'dragging' || state === 'striking')) {
+              cuePlayerViewRef.current = {
+                cueBack: cueBack.clone(),
+                cueTip: cueTip.clone(),
+                cueBall: cueWorld.clone().setY(bridgeTarget.y + 0.016),
+                bridgeTarget: bridgeTarget.clone(),
+                aimForward: aimForward.clone(),
+                side: side.clone()
+              };
+            }
             const gripTarget = cueTip.clone().lerp(cueBack, 0.82);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-            const idleRight = desiredRoot
+            const idleRight = walkRoot
               .clone()
               .add(new THREE.Vector3(0.24, 1.1, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleLeft = desiredRoot
+            const idleLeft = walkRoot
               .clone()
               .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             updateBilardoHumanPose(human, dtSeconds, {
               state,
-              rootTarget: desiredRoot,
+              rootTarget: walkRoot,
               aimForward,
               bridgeTarget,
               gripTarget,
