@@ -244,33 +244,9 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.326,
-    inward: -0.03,
-    outward: 0.184
-  })
-});
-const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
-  ak47VolleyAttack: Object.freeze({
-    // Keep AK flatter and aimed more straight across the rail (not into board center).
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.54, 0]
-  }),
-  shotgunBlastAttack: Object.freeze({
-    // Keep shotgun laid flat with the same rack height profile as AK.
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.1, 0]
-  }),
-  polyShotgun01Attack: Object.freeze({
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.12, 0]
-  }),
-  polyShotgun02Attack: Object.freeze({
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.12, 0]
-  }),
-  polyShotgun03Attack: Object.freeze({
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.12, 0]
+    side: 0.308,
+    inward: -0.022,
+    outward: 0.162
   })
 });
 const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
@@ -1146,9 +1122,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
-  const perWeaponDisplayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] || null;
-  const rackPosition = perWeaponDisplayTuning?.position ?? displayTuning.position;
-  const rackRotation = perWeaponDisplayTuning?.rotation ?? displayTuning.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
@@ -1157,10 +1130,10 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!LARGE_RACK_FIREARM_IDS.has(captureAnimationId)) {
     clone.position.y = baseAlignPositionY;
   }
-  clone.position.x += rackPosition[0];
-  clone.position.y += rackPosition[1];
-  clone.position.z += rackPosition[2];
-  clone.rotation.set(...rackRotation);
+  clone.position.x += displayTuning.position[0];
+  clone.position.y += displayTuning.position[1];
+  clone.position.z += displayTuning.position[2];
+  clone.rotation.set(...displayTuning.rotation);
   entry.weaponHolder.add(clone);
 }
 
