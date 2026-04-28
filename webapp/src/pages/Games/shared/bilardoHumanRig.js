@@ -114,6 +114,9 @@ function normalizeHuman(model, opts) {
 }
 
 export function createBilardoHumanRig(scene, opts = {}) {
+  const textureAnisotropy = Number.isFinite(opts?.textureAnisotropy)
+    ? Math.max(1, opts.textureAnisotropy)
+    : null;
   const human = {
     root: new THREE.Group(),
     modelRoot: new THREE.Group(),
@@ -184,6 +187,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
           if (!m) return;
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
             m.map.needsUpdate = true;
           }
           m.needsUpdate = true;

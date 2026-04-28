@@ -1931,7 +1931,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // align with Bilardo Shqip human/table size relationship
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 5.9; // make humans 5x larger while keeping the Bilardo Shqip base proportions
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24618,13 +24618,14 @@ const shotPowerRef = useRef(0);
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.12,
+            strikeTime: 0.11,
             holdTime: 0.05,
             stanceWidth: 0.52,
-            bridgePalmTableLift: 0.009,
+            bridgePalmTableLift: 0.012,
             chinToCueHeight: 0.11,
             cueArmElbowRise: 0.43,
-            tableTopY: TABLE_Y + TABLE.THICK + BALL_R * 0.08
+            tableTopY: TABLE_Y + TABLE.THICK,
+            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
           human.yaw = yaw;
