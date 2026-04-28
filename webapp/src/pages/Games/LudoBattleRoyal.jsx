@@ -239,17 +239,7 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
   ak47VolleyAttack: Object.freeze({
     position: [0.086, 0, -0.016],
     rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
-  }),
-  // Keep shotgun perfectly flat on the table (AK-like flatness) while preserving the non-AK yaw direction.
-  shotgunBlastAttack: Object.freeze({
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
-});
-const SELF_BOTTOM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
-  // Bottom/local-player weapons must all share the exact shotgun parked orientation/placement.
-  position: [0.086, 0, -0.016],
-  rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
@@ -1138,9 +1128,8 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
   const weaponSpecificDisplayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ?? null;
-  const selfBottomDisplayTuning = entry?.playerIndex === 0 ? SELF_BOTTOM_FIREARM_RACK_DISPLAY_TUNING : null;
-  const displayPosition = selfBottomDisplayTuning?.position ?? weaponSpecificDisplayTuning?.position ?? displayTuning.position;
-  const displayRotation = selfBottomDisplayTuning?.rotation ?? weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
+  const displayPosition = weaponSpecificDisplayTuning?.position ?? displayTuning.position;
+  const displayRotation = weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
@@ -3008,7 +2997,7 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.9 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
@@ -6768,10 +6757,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     turnCycle: 0
   });
   const [weaponSwapPopup, setWeaponSwapPopup] = useState(null);
-  const [quickSwapButtonScreenPos, setQuickSwapButtonScreenPos] = useState(null);
-  const quickSwapButtonScreenPosRef = useRef(null);
-  const quickSwapButtonNdcRef = useRef(new THREE.Vector3());
-  const quickSwapButtonWorldRef = useRef(new THREE.Vector3());
   const openWeaponSwapPopup = useCallback(
     (x, y) => {
       setWeaponSwapPopup({
@@ -8385,7 +8370,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const refreshBoardTokens = async () => {
       const arenaState = arenaRef.current;
-
       if (!arenaState?.tableInfo?.group) return;
       const nextBoardGroup = new THREE.Group();
       nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
@@ -9418,37 +9402,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       } else if (seatPositionsRef.current.length) {
         seatPositionsRef.current = [];
         setSeatAnchors([]);
-      }
-
-      if (arenaState && camera) {
-        const selfParkedEntry = parkedCaptureVehiclesRef.current?.get?.(0) || null;
-        const selfRack = selfParkedEntry?.weaponRack;
-        if (selfRack?.isObject3D && selfRack.visible) {
-          selfRack.updateMatrixWorld?.(true);
-          const quickSwapWorld = quickSwapButtonWorldRef.current;
-          const quickSwapNdc = quickSwapButtonNdcRef.current;
-          selfRack.getWorldPosition(quickSwapWorld);
-          quickSwapWorld.y += 0.01;
-          quickSwapNdc.copy(quickSwapWorld).project(camera);
-          if (Number.isFinite(quickSwapNdc.x) && Number.isFinite(quickSwapNdc.y) && quickSwapNdc.z >= -1.2 && quickSwapNdc.z <= 1.2) {
-            const width = typeof window !== 'undefined' ? window.innerWidth : 360;
-            const height = typeof window !== 'undefined' ? window.innerHeight : 640;
-            const nextPos = {
-              x: clamp((quickSwapNdc.x * 0.5 + 0.5) * width, 28, width - 28),
-              y: clamp((0.5 - quickSwapNdc.y * 0.5) * height, 88, height - 110)
-            };
-            const prevPos = quickSwapButtonScreenPosRef.current;
-            const changed =
-              !prevPos || Math.abs(prevPos.x - nextPos.x) > 2 || Math.abs(prevPos.y - nextPos.y) > 2;
-            if (changed) {
-              quickSwapButtonScreenPosRef.current = nextPos;
-              setQuickSwapButtonScreenPos(nextPos);
-            }
-          }
-        } else if (quickSwapButtonScreenPosRef.current !== null) {
-          quickSwapButtonScreenPosRef.current = null;
-          setQuickSwapButtonScreenPos(null);
-        }
       }
 
       if (
@@ -11990,10 +11943,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           )}
         </div>
-        <div
-          className="pointer-events-auto absolute z-20 -translate-x-1/2 -translate-y-1/2"
-          style={quickSwapButtonScreenPos ? { left: quickSwapButtonScreenPos.x, top: quickSwapButtonScreenPos.y } : { left: '50%', bottom: '11.75rem', transform: 'translateX(-50%)' }}
-        >
+        <div className="pointer-events-auto absolute bottom-[11.75rem] left-1/2 z-20 -translate-x-1/2">
           <button
             type="button"
             onClick={(event) => {
@@ -12088,7 +12038,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor ? clamp(1.06 - (depth - 2.6) * 0.2, 0.68, 0.95) : 0.82;
+            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
             const isTurn = ui.turn === player.index;
             return (
               <div
