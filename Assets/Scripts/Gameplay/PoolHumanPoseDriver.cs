@@ -61,6 +61,10 @@ namespace Aiming
         [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
         [Tooltip("Right hand grip point from cue root towards cue tip (meters).")]
         [Range(0.05f, 0.9f)] public float rightHandGripFromCueRoot = 0.18f;
+        [Tooltip("Primary right hand grip distance measured backward from cue tip (meters). Keeps the hand behind the bridge like Bilardo stance.")]
+        [Range(0.12f, 1.2f)] public float rightHandGripFromCueTip = 0.42f;
+        [Tooltip("Minimum spacing between bridge hand and grip hand along cue axis.")]
+        [Range(0.14f, 0.75f)] public float rightHandBackFromBridge = 0.34f;
         [Tooltip("Small right-hand vertical offset so fingers wrap the cue instead of intersecting it.")]
         [Range(-0.1f, 0.15f)] public float rightHandVerticalOffset = 0.025f;
         [Tooltip("Moves chest/head closer to cue line to mimic real snooker stance.")]
@@ -517,7 +521,7 @@ namespace Aiming
             SetNodePose(rightFoot, rightFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, 0.16f * t, 0f));
         }
 
-        Vector3 ResolveRightHandGripTarget(Vector3 aimForward, Vector3 aimSide, Vector3 fallbackTarget, float handPull, float s)
+        Vector3 ResolveRightHandGripTarget(Vector3 aimForward, Vector3 aimSide, Vector3 bridgeHandTarget, float handPull, float s)
         {
             if (cueController != null && cueController.cueTip != null)
             {
@@ -529,17 +533,29 @@ namespace Aiming
                 {
                     Vector3 cueDir = cueVector.normalized;
                     float cueLength = cueVector.magnitude;
-                    float gripDistance = Mathf.Clamp(rightHandGripFromCueRoot, 0.05f, cueLength - 0.03f);
-                    Vector3 grip = cueRootPos + (cueDir * gripDistance);
+                    float minBridgeSpacing = Mathf.Clamp(rightHandBackFromBridge, 0.1f, cueLength - 0.03f) * s;
+                    float gripFromTip = Mathf.Clamp(rightHandGripFromCueTip * s, minBridgeSpacing, cueLength - 0.03f);
+                    float gripFromRoot = Mathf.Clamp(rightHandGripFromCueRoot * s, 0.05f, cueLength - 0.03f);
+
+                    Vector3 tipBasedGrip = cueTipPos - (cueDir * gripFromTip);
+                    Vector3 rootBasedGrip = cueRootPos + (cueDir * gripFromRoot);
+                    Vector3 grip = Vector3.Lerp(rootBasedGrip, tipBasedGrip, 0.75f);
                     grip += (cueDir * -handPull);
+
+                    float alongFromBridge = Vector3.Dot(grip - bridgeHandTarget, cueDir);
+                    if (alongFromBridge > -minBridgeSpacing)
+                    {
+                        grip = bridgeHandTarget - (cueDir * minBridgeSpacing);
+                    }
+
                     grip += (Vector3.up * (rightHandVerticalOffset * s));
                     grip += (aimSide * (0.018f * s));
                     return grip;
                 }
             }
 
-            return fallbackTarget +
-                   (aimForward * (-handPull)) +
+            return bridgeHandTarget +
+                   (aimForward * (-(rightHandBackFromBridge * s) - handPull)) +
                    (Vector3.up * (rightHandVerticalOffset * s)) +
                    (aimSide * (0.022f * s));
         }

@@ -95,6 +95,9 @@ public class CueCamera : MonoBehaviour
     // the cue camera blends into the player's dominant-eye view so the avatar
     // eyes are not visible in frame.
     public Transform playerEyeAnchor;
+    // Keep the cue aiming camera in eye-level first-person while lining up shots
+    // so the avatar body does not block the frame.
+    public bool forceEyeViewDuringCueAim = true;
     // How strongly the lowered cue camera should blend into first-person view.
     [Range(0f, 1f)]
     public float eyeViewBlendStrength = 1f;
@@ -796,10 +799,17 @@ public class CueCamera : MonoBehaviour
         float targetBlend = 0f;
         if (!shotInProgress && playerEyeAnchor != null)
         {
-            float start = Mathf.Clamp01(eyeViewStartLowering);
-            float loweringWindow = Mathf.Max(0.0001f, 1f - start);
-            float loweringT = Mathf.Clamp01((cueLoweringBlend - start) / loweringWindow);
-            targetBlend = loweringT * Mathf.Clamp01(eyeViewBlendStrength);
+            if (forceEyeViewDuringCueAim)
+            {
+                targetBlend = Mathf.Clamp01(eyeViewBlendStrength);
+            }
+            else
+            {
+                float start = Mathf.Clamp01(eyeViewStartLowering);
+                float loweringWindow = Mathf.Max(0.0001f, 1f - start);
+                float loweringT = Mathf.Clamp01((cueLoweringBlend - start) / loweringWindow);
+                targetBlend = loweringT * Mathf.Clamp01(eyeViewBlendStrength);
+            }
         }
 
         float blendLerp = 1f - Mathf.Exp(-Mathf.Max(0f, cueAxisSmoothSpeed) * Mathf.Max(0f, deltaTime));
