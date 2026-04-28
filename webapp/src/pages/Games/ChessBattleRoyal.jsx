@@ -2638,6 +2638,7 @@ const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much f
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
+const AIR_STRIKE_BUTTON_PRESS_TIME = 0.26;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7531,7 +7532,7 @@ function Chess3D({
   const environmentShadowCatcherRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
-  const viewModeRef = useRef('3d');
+  const viewModeRef = useRef('2d');
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
   const cameraTweenRef = useRef(0);
@@ -7721,6 +7722,7 @@ function Chess3D({
   const [showHighlights, setShowHighlights] = useState(true);
   const seatedHumanActorsRef = useRef([]);
   const seatedHumanMoveActionsRef = useRef(new Map());
+  const sideAttackButtonsRef = useRef([]);
   const firstPersonViewRef = useRef({
     activeLook: false,
     yaw: 0,
@@ -7740,7 +7742,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('3d');
+  const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -10442,6 +10444,12 @@ function Chess3D({
       preferred.root.visible = true;
       return preferred;
     };
+    const triggerAirStrikeButtonPress = (isWhiteSide) => {
+      const button = sideAttackButtonsRef.current.find((entry) => entry?.isWhite === isWhiteSide);
+      if (!button?.cap) return;
+      button.pressUntil = performance.now() + AIR_STRIKE_BUTTON_PRESS_TIME * 1000;
+      playAudio(missileLaunchSoundRef, { maxDurationMs: 120 });
+    };
     const returnParkedAirUnit = (unit) => {
       if (!unit?.root) return;
       unit.root.visible = true;
@@ -11110,11 +11118,16 @@ function Chess3D({
         return timing;
       };
       const captureKind = selectedCaptureKind;
+      const isWhiteSide = Boolean(movingMesh?.userData?.w);
+      const requiresButtonPress = captureKind === 'truck' || captureKind === 'drone' || captureKind === 'helicopter' || captureKind === 'jet';
+      const preLaunchDelay = requiresButtonPress ? AIR_STRIKE_BUTTON_PRESS_TIME : 0;
+      if (requiresButtonPress) {
+        triggerAirStrikeButtonPress(isWhiteSide);
+      }
       if (captureKind === 'truck') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+        suppressTimerBeepUntilRef.current = performance.now() + (CAPTURE_GROUND_TOTAL + preLaunchDelay) * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
         const launchBase = parkedTruck ? getSupportTruckMissileLaunchPosition(parkedTruck) : getAirPadAnchor(isWhiteSide, 'truck', 0);
         missileFx.root.position.copy(launchBase.clone());
@@ -11122,7 +11135,7 @@ function Chess3D({
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'javelin',
-          t: 0,
+          t: -preLaunchDelay,
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
@@ -11141,13 +11154,12 @@ function Chess3D({
           targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
         return withAuto3d({
-          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+          moveDelayMs: (CAPTURE_GROUND_TOTAL + preLaunchDelay) * 1000,
+          captureResolveDelayMs: (CAPTURE_GROUND_TOTAL + preLaunchDelay) * 1000
         });
       }
       if (captureKind === 'drone') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_DRONE_ATTACK_TOTAL * 1000;
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        suppressTimerBeepUntilRef.current = performance.now() + (CAPTURE_DRONE_ATTACK_TOTAL + preLaunchDelay) * 1000;
         const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
         const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
         if (!parkedDrone) {
@@ -11162,7 +11174,7 @@ function Chess3D({
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'drone',
-          t: 0,
+          t: -preLaunchDelay,
           duration: CAPTURE_DRONE_ATTACK_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
@@ -11175,13 +11187,12 @@ function Chess3D({
           strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
         });
         return withAuto3d({
-          moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
+          moveDelayMs: (CAPTURE_DRONE_ATTACK_TOTAL + preLaunchDelay) * 1000,
+          captureResolveDelayMs: (CAPTURE_DRONE_ATTACK_TOTAL + preLaunchDelay) * 1000
         });
       }
       if (captureKind === 'helicopter') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        suppressTimerBeepUntilRef.current = performance.now() + (CAPTURE_HELICOPTER_TOTAL + preLaunchDelay) * 1000;
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
         const helicopterFx = parkedUnit || createFxHelicopter();
         if (!parkedUnit) {
@@ -11212,7 +11223,7 @@ function Chess3D({
         playAudio(helicopterSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'helicopter',
-          t: 0,
+          t: -preLaunchDelay,
           duration: CAPTURE_HELICOPTER_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
@@ -11226,15 +11237,14 @@ function Chess3D({
           helicopterFx,
           missileFx
         });
-        const helicopterImpactDelayMs = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) * 1000;
+        const helicopterImpactDelayMs = (getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) + preLaunchDelay) * 1000;
         return withAuto3d({
           moveDelayMs: helicopterImpactDelayMs,
           captureResolveDelayMs: helicopterImpactDelayMs
         });
       }
       if (captureKind === 'jet') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        suppressTimerBeepUntilRef.current = performance.now() + (CAPTURE_JET_TOTAL + preLaunchDelay) * 1000;
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
         const jetFx = parkedUnit || createFxJet();
         if (!parkedUnit) {
@@ -11260,7 +11270,7 @@ function Chess3D({
         });
         activeCaptureFx.push({
           type: 'jet',
-          t: 0,
+          t: -preLaunchDelay,
           duration: CAPTURE_JET_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
@@ -11274,7 +11284,7 @@ function Chess3D({
           jetFx,
           missileFx
         });
-        const jetImpactDelayMs = getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
+        const jetImpactDelayMs = (getAirMissileImpactTime(CAPTURE_JET_TOTAL) + preLaunchDelay) * 1000;
         return withAuto3d({
           moveDelayMs: jetImpactDelayMs,
           captureResolveDelayMs: jetImpactDelayMs
@@ -11285,11 +11295,12 @@ function Chess3D({
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 1.25);
         captureFxGroup.add(missileFx.root);
+        const launchBase = getAirPadAnchor(isWhiteSide, 'truck', 0);
         activeCaptureFx.push({
           type: 'missile',
           t: 0,
           duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
-          from: fromPos.clone(),
+          from: launchBase.clone(),
           to: targetPos.clone(),
           targetMesh,
           missileFx
@@ -11370,51 +11381,39 @@ function Chess3D({
 
     const airPadGroup = new THREE.Group();
     boardVisualGroup.add(airPadGroup);
-    const addAirPadMarker = (position, label = 'J') => {
-      const marker = new THREE.Group();
-      marker.position.copy(position);
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(tile * 0.32, tile * 0.036, 10, 36),
-        new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.45, roughness: 0.34 })
+    sideAttackButtonsRef.current = [];
+    const createAirStrikeButton = (isWhiteSide) => {
+      const buttonGroup = new THREE.Group();
+      const jetAnchor = getAirPadAnchor(isWhiteSide, 'jet');
+      const heliAnchor = getAirPadAnchor(isWhiteSide, 'helicopter');
+      buttonGroup.position.set(
+        (jetAnchor.x + heliAnchor.x) * 0.5,
+        currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + 0.08,
+        (jetAnchor.z + heliAnchor.z) * 0.5
       );
-      ring.rotation.x = Math.PI / 2;
-      marker.add(ring);
-      const plate = new THREE.Mesh(
-        new THREE.CircleGeometry(tile * 0.29, 24),
-        new THREE.MeshStandardMaterial({ color: '#0b1020', metalness: 0.18, roughness: 0.65 })
+      const pedestal = new THREE.Mesh(
+        new THREE.CylinderGeometry(tile * 0.09, tile * 0.11, tile * 0.08, 24),
+        new THREE.MeshStandardMaterial({ color: '#101820', metalness: 0.5, roughness: 0.46 })
       );
-      plate.rotation.x = -Math.PI / 2;
-      marker.add(plate);
-      const spriteCanvas = document.createElement('canvas');
-      spriteCanvas.width = 128;
-      spriteCanvas.height = 128;
-      const ctx = spriteCanvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, 128, 128);
-        ctx.fillStyle = '#facc15';
-        ctx.font = '900 92px "JetBrains Mono","Arial Black",sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, 64, 68);
-      }
-      const spriteTexture = new THREE.CanvasTexture(spriteCanvas);
-      applySRGBColorSpace(spriteTexture);
-      const text = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: spriteTexture, transparent: true, depthWrite: false })
+      pedestal.castShadow = true;
+      pedestal.receiveShadow = true;
+      const cap = new THREE.Mesh(
+        new THREE.CylinderGeometry(tile * 0.07, tile * 0.07, tile * 0.04, 24),
+        new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.35, roughness: 0.32, emissive: '#3f0f0f' })
       );
-      text.scale.set(tile * 0.56, tile * 0.56, 1);
-      text.position.set(0, tile * 0.02, 0);
-      marker.add(text);
-      airPadGroup.add(marker);
+      cap.position.y = tile * 0.05;
+      cap.castShadow = true;
+      buttonGroup.add(pedestal, cap);
+      airPadGroup.add(buttonGroup);
+      sideAttackButtonsRef.current.push({
+        isWhite: isWhiteSide,
+        group: buttonGroup,
+        cap,
+        pressUntil: 0
+      });
     };
-    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
-    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
-    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
-    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
-    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
-    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
-    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
-    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
+    createAirStrikeButton(true);
+    createAirStrikeButton(false);
 
     // Tiles
     const tiles = [];
@@ -13088,6 +13087,12 @@ function Chess3D({
           if (!rotorNode || rotorNode === unit.topRotor || rotorNode === unit.tailRotor) return;
           rotorNode.rotation.y += dt * 24;
         });
+      });
+      sideAttackButtonsRef.current.forEach((button) => {
+        if (!button?.cap) return;
+        const pressing = Number(button.pressUntil) > now;
+        button.cap.position.y = pressing ? tile * 0.032 : tile * 0.05;
+        button.cap.material.emissive?.set(pressing ? '#7f1d1d' : '#3f0f0f');
       });
 
       if (activePieceAnimations.length) {
