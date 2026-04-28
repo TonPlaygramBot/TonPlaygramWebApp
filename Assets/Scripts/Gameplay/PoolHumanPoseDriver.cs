@@ -41,7 +41,7 @@ namespace Aiming
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
-        [Min(0.6f)] public float bodyScaleMultiplier = 1.75f;
+        [Min(0.6f)] public float bodyScaleMultiplier = 1.12f;
 
         [Header("Smoothing")]
         public float poseLambda = 9f;
@@ -67,10 +67,6 @@ namespace Aiming
         [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.085f;
         [Tooltip("Makes lead shoulder slightly lower for realistic bridge alignment.")]
         [Range(0f, 0.16f)] public float shoulderDrop = 0.055f;
-        [Tooltip("Keeps feet planted on the ground while aiming; increase if shoes appear to float.")]
-        [Range(0f, 0.06f)] public float footGroundedOffset = 0.008f;
-        [Tooltip("How much the hips are allowed to bend while aiming. Lower values keep bend mostly in upper body.")]
-        [Range(0f, 0.2f)] public float hipBendLimit = 0.03f;
 
         [Header("Visual fidelity")]
         [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
@@ -156,7 +152,6 @@ namespace Aiming
             UpdateHumanPose(
                 dt,
                 cueController.CurrentShotState,
-                cueController.IsCameraLowered,
                 navigatedRootTarget,
                 aimForward,
                 bridgeHandTarget,
@@ -165,6 +160,8 @@ namespace Aiming
                 idleLeftHandTarget,
                 bridgeMode,
                 s);
+
+            cueController.SetCameraLowered(cueController.CurrentShotState != CueController.ShotState.Idle);
         }
 
         float ComputeScaleFactor()
@@ -423,7 +420,6 @@ namespace Aiming
         void UpdateHumanPose(
             float dt,
             CueController.ShotState shotState,
-            bool cameraLowered,
             Vector3 rootTarget,
             Vector3 aimForward,
             Vector3 bridgeHandTarget,
@@ -433,8 +429,7 @@ namespace Aiming
             BridgeMode bridgeMode,
             float s)
         {
-            bool shootingPoseRequested = cameraLowered || shotState != CueController.ShotState.Idle;
-            float targetPose = shootingPoseRequested ? 1f : 0f;
+            float targetPose = shotState == CueController.ShotState.Idle ? 0f : 1f;
             _poseT = DampScalar(_poseT, targetPose, poseLambda, dt);
             root.position = DampVector(root.position, rootTarget, moveLambda, dt);
 
@@ -498,7 +493,7 @@ namespace Aiming
                 leftElbow += side * (-0.015f * s);
             }
 
-            SetNodePose(pelvis, hipCenterWorld, side, forward, new Vector3(Lerp(0f, -hipBendLimit, t), 0f, 0f));
+            SetNodePose(pelvis, hipCenterWorld, side, forward, new Vector3(Lerp(0f, -0.08f, t), 0f, 0f));
             SetNodePose(torso, torsoCenterWorld, side, forward, new Vector3(Lerp(0f, -0.28f, t), 0f, 0f));
             SetNodePose(chest, chestCenterWorld, side, forward, new Vector3(Lerp(0f, -0.62f, t), 0f, 0f));
 
@@ -518,8 +513,8 @@ namespace Aiming
             OrientFlatObject(bridgeHand, leftHandWorld, aimForward, side, Vector3.zero);
             OrientFlatObject(gripHand, rightHandWorld, aimForward, side, new Vector3(Lerp(0.3f, 1.2f, t), 0f, 0f));
 
-            SetNodePose(leftFoot, leftFootWorld + new Vector3(0f, -(footGroundedOffset * s), 0f), side, forward, new Vector3(0f, -0.24f * t, 0f));
-            SetNodePose(rightFoot, rightFootWorld + new Vector3(0f, -(footGroundedOffset * s), 0f), side, forward, new Vector3(0f, 0.16f * t, 0f));
+            SetNodePose(leftFoot, leftFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, -0.24f * t, 0f));
+            SetNodePose(rightFoot, rightFootWorld + new Vector3(0f, -0.02f * s, 0f), side, forward, new Vector3(0f, 0.16f * t, 0f));
         }
 
         Vector3 ResolveRightHandGripTarget(Vector3 aimForward, Vector3 aimSide, Vector3 fallbackTarget, float handPull, float s)

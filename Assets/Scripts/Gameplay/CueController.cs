@@ -86,7 +86,6 @@ namespace Aiming
 
         public ShotState CurrentShotState => _shotState;
         public Vector3 CurrentAimDirection => _aimDirection;
-        public bool IsCameraLowered => _cameraLowered;
         public float CurrentPullNormalized
         {
             get
