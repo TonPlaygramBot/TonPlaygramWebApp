@@ -231,22 +231,22 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
-    position: [0.09, 0, -0.012],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
+    position: [0.08, 0, -0.014],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
   })
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.126,
-    inward: 0.002,
-    outward: 0.024
+    side: 0.118,
+    inward: 0.004,
+    outward: 0.018
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.272,
-    inward: -0.004,
-    outward: 0.108
+    side: 0.258,
+    inward: -0.012,
+    outward: 0.096
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
