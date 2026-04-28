@@ -983,13 +983,13 @@ const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
 const CHAIR_VISUAL_SCALE = 1.3;
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 1.08;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.05;
-const SEATED_HUMAN_SEAT_Y_OFFSET = CHAIR_BASE_HEIGHT - SEAT_THICKNESS * 0.48;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.08;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.7;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = 0.03 * MODEL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.148 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.013 * MODEL_SCALE;
@@ -8094,14 +8094,7 @@ function placeChairsWithOption(option, chairData, token) {
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
-  const seatCount = THREE.MathUtils.clamp(
-    Number.isFinite(N) ? Math.round(N) : CHAIR_SEAT_ANGLES.length,
-    1,
-    CHAIR_SEAT_ANGLES.length
-  );
-
-  for (let index = 0; index < seatCount; index += 1) {
-    const angle = CHAIR_SEAT_ANGLES[index];
+  CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
@@ -8127,7 +8120,7 @@ function placeChairsWithOption(option, chairData, token) {
       seatLabelMesh.rotation.x = -Math.PI / 16;
       wrapper.add(seatLabelMesh);
     }
-  }
+  });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   void attachSeatedHumanActors(token);
