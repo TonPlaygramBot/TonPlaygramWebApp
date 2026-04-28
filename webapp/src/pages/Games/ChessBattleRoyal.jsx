@@ -116,7 +116,7 @@ const CAPTURE_DRONE_ATTACK_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_DRONE_TRAV
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
 const CAPTURE_PAWN_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_PAWN_TRAVEL_TIME;
-const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.72; // rebalance weapon units closer to human/chess-piece proportions
+const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 3.44; // 2x upsize so drone/jet/helicopter/truck read clearly on portrait screens
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
@@ -7667,12 +7667,13 @@ function Chess3D({
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
-  const ownedCaptureAnimations = useMemo(
+  const quickSwapCaptureAnimations = useMemo(() => CAPTURE_ANIMATION_OPTIONS, []);
+  const selectedCaptureAnimationOption = useMemo(
     () =>
-      (chessInventory?.captureAnimation || [])
-        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-        .filter(Boolean),
-    [chessInventory]
+      CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId) ||
+      CAPTURE_ANIMATION_OPTIONS[0] ||
+      null,
+    [selectedCaptureAnimationId]
   );
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const handleCaptureAnimationSwap = useCallback(
@@ -13982,7 +13983,7 @@ function Chess3D({
                   Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {ownedCaptureAnimations.map((option) => {
+                  {quickSwapCaptureAnimations.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
@@ -14014,6 +14015,35 @@ function Chess3D({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+            {selectedCaptureAnimationOption && (
+              <div className="w-[14rem] rounded-2xl border border-white/20 bg-[#060a14]/90 p-2 shadow-xl backdrop-blur">
+                <p className="px-1 text-[10px] uppercase tracking-[0.26em] text-sky-200/80">
+                  Selected Weapon
+                </p>
+                <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-300/50 bg-emerald-300/10 p-2">
+                  {selectedCaptureAnimationOption.thumbnail ? (
+                    <img
+                      src={selectedCaptureAnimationOption.thumbnail}
+                      alt={selectedCaptureAnimationOption.label}
+                      className="h-9 w-9 rounded-md object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
+                      🧰
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-[0.68rem] font-semibold text-white">
+                      {selectedCaptureAnimationOption.label}
+                    </span>
+                    <span className="block truncate text-[0.58rem] text-white/70">
+                      Active in side preview and capture animation
+                    </span>
+                  </span>
                 </div>
               </div>
             )}
