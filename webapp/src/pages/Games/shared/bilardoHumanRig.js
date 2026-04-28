@@ -63,6 +63,22 @@ function buildAvatarBones(model) {
   };
 }
 
+function hasRenderableTexture(model) {
+  let textured = false;
+  model?.traverse?.((obj) => {
+    if (textured || !obj?.isMesh) return;
+    const mats = Array.isArray(obj.material)
+      ? obj.material
+      : obj.material
+        ? [obj.material]
+        : [];
+    if (mats.some((m) => m?.map || m?.emissiveMap || m?.normalMap)) {
+      textured = true;
+    }
+  });
+  return textured;
+}
+
 function collectFingerBones(hand) {
   const out = [];
   hand?.traverse((obj) => {
@@ -200,19 +216,16 @@ export function createBilardoHumanRig(scene, opts = {}) {
         if (bone) human.restQuats.set(bone, bone.quaternion.clone());
       });
       human.activeGlb = Boolean(
-        human.bones.hips &&
-          human.bones.spine &&
-          human.bones.head &&
-          human.bones.leftUpperArm &&
-          human.bones.leftLowerArm &&
-          human.bones.leftHand &&
-          human.bones.rightUpperArm &&
-          human.bones.rightLowerArm &&
-          human.bones.rightHand &&
-          human.bones.leftUpperLeg &&
-          human.bones.leftLowerLeg &&
-          human.bones.rightUpperLeg &&
-          human.bones.rightLowerLeg
+        hasRenderableTexture(model) ||
+          (human.bones.hips &&
+            human.bones.spine &&
+            human.bones.head &&
+            human.bones.leftUpperArm &&
+            human.bones.leftLowerArm &&
+            human.bones.leftHand &&
+            human.bones.rightUpperArm &&
+            human.bones.rightLowerArm &&
+            human.bones.rightHand)
       );
       human.model = model;
       human.modelRoot.add(model);
