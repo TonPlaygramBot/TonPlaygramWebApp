@@ -113,18 +113,6 @@ function normalizeHuman(model, opts) {
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
-function applyOriginalGltfTextureSettings(texture, { isColor = false, anisotropy = null } = {}) {
-  if (!texture) return;
-  if (isColor) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }
-  texture.flipY = false;
-  if (Number.isFinite(anisotropy)) {
-    texture.anisotropy = Math.max(1, anisotropy);
-  }
-  texture.needsUpdate = true;
-}
-
 export function createBilardoHumanRig(scene, opts = {}) {
   const textureAnisotropy = Number.isFinite(opts?.textureAnisotropy)
     ? Math.max(1, opts.textureAnisotropy)
@@ -190,36 +178,46 @@ export function createBilardoHumanRig(scene, opts = {}) {
         obj.castShadow = true;
         obj.receiveShadow = true;
         obj.frustumCulled = false;
-        const sourceMats = Array.isArray(obj.material)
+        const mats = Array.isArray(obj.material)
           ? obj.material
           : obj.material
             ? [obj.material]
             : [];
-        const mats = sourceMats.map((material) => (material?.clone ? material.clone() : material));
-        if (Array.isArray(obj.material)) obj.material = mats;
-        else obj.material = mats[0] ?? obj.material;
         mats.forEach((m) => {
           if (!m) return;
-          applyOriginalGltfTextureSettings(m.map, {
-            isColor: true,
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.emissiveMap, {
-            isColor: true,
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.normalMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.roughnessMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.metalnessMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.alphaMap, {
-            anisotropy: textureAnisotropy
-          });
+          if (m.color) {
+            const hsl = { h: 0, s: 0, l: 0 };
+            m.color.getHSL(hsl);
+            hsl.l = Math.max(hsl.l, 0.36);
+            hsl.s = Math.max(hsl.s, 0.16);
+            m.color.setHSL(hsl.h, hsl.s, hsl.l);
+          }
+          if (m.map) {
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
+            m.map.needsUpdate = true;
+          }
+          if (m.emissiveMap) {
+            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.emissiveMap.anisotropy = textureAnisotropy;
+            m.emissiveMap.needsUpdate = true;
+          }
+          if (m.normalMap && textureAnisotropy != null) {
+            m.normalMap.anisotropy = textureAnisotropy;
+            m.normalMap.needsUpdate = true;
+          }
+          if (m.roughnessMap && textureAnisotropy != null) {
+            m.roughnessMap.anisotropy = textureAnisotropy;
+            m.roughnessMap.needsUpdate = true;
+          }
+          if (m.metalnessMap && textureAnisotropy != null) {
+            m.metalnessMap.anisotropy = textureAnisotropy;
+            m.metalnessMap.needsUpdate = true;
+          }
+          if (m.alphaMap) {
+            if (textureAnisotropy != null) m.alphaMap.anisotropy = textureAnisotropy;
+            m.alphaMap.needsUpdate = true;
+          }
           m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
           if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
           if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
@@ -554,9 +552,7 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
 }
 
 export function updateBilardoHumanPose(human, dt, frameData) {
-  if (!human || !frameData) return;
-  if (!Number.isFinite(dt) || dt < 0) return;
-  if (!frameData.rootTarget || !frameData.aimForward) return;
+  if (!human) return;
   const cfg = human.cfg;
   const state = frameData.state || 'idle';
 
@@ -577,9 +573,6 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   }
 
   const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  if (!Number.isFinite(rootGoal?.x) || !Number.isFinite(rootGoal?.y) || !Number.isFinite(rootGoal?.z)) {
-    return;
-  }
   human.root.position.lerp(rootGoal, 1 - Math.exp(-(state === 'striking' ? 12 : cfg.moveLambda) * dt));
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
@@ -700,7 +693,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     rightKnee,
     leftFootWorld: leftFoot,
     rightFootWorld: rightFoot,
-    cueBackWorld: frameData.cueBack || frameData.bridgeTarget || frameData.rootTarget,
-    cueTipWorld: frameData.cueTip || frameData.gripTarget || frameData.rootTarget
+    cueBackWorld: frameData.cueBack,
+    cueTipWorld: frameData.cueTip
   });
 }
