@@ -33,6 +33,11 @@ import {
 } from '../webapp/src/config/tavullBattleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../webapp/src/config/murlanTableFinishes.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from '../webapp/src/config/poolRoyaleInventoryConfig.js';
+import {
+  SNAKE_DEFAULT_UNLOCKS,
+  SNAKE_STORE_ITEMS
+} from '../webapp/src/config/snakeInventoryConfig.js';
+import { CAPTURE_ANIMATION_OPTIONS } from '../webapp/src/config/ludoBattleOptions.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -128,5 +133,15 @@ describe('cross-game inventory alignment', () => {
       expect(source).toBeTruthy();
       expect(item.thumbnail).toBe(source.thumbnail);
     });
+  });
+
+  test('snake store mirrors ludo battle royal capture weapons', () => {
+    const snakeCaptureStoreIds = new Set(
+      SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
+    );
+    const ludoCaptureIds = new Set(CAPTURE_ANIMATION_OPTIONS.slice(1).map((option) => option.id));
+
+    expect(snakeCaptureStoreIds).toEqual(ludoCaptureIds);
+    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([CAPTURE_ANIMATION_OPTIONS[0]?.id]));
   });
 });
