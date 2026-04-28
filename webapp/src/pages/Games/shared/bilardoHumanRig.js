@@ -146,7 +146,10 @@ export function createBilardoHumanRig(scene, opts = {}) {
       bridgePalmTableLift: opts.bridgePalmTableLift ?? 0.012,
       chinToCueHeight: opts.chinToCueHeight ?? 0.11,
       cueArmElbowRise: opts.cueArmElbowRise ?? 0.43,
-      tableTopY: opts.tableTopY ?? 0.84
+      tableTopY: opts.tableTopY ?? 0.84,
+      bridgeDistance: opts.bridgeDistance ?? 0.255,
+      railBridgeThreshold: opts.railBridgeThreshold ?? 0.08,
+      openBridgeMaxPower: opts.openBridgeMaxPower ?? 0.55
     }
   };
 
@@ -185,13 +188,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
-          if (m.color) {
-            const hsl = { h: 0, s: 0, l: 0 };
-            m.color.getHSL(hsl);
-            hsl.l = Math.max(hsl.l, 0.36);
-            hsl.s = Math.max(hsl.s, 0.16);
-            m.color.setHSL(hsl.h, hsl.s, hsl.l);
-          }
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
@@ -218,10 +214,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
             if (textureAnisotropy != null) m.alphaMap.anisotropy = textureAnisotropy;
             m.alphaMap.needsUpdate = true;
           }
-          m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
-          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
-          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
-          if (m.emissiveIntensity != null) m.emissiveIntensity = Math.max(m.emissiveIntensity, 0.12);
           m.needsUpdate = true;
         });
       });
@@ -551,6 +543,18 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
 
+
+function resolveBridgeMode(frameData, cfg) {
+  if (frameData?.bridgeMode) return frameData.bridgeMode;
+  const state = frameData?.state ?? 'idle';
+  const power = clamp01(frameData?.power ?? 0);
+  const railDistance = Number.isFinite(frameData?.railDistance) ? frameData.railDistance : Infinity;
+  if (railDistance <= (cfg?.railBridgeThreshold ?? 0.08)) return 'rail';
+  if (state === 'striking' && (frameData?.spinY ?? 0) > 0.42) return 'high';
+  if (state === 'dragging' && power > (cfg?.openBridgeMaxPower ?? 0.55)) return 'closed';
+  return 'open';
+}
+
 export function updateBilardoHumanPose(human, dt, frameData) {
   if (!human) return;
   const cfg = human.cfg;
@@ -589,6 +593,8 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12);
   const walkAmount = clamp01(moveAmountRaw * 18) * idle;
   const power = frameData.power ?? 0;
+  const bridgeMode = resolveBridgeMode(frameData, cfg);
+  const bridgeModeT = bridgeMode === 'open' ? 0 : bridgeMode === 'closed' ? 0.5 : bridgeMode === 'rail' ? 0.85 : 1;
   const stroke =
     state === 'dragging'
       ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75)
@@ -602,7 +608,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
-  const lowerBodyT = t * 0.35;
+  const lowerBodyT = t * (0.35 + bridgeModeT * 0.15);
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
@@ -614,35 +620,41 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
   const leftFoot = local(
     new THREE.Vector3(-0.13, 0.035, 0.03 + walk * 0.03).lerp(
-      new THREE.Vector3(-cfg.stanceWidth * 0.42, 0.035, -0.36),
+      new THREE.Vector3(-cfg.stanceWidth * (0.42 + bridgeModeT * 0.06), 0.035, -0.36 - bridgeModeT * 0.04),
       lowerBodyT
     )
   );
   const rightFoot = local(
     new THREE.Vector3(0.13, 0.035, -0.03 - walk * 0.03).lerp(
-      new THREE.Vector3(cfg.stanceWidth * 0.5, 0.035, 0.36),
+      new THREE.Vector3(cfg.stanceWidth * (0.5 + bridgeModeT * 0.05), 0.035, 0.36 + bridgeModeT * 0.05),
       lowerBodyT
     )
   );
 
+  const bridgeForwardBias = bridgeMode === 'rail' ? -0.015 : bridgeMode === 'high' ? -0.004 : -0.026;
+  const bridgeSideBias = bridgeMode === 'rail' ? -0.028 : bridgeMode === 'high' ? -0.01 : -0.018;
+  const bridgeLift = bridgeMode === 'rail' ? 0.015 : bridgeMode === 'high' ? 0.026 : bridgeMode === 'closed' ? 0.01 : 0;
   const leftHand = frameData.idleLeft
     .clone()
     .lerp(
       frameData.bridgeTarget
         .clone()
-        .addScaledVector(forward, -0.026 * t)
-        .addScaledVector(side, -0.018 * t)
-        .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
+        .addScaledVector(forward, bridgeForwardBias * t)
+        .addScaledVector(side, bridgeSideBias * t)
+        .setY(cfg.tableTopY + cfg.bridgePalmTableLift + bridgeLift)
         .addScaledVector(UP, -0.006 * human.settleT),
       t
     );
+  const gripVerticalBias = bridgeMode === 'high' ? 0.016 : bridgeMode === 'rail' ? 0.006 : 0;
+  const gripSideBias = bridgeMode === 'closed' ? 0.012 : bridgeMode === 'rail' ? 0.009 : 0.005;
   const rightHand = frameData.idleRight
     .clone()
     .lerp(
       frameData.gripTarget
         .clone()
         .addScaledVector(forward, 0.032 * stroke * t + 0.052 * follow * power)
-        .addScaledVector(UP, -0.007 * follow),
+        .addScaledVector(side, gripSideBias * t)
+        .addScaledVector(UP, -0.007 * follow + gripVerticalBias * t),
       t
     );
 
@@ -652,11 +664,12 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     .addScaledVector(UP, 0.02 * t)
     .addScaledVector(side, -0.03 * t)
     .addScaledVector(forward, 0.035 * t);
+  const rightElbowRise = bridgeMode === 'high' ? cfg.cueArmElbowRise + 0.08 : cfg.cueArmElbowRise;
   const rightElbow = rightHand
     .clone()
-    .addScaledVector(UP, lerp(0.18, cfg.cueArmElbowRise, t))
-    .addScaledVector(side, lerp(0.03, 0.07, t))
-    .addScaledVector(forward, lerp(-0.03, 0, t));
+    .addScaledVector(UP, lerp(0.18, rightElbowRise, t))
+    .addScaledVector(side, lerp(0.03, bridgeMode === 'closed' ? 0.08 : 0.07, t))
+    .addScaledVector(forward, lerp(-0.03, bridgeMode === 'rail' ? 0.02 : 0, t));
   const leftKnee = leftHip
     .clone()
     .lerp(leftFoot, 0.53)

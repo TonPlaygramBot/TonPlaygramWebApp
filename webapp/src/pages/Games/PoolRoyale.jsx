@@ -1945,11 +1945,14 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when th
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = 0.1; // pull camera slightly backward along cue axis before looking down-table
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = 0.135; // pull camera slightly further backward along cue axis for tighter over-shoulder player view
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
+const HUMAN_BRIDGE_RAIL_THRESHOLD = BALL_R * 1.9; // switch to rail bridge when cue ball is close to cushion
+const HUMAN_CLOSED_BRIDGE_POWER_THRESHOLD = 0.58; // use closed bridge on stronger strokes
+const HUMAN_HIGH_BRIDGE_TOPSPIN_THRESHOLD = 0.42; // lift bridge/grip for elevated top-spin hits
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -6165,13 +6168,13 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0205; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0168; // tighten cue camera distance further for stronger player-perspective framing
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
+const CUE_VIEW_PHI_LIFT = 0.055; // keep cue camera low enough for player-eye perspective while clearing rails
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -24673,6 +24676,9 @@ const shotPowerRef = useRef(0);
             chinToCueHeight: 0.11,
             cueArmElbowRise: 0.43,
             tableTopY: TABLE_Y + TABLE.THICK,
+            bridgeDistance: 0.255,
+            railBridgeThreshold: HUMAN_BRIDGE_RAIL_THRESHOLD,
+            openBridgeMaxPower: HUMAN_CLOSED_BRIDGE_POWER_THRESHOLD,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
@@ -24881,6 +24887,19 @@ const shotPowerRef = useRef(0);
             const idleLeft = walkRoot
               .clone()
               .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const railDistance = Math.min(
+              TABLE.W / 2 - Math.abs(cueBall.pos.x),
+              TABLE.H / 2 - Math.abs(cueBall.pos.y)
+            );
+            const spinY = Number.isFinite(spinRef.current?.y) ? spinRef.current.y : 0;
+            const bridgeMode =
+              railDistance <= HUMAN_BRIDGE_RAIL_THRESHOLD
+                ? 'rail'
+                : state === 'striking' && spinY > HUMAN_HIGH_BRIDGE_TOPSPIN_THRESHOLD
+                  ? 'high'
+                  : activePower > HUMAN_CLOSED_BRIDGE_POWER_THRESHOLD
+                    ? 'closed'
+                    : 'open';
             updateBilardoHumanPose(human, dtSeconds, {
               state,
               rootTarget: walkRoot,
@@ -24891,7 +24910,11 @@ const shotPowerRef = useRef(0);
               idleLeft,
               cueBack,
               cueTip,
-              power: activePower
+              power: activePower,
+              spinY,
+              railDistance,
+              bridgeMode,
+              cueCameraLowered: loweredCueCamera
             });
             return;
           }
