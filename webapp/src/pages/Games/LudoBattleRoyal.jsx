@@ -195,13 +195,13 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
-    position: [0, 0.004, 0],
-    rotation: [-Math.PI * 0.5, 0, 0]
+    position: [0, 0, -0.004],
+    rotation: [0, Math.PI * 0.5, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
-    position: [0.01, 0.004, 0.004],
-    rotation: [-Math.PI * 0.5, 0, 0]
+    position: [0.08, 0, -0.014],
+    rotation: [0, Math.PI * 0.04, Math.PI * 0.02]
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -6734,34 +6734,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     [players]
   );
 
-  const placeWeaponRackForPlayer = useCallback((entry, playerIndex, selectedCaptureAnimationId) => {
-    const arena = arenaRef.current;
-    const rack = entry?.weaponRack;
-    const chairGroup = arena?.chairs?.[playerIndex]?.group;
-    if (!arena?.tableInfo || !rack?.isObject3D || !chairGroup?.isObject3D) return;
-    const boardCenter = arena.boardLookTarget?.isVector3
-      ? arena.boardLookTarget.clone()
-      : new THREE.Vector3(0, arena.tableInfo.surfaceY ?? 0, 0);
-    const chairWorld = chairGroup.getWorldPosition(new THREE.Vector3());
-    const toCenter = boardCenter.clone().sub(chairWorld).setY(0);
-    if (toCenter.lengthSq() < 1e-6) return;
-    toCenter.normalize();
-    const playerRight = toCenter.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-    const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(selectedCaptureAnimationId);
-    const baseForward = isLargeFirearm ? 0.08 : 0.34;
-    const baseSide = isLargeFirearm ? 0.22 : 0.02;
-    const sideSign = isLargeFirearm ? 1 : 0;
-    const target = chairWorld
-      .clone()
-      .addScaledVector(toCenter, baseForward)
-      .addScaledVector(playerRight, baseSide * sideSign);
-    target.y = (arena.tableInfo.surfaceY ?? target.y) + 0.002;
-    rack.position.copy(target);
-    alignObjectBottomToY(rack, arena.tableInfo.surfaceY);
-    rack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-    orientCaptureVehicleTowardBoardCenter(rack, boardCenter);
-  }, []);
-
   const updateParkedCaptureVehicleVisibility = useCallback((humanCaptureAnimationIndex = null) => {
     const humanOptionIndex =
       Number.isFinite(humanCaptureAnimationIndex) && humanCaptureAnimationIndex >= 0
@@ -6776,14 +6748,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
-        if (entry?.weaponRack) {
-          const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
-          const showActionButton =
-            selectedCaptureAnimationId === 'fighterJetAttack' ||
-            selectedCaptureAnimationId === 'helicopterAttack' ||
-            selectedCaptureAnimationId === 'droneAttack';
-          placeWeaponRackForPlayer(entry, playerIndex, selectedCaptureAnimationId);
-          entry.weaponRack.visible = showFirearm || showActionButton;
+      if (entry?.weaponRack) {
+        const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+        const showActionButton =
+          selectedCaptureAnimationId === 'fighterJetAttack' ||
+          selectedCaptureAnimationId === 'helicopterAttack' ||
+          selectedCaptureAnimationId === 'droneAttack';
+        entry.weaponRack.visible = showFirearm || showActionButton;
         if (entry.actionButton?.isObject3D) {
           entry.actionButton.visible = showActionButton;
           if (showActionButton) {
@@ -6810,7 +6781,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
     });
-  }, [aiLoadoutByPlayer, placeWeaponRackForPlayer]);
+  }, [aiLoadoutByPlayer]);
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
@@ -6882,11 +6853,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
-      placeWeaponRackForPlayer(
-        { weaponRack: weaponRackFx.root },
-        playerIndex,
-        CAPTURE_ANIMATION_OPTIONS[0]?.id ?? ''
-      );
+      orientCaptureVehicleTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
