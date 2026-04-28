@@ -239,8 +239,14 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
   ak47VolleyAttack: Object.freeze({
     position: [0.086, 0, -0.016],
     rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
+  }),
+  shotgunBlastAttack: Object.freeze({
+    // Keep shotgun perfectly flat on table while preserving its own facing direction.
+    position: [0.086, 0, -0.016],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
+const BOTTOM_PLAYER_FIREARM_REFERENCE_ID = 'shotgunBlastAttack';
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -1128,8 +1134,14 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
   const weaponSpecificDisplayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ?? null;
-  const displayPosition = weaponSpecificDisplayTuning?.position ?? displayTuning.position;
-  const displayRotation = weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
+  const bottomPlayerShotgunReferenceTuning =
+    entry?.playerIndex === 0
+      ? FIREARM_RACK_DISPLAY_TUNING_BY_ID[BOTTOM_PLAYER_FIREARM_REFERENCE_ID] ?? null
+      : null;
+  const displayPosition =
+    bottomPlayerShotgunReferenceTuning?.position ?? weaponSpecificDisplayTuning?.position ?? displayTuning.position;
+  const displayRotation =
+    bottomPlayerShotgunReferenceTuning?.rotation ?? weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
@@ -2997,7 +3009,7 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.85 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
@@ -3083,7 +3095,9 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
-const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 8;
+const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 11;
+const QUICK_SWAP_ICON_FALLBACK_BOTTOM_REM = 11.75;
+const QUICK_SWAP_ICON_SELF_AVATAR_Y_OFFSET_PERCENT = 13.5;
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
@@ -11943,19 +11957,35 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           )}
         </div>
-        <div className="pointer-events-auto absolute bottom-[11.75rem] left-1/2 z-20 -translate-x-1/2">
-          <button
-            type="button"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              openWeaponSwapPopup(rect.left + rect.width * 0.5, rect.top - 8);
-            }}
-            aria-label="Open quick weapon swap"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/40 bg-black/65 text-base text-amber-100 shadow-[0_8px_22px_rgba(15,23,42,0.55)] transition hover:border-amber-100/70 hover:bg-black/80"
-          >
-            ⇄
-          </button>
-        </div>
+        {(() => {
+          const bottomSeatAnchor = seatAnchorMap.get(0);
+          const quickSwapStyle = bottomSeatAnchor
+            ? {
+                left: `${bottomSeatAnchor.x}%`,
+                top: `${bottomSeatAnchor.y + SELF_AVATAR_BOTTOM_OFFSET_PERCENT + QUICK_SWAP_ICON_SELF_AVATAR_Y_OFFSET_PERCENT}%`,
+                transform: 'translate(-50%, -50%)'
+              }
+            : undefined;
+          return (
+            <div
+              className="pointer-events-auto absolute left-1/2 z-20 -translate-x-1/2"
+              style={quickSwapStyle}
+            >
+              <button
+                type="button"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  openWeaponSwapPopup(rect.left + rect.width * 0.5, rect.top - 8);
+                }}
+                aria-label="Open quick weapon swap"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/40 bg-black/65 text-base text-amber-100 shadow-[0_8px_22px_rgba(15,23,42,0.55)] transition hover:border-amber-100/70 hover:bg-black/80"
+                style={bottomSeatAnchor ? undefined : { bottom: `${QUICK_SWAP_ICON_FALLBACK_BOTTOM_REM}rem` }}
+              >
+                ⇄
+              </button>
+            </div>
+          );
+        })()}
         <BottomLeftIcons
           className="absolute right-4 top-[5.2rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
@@ -12038,7 +12068,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const avatarSize = anchor ? clamp(1.16 - (depth - 2.6) * 0.2, 0.72, 0.96) : 0.9;
             const isTurn = ui.turn === player.index;
             return (
               <div
