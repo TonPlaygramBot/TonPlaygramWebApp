@@ -370,8 +370,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.8; // Make the whole arena setup (table + board + chairs) a bit smaller.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.8; // Keep pieces proportional while making them slightly smaller.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
+const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -386,8 +386,8 @@ const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_SIZE_FACTOR = 0.78 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.72; // Reduce chair body footprint to look smaller on screen.
+const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_FOOTPRINT_SHRINK = 0.82; // Make chair bodies slightly bigger while preserving overall style.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -409,8 +409,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.84 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.84; // Narrow chair width/depth so chairs are visually smaller.
+const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 0.9; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.01 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
@@ -449,7 +449,7 @@ const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUr
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.88;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.06 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -2751,27 +2751,6 @@ function extractChairMaterials(model) {
   };
 }
 
-function normalizeChairMaterialTextures(material, maxAnisotropy = 1) {
-  if (!material) return;
-  const textureKeys = [
-    'map',
-    'emissiveMap',
-    'normalMap',
-    'roughnessMap',
-    'metalnessMap',
-    'aoMap',
-    'alphaMap'
-  ];
-  textureKeys.forEach((key) => {
-    const tex = material[key];
-    if (!tex) return;
-    if (key === 'map' || key === 'emissiveMap') applySRGBColorSpace(tex);
-    tex.flipY = false;
-    tex.anisotropy = Math.max(tex.anisotropy ?? 1, maxAnisotropy);
-    tex.needsUpdate = true;
-  });
-}
-
 function applyChairThemeMaterials(chairAssets, theme) {
   const mats = chairAssets?.chairMaterials;
   if (!mats) return;
@@ -2808,7 +2787,6 @@ function applyChairThemeMaterials(chairAssets, theme) {
 
 async function loadGltfChair() {
   const loader = createConfiguredGLTFLoader();
-  const maxAnisotropy = 8;
 
   let gltf = null;
   let lastError = null;
@@ -2835,7 +2813,8 @@ async function loadGltfChair() {
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        normalizeChairMaterialTextures(mat, maxAnisotropy);
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -7696,10 +7675,6 @@ function Chess3D({
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return 'truck';
   }, [selectedCaptureAnimationId]);
-  const selectedCaptureKindRef = useRef(selectedCaptureKind);
-  useEffect(() => {
-    selectedCaptureKindRef.current = selectedCaptureKind;
-  }, [selectedCaptureKind]);
   const ownedVehicleCaptureKind = useMemo(() => {
     for (const option of ownedCaptureAnimations) {
       const kind = resolveVehicleCaptureKind(option?.id);
@@ -8859,17 +8834,12 @@ function Chess3D({
               }
               chair.group.add(nextModel);
               chair.chairModel = nextModel;
-              alignGroupToFloorY(chair.group, arena.floorY ?? 0);
             });
             disposeChessChairMaterials(arena.chairMaterials);
             arena.chairMaterials = chairBuild?.materials ?? null;
             applyChairThemeMaterials(arena, chairTheme);
             arena.chairSource = nextChairSource;
             arena.chairAssetId = nextChairAssetId;
-            groundArenaGroups(
-              [arena.tableInfo?.group, ...(arena.chairs || []).map((chair) => chair.group)],
-              arena.floorY ?? 0
-            );
           })
           .catch((error) => {
             console.warn('Chess Battle Royal: failed to rebuild chair model', error);
@@ -11196,7 +11166,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = selectedCaptureKindRef.current || 'truck';
+      const captureKind = selectedCaptureKind;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -12688,10 +12658,8 @@ function Chess3D({
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
           isCapture: Boolean(capturedPiece),
-          usesVehicleButton:
-            Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKindRef.current),
-          buttonWorldPos:
-            Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKindRef.current)
+          usesVehicleButton: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind),
+          buttonWorldPos: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind)
             ? getAttackButtonAnchor(moverSeatIndex === 0).clone()
             : null,
           forwardReach,
