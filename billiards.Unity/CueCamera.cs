@@ -29,7 +29,7 @@ public class CueCamera : MonoBehaviour
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
-    public float cueLoweredDistanceFromBall = 0.025f;
+    public float cueLoweredDistanceFromBall = 0.04f;
     // Additional pull-in applied to the cue camera so the portrait framing hugs
     // the cloth like a player leaning over the shot.
     public float cueDistancePullIn = 0.55f;
@@ -48,7 +48,7 @@ public class CueCamera : MonoBehaviour
     public float cueLoweredHeight = 0.25f;
     // Extra forward push applied as the player lowers the camera so the framing
     // stays tight on the cue ball and shaft instead of drifting backward.
-    public float cueLoweredForwardPush = 0.11f;
+    public float cueLoweredForwardPush = 0.08f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
@@ -114,7 +114,7 @@ public class CueCamera : MonoBehaviour
     // Scale applied once the camera is fully lowered toward the cue. Lower
     // values bring the framing tighter to the cue ball and aiming line.
     [Range(0.1f, 1f)]
-    public float cueLoweredDistanceScale = 0.3f;
+    public float cueLoweredDistanceScale = 0.38f;
     // Bias used when lowering the camera to keep it hovering just above the cue
     // instead of drifting upward toward the player's face.
     [Range(0.1f, 1f)]
