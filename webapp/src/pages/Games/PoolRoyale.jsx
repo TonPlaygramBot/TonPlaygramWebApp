@@ -24673,12 +24673,12 @@ const shotPowerRef = useRef(0);
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.12,
+            strikeTime: 0.11,
             holdTime: 0.05,
             stanceWidth: 0.52,
-            bridgePalmTableLift: 0.002,
-            chinToCueHeight: 0.095,
-            cueArmElbowRise: 0.36,
+            bridgePalmTableLift: 0.012,
+            chinToCueHeight: 0.11,
+            cueArmElbowRise: 0.43,
             tableTopY: TABLE_Y + TABLE.THICK,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
@@ -24709,6 +24709,24 @@ const shotPowerRef = useRef(0);
         const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
         const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
 
+        const chooseEdgeTarget = (forward2) => {
+          const desired = cueWorld.clone().add(new THREE.Vector3(
+            -forward2.x * HUMAN_DESIRED_SHOOT_DISTANCE,
+            0,
+            -forward2.y * HUMAN_DESIRED_SHOOT_DISTANCE
+          ));
+          const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
+          const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
+          const candidates = [
+            new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
+          ];
+          return candidates.reduce((best, candidate) =>
+            candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
+          );
+        };
         const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
         const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
         const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
@@ -24774,11 +24792,14 @@ const shotPowerRef = useRef(0);
         const isInsideTableBlocker = (point) =>
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
+        const desiredRoot = chooseEdgeTarget(normalizedAim);
+
         rigs.forEach((rig) => {
           const anim = rig?.anim;
           const human = rig?.human;
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
+          const isShooter = anim?.seat === activeSeat;
           const isHumanShooter = seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
@@ -24842,11 +24863,10 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
               .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-              .setY(TABLE_Y + TABLE.THICK + 0.002);
+              .setY(TABLE_Y + TABLE.THICK + 0.009);
             const bridgeCuePoint = bridgeTarget
               .clone()
               .addScaledVector(aimForward, 0.01)
-              .addScaledVector(side, -0.002)
               .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
             const cueTip = cueWorld
               .clone()
@@ -24856,12 +24876,8 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const gripTarget = cueTip
-              .clone()
-              .addScaledVector(aimForward, -0.76)
-              .addScaledVector(side, 0.01)
-              .addScaledVector(new THREE.Vector3(0, 1, 0), 0.002);
-            if (isHumanShooter) {
+            const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
+            if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
                 bridgeTarget: bridgeTarget.clone(),
@@ -24872,7 +24888,7 @@ const shotPowerRef = useRef(0);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
               .clone()
-              .add(new THREE.Vector3(0.24, 1.12, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+              .add(new THREE.Vector3(0.24, 1.1, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             const idleLeft = walkRoot
               .clone()
               .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
@@ -24904,6 +24920,180 @@ const shotPowerRef = useRef(0);
             });
             return;
           }
+
+          const targetPose = mode === 'idle' ? 0 : 1;
+          anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
+
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+          const perimeterTarget = clampToWalkPerimeter(seatTarget);
+          if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
+          anim.rootTarget.copy(perimeterTarget);
+          if (!Number.isFinite(anim.walkPerimeterT)) {
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
+          const targetT = pointToPerimeterT(anim.rootTarget);
+          const loopDelta = THREE.MathUtils.euclideanModulo(targetT - anim.walkPerimeterT + 0.5, 1) - 0.5;
+          const maxStepT = (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) / (4 * (walkHalfX + walkHalfZ));
+          const stepT = THREE.MathUtils.clamp(loopDelta, -maxStepT, maxStepT);
+          anim.walkPerimeterT = THREE.MathUtils.euclideanModulo(anim.walkPerimeterT + stepT, 1);
+          const perimeterPos = perimeterTToPoint(anim.walkPerimeterT);
+          rig.group.position.copy(perimeterPos);
+          if (isInsideTableBlocker(rig.group.position)) {
+            rig.group.position.copy(clampToWalkPerimeter(rig.group.position));
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
+
+          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
+
+          const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
+          const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
+          anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
+          rig.group.rotation.y = anim.yaw;
+
+          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+          const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
+          const scale = anim.scale || 1;
+
+          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
+          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
+          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
+          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
+          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
+
+          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
+          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
+          const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
+          const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
+
+          const bridgeHandTarget = cueWorld
+            .clone()
+            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
+            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
+          const bridgeCuePoint = bridgeHandTarget
+            .clone()
+            .addScaledVector(aimForward, 0.01)
+            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
+
+          const humanShotState =
+            mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+          const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+          const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+          const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
+          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
+          const practiceStroke =
+            humanShotState === 'dragging'
+              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
+              : 0;
+          const strikeNorm =
+            humanShotState === 'striking'
+              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
+              : 0;
+          let cueBallGap = BALL_R * 1.22;
+          if (humanShotState === 'dragging') {
+            cueBallGap += pull + practiceStroke;
+          } else if (humanShotState === 'striking') {
+            cueBallGap = THREE.MathUtils.lerp(
+              BALL_R * (1.22 + (pull / BALL_R)),
+              BALL_R * 1.05,
+              1 - Math.pow(1 - strikeNorm, 3)
+            );
+          }
+          const cueTipShoot = cueWorld
+            .clone()
+            .addScaledVector(aimForward, -cueBallGap)
+            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
+          const cueBackShoot = bridgeCuePoint
+            .clone()
+            .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
+            .add(new THREE.Vector3(0, 0.028 * scale, 0));
+          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
+
+          const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
+          const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
+
+          const leftHandWorld = idleLeftHandTarget.clone().lerp(bridgeHandTarget, t);
+          const rightHandWorld = idleRightHandTarget.clone().lerp(gripHandTarget, t);
+
+          if (anim.model && !anim.pelvis) {
+            const idle = 1 - t;
+            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
+            anim.model.position.set(0, 0.006 * breath - 0.02 * t, 0.01 * walk);
+            anim.model.rotation.set(
+              -0.11 * t - 0.024 * walk,
+              0,
+              (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
+            );
+            if (anim.bridgeHand) {
+              anim.bridgeHand.position.copy(leftHandWorld);
+              anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+            }
+            if (anim.gripHand) {
+              anim.gripHand.position.copy(rightHandWorld);
+              anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+              anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.38, 1.28, t);
+            }
+            return;
+          }
+
+          const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
+          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.43, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.03, 0.06, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.03, 0.02, t) * scale);
+
+          const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
+          const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
+          const frontFootShoot = new THREE.Vector3(-0.22 * scale, 0.035 * scale, -0.34 * scale);
+          const rearFootShoot = new THREE.Vector3(0.26 * scale, 0.035 * scale, 0.34 * scale);
+          const leftFootWorld = localToWorld(leftFootStand.lerp(frontFootShoot, t));
+          const rightFootWorld = localToWorld(rightFootStand.lerp(rearFootShoot, t));
+
+          const leftKnee = leftHipWorld.clone().lerp(leftFootWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.11, t) * scale).addScaledVector(aimForward, 0.04 * t * scale);
+          const rightKnee = rightHipWorld.clone().lerp(rightFootWorld, 0.52).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.08, t) * scale).addScaledVector(aimForward, -0.03 * t * scale);
+
+          const bodyQ = makeHumanoidBasis(side, aimForward);
+          anim.pelvis.position.copy(hipCenterWorld);
+          anim.pelvis.quaternion.copy(bodyQ);
+          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
+
+          anim.torso.position.copy(torsoCenterWorld);
+          anim.torso.quaternion.copy(bodyQ);
+          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
+
+          anim.chest.position.copy(chestCenterWorld);
+          anim.chest.quaternion.copy(bodyQ);
+          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
+
+          setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
+          anim.head.position.copy(headCenterWorld);
+          anim.head.quaternion.copy(bodyQ);
+          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
+
+          setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
+          setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
+          setHumanoidSegment(anim.rightUpperArm, rightShoulderWorld, rightElbow, 0.045 * scale);
+          setHumanoidSegment(anim.rightLowerArm, rightElbow, rightHandWorld, 0.037 * scale);
+
+          setHumanoidSegment(anim.leftUpperLeg, leftHipWorld, leftKnee, 0.058 * scale);
+          setHumanoidSegment(anim.leftLowerLeg, leftKnee, leftFootWorld, 0.052 * scale);
+          setHumanoidSegment(anim.rightUpperLeg, rightHipWorld, rightKnee, 0.058 * scale);
+          setHumanoidSegment(anim.rightLowerLeg, rightKnee, rightFootWorld, 0.052 * scale);
+
+          anim.bridgeHand.position.copy(leftHandWorld);
+          anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+          anim.gripHand.position.copy(rightHandWorld);
+          anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+          anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.3, 1.2, t);
+
+          anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+          anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+          anim.leftFoot.quaternion.copy(bodyQ);
+          anim.rightFoot.quaternion.copy(bodyQ);
+          anim.leftFoot.rotation.y += -0.24 * t;
+          anim.rightFoot.rotation.y += 0.16 * t;
 
         });
       };
