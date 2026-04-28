@@ -200,43 +200,6 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polySawedOff01Attack',
   'polyRevolver02Attack'
 ]);
-const FIREARM_ATTACK_PROFILE = Object.freeze({
-  default: Object.freeze({
-    caliber: '5.56',
-    tracerColor: '#ffe39a',
-    shellColor: '#caa56a',
-    spread: 0.018,
-    cadenceMs: 56
-  }),
-  glockSidearmAttack: Object.freeze({ caliber: '9mm', tracerColor: '#ffd27a', shellColor: '#ca9f60', spread: 0.014, cadenceMs: 82 }),
-  pistolSidearmAttack: Object.freeze({ caliber: '9mm', tracerColor: '#ffd27a', shellColor: '#ca9f60', spread: 0.014, cadenceMs: 84 }),
-  smithSidearmAttack: Object.freeze({ caliber: '.357', tracerColor: '#ffc66a', shellColor: '#b6874e', spread: 0.013, cadenceMs: 92 }),
-  sigsauerTacticalAttack: Object.freeze({ caliber: '9mm', tracerColor: '#ffd27a', shellColor: '#ca9f60', spread: 0.014, cadenceMs: 80 }),
-  polyPistol01Attack: Object.freeze({ caliber: '9mm', tracerColor: '#ffd27a', shellColor: '#ca9f60', spread: 0.014, cadenceMs: 82 }),
-  polyRevolver01Attack: Object.freeze({ caliber: '.44', tracerColor: '#ffbe5d', shellColor: '#a8753d', spread: 0.013, cadenceMs: 96 }),
-  polyRevolver02Attack: Object.freeze({ caliber: '.44', tracerColor: '#ffbe5d', shellColor: '#a8753d', spread: 0.013, cadenceMs: 96 }),
-  polySawedOff01Attack: Object.freeze({ caliber: '12g', tracerColor: '#ffd27a', shellColor: '#bb2e2e', spread: 0.024, cadenceMs: 112 }),
-  uziSprayAttack: Object.freeze({ caliber: '9mm', tracerColor: '#ffe197', shellColor: '#ca9f60', spread: 0.02, cadenceMs: 48 }),
-  smgBurstAttack: Object.freeze({ caliber: '9mm', tracerColor: '#ffe197', shellColor: '#ca9f60', spread: 0.02, cadenceMs: 50 }),
-  assaultRifleAttack: Object.freeze({ caliber: '7.62', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.018, cadenceMs: 56 }),
-  ak47VolleyAttack: Object.freeze({ caliber: '7.62', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.018, cadenceMs: 56 }),
-  krsvBurstAttack: Object.freeze({ caliber: '7.62', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.018, cadenceMs: 57 }),
-  fpsGunAttack: Object.freeze({ caliber: '5.56', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.018, cadenceMs: 56 }),
-  compactCarbineAttack: Object.freeze({ caliber: '5.56', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.017, cadenceMs: 58 }),
-  marksmanDmrAttack: Object.freeze({ caliber: '7.62', tracerColor: '#ffd98a', shellColor: '#bc9056', spread: 0.013, cadenceMs: 90 }),
-  mosinMarksmanAttack: Object.freeze({ caliber: '7.62', tracerColor: '#ffd98a', shellColor: '#bc9056', spread: 0.012, cadenceMs: 128 }),
-  sniperShotAttack: Object.freeze({ caliber: '.308', tracerColor: '#ffd17c', shellColor: '#b78349', spread: 0.011, cadenceMs: 125 }),
-  shotgunBlastAttack: Object.freeze({ caliber: '12g', tracerColor: '#ffd27a', shellColor: '#bb2e2e', spread: 0.024, cadenceMs: 108 }),
-  polyShotgun01Attack: Object.freeze({ caliber: '12g', tracerColor: '#ffd27a', shellColor: '#bb2e2e', spread: 0.024, cadenceMs: 106 }),
-  polyShotgun02Attack: Object.freeze({ caliber: '12g', tracerColor: '#ffd27a', shellColor: '#bb2e2e', spread: 0.024, cadenceMs: 106 }),
-  polyShotgun03Attack: Object.freeze({ caliber: '12g', tracerColor: '#ffd27a', shellColor: '#bb2e2e', spread: 0.024, cadenceMs: 106 }),
-  polyAssaultRifle01Attack: Object.freeze({ caliber: '5.56', tracerColor: '#ffe39a', shellColor: '#caa56a', spread: 0.018, cadenceMs: 56 }),
-  polySmg01Attack: Object.freeze({ caliber: '9mm', tracerColor: '#ffe197', shellColor: '#ca9f60', spread: 0.02, cadenceMs: 50 })
-});
-
-function resolveFirearmAttackProfile(captureAnimationId) {
-  return FIREARM_ATTACK_PROFILE[captureAnimationId] || FIREARM_ATTACK_PROFILE.default;
-}
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
@@ -1183,18 +1146,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
       weapon.parent?.remove?.(weapon);
     }
   };
-}
-
-function syncSeatedHumanWeaponGrip(attackerEntry, handWeaponAttachment, elapsedMs, pickupLeadMs) {
-  if (!attackerEntry || !handWeaponAttachment) return;
-  const hasTwoHandGrip = Boolean(handWeaponAttachment.twoHanded && handWeaponAttachment.offhandTarget?.isObject3D);
-  if (hasTwoHandGrip) {
-    handWeaponAttachment.offhandTarget.updateMatrixWorld?.(true);
-    const offhandWorld = handWeaponAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
-    solveSeatedLeftArmContactIK(attackerEntry, offhandWorld, elapsedMs >= pickupLeadMs ? 0.95 : 0.5);
-    return;
-  }
-  solveSeatedLeftArmContactIK(attackerEntry, null, 0);
 }
 
 async function createCaptureWeaponRackFx() {
@@ -7128,7 +7079,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
+      orientFirearmRackFlat(entry.weaponRack);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -9892,7 +9843,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const shellBase = new THREE.Vector3();
           const shooterRoot = attackerEntry?.actorRoot;
           const handWeaponAttachment = await attachFirearmToRightHand(attackerEntry, resolvedCaptureAnimationId);
-          const firearmProfile = resolveFirearmAttackProfile(resolvedCaptureAnimationId);
           const pickupLeadMs = 280;
           const reloadLeadMs = 320;
           const aimLeadMs = 240;
@@ -9909,18 +9859,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const cadenceMs = (firearmProfile.cadenceMs ?? 56) * FIREARM_VOLLEY_SLOW_FACTOR;
+          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
           const durationMs = preFireLeadMs + shots * cadenceMs + 760;
           const muzzleFx = createCaptureMuzzleFx();
-          const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx(firearmProfile.tracerColor || '#ffe39a'));
+          const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
-          shells.forEach((shell) => {
-            if (shell?.material?.color && firearmProfile.shellColor) {
-              shell.material.color.set(firearmProfile.shellColor);
-            }
-          });
           const targetReticle = createCaptureTargetReticleFx();
           const shellStates = shells.map(() => ({ landed: false, settledAt: 0 }));
           scene.add(muzzleFx.root);
@@ -9962,7 +9907,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.02) * 0.006;
               }
             }
-            syncSeatedHumanWeaponGrip(attackerEntry, handWeaponAttachment, elapsed, pickupLeadMs);
+            if (handWeaponAttachment?.twoHanded && handWeaponAttachment?.offhandTarget?.isObject3D) {
+              handWeaponAttachment.offhandTarget.updateMatrixWorld?.(true);
+              const offhandWorld = handWeaponAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
+              solveSeatedLeftArmContactIK(attackerEntry, offhandWorld, elapsed >= pickupLeadMs ? 0.95 : 0.5);
+            }
             const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
             const aimDir = muzzleTarget.clone().sub(muzzleOrigin).setY(0);
             const followOffset =
@@ -10013,12 +9962,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const active = idx <= shotIdx && idx > shotIdx - 2;
               entry.root.visible = active;
               if (!active) return;
-              const spreadAmount = firearmProfile.spread ?? 0.018;
-              const spread = new THREE.Vector3(
-                (Math.random() - 0.5) * spreadAmount,
-                (Math.random() - 0.5) * spreadAmount * 0.88,
-                (Math.random() - 0.5) * spreadAmount
-              );
+              const spread = new THREE.Vector3((Math.random() - 0.5) * 0.018, (Math.random() - 0.5) * 0.016, (Math.random() - 0.5) * 0.018);
               const from = muzzleOrigin.clone().add(spread);
               const to = muzzleTarget.clone().add(spread.multiplyScalar(0.3));
               const mid = from.clone().lerp(to, 0.5);
