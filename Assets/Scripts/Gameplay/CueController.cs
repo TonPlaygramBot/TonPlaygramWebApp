@@ -83,6 +83,8 @@ namespace Aiming
         Vector3 _strikeDirection;
         Vector3 _tipBaseScale = Vector3.one;
         bool _cameraLowered;
+        float _strokeVelocityNormalized;
+        float _previousCueDepth;
 
         public ShotState CurrentShotState => _shotState;
         public Vector3 CurrentAimDirection => _aimDirection;
@@ -99,6 +101,21 @@ namespace Aiming
                 return Mathf.Clamp01(pulled / pullRange);
             }
         }
+        public float CurrentCueStrokeNormalized
+        {
+            get
+            {
+                float delta = _currentCueDepth - idleTipGap;
+                if (delta >= 0f)
+                {
+                    return Mathf.Clamp01(pullRange > 0.0001f ? delta / pullRange : 0f);
+                }
+
+                float pushRange = Mathf.Max(0.0001f, idleTipGap - contactTipGap);
+                return Mathf.Clamp(delta / pushRange, -1f, 0f);
+            }
+        }
+        public float CurrentStrokeVelocityNormalized => _strokeVelocityNormalized;
 
         void Awake()
         {
@@ -106,6 +123,8 @@ namespace Aiming
             {
                 _tipBaseScale = cueTip.localScale;
             }
+
+            _previousCueDepth = _currentCueDepth;
         }
 
         void Update()
@@ -309,6 +328,7 @@ namespace Aiming
 
         void UpdateCueDepth()
         {
+            float previousDepth = _currentCueDepth;
             float hitT = Mathf.Clamp01(hitProgress);
             float activePower = _shotState == ShotState.Dragging ? _power : _latchedShotPower;
             float pull = _shotState == ShotState.Striking ? _latchedPullDistance : PullDistanceFromPower(activePower);
@@ -321,6 +341,7 @@ namespace Aiming
                 _dynamicLift = 0f;
                 _dynamicWobble = 0f;
                 _currentCueDepth = idleTipGap + (Mathf.Sin(Time.time * 1.5f) * 0.001f);
+                UpdateStrokeVelocity(previousDepth);
                 return;
             }
 
@@ -333,6 +354,7 @@ namespace Aiming
                 _dynamicWobble = 0f;
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
+                UpdateStrokeVelocity(previousDepth);
                 return;
             }
 
@@ -370,6 +392,8 @@ namespace Aiming
             {
                 FinishStrike();
             }
+
+            UpdateStrokeVelocity(previousDepth);
         }
 
         void UpdateCuePose()
@@ -491,7 +515,17 @@ namespace Aiming
             _previousSliderPower = 0f;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
+            _strokeVelocityNormalized = 0f;
             ResetTipScale();
+        }
+
+        void UpdateStrokeVelocity(float previousDepth)
+        {
+            float dt = Mathf.Max(0.0001f, Time.deltaTime);
+            float cueDepthDelta = _currentCueDepth - previousDepth;
+            float range = Mathf.Max(0.0001f, pullRange);
+            _strokeVelocityNormalized = Mathf.Clamp(cueDepthDelta / range / dt, -1f, 1f);
+            _previousCueDepth = _currentCueDepth;
         }
 
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float pullDistance)

@@ -13,6 +13,9 @@ namespace Aiming.Gameplay.Rendering
         [SerializeField] private bool forceUrpLitShader = true;
         [SerializeField] private Shader urpLitShader;
         [SerializeField] private Shader standardShader;
+        [SerializeField] private bool preserveSourceTextureTransforms = true;
+        [Tooltip("Keeps UV orientation from imported GLTF source. Enable only if your importer flipped textures vertically.")]
+        [SerializeField] private bool invertMainTextureY = false;
 
         private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
         private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -105,13 +108,22 @@ namespace Aiming.Gameplay.Rendering
             return standardShader;
         }
 
-        private static void CopyPbrMaps(Material material)
+        private void CopyPbrMaps(Material material)
         {
             Texture baseTexture = FirstTexture(material, BaseMapId, MainTexId);
             if (baseTexture != null)
             {
                 TrySetTexture(material, BaseMapId, baseTexture);
                 TrySetTexture(material, MainTexId, baseTexture);
+                if (preserveSourceTextureTransforms)
+                {
+                    CopyTextureTransform(material, BaseMapId, MainTexId);
+                    if (invertMainTextureY)
+                    {
+                        FlipTextureY(material, BaseMapId);
+                        FlipTextureY(material, MainTexId);
+                    }
+                }
             }
 
             if (material.HasProperty(BaseColorId) && material.HasProperty(ColorId))
@@ -130,18 +142,30 @@ namespace Aiming.Gameplay.Rendering
             {
                 TrySetTexture(material, BumpMapId, normal);
                 material.EnableKeyword("_NORMALMAP");
+                if (preserveSourceTextureTransforms)
+                {
+                    CopyTextureTransform(material, BumpMapId, BaseMapId);
+                }
             }
 
             Texture metallic = FirstTexture(material, MetallicGlossMapId);
             if (metallic != null)
             {
                 TrySetTexture(material, MetallicGlossMapId, metallic);
+                if (preserveSourceTextureTransforms)
+                {
+                    CopyTextureTransform(material, MetallicGlossMapId, BaseMapId);
+                }
             }
 
             Texture occlusion = FirstTexture(material, OcclusionMapId);
             if (occlusion != null)
             {
                 TrySetTexture(material, OcclusionMapId, occlusion);
+                if (preserveSourceTextureTransforms)
+                {
+                    CopyTextureTransform(material, OcclusionMapId, BaseMapId);
+                }
             }
 
             Texture emission = FirstTexture(material, EmissionMapId);
@@ -149,6 +173,10 @@ namespace Aiming.Gameplay.Rendering
             {
                 TrySetTexture(material, EmissionMapId, emission);
                 material.EnableKeyword("_EMISSION");
+                if (preserveSourceTextureTransforms)
+                {
+                    CopyTextureTransform(material, EmissionMapId, BaseMapId);
+                }
             }
         }
 
@@ -178,6 +206,34 @@ namespace Aiming.Gameplay.Rendering
             {
                 material.SetTexture(propertyId, texture);
             }
+        }
+
+        private static void CopyTextureTransform(Material material, int destinationPropertyId, int sourcePropertyId)
+        {
+            if (!material.HasProperty(destinationPropertyId) || !material.HasProperty(sourcePropertyId))
+            {
+                return;
+            }
+
+            Vector2 srcScale = material.GetTextureScale(sourcePropertyId);
+            Vector2 srcOffset = material.GetTextureOffset(sourcePropertyId);
+            material.SetTextureScale(destinationPropertyId, srcScale);
+            material.SetTextureOffset(destinationPropertyId, srcOffset);
+        }
+
+        private static void FlipTextureY(Material material, int propertyId)
+        {
+            if (!material.HasProperty(propertyId))
+            {
+                return;
+            }
+
+            Vector2 scale = material.GetTextureScale(propertyId);
+            Vector2 offset = material.GetTextureOffset(propertyId);
+            scale.y *= -1f;
+            offset.y = 1f - offset.y;
+            material.SetTextureScale(propertyId, scale);
+            material.SetTextureOffset(propertyId, offset);
         }
     }
 }
