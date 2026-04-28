@@ -115,10 +115,11 @@ function normalizeHuman(model, opts) {
 
 function applyOriginalGltfTextureSettings(texture, { isColor = false, anisotropy = null } = {}) {
   if (!texture) return;
-  if (isColor) {
+  if (isColor && texture.colorSpace !== THREE.SRGBColorSpace) {
     texture.colorSpace = THREE.SRGBColorSpace;
   }
-  texture.flipY = false;
+  // Keep the glTF-provided UV mapping/orientation exactly as authored.
+  // Forcing flipY here can break some ReadyPlayerMe exports on mobile GPUs.
   if (Number.isFinite(anisotropy)) {
     texture.anisotropy = Math.max(1, anisotropy);
   }
