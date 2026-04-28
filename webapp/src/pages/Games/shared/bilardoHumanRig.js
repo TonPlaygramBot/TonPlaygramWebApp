@@ -381,7 +381,7 @@ function driveHuman(human, frame) {
   human.modelRoot.visible = true;
   human.modelRoot.position.copy(frame.rootWorld);
   human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t;
+  human.modelRoot.position.y += 0.006 * frame.breath - 0.006 * frame.t;
   human.modelRoot.updateMatrixWorld(true);
   human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
   human.modelRoot.updateMatrixWorld(true);
@@ -442,9 +442,10 @@ function driveHuman(human, frame) {
     return;
   }
 
-  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward);
-  twistBone(b.hips, frame.side, -0.075 * ik);
-  twistBone(b.hips, frame.forward, -0.04 * ik);
+  const hipIk = ik * 0.35;
+  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * hipIk) * hipIk, frame.forward);
+  twistBone(b.hips, frame.side, -0.075 * hipIk);
+  twistBone(b.hips, frame.forward, -0.04 * hipIk);
   rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward);
   twistBone(b.spine, frame.side, -0.23 * ik);
   twistBone(b.spine, frame.forward, -0.055 * ik);
@@ -569,6 +570,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
+  const lowerBodyT = t * 0.35;
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
@@ -581,13 +583,13 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const leftFoot = local(
     new THREE.Vector3(-0.13, 0.035, 0.03 + walk * 0.03).lerp(
       new THREE.Vector3(-cfg.stanceWidth * 0.42, 0.035, -0.36),
-      t
+      lowerBodyT
     )
   );
   const rightFoot = local(
     new THREE.Vector3(0.13, 0.035, -0.03 - walk * 0.03).lerp(
       new THREE.Vector3(cfg.stanceWidth * 0.5, 0.035, 0.36),
-      t
+      lowerBodyT
     )
   );
 
@@ -626,15 +628,15 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const leftKnee = leftHip
     .clone()
     .lerp(leftFoot, 0.53)
-    .addScaledVector(UP, lerp(0.18, 0.105, t))
-    .addScaledVector(forward, 0.052 * t)
-    .addScaledVector(side, -0.016 * t);
+    .addScaledVector(UP, lerp(0.18, 0.105, lowerBodyT))
+    .addScaledVector(forward, 0.052 * lowerBodyT)
+    .addScaledVector(side, -0.016 * lowerBodyT);
   const rightKnee = rightHip
     .clone()
     .lerp(rightFoot, 0.52)
-    .addScaledVector(UP, lerp(0.18, 0.08, t))
-    .addScaledVector(forward, -0.032 * t)
-    .addScaledVector(side, 0.018 * t);
+    .addScaledVector(UP, lerp(0.18, 0.08, lowerBodyT))
+    .addScaledVector(forward, -0.032 * lowerBodyT)
+    .addScaledVector(side, 0.018 * lowerBodyT);
 
   human.root.visible = true;
   driveHuman(human, {
