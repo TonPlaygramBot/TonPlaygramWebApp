@@ -1,6 +1,7 @@
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -26,12 +27,13 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen Token' },
   { id: 'king', label: 'King Token' }
 ]);
-const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
-  { id: 'drone', label: 'Drone' },
-  { id: 'fighter', label: 'Fighter Jet' },
-  { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' }
-]);
+const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    thumbnail: option.thumbnail
+  }))
+);
 
 export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
   { id: 'current', label: 'Current' },
@@ -162,33 +164,18 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
 });
 
 export const SNAKE_STORE_ITEMS = [
-  {
-    id: 'capture-fighter',
+  ...SNAKE_CAPTURE_WEAPON_OPTIONS.filter((option, idx) => idx > 0).map((option, idx) => ({
+    id: `capture-${option.id}`,
     type: 'captureWeapon',
-    optionId: 'fighter',
-    name: 'F-15 Fighter Jet',
-    price: 520,
-    description: 'Capture eliminations use a fighter jet flypath and strike animation.',
-    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.fighter
-  },
-  {
-    id: 'capture-helicopter',
-    type: 'captureWeapon',
-    optionId: 'helicopter',
-    name: 'Military Helicopter',
-    price: 420,
-    description: 'Capture eliminations use a helicopter flypath and strike animation.',
-    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.helicopter
-  },
-  {
-    id: 'capture-supportTruck',
-    type: 'captureWeapon',
-    optionId: 'supportTruck',
-    name: 'Support Truck',
-    price: 390,
-    description: 'Capture eliminations use an armored truck flypath animation.',
-    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.supportTruck
-  },
+    optionId: option.id,
+    name: option.label,
+    price: 390 + idx * 30,
+    description: 'Use this Ludo Battle Royal weapon set for Snake & Ladder capture animations.',
+    thumbnail:
+      option.thumbnail ||
+      SNAKE_THEME_THUMBNAILS.captureWeapon.fighter ||
+      SNAKE_THEME_THUMBNAILS.captureWeapon.drone
+  })),
   {
     id: 'arena-crystalLagoon',
     type: 'arenaTheme',

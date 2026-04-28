@@ -84,15 +84,15 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.75;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.65 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -579,6 +579,40 @@ const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
   supportTruck: 0,
   javelin: 0
 });
+const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
+  missileJavelin: 'javelin',
+  droneAttack: 'drone',
+  fighterJetAttack: 'fighter',
+  helicopterAttack: 'helicopter',
+  fpsGunAttack: 'supportTruck',
+  glockSidearmAttack: 'supportTruck',
+  assaultRifleAttack: 'supportTruck',
+  uziSprayAttack: 'supportTruck',
+  ak47VolleyAttack: 'supportTruck',
+  krsvBurstAttack: 'supportTruck',
+  smithSidearmAttack: 'supportTruck',
+  mosinMarksmanAttack: 'supportTruck',
+  sigsauerTacticalAttack: 'supportTruck',
+  grenadeBlastAttack: 'supportTruck',
+  shotgunBlastAttack: 'supportTruck',
+  sniperShotAttack: 'supportTruck',
+  smgBurstAttack: 'supportTruck',
+  compactCarbineAttack: 'supportTruck',
+  marksmanDmrAttack: 'supportTruck',
+  polyShotgun01Attack: 'supportTruck',
+  polyAssaultRifle01Attack: 'supportTruck',
+  polyPistol01Attack: 'supportTruck',
+  polyRevolver01Attack: 'supportTruck',
+  polySawedOff01Attack: 'supportTruck',
+  polyRevolver02Attack: 'supportTruck',
+  polyShotgun02Attack: 'supportTruck',
+  polyShotgun03Attack: 'supportTruck',
+  polySmg01Attack: 'supportTruck'
+});
+
+function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
+  return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
+}
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;
@@ -5047,19 +5081,20 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
 }
 
 function createSeatWeaponMesh(weaponType = 'fighter') {
-  const rig = createCaptureVehicleRig(weaponType);
+  const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(weaponType);
+  const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
   group.visible = true;
   const displayScale =
-    weaponType === 'supportTruck'
+    normalizedWeaponType === 'supportTruck'
       ? TOKEN_HEIGHT * 0.8
-      : weaponType === 'drone'
+      : normalizedWeaponType === 'drone'
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[weaponType] ?? TOKEN_HEIGHT * 1.48;
-  group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
-  group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[weaponType] ?? 0;
+  group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[normalizedWeaponType] ?? TOKEN_HEIGHT * 1.48;
+  group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[normalizedWeaponType] ?? 0;
+  group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[normalizedWeaponType] ?? 0;
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -5102,7 +5137,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
       board.weaponDisplayGroup.userData.byPlayer.set(holderKey, holder);
     }
-    const weaponType = player?.weaponType || fallbackOrder[seatIndex % fallbackOrder.length];
+    const weaponType = normalizeSnakeCaptureWeaponKind(player?.weaponType || fallbackOrder[seatIndex % fallbackOrder.length]);
     if (holder.userData.weaponType !== weaponType) {
       while (holder.children.length) {
         const child = holder.children.pop();
@@ -6334,7 +6369,7 @@ export default function SnakeBoard3D({
     if (captureFxIdRef.current === captureEvent.id) return;
     captureFxIdRef.current = captureEvent.id;
     const board = boardRef.current;
-    const vehicleKind = captureEvent.weaponType || 'fighter';
+    const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
     const vehicleMap = board.captureFx?.vehicles || {};
     const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const missileProjectile = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];

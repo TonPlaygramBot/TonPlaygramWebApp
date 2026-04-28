@@ -36,6 +36,7 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
+import { CAPTURE_ANIMATION_OPTIONS } from "../../config/ludoBattleOptions.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -813,13 +814,20 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
-const CAPTURE_WEAPON_OPTIONS = Object.freeze([
-  { id: 'drone', label: 'Drone' },
-  { id: 'fighter', label: 'Fighter Jet' },
-  { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' },
-  { id: 'javelin', label: 'Javelin Missile' }
-]);
+const CAPTURE_WEAPON_OPTIONS = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    thumbnail: option.thumbnail
+  }))
+);
+const LEGACY_CAPTURE_WEAPON_ID_MAP = Object.freeze({
+  drone: 'droneAttack',
+  fighter: 'fighterJetAttack',
+  helicopter: 'helicopterAttack',
+  supportTruck: 'grenadeBlastAttack',
+  javelin: 'missileJavelin'
+});
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -939,6 +947,13 @@ const DEFAULT_FRAME_RATE_ID = 'fast120';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
+function normalizeCaptureWeaponId(rawId) {
+  if (!rawId) return CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
+  const normalized = LEGACY_CAPTURE_WEAPON_ID_MAP[rawId] || rawId;
+  if (CAPTURE_WEAPON_OPTIONS.some((option) => option.id === normalized)) return normalized;
+  return CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
+}
+
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -959,6 +974,11 @@ function normalizeAppearance(value = {}) {
       normalized[key] = Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
     }
   });
+  if (typeof value?.captureWeapon === 'string') {
+    const captureId = normalizeCaptureWeaponId(value.captureWeapon);
+    const idx = CAPTURE_WEAPON_OPTIONS.findIndex((option) => option.id === captureId);
+    if (idx >= 0) normalized.captureWeapon = idx;
+  }
   normalized.snakeSkin = 0;
   normalized.tokenFinish = 0;
   return normalized;
@@ -1208,6 +1228,7 @@ export default function SnakeAndLadder() {
     return false;
   });
   const [showConfig, setShowConfig] = useState(false);
+  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
   const [appearance, setAppearance] = useState(() => {
     try {
@@ -3232,9 +3253,10 @@ export default function SnakeAndLadder() {
   const playerHeadPreset = resolvedAppearance?.pawnHead?.preset ?? null;
   const playerHeadPresetId = resolvedAppearance?.pawnHead?.id ?? 'current';
   const selectedCaptureWeaponId =
-    resolvedAppearance?.captureWeapon?.id && isSnakeOptionUnlocked('captureWeapon', resolvedAppearance.captureWeapon.id, snakeInventory)
-      ? resolvedAppearance.captureWeapon.id
-      : 'drone';
+    resolvedAppearance?.captureWeapon?.id &&
+    isSnakeOptionUnlocked('captureWeapon', normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id), snakeInventory)
+      ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
+      : CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
@@ -3769,6 +3791,62 @@ export default function SnakeAndLadder() {
                     Restart game
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div
+        className="absolute z-30 pointer-events-auto"
+        style={{
+          right: 'calc(0.9rem + env(safe-area-inset-right, 0px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 9.8rem)'
+        }}
+      >
+        <div className="relative">
+          <button
+            type="button"
+            aria-expanded={weaponSwapOpen}
+            aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
+            onClick={() => setWeaponSwapOpen((prev) => !prev)}
+            className="rounded-full border border-rose-300/70 bg-black/70 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-rose-100 shadow-[0_10px_25px_rgba(244,63,94,0.35)] transition hover:border-rose-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+          >
+            🔫 Swap
+          </button>
+          {weaponSwapOpen && (
+            <div className="absolute bottom-12 right-0 w-[min(19rem,84vw)] max-h-[52vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/90 p-3 shadow-[0_22px_55px_rgba(2,6,23,0.65)] backdrop-blur-xl">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/70">Quick weapon swap</p>
+              <div className="mt-2 space-y-2">
+                {CAPTURE_WEAPON_OPTIONS.filter((option) =>
+                  isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
+                ).map((option) => {
+                  const selected = selectedCaptureWeaponId === option.id;
+                  const optionIndex = CAPTURE_WEAPON_OPTIONS.findIndex((item) => item.id === option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setAppearance((prev) => normalizeAppearance({ ...prev, captureWeapon: optionIndex }));
+                        setWeaponSwapOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-2 py-2 text-left transition ${
+                        selected
+                          ? 'border-rose-300/80 bg-rose-400/15'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <img
+                        src={option.thumbnail || '/assets/icons/gift.svg'}
+                        alt={option.label}
+                        className="h-9 w-14 rounded-md border border-white/10 object-cover"
+                      />
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                        {option.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
