@@ -127,7 +127,7 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   firearmRack: 0.044
 });
 // Lift parked capture vehicles slightly so they read a bit higher on portrait screens.
-const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
+const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.01;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.2,
   helicopter: 1.2 * 1.2,
@@ -232,7 +232,7 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
     position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
+    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
   })
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
@@ -244,16 +244,16 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.308,
-    inward: -0.022,
-    outward: 0.162
+    side: 0.334,
+    inward: -0.03,
+    outward: 0.194
   })
 });
 const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
-  Object.freeze({ side: 0.012, inward: -0.008 }), // bottom
-  Object.freeze({ side: 0.008, inward: 0.004 }), // right
-  Object.freeze({ side: -0.012, inward: -0.008 }), // top
-  Object.freeze({ side: -0.008, inward: 0.004 }) // left
+  Object.freeze({ side: 0.018, inward: -0.012 }), // bottom
+  Object.freeze({ side: 0.014, inward: 0.002 }), // right
+  Object.freeze({ side: -0.018, inward: -0.012 }), // top
+  Object.freeze({ side: -0.014, inward: 0.002 }) // left
 ]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
