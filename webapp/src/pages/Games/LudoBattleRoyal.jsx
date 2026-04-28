@@ -226,8 +226,8 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
-    position: [0, 0, -0.004],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
+    position: [0.078, 0, -0.014],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
@@ -235,18 +235,24 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
     rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
+const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
+  ak47VolleyAttack: Object.freeze({
+    position: [0.086, 0, -0.016],
+    rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
+  })
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.136,
+    side: 0.148,
     inward: -0.002,
-    outward: 0.044
+    outward: 0.062
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.308,
+    side: 0.324,
     inward: -0.022,
-    outward: 0.162
+    outward: 0.188
   })
 });
 const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
@@ -1117,23 +1123,22 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   });
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
-  const baseAlignPositionY = clone.position.y;
   alignObjectBottomToY(clone, 0);
   const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
+  const weaponSpecificDisplayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ?? null;
+  const displayPosition = weaponSpecificDisplayTuning?.position ?? displayTuning.position;
+  const displayRotation = weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
     CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier * weaponRackScaleMultiplier
   );
-  if (!LARGE_RACK_FIREARM_IDS.has(captureAnimationId)) {
-    clone.position.y = baseAlignPositionY;
-  }
-  clone.position.x += displayTuning.position[0];
-  clone.position.y += displayTuning.position[1];
-  clone.position.z += displayTuning.position[2];
-  clone.rotation.set(...displayTuning.rotation);
+  clone.position.x += displayPosition[0];
+  clone.position.y += displayPosition[1];
+  clone.position.z += displayPosition[2];
+  clone.rotation.set(...displayRotation);
   entry.weaponHolder.add(clone);
 }
 
