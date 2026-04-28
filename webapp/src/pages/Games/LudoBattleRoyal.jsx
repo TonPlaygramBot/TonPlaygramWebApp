@@ -246,6 +246,11 @@ const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
   rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
 });
+const FIREARM_RACK_HANDLER_ANCHOR = Object.freeze({
+  // Keep every parked firearm grip in one identical local slot so right-hand grab animations
+  // always start from the same handler position as the AK-47 baseline.
+  position: [0.086, 0.006, -0.016]
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -1062,7 +1067,8 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0.04, 0.032, -0.018);
+  // Keep rack weapons almost flush with tokens so they visually rest on the table cloth.
+  weaponHolder.position.set(0.04, 0.006, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
   root.add(weaponHolder);
 
@@ -1094,7 +1100,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0.04, 0.032, -0.018);
+  weaponRackHit.position.set(0.04, 0.006, -0.018);
   root.add(weaponRackHit);
 
   return {
@@ -1144,10 +1150,20 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     clone,
     CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier * weaponRackScaleMultiplier
   );
-  clone.position.x += displayPosition[0];
-  clone.position.y += displayPosition[1];
-  clone.position.z += displayPosition[2];
   clone.rotation.set(...displayRotation);
+  const sourceRightGrip = findObjectByNeedles(clone, ['r_wrist', 'right_wrist', 'hand_r', 'right_hand']);
+  if (sourceRightGrip?.getWorldPosition) {
+    const gripLocal = clone.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
+    clone.position.set(
+      FIREARM_RACK_HANDLER_ANCHOR.position[0] - gripLocal.x,
+      FIREARM_RACK_HANDLER_ANCHOR.position[1] - gripLocal.y,
+      FIREARM_RACK_HANDLER_ANCHOR.position[2] - gripLocal.z
+    );
+  } else {
+    clone.position.x += displayPosition[0];
+    clone.position.y += displayPosition[1];
+    clone.position.z += displayPosition[2];
+  }
   entry.weaponHolder.add(clone);
 }
 
