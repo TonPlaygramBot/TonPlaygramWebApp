@@ -205,6 +205,13 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
+const VEHICLE_CAPTURE_KINDS = new Set(['truck', 'drone', 'jet', 'helicopter']);
+
+function resolveVehicleCaptureKind(optionId, fallbackKind = null) {
+  const mapped = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[optionId];
+  if (VEHICLE_CAPTURE_KINDS.has(mapped)) return mapped;
+  return VEHICLE_CAPTURE_KINDS.has(fallbackKind) ? fallbackKind : null;
+}
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
@@ -441,8 +448,8 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.88;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -769,18 +776,18 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
 
   // Baseline pose tuned to match the seated portrait reference:
   // upright torso, shoulders open, both arms spread and hovering over chair arms.
-  addBonePos(rig, rig.hips, 0, -0.332, -0.052);
+  addBonePos(rig, rig.hips, 0, -0.384, -0.052);
   addBoneRot(rig, rig.hips, -0.08, 0, 0);
   addBoneRot(rig, rig.spine, 0.18 + breathe, 0, 0);
   addBoneRot(rig, rig.chest, 0.16 + breathe * 0.5, 0, 0);
   addBoneRot(rig, rig.neck, -0.02, 0, 0);
   addBoneRot(rig, rig.head, -0.03, 0, 0);
 
-  addBoneRot(rig, rig.leftUpperLeg, -1.18, 0.14, 0.04);
-  addBoneRot(rig, rig.leftLowerLeg, -1.2, 0.02, 0.01);
+  addBoneRot(rig, rig.leftUpperLeg, -1.32, 0.14, 0.04);
+  addBoneRot(rig, rig.leftLowerLeg, -1.34, 0.02, 0.01);
   addBoneRot(rig, rig.leftFoot, 0.14, 0.04, 0.02);
-  addBoneRot(rig, rig.rightUpperLeg, -1.18, 0.02, -0.03);
-  addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
+  addBoneRot(rig, rig.rightUpperLeg, -1.32, 0.02, -0.03);
+  addBoneRot(rig, rig.rightLowerLeg, -1.34, -0.02, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
   addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
@@ -7655,18 +7662,6 @@ function Chess3D({
   useEffect(() => {
     setSelectedCaptureAnimationId(inventoryCaptureAnimationId);
   }, [inventoryCaptureAnimationId]);
-  const selectedCaptureKind = useMemo(() => {
-    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
-    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
-  }, [selectedCaptureAnimationId]);
-  const selectedParkedWeaponKind = useMemo(
-    () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
-    [selectedCaptureAnimationId]
-  );
-  const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
-  useEffect(() => {
-    selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
-  }, [selectedParkedWeaponKind]);
   const ownedCaptureAnimations = useMemo(
     () =>
       (chessInventory?.captureAnimation || [])
@@ -7674,6 +7669,27 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
+  const selectedCaptureKind = useMemo(() => {
+    const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
+    if (vehicleKind) return vehicleKind;
+    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
+    return 'truck';
+  }, [selectedCaptureAnimationId]);
+  const ownedVehicleCaptureKind = useMemo(() => {
+    for (const option of ownedCaptureAnimations) {
+      const kind = resolveVehicleCaptureKind(option?.id);
+      if (kind) return kind;
+    }
+    return 'truck';
+  }, [ownedCaptureAnimations]);
+  const selectedParkedWeaponKind = useMemo(
+    () => resolveVehicleCaptureKind(selectedCaptureAnimationId, ownedVehicleCaptureKind) || 'truck',
+    [ownedVehicleCaptureKind, selectedCaptureAnimationId]
+  );
+  const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
+  useEffect(() => {
+    selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
+  }, [selectedParkedWeaponKind]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
