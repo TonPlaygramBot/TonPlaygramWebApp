@@ -1942,7 +1942,8 @@ const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
+const HUMAN_WALK_RING_MARGIN_SIDE_RAIL = TABLE.WALL * 3.22; // helper lane for side rails (long rails): keep humans clearly outside wood/chrome edge
+const HUMAN_WALK_RING_MARGIN_SHORT_RAIL = TABLE.WALL * 3.36; // helper lane for short rails: slightly wider so turns at head/foot rails avoid clipping
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
@@ -24671,8 +24672,8 @@ const shotPowerRef = useRef(0);
             candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
           );
         };
-        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
-        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
+        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN_SIDE_RAIL;
+        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN_SHORT_RAIL;
         const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
         const blockerHalfZ = TABLE.H / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
         const clampToWalkPerimeter = (point) => {
