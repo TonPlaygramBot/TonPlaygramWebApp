@@ -683,6 +683,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.278]
   }
 });
+const FIREARM_UNIFIED_DIRECTION_ROTATION =
+  FIREARM_HAND_ATTACH_TUNING.smithSidearmAttack?.rotation ||
+  FIREARM_HAND_ATTACH_TUNING.default.rotation;
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // Keep glock as the grip-size baseline and upscale all other firearms so
@@ -1088,7 +1091,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
+  weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
   const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
     ? SHOTGUN_HAND_SCALE
     : (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
@@ -12158,10 +12161,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   name={player.name}
                   color={player.color}
                   size={avatarSize}
+                  nameCurveRadius={52}
                 />
-                <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
-                  {player.name}
-                </span>
               </div>
             );
           })}
