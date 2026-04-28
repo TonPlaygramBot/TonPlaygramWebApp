@@ -242,9 +242,10 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
   })
 });
 const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
-  // Use AK-47 rack pose as the global baseline so every firearm sits in the exact same slot/angle.
+  // Use Smith sidearm rack pose as the global baseline so every firearm points
+  // in the same direction while staying on the same parking slot.
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
-  rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
+  rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
 });
 const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   // Keep every firearm's trigger/grip region in the same local slot so right-hand pickup
@@ -683,6 +684,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.278]
   }
 });
+const UNIFORM_FIREARM_HAND_ROTATION = Object.freeze(
+  [...(FIREARM_HAND_ATTACH_TUNING.smithSidearmAttack.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation)]
+);
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // Keep glock as the grip-size baseline and upscale all other firearms so
@@ -1088,7 +1092,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
+  weapon.rotation.set(...UNIFORM_FIREARM_HAND_ROTATION);
   const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
     ? SHOTGUN_HAND_SCALE
     : (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
@@ -12159,9 +12163,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   color={player.color}
                   size={avatarSize}
                 />
-                <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
-                  {player.name}
-                </span>
               </div>
             );
           })}

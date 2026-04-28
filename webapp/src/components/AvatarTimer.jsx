@@ -26,6 +26,7 @@ export default function AvatarTimer({
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   const sizeRem = 3.25 * size;
+  const normalizedNameRadius = Math.max(nameCurveRadius, 54);
   return (
     <div
       className="relative"
@@ -76,7 +77,7 @@ export default function AvatarTimer({
         >
           <defs>
             {(() => {
-              const r = nameCurveRadius;
+              const r = normalizedNameRadius;
               const start = 50 - r;
               const end = 50 + r;
               const path = `M${start},50 A${r},${r} 0 0 1 ${end},50`;
