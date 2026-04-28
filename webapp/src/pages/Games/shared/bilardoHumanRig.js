@@ -113,16 +113,60 @@ function normalizeHuman(model, opts) {
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
-function applyOriginalGltfTextureSettings(texture, { isColor = false, anisotropy = null } = {}) {
-  if (!texture) return;
-  if (isColor) {
-    texture.colorSpace = THREE.SRGBColorSpace;
+function stabilizeGltfMaterial(material, textureAnisotropy) {
+  if (!material) return;
+  const maps = [
+    material.map,
+    material.emissiveMap,
+    material.normalMap,
+    material.roughnessMap,
+    material.metalnessMap,
+    material.alphaMap
+  ];
+  maps.forEach((texture) => {
+    if (!texture) return;
+    if (Number.isFinite(textureAnisotropy)) {
+      texture.anisotropy = Math.max(1, textureAnisotropy);
+    }
+    texture.needsUpdate = true;
+  });
+  material.needsUpdate = true;
+}
+
+function pickAnimationClip(clips, pattern) {
+  if (!Array.isArray(clips) || clips.length === 0) return null;
+  const found = clips.find((clip) => pattern.test(String(clip?.name || '')));
+  return found || null;
+}
+
+function setActiveAction(human, actionName, fadeSeconds = 0.2) {
+  if (!human?.actions) return;
+  if (human.activeActionName === actionName) return;
+  const next = human.actions[actionName];
+  if (!next) return;
+  const prev = human.activeActionName ? human.actions[human.activeActionName] : null;
+  if (prev && prev !== next) {
+    prev.fadeOut(fadeSeconds);
   }
-  texture.flipY = false;
-  if (Number.isFinite(anisotropy)) {
-    texture.anisotropy = Math.max(1, anisotropy);
+  next.reset().fadeIn(fadeSeconds).play();
+  human.activeActionName = actionName;
+}
+
+function updateClipDrivenHuman(human, dt, frame, mode = 'idle') {
+  if (!human?.mixer || !human?.activeGlb || !human?.modelRoot) return false;
+  if (mode === 'walk' && human.actions?.walk) {
+    setActiveAction(human, 'walk', 0.22);
+    human.actions.walk.timeScale = 1;
+  } else if (human.actions?.idle) {
+    setActiveAction(human, 'idle', 0.24);
   }
-  texture.needsUpdate = true;
+  human.fallback.visible = false;
+  human.modelRoot.visible = true;
+  human.modelRoot.position.copy(frame.rootWorld);
+  human.modelRoot.rotation.y = human.yaw;
+  human.modelRoot.updateMatrixWorld(true);
+  human.mixer.update(Math.max(0, dt));
+  return true;
 }
 
 export function createBilardoHumanRig(scene, opts = {}) {
@@ -148,6 +192,10 @@ export function createBilardoHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
+    mixer: null,
+    actions: null,
+    activeActionName: null,
+    clipDrivenWalkEnabled: false,
     cfg: {
       poseLambda: opts.poseLambda ?? 9,
       moveLambda: opts.moveLambda ?? 5.6,
@@ -185,6 +233,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
         return;
       }
       normalizeHuman(model, opts);
+      const clips = Array.isArray(gltf?.animations) ? gltf.animations : [];
       model.traverse((obj) => {
         if (!obj?.isMesh) return;
         obj.castShadow = true;
@@ -196,32 +245,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
             ? [obj.material]
             : [];
         mats.forEach((m) => {
-          if (!m) return;
-          applyOriginalGltfTextureSettings(m.map, {
-            isColor: true,
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.emissiveMap, {
-            isColor: true,
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.normalMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.roughnessMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.metalnessMap, {
-            anisotropy: textureAnisotropy
-          });
-          applyOriginalGltfTextureSettings(m.alphaMap, {
-            anisotropy: textureAnisotropy
-          });
-          m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
-          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
-          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
-          if (m.emissiveIntensity != null) m.emissiveIntensity = Math.max(m.emissiveIntensity, 0.12);
-          m.needsUpdate = true;
+          stabilizeGltfMaterial(m, textureAnisotropy);
         });
       });
       human.bones = buildAvatarBones(model);
@@ -249,6 +273,23 @@ export function createBilardoHumanRig(scene, opts = {}) {
       human.modelRoot.add(model);
       human.modelRoot.visible = human.activeGlb;
       human.fallback.visible = !human.activeGlb;
+      if (human.activeGlb && clips.length > 0) {
+        const walkClip = pickAnimationClip(clips, /(walk|walking)/i) || clips[0];
+        const idleClip = pickAnimationClip(clips, /(idle|stand|pose)/i);
+        human.mixer = new THREE.AnimationMixer(model);
+        human.actions = {
+          walk: walkClip ? human.mixer.clipAction(walkClip) : null,
+          idle: idleClip ? human.mixer.clipAction(idleClip) : null
+        };
+        if (!human.actions.idle && human.actions.walk) {
+          human.actions.idle = human.actions.walk;
+        }
+        human.clipDrivenWalkEnabled = Boolean(human.actions.walk || human.actions.idle);
+        if (human.clipDrivenWalkEnabled && human.actions.idle) {
+          human.actions.idle.play();
+          human.activeActionName = 'idle';
+        }
+      }
       human.loaded = true;
     },
     undefined,
@@ -257,6 +298,9 @@ export function createBilardoHumanRig(scene, opts = {}) {
       human.activeGlb = false;
       human.modelRoot.visible = false;
       human.fallback.visible = true;
+      human.mixer = null;
+      human.actions = null;
+      human.activeActionName = null;
     }
   );
 
@@ -412,7 +456,7 @@ function driveHuman(human, frame) {
   human.modelRoot.visible = true;
   human.modelRoot.position.copy(frame.rootWorld);
   human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.position.y += 0.006 * frame.breath - 0.006 * frame.t;
+  human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t;
   human.modelRoot.updateMatrixWorld(true);
   human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
   human.modelRoot.updateMatrixWorld(true);
@@ -473,10 +517,9 @@ function driveHuman(human, frame) {
     return;
   }
 
-  const hipIk = ik * 0.35;
-  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * hipIk) * hipIk, frame.forward);
-  twistBone(b.hips, frame.side, -0.075 * hipIk);
-  twistBone(b.hips, frame.forward, -0.04 * hipIk);
+  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward);
+  twistBone(b.hips, frame.side, -0.075 * ik);
+  twistBone(b.hips, frame.forward, -0.04 * ik);
   rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward);
   twistBone(b.spine, frame.side, -0.23 * ik);
   twistBone(b.spine, frame.forward, -0.055 * ik);
@@ -530,6 +573,29 @@ function driveHuman(human, frame) {
     0.98 * ik
   );
   poseFingers(human.leftFingers, 'bridge', ik);
+
+  aimTwoBone(
+    b.leftUpperLeg,
+    b.leftLowerLeg,
+    frame.leftKnee,
+    frame.leftFootWorld,
+    frame.forward.clone().addScaledVector(UP, 0.12).normalize(),
+    0.68 * ik,
+    0.84 * ik
+  );
+  twistBone(b.leftUpperLeg, frame.forward, -0.07 * ik);
+  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.1 * ik, 0.68 * ik);
+  aimTwoBone(
+    b.rightUpperLeg,
+    b.rightLowerLeg,
+    frame.rightKnee,
+    frame.rightFootWorld,
+    frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(),
+    0.68 * ik,
+    0.84 * ik
+  );
+  twistBone(b.rightUpperLeg, frame.forward, 0.06 * ik);
+  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.07 * ik, 0.68 * ik);
 }
 
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
@@ -606,7 +672,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
-  const lowerBodyT = t * 0.35;
+  const lowerBodyT = t;
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
@@ -661,6 +727,20 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     .addScaledVector(UP, lerp(0.18, cfg.cueArmElbowRise, t))
     .addScaledVector(side, lerp(0.03, 0.07, t))
     .addScaledVector(forward, lerp(-0.03, 0, t));
+  const clipDrivenMode =
+    human.clipDrivenWalkEnabled && state === 'idle' && frameData.forceIk !== true
+      ? (walkAmount > 0.02 ? 'walk' : 'idle')
+      : null;
+  if (clipDrivenMode) {
+    human.root.visible = true;
+    updateClipDrivenHuman(human, dt, {
+      rootWorld: human.root.position.clone(),
+      t,
+      breath
+    }, clipDrivenMode);
+    return;
+  }
+
   const leftKnee = leftHip
     .clone()
     .lerp(leftFoot, 0.53)
