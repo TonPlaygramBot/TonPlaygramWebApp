@@ -119,13 +119,8 @@ function applyOriginalGltfTextureSettings(texture, { isColor = false, anisotropy
     texture.colorSpace = THREE.SRGBColorSpace;
   }
   texture.flipY = false;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
-  if (!Number.isFinite(texture.rotation)) texture.rotation = 0;
-  if (!texture.offset) texture.offset = new THREE.Vector2(0, 0);
-  if (!texture.repeat) texture.repeat = new THREE.Vector2(1, 1);
   if (Number.isFinite(anisotropy)) {
-    texture.anisotropy = Math.max(1, Math.min(16, anisotropy));
+    texture.anisotropy = Math.max(1, anisotropy);
   }
   texture.needsUpdate = true;
 }
@@ -222,6 +217,10 @@ export function createBilardoHumanRig(scene, opts = {}) {
           applyOriginalGltfTextureSettings(m.alphaMap, {
             anisotropy: textureAnisotropy
           });
+          m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
+          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
+          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
+          if (m.emissiveIntensity != null) m.emissiveIntensity = Math.max(m.emissiveIntensity, 0.12);
           m.needsUpdate = true;
         });
       });
@@ -425,18 +424,17 @@ function driveHuman(human, frame) {
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
   if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 5.1);
-    const c = Math.cos(human.walkT * 5.1);
+    const s = Math.sin(human.walkT * 6.2);
+    const c = Math.cos(human.walkT * 6.2);
     const w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.26 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.26 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.24 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.24 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.18 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.18 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.018 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.012 * w;
-    if (b.hips) b.hips.rotation.y += s * 0.016 * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.025 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.018 * w;
   }
 
   const rightGrip = frame.rightHandWorld
@@ -581,7 +579,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   }
   human.root.position.lerp(rootGoal, 1 - Math.exp(-(state === 'striking' ? 12 : cfg.moveLambda) * dt));
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
-  human.walkT += dt * (1.6 + Math.min(5.2, moveAmountRaw * 7.5));
+  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
   human.yaw = dampScalar(
     human.yaw,
     state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward),
@@ -592,8 +590,8 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004);
-  const walk = Math.sin(human.walkT * 5.1) * Math.min(1, moveAmountRaw * 9);
-  const walkAmount = clamp01(moveAmountRaw * 14) * idle;
+  const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12);
+  const walkAmount = clamp01(moveAmountRaw * 18) * idle;
   const power = frameData.power ?? 0;
   const stroke =
     state === 'dragging'
