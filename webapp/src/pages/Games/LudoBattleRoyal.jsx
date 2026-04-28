@@ -246,6 +246,12 @@ const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
   rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
 });
+const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
+  // Keep every firearm's trigger/grip region in the same local slot so right-hand pickup
+  // alignment stays consistent when transitioning from rack -> hand attachment.
+  position: [0.086, 0.008, -0.02],
+  minSurfaceY: 0
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -766,9 +772,11 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
 }
 
-function orientFirearmRackFlat(root) {
-  if (!root?.isObject3D) return;
-  root.rotation.set(0, 0, 0);
+function orientFirearmRackTowardBoardCenter(root, origin, target) {
+  if (!root?.isObject3D || !origin?.isVector3 || !target?.isVector3) return;
+  const forward = target.clone().sub(origin).setY(0);
+  if (forward.lengthSq() < 1e-6) return;
+  root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
 }
 
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
@@ -994,6 +1002,56 @@ function findObjectByNeedles(root, needles = []) {
   return match;
 }
 
+function alignFirearmRackGripAnchor(root) {
+  if (!root?.isObject3D) return;
+  root.updateMatrixWorld?.(true);
+  const gripNode =
+    findObjectByNeedles(root, [
+      'trigger',
+      'grip',
+      'handle',
+      'r_wrist',
+      'right_wrist',
+      'hand_r',
+      'r_hand'
+    ]) || null;
+  if (gripNode?.isObject3D) {
+    gripNode.updateMatrixWorld?.(true);
+    const gripLocal = root.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
+    const anchor = new THREE.Vector3(...UNIFORM_FIREARM_RACK_GRIP_ANCHOR.position);
+    root.position.add(anchor.sub(gripLocal));
+  }
+  root.updateMatrixWorld?.(true);
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (Number.isFinite(bounds.min.y) && bounds.min.y < UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY) {
+    root.position.y += UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY - bounds.min.y;
+  }
+}
+
+function applyFlattestFirearmOrientation(root, baseRotation) {
+  if (!root?.isObject3D || !Array.isArray(baseRotation)) return;
+  const candidates = [
+    [0, 0, 0],
+    [Math.PI * 0.5, 0, 0],
+    [-Math.PI * 0.5, 0, 0],
+    [0, 0, Math.PI * 0.5],
+    [0, 0, -Math.PI * 0.5]
+  ];
+  let bestRotation = [baseRotation[0], baseRotation[1], baseRotation[2]];
+  let bestHeight = Number.POSITIVE_INFINITY;
+  candidates.forEach((extra) => {
+    root.rotation.set(baseRotation[0] + extra[0], baseRotation[1] + extra[1], baseRotation[2] + extra[2]);
+    root.updateMatrixWorld?.(true);
+    const bounds = new THREE.Box3().setFromObject(root);
+    const height = bounds.getSize(new THREE.Vector3()).y;
+    if (height < bestHeight) {
+      bestHeight = height;
+      bestRotation = [baseRotation[0] + extra[0], baseRotation[1] + extra[1], baseRotation[2] + extra[2]];
+    }
+  });
+  root.rotation.set(bestRotation[0], bestRotation[1], bestRotation[2]);
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1147,7 +1205,8 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.x += displayPosition[0];
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
-  clone.rotation.set(...displayRotation);
+  applyFlattestFirearmOrientation(clone, displayRotation);
+  alignFirearmRackGripAnchor(clone);
   entry.weaponHolder.add(clone);
 }
 
@@ -6988,7 +7047,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackFlat(entry.weaponRack);
+      orientFirearmRackTowardBoardCenter(entry.weaponRack, kingPos, arena.boardLookTarget);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7107,7 +7166,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
-      orientFirearmRackFlat(weaponRackFx.root);
+      orientFirearmRackTowardBoardCenter(
+        weaponRackFx.root,
+        getKingTokenPositionForPlayer(playerIndex) ?? weaponRackFx.root.position,
+        arena.boardLookTarget
+      );
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
