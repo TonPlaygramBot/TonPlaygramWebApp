@@ -11,7 +11,6 @@ const easeInOut = (t) => t * t * (3 - 2 * t);
 const dampScalar = (current, target, lambda, dt) =>
   THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
-const euclideanModulo = (n, m) => ((n % m) + m) % m;
 
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -137,7 +136,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
-    walkPerimeterT: Number.NaN,
     cfg: {
       poseLambda: opts.poseLambda ?? 9,
       moveLambda: opts.moveLambda ?? 5.6,
@@ -148,8 +146,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
       bridgePalmTableLift: opts.bridgePalmTableLift ?? 0.012,
       chinToCueHeight: opts.chinToCueHeight ?? 0.11,
       cueArmElbowRise: opts.cueArmElbowRise ?? 0.43,
-      tableTopY: opts.tableTopY ?? 0.84,
-      walkPerimeterSpeed: opts.walkPerimeterSpeed ?? 2.7
+      tableTopY: opts.tableTopY ?? 0.84
     }
   };
 
@@ -188,38 +185,11 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
-          const colorSlots = ['map', 'emissiveMap', 'sheenColorMap', 'specularColorMap'];
-          const textureSlots = [
-            'map',
-            'emissiveMap',
-            'normalMap',
-            'roughnessMap',
-            'metalnessMap',
-            'aoMap',
-            'alphaMap',
-            'bumpMap',
-            'clearcoatMap',
-            'clearcoatNormalMap',
-            'clearcoatRoughnessMap',
-            'displacementMap',
-            'iridescenceMap',
-            'iridescenceThicknessMap',
-            'sheenColorMap',
-            'sheenRoughnessMap',
-            'specularMap',
-            'specularIntensityMap',
-            'specularColorMap',
-            'thicknessMap',
-            'transmissionMap'
-          ];
-          textureSlots.forEach((slot) => {
-            const tex = m[slot];
-            if (!tex) return;
-            tex.flipY = false;
-            if (colorSlots.includes(slot)) tex.colorSpace = THREE.SRGBColorSpace;
-            if (textureAnisotropy != null) tex.anisotropy = textureAnisotropy;
-            tex.needsUpdate = true;
-          });
+          if (m.map) {
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
+            m.map.needsUpdate = true;
+          }
           m.needsUpdate = true;
         });
       });
@@ -540,58 +510,13 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const desired = cueBallWorld.clone().addScaledVector(aimForward, -desiredShootDistance);
   const xEdge = tableW / 2 + edgeMargin;
   const zEdge = tableL / 2 + edgeMargin;
-  const clampPerimeter = (point) => {
-    const x = clamp(point.x, -xEdge, xEdge);
-    const z = clamp(point.z, -zEdge, zEdge);
-    const dx = Math.min(Math.abs(x + xEdge), Math.abs(xEdge - x));
-    const dz = Math.min(Math.abs(z + zEdge), Math.abs(zEdge - z));
-    if (dx < dz) {
-      return new THREE.Vector3(x < 0 ? -xEdge : xEdge, 0, z);
-    }
-    return new THREE.Vector3(x, 0, z < 0 ? -zEdge : zEdge);
-  };
   const candidates = [
     new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
     new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
     new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge),
     new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)
   ];
-  candidates.push(clampPerimeter(desired));
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
-}
-
-function perimeterTToPoint(t, halfX, halfZ, y = 0) {
-  const perim = 4 * (halfX + halfZ);
-  let dist = euclideanModulo(t, 1) * perim;
-  if (dist <= 2 * halfZ) return new THREE.Vector3(-halfX, y, -halfZ + dist);
-  dist -= 2 * halfZ;
-  if (dist <= 2 * halfX) return new THREE.Vector3(-halfX + dist, y, halfZ);
-  dist -= 2 * halfX;
-  if (dist <= 2 * halfZ) return new THREE.Vector3(halfX, y, halfZ - dist);
-  dist -= 2 * halfZ;
-  return new THREE.Vector3(halfX - dist, y, -halfZ);
-}
-
-function pointToPerimeterT(point, halfX, halfZ) {
-  const x = clamp(point.x, -halfX, halfX);
-  const z = clamp(point.z, -halfZ, halfZ);
-  const distToSide = Math.min(
-    Math.abs(x + halfX),
-    Math.abs(halfX - x),
-    Math.abs(z + halfZ),
-    Math.abs(halfZ - z)
-  );
-  let side = 'left';
-  if (distToSide === Math.abs(halfX - x)) side = 'right';
-  else if (distToSide === Math.abs(z + halfZ)) side = 'bottom';
-  else if (distToSide === Math.abs(halfZ - z)) side = 'top';
-  const perim = 4 * (halfX + halfZ);
-  let dist = 0;
-  if (side === 'left') dist = z + halfZ;
-  else if (side === 'top') dist = 2 * halfZ + (x + halfX);
-  else if (side === 'right') dist = 2 * halfZ + 2 * halfX + (halfZ - z);
-  else dist = 2 * halfZ + 2 * halfX + 2 * halfZ + (halfX - x);
-  return euclideanModulo(dist / Math.max(perim, 1e-6), 1);
 }
 
 export function updateBilardoHumanPose(human, dt, frameData) {
@@ -616,32 +541,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   }
 
   const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const hasWalkBounds =
-    Number.isFinite(frameData.walkHalfX) &&
-    Number.isFinite(frameData.walkHalfZ) &&
-    frameData.walkHalfX > 0.05 &&
-    frameData.walkHalfZ > 0.05;
-  const halfX = hasWalkBounds ? Math.max(0.1, Number(frameData.walkHalfX)) : 0;
-  const halfZ = hasWalkBounds ? Math.max(0.1, Number(frameData.walkHalfZ)) : 0;
-  let perimeterPoint = rootGoal;
-  if (hasWalkBounds) {
-    const perimeterGoalT = pointToPerimeterT(rootGoal, halfX, halfZ);
-    if (!Number.isFinite(human.walkPerimeterT)) {
-      human.walkPerimeterT = pointToPerimeterT(human.root.position, halfX, halfZ);
-    }
-    const loopDelta = euclideanModulo(perimeterGoalT - human.walkPerimeterT + 0.5, 1) - 0.5;
-    const perimeter = 4 * (halfX + halfZ);
-    const maxStepT =
-      (cfg.walkPerimeterSpeed * Math.max(dt, 1 / 240)) /
-      Math.max(perimeter, 0.001);
-    const stepT = clamp(loopDelta, -maxStepT, maxStepT);
-    human.walkPerimeterT = euclideanModulo(human.walkPerimeterT + stepT, 1);
-    perimeterPoint = perimeterTToPoint(human.walkPerimeterT, halfX, halfZ, rootGoal.y);
-  } else {
-    human.walkPerimeterT = Number.NaN;
-  }
-  const moveLerp = 1 - Math.exp(-(state === 'striking' ? 12 : cfg.moveLambda) * dt);
-  human.root.position.lerp(perimeterPoint, moveLerp);
+  human.root.position.lerp(rootGoal, 1 - Math.exp(-(state === 'striking' ? 12 : cfg.moveLambda) * dt));
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
   human.yaw = dampScalar(
