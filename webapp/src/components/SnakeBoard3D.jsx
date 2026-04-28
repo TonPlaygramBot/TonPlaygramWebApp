@@ -5199,19 +5199,6 @@ function updateSeatWeaponDisplays(board, players = []) {
   });
 }
 
-function getSeatWeaponHolderForPlayer(board, players = [], playerIndex = null) {
-  if (!board?.weaponDisplayGroup?.userData?.byPlayer || !Number.isInteger(playerIndex) || playerIndex < 0) return null;
-  const player = Array.isArray(players) ? players[playerIndex] : null;
-  const rawSeatIndex = Number.isFinite(player?.seatIndex) ? Number(player.seatIndex) : playerIndex;
-  const seatIndex = Number.isFinite(rawSeatIndex) ? Math.trunc(rawSeatIndex) : playerIndex;
-  const seatKey = `seat-${seatIndex}`;
-  return (
-    board.weaponDisplayGroup.userData.byPlayer.get(seatKey) ||
-    board.weaponDisplayGroup.userData.byPlayer.get(playerIndex) ||
-    null
-  );
-}
-
 export default function SnakeBoard3D({
   players = [],
   highlight,
@@ -6401,7 +6388,7 @@ export default function SnakeBoard3D({
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const parkedHolder = getSeatWeaponHolderForPlayer(board, players, captureEvent.attackerIndex);
+    const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
@@ -6414,7 +6401,7 @@ export default function SnakeBoard3D({
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
-    const attackerHolder = parkedHolder;
+    const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     if (attackerHolder) attackerHolder.visible = false;
 
     attacker.position.copy(startPos);
@@ -6695,7 +6682,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [captureEvent, onCaptureAnimationComplete, players]);
+  }, [captureEvent, onCaptureAnimationComplete]);
 
   useEffect(() => {
     const handle = () => fitRef.current();

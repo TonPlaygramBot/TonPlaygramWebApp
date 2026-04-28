@@ -3266,20 +3266,7 @@ export default function SnakeAndLadder() {
         type: 'normal',
         color: playerColors[i] || '#fff',
         seatIndex: seatAssignments.get(i),
-        weaponType:
-          p.id === accountId
-            ? selectedCaptureWeaponId
-            : CAPTURE_WEAPON_OPTIONS.some(
-                (option) =>
-                  option.id ===
-                  normalizeCaptureWeaponId(
-                    p?.captureWeapon || p?.appearance?.captureWeapon || p?.selectedCaptureWeapon
-                  )
-              )
-            ? normalizeCaptureWeaponId(
-                p?.captureWeapon || p?.appearance?.captureWeapon || p?.selectedCaptureWeapon
-              )
-            : CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone'
+        weaponType: CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone'
       }))
     : [
         {
