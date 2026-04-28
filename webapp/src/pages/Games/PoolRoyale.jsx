@@ -24611,7 +24611,7 @@ const shotPowerRef = useRef(0);
         const sideOffset = TABLE.W * 0.19;
         const makeRig = (seat, x, z, yaw) => {
           const human = createBilardoHumanRig(world, {
-            loader: createConfiguredGLTFLoader(renderer),
+            loader: new GLTFLoader(),
             modelUrl: BILARDO_SHQIP_HUMAN_URL,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
@@ -24625,8 +24625,7 @@ const shotPowerRef = useRef(0);
             chinToCueHeight: 0.11,
             cueArmElbowRise: 0.43,
             tableTopY: TABLE_Y + TABLE.THICK,
-            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8,
-            walkPerimeterSpeed: HUMAN_WALK_PERIMETER_SPEED
+            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
           human.yaw = yaw;
@@ -24799,7 +24798,7 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(1.46 - 0.24 - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const gripTarget = cueTip.clone().lerp(cueBack, 0.88);
+            const gripTarget = cueTip.clone().lerp(cueBack, 0.82);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = desiredRoot
               .clone()
@@ -24817,9 +24816,7 @@ const shotPowerRef = useRef(0);
               idleLeft,
               cueBack,
               cueTip,
-              power: activePower,
-              walkHalfX: blockerHalfX,
-              walkHalfZ: blockerHalfZ
+              power: activePower
             });
             return;
           }
