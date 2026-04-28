@@ -1945,9 +1945,16 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when th
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.85; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = 0.1; // pull camera slightly backward along cue axis before looking down-table
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.34; // keep a subtle right-eye bias for right-handed stance without exposing the avatar back
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.245; // match Bilardo Shqip bridge hand offset from cue ball
+const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
+const HUMAN_BRIDGE_CUE_LIFT = 0.026; // match Bilardo Shqip cue elevation above bridge hand
+const HUMAN_GRIP_RATIO = 0.76; // match Bilardo Shqip right-hand grip location on the cue
+const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
+const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -20399,8 +20406,8 @@ const shotPowerRef = useRef(0);
           }
           const eyePos = cuePose.cueBack
             .clone()
-            .addScaledVector(cuePose.aimForward, -HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, -BALL_R * 1.45)
+            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
+            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
             .addScaledVector(UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
           const eyeTarget = cuePose.bridgeTarget
             .clone()
@@ -24854,18 +24861,22 @@ const shotPowerRef = useRef(0);
             }
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -0.255)
-              .addScaledVector(side, -0.004)
+              .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+              .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
               .setY(TABLE_Y + TABLE.THICK + 0.009);
+            const bridgeCuePoint = bridgeTarget
+              .clone()
+              .addScaledVector(aimForward, 0.01)
+              .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
             const cueTip = cueWorld
               .clone()
               .addScaledVector(aimForward, -cueBallGap)
-              .setY(bridgeTarget.y + 0.022);
-            const cueBack = bridgeTarget
+              .setY(bridgeTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
+            const cueBack = bridgeCuePoint
               .clone()
-              .addScaledVector(aimForward, -(1.46 - 0.24 - BALL_R - cueBallGap))
+              .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const gripTarget = cueTip.clone().lerp(cueBack, 0.82);
+            const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
@@ -24961,9 +24972,13 @@ const shotPowerRef = useRef(0);
 
           const bridgeHandTarget = cueWorld
             .clone()
-            .addScaledVector(aimForward, -(TABLE.W * 0.12))
-            .addScaledVector(side, -0.018 * scale)
+            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
             .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
+          const bridgeCuePoint = bridgeHandTarget
+            .clone()
+            .addScaledVector(aimForward, 0.01)
+            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
 
           const humanShotState =
             mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
@@ -24992,12 +25007,12 @@ const shotPowerRef = useRef(0);
           const cueTipShoot = cueWorld
             .clone()
             .addScaledVector(aimForward, -cueBallGap)
-            .setY(bridgeHandTarget.y + 0.05 * scale);
-          const cueBackShoot = bridgeHandTarget
+            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
+          const cueBackShoot = bridgeCuePoint
             .clone()
-            .addScaledVector(aimForward, -(anim.humanHeight * 0.76))
+            .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
             .add(new THREE.Vector3(0, 0.028 * scale, 0));
-          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, 0.76);
+          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
 
           const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
           const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
