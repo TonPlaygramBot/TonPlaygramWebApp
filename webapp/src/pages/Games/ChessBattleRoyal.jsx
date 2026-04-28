@@ -223,7 +223,6 @@ const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   missile: 'green_metal_rust',
   truck: 'green_metal_rust'
 });
-const CHAIR_TEXTURE_ANISOTROPY = 8;
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -371,8 +370,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Shrink full board/table/chair footprint more so the arena reads smaller on portrait screens.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.78; // Keep pieces proportionate to the smaller board while reducing their visual size.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
+const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -387,8 +386,8 @@ const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_SIZE_FACTOR = 0.78 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.74; // Reduce chair body footprint so all chair variants look clearly smaller.
+const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_FOOTPRINT_SHRINK = 0.82; // Make chair bodies slightly bigger while preserving overall style.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -411,8 +410,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.82; // Trim chair width/depth so seats stay compact.
-const CHAIR_VERTICAL_OFFSET = -0.02 * MODEL_SCALE; // Keep chairs grounded without visually sinking into the floor.
+const CHAIR_WIDTH_SCALE = 0.9; // Slightly widen/deepen chairs so they read larger in portrait.
+const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.01 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
 const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
@@ -450,7 +449,7 @@ const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUr
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.88;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.04 * MODEL_SCALE * STOOL_SCALE; // Lower seated humans so they sit visibly closer to the bottom.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -2735,17 +2734,8 @@ function extractChairMaterials(model) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (mat.map) {
-          applySRGBColorSpace(mat.map);
-          applyTextureQualityToMaterialMap(mat.map, CHAIR_TEXTURE_ANISOTROPY);
-        }
-        if (mat.emissiveMap) {
-          applySRGBColorSpace(mat.emissiveMap);
-          applyTextureQualityToMaterialMap(mat.emissiveMap, CHAIR_TEXTURE_ANISOTROPY);
-        }
-        if (mat.normalMap) applyTextureQualityToMaterialMap(mat.normalMap, CHAIR_TEXTURE_ANISOTROPY);
-        if (mat.roughnessMap) applyTextureQualityToMaterialMap(mat.roughnessMap, CHAIR_TEXTURE_ANISOTROPY);
-        if (mat.metalnessMap) applyTextureQualityToMaterialMap(mat.metalnessMap, CHAIR_TEXTURE_ANISOTROPY);
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
         const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
         bucket.add(mat);
       });
@@ -2823,17 +2813,8 @@ async function loadGltfChair() {
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        if (mat?.map) {
-          applySRGBColorSpace(mat.map);
-          applyTextureQualityToMaterialMap(mat.map, CHAIR_TEXTURE_ANISOTROPY);
-        }
-        if (mat?.emissiveMap) {
-          applySRGBColorSpace(mat.emissiveMap);
-          applyTextureQualityToMaterialMap(mat.emissiveMap, CHAIR_TEXTURE_ANISOTROPY);
-        }
-        if (mat?.normalMap) applyTextureQualityToMaterialMap(mat.normalMap, CHAIR_TEXTURE_ANISOTROPY);
-        if (mat?.roughnessMap) applyTextureQualityToMaterialMap(mat.roughnessMap, CHAIR_TEXTURE_ANISOTROPY);
-        if (mat?.metalnessMap) applyTextureQualityToMaterialMap(mat.metalnessMap, CHAIR_TEXTURE_ANISOTROPY);
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -7688,10 +7669,6 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const quickSwapCaptureAnimations = useMemo(() => {
-    if (ownedCaptureAnimations.length > 1) return ownedCaptureAnimations;
-    return CAPTURE_ANIMATION_OPTIONS;
-  }, [ownedCaptureAnimations]);
   const selectedCaptureKind = useMemo(() => {
     const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
     if (vehicleKind) return vehicleKind;
@@ -14021,7 +13998,7 @@ function Chess3D({
                   Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {quickSwapCaptureAnimations.map((option) => {
+                  {ownedCaptureAnimations.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
