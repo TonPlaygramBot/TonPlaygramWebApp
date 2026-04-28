@@ -1942,10 +1942,14 @@ const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
-const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.9; // push walk ring farther from rails so the character never drifts through the table body
+const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 2.35; // expand collision blocker around the table shell to keep feet/body clear
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.02;
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = 0.05;
+const HUMAN_EYE_CAMERA_LOOK_AHEAD = 1.55;
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = 0.032;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -20383,6 +20387,48 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
+        const resolveCueEyeCamera = (focusTargetWorld) => {
+          if (!focusTargetWorld || shooting || topViewRef.current || replayPlaybackRef.current) return null;
+          const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+          if (blend > HUMAN_SHOOT_BLEND_THRESHOLD) return null;
+          const activeSeat = hudRef.current?.turn === 1 ? 'B' : 'A';
+          const rigs = Array.isArray(playerCharacterRigsRef.current)
+            ? playerCharacterRigsRef.current
+            : [];
+          const activeRig = rigs.find((entry) => entry?.seat === activeSeat && entry?.human);
+          const human = activeRig?.human;
+          if (!human?.loaded) return null;
+          const headBone = human.bones?.head ?? null;
+          const sourceNode = headBone || human.modelRoot || human.root;
+          if (!sourceNode) return null;
+          const eyePos = sourceNode.getWorldPosition(new THREE.Vector3());
+          const cue = cueRef.current;
+          const aimDir = aimDirRef.current;
+          const forward2 =
+            cue?.active && aimDir?.lengthSq?.() > 1e-6
+              ? aimDir.clone().normalize()
+              : null;
+          const cameraForward = forward2
+            ? new THREE.Vector3(forward2.x, 0, forward2.y).normalize()
+            : focusTargetWorld.clone().sub(eyePos).setY(0).normalize();
+          if (cameraForward.lengthSq() < 1e-6) return null;
+          const side = new THREE.Vector3(cameraForward.z, 0, -cameraForward.x).normalize();
+          const lookTarget = focusTargetWorld
+            .clone()
+            .addScaledVector(cameraForward, HUMAN_EYE_CAMERA_LOOK_AHEAD);
+          const cameraPos = eyePos
+            .clone()
+            .addScaledVector(side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
+            .addScaledVector(cameraForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
+            .setY(eyePos.y + HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
+          const scaleFactor = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const tableTopClearance = (TABLE_Y + TABLE.THICK + BALL_R * 3.4) * scaleFactor;
+          if (cameraPos.y < tableTopClearance) {
+            cameraPos.y = tableTopClearance;
+          }
+          return { position: cameraPos, target: lookTarget };
+        };
+
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -21609,6 +21655,12 @@ const shotPowerRef = useRef(0);
             }
           }
           camera.lookAt(lookTarget);
+          const eyeCamera = resolveCueEyeCamera(lookTarget);
+          if (eyeCamera?.position && eyeCamera?.target) {
+            camera.position.copy(eyeCamera.position);
+            camera.lookAt(eyeCamera.target);
+            lookTarget = eyeCamera.target;
+          }
           renderCamera = camera;
           broadcastArgs.focusWorld =
             broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
