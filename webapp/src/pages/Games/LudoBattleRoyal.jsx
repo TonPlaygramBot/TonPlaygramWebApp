@@ -203,7 +203,6 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
-  assaultRifleAttack: 1,
   uziSprayAttack: 1.65,
   smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
@@ -227,25 +226,25 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
-    position: [0.01, 0, -0.004],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.42, 0]
+    position: [0, 0, -0.004],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
-    position: [0.108, 0, -0.016],
-    rotation: [-Math.PI * 0.5, 0, 0]
+    position: [0.086, 0, -0.016],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.15,
+    side: 0.118,
     inward: 0.004,
     outward: 0.018
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.31,
+    side: 0.266,
     inward: -0.01,
     outward: 0.108
   })
