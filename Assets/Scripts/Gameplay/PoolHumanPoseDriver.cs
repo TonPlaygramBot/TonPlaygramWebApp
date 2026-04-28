@@ -36,7 +36,7 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        public float edgeMargin = 0.3f;
+        public float edgeMargin = 0.21f;
         public float desiredShootDistance = 0.74f;
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
