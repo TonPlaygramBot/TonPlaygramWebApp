@@ -67,6 +67,14 @@ namespace Aiming
         [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.085f;
         [Tooltip("Makes lead shoulder slightly lower for realistic bridge alignment.")]
         [Range(0f, 0.16f)] public float shoulderDrop = 0.055f;
+        [Tooltip("Keeps the body behind the cue stick line (positive pushes player farther behind cue butt).")]
+        [Range(0f, 0.35f)] public float bodyBehindCueOffset = 0.12f;
+        [Tooltip("How far from cue butt end the right hand grips (meters). Real players are commonly near the butt cap.")]
+        [Range(0.03f, 0.25f)] public float rightHandFromCueButt = 0.1f;
+        [Tooltip("Small pause at end of backswing before forward stroke to mimic set-pause-finish rhythm.")]
+        [Range(0f, 0.2f)] public float backswingPauseSeconds = 0.06f;
+        [Tooltip("How much left bridge hand moves inward toward cue ball at high pull values.")]
+        [Range(0f, 0.1f)] public float bridgeCompressionAtMaxPull = 0.028f;
 
         [Header("Visual fidelity")]
         [Tooltip("Renderers that should keep their original shared materials/textures (prevents accidental runtime overrides).")]
@@ -84,6 +92,7 @@ namespace Aiming
         Vector3 _lockedStrikeRootTarget;
         Vector3 _lockedStrikeBridgeTarget;
         Vector3 _lockedStrikeAimForward;
+        float _strokePauseTimer;
 
         void Awake()
         {
@@ -113,6 +122,7 @@ namespace Aiming
 
             Vector3 aimSide = new Vector3(aimForward.z, 0f, -aimForward.x).normalized;
             Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s, cueController.CurrentShotState);
+            rootTarget += aimForward * (-bodyBehindCueOffset * s);
             Vector3 navigatedRootTarget = NavigateAlongTablePerimeter(rootTarget, s, dt);
             CacheRailHelpers();
 
@@ -126,11 +136,12 @@ namespace Aiming
             {
                 bridgeDistance *= 1.07f;
             }
-            Vector3 bridgeHandTarget = cueBall + (aimForward * -bridgeDistance) + (aimSide * (-0.018f * s));
+            float pull01 = cueController.CurrentPullNormalized;
+            Vector3 bridgeHandTarget = cueBall + (aimForward * -(bridgeDistance - (pull01 * bridgeCompressionAtMaxPull * s))) + (aimSide * (-0.018f * s));
             bridgeHandTarget.y = ResolveTableY(cueBall.y) + ResolveBridgeHeightOffset(bridgeMode, s);
             bridgeHandTarget += aimSide * ResolveBridgeSideOffset(bridgeMode, s);
 
-            float handPull = cueController.CurrentPullNormalized * gripPullRange * s;
+            float handPull = ApplyBackswingPause(cueController.CurrentShotState, cueController.CurrentPullNormalized, dt) * gripPullRange * s;
             Vector3 gripHandTarget = ResolveRightHandGripTarget(aimForward, aimSide, bridgeHandTarget, handPull, s);
 
             float standingYaw = YawFromForward(aimForward);
@@ -529,7 +540,7 @@ namespace Aiming
                 {
                     Vector3 cueDir = cueVector.normalized;
                     float cueLength = cueVector.magnitude;
-                    float gripDistance = Mathf.Clamp(rightHandGripFromCueRoot, 0.05f, cueLength - 0.03f);
+                    float gripDistance = Mathf.Clamp(cueLength - rightHandFromCueButt, 0.05f, cueLength - 0.03f);
                     Vector3 grip = cueRootPos + (cueDir * gripDistance);
                     grip += (cueDir * -handPull);
                     grip += (Vector3.up * (rightHandVerticalOffset * s));
@@ -542,6 +553,30 @@ namespace Aiming
                    (aimForward * (-handPull)) +
                    (Vector3.up * (rightHandVerticalOffset * s)) +
                    (aimSide * (0.022f * s));
+        }
+
+        float ApplyBackswingPause(CueController.ShotState shotState, float pullNormalized, float dt)
+        {
+            if (shotState == CueController.ShotState.Dragging)
+            {
+                float strokeVelocity = cueController != null ? cueController.CurrentStrokeVelocityNormalized : 0f;
+                if (strokeVelocity < -0.25f && pullNormalized > 0.2f)
+                {
+                    _strokePauseTimer = backswingPauseSeconds;
+                }
+            }
+            else if (shotState != CueController.ShotState.Striking)
+            {
+                _strokePauseTimer = 0f;
+            }
+
+            if (_strokePauseTimer > 0f)
+            {
+                _strokePauseTimer = Mathf.Max(0f, _strokePauseTimer - dt);
+                return pullNormalized * 0.98f;
+            }
+
+            return pullNormalized;
         }
 
         void CacheRailHelpers()
