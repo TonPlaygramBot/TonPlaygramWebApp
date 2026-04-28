@@ -226,14 +226,13 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
-    // Keep every firearm parked in the exact AK47 slot/orientation baseline.
-    position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
+    position: [0.078, 0, -0.014],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
     position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
+    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
 const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
@@ -244,8 +243,8 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
 });
 const BOTTOM_PLAYER_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   // Keep the local/bottom user's parked firearm perfectly flat on the table.
-  position: [0.086, 0, -0.016],
-  rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
+  position: [0.078, 0, -0.014],
+  rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
@@ -762,7 +761,6 @@ const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
-  if (root.userData?.lockFlatTableOrientation) return;
   const forward = target.clone().sub(root.position).setY(0);
   if (forward.lengthSq() < 1e-6) return;
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
@@ -1058,8 +1056,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
-  // Firearm rack stays flat/straight instead of aiming toward board center.
-  root.userData.lockFlatTableOrientation = true;
   const weaponHolder = new THREE.Group();
   weaponHolder.position.set(0.04, 0.032, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
