@@ -109,8 +109,7 @@ const CAPTURE_PARK_SIDE_SIGN_BY_TYPE = Object.freeze({
   helicopter: -1,
   drone: -1,
   missile: 1,
-  // Keep firearm parking on the token's visual right-hand side for portrait/table views.
-  firearmRack: 1
+  firearmRack: -1
 });
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
@@ -125,19 +124,7 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   helicopter: 0.014,
   drone: 0.012,
   missile: 0.032,
-  firearmRack: 0.086
-});
-const FIREARM_RACK_PARK_TUNING = Object.freeze({
-  small: Object.freeze({
-    sideMultiplier: 0.68,
-    forward: 0.018,
-    outward: 0.082
-  }),
-  large: Object.freeze({
-    sideMultiplier: 1.18,
-    forward: 0.044,
-    outward: 0.122
-  })
+  firearmRack: 0.044
 });
 // Lift parked capture vehicles slightly so they read a bit higher on portrait screens.
 const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
@@ -213,10 +200,8 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polySawedOff01Attack',
   'polyRevolver02Attack'
 ]);
-const SHOTGUN_BASE_RACK_SCALE = 2.2;
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
-  // Keep FPS gun parked at the exact same display size as shotgun blast.
-  fpsGunAttack: SHOTGUN_BASE_RACK_SCALE,
+  fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
   uziSprayAttack: 1.65,
   smgBurstAttack: 1.65,
@@ -225,7 +210,7 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   smithSidearmAttack: 1,
   mosinMarksmanAttack: 3.5,
   sniperShotAttack: 2.8,
-  shotgunBlastAttack: SHOTGUN_BASE_RACK_SCALE,
+  shotgunBlastAttack: 2.2,
   grenadeBlastAttack: 0.45,
   polyShotgun01Attack: 2.05,
   polyAssaultRifle01Attack: 2.15,
@@ -6946,13 +6931,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (inward.lengthSq() < 1e-6) return;
       inward.normalize();
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
+      const oppositeToPlayer = arena.boardLookTarget.clone().multiplyScalar(2).sub(kingPos).setY(0);
       const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
-      const rackTuning = isLargeFirearm ? FIREARM_RACK_PARK_TUNING.large : FIREARM_RACK_PARK_TUNING.small;
-      const basePosition = kingPos
-        .clone()
-        .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * rackTuning.sideMultiplier)
-        .addScaledVector(inward, rackTuning.forward)
-        .addScaledVector(inward, -rackTuning.outward);
+      const basePosition = isLargeFirearm
+        ? seatPos
+            .clone()
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.95)
+            .addScaledVector(inward, 0.02)
+        : oppositeToPlayer
+            .clone()
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.35)
+            .addScaledVector(inward, 0.01);
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
