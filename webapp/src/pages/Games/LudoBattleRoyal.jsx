@@ -246,6 +246,12 @@ const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
   rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
 });
+const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
+  // Keep every firearm's trigger/grip region in the same local slot so right-hand pickup
+  // alignment stays consistent when transitioning from rack -> hand attachment.
+  position: [0.086, 0.008, -0.02],
+  minSurfaceY: 0
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -994,6 +1000,32 @@ function findObjectByNeedles(root, needles = []) {
   return match;
 }
 
+function alignFirearmRackGripAnchor(root) {
+  if (!root?.isObject3D) return;
+  root.updateMatrixWorld?.(true);
+  const gripNode =
+    findObjectByNeedles(root, [
+      'trigger',
+      'grip',
+      'handle',
+      'r_wrist',
+      'right_wrist',
+      'hand_r',
+      'r_hand'
+    ]) || null;
+  if (gripNode?.isObject3D) {
+    gripNode.updateMatrixWorld?.(true);
+    const gripLocal = root.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
+    const anchor = new THREE.Vector3(...UNIFORM_FIREARM_RACK_GRIP_ANCHOR.position);
+    root.position.add(anchor.sub(gripLocal));
+  }
+  root.updateMatrixWorld?.(true);
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (Number.isFinite(bounds.min.y) && bounds.min.y < UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY) {
+    root.position.y += UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY - bounds.min.y;
+  }
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1148,6 +1180,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
   clone.rotation.set(...displayRotation);
+  alignFirearmRackGripAnchor(clone);
   entry.weaponHolder.add(clone);
 }
 
