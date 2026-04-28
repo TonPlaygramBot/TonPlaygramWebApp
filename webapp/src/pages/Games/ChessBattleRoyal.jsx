@@ -370,8 +370,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Reduce table + board + chairs further so the arena reads smaller on portrait screens.
+const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.78; // Keep piece scale in sync with the smaller board/table footprint.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -386,8 +386,8 @@ const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.82; // Make chair bodies slightly bigger while preserving overall style.
+const CHAIR_SIZE_FACTOR = 0.82 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_FOOTPRINT_SHRINK = 0.74; // Shrink chair body footprint so seats/backs are visibly smaller.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -409,8 +409,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.9; // Slightly widen/deepen chairs so they read larger in portrait.
+const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 0.84; // Keep chair width/depth tighter for a smaller silhouette.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.01 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
@@ -449,7 +449,7 @@ const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUr
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.88;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.02 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -462,7 +462,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.62; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.94; // Push board/chairs/avatars further downward on portrait screens to keep humans lower in view.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -2751,9 +2751,37 @@ function extractChairMaterials(model) {
   };
 }
 
+function normalizeChairMaterialTextureState(material) {
+  if (!material) return;
+  if (material.map) {
+    applySRGBColorSpace(material.map);
+    material.map.needsUpdate = true;
+  }
+  if (material.emissiveMap) {
+    applySRGBColorSpace(material.emissiveMap);
+    material.emissiveMap.needsUpdate = true;
+  }
+  if (material.normalMap) {
+    material.normalMap.colorSpace = THREE.NoColorSpace;
+    material.normalMap.needsUpdate = true;
+  }
+  if (material.roughnessMap) {
+    material.roughnessMap.colorSpace = THREE.NoColorSpace;
+    material.roughnessMap.needsUpdate = true;
+  }
+  if (material.metalnessMap) {
+    material.metalnessMap.colorSpace = THREE.NoColorSpace;
+    material.metalnessMap.needsUpdate = true;
+  }
+  material.needsUpdate = true;
+}
+
 function applyChairThemeMaterials(chairAssets, theme) {
   const mats = chairAssets?.chairMaterials;
   if (!mats) return;
+  const allMats = [mats.seat, mats.leg, ...(mats.upholstery ?? []), ...(mats.metal ?? [])];
+  const uniqueMats = Array.from(new Set(allMats.filter(Boolean)));
+  uniqueMats.forEach((mat) => normalizeChairMaterialTextureState(mat));
   if (theme?.preserveMaterials) {
     mats.chairId = theme.chairId ?? 'default';
     return;
@@ -7675,6 +7703,10 @@ function Chess3D({
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return 'truck';
   }, [selectedCaptureAnimationId]);
+  const selectedCaptureKindRef = useRef(selectedCaptureKind);
+  useEffect(() => {
+    selectedCaptureKindRef.current = selectedCaptureKind;
+  }, [selectedCaptureKind]);
   const ownedVehicleCaptureKind = useMemo(() => {
     for (const option of ownedCaptureAnimations) {
       const kind = resolveVehicleCaptureKind(option?.id);
@@ -11166,7 +11198,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = selectedCaptureKind;
+      const captureKind = selectedCaptureKindRef.current;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
