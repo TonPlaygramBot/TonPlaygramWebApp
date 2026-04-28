@@ -238,17 +238,23 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.118,
-    inward: 0.004,
-    outward: 0.018
+    side: 0.136,
+    inward: -0.002,
+    outward: 0.044
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.266,
-    inward: -0.01,
-    outward: 0.108
+    side: 0.308,
+    inward: -0.022,
+    outward: 0.162
   })
 });
+const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
+  Object.freeze({ side: 0.012, inward: -0.008 }), // bottom
+  Object.freeze({ side: 0.008, inward: 0.004 }), // right
+  Object.freeze({ side: -0.012, inward: -0.008 }), // top
+  Object.freeze({ side: -0.008, inward: 0.004 }) // left
+]);
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -712,34 +718,34 @@ const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
-  missileJavelin: '▸',
-  droneAttack: '◈',
-  fighterJetAttack: '◁',
-  helicopterAttack: '◎',
-  fpsGunAttack: '▬',
-  glockSidearmAttack: '▮',
-  assaultRifleAttack: '▰',
-  uziSprayAttack: '▯',
-  ak47VolleyAttack: '▰',
-  krsvBurstAttack: '▰',
-  smithSidearmAttack: '▮',
-  mosinMarksmanAttack: '▤',
-  sigsauerTacticalAttack: '▮',
-  grenadeBlastAttack: '⬢',
-  shotgunBlastAttack: '▭',
-  sniperShotAttack: '▤',
-  smgBurstAttack: '▯',
-  compactCarbineAttack: '▰',
-  marksmanDmrAttack: '▤',
-  polyShotgun01Attack: '▬',
-  polyAssaultRifle01Attack: '▰',
-  polyPistol01Attack: '▮',
-  polyRevolver01Attack: '◖',
-  polySawedOff01Attack: '▭',
-  polyRevolver02Attack: '◗',
-  polyShotgun02Attack: '▤',
-  polyShotgun03Attack: '▥',
-  polySmg01Attack: '▯'
+  missileJavelin: '🚀',
+  droneAttack: '🛸',
+  fighterJetAttack: '✈️',
+  helicopterAttack: '🚁',
+  fpsGunAttack: '🪖',
+  glockSidearmAttack: '🔫',
+  assaultRifleAttack: '🦾',
+  uziSprayAttack: '🔫',
+  ak47VolleyAttack: '🦾',
+  krsvBurstAttack: '🦾',
+  smithSidearmAttack: '🔫',
+  mosinMarksmanAttack: '🎯',
+  sigsauerTacticalAttack: '🔫',
+  grenadeBlastAttack: '💣',
+  shotgunBlastAttack: '🧨',
+  sniperShotAttack: '🎯',
+  smgBurstAttack: '🔫',
+  compactCarbineAttack: '🦾',
+  marksmanDmrAttack: '🎯',
+  polyShotgun01Attack: '🧨',
+  polyAssaultRifle01Attack: '🦾',
+  polyPistol01Attack: '🔫',
+  polyRevolver01Attack: '🔫',
+  polySawedOff01Attack: '🧨',
+  polyRevolver02Attack: '🔫',
+  polyShotgun02Attack: '🧨',
+  polyShotgun03Attack: '🧨',
+  polySmg01Attack: '🔫'
 });
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
@@ -6918,10 +6924,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const sideSign = CAPTURE_PARK_SIDE_SIGN_BY_TYPE[vehicleType] ?? 1;
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
     const outwardOffset = CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE[vehicleType] ?? CAPTURE_PARK_OUTWARD_OFFSET;
+    const firearmSeatAdjustment =
+      vehicleType === 'firearmRack'
+        ? FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0]
+        : null;
+    const sideOffsetExtra = firearmSeatAdjustment?.side ?? 0;
+    const inwardOffsetExtra = firearmSeatAdjustment?.inward ?? 0;
     const park = kingPos
       .clone()
-      .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * sideSign)
-      .addScaledVector(inward, forwardOffset)
+      .addScaledVector(rightSide, (CAPTURE_PARK_SIDE_OFFSET + sideOffsetExtra) * sideSign)
+      .addScaledVector(inward, forwardOffset + inwardOffsetExtra)
       .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
@@ -6953,10 +6965,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const rackTuning = isLargeFirearm
         ? FIREARM_RACK_PARKING_TUNING.large
         : FIREARM_RACK_PARKING_TUNING.small;
+      const seatAdjustment = FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0];
       const basePosition = kingPos
         .clone()
-        .addScaledVector(rightSide, rackTuning.side)
-        .addScaledVector(inward, rackTuning.inward)
+        .addScaledVector(rightSide, rackTuning.side + seatAdjustment.side)
+        .addScaledVector(inward, rackTuning.inward + seatAdjustment.inward)
         .addScaledVector(inward, -rackTuning.outward);
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
@@ -11784,19 +11797,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           <div className="pointer-events-auto">
             <button
               type="button"
-              onClick={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                openWeaponSwapPopup(rect.right - 6, rect.bottom + 8);
-              }}
-              aria-label="Open quick weapon swap"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-sm text-white shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/35 hover:bg-black/75"
-            >
-              ⇄
-            </button>
-          </div>
-          <div className="pointer-events-auto">
-            <button
-              type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
               aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
@@ -11937,6 +11937,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               </div>
             </div>
           )}
+        </div>
+        <div className="pointer-events-auto absolute bottom-[11.75rem] left-1/2 z-20 -translate-x-1/2">
+          <button
+            type="button"
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openWeaponSwapPopup(rect.left + rect.width * 0.5, rect.top - 8);
+            }}
+            aria-label="Open quick weapon swap"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/40 bg-black/65 text-base text-amber-100 shadow-[0_8px_22px_rgba(15,23,42,0.55)] transition hover:border-amber-100/70 hover:bg-black/80"
+          >
+            ⇄
+          </button>
         </div>
         <BottomLeftIcons
           className="absolute right-4 top-[5.2rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
