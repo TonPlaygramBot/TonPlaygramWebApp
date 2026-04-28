@@ -50,8 +50,9 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const CHAIR_GLOBAL_PUSHBACK = 0.62 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.76 * MODEL_SCALE;
+// Match Ludo Battle Royal's seated chair ring offsets exactly so portrait seating framing is identical.
+const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -84,8 +85,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -222,6 +223,22 @@ const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
+
+function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
+  const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (seatIndex / activePlayerCount) * Math.PI * 2;
+  return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
+}
+
+function getSeatRadius(baseChairRadius, seatIndex) {
+  return baseChairRadius + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+}
+
+function getSeatHumanOffsets(seatIndex) {
+  return {
+    y: SEATED_HUMAN_SEAT_Y_OFFSET,
+    z: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
+  };
+}
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
@@ -3413,10 +3430,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     });
   };
   for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-    const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
-    const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
+    const angle = getSeatAngle(i, DEFAULT_PLAYER_COUNT);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatRadius = chairRadius + (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+    const seatRadius = getSeatRadius(chairRadius, i);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
@@ -3427,8 +3443,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     group.add(avatarAnchor);
 
     const humanAnchor = new THREE.Object3D();
-    const humanSeatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (i === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-    humanAnchor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, humanSeatZOffset);
+    const humanSeatOffset = getSeatHumanOffsets(i);
+    humanAnchor.position.set(0, humanSeatOffset.y, humanSeatOffset.z);
     humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
