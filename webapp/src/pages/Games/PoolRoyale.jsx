@@ -1944,10 +1944,6 @@ const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.1; // keep player roots on a perimeter ring outside the table footprint
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.01; // lift first-person eye camera slightly above the eye joint to avoid brow clipping
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = 0.038; // nudge first-person eye camera forward so the face mesh stays out of frame
-const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
-const HUMAN_EYE_CAMERA_SMOOTH = 0.42; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -20387,58 +20383,6 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveActiveHumanEyePose = (currentLookTarget = null) => {
-          if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
-          const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const cueBias = 1 - cueBlend;
-          if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          const hudState = hudRef.current;
-          const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
-          const rigs = playerCharacterRigsRef.current;
-          if (!Array.isArray(rigs) || rigs.length === 0) return null;
-          const activeHuman = rigs.find((rig) => {
-            const seat = rig?.seat ?? rig?.anim?.seat;
-            return seat === activeSeat && rig?.human?.modelRoot;
-          })?.human;
-          if (!activeHuman?.modelRoot) return null;
-
-          activeHuman.modelRoot.updateMatrixWorld(true);
-          const headBone =
-            activeHuman.bones?.head ||
-            activeHuman.bones?.neck ||
-            activeHuman.model?.getObjectByName?.('Head') ||
-            activeHuman.modelRoot;
-          if (!headBone) return null;
-
-          const worldPos = headBone.getWorldPosition(new THREE.Vector3());
-          const worldForward = new THREE.Vector3();
-          if (currentLookTarget) {
-            worldForward.copy(currentLookTarget).sub(worldPos).setY(0);
-          }
-          if (worldForward.lengthSq() < 1e-6) {
-            worldForward.set(-Math.sin(activeHuman.yaw || 0), 0, -Math.cos(activeHuman.yaw || 0));
-          } else {
-            worldForward.normalize();
-          }
-          const eyePos = worldPos
-            .clone()
-            .addScaledVector(UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET)
-            .addScaledVector(worldForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET);
-          const eyeTarget = eyePos
-            .clone()
-            .addScaledVector(worldForward, BALL_R * 16)
-            .setY(Math.max(eyePos.y - BALL_R * 0.2, TABLE_Y + TABLE.THICK + BALL_R));
-          return {
-            blend: THREE.MathUtils.clamp(
-              (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
-              0,
-              1
-            ),
-            position: eyePos,
-            target: eyeTarget
-          };
-        };
-
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -21662,20 +21606,6 @@ const shotPowerRef = useRef(0);
               TMP_SPH.radius = sph.radius;
               TMP_SPH.phi = sph.phi;
               syncBlendToSpherical();
-            }
-          }
-          const humanEyePose = resolveActiveHumanEyePose(lookTarget);
-          if (humanEyePose) {
-            const lerpT = THREE.MathUtils.clamp(
-              humanEyePose.blend * HUMAN_EYE_CAMERA_SMOOTH,
-              0,
-              1
-            );
-            if (lerpT > 1e-4) {
-              camera.position.lerp(humanEyePose.position, lerpT);
-              lookTarget = lookTarget
-                ? lookTarget.clone().lerp(humanEyePose.target, lerpT)
-                : humanEyePose.target.clone();
             }
           }
           camera.lookAt(lookTarget);
@@ -24835,33 +24765,6 @@ const shotPowerRef = useRef(0);
               edgeMargin: HUMAN_EDGE_MARGIN,
               desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
             }).setY(floorY);
-            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            if (isInsideTableBlocker(perimeterRoot)) {
-              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
-            }
-            if (!Number.isFinite(human.walkPerimeterT)) {
-              human.walkPerimeterT = pointToPerimeterT(human.root.position);
-            }
-            const targetPerimeterT = pointToPerimeterT(perimeterRoot);
-            const perimeterDelta =
-              THREE.MathUtils.euclideanModulo(targetPerimeterT - human.walkPerimeterT + 0.5, 1) - 0.5;
-            const perimeterStepMax =
-              (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) /
-              (4 * (walkHalfX + walkHalfZ));
-            const perimeterStep = THREE.MathUtils.clamp(
-              perimeterDelta,
-              -perimeterStepMax,
-              perimeterStepMax
-            );
-            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
-              human.walkPerimeterT + perimeterStep,
-              1
-            );
-            const perimeterWalkPos = perimeterTToPoint(human.walkPerimeterT);
-            if (isInsideTableBlocker(perimeterWalkPos)) {
-              perimeterWalkPos.copy(clampToWalkPerimeter(perimeterWalkPos));
-              human.walkPerimeterT = pointToPerimeterT(perimeterWalkPos);
-            }
             const state =
               mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
@@ -24897,15 +24800,15 @@ const shotPowerRef = useRef(0);
               .add(new THREE.Vector3(0, 0.024, 0));
             const gripTarget = cueTip.clone().lerp(cueBack, 0.82);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-            const idleRight = perimeterWalkPos
+            const idleRight = desiredRoot
               .clone()
               .add(new THREE.Vector3(0.24, 1.1, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleLeft = perimeterWalkPos
+            const idleLeft = desiredRoot
               .clone()
               .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             updateBilardoHumanPose(human, dtSeconds, {
               state,
-              rootTarget: perimeterWalkPos,
+              rootTarget: desiredRoot,
               aimForward,
               bridgeTarget,
               gripTarget,
