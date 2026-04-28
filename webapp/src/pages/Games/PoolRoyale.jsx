@@ -1939,10 +1939,10 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = TABLE.WALL * 1.05; // keep the human just outside the rail so movement stays on table sides
-const HUMAN_DESIRED_SHOOT_DISTANCE = TABLE.H * 0.18; // keep shooting stance close to the side perimeter without drifting far away
+const HUMAN_EDGE_MARGIN = 0.88; // push the shooter farther outward so the body stays clearly on the table perimeter
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.42; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 1.2; // side-walk ring hugs the table perimeter instead of drifting far outward
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.85; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
 const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
@@ -24662,7 +24662,8 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const zOffset = TABLE.H * 0.66;
+        const zOffset = TABLE.H * 0.72;
+        const sideOffset = TABLE.W * 0.19;
         const makeRig = (seat, x, z, yaw) => {
           const human = createBilardoHumanRig(world, {
             loader: new GLTFLoader(),
@@ -24679,16 +24680,15 @@ const shotPowerRef = useRef(0);
             chinToCueHeight: 0.11,
             cueArmElbowRise: 0.43,
             tableTopY: TABLE_Y + TABLE.THICK,
-            textureAnisotropy: Math.min(2, renderer?.capabilities?.getMaxAnisotropy?.() ?? 2),
-            maxTextureSize: Math.min(1024, renderer?.capabilities?.maxTextureSize ?? 1024),
-            preserveOriginalTextures: true
+            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
           human.yaw = yaw;
           return { seat, human };
         };
         playerCharacterRigsRef.current = [
-          makeRig('MAIN', 0, -zOffset, 0)
+          makeRig('A', -sideOffset, -zOffset, 0),
+          makeRig('B', sideOffset, zOffset, Math.PI)
         ];
       };
 
@@ -24699,6 +24699,7 @@ const shotPowerRef = useRef(0);
         const hudState = hudRef.current;
         const isReplay = Boolean(replayPlaybackRef.current);
         const isShotActive = Boolean(shootingRef.current);
+        const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
         const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
         const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
 
@@ -24798,15 +24799,17 @@ const shotPowerRef = useRef(0);
           const human = rig?.human;
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
+          const isShooter = anim?.seat === activeSeat;
+          const isHumanShooter = seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
           const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
           const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (isShotActive && shotAge < 420) mode = 'strike';
+          else if (isShotActive && seat === shotSeat && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
-          else if (loweredCueCamera || draggingSlider || sliderPowerActive) mode = 'aim';
+          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
           if (human) {
@@ -24874,7 +24877,7 @@ const shotPowerRef = useRef(0);
               .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
             const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
-            if (state === 'dragging') {
+            if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
                 bridgeTarget: bridgeTarget.clone(),
@@ -24921,8 +24924,8 @@ const shotPowerRef = useRef(0);
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const seatBiasX = 0;
-          const seatBiasZ = -TABLE.H * 0.66;
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
           const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
           const perimeterTarget = clampToWalkPerimeter(seatTarget);
           if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
@@ -25024,7 +25027,7 @@ const shotPowerRef = useRef(0);
             anim.model.rotation.set(
               -0.11 * t - 0.024 * walk,
               0,
-              (anim.seat === 'MAIN' ? -1 : 1) * 0.012 * idle
+              (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
             );
             if (anim.bridgeHand) {
               anim.bridgeHand.position.copy(leftHandWorld);
