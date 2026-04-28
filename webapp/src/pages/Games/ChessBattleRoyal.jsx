@@ -2645,7 +2645,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 35; // 2x larger parked side weapons for clear visibility on portrait phones
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
@@ -2653,6 +2653,7 @@ const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-siz
 const SHOW_SIDE_PARKING_MARKINGS = false;
 const SHOW_BOARD_SIDE_MARKINGS = false;
 const VEHICLE_BUTTON_CAPTURE_KINDS = new Set(['truck', 'drone', 'helicopter', 'jet']);
+const FIREARM_SIDE_PARKED_KIND = 'firearm';
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7659,19 +7660,16 @@ function Chess3D({
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
   }, [selectedCaptureAnimationId]);
-  const selectedParkedWeaponKind = useMemo(
-    () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
-    [selectedCaptureAnimationId]
-  );
+  const selectedParkedWeaponKind = useMemo(() => {
+    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return FIREARM_SIDE_PARKED_KIND;
+    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
+  }, [selectedCaptureAnimationId]);
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
-  const ownedCaptureAnimations = useMemo(
-    () =>
-      (chessInventory?.captureAnimation || [])
-        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-        .filter(Boolean),
+  const ownedCaptureAnimationIdSet = useMemo(
+    () => new Set(chessInventory?.captureAnimation || []),
     [chessInventory]
   );
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
@@ -10438,6 +10436,49 @@ function Chess3D({
       addRoofLongMissiles(root, root);
       return { root, missileLaunchAnchor };
     };
+    const createFxFirearmRack = () => {
+      const root = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(1.7, 0.08, 0.62),
+        new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.64, metalness: 0.2 })
+      );
+      base.castShadow = true;
+      base.receiveShadow = true;
+      root.add(base);
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(1.66, 0.14, 0.08),
+        new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.52, metalness: 0.24 })
+      );
+      rail.position.y = 0.12;
+      root.add(rail);
+      const createWeaponSilhouette = (length = 0.64, z = 0, tint = '#94a3b8') => {
+        const gun = new THREE.Group();
+        const barrel = new THREE.Mesh(
+          new THREE.BoxGeometry(length, 0.06, 0.06),
+          new THREE.MeshStandardMaterial({ color: tint, roughness: 0.42, metalness: 0.35 })
+        );
+        barrel.position.x = length * 0.08;
+        gun.add(barrel);
+        const stock = new THREE.Mesh(
+          new THREE.BoxGeometry(0.16, 0.12, 0.06),
+          new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.56, metalness: 0.2 })
+        );
+        stock.position.set(-length * 0.42, -0.03, 0);
+        gun.add(stock);
+        const grip = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.16, 0.06),
+          new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.62, metalness: 0.12 })
+        );
+        grip.position.set(-length * 0.18, -0.1, 0);
+        gun.add(grip);
+        gun.position.set(0, 0.18, z);
+        root.add(gun);
+      };
+      createWeaponSilhouette(0.78, -0.16, '#aab6c4');
+      createWeaponSilhouette(0.72, 0, '#93a2b5');
+      createWeaponSilhouette(0.68, 0.16, '#7f8ea1');
+      return { root };
+    };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
         (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
@@ -10446,11 +10487,13 @@ function Chess3D({
         jet: 0,
         drone: 1,
         helicopter: 2,
-        truck: 3
+        truck: 3,
+        [FIREARM_SIDE_PARKED_KIND]: 4
       };
       const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
-      const zOffset = (laneIndex - 1.5) * equalLaneStep;
-      const hoverLift = kind === 'truck' ? 0.02 : kind === 'drone' ? 0.24 : 0.26;
+      const zOffset = (laneIndex - 2) * equalLaneStep;
+      const hoverLift =
+        kind === 'truck' ? 0.02 : kind === 'drone' ? 0.24 : kind === FIREARM_SIDE_PARKED_KIND ? 0.03 : 0.26;
       const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
@@ -11453,10 +11496,12 @@ function Chess3D({
       addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
       addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
       addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
+      addAirPadMarker(getAirPadAnchor(true, FIREARM_SIDE_PARKED_KIND), 'F');
       addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
       addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
       addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
       addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
+      addAirPadMarker(getAirPadAnchor(false, FIREARM_SIDE_PARKED_KIND), 'F');
     }
     const addAttackButtonMarker = (isWhiteSide) => {
       const root = new THREE.Group();
@@ -11940,6 +11985,30 @@ function Chess3D({
           homeRotation: truckHomeRotation,
           ...supportTruck,
           root: supportTruck.root
+        });
+        const firearmRack = createFxFirearmRack();
+        firearmRack.root.scale.setScalar(
+          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER * 0.9
+        );
+        attachVehicleAvatarBadge(firearmRack.root, badge, isWhite ? 1 : -1);
+        const firearmPad = getAirPadAnchor(isWhite, FIREARM_SIDE_PARKED_KIND, 0);
+        placeParkedUnitOnPad(
+          firearmRack.root,
+          firearmPad,
+          isWhite ? -Math.PI * 0.18 : Math.PI * 1.18
+        );
+        const firearmHomeRotation = firearmRack.root.rotation.clone();
+        airPadGroup.add(firearmRack.root);
+        parkedAirUnits.push({
+          kind: FIREARM_SIDE_PARKED_KIND,
+          isWhite,
+          slot: 0,
+          busy: false,
+          rotorsActive: false,
+          homePosition: firearmPad.clone(),
+          homeRotation: firearmHomeRotation,
+          ...firearmRack,
+          root: firearmRack.root
         });
       });
       const currentCaptureKind = selectedParkedWeaponKindRef.current;
@@ -13982,8 +14051,9 @@ function Chess3D({
                   Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {ownedCaptureAnimations.map((option) => {
+                  {CAPTURE_ANIMATION_OPTIONS.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
+                    const isOwned = ownedCaptureAnimationIdSet.has(option.id);
                     return (
                       <button
                         key={option.id}
@@ -13992,7 +14062,9 @@ function Chess3D({
                         className={`flex w-full items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                           isSelected
                             ? 'border-emerald-300/80 bg-emerald-300/15'
-                            : 'border-white/10 bg-white/5 hover:border-white/30'
+                            : isOwned
+                              ? 'border-white/10 bg-white/5 hover:border-white/30'
+                              : 'border-amber-400/35 bg-amber-300/10 hover:border-amber-300/60'
                         }`}
                       >
                         {option.thumbnail ? (
@@ -14008,7 +14080,10 @@ function Chess3D({
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
+                          <span className="block truncate text-[0.68rem] font-semibold text-white">
+                            {option.label}
+                            {!isOwned ? ' • unlock preview' : ''}
+                          </span>
                           <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
                         </span>
                       </button>
