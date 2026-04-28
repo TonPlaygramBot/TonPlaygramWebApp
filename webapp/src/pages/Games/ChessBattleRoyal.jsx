@@ -2616,6 +2616,7 @@ const DEFAULT_APPEARANCE = {
   whitePieceStyle: 0,
   blackPieceStyle: 1,
   headStyle: 0,
+  captureAnimation: 0,
   humanCharacter: 0,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
@@ -2678,6 +2679,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
+    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
     ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
@@ -2692,6 +2694,7 @@ function normalizeAppearance(value = {}) {
   normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
   normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  if (!Number.isFinite(normalized.captureAnimation)) normalized.captureAnimation = DEFAULT_APPEARANCE.captureAnimation;
   if (!Number.isFinite(normalized.humanCharacter)) normalized.humanCharacter = DEFAULT_APPEARANCE.humanCharacter;
   return normalized;
 }
@@ -7648,27 +7651,48 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
-  const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
+  const preferredAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
+  const localInventoryAccountId = useMemo(() => chessBattleAccountId(), []);
   const [inventoryVersion, setInventoryVersion] = useState(0);
+  const resolvedAccountId = useMemo(() => {
+    if (preferredAccountId === localInventoryAccountId) return preferredAccountId;
+    const preferredInventory = getChessBattleInventory(preferredAccountId);
+    const localInventory = getChessBattleInventory(localInventoryAccountId);
+    const preferredCount = Array.isArray(preferredInventory?.captureAnimation)
+      ? preferredInventory.captureAnimation.length
+      : 0;
+    const localCount = Array.isArray(localInventory?.captureAnimation)
+      ? localInventory.captureAnimation.length
+      : 0;
+    return localCount > preferredCount ? localInventoryAccountId : preferredAccountId;
+  }, [inventoryVersion, localInventoryAccountId, preferredAccountId]);
   const chessInventory = useMemo(
     () => getChessBattleInventory(resolvedAccountId),
     [resolvedAccountId, inventoryVersion]
   );
-  const inventoryCaptureAnimationId = useMemo(() => {
-    const owned = chessInventory?.captureAnimation;
-    return (Array.isArray(owned) && owned[0]) || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+  const ownedCaptureAnimations = useMemo(() => {
+    const ownedIds = Array.isArray(chessInventory?.captureAnimation) ? chessInventory.captureAnimation : [];
+    const uniqueIds = Array.from(new Set(ownedIds.filter(Boolean)));
+    const ownedOptions = uniqueIds
+      .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+      .filter(Boolean);
+    if (ownedOptions.length > 0) return ownedOptions;
+    return CAPTURE_ANIMATION_OPTIONS[0] ? [CAPTURE_ANIMATION_OPTIONS[0]] : [];
   }, [chessInventory]);
-  const [selectedCaptureAnimationId, setSelectedCaptureAnimationId] = useState(inventoryCaptureAnimationId);
-  useEffect(() => {
-    setSelectedCaptureAnimationId(inventoryCaptureAnimationId);
-  }, [inventoryCaptureAnimationId]);
-  const ownedCaptureAnimations = useMemo(
-    () =>
-      (chessInventory?.captureAnimation || [])
-        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-        .filter(Boolean),
-    [chessInventory]
-  );
+  const quickSwapCaptureOptions = useMemo(() => {
+    const firearm = [];
+    const other = [];
+    ownedCaptureAnimations.forEach((option) => {
+      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) firearm.push(option);
+      else other.push(option);
+    });
+    return [...firearm, ...other];
+  }, [ownedCaptureAnimations]);
+  const selectedCaptureAnimationId = useMemo(() => {
+    const selectedFromAppearance = quickSwapCaptureOptions[appearance.captureAnimation]?.id;
+    if (selectedFromAppearance) return selectedFromAppearance;
+    return quickSwapCaptureOptions[0]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+  }, [appearance.captureAnimation, quickSwapCaptureOptions]);
   const selectedCaptureKind = useMemo(() => {
     const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
     if (vehicleKind) return vehicleKind;
@@ -7694,21 +7718,28 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
-      setSelectedCaptureAnimationId(optionId);
+      const nextIdx = quickSwapCaptureOptions.findIndex((option) => option.id === optionId);
+      if (nextIdx >= 0) {
+        setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: nextIdx }));
+      }
       setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
     },
-    [resolvedAccountId, selectedCaptureAnimationId]
+    [quickSwapCaptureOptions, resolvedAccountId, selectedCaptureAnimationId]
   );
   useEffect(() => {
     const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+      if (
+        !event?.detail?.accountId ||
+        event.detail.accountId === resolvedAccountId ||
+        event.detail.accountId === localInventoryAccountId
+      ) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
-  }, [resolvedAccountId]);
+  }, [localInventoryAccountId, resolvedAccountId]);
   const [p1QuickIdx, setP1QuickIdx] = useState(2);
   const [p2QuickIdx, setP2QuickIdx] = useState(3);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
@@ -8053,6 +8084,7 @@ function Chess3D({
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableFinish: TABLE_FINISH_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
+        captureAnimation: quickSwapCaptureOptions,
         humanCharacter: HUMAN_CHARACTER_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
       };
@@ -8078,7 +8110,7 @@ function Chess3D({
       });
       return changed ? next : normalized;
     },
-    [chessInventory]
+    [chessInventory, quickSwapCaptureOptions]
   );
 
   useEffect(() => {
@@ -13998,7 +14030,7 @@ function Chess3D({
                   Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {ownedCaptureAnimations.map((option) => {
+                  {quickSwapCaptureOptions.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
@@ -14030,6 +14062,11 @@ function Chess3D({
                       </button>
                     );
                   })}
+                  {quickSwapCaptureOptions.length === 0 && (
+                    <p className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[0.62rem] text-white/65">
+                      No weapons found in inventory yet.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -14192,6 +14229,53 @@ function Chess3D({
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Capture Weapon</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">
+                        Pick any weapon you own from inventory.
+                      </p>
+                    </div>
+                    <span className="rounded-lg border border-white/15 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-white/70">
+                      {quickSwapCaptureOptions.length} owned
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    {quickSwapCaptureOptions.map((option) => {
+                      const isSelected = option.id === selectedCaptureAnimationId;
+                      return (
+                        <button
+                          key={`menu-weapon-${option.id}`}
+                          type="button"
+                          onClick={() => handleCaptureAnimationSwap(option.id)}
+                          className={`flex items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            isSelected
+                              ? 'border-emerald-300/80 bg-emerald-300/15'
+                              : 'border-white/10 bg-white/5 hover:border-white/30'
+                          }`}
+                        >
+                          {option.thumbnail ? (
+                            <img
+                              src={option.thumbnail}
+                              alt={option.label}
+                              className="h-9 w-9 rounded-md object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
+                              🧰
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
+                            <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
