@@ -150,7 +150,16 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'sniperShotAttack',
   'smgBurstAttack',
   'compactCarbineAttack',
-  'marksmanDmrAttack'
+  'marksmanDmrAttack',
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyPistol01Attack',
+  'polyRevolver01Attack',
+  'polySawedOff01Attack',
+  'polyRevolver02Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polySmg01Attack'
 ]);
 const LARGE_RACK_FIREARM_IDS = new Set([
   'ak47VolleyAttack',
@@ -158,7 +167,11 @@ const LARGE_RACK_FIREARM_IDS = new Set([
   'shotgunBlastAttack',
   'sniperShotAttack',
   'marksmanDmrAttack',
-  'compactCarbineAttack'
+  'compactCarbineAttack',
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack'
 ]);
 const FIREARM_TWO_HANDED_IDS = new Set([
   'fpsGunAttack',
@@ -168,7 +181,12 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'shotgunBlastAttack',
   'sniperShotAttack',
   'marksmanDmrAttack',
-  'compactCarbineAttack'
+  'compactCarbineAttack',
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polySmg01Attack'
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'glockSidearmAttack',
@@ -176,7 +194,11 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'smgBurstAttack',
   'smithSidearmAttack',
   'sigsauerTacticalAttack',
-  'grenadeBlastAttack'
+  'grenadeBlastAttack',
+  'polyPistol01Attack',
+  'polyRevolver01Attack',
+  'polySawedOff01Attack',
+  'polyRevolver02Attack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
@@ -189,7 +211,16 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   mosinMarksmanAttack: 3.5,
   sniperShotAttack: 2.8,
   shotgunBlastAttack: 2.2,
-  grenadeBlastAttack: 0.45
+  grenadeBlastAttack: 0.45,
+  polyShotgun01Attack: 2.05,
+  polyAssaultRifle01Attack: 2.15,
+  polyPistol01Attack: 1.02,
+  polyRevolver01Attack: 1.08,
+  polySawedOff01Attack: 1.56,
+  polyRevolver02Attack: 1.08,
+  polyShotgun02Attack: 2.22,
+  polyShotgun03Attack: 2.1,
+  polySmg01Attack: 1.68
 });
 
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
@@ -366,6 +397,51 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
     ],
     scale: 0.23
+  },
+  polyShotgun01Attack: {
+    label: 'Quaternius Shotgun',
+    urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'],
+    scale: 0.205
+  },
+  polyAssaultRifle01Attack: {
+    label: 'Quaternius Assault Rifle',
+    urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
+    scale: 0.208
+  },
+  polyPistol01Attack: {
+    label: 'Quaternius Pistol',
+    urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'],
+    scale: 0.122
+  },
+  polyRevolver01Attack: {
+    label: 'Quaternius Heavy Revolver',
+    urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'],
+    scale: 0.13
+  },
+  polySawedOff01Attack: {
+    label: 'Quaternius Sawed-Off Shotgun',
+    urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'],
+    scale: 0.175
+  },
+  polyRevolver02Attack: {
+    label: 'Quaternius Revolver Silver',
+    urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'],
+    scale: 0.13
+  },
+  polyShotgun02Attack: {
+    label: 'Quaternius Long Shotgun',
+    urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'],
+    scale: 0.215
+  },
+  polyShotgun03Attack: {
+    label: 'Quaternius Pump Shotgun',
+    urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'],
+    scale: 0.21
+  },
+  polySmg01Attack: {
+    label: 'Quaternius Submachine Gun',
+    urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
+    scale: 0.17
   }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
@@ -420,7 +496,16 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   sniperShotAttack: 10,
   smgBurstAttack: 28,
   compactCarbineAttack: 30,
-  marksmanDmrAttack: 20
+  marksmanDmrAttack: 20,
+  polyShotgun01Attack: 8,
+  polyAssaultRifle01Attack: 30,
+  polyPistol01Attack: 16,
+  polyRevolver01Attack: 8,
+  polySawedOff01Attack: 2,
+  polyRevolver02Attack: 8,
+  polyShotgun02Attack: 10,
+  polyShotgun03Attack: 8,
+  polySmg01Attack: 28
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
@@ -505,6 +590,51 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     rotation: [-1.41, -0.04, -1.56],
     muzzleOffset: [0, 0.015, 0.25]
   },
+  polyShotgun01Attack: {
+    position: [0.034, -0.006, 0.122],
+    rotation: [-1.41, -0.05, -1.56],
+    muzzleOffset: [0, 0.014, 0.247]
+  },
+  polyAssaultRifle01Attack: {
+    position: [0.035, -0.004, 0.124],
+    rotation: [-1.43, -0.04, -1.555],
+    muzzleOffset: [0, 0.014, 0.246]
+  },
+  polyPistol01Attack: {
+    position: [0.019, -0.001, 0.085],
+    rotation: [-1.51, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.198]
+  },
+  polyRevolver01Attack: {
+    position: [0.02, -0.001, 0.086],
+    rotation: [-1.5, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.2]
+  },
+  polySawedOff01Attack: {
+    position: [0.028, -0.004, 0.107],
+    rotation: [-1.45, -0.04, -1.565],
+    muzzleOffset: [0, 0.013, 0.218]
+  },
+  polyRevolver02Attack: {
+    position: [0.02, -0.001, 0.086],
+    rotation: [-1.5, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.2]
+  },
+  polyShotgun02Attack: {
+    position: [0.037, -0.006, 0.131],
+    rotation: [-1.39, -0.05, -1.56],
+    muzzleOffset: [0, 0.014, 0.26]
+  },
+  polyShotgun03Attack: {
+    position: [0.036, -0.006, 0.128],
+    rotation: [-1.4, -0.05, -1.56],
+    muzzleOffset: [0, 0.014, 0.253]
+  },
+  polySmg01Attack: {
+    position: [0.024, -0.003, 0.101],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.223]
+  },
   shotgunBlastAttack: {
     position: [0.036, -0.006, 0.129],
     rotation: [-1.4, -0.05, -1.56],
@@ -537,7 +667,16 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   shotgunBlastAttack: 3.2,
   marksmanDmrAttack: 1.48,
   sniperShotAttack: 5.2,
-  grenadeBlastAttack: 0.55
+  grenadeBlastAttack: 0.55,
+  polyShotgun01Attack: 1.26,
+  polyAssaultRifle01Attack: 1.28,
+  polyPistol01Attack: 1.15,
+  polyRevolver01Attack: 1.17,
+  polySawedOff01Attack: 1.2,
+  polyRevolver02Attack: 1.17,
+  polyShotgun02Attack: 1.34,
+  polyShotgun03Attack: 1.28,
+  polySmg01Attack: 1.22
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
@@ -556,6 +695,36 @@ const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
+const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
+  missileJavelin: '▸',
+  droneAttack: '◈',
+  fighterJetAttack: '◁',
+  helicopterAttack: '◎',
+  fpsGunAttack: '▬',
+  glockSidearmAttack: '▮',
+  assaultRifleAttack: '▰',
+  uziSprayAttack: '▯',
+  ak47VolleyAttack: '▰',
+  krsvBurstAttack: '▰',
+  smithSidearmAttack: '▮',
+  mosinMarksmanAttack: '▤',
+  sigsauerTacticalAttack: '▮',
+  grenadeBlastAttack: '⬢',
+  shotgunBlastAttack: '▭',
+  sniperShotAttack: '▤',
+  smgBurstAttack: '▯',
+  compactCarbineAttack: '▰',
+  marksmanDmrAttack: '▤',
+  polyShotgun01Attack: '▬',
+  polyAssaultRifle01Attack: '▰',
+  polyPistol01Attack: '▮',
+  polyRevolver01Attack: '◖',
+  polySawedOff01Attack: '▭',
+  polyRevolver02Attack: '◗',
+  polyShotgun02Attack: '▤',
+  polyShotgun03Attack: '▥',
+  polySmg01Attack: '▯'
+});
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
@@ -6558,6 +6727,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     turnCycle: 0
   });
   const [weaponSwapPopup, setWeaponSwapPopup] = useState(null);
+  const openWeaponSwapPopup = useCallback(
+    (x, y) => {
+      setWeaponSwapPopup({
+        x,
+        y,
+        options: quickSwapCaptureOptions
+      });
+    },
+    [quickSwapCaptureOptions]
+  );
 
   const playerColors = useMemo(() => resolvePlayerColors(appearance), [appearance]);
 
@@ -8822,11 +9001,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObjects(interactiveTargets, true);
       if (!hits.length) return false;
-      setWeaponSwapPopup({
-        x: clientX,
-        y: clientY,
-        options: quickSwapCaptureOptions
-      });
+      openWeaponSwapPopup(clientX, clientY);
       return true;
     };
     const getCameraLookTarget = () => {
@@ -8869,7 +9044,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (clientX == null || clientY == null) return;
       let handled = attemptWeaponQuickSwap(clientX, clientY);
       if (!handled) {
-        if (weaponSwapPopup) setWeaponSwapPopup(null);
         handled = attemptHumanSelection(clientX, clientY);
       }
       if (!handled) {
@@ -11568,29 +11742,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
+                const shape = QUICK_SWAP_WEAPON_SHAPE_BY_ID[option.id] || '▭';
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-xl border p-1 text-[9px] font-semibold ${
+                    className={`overflow-hidden rounded-xl border p-1 text-[8px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
-                      setWeaponSwapPopup(null);
                     }}
                   >
-                    <div className="mx-auto mb-1 h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-slate-900/70">
-                      {option.thumbnail ? (
-                        <img
-                          src={option.thumbnail}
-                          alt={`${option.label} thumbnail`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-slate-900/60" />
-                      )}
+                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[13px] leading-none text-slate-100">
+                      {shape}
                     </div>
                     <div className="px-0.5 pb-0.5 leading-tight">{option.label}</div>
                   </button>
@@ -11600,6 +11765,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           </div>
         )}
         <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
+          <div className="pointer-events-auto">
+            <button
+              type="button"
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                openWeaponSwapPopup(rect.right - 6, rect.bottom + 8);
+              }}
+              aria-label="Open quick weapon swap"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-sm text-white shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/35 hover:bg-black/75"
+            >
+              ⇄
+            </button>
+          </div>
           <div className="pointer-events-auto">
             <button
               type="button"

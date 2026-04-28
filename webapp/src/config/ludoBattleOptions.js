@@ -116,6 +116,21 @@ const captureWeaponThumb = (icon = '⚔️', accent = '#0ea5e9') =>
     </svg>`
   )}`;
 
+const captureWeaponGlyphThumb = (glyph = '▭', accent = '#334155') =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#020617" />
+          <stop offset="100%" stop-color="${accent}" />
+        </linearGradient>
+      </defs>
+      <rect width="320" height="180" rx="18" fill="url(#bg)" />
+      <rect x="14" y="14" width="292" height="152" rx="14" fill="rgba(255,255,255,0.07)" />
+      <text x="160" y="106" text-anchor="middle" font-size="84" fill="#e2e8f0">${glyph}</text>
+    </svg>`
+  )}`;
+
 const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
   glockSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg',
   pistolSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
@@ -244,6 +259,60 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     label: 'Marksman DMR',
     description: 'Open-source designated marksman rifle attack with controlled right-hand aim.',
     thumbnail: captureWeaponThumb('🎯', '#334155')
+  },
+  {
+    id: 'polyShotgun01Attack',
+    label: 'Quaternius Shotgun',
+    description: 'Poly Pizza Quaternius shotgun model with preserved GLB materials.',
+    thumbnail: captureWeaponGlyphThumb('▬', '#0f766e')
+  },
+  {
+    id: 'polyAssaultRifle01Attack',
+    label: 'Quaternius Assault Rifle',
+    description: 'Poly Pizza Quaternius assault rifle model adapted for Ludo capture attacks.',
+    thumbnail: captureWeaponGlyphThumb('▰', '#1e3a8a')
+  },
+  {
+    id: 'polyPistol01Attack',
+    label: 'Quaternius Pistol',
+    description: 'Poly Pizza Quaternius pistol sidearm capture animation.',
+    thumbnail: captureWeaponGlyphThumb('▮', '#1d4ed8')
+  },
+  {
+    id: 'polyRevolver01Attack',
+    label: 'Quaternius Heavy Revolver',
+    description: 'Poly Pizza heavy revolver with compact one-hand pickup timing.',
+    thumbnail: captureWeaponGlyphThumb('◖', '#7c2d12')
+  },
+  {
+    id: 'polySawedOff01Attack',
+    label: 'Quaternius Sawed-Off Shotgun',
+    description: 'Poly Pizza sawed-off shotgun with short-range burst pacing.',
+    thumbnail: captureWeaponGlyphThumb('▭', '#b45309')
+  },
+  {
+    id: 'polyRevolver02Attack',
+    label: 'Quaternius Revolver Silver',
+    description: 'Poly Pizza silver revolver variant with single-hand recoil profile.',
+    thumbnail: captureWeaponGlyphThumb('◗', '#475569')
+  },
+  {
+    id: 'polyShotgun02Attack',
+    label: 'Quaternius Long Shotgun',
+    description: 'Poly Pizza long shotgun with a larger rack silhouette.',
+    thumbnail: captureWeaponGlyphThumb('▤', '#166534')
+  },
+  {
+    id: 'polyShotgun03Attack',
+    label: 'Quaternius Pump Shotgun',
+    description: 'Poly Pizza pump shotgun tuned to match existing firearm proportions.',
+    thumbnail: captureWeaponGlyphThumb('▥', '#0f766e')
+  },
+  {
+    id: 'polySmg01Attack',
+    label: 'Quaternius Submachine Gun',
+    description: 'Poly Pizza compact SMG variant with fast burst behavior.',
+    thumbnail: captureWeaponGlyphThumb('▯', '#0f172a')
   }
 
 ]);

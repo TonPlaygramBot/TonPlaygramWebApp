@@ -56,7 +56,8 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
 const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
   'mrtkGunAttack',
   'pistolHolsterAttack',
-  'pistolSidearmAttack'
+  'pistolSidearmAttack',
+  'assaultRifleAttack'
 ]);
 
 const uniqueStoreItemsByName = (items) => {
