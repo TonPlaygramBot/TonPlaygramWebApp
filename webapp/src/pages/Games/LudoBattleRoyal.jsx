@@ -544,40 +544,6 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polyShotgun03Attack: 8,
   polySmg01Attack: 28
 });
-const FIREARM_BALLISTICS_PROFILE = Object.freeze({
-  default: Object.freeze({
-    caliber: '9x19mm',
-    tracerColor: '#ffe39a',
-    tracerCount: 10,
-    shellPoolExtra: 6,
-    shellEjectSide: 0.00026,
-    shellEjectForward: 0.00021,
-    shellLift: 0.052
-  }),
-  assaultRifleAttack: Object.freeze({ caliber: '7.62x39mm', tracerColor: '#ffd37a', tracerCount: 12, shellPoolExtra: 8 }),
-  fpsGunAttack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd89a', tracerCount: 8, shellPoolExtra: 4, shellLift: 0.046 }),
-  glockSidearmAttack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffe39a', tracerCount: 9, shellPoolExtra: 5 }),
-  uziSprayAttack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffd986', tracerCount: 12, shellPoolExtra: 10 }),
-  ak47VolleyAttack: Object.freeze({ caliber: '7.62x39mm', tracerColor: '#ffc96d', tracerCount: 12, shellPoolExtra: 10 }),
-  krsvBurstAttack: Object.freeze({ caliber: '5.45x39mm', tracerColor: '#ffd27f', tracerCount: 12, shellPoolExtra: 10 }),
-  smithSidearmAttack: Object.freeze({ caliber: '.357', tracerColor: '#ffe1b6', tracerCount: 8, shellPoolExtra: 4 }),
-  mosinMarksmanAttack: Object.freeze({ caliber: '7.62x54R', tracerColor: '#fff0bf', tracerCount: 7, shellPoolExtra: 3 }),
-  sigsauerTacticalAttack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffe7b0', tracerCount: 9, shellPoolExtra: 5 }),
-  shotgunBlastAttack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd8a0', tracerCount: 8, shellPoolExtra: 4, shellLift: 0.046 }),
-  sniperShotAttack: Object.freeze({ caliber: '7.62x54R', tracerColor: '#fff3cb', tracerCount: 7, shellPoolExtra: 2, shellLift: 0.044 }),
-  smgBurstAttack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffd986', tracerCount: 12, shellPoolExtra: 9 }),
-  compactCarbineAttack: Object.freeze({ caliber: '5.56x45mm', tracerColor: '#ffd884', tracerCount: 12, shellPoolExtra: 8 }),
-  marksmanDmrAttack: Object.freeze({ caliber: '7.62x51mm', tracerColor: '#ffe7a8', tracerCount: 10, shellPoolExtra: 5 }),
-  polyShotgun01Attack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd8a0', tracerCount: 8, shellPoolExtra: 4, shellLift: 0.046 }),
-  polyAssaultRifle01Attack: Object.freeze({ caliber: '5.56x45mm', tracerColor: '#ffd884', tracerCount: 12, shellPoolExtra: 8 }),
-  polyPistol01Attack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffe39a', tracerCount: 9, shellPoolExtra: 5 }),
-  polyRevolver01Attack: Object.freeze({ caliber: '.357', tracerColor: '#ffe1b6', tracerCount: 8, shellPoolExtra: 4 }),
-  polySawedOff01Attack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd8a0', tracerCount: 7, shellPoolExtra: 2, shellLift: 0.044 }),
-  polyRevolver02Attack: Object.freeze({ caliber: '.357', tracerColor: '#ffe1b6', tracerCount: 8, shellPoolExtra: 4 }),
-  polyShotgun02Attack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd8a0', tracerCount: 8, shellPoolExtra: 4, shellLift: 0.046 }),
-  polyShotgun03Attack: Object.freeze({ caliber: '12 gauge', tracerColor: '#ffd8a0', tracerCount: 8, shellPoolExtra: 4, shellLift: 0.046 }),
-  polySmg01Attack: Object.freeze({ caliber: '9x19mm', tracerColor: '#ffd986', tracerCount: 12, shellPoolExtra: 9 })
-});
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
     position: [0.018, -0.002, 0.086],
@@ -718,7 +684,7 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   }
 });
 const FIREARM_UNIFIED_DIRECTION_ROTATION =
-  FIREARM_HAND_ATTACH_TUNING.assaultRifleAttack?.rotation ||
+  FIREARM_HAND_ATTACH_TUNING.smithSidearmAttack?.rotation ||
   FIREARM_HAND_ATTACH_TUNING.default.rotation;
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
@@ -7113,7 +7079,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
+      orientFirearmRackFlat(entry.weaponRack);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -9889,30 +9855,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             muzzleOrigin.y += 0.09;
             muzzleOrigin.add(new THREE.Vector3(0.02, 0.01, 0.02));
           } else {
-          muzzleOrigin.copy(startPosition).add(new THREE.Vector3(0, 0.08, 0));
+            muzzleOrigin.copy(startPosition).add(new THREE.Vector3(0, 0.08, 0));
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const ballisticProfile =
-            FIREARM_BALLISTICS_PROFILE[resolvedCaptureAnimationId] || FIREARM_BALLISTICS_PROFILE.default;
           const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
           const durationMs = preFireLeadMs + shots * cadenceMs + 760;
           const muzzleFx = createCaptureMuzzleFx();
-          const tracers = Array.from(
-            { length: ballisticProfile.tracerCount ?? FIREARM_BALLISTICS_PROFILE.default.tracerCount },
-            () => createCaptureBulletTracerFx(ballisticProfile.tracerColor || FIREARM_BALLISTICS_PROFILE.default.tracerColor)
-          );
-          const shells = Array.from(
-            {
-              length: Math.max(
-                16,
-                Math.min(42, shots + (ballisticProfile.shellPoolExtra ?? FIREARM_BALLISTICS_PROFILE.default.shellPoolExtra))
-              )
-            },
-            () => createCaptureShellCasingFx()
-          );
+          const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
+          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
           const targetReticle = createCaptureTargetReticleFx();
           const shellStates = shells.map(() => ({ landed: false, settledAt: 0 }));
           scene.add(muzzleFx.root);
@@ -10031,16 +9984,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               }
               shell.visible = true;
               if (shellLife < 18) shellBase.copy(muzzleOrigin);
-              const nextY =
-                shellBase.y +
-                0.018 +
-                Math.sin((shellLife / 760) * Math.PI) * (ballisticProfile.shellLift ?? FIREARM_BALLISTICS_PROFILE.default.shellLift) -
-                shellLife * 0.00012;
-              shell.position.set(
-                shellBase.x + shellLife * (ballisticProfile.shellEjectSide ?? FIREARM_BALLISTICS_PROFILE.default.shellEjectSide),
-                nextY,
-                shellBase.z - shellLife * (ballisticProfile.shellEjectForward ?? FIREARM_BALLISTICS_PROFILE.default.shellEjectForward)
-              );
+              const nextY = shellBase.y + 0.018 + Math.sin((shellLife / 760) * Math.PI) * 0.052 - shellLife * 0.00012;
+              shell.position.set(shellBase.x + shellLife * 0.00026, nextY, shellBase.z - shellLife * 0.00021);
               if (shell.position.y <= tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006) {
                 shell.position.y = tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006;
                 shellState.landed = true;
