@@ -203,6 +203,8 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
+  // Keep Assault Rifle rack footprint matched to Glock baseline per design request.
+  assaultRifleAttack: 1,
   uziSprayAttack: 1.65,
   smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
@@ -226,8 +228,9 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
-    position: [0, 0, -0.004],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
+    position: [0.024, 0, -0.006],
+    // Keep parked sidearms flatter/straighter so they do not point into board lanes.
+    rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
@@ -235,18 +238,23 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
     rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
+
+const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
+  // Force shotgun blast to lie down with the same straight rack pose as the AK-47 reference.
+  shotgunBlastAttack: FIREARM_RACK_DISPLAY_TUNING.large
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.118,
-    inward: 0.004,
-    outward: 0.018
+    side: 0.142,
+    inward: -0.002,
+    outward: 0.032
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.266,
-    inward: -0.01,
-    outward: 0.108
+    side: 0.292,
+    inward: -0.014,
+    outward: 0.13
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -1113,9 +1121,11 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   const clone = weaponModel.clone(true);
   const baseAlignPositionY = clone.position.y;
   alignObjectBottomToY(clone, 0);
-  const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
-    ? FIREARM_RACK_DISPLAY_TUNING.large
-    : FIREARM_RACK_DISPLAY_TUNING.default;
+  const displayTuning =
+    FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
+    (LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
+      ? FIREARM_RACK_DISPLAY_TUNING.large
+      : FIREARM_RACK_DISPLAY_TUNING.default);
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
