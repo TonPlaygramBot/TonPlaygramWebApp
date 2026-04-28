@@ -196,12 +196,12 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
     targetSizeMultiplier: 1.06,
     position: [0, 0, -0.004],
-    rotation: [0, Math.PI * 0.5, 0]
+    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
   }),
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
     position: [0.08, 0, -0.014],
-    rotation: [0, Math.PI * 0.04, Math.PI * 0.02]
+    rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -853,7 +853,7 @@ async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
   weaponHolder.position.set(0.04, 0.032, -0.018);
-  weaponHolder.rotation.z = -0.08;
+  weaponHolder.rotation.set(0, 0, 0);
   root.add(weaponHolder);
 
   const buttonBase = new THREE.Mesh(
@@ -6739,6 +6739,35 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       Number.isFinite(humanCaptureAnimationIndex) && humanCaptureAnimationIndex >= 0
         ? humanCaptureAnimationIndex
         : appearanceRef.current?.captureAnimation ?? 0;
+    const refreshWeaponRackPose = (entry, captureAnimationId) => {
+      if (!entry?.weaponRack?.isObject3D) return;
+      const arena = arenaRef.current;
+      const playerIndex = entry.playerIndex;
+      if (!arena?.seatAnchors?.length || !arena.boardLookTarget || !Number.isFinite(playerIndex)) return;
+      const anchor = arena.seatAnchors[playerIndex];
+      if (!anchor?.isObject3D) return;
+      const seatPos = anchor.getWorldPosition(new THREE.Vector3());
+      const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos.clone();
+      const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0);
+      if (inward.lengthSq() < 1e-6) return;
+      inward.normalize();
+      const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
+      const oppositeToPlayer = arena.boardLookTarget.clone().multiplyScalar(2).sub(kingPos).setY(0);
+      const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
+      const basePosition = isLargeFirearm
+        ? seatPos
+            .clone()
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.95)
+            .addScaledVector(inward, 0.02)
+        : oppositeToPlayer
+            .clone()
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.35)
+            .addScaledVector(inward, 0.01);
+      entry.weaponRack.position.copy(basePosition);
+      alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
+      entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      orientCaptureVehicleTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
+    };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
       const selectedCaptureAnimationId =
@@ -6771,17 +6800,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           entry.weaponRackHit.visible = showFirearm;
         }
         if (showFirearm) {
-          void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId);
+          void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId).then(() => {
+            refreshWeaponRackPose(entry, selectedCaptureAnimationId);
+          });
         } else {
           entry?.weaponHolder?.children?.forEach?.((child) => {
             stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
           });
           entry.weaponHolder?.clear?.();
           entry.selectedCaptureAnimationId = null;
+          refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
       }
     });
-  }, [aiLoadoutByPlayer]);
+  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer]);
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
@@ -6834,7 +6866,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
       droneTruckFx.root.position.copy(droneTruckPark);
-      weaponRackFx.root.position.copy(weaponRackPark.clone().add(new THREE.Vector3(0.04, 0, -0.026)));
+      weaponRackFx.root.position.copy(weaponRackPark);
       const tableSurfaceY = arena.tableInfo?.surfaceY;
       alignObjectBottomToY(jetFx.root, tableSurfaceY);
       alignObjectBottomToY(helicopterFx.root, tableSurfaceY);
@@ -6861,6 +6893,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arena.scene.add(droneTruckFx.root);
       arena.scene.add(weaponRackFx.root);
       const parkedEntry = {
+        playerIndex,
         jet: jetFx.root,
         helicopter: helicopterFx.root,
         drone: droneFx.root,
