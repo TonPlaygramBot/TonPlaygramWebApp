@@ -31,7 +31,8 @@ const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/exampl
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.3;
+// Match Ludo Battle Royal seated/chair footprint so Snake seats read the same on portrait screens.
+const CHAIR_SIZE_SCALE = 0.66;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
@@ -43,7 +44,8 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_LEG_TRIM_FACTOR = 0.64;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
@@ -84,8 +86,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.85 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -94,6 +96,9 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
+const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.14 * MODEL_SCALE;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1560,6 +1565,28 @@ function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6
   tex.anisotropy = 8;
   tex.needsUpdate = true;
   return tex;
+}
+
+function createSnakeSeatHumanHelpers(parent) {
+  const root = new THREE.Group();
+  root.name = 'SnakeSeatHumanHelpers';
+  parent.add(root);
+
+  const pelvis = new THREE.Object3D();
+  pelvis.name = 'SnakeSeatHumanPelvisAnchor';
+  pelvis.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+  root.add(pelvis);
+
+  const faceCamera = new THREE.Object3D();
+  faceCamera.name = 'SnakeSeatHumanFaceCameraAnchor';
+  faceCamera.position.set(
+    SEATED_HELPER_FACE_CAMERA_RIGHT,
+    SEATED_HELPER_FACE_CAMERA_UP,
+    SEATED_HELPER_FACE_CAMERA_FORWARD
+  );
+  root.add(faceCamera);
+
+  return { root, pelvis, faceCamera };
 }
 
 function normalizeHumanBoneName(value = '') {
@@ -3426,9 +3453,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
     group.add(avatarAnchor);
 
+    const humanHelpers = createSnakeSeatHumanHelpers(group);
     const humanAnchor = new THREE.Object3D();
     const humanSeatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (i === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-    humanAnchor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, humanSeatZOffset);
+    humanAnchor.position.set(0, humanHelpers.pelvis.position.y, humanSeatZOffset);
     humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
@@ -3438,7 +3466,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     }
 
     arenaGroup.add(group);
-    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor });
+    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor, humanHelpers });
   }
 
   loadChairTemplate(chairTheme, renderer)
