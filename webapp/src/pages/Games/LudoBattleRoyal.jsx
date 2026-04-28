@@ -994,6 +994,16 @@ function findObjectByNeedles(root, needles = []) {
   return match;
 }
 
+function normalizeFirearmRackGripAnchor(weaponObject) {
+  if (!weaponObject?.isObject3D) return;
+  weaponObject.updateMatrixWorld?.(true);
+  const sourceRightGrip = findObjectByNeedles(weaponObject, ['r_wrist', 'right_wrist', 'trigger', 'grip', 'handle']);
+  if (!sourceRightGrip?.isObject3D) return;
+  sourceRightGrip.updateMatrixWorld?.(true);
+  const gripLocal = weaponObject.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
+  weaponObject.position.sub(gripLocal);
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1144,6 +1154,8 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     clone,
     CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier * weaponRackScaleMultiplier
   );
+  // Keep every parked weapon grip/trigger point in one unified pickup slot.
+  normalizeFirearmRackGripAnchor(clone);
   clone.position.x += displayPosition[0];
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
