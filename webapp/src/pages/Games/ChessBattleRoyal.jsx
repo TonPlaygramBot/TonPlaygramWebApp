@@ -446,7 +446,7 @@ const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.004;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.64;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
@@ -463,9 +463,9 @@ const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
-const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.97;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.001;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.003;
+const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.004;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
@@ -848,18 +848,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
     headX = THREE.MathUtils.lerp(headX, 0.11, t);
-  } else if (mode === 'pressStrikeButton') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.04, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.92, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.28, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.24, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
-    headX = THREE.MathUtils.lerp(headX, 0.13, t);
   }
 
   const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
@@ -2650,9 +2638,6 @@ const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much f
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
-const SHOW_SIDE_PARKING_MARKINGS = false;
-const SHOW_BOARD_SIDE_MARKINGS = false;
-const VEHICLE_BUTTON_CAPTURE_KINDS = new Set(['truck', 'drone', 'helicopter', 'jet']);
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7546,7 +7531,7 @@ function Chess3D({
   const environmentShadowCatcherRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
-  const viewModeRef = useRef('2d');
+  const viewModeRef = useRef('3d');
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
   const cameraTweenRef = useRef(0);
@@ -7662,7 +7647,6 @@ function Chess3D({
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
-    arenaRef.current?.syncParkedWeaponPresentation?.(selectedParkedWeaponKind);
   }, [selectedParkedWeaponKind]);
   const ownedCaptureAnimations = useMemo(
     () =>
@@ -7756,7 +7740,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('2d');
+  const [viewMode, setViewMode] = useState('3d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -9740,11 +9724,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Always start every new match in 2D mode, then allow explicit user toggles/capture overrides.
+    // Always start every new match in cinematic 3D mode before any user toggle.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '2d';
-    setViewMode('2d');
-    setViewModeInternal('2d');
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -10450,23 +10434,6 @@ function Chess3D({
       const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
-    const getAttackButtonAnchor = (isWhiteSide) => {
-      const sideX = (isWhiteSide ? -1 : 1) * (half + tile * 2.35);
-      const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + 0.22;
-      const towardPlayerZ = (isWhiteSide ? 1 : -1) * tile * 0.88;
-      return new THREE.Vector3(sideX, yOffset, towardPlayerZ);
-    };
-    const syncParkedWeaponPresentation = (selectedKind) => {
-      parkedAirUnits.forEach((unit) => {
-        if (!unit?.root || !unit?.homePosition || !unit?.homeRotation) return;
-        if (!unit.busy) {
-          unit.root.position.copy(unit.homePosition);
-          unit.root.rotation.copy(unit.homeRotation);
-          unit.root.quaternion.setFromEuler(unit.root.rotation);
-        }
-        unit.root.visible = unit.busy || unit.kind === selectedKind;
-      });
-    };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
       const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
       if (!preferred?.root) return null;
@@ -10513,20 +10480,6 @@ function Chess3D({
       const direction = truck.isWhite ? 1 : -1;
       launchOffset.x *= direction;
       return truck.root.localToWorld(launchOffset);
-    };
-    const recenterParkedWeaponModel = (root) => {
-      if (!root?.isObject3D) return;
-      root.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(root);
-      if (box.isEmpty()) return;
-      const center = box.getCenter(new THREE.Vector3());
-      const liftY = box.min.y;
-      root.children.forEach((child) => {
-        child.position.x -= center.x;
-        child.position.z -= center.z;
-        child.position.y -= liftY;
-      });
-      root.updateMatrixWorld(true);
     };
     const createFxMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
@@ -11454,44 +11407,14 @@ function Chess3D({
       marker.add(text);
       airPadGroup.add(marker);
     };
-    if (SHOW_SIDE_PARKING_MARKINGS) {
-      addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
-      addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
-    }
-    const addAttackButtonMarker = (isWhiteSide) => {
-      const root = new THREE.Group();
-      root.position.copy(getAttackButtonAnchor(isWhiteSide));
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(tile * 0.16, tile * 0.2, tile * 0.08, 18),
-        new THREE.MeshStandardMaterial({ color: '#0b1020', roughness: 0.56, metalness: 0.3 })
-      );
-      base.castShadow = true;
-      base.receiveShadow = true;
-      root.add(base);
-      const button = new THREE.Mesh(
-        new THREE.SphereGeometry(tile * 0.13, 18, 14),
-        new THREE.MeshStandardMaterial({
-          color: '#ef4444',
-          emissive: new THREE.Color('#7f1d1d'),
-          emissiveIntensity: 0.42,
-          roughness: 0.3,
-          metalness: 0.26
-        })
-      );
-      button.position.y = tile * 0.05;
-      button.scale.y = 0.66;
-      button.castShadow = true;
-      root.add(button);
-      airPadGroup.add(root);
-    };
-    addAttackButtonMarker(true);
-    addAttackButtonMarker(false);
+    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
+    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
     // Tiles
     const tiles = [];
@@ -11521,32 +11444,30 @@ function Chess3D({
 
     // Coordinates (optional minimal markers)
     const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
-    if (SHOW_BOARD_SIDE_MARKINGS) {
-      for (let i = 0; i < N; i++) {
-        const mSmall = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.08, 0.8),
+    for (let i = 0; i < N; i++) {
+      const mSmall = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.08, 0.8),
+        coordMat
+      );
+      mSmall.rotation.x = -Math.PI / 2;
+        mSmall.position.set(
+          i * tile - half + tile / 2,
+          BOARD.baseH + 0.13,
+          -half - 0.6
+        );
+        boardVisualGroup.add(mSmall);
+        const nSmall = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.8, 0.08),
           coordMat
         );
-        mSmall.rotation.x = -Math.PI / 2;
-          mSmall.position.set(
-            i * tile - half + tile / 2,
-            BOARD.baseH + 0.13,
-            -half - 0.6
-          );
-          boardVisualGroup.add(mSmall);
-          const nSmall = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.8, 0.08),
-            coordMat
-          );
-          nSmall.rotation.x = -Math.PI / 2;
-        nSmall.position.set(
-            -half - 0.6,
-            BOARD.baseH + 0.13,
-            i * tile - half + tile / 2
-          );
-          boardVisualGroup.add(nSmall);
+        nSmall.rotation.x = -Math.PI / 2;
+      nSmall.position.set(
+          -half - 0.6,
+          BOARD.baseH + 0.13,
+          i * tile - half + tile / 2
+        );
+        boardVisualGroup.add(nSmall);
       }
-    }
 
     let proceduralBoardVisible = false;
     const setProceduralBoardVisible = () => {
@@ -11846,7 +11767,6 @@ function Chess3D({
         const skin = resolveSideVehicleSkin(isWhite);
         for (let slot = 0; slot < 1; slot += 1) {
           const jet = createFxJet();
-          recenterParkedWeaponModel(jet.root);
           jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
@@ -11868,7 +11788,6 @@ function Chess3D({
           });
 
           const helicopter = createFxHelicopter();
-          recenterParkedWeaponModel(helicopter.root);
           helicopter.root.scale.setScalar(
             CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
           );
@@ -11894,7 +11813,6 @@ function Chess3D({
           });
         }
         const sideDrone = createFxDrone();
-        recenterParkedWeaponModel(sideDrone.root);
         sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
         if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
         attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
@@ -11916,7 +11834,6 @@ function Chess3D({
         });
 
         const supportTruck = createFxSupportTruck();
-        recenterParkedWeaponModel(supportTruck.root);
         supportTruck.root.scale.setScalar(
           CAPTURE_HELICOPTER_SCALE *
             1.15 *
@@ -11948,7 +11865,11 @@ function Chess3D({
           root: supportTruck.root
         });
       });
-      syncParkedWeaponPresentation(selectedParkedWeaponKindRef.current);
+      const currentCaptureKind = selectedParkedWeaponKindRef.current;
+      parkedAirUnits.forEach((unit) => {
+        if (!unit?.root) return;
+        unit.root.visible = unit.busy || unit.kind === currentCaptureKind;
+      });
     };
 
     const syncBoardFromState = (payload = {}) => {
@@ -12197,7 +12118,6 @@ function Chess3D({
         activePieceSetId: currentPieceSetId,
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
-        syncParkedWeaponPresentation,
         setProceduralBoardVisible,
         usingProceduralBoard: proceduralBoardVisible
       };
@@ -12645,10 +12565,6 @@ function Chess3D({
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
           isCapture: Boolean(capturedPiece),
-          usesVehicleButton: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind),
-          buttonWorldPos: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind)
-            ? getAttackButtonAnchor(moverSeatIndex === 0).clone()
-            : null,
           forwardReach,
           sideReach,
           gripOffset: null,
@@ -13158,9 +13074,10 @@ function Chess3D({
         arenaState.sandTimer.tick?.(dt, now * 0.001);
       }
 
-      syncParkedWeaponPresentation(selectedParkedWeaponKindRef.current);
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
+        unit.root.visible =
+          unit.busy || unit.kind === selectedParkedWeaponKindRef.current;
         if (unit.rotorsActive && unit.topRotor && unit.topRotorAxis) {
           unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
         }
@@ -13644,15 +13561,10 @@ function Chess3D({
           const carryPhaseEnd = action.isCapture
             ? SEATED_HUMAN_ATTACK_CARRY_PHASE_END
             : SEATED_HUMAN_CARRY_PHASE_END;
-          const buttonPhaseEnd = action.usesVehicleButton ? 0.22 : 0;
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (action.usesVehicleButton && u < buttonPhaseEnd) {
-            mode = 'pressStrikeButton';
-            intensity = clamp01(u / Math.max(0.001, buttonPhaseEnd));
-            grip = 0.08;
-          } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+          if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
@@ -13722,13 +13634,7 @@ function Chess3D({
             const liftedTo = liveTo.clone();
             liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
             let handTarget = liveFrom.clone();
-            if (action.usesVehicleButton && u < buttonPhaseEnd && action.buttonWorldPos) {
-              const pressT = smoothEase(clamp01(u / Math.max(0.001, buttonPhaseEnd)));
-              const pressStart = liveFrom.clone().setY(liftedFrom.y);
-              const pressTarget = action.buttonWorldPos.clone();
-              handTarget.lerpVectors(pressStart, pressTarget, pressT);
-              action.mesh.position.copy(pressStart);
-            } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+            if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
               handTarget.lerpVectors(liveFrom, liftedFrom, pickupT);
               action.mesh.position.copy(handTarget);
@@ -13757,17 +13663,6 @@ function Chess3D({
               } else {
                 handTarget.copy(carryTarget);
                 action.mesh.position.copy(carryTarget);
-              }
-              if (action.isCapture) {
-                const aimTarget = liveTo.clone();
-                const aimDir = aimTarget.sub(action.mesh.position);
-                if (aimDir.lengthSq() > 1e-6) {
-                  const aimQuat = new THREE.Quaternion().setFromUnitVectors(
-                    new THREE.Vector3(0, 1, 0),
-                    aimDir.normalize()
-                  );
-                  action.mesh.quaternion.slerp(aimQuat, 0.16);
-                }
               }
             } else {
               const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
