@@ -235,6 +235,20 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
     rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
   })
 });
+const FIREARM_RACK_PARKING_TUNING = Object.freeze({
+  // Small sidearms sit tight next to the token on its right-hand side.
+  small: Object.freeze({
+    side: 0.118,
+    inward: 0.004,
+    outward: 0.018
+  }),
+  // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
+  large: Object.freeze({
+    side: 0.258,
+    inward: -0.012,
+    outward: 0.096
+  })
+});
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -678,6 +692,8 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   polyShotgun03Attack: 1.28,
   polySmg01Attack: 1.22
 });
+// Keep FPS gun and Shotgun Blast visually matched in hand.
+const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
@@ -965,8 +981,11 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
+  const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
+    ? SHOTGUN_HAND_SCALE
+    : (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
   const scaleBoost =
-    FIREARM_ATTACH_WORLD_SCALE_BOOST * (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
+    FIREARM_ATTACH_WORLD_SCALE_BOOST * attachScaleMultiplier;
   weapon.scale.multiplyScalar(scaleBoost);
   rightHand.add(weapon);
   const weaponMixers = attackerEntry?.weaponAnimationMixers;
@@ -6925,23 +6944,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!arena?.seatAnchors?.length || !arena.boardLookTarget || !Number.isFinite(playerIndex)) return;
       const anchor = arena.seatAnchors[playerIndex];
       if (!anchor?.isObject3D) return;
-      const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-      const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos.clone();
+      const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? anchor.getWorldPosition(new THREE.Vector3());
       const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0);
       if (inward.lengthSq() < 1e-6) return;
       inward.normalize();
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
-      const oppositeToPlayer = arena.boardLookTarget.clone().multiplyScalar(2).sub(kingPos).setY(0);
       const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
-      const basePosition = isLargeFirearm
-        ? seatPos
-            .clone()
-            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.95)
-            .addScaledVector(inward, 0.02)
-        : oppositeToPlayer
-            .clone()
-            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.35)
-            .addScaledVector(inward, 0.01);
+      const rackTuning = isLargeFirearm
+        ? FIREARM_RACK_PARKING_TUNING.large
+        : FIREARM_RACK_PARKING_TUNING.small;
+      const basePosition = kingPos
+        .clone()
+        .addScaledVector(rightSide, rackTuning.side)
+        .addScaledVector(inward, rackTuning.inward)
+        .addScaledVector(inward, -rackTuning.outward);
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
