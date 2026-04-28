@@ -7,6 +7,7 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -986,8 +987,8 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.7;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.06;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.08;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.092 * MODEL_SCALE;
@@ -8149,7 +8150,7 @@ async function attachSeatedHumanActors(token) {
         template = await loadSeatedHumanTemplate(DOMINO_HUMAN_CHARACTER_OPTIONS[0]);
       }
       if (!template || token !== chairBuildToken) return;
-      const actor = template.clone(true);
+      const actor = cloneSkeleton(template);
       const actorScale =
         template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template);
       actor.scale.setScalar(actorScale);
