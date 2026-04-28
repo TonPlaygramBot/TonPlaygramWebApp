@@ -195,17 +195,6 @@ const CAPTURE_MODEL_URLS = Object.freeze({
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/fire_truck.glb'
   ]
 });
-const CAPTURE_VEHICLE_MODEL_HOSTS = Object.freeze([
-  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
-  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
-  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
-]);
-const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
-  drone: 'drone.glb',
-  helicopter: 'helicopter.glb',
-  fighter: 'f15.glb',
-  truck: 'fire_truck.glb'
-});
 
 const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
   missileJavelin: 'truck',
@@ -2656,11 +2645,11 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 35; // double side weapon scale so vehicles stay readable on portrait phones
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
-const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 2.12; // keep truck at same 2x boost as jet/helicopter/drone
+const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
 const SHOW_SIDE_PARKING_MARKINGS = false;
 const SHOW_BOARD_SIDE_MARKINGS = false;
 const VEHICLE_BUTTON_CAPTURE_KINDS = new Set(['truck', 'drone', 'helicopter', 'jet']);
@@ -9807,10 +9796,7 @@ function Chess3D({
     const loadCaptureUnitTemplate = async (key, targetSize) => {
       if (captureUnitTemplates[key]) return captureUnitTemplates[key];
       if (captureUnitLoads[key]) return captureUnitLoads[key];
-      const hostFileUrls = (CAPTURE_VEHICLE_MODEL_FILES[key]
-        ? CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${CAPTURE_VEHICLE_MODEL_FILES[key]}`)
-        : []);
-      const urls = Array.from(new Set([...(CAPTURE_MODEL_URLS[key] || []), ...hostFileUrls]));
+      const urls = CAPTURE_MODEL_URLS[key] || [];
       const loader = createConfiguredGLTFLoader(renderer);
       const imageCache = new Map();
       const task = (async () => {
