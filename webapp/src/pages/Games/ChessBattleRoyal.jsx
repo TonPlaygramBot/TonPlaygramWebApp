@@ -7669,6 +7669,17 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
+  const ownedCaptureAnimationIds = useMemo(
+    () => new Set(ownedCaptureAnimations.map((option) => option.id).filter(Boolean)),
+    [ownedCaptureAnimations]
+  );
+  useEffect(() => {
+    if (ownedCaptureAnimationIds.has(selectedCaptureAnimationId)) return;
+    const fallbackOwnedId = ownedCaptureAnimations[0]?.id;
+    if (!fallbackOwnedId) return;
+    setSelectedCaptureAnimationId(fallbackOwnedId);
+    setChessBattleEquippedOption('captureAnimation', fallbackOwnedId, resolvedAccountId);
+  }, [ownedCaptureAnimationIds, ownedCaptureAnimations, resolvedAccountId, selectedCaptureAnimationId]);
   const selectedCaptureKind = useMemo(() => {
     const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
     if (vehicleKind) return vehicleKind;
@@ -7694,11 +7705,12 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
+      if (!ownedCaptureAnimationIds.has(optionId)) return;
       setSelectedCaptureAnimationId(optionId);
       setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
     },
-    [resolvedAccountId, selectedCaptureAnimationId]
+    [ownedCaptureAnimationIds, resolvedAccountId, selectedCaptureAnimationId]
   );
   useEffect(() => {
     const handler = (event) => {
@@ -14341,6 +14353,54 @@ function Chess3D({
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Weapons</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Choose any weapon you already own in inventory.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWeaponSwapOpen((open) => !open)}
+                      className="rounded-full border border-amber-300/60 bg-amber-300/10 px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-amber-100 transition hover:border-amber-200"
+                    >
+                      Quick Swap
+                    </button>
+                  </div>
+                  {ownedCaptureAnimations.length > 0 ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {ownedCaptureAnimations.map((option) => {
+                        const isSelected = option.id === selectedCaptureAnimationId;
+                        return (
+                          <button
+                            key={`menu-weapon-${option.id}`}
+                            type="button"
+                            onClick={() => handleCaptureAnimationSwap(option.id)}
+                            className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                              isSelected
+                                ? 'border-amber-300/80 bg-amber-300/12 text-white shadow-[0_0_12px_rgba(252,211,77,0.28)]'
+                                : 'border-white/10 bg-white/5 text-white/80 hover:border-white/25'
+                            }`}
+                          >
+                            {option.thumbnail ? (
+                              <img
+                                src={option.thumbnail}
+                                alt={option.label}
+                                className="h-12 w-12 rounded-md object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span className="flex h-12 w-12 items-center justify-center rounded-md border border-white/20 bg-white/10 text-lg">🧰</span>
+                            )}
+                            <span className="mt-1 text-center text-[0.62rem] font-semibold leading-tight">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[0.65rem] text-white/65">No owned weapons found yet. Unlock one in the shop first.</p>
+                  )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div>
