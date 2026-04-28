@@ -54,8 +54,7 @@ import {
 import {
   chessBattleAccountId,
   getChessBattleInventory,
-  isChessOptionUnlocked,
-  setChessBattleEquippedOption
+  isChessOptionUnlocked
 } from '../../utils/chessBattleInventory.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
@@ -7640,30 +7639,6 @@ function Chess3D({
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
   }, [selectedCaptureAnimationId]);
-  const selectedCaptureKindRef = useRef(selectedCaptureKind);
-  useEffect(() => {
-    selectedCaptureKindRef.current = selectedCaptureKind;
-  }, [selectedCaptureKind]);
-  const ownedCaptureAnimations = useMemo(
-    () =>
-      (chessInventory?.captureAnimation || [])
-        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-        .filter(Boolean),
-    [chessInventory]
-  );
-  const selectedCaptureOption =
-    CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId) ||
-    CAPTURE_ANIMATION_OPTIONS[0] ||
-    null;
-  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
-  const handleCaptureAnimationSwap = useCallback(
-    (optionId) => {
-      if (!optionId || optionId === selectedCaptureAnimationId) return;
-      setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
-      setWeaponSwapOpen(false);
-    },
-    [resolvedAccountId, selectedCaptureAnimationId]
-  );
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -11865,11 +11840,6 @@ function Chess3D({
           root: supportTruck.root
         });
       });
-      const currentCaptureKind = selectedCaptureKindRef.current;
-      parkedAirUnits.forEach((unit) => {
-        if (!unit?.root) return;
-        unit.root.visible = unit.busy || (currentCaptureKind !== 'firearm' && unit.kind === currentCaptureKind);
-      });
     };
 
     const syncBoardFromState = (payload = {}) => {
@@ -13076,9 +13046,6 @@ function Chess3D({
 
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible =
-          unit.busy ||
-          (selectedCaptureKindRef.current !== 'firearm' && unit.kind === selectedCaptureKindRef.current);
         if (unit.rotorsActive && unit.topRotor && unit.topRotorAxis) {
           unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
         }
@@ -13862,85 +13829,6 @@ function Chess3D({
               )}
             </div>
           )}
-        </div>
-        <div className="absolute top-1/2 left-3 z-30 -translate-y-1/2 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-start gap-2">
-            <button
-              type="button"
-              onClick={() => setWeaponSwapOpen((open) => !open)}
-              aria-expanded={weaponSwapOpen}
-              aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-black/65 text-lg shadow-[0_6px_16px_rgba(0,0,0,0.42)] transition hover:border-amber-200 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
-            >
-              🔄
-            </button>
-            <div className="w-[11.5rem] rounded-xl border border-amber-200/35 bg-black/60 p-2 text-[0.62rem] text-white/90 shadow-lg backdrop-blur">
-              <p className="uppercase tracking-[0.22em] text-amber-200/85">Selected Weapon</p>
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 p-2">
-                {selectedCaptureOption?.thumbnail ? (
-                  <img
-                    src={selectedCaptureOption.thumbnail}
-                    alt={selectedCaptureOption.label}
-                    className="h-10 w-10 rounded-md object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-md border border-white/20 bg-white/10 text-lg">
-                    🎯
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate text-[0.7rem] font-semibold text-white">
-                    {selectedCaptureOption?.label || 'Default Weapon'}
-                  </p>
-                  <p className="truncate text-[0.6rem] text-white/60">
-                    All pieces use this capture animation.
-                  </p>
-                </div>
-              </div>
-            </div>
-            {weaponSwapOpen && (
-              <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
-                <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                  Quick Weapon Swap
-                </p>
-                <div className="space-y-2">
-                  {ownedCaptureAnimations.map((option) => {
-                    const isSelected = option.id === selectedCaptureAnimationId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => handleCaptureAnimationSwap(option.id)}
-                        className={`flex w-full items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          isSelected
-                            ? 'border-emerald-300/80 bg-emerald-300/15'
-                            : 'border-white/10 bg-white/5 hover:border-white/30'
-                        }`}
-                      >
-                        {option.thumbnail ? (
-                          <img
-                            src={option.thumbnail}
-                            alt={option.label}
-                            className="h-9 w-9 rounded-md object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
-                            🧰
-                          </span>
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
-                          <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
         <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
