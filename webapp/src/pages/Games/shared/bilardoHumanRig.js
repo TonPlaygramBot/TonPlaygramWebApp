@@ -185,11 +185,23 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
+          if (m.color) {
+            m.color.multiplyScalar(1.18);
+          }
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
             m.map.needsUpdate = true;
           }
+          if (m.emissiveMap) {
+            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.emissiveMap.anisotropy = textureAnisotropy;
+            m.emissiveMap.needsUpdate = true;
+          }
+          m.transparent = false;
+          m.opacity = 1;
+          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
+          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
           m.needsUpdate = true;
         });
       });
