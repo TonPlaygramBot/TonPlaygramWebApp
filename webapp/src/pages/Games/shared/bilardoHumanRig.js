@@ -185,11 +185,43 @@ export function createBilardoHumanRig(scene, opts = {}) {
             : [];
         mats.forEach((m) => {
           if (!m) return;
+          if (m.color) {
+            const hsl = { h: 0, s: 0, l: 0 };
+            m.color.getHSL(hsl);
+            hsl.l = Math.max(hsl.l, 0.36);
+            hsl.s = Math.max(hsl.s, 0.16);
+            m.color.setHSL(hsl.h, hsl.s, hsl.l);
+          }
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             if (textureAnisotropy != null) m.map.anisotropy = textureAnisotropy;
             m.map.needsUpdate = true;
           }
+          if (m.emissiveMap) {
+            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            if (textureAnisotropy != null) m.emissiveMap.anisotropy = textureAnisotropy;
+            m.emissiveMap.needsUpdate = true;
+          }
+          if (m.normalMap && textureAnisotropy != null) {
+            m.normalMap.anisotropy = textureAnisotropy;
+            m.normalMap.needsUpdate = true;
+          }
+          if (m.roughnessMap && textureAnisotropy != null) {
+            m.roughnessMap.anisotropy = textureAnisotropy;
+            m.roughnessMap.needsUpdate = true;
+          }
+          if (m.metalnessMap && textureAnisotropy != null) {
+            m.metalnessMap.anisotropy = textureAnisotropy;
+            m.metalnessMap.needsUpdate = true;
+          }
+          if (m.alphaMap) {
+            if (textureAnisotropy != null) m.alphaMap.anisotropy = textureAnisotropy;
+            m.alphaMap.needsUpdate = true;
+          }
+          m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
+          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
+          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
+          if (m.emissiveIntensity != null) m.emissiveIntensity = Math.max(m.emissiveIntensity, 0.12);
           m.needsUpdate = true;
         });
       });
