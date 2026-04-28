@@ -12,30 +12,6 @@ const dampScalar = (current, target, lambda, dt) =>
   THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 
-const CESIUM_MAN_WALK_KEYFRAMES = [
-  { t: 0, stride: 0.9, lift: 0.08, arm: -0.62, sway: -0.24 },
-  { t: 0.25, stride: -0.72, lift: 0.3, arm: 0.55, sway: 0.2 },
-  { t: 0.5, stride: -0.9, lift: 0.08, arm: 0.62, sway: 0.24 },
-  { t: 0.75, stride: 0.72, lift: 0.3, arm: -0.55, sway: -0.2 },
-  { t: 1, stride: 0.9, lift: 0.08, arm: -0.62, sway: -0.24 }
-];
-
-function sampleCesiumManWalkCurve(phase) {
-  const t = THREE.MathUtils.euclideanModulo(phase, 1);
-  let i = 0;
-  while (i < CESIUM_MAN_WALK_KEYFRAMES.length - 2 && t > CESIUM_MAN_WALK_KEYFRAMES[i + 1].t) i += 1;
-  const a = CESIUM_MAN_WALK_KEYFRAMES[i];
-  const b = CESIUM_MAN_WALK_KEYFRAMES[i + 1];
-  const localT = clamp01((t - a.t) / Math.max(1e-6, b.t - a.t));
-  const smoothT = localT * localT * (3 - 2 * localT);
-  return {
-    stride: lerp(a.stride, b.stride, smoothT),
-    lift: lerp(a.lift, b.lift, smoothT),
-    arm: lerp(a.arm, b.arm, smoothT),
-    sway: lerp(a.sway, b.sway, smoothT)
-  };
-}
-
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function makeBasisQuaternion(side, up, forward) {
@@ -137,40 +113,22 @@ function normalizeHuman(model, opts) {
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
-function stabilizeGltfMaterial(material, textureAnisotropy, maxTextureSize) {
-  if (!material) return;
-  const maps = [
-    material.map,
-    material.emissiveMap,
-    material.normalMap,
-    material.roughnessMap,
-    material.metalnessMap,
-    material.alphaMap
-  ];
-  maps.forEach((texture) => {
-    if (!texture) return;
-    const image = texture.image;
-    const width = Number.isFinite(image?.width) ? image.width : 0;
-    const height = Number.isFinite(image?.height) ? image.height : 0;
-    const oversized = Number.isFinite(maxTextureSize) && maxTextureSize > 0 && (width > maxTextureSize || height > maxTextureSize);
-    if (oversized) {
-      texture.generateMipmaps = false;
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = 1;
-    } else if (Number.isFinite(textureAnisotropy)) {
-      texture.anisotropy = Math.max(1, textureAnisotropy);
-    }
-    texture.needsUpdate = true;
-  });
-  material.needsUpdate = true;
+function applyOriginalGltfTextureSettings(texture, { isColor = false, anisotropy = null } = {}) {
+  if (!texture) return;
+  if (isColor) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  texture.flipY = false;
+  if (Number.isFinite(anisotropy)) {
+    texture.anisotropy = Math.max(1, anisotropy);
+  }
+  texture.needsUpdate = true;
 }
 
 export function createBilardoHumanRig(scene, opts = {}) {
   const textureAnisotropy = Number.isFinite(opts?.textureAnisotropy)
     ? Math.max(1, opts.textureAnisotropy)
     : null;
-  const maxTextureSize = Number.isFinite(opts?.maxTextureSize) ? Math.max(256, opts.maxTextureSize) : null;
   const human = {
     root: new THREE.Group(),
     modelRoot: new THREE.Group(),
@@ -190,8 +148,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
-    walkSpeed: 0,
-    walkPhase: 0,
     cfg: {
       poseLambda: opts.poseLambda ?? 9,
       moveLambda: opts.moveLambda ?? 5.6,
@@ -240,7 +196,32 @@ export function createBilardoHumanRig(scene, opts = {}) {
             ? [obj.material]
             : [];
         mats.forEach((m) => {
-          stabilizeGltfMaterial(m, textureAnisotropy, maxTextureSize);
+          if (!m) return;
+          applyOriginalGltfTextureSettings(m.map, {
+            isColor: true,
+            anisotropy: textureAnisotropy
+          });
+          applyOriginalGltfTextureSettings(m.emissiveMap, {
+            isColor: true,
+            anisotropy: textureAnisotropy
+          });
+          applyOriginalGltfTextureSettings(m.normalMap, {
+            anisotropy: textureAnisotropy
+          });
+          applyOriginalGltfTextureSettings(m.roughnessMap, {
+            anisotropy: textureAnisotropy
+          });
+          applyOriginalGltfTextureSettings(m.metalnessMap, {
+            anisotropy: textureAnisotropy
+          });
+          applyOriginalGltfTextureSettings(m.alphaMap, {
+            anisotropy: textureAnisotropy
+          });
+          m.opacity = Math.max(0.96, Number.isFinite(m.opacity) ? m.opacity : 1);
+          if (m.roughness != null) m.roughness = Math.min(m.roughness, 0.95);
+          if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.25);
+          if (m.emissiveIntensity != null) m.emissiveIntensity = Math.max(m.emissiveIntensity, 0.12);
+          m.needsUpdate = true;
         });
       });
       human.bones = buildAvatarBones(model);
@@ -431,7 +412,7 @@ function driveHuman(human, frame) {
   human.modelRoot.visible = true;
   human.modelRoot.position.copy(frame.rootWorld);
   human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t;
+  human.modelRoot.position.y += 0.006 * frame.breath - 0.006 * frame.t;
   human.modelRoot.updateMatrixWorld(true);
   human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
   human.modelRoot.updateMatrixWorld(true);
@@ -443,19 +424,17 @@ function driveHuman(human, frame) {
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
   if (frame.walkAmount * idle > 0.001) {
-    const gait = sampleCesiumManWalkCurve(frame.walkPhase ?? human.walkPhase ?? 0);
+    const s = Math.sin(human.walkT * 6.2);
+    const c = Math.cos(human.walkT * 6.2);
     const w = frame.walkAmount * idle;
-    const stride = gait.stride * w;
-    const arm = gait.arm * w;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += stride * 0.46;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= stride * 0.46;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -stride) * 0.34 + gait.lift * 0.06 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, stride) * 0.34 + gait.lift * 0.06 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x += arm * 0.42;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x -= arm * 0.42;
-    if (b.spine) b.spine.rotation.z += gait.sway * 0.08 * w;
-    if (b.hips) b.hips.rotation.z -= gait.sway * 0.06 * w;
-    if (b.hips) b.hips.position.y += gait.lift * 0.01 * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.025 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.018 * w;
   }
 
   const rightGrip = frame.rightHandWorld
@@ -494,9 +473,10 @@ function driveHuman(human, frame) {
     return;
   }
 
-  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward);
-  twistBone(b.hips, frame.side, -0.075 * ik);
-  twistBone(b.hips, frame.forward, -0.04 * ik);
+  const hipIk = ik * 0.35;
+  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * hipIk) * hipIk, frame.forward);
+  twistBone(b.hips, frame.side, -0.075 * hipIk);
+  twistBone(b.hips, frame.forward, -0.04 * hipIk);
   rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward);
   twistBone(b.spine, frame.side, -0.23 * ik);
   twistBone(b.spine, frame.forward, -0.055 * ik);
@@ -550,29 +530,6 @@ function driveHuman(human, frame) {
     0.98 * ik
   );
   poseFingers(human.leftFingers, 'bridge', ik);
-
-  aimTwoBone(
-    b.leftUpperLeg,
-    b.leftLowerLeg,
-    frame.leftKnee,
-    frame.leftFootWorld,
-    frame.forward.clone().addScaledVector(UP, 0.12).normalize(),
-    0.68 * ik,
-    0.84 * ik
-  );
-  twistBone(b.leftUpperLeg, frame.forward, -0.07 * ik);
-  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.1 * ik, 0.68 * ik);
-  aimTwoBone(
-    b.rightUpperLeg,
-    b.rightLowerLeg,
-    frame.rightKnee,
-    frame.rightFootWorld,
-    frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(),
-    0.68 * ik,
-    0.84 * ik
-  );
-  twistBone(b.rightUpperLeg, frame.forward, 0.06 * ik);
-  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.07 * ik, 0.68 * ik);
 }
 
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
@@ -623,10 +580,6 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   human.root.position.lerp(rootGoal, 1 - Math.exp(-(state === 'striking' ? 12 : cfg.moveLambda) * dt));
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
-  const targetWalkSpeed = clamp01(moveAmountRaw * 22);
-  human.walkSpeed = dampScalar(human.walkSpeed ?? 0, targetWalkSpeed, 8.8, dt);
-  const gaitHz = lerp(1.08, 2.18, human.walkSpeed);
-  human.walkPhase = THREE.MathUtils.euclideanModulo((human.walkPhase ?? 0) + dt * gaitHz, 1);
   human.yaw = dampScalar(
     human.yaw,
     state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward),
@@ -653,7 +606,7 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
-  const lowerBodyT = t;
+  const lowerBodyT = t * 0.35;
 
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
@@ -728,7 +681,6 @@ export function updateBilardoHumanPose(human, dt, frameData) {
     stroke,
     follow,
     walkAmount,
-    walkPhase: human.walkPhase,
     forward,
     side,
     up: UP,
