@@ -22,6 +22,7 @@ export default function AvatarTimer({
   scoreStyle = {},
   rollHistoryStyle = {},
   nameCurveRadius = 45,
+  nameCurveBaselineY = 54,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
@@ -79,7 +80,7 @@ export default function AvatarTimer({
               const r = nameCurveRadius;
               const start = 50 - r;
               const end = 50 + r;
-              const path = `M${start},50 A${r},${r} 0 0 1 ${end},50`;
+              const path = `M${start},${nameCurveBaselineY} A${r},${r} 0 0 1 ${end},${nameCurveBaselineY}`;
               return <path id={`name-path-${index}`} d={path} />;
             })()}
           </defs>
