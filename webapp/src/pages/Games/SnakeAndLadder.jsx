@@ -1782,7 +1782,9 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || 'drone';
+      const selectedWeapon = normalizeCaptureWeaponId(
+        resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0]?.id || 'drone'
+      );
       const aiWeapon = aiWeaponLoadout[mover - 1];
       const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon || 'drone');
       setBurning((b) => [...new Set([...b, ...victims])]);
@@ -3266,15 +3268,15 @@ export default function SnakeAndLadder() {
     isSnakeOptionUnlocked('captureWeapon', normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id), snakeInventory)
       ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
       : fallbackCaptureWeaponId(0);
+  const computedIndex = isMultiplayer
+    ? mpPlayers.findIndex((p) => p.id === accountId)
+    : 0;
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => {
         const seatIndex = seatAssignments.get(i);
         const orderIndex = Number.isFinite(seatIndex) ? seatIndex + 1 : i + 1;
-        const isLocalPlayer =
-          accountId != null &&
-          p?.id != null &&
-          String(p.id) === String(accountId);
+        const isLocalPlayer = computedIndex >= 0 ? i === computedIndex : false;
         return {
           id: p.id,
           position: p.position,
@@ -3311,9 +3313,6 @@ export default function SnakeAndLadder() {
         }))
       ];
 
-  const computedIndex = isMultiplayer
-    ? mpPlayers.findIndex((p) => p.id === accountId)
-    : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const hasLocalExtraRoll = pendingExtraRoll;
   const isMyTurnForRoll =
