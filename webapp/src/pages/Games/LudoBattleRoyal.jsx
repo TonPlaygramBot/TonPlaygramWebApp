@@ -246,12 +246,6 @@ const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
   rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
 });
-const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
-  // Keep every firearm's trigger/grip region in the same local slot so right-hand pickup
-  // alignment stays consistent when transitioning from rack -> hand attachment.
-  position: [0.086, 0.008, -0.02],
-  minSurfaceY: 0
-});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -772,14 +766,9 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
 }
 
-function orientFirearmRackFlat(root, lookTarget = null) {
+function orientFirearmRackFlat(root) {
   if (!root?.isObject3D) return;
   root.rotation.set(0, 0, 0);
-  if (!lookTarget?.isVector3) return;
-  const forward = lookTarget.clone().sub(root.position).setY(0);
-  if (forward.lengthSq() < 1e-6) return;
-  forward.normalize();
-  root.rotation.y = Math.atan2(forward.x, forward.z);
 }
 
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
@@ -1005,59 +994,6 @@ function findObjectByNeedles(root, needles = []) {
   return match;
 }
 
-function alignFirearmRackGripAnchor(root) {
-  if (!root?.isObject3D) return;
-  root.updateMatrixWorld?.(true);
-  const gripNode =
-    findObjectByNeedles(root, [
-      'trigger',
-      'grip',
-      'handle',
-      'r_wrist',
-      'right_wrist',
-      'hand_r',
-      'r_hand'
-    ]) || null;
-  if (gripNode?.isObject3D) {
-    gripNode.updateMatrixWorld?.(true);
-    const gripLocal = root.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
-    const anchor = new THREE.Vector3(...UNIFORM_FIREARM_RACK_GRIP_ANCHOR.position);
-    root.position.add(anchor.sub(gripLocal));
-  }
-  root.updateMatrixWorld?.(true);
-  const bounds = new THREE.Box3().setFromObject(root);
-  if (Number.isFinite(bounds.min.y) && bounds.min.y < UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY) {
-    root.position.y += UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY - bounds.min.y;
-  }
-}
-
-function resolveFirearmRackAimDirection(root) {
-  if (!root?.isObject3D) return null;
-  root.updateMatrixWorld?.(true);
-  const gripNode = findObjectByNeedles(root, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist']);
-  const muzzleNode = findObjectByNeedles(root, ['muzzle', 'barrel', 'tip', 'front', 'flash']);
-  if (gripNode?.isObject3D && muzzleNode?.isObject3D) {
-    const grip = gripNode.getWorldPosition(new THREE.Vector3());
-    const muzzle = muzzleNode.getWorldPosition(new THREE.Vector3());
-    const direction = muzzle.sub(grip).setY(0);
-    if (direction.lengthSq() > 1e-6) return direction.normalize();
-  }
-  const bounds = new THREE.Box3().setFromObject(root);
-  const size = new THREE.Vector3();
-  bounds.getSize(size);
-  if (size.x <= 1e-6 && size.z <= 1e-6) return null;
-  // Firearms are usually longer than wide in rack view; use the longest horizontal axis as fallback.
-  return size.z >= size.x ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
-}
-
-function alignFirearmRackForward(root) {
-  if (!root?.isObject3D) return;
-  const forward = resolveFirearmRackAimDirection(root);
-  if (!forward?.isVector3) return;
-  const yaw = Math.atan2(forward.x, forward.z);
-  root.rotation.y -= yaw;
-}
-
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1212,8 +1148,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
   clone.rotation.set(...displayRotation);
-  alignFirearmRackForward(clone);
-  alignFirearmRackGripAnchor(clone);
   entry.weaponHolder.add(clone);
 }
 
@@ -7024,15 +6958,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     [players]
   );
 
-  const resolveOppositeSeatLookTarget = useCallback((arena, playerIndex) => {
-    if (!arena?.seatAnchors?.length || !Number.isFinite(playerIndex)) return arena?.boardLookTarget ?? null;
-    const seatCount = arena.seatAnchors.length;
-    const oppositeOffset = Math.max(1, Math.floor(seatCount / 2));
-    const oppositeIndex = ((playerIndex + oppositeOffset) % seatCount + seatCount) % seatCount;
-    const oppositeSeat = arena.seatAnchors[oppositeIndex];
-    return oppositeSeat?.getWorldPosition?.(new THREE.Vector3()) ?? arena.boardLookTarget ?? null;
-  }, []);
-
   const updateParkedCaptureVehicleVisibility = useCallback((humanCaptureAnimationIndex = null) => {
     const humanOptionIndex =
       Number.isFinite(humanCaptureAnimationIndex) && humanCaptureAnimationIndex >= 0
@@ -7063,7 +6988,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackFlat(entry.weaponRack, resolveOppositeSeatLookTarget(arena, playerIndex));
+      orientFirearmRackFlat(entry.weaponRack);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7110,7 +7035,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
     });
-  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer, resolveOppositeSeatLookTarget]);
+  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer]);
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
@@ -7182,7 +7107,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
-      orientFirearmRackFlat(weaponRackFx.root, resolveOppositeSeatLookTarget(arena, playerIndex));
+      orientFirearmRackFlat(weaponRackFx.root);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
@@ -7231,8 +7156,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     activePlayerCount,
     updateParkedCaptureVehicleVisibility,
     fitCaptureVehicleToPlayerKing,
-    resolveCaptureParkingAnchors,
-    resolveOppositeSeatLookTarget
+    resolveCaptureParkingAnchors
   ]);
 
   useEffect(() => {
