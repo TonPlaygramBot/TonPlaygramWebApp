@@ -1037,14 +1037,15 @@ input:focus {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, var(--name-curve-gap, 0.16rem));
+  /* Move the curved name closer to the avatar */
+  transform: translate(-50%, 0.6rem);
   font-size: 1.2rem;
   color: inherit;
   white-space: nowrap;
 }
 .curved-name {
-  width: 126%;
-  height: 1.45rem;
+  width: 110%;
+  height: 1.2rem;
   pointer-events: none;
   overflow: visible;
 }
