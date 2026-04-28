@@ -117,11 +117,6 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
-import {
-  createBilardoHumanRig,
-  chooseHumanEdgePosition as chooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1939,10 +1934,10 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 0.88; // push the shooter farther outward so the body stays clearly on the table perimeter
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.42; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
+const HUMAN_EDGE_MARGIN = TABLE.WALL * 1.28; // keep the character hugging the side rail instead of drifting away from the table
+const HUMAN_DESIRED_SHOOT_DISTANCE = TABLE.H * 0.14; // keep enough distance to see the body without pushing it far from the side rail
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.85; // widen the perimeter walk ring so feet never step onto the table mesh
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 1.44; // constrain walking to the table side envelope
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
 const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
@@ -24662,34 +24657,21 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const zOffset = TABLE.H * 0.72;
-        const sideOffset = TABLE.W * 0.19;
-        const makeRig = (seat, x, z, yaw) => {
-          const human = createBilardoHumanRig(world, {
-            loader: new GLTFLoader(),
-            modelUrl: BILARDO_SHQIP_HUMAN_URL,
-            humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
-            humanVisualYawFix: Math.PI,
-            poseLambda: HUMAN_POSE_LAMBDA,
-            moveLambda: HUMAN_MOVE_LAMBDA,
-            rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.11,
-            holdTime: 0.05,
-            stanceWidth: 0.52,
-            bridgePalmTableLift: 0.012,
-            chinToCueHeight: 0.11,
-            cueArmElbowRise: 0.43,
-            tableTopY: TABLE_Y + TABLE.THICK,
-            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-          });
-          human.root.position.set(x, floorY, z);
-          human.yaw = yaw;
-          return { seat, human };
-        };
-        playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0),
-          makeRig('B', sideOffset, zOffset, Math.PI)
-        ];
+        const sideOffset = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
+        const initialZ = -TABLE.H * 0.18;
+        const group = createPlayerCharacterRig({
+          seat: 'A',
+          x: -sideOffset,
+          z: initialZ,
+          facingY: 0,
+          template: null
+        });
+        world.add(group);
+        playerCharacterRigsRef.current = [{
+          seat: 'A',
+          group,
+          anim: group.userData?.anim ?? null
+        }];
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
@@ -24800,7 +24782,8 @@ const shotPowerRef = useRef(0);
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
           const isShooter = anim?.seat === activeSeat;
-          const isHumanShooter = seat === activeSeat;
+          const singleCharacterMode = rigs.length === 1;
+          const isHumanShooter = singleCharacterMode || seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
           const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
@@ -24812,122 +24795,17 @@ const shotPowerRef = useRef(0);
           else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
-          if (human) {
-            const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
-            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-              tableW: TABLE.W,
-              tableL: TABLE.H,
-              edgeMargin: HUMAN_EDGE_MARGIN,
-              desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
-            }).setY(floorY);
-            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            if (isInsideTableBlocker(perimeterRoot)) {
-              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
-            }
-            if (!Number.isFinite(human.walkPerimeterT)) {
-              human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
-            }
-            const humanTargetT = pointToPerimeterT(perimeterRoot);
-            const humanLoopDelta =
-              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
-            const humanMaxStepT =
-              (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) /
-              (4 * (walkHalfX + walkHalfZ));
-            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
-              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
-              1
-            );
-            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            const state =
-              mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-            const activePower = state === 'dragging' ? draggingPower : strikingPower;
-            const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
-            const practiceStroke =
-              state === 'dragging'
-                ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
-                : 0;
-            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / 120, 0, 1) : 0;
-            let cueBallGap = BALL_R * 1.22;
-            if (state === 'dragging') cueBallGap += pull + practiceStroke;
-            else if (state === 'striking') {
-              cueBallGap = THREE.MathUtils.lerp(
-                BALL_R * (1.22 + pull / BALL_R),
-                BALL_R * 1.05,
-                1 - Math.pow(1 - strikeNorm, 3)
-              );
-            }
-            const bridgeTarget = cueWorld
-              .clone()
-              .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-              .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-              .setY(TABLE_Y + TABLE.THICK + 0.009);
-            const bridgeCuePoint = bridgeTarget
-              .clone()
-              .addScaledVector(aimForward, 0.01)
-              .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
-            const cueTip = cueWorld
-              .clone()
-              .addScaledVector(aimForward, -cueBallGap)
-              .setY(bridgeTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
-            const cueBack = bridgeCuePoint
-              .clone()
-              .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
-              .add(new THREE.Vector3(0, 0.024, 0));
-            const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
-            if (isHumanShooter && state === 'dragging') {
-              activeHumanCueViewRef.current = {
-                cueBack: cueBack.clone(),
-                bridgeTarget: bridgeTarget.clone(),
-                aimForward: aimForward.clone(),
-                side: side.clone()
-              };
-            }
-            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-            const idleRight = walkRoot
-              .clone()
-              .add(new THREE.Vector3(0.24, 1.1, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleLeft = walkRoot
-              .clone()
-              .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const isFiniteVec3 = (v) =>
-              Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
-            if (
-              !isFiniteVec3(walkRoot) ||
-              !isFiniteVec3(aimForward) ||
-              !isFiniteVec3(bridgeTarget) ||
-              !isFiniteVec3(gripTarget) ||
-              !isFiniteVec3(idleRight) ||
-              !isFiniteVec3(idleLeft) ||
-              !isFiniteVec3(cueBack) ||
-              !isFiniteVec3(cueTip)
-            ) {
-              return;
-            }
-            updateBilardoHumanPose(human, dtSeconds, {
-              state,
-              rootTarget: walkRoot,
-              aimForward,
-              bridgeTarget,
-              gripTarget,
-              idleRight,
-              idleLeft,
-              cueBack,
-              cueTip,
-              power: activePower
-            });
-            return;
-          }
-
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          const perimeterTarget = clampToWalkPerimeter(seatTarget);
+          const sideRailX = (normalizedAim.x >= 0 ? 1 : -1) * (TABLE.W / 2 + HUMAN_WALK_RING_MARGIN);
+          const sideRailZ = THREE.MathUtils.clamp(
+            cueWorld.z - normalizedAim.y * HUMAN_DESIRED_SHOOT_DISTANCE,
+            -walkHalfZ,
+            walkHalfZ
+          );
+          const sideRailTarget = new THREE.Vector3(sideRailX, floorY, sideRailZ);
+          const perimeterTarget = clampToWalkPerimeter(sideRailTarget);
           if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
           anim.rootTarget.copy(perimeterTarget);
           if (!Number.isFinite(anim.walkPerimeterT)) {
