@@ -203,7 +203,6 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
-  assaultRifleAttack: 0.72,
   uziSprayAttack: 1.65,
   smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
@@ -236,40 +235,20 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
     rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
   })
 });
-const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
-  ak47VolleyAttack: Object.freeze({
-    targetSizeMultiplier: 1.9,
-    position: [0.09, 0, -0.014],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
-  }),
-  shotgunBlastAttack: Object.freeze({
-    // Keep shotgun parked as flat as AK-47 reference.
-    targetSizeMultiplier: 1.9,
-    position: [0.09, 0, -0.014],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
-  }),
-  assaultRifleAttack: Object.freeze({
-    // Keep assault rifle at glock-sized footprint.
-    targetSizeMultiplier: 1.02,
-    position: [0.012, 0, -0.004],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
-  })
-});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
-    side: 0.146,
+    side: 0.118,
     inward: 0.004,
     outward: 0.018
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.304,
+    side: 0.266,
     inward: -0.01,
     outward: 0.108
   })
 });
-const FIREARM_RACK_WORLD_YAW_OFFSET = -Math.PI * 0.12;
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -1134,10 +1113,9 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   const clone = weaponModel.clone(true);
   const baseAlignPositionY = clone.position.y;
   alignObjectBottomToY(clone, 0);
-  const displayTuningDefault = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
+  const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
-  const displayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ?? displayTuningDefault;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
@@ -6984,7 +6962,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientCaptureVehicleTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
-      entry.weaponRack.rotateY(FIREARM_RACK_WORLD_YAW_OFFSET);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
