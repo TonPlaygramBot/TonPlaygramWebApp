@@ -380,7 +380,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   headStyle: ['current'],
   humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID],
-  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id]
+  captureAnimation: CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter(Boolean)
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
