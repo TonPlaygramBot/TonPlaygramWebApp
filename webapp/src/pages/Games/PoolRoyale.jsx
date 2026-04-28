@@ -27243,6 +27243,10 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          // Match Snooker Royal shot behavior: apply cue-ball velocity/spin as soon as
+          // the shot is fired so release always transfers power, even if the visual
+          // cue stroke impact callback is delayed or skipped.
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
