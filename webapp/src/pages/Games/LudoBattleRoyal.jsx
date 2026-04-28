@@ -225,14 +225,14 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   default: Object.freeze({
-    targetSizeMultiplier: 1.02,
-    position: [0.01, 0.001, -0.01],
+    targetSizeMultiplier: 1.06,
+    position: [0, 0, -0.004],
     rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
   }),
   large: Object.freeze({
-    targetSizeMultiplier: 1.62,
-    position: [0.03, 0.001, -0.014],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
+    targetSizeMultiplier: 1.9,
+    position: [0.08, 0, -0.014],
+    rotation: [-Math.PI * 0.5, Math.PI * 0.04, 0]
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -696,34 +696,34 @@ const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
-  missileJavelin: '🚀',
-  droneAttack: '🛸',
-  fighterJetAttack: '✈️',
-  helicopterAttack: '🚁',
-  fpsGunAttack: '🔫',
-  glockSidearmAttack: '🔫',
-  assaultRifleAttack: '🪖',
-  uziSprayAttack: '🔫',
-  ak47VolleyAttack: '🪖',
-  krsvBurstAttack: '🪖',
-  smithSidearmAttack: '🔫',
-  mosinMarksmanAttack: '🎯',
-  sigsauerTacticalAttack: '🔫',
-  grenadeBlastAttack: '💣',
-  shotgunBlastAttack: '🧨',
-  sniperShotAttack: '🎯',
-  smgBurstAttack: '🔫',
-  compactCarbineAttack: '🪖',
-  marksmanDmrAttack: '🎯',
-  polyShotgun01Attack: '🧨',
-  polyAssaultRifle01Attack: '🪖',
-  polyPistol01Attack: '🔫',
-  polyRevolver01Attack: '🔫',
-  polySawedOff01Attack: '🧨',
-  polyRevolver02Attack: '🔫',
-  polyShotgun02Attack: '🧨',
-  polyShotgun03Attack: '🧨',
-  polySmg01Attack: '🔫'
+  missileJavelin: '▸',
+  droneAttack: '◈',
+  fighterJetAttack: '◁',
+  helicopterAttack: '◎',
+  fpsGunAttack: '▬',
+  glockSidearmAttack: '▮',
+  assaultRifleAttack: '▰',
+  uziSprayAttack: '▯',
+  ak47VolleyAttack: '▰',
+  krsvBurstAttack: '▰',
+  smithSidearmAttack: '▮',
+  mosinMarksmanAttack: '▤',
+  sigsauerTacticalAttack: '▮',
+  grenadeBlastAttack: '⬢',
+  shotgunBlastAttack: '▭',
+  sniperShotAttack: '▤',
+  smgBurstAttack: '▯',
+  compactCarbineAttack: '▰',
+  marksmanDmrAttack: '▤',
+  polyShotgun01Attack: '▬',
+  polyAssaultRifle01Attack: '▰',
+  polyPistol01Attack: '▮',
+  polyRevolver01Attack: '◖',
+  polySawedOff01Attack: '▭',
+  polyRevolver02Attack: '◗',
+  polyShotgun02Attack: '▤',
+  polyShotgun03Attack: '▥',
+  polySmg01Attack: '▯'
 });
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
@@ -1025,12 +1025,19 @@ async function createCaptureWeaponRackFx() {
   weaponHolder.rotation.set(0, 0, 0);
   root.add(weaponHolder);
 
+  const buttonBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.035, 0.02, 24),
+    createCaptureVehicleMaterial('truck', { color: '#0f172a', roughness: 0.4, metalness: 0.34 })
+  );
+  buttonBase.position.set(0.074, 0.016, -0.022);
+  root.add(buttonBase);
+
   const actionButton = new THREE.Mesh(
     new THREE.CylinderGeometry(0.024, 0.026, 0.015, 28),
     createCaptureVehicleMaterial('truck', { color: '#ef4444', roughness: 0.22, metalness: 0.15, emissive: '#5f0a0a' })
   );
   actionButton.name = 'captureActionButton';
-  actionButton.position.set(0.11, 0.013, -0.03);
+  actionButton.position.set(0.074, 0.03, -0.022);
   root.add(actionButton);
 
   const actionButtonHit = new THREE.Mesh(
@@ -6924,16 +6931,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (inward.lengthSq() < 1e-6) return;
       inward.normalize();
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
+      const oppositeToPlayer = arena.boardLookTarget.clone().multiplyScalar(2).sub(kingPos).setY(0);
       const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
       const basePosition = isLargeFirearm
         ? seatPos
             .clone()
-            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 1.06)
-            .addScaledVector(inward, 0.006)
-        : seatPos
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.95)
+            .addScaledVector(inward, 0.02)
+        : oppositeToPlayer
             .clone()
-            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 1.18)
-            .addScaledVector(inward, 0.004);
+            .addScaledVector(rightSide, CAPTURE_PARK_SIDE_OFFSET * 0.35)
+            .addScaledVector(inward, 0.01);
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
@@ -6945,23 +6953,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = selectedCaptureAnimationId === 'droneAttack';
-      if (entry?.droneTruck) entry.droneTruck.visible = false;
+      if (entry?.drone) entry.drone.visible = false;
+      if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
         const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
         const showActionButton =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack' ||
-          selectedCaptureAnimationId === 'droneAttack' ||
-          selectedCaptureAnimationId === 'missileJavelin';
+          selectedCaptureAnimationId === 'droneAttack';
         entry.weaponRack.visible = showFirearm || showActionButton;
         if (entry.actionButton?.isObject3D) {
           entry.actionButton.visible = showActionButton;
           if (showActionButton) {
-            entry.actionButton.position.set(0.11, 0.013, -0.03);
+            entry.actionButton.position.set(0.082, 0.033, -0.024);
           } else {
-            entry.actionButton.position.set(0.11, 0.013, -0.03);
+            entry.actionButton.position.set(0.074, 0.02, -0.022);
           }
         }
         if (entry.actionButtonHit?.isObject3D) {
@@ -8983,7 +8990,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         humanEntry?.weaponRackHit,
         humanEntry?.jet,
         humanEntry?.helicopter,
-        humanEntry?.drone,
+        humanEntry?.droneTruck,
         humanEntry?.missile
       ].filter(Boolean);
       if (!interactiveTargets.length) return false;
@@ -9900,7 +9907,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : isHelicopterAttack
             ? parkedEntry?.helicopterPark?.clone?.()
             : isDroneAttack
-            ? parkedEntry?.dronePark?.clone?.() ?? parkedEntry?.droneTruckPark?.clone?.()
+            ? parkedEntry?.droneTruckPark?.clone?.() ?? parkedEntry?.dronePark?.clone?.()
             : isMissileTruckAttack
             ? parkedEntry?.missilePark?.clone?.()
             : null;
@@ -9910,14 +9917,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter
             : resolvedCaptureAnimationId === 'droneAttack'
-            ? parkedEntry?.drone ?? parkedEntry?.droneTruck
+            ? parkedEntry?.droneTruck ?? parkedEntry?.drone
             : resolvedCaptureAnimationId === 'missileJavelin'
             ? parkedEntry?.missile
             : null;
         parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
         parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
         parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
-        parkedDronePayload = null;
+        if (isDroneAttack) {
+          const parkedPayloads = Array.isArray(parkedEntry?.droneTruckPayloads) ? parkedEntry.droneTruckPayloads : [];
+          if (parkedPayloads.length > 0) {
+            const nextPayloadIndex = Number.isFinite(parkedEntry?.nextDronePayloadIndex)
+              ? parkedEntry.nextDronePayloadIndex
+              : 0;
+            parkedDronePayload = parkedPayloads[((nextPayloadIndex % parkedPayloads.length) + parkedPayloads.length) % parkedPayloads.length];
+            parkedEntry.nextDronePayloadIndex = (nextPayloadIndex + 1) % parkedPayloads.length;
+          }
+        }
         stopCaptureVehicleSounds();
         if (isHelicopterAttack) {
           stopFighterJetSound();
@@ -11706,10 +11722,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       <div className="absolute inset-0 pointer-events-none">
         {weaponSwapPopup && (
           <div
-            className="pointer-events-auto absolute z-30 w-[min(90vw,18rem)] max-h-[52vh] overflow-hidden rounded-xl border border-white/20 bg-black/88 p-2 shadow-2xl backdrop-blur"
+            className="pointer-events-auto absolute z-30 w-[min(96vw,25rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2.5 shadow-2xl backdrop-blur"
             style={{
-              left: clamp(weaponSwapPopup.x - 108, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 288),
-              top: clamp(weaponSwapPopup.y - 8, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 340)
+              left: clamp(weaponSwapPopup.x - 140, 8, (typeof window !== 'undefined' ? window.innerWidth : 360) - 336),
+              top: clamp(weaponSwapPopup.y - 8, 88, (typeof window !== 'undefined' ? window.innerHeight : 640) - 420)
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-2 px-1">
@@ -11722,7 +11738,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 Close
               </button>
             </div>
-            <div className="grid max-h-[40vh] grid-cols-3 gap-1 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+            <div className="grid max-h-[54vh] grid-cols-3 gap-1.5 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
@@ -11731,14 +11747,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-lg border p-1 text-[8px] font-semibold ${
+                    className={`overflow-hidden rounded-xl border p-1 text-[8px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
-                    <div className="mx-auto mb-1 flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[11px] leading-none text-slate-100">
+                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[13px] leading-none text-slate-100">
                       {shape}
                     </div>
                     <div className="px-0.5 pb-0.5 leading-tight">{option.label}</div>
@@ -11748,7 +11764,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         )}
-        <div className="absolute bottom-[9.25rem] left-2 z-20 flex flex-col items-start gap-3">
+        <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
               type="button"
