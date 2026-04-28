@@ -1,4 +1,5 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -378,7 +379,8 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   boardTheme: ['classic'],
   headStyle: ['current'],
   humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
-  environmentHdri: [DEFAULT_HDRI_ID]
+  environmentHdri: [DEFAULT_HDRI_ID],
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id]
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
@@ -442,6 +444,12 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
       acc[variant.id] = `${variant.name} HDRI`;
       return acc;
     }, {})
+  ),
+  captureAnimation: Object.freeze(
+    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
   )
 });
 
@@ -479,6 +487,12 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
   }),
   humanCharacter: Object.freeze(
     CHESS_HUMAN_CHARACTER_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.thumbnail;
+      return acc;
+    }, {})
+  ),
+  captureAnimation: Object.freeze(
+    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.thumbnail;
       return acc;
     }, {})
@@ -708,6 +722,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+    id: `chess-capture-animation-${option.id}`,
+    type: 'captureAnimation',
+    optionId: option.id,
+    name: option.label,
+    price: 900 + idx * 110,
+    description: option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
+    thumbnail: option.thumbnail
+  })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)
   ).map((option, idx) => ({
@@ -755,6 +778,11 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     type: 'environmentHdri',
     optionId: DEFAULT_HDRI_ID,
     label: CHESS_BATTLE_OPTION_LABELS.environmentHdri[DEFAULT_HDRI_ID] || 'HDR Environment'
+  },
+  {
+    type: 'captureAnimation',
+    optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
+    label: CAPTURE_ANIMATION_OPTIONS[0]?.label
   }
 ];
 
