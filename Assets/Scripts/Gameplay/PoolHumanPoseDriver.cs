@@ -36,8 +36,8 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        public float edgeMargin = 0.3f;
-        public float desiredShootDistance = 1.06f;
+        public float edgeMargin = 0.21f;
+        public float desiredShootDistance = 0.74f;
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
@@ -50,16 +50,6 @@ namespace Aiming
         [Tooltip("Lower values slow rail-to-rail side movement to feel heavier and more realistic.")]
         [Range(0.05f, 1f)] public float lateralResponse = 0.42f;
         [Min(0.1f)] public float walkPerimeterSpeed = 2.7f;
-        [Tooltip("How far the upper body naturally bobs up/down while walking around the table.")]
-        [Range(0f, 0.08f)] public float walkBobAmplitude = 0.028f;
-        [Tooltip("How much each foot lifts from the floor while stepping.")]
-        [Range(0f, 0.12f)] public float walkStepLift = 0.045f;
-
-        [Header("Bilardo stance match")]
-        [Tooltip("Extra backward offset (away from cue ball) while aiming/shooting to keep full body outside table perimeter.")]
-        [Range(0f, 0.35f)] public float shotBackOffset = 0.16f;
-        [Tooltip("Small body-side offset to align shoulder line like Bilardo Shqip.")]
-        [Range(-0.2f, 0.2f)] public float shotSideOffset = -0.035f;
 
         [Header("Cue relation")]
         public float bridgeDist = 0.2f;
@@ -261,12 +251,6 @@ namespace Aiming
             }
 
             Vector3 desired = cueBallWorld + (aimForward * -approachDistance);
-            if (shotState != CueController.ShotState.Idle)
-            {
-                Vector3 aimSide = new Vector3(aimForward.z, 0f, -aimForward.x).normalized;
-                desired += (aimForward * -shotBackOffset * s);
-                desired += (aimSide * shotSideOffset * s);
-            }
 
             float halfW = cueController.tableBounds.size.x * 0.5f;
             float halfL = cueController.tableBounds.size.z * 0.5f;
@@ -460,32 +444,27 @@ namespace Aiming
             _yaw = DampScalar(_yaw, desiredYaw, rotLambda, dt);
 
             float t = EaseInOut(_poseT);
-            float strideBlend = Mathf.Clamp01(moveAmount * 12f);
-            float walk = Mathf.Sin(_walkT * 6.2f) * strideBlend;
-            float walkOpposite = Mathf.Sin((_walkT * 6.2f) + Mathf.PI) * strideBlend;
+            float walk = Mathf.Sin(_walkT * 6.2f) * Mathf.Min(1f, moveAmount * 12f);
             Vector3 forward = RotateAroundY(Vector3.back, _yaw).normalized;
             Vector3 side = new Vector3(forward.z, 0f, -forward.x).normalized;
 
             Vector3 LocalToWorld(Vector3 v) => RotateAroundY(v, _yaw) + root.position;
 
-            float walkBob = (1f - t) * walkBobAmplitude * walk * s;
-            Vector3 hipCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.02f, 1f, t) + walkBob, Lerp(0f, 0.01f, t)) * s);
-            Vector3 torsoCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.28f, 1.18f, t) + (walkBob * 0.85f), Lerp(0f, -0.12f, t)) * s);
-            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.26f, t) + (walkBob * 0.75f), Lerp(0.01f, -0.34f, t)) * s) + (forward * (chinToCueForwardBias * 0.72f * t * s));
-            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.3f, t) + (walkBob * 0.6f), Lerp(0.02f, -0.53f, t)) * s) + (forward * (chinToCueForwardBias * 0.9f * t * s));
-            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.35f, t) + (walkBob * 0.45f), Lerp(0.04f, -0.61f, t)) * s) + (forward * (chinToCueForwardBias * t * s));
+            Vector3 hipCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.02f, 1f, t), Lerp(0f, 0.01f, t)) * s);
+            Vector3 torsoCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.28f, 1.18f, t), Lerp(0f, -0.12f, t)) * s);
+            Vector3 chestCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.5f, 1.26f, t), Lerp(0.01f, -0.34f, t)) * s) + (forward * (chinToCueForwardBias * 0.72f * t * s));
+            Vector3 neckWorld = LocalToWorld(new Vector3(0f, Lerp(1.66f, 1.3f, t), Lerp(0.02f, -0.53f, t)) * s) + (forward * (chinToCueForwardBias * 0.9f * t * s));
+            Vector3 headCenterWorld = LocalToWorld(new Vector3(0f, Lerp(1.82f, 1.35f, t), Lerp(0.04f, -0.61f, t)) * s) + (forward * (chinToCueForwardBias * t * s));
 
             Vector3 leftShoulderWorld = LocalToWorld(new Vector3(-0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.42f, t)) * s) + (Vector3.down * (shoulderDrop * t * s));
             Vector3 rightShoulderWorld = LocalToWorld(new Vector3(0.22f, Lerp(1.57f, 1.34f, t), Lerp(0f, -0.35f, t)) * s);
             Vector3 leftHipWorld = LocalToWorld(new Vector3(-0.12f, 0.93f, 0.02f) * s);
             Vector3 rightHipWorld = LocalToWorld(new Vector3(0.12f, 0.93f, 0.02f) * s);
 
-            float leftLift = Mathf.Max(0f, walk) * walkStepLift * (1f - t) * s;
-            float rightLift = Mathf.Max(0f, walkOpposite) * walkStepLift * (1f - t) * s;
-            Vector3 leftFootStand = new Vector3(-0.13f, 0.035f + leftLift, 0.03f + (walk * 0.052f)) * s;
-            Vector3 rightFootStand = new Vector3(0.13f, 0.035f + rightLift, -0.03f + (walkOpposite * 0.052f)) * s;
-            Vector3 frontFootShoot = new Vector3(-0.17f, 0.035f, -0.36f) * s;
-            Vector3 rearFootShoot = new Vector3(0.2f, 0.035f, 0.34f) * s;
+            Vector3 leftFootStand = new Vector3(-0.13f, 0.035f, 0.03f + (walk * 0.03f)) * s;
+            Vector3 rightFootStand = new Vector3(0.13f, 0.035f, -0.03f - (walk * 0.03f)) * s;
+            Vector3 frontFootShoot = new Vector3(-0.16f, 0.035f, -0.33f) * s;
+            Vector3 rearFootShoot = new Vector3(0.18f, 0.035f, 0.31f) * s;
             Vector3 leftFootWorld = LocalToWorld(Vector3.Lerp(leftFootStand, frontFootShoot, t));
             Vector3 rightFootWorld = LocalToWorld(Vector3.Lerp(rightFootStand, rearFootShoot, t));
 
@@ -494,13 +473,12 @@ namespace Aiming
 
             Vector3 leftElbow = Vector3.Lerp(leftShoulderWorld, leftHandWorld, 0.53f) +
                                 (Vector3.up * (0.035f * t * s)) +
-                                (side * (-0.025f * t * s)) +
-                                (forward * (walk * 0.015f * (1f - t) * s));
+                                (side * (-0.025f * t * s));
 
             Vector3 rightElbow = rightHandWorld +
                                  (Vector3.up * Lerp(0.19f, 0.4f, t) * s) +
                                  (side * Lerp(0.03f, 0.07f, t) * s) +
-                                 (forward * (Lerp(-0.03f, 0.01f, t) + (walkOpposite * 0.015f * (1f - t))) * s);
+                                 (forward * Lerp(-0.03f, 0.01f, t) * s);
 
             Vector3 leftKnee = Vector3.Lerp(leftHipWorld, leftFootWorld, 0.53f) +
                                (Vector3.up * Lerp(0.18f, 0.11f, t) * s) +

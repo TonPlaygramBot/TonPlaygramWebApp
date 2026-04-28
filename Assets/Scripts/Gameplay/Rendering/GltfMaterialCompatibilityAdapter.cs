@@ -10,17 +10,12 @@ namespace Aiming.Gameplay.Rendering
     {
         [SerializeField] private Renderer[] targetRenderers;
         [SerializeField] private bool runOnAwake = true;
-        [SerializeField] private bool forceUrpLitShader = false;
+        [SerializeField] private bool forceUrpLitShader = true;
         [SerializeField] private Shader urpLitShader;
         [SerializeField] private Shader standardShader;
 
         private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
         private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
-        private static readonly int BaseColorTextureId = Shader.PropertyToID("_BaseColorTexture");
-        private static readonly int NormalTextureId = Shader.PropertyToID("_NormalTexture");
-        private static readonly int MetallicRoughnessTextureId = Shader.PropertyToID("_MetallicRoughnessTexture");
-        private static readonly int OcclusionTextureId = Shader.PropertyToID("_OcclusionTexture");
-        private static readonly int EmissiveTextureId = Shader.PropertyToID("_EmissiveTexture");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int BumpMapId = Shader.PropertyToID("_BumpMap");
@@ -75,17 +70,7 @@ namespace Aiming.Gameplay.Rendering
 
         private void EnsureSupportedShader(Material material)
         {
-            if (material.shader == null)
-            {
-                Shader selectedShader = ResolveFallbackShader();
-                if (selectedShader != null)
-                {
-                    material.shader = selectedShader;
-                }
-                return;
-            }
-
-            if (material.shader.isSupported && !forceUrpLitShader)
+            if (material.shader != null && material.shader.isSupported)
             {
                 return;
             }
@@ -122,12 +107,11 @@ namespace Aiming.Gameplay.Rendering
 
         private static void CopyPbrMaps(Material material)
         {
-            Texture baseTexture = FirstTexture(material, BaseMapId, MainTexId, BaseColorTextureId);
+            Texture baseTexture = FirstTexture(material, BaseMapId, MainTexId);
             if (baseTexture != null)
             {
-                CopyTexture(material, baseTexture, BaseMapId);
-                CopyTexture(material, baseTexture, MainTexId);
-                CopyTexture(material, baseTexture, BaseColorTextureId);
+                TrySetTexture(material, BaseMapId, baseTexture);
+                TrySetTexture(material, MainTexId, baseTexture);
             }
 
             if (material.HasProperty(BaseColorId) && material.HasProperty(ColorId))
@@ -141,33 +125,29 @@ namespace Aiming.Gameplay.Rendering
                 material.SetColor(BaseColorId, mainColor);
             }
 
-            Texture normal = FirstTexture(material, BumpMapId, NormalTextureId);
+            Texture normal = FirstTexture(material, BumpMapId);
             if (normal != null)
             {
-                CopyTexture(material, normal, BumpMapId);
-                CopyTexture(material, normal, NormalTextureId);
+                TrySetTexture(material, BumpMapId, normal);
                 material.EnableKeyword("_NORMALMAP");
             }
 
-            Texture metallic = FirstTexture(material, MetallicGlossMapId, MetallicRoughnessTextureId);
+            Texture metallic = FirstTexture(material, MetallicGlossMapId);
             if (metallic != null)
             {
-                CopyTexture(material, metallic, MetallicGlossMapId);
-                CopyTexture(material, metallic, MetallicRoughnessTextureId);
+                TrySetTexture(material, MetallicGlossMapId, metallic);
             }
 
-            Texture occlusion = FirstTexture(material, OcclusionMapId, OcclusionTextureId);
+            Texture occlusion = FirstTexture(material, OcclusionMapId);
             if (occlusion != null)
             {
-                CopyTexture(material, occlusion, OcclusionMapId);
-                CopyTexture(material, occlusion, OcclusionTextureId);
+                TrySetTexture(material, OcclusionMapId, occlusion);
             }
 
-            Texture emission = FirstTexture(material, EmissionMapId, EmissiveTextureId);
+            Texture emission = FirstTexture(material, EmissionMapId);
             if (emission != null)
             {
-                CopyTexture(material, emission, EmissionMapId);
-                CopyTexture(material, emission, EmissiveTextureId);
+                TrySetTexture(material, EmissionMapId, emission);
                 material.EnableKeyword("_EMISSION");
             }
         }
@@ -198,52 +178,6 @@ namespace Aiming.Gameplay.Rendering
             {
                 material.SetTexture(propertyId, texture);
             }
-        }
-
-        private static void CopyTexture(Material material, Texture texture, int targetPropertyId)
-        {
-            if (!material.HasProperty(targetPropertyId))
-            {
-                return;
-            }
-
-            material.SetTexture(targetPropertyId, texture);
-            material.SetTextureScale(targetPropertyId, ResolveTextureScale(material, texture));
-            material.SetTextureOffset(targetPropertyId, ResolveTextureOffset(material, texture));
-        }
-
-        private static Vector2 ResolveTextureScale(Material material, Texture texture)
-        {
-            int[] properties = { BaseMapId, MainTexId, BaseColorTextureId, BumpMapId, NormalTextureId, MetallicGlossMapId, MetallicRoughnessTextureId, OcclusionMapId, OcclusionTextureId, EmissionMapId, EmissiveTextureId };
-            for (int i = 0; i < properties.Length; i++)
-            {
-                int propertyId = properties[i];
-                if (!material.HasProperty(propertyId) || material.GetTexture(propertyId) != texture)
-                {
-                    continue;
-                }
-
-                return material.GetTextureScale(propertyId);
-            }
-
-            return Vector2.one;
-        }
-
-        private static Vector2 ResolveTextureOffset(Material material, Texture texture)
-        {
-            int[] properties = { BaseMapId, MainTexId, BaseColorTextureId, BumpMapId, NormalTextureId, MetallicGlossMapId, MetallicRoughnessTextureId, OcclusionMapId, OcclusionTextureId, EmissionMapId, EmissiveTextureId };
-            for (int i = 0; i < properties.Length; i++)
-            {
-                int propertyId = properties[i];
-                if (!material.HasProperty(propertyId) || material.GetTexture(propertyId) != texture)
-                {
-                    continue;
-                }
-
-                return material.GetTextureOffset(propertyId);
-            }
-
-            return Vector2.zero;
         }
     }
 }
