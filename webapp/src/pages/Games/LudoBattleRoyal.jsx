@@ -544,6 +544,43 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polyShotgun03Attack: 8,
   polySmg01Attack: 28
 });
+const FIREARM_BALLISTICS_PROFILE = Object.freeze({
+  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052 }),
+  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042 }),
+  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058 }),
+  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054 }),
+  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036 }),
+  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061 }),
+  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03 })
+});
+const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
+  glockSidearmAttack: 'pistol',
+  pistolSidearmAttack: 'pistol',
+  pistolHolsterAttack: 'pistol',
+  smithSidearmAttack: 'pistol',
+  sigsauerTacticalAttack: 'pistol',
+  polyPistol01Attack: 'pistol',
+  polyRevolver01Attack: 'pistol',
+  polyRevolver02Attack: 'pistol',
+  uziSprayAttack: 'smg',
+  smgBurstAttack: 'smg',
+  polySmg01Attack: 'smg',
+  fpsGunAttack: 'rifle',
+  assaultRifleAttack: 'rifle',
+  ak47VolleyAttack: 'rifle',
+  krsvBurstAttack: 'rifle',
+  compactCarbineAttack: 'rifle',
+  polyAssaultRifle01Attack: 'rifle',
+  mosinMarksmanAttack: 'marksman',
+  sniperShotAttack: 'marksman',
+  marksmanDmrAttack: 'marksman',
+  shotgunBlastAttack: 'shotgun',
+  polyShotgun01Attack: 'shotgun',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySawedOff01Attack: 'shotgun',
+  grenadeBlastAttack: 'explosive'
+});
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
     position: [0.018, -0.002, 0.086],
@@ -684,7 +721,7 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   }
 });
 const FIREARM_UNIFIED_DIRECTION_ROTATION =
-  FIREARM_HAND_ATTACH_TUNING.smithSidearmAttack?.rotation ||
+  FIREARM_HAND_ATTACH_TUNING.assaultRifleAttack?.rotation ||
   FIREARM_HAND_ATTACH_TUNING.default.rotation;
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
@@ -791,6 +828,11 @@ function orientFirearmRackTowardBoardCenter(root, target) {
   // Keep the rack physically flat on table; only yaw may change.
   root.rotation.x = 0;
   root.rotation.z = 0;
+}
+
+function resolveFirearmBallisticsProfile(captureAnimationId = '') {
+  const profileKey = FIREARM_BALLISTICS_PROFILE_BY_ID[captureAnimationId] || 'default';
+  return FIREARM_BALLISTICS_PROFILE[profileKey] || FIREARM_BALLISTICS_PROFILE.default;
 }
 
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
@@ -1042,23 +1084,6 @@ function alignFirearmRackGripAnchor(root) {
   }
 }
 
-function alignFirearmRackFacing(root) {
-  if (!root?.isObject3D) return;
-  root.updateMatrixWorld?.(true);
-  const gripNode =
-    findObjectByNeedles(root, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']) || null;
-  const muzzleNode =
-    findObjectByNeedles(root, ['muzzle', 'barrel', 'flash', 'tip', 'front', 'sight']) || null;
-  if (!gripNode?.isObject3D || !muzzleNode?.isObject3D) return;
-  const gripLocal = root.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
-  const muzzleLocal = root.worldToLocal(muzzleNode.getWorldPosition(new THREE.Vector3()));
-  const dir = muzzleLocal.sub(gripLocal);
-  if (dir.lengthSq() < 1e-6) return;
-  const yaw = Math.atan2(dir.x, dir.z);
-  // Flip 180° after muzzle alignment so weapon fronts point to the requested opposite direction.
-  root.rotation.y = root.rotation.y - yaw + Math.PI;
-}
-
 function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (!root?.isObject3D) return;
   const xOffsets = [0, Math.PI * 0.5, -Math.PI * 0.5, Math.PI];
@@ -1237,7 +1262,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
   alignFirearmRackFlatByBounds(clone, displayRotation);
-  alignFirearmRackFacing(clone);
   alignFirearmRackGripAnchor(clone);
   entry.weaponHolder.add(clone);
 }
@@ -7079,7 +7103,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackFlat(entry.weaponRack);
+      orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -9859,6 +9883,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
+          const ballisticsProfile = resolveFirearmBallisticsProfile(resolvedCaptureAnimationId);
           const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
@@ -9962,7 +9987,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const active = idx <= shotIdx && idx > shotIdx - 2;
               entry.root.visible = active;
               if (!active) return;
-              const spread = new THREE.Vector3((Math.random() - 0.5) * 0.018, (Math.random() - 0.5) * 0.016, (Math.random() - 0.5) * 0.018);
+              const spread = new THREE.Vector3(
+                (Math.random() - 0.5) * ballisticsProfile.tracerSpread,
+                (Math.random() - 0.5) * ballisticsProfile.tracerSpread * 0.9,
+                (Math.random() - 0.5) * ballisticsProfile.tracerSpread
+              );
               const from = muzzleOrigin.clone().add(spread);
               const to = muzzleTarget.clone().add(spread.multiplyScalar(0.3));
               const mid = from.clone().lerp(to, 0.5);
@@ -9984,8 +10013,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               }
               shell.visible = true;
               if (shellLife < 18) shellBase.copy(muzzleOrigin);
-              const nextY = shellBase.y + 0.018 + Math.sin((shellLife / 760) * Math.PI) * 0.052 - shellLife * 0.00012;
-              shell.position.set(shellBase.x + shellLife * 0.00026, nextY, shellBase.z - shellLife * 0.00021);
+              const nextY =
+                shellBase.y +
+                0.018 +
+                Math.sin((shellLife / 760) * Math.PI) * ballisticsProfile.shellArc -
+                shellLife * 0.00012;
+              shell.position.set(
+                shellBase.x + shellLife * ballisticsProfile.shellDriftX,
+                nextY,
+                shellBase.z + shellLife * ballisticsProfile.shellDriftZ
+              );
               if (shell.position.y <= tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006) {
                 shell.position.y = tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006;
                 shellState.landed = true;
