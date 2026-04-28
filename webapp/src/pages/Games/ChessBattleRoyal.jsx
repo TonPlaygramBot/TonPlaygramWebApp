@@ -67,6 +67,7 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -114,7 +115,7 @@ const CAPTURE_DRONE_ATTACK_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_DRONE_TRAV
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
 const CAPTURE_PAWN_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_PAWN_TRAVEL_TIME;
-const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
+const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 2.4; // make parked/flying capture vehicles 2x larger
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
@@ -193,6 +194,17 @@ const CAPTURE_MODEL_URLS = Object.freeze({
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/fire_truck.glb'
   ]
 });
+
+const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
+  missileJavelin: 'truck',
+  droneAttack: 'drone',
+  fighterJetAttack: 'jet',
+  helicopterAttack: 'helicopter'
+});
+const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
+  CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
+);
+
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
@@ -419,8 +431,8 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
-const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(15); // raise forced 3D animation camera for a stronger portrait top-down feel.
-const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 0.95; // move forced 3D animation camera slightly closer during capture
+const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
+const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 0.82; // move forced 3D animation camera slightly closer during capture
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
@@ -442,7 +454,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.36; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.62; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -2621,7 +2633,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.7; // push parked vehicles farther to the sides
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.28; // increase parked truck size just a bit more
@@ -7619,6 +7631,14 @@ function Chess3D({
     () => getChessBattleInventory(resolvedAccountId),
     [resolvedAccountId, inventoryVersion]
   );
+  const selectedCaptureAnimationId = useMemo(() => {
+    const owned = chessInventory?.captureAnimation;
+    return (Array.isArray(owned) && owned[0]) || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+  }, [chessInventory]);
+  const selectedCaptureKind = useMemo(() => {
+    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
+    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
+  }, [selectedCaptureAnimationId]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -11057,7 +11077,6 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
-      const pieceType = (movingType || '').toUpperCase();
       const withAuto3d = (timing = {}) => {
         const durationMs = Math.max(0, timing.captureResolveDelayMs ?? timing.moveDelayMs ?? 0);
         if (durationMs > 0) {
@@ -11065,7 +11084,8 @@ function Chess3D({
         }
         return timing;
       };
-      if (pieceType === 'R') {
+      const captureKind = selectedCaptureKind;
+      if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
@@ -11100,117 +11120,41 @@ function Chess3D({
           captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         });
       }
-      if (pieceType === 'N' || pieceType === 'P') {
-        if (pieceType === 'N') {
-          suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_DRONE_ATTACK_TOTAL * 1000;
-          const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-          const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
-          if (!parkedDrone) {
-            droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-            captureFxGroup.add(droneFx.root);
-          }
-          const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
-          droneFx.root.position.copy(launchBase.clone());
-          playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000 });
-          activeCaptureFx.push({
-            type: 'drone',
-            t: 0,
-            duration: CAPTURE_DRONE_ATTACK_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.clone(),
-            movingMesh,
-            targetMesh,
-            returnToOrigin: true,
-            sourceUnit: parkedDrone,
-            droneFx,
-            strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
-          });
-          return withAuto3d({
-            moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
-          });
-        }
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-        const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
-        const launchBase = getLiveLaunchPosition(fromPos.clone(), movingMesh, 0.11);
-        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
-        captureFxGroup.add(missileFx.root);
-        playAudio(missileLaunchSoundRef);
-        activeCaptureFx.push({
-          type: 'javelin',
-          t: 0,
-          duration: CAPTURE_PAWN_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
-          movingMesh,
-          targetMesh,
-          launchFromLivePiece: true,
-          sourceUnit: null,
-          missileFx,
-          directPath: false,
-          strictPrecision: true,
-          longArc: true,
-          strikeAltitude: CAPTURE_SHORT_STRIKE_ALTITUDE,
-          targetLift: CAPTURE_PAWN_STRIKE_TARGET_LIFT
-        });
-        return withAuto3d({
-          moveDelayMs: CAPTURE_PAWN_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_PAWN_TOTAL * 1000
-        });
-      }
-      if (pieceType === 'K') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
+      if (captureKind === 'drone') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_DRONE_ATTACK_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
-        const jetFx = parkedUnit || createFxJet();
-        if (!parkedUnit) {
-          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-          captureFxGroup.add(jetFx.root);
+        const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
+        if (!parkedDrone) {
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          captureFxGroup.add(droneFx.root);
         }
-        const launchBase = parkedUnit?.root?.position?.clone?.() || parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 0);
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
-        attachVehicleAvatarBadge(
-          jetFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
-        jetFx.root.position.copy(launchBase.clone());
-        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
-        missileFx.forEach((missile) => {
-          missile.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
-          missile.root.visible = false;
-          captureFxGroup.add(missile.root);
-        });
+        const launchBase =
+          parkedDrone?.root?.position?.clone?.() ||
+          parkedDrone?.homePosition?.clone?.() ||
+          getAirPadAnchor(isWhiteSide, 'drone', 0);
+        droneFx.root.position.copy(launchBase.clone());
+        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000 });
         activeCaptureFx.push({
-          type: 'jet',
+          type: 'drone',
           t: 0,
-          duration: CAPTURE_JET_TOTAL,
+          duration: CAPTURE_DRONE_ATTACK_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
           launchPos: launchBase.clone(),
           movingMesh,
           targetMesh,
           returnToOrigin: true,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-          sourceUnit: parkedUnit,
-          jetFx,
-          missileFx
+          sourceUnit: parkedDrone,
+          droneFx,
+          strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
         });
-        const jetImpactDelayMs = getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
         return withAuto3d({
-          moveDelayMs: jetImpactDelayMs,
-          captureResolveDelayMs: jetImpactDelayMs
+          moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
         });
       }
-      if (pieceType === 'B') {
+      if (captureKind === 'helicopter') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
@@ -11263,7 +11207,7 @@ function Chess3D({
           captureResolveDelayMs: helicopterImpactDelayMs
         });
       }
-      if (pieceType === 'Q') {
+      if (captureKind === 'jet') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
@@ -11310,6 +11254,22 @@ function Chess3D({
           moveDelayMs: jetImpactDelayMs,
           captureResolveDelayMs: jetImpactDelayMs
         });
+      }
+      if (captureKind === 'firearm') {
+        playAudio(missileLaunchSoundRef);
+        const missileFx = createFxMissile();
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 1.25);
+        captureFxGroup.add(missileFx.root);
+        activeCaptureFx.push({
+          type: 'missile',
+          t: 0,
+          duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          targetMesh,
+          missileFx
+        });
+        return withAuto3d({ moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 });
       }
       if (distance <= 1.5) {
         playAudio(swordSoundRef);
