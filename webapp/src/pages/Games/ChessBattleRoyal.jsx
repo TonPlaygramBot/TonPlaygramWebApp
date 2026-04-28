@@ -205,13 +205,6 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
-const resolveCaptureKindByAnimationId = (animationId) => {
-  if (GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[animationId]) {
-    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[animationId];
-  }
-  if (FIREARM_CAPTURE_ANIMATION_IDS.has(animationId)) return 'firearm';
-  return 'truck';
-};
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
@@ -448,8 +441,8 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.96; // shrink seated humans so they match chair proportions on portrait screens
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE; // lower seated humans closer to the chair/ground
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -776,19 +769,19 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
 
   // Baseline pose tuned to match the seated portrait reference:
   // upright torso, shoulders open, both arms spread and hovering over chair arms.
-  addBonePos(rig, rig.hips, 0, -0.392, -0.07);
-  addBoneRot(rig, rig.hips, -0.12, 0, 0);
+  addBonePos(rig, rig.hips, 0, -0.332, -0.052);
+  addBoneRot(rig, rig.hips, -0.08, 0, 0);
   addBoneRot(rig, rig.spine, 0.18 + breathe, 0, 0);
   addBoneRot(rig, rig.chest, 0.16 + breathe * 0.5, 0, 0);
   addBoneRot(rig, rig.neck, -0.02, 0, 0);
   addBoneRot(rig, rig.head, -0.03, 0, 0);
 
-  addBoneRot(rig, rig.leftUpperLeg, -1.28, 0.14, 0.04);
-  addBoneRot(rig, rig.leftLowerLeg, -1.46, 0.02, 0.01);
-  addBoneRot(rig, rig.leftFoot, 0.22, 0.04, 0.02);
-  addBoneRot(rig, rig.rightUpperLeg, -1.28, 0.02, -0.03);
-  addBoneRot(rig, rig.rightLowerLeg, -1.46, -0.02, -0.01);
-  addBoneRot(rig, rig.rightFoot, 0.22, -0.03, -0.02);
+  addBoneRot(rig, rig.leftUpperLeg, -1.18, 0.14, 0.04);
+  addBoneRot(rig, rig.leftLowerLeg, -1.2, 0.02, 0.01);
+  addBoneRot(rig, rig.leftFoot, 0.14, 0.04, 0.02);
+  addBoneRot(rig, rig.rightUpperLeg, -1.18, 0.02, -0.03);
+  addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
+  addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
   addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
   addBoneRot(rig, rig.leftForeArm, -0.56, 0.06, -0.22);
@@ -7662,12 +7655,12 @@ function Chess3D({
   useEffect(() => {
     setSelectedCaptureAnimationId(inventoryCaptureAnimationId);
   }, [inventoryCaptureAnimationId]);
-  const selectedCaptureKind = useMemo(
-    () => resolveCaptureKindByAnimationId(selectedCaptureAnimationId),
-    [selectedCaptureAnimationId]
-  );
+  const selectedCaptureKind = useMemo(() => {
+    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
+    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
+  }, [selectedCaptureAnimationId]);
   const selectedParkedWeaponKind = useMemo(
-    () => resolveCaptureKindByAnimationId(selectedCaptureAnimationId),
+    () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
     [selectedCaptureAnimationId]
   );
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
@@ -10445,33 +10438,6 @@ function Chess3D({
       addRoofLongMissiles(root, root);
       return { root, missileLaunchAnchor };
     };
-    const createFxFirearmRack = () => {
-      const root = new THREE.Group();
-      const base = addFxBox(root, [1.42, 0.1, 0.82], [0, 0.02, 0], '#1f2937', 0.7, 0.18);
-      base.castShadow = true;
-      base.receiveShadow = true;
-      const rack = addFxBox(root, [1.2, 0.16, 0.58], [0, 0.16, 0], '#374151', 0.62, 0.22);
-      rack.castShadow = true;
-      rack.receiveShadow = true;
-      const barrel = addFxCylinder(
-        root,
-        0.05,
-        0.06,
-        0.92,
-        [0.18, 0.28, 0],
-        [0, 0, Math.PI / 2],
-        '#9ca3af',
-        16,
-        0.34,
-        0.62
-      );
-      barrel.castShadow = true;
-      const stock = addFxBox(root, [0.3, 0.12, 0.18], [-0.38, 0.26, 0], '#4b5563', 0.58, 0.24);
-      stock.castShadow = true;
-      const grip = addFxBox(root, [0.12, 0.22, 0.12], [-0.08, 0.16, 0], '#111827', 0.54, 0.2);
-      grip.castShadow = true;
-      return { root };
-    };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
         (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
@@ -10480,13 +10446,11 @@ function Chess3D({
         jet: 0,
         drone: 1,
         helicopter: 2,
-        truck: 3,
-        firearm: 4
+        truck: 3
       };
       const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
-      const laneCount = Object.keys(laneIndexMap).length;
-      const zOffset = (laneIndex - (laneCount - 1) * 0.5) * equalLaneStep;
-      const hoverLift = kind === 'truck' ? 0.02 : kind === 'firearm' ? 0.08 : kind === 'drone' ? 0.24 : 0.26;
+      const zOffset = (laneIndex - 1.5) * equalLaneStep;
+      const hoverLift = kind === 'truck' ? 0.02 : kind === 'drone' ? 0.24 : 0.26;
       const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
@@ -11489,12 +11453,10 @@ function Chess3D({
       addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
       addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
       addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
-      addAirPadMarker(getAirPadAnchor(true, 'firearm'), 'W');
       addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
       addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
       addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
       addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
-      addAirPadMarker(getAirPadAnchor(false, 'firearm'), 'W');
     }
     const addAttackButtonMarker = (isWhiteSide) => {
       const root = new THREE.Group();
@@ -11978,41 +11940,6 @@ function Chess3D({
           homeRotation: truckHomeRotation,
           ...supportTruck,
           root: supportTruck.root
-        });
-
-        const firearmRack = createFxFirearmRack();
-        firearmRack.root.scale.setScalar(
-          CAPTURE_HELICOPTER_SCALE *
-            1.06 *
-            SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER *
-            SIDE_PARKED_TRUCK_SCALE_MULTIPLIER
-        );
-        if (skin) {
-          applyVehicleSkinToModel(
-            firearmRack.root,
-            skin,
-            (node) => /barrel|stock|grip|gun|weapon/.test(`${node.name || ''}`.toLowerCase())
-          );
-        }
-        attachVehicleAvatarBadge(firearmRack.root, badge, isWhite ? 1 : -1);
-        const firearmPad = getAirPadAnchor(isWhite, 'firearm', 0);
-        placeParkedUnitOnPad(
-          firearmRack.root,
-          firearmPad,
-          isWhite ? -Math.PI * 0.12 : Math.PI * 1.12
-        );
-        const firearmHomeRotation = firearmRack.root.rotation.clone();
-        airPadGroup.add(firearmRack.root);
-        parkedAirUnits.push({
-          kind: 'firearm',
-          isWhite,
-          slot: 0,
-          busy: false,
-          rotorsActive: false,
-          homePosition: firearmPad.clone(),
-          homeRotation: firearmHomeRotation,
-          ...firearmRack,
-          root: firearmRack.root
         });
       });
       const currentCaptureKind = selectedParkedWeaponKindRef.current;
