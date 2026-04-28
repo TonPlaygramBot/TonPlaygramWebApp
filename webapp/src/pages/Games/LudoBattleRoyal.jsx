@@ -242,9 +242,9 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
   })
 });
 const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
-  // Use AK-47 rack pose as the global baseline so every firearm sits in the exact same slot/angle.
+  // Lock every rack weapon to the Smith sidearm visual direction without moving parking locations.
   position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
-  rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
+  rotation: [...FIREARM_RACK_DISPLAY_TUNING.default.rotation]
 });
 const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   // Keep every firearm's trigger/grip region in the same local slot so right-hand pickup
@@ -1039,23 +1039,6 @@ function alignFirearmRackGripAnchor(root) {
   }
 }
 
-function alignFirearmRackFacing(root) {
-  if (!root?.isObject3D) return;
-  root.updateMatrixWorld?.(true);
-  const gripNode =
-    findObjectByNeedles(root, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']) || null;
-  const muzzleNode =
-    findObjectByNeedles(root, ['muzzle', 'barrel', 'flash', 'tip', 'front', 'sight']) || null;
-  if (!gripNode?.isObject3D || !muzzleNode?.isObject3D) return;
-  const gripLocal = root.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
-  const muzzleLocal = root.worldToLocal(muzzleNode.getWorldPosition(new THREE.Vector3()));
-  const dir = muzzleLocal.sub(gripLocal);
-  if (dir.lengthSq() < 1e-6) return;
-  const yaw = Math.atan2(dir.x, dir.z);
-  // Flip 180° after muzzle alignment so weapon fronts point to the requested opposite direction.
-  root.rotation.y = root.rotation.y - yaw + Math.PI;
-}
-
 function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (!root?.isObject3D) return;
   const xOffsets = [0, Math.PI * 0.5, -Math.PI * 0.5, Math.PI];
@@ -1234,7 +1217,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
   alignFirearmRackFlatByBounds(clone, displayRotation);
-  alignFirearmRackFacing(clone);
   alignFirearmRackGripAnchor(clone);
   entry.weaponHolder.add(clone);
 }
@@ -12159,9 +12141,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   color={player.color}
                   size={avatarSize}
                 />
-                <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
-                  {player.name}
-                </span>
               </div>
             );
           })}
