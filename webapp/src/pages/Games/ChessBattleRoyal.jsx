@@ -7662,32 +7662,19 @@ function Chess3D({
   useEffect(() => {
     setSelectedCaptureAnimationId(inventoryCaptureAnimationId);
   }, [inventoryCaptureAnimationId]);
-  const ownedCaptureAnimations = useMemo(() => {
-    const ownedIds = Array.isArray(chessInventory?.captureAnimation) ? chessInventory.captureAnimation : [];
-    const uniqueIds = Array.from(new Set(ownedIds.filter(Boolean)));
-    const ownedOptions = uniqueIds
-      .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-      .filter(Boolean);
-    if (ownedOptions.length > 0) return ownedOptions;
-    const fallback =
-      CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId) ||
-      CAPTURE_ANIMATION_OPTIONS[0];
-    return fallback ? [fallback] : [];
-  }, [chessInventory, selectedCaptureAnimationId]);
+  const ownedCaptureAnimations = useMemo(
+    () =>
+      (chessInventory?.captureAnimation || [])
+        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+        .filter(Boolean),
+    [chessInventory]
+  );
   const selectedCaptureKind = useMemo(() => {
     const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
     if (vehicleKind) return vehicleKind;
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return 'truck';
   }, [selectedCaptureAnimationId]);
-  const selectedCaptureAnimationIdRef = useRef(selectedCaptureAnimationId);
-  useEffect(() => {
-    selectedCaptureAnimationIdRef.current = selectedCaptureAnimationId;
-  }, [selectedCaptureAnimationId]);
-  const selectedCaptureKindRef = useRef(selectedCaptureKind);
-  useEffect(() => {
-    selectedCaptureKindRef.current = selectedCaptureKind;
-  }, [selectedCaptureKind]);
   const ownedVehicleCaptureKind = useMemo(() => {
     for (const option of ownedCaptureAnimations) {
       const kind = resolveVehicleCaptureKind(option?.id);
@@ -11179,7 +11166,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = selectedCaptureKindRef.current || 'truck';
+      const captureKind = selectedCaptureKind;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -11511,67 +11498,10 @@ function Chess3D({
       button.scale.y = 0.66;
       button.castShadow = true;
       root.add(button);
-      const badgeCanvas = document.createElement('canvas');
-      badgeCanvas.width = 128;
-      badgeCanvas.height = 128;
-      const badgeTexture = new THREE.CanvasTexture(badgeCanvas);
-      applySRGBColorSpace(badgeTexture);
-      const badge = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: badgeTexture, transparent: true, depthWrite: false })
-      );
-      badge.scale.set(tile * 0.62, tile * 0.62, 1);
-      badge.position.set(0, tile * 0.2, 0);
-      root.add(badge);
-      root.userData.captureBadge = { canvas: badgeCanvas, texture: badgeTexture };
       airPadGroup.add(root);
-      return root;
     };
-    const resolveCaptureWeaponBadgeLabel = (captureAnimationId) => {
-      const option = CAPTURE_ANIMATION_OPTIONS.find((entry) => entry.id === captureAnimationId);
-      if (option?.label) {
-        const tokens = option.label.split(/\s+/).filter(Boolean);
-        const initials = tokens
-          .slice(0, 2)
-          .map((token) => token[0])
-          .join('');
-        if (initials) return initials.toUpperCase();
-      }
-      const kind = resolveVehicleCaptureKind(captureAnimationId, selectedParkedWeaponKindRef.current) || 'truck';
-      if (kind === 'drone') return 'DR';
-      if (kind === 'helicopter') return 'HE';
-      if (kind === 'jet') return 'JT';
-      if (kind === 'firearm') return 'AR';
-      return 'TR';
-    };
-    const paintAttackButtonBadge = (buttonRoot, captureAnimationId) => {
-      const badgeData = buttonRoot?.userData?.captureBadge;
-      const canvas = badgeData?.canvas;
-      const texture = badgeData?.texture;
-      const ctx = canvas?.getContext?.('2d');
-      if (!ctx || !texture) return;
-      const label = resolveCaptureWeaponBadgeLabel(captureAnimationId);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#facc15';
-      ctx.font = '900 66px "JetBrains Mono","Arial Black",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 4);
-      texture.needsUpdate = true;
-    };
-    const whiteAttackButton = addAttackButtonMarker(true);
-    const blackAttackButton = addAttackButtonMarker(false);
-    let lastBadgeCaptureAnimationId = '';
-    const updateAttackButtonBadges = () => {
-      const captureAnimationId =
-        selectedCaptureAnimationIdRef.current ||
-        CAPTURE_ANIMATION_OPTIONS[0]?.id ||
-        'missileJavelin';
-      if (captureAnimationId === lastBadgeCaptureAnimationId) return;
-      lastBadgeCaptureAnimationId = captureAnimationId;
-      paintAttackButtonBadge(whiteAttackButton, captureAnimationId);
-      paintAttackButtonBadge(blackAttackButton, captureAnimationId);
-    };
-    updateAttackButtonBadges();
+    addAttackButtonMarker(true);
+    addAttackButtonMarker(false);
 
     // Tiles
     const tiles = [];
@@ -13877,7 +13807,6 @@ function Chess3D({
       }
 
 
-      updateAttackButtonBadges();
       const fpState = firstPersonViewRef.current;
       const fpvEnabled = viewModeRef.current === 'fpv';
       const localActorEntry = Array.isArray(seatedActors)
@@ -14101,11 +14030,6 @@ function Chess3D({
                       </button>
                     );
                   })}
-                  {ownedCaptureAnimations.length === 0 && (
-                    <p className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[0.62rem] text-white/65">
-                      No weapons found in inventory yet.
-                    </p>
-                  )}
                 </div>
               </div>
             )}
@@ -14268,53 +14192,6 @@ function Chess3D({
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Capture Weapon</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Pick any weapon you own from inventory.
-                      </p>
-                    </div>
-                    <span className="rounded-lg border border-white/15 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-white/70">
-                      {ownedCaptureAnimations.length} owned
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    {ownedCaptureAnimations.map((option) => {
-                      const isSelected = option.id === selectedCaptureAnimationId;
-                      return (
-                        <button
-                          key={`menu-weapon-${option.id}`}
-                          type="button"
-                          onClick={() => handleCaptureAnimationSwap(option.id)}
-                          className={`flex items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            isSelected
-                              ? 'border-emerald-300/80 bg-emerald-300/15'
-                              : 'border-white/10 bg-white/5 hover:border-white/30'
-                          }`}
-                        >
-                          {option.thumbnail ? (
-                            <img
-                              src={option.thumbnail}
-                              alt={option.label}
-                              className="h-9 w-9 rounded-md object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
-                              🧰
-                            </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
-                            <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
                 <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
