@@ -21,7 +21,8 @@ export default function AvatarTimer({
   frameScale = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
-  nameCurveRadius = 45,
+  nameCurveRadius = 52,
+  nameCurveGapRem = 0.16,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
@@ -71,15 +72,15 @@ export default function AvatarTimer({
       {name && (
         <svg
           className="rank-name curved-name"
-          viewBox="0 0 100 50"
-          style={{ color: color || '#fde047' }}
+          viewBox="0 0 100 60"
+          style={{ color: color || '#fde047', '--name-curve-gap': `${nameCurveGapRem}rem` }}
         >
           <defs>
             {(() => {
               const r = nameCurveRadius;
               const start = 50 - r;
               const end = 50 + r;
-              const path = `M${start},50 A${r},${r} 0 0 1 ${end},50`;
+              const path = `M${start},54 A${r},${r} 0 0 1 ${end},54`;
               return <path id={`name-path-${index}`} d={path} />;
             })()}
           </defs>
