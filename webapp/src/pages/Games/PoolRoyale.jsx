@@ -79,10 +79,7 @@ import {
   POOL_ROYALE_BASE_VARIANTS,
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
-import {
-  BILARDO_MIN_RELEASE_POWER,
-  bilardoCueSpeed
-} from './shared/bilardoShotModel';
+import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -1926,10 +1923,6 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const REFERENCE_CUE_SPEED_BASE = 1.9; // align baseline launch speed with Bilardo Shqip shot feel
-const REFERENCE_CUE_SPEED_RANGE = 8.2; // align high-end launch speed with Bilardo Shqip shot feel
-const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
-const POOL_ROYALE_CUE_SPEED_BOOST = 1.35; // keep cue-ball launch force strong enough to match expected slider power
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.88; // make player humans visibly bigger relative to table/balls
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
@@ -26781,6 +26774,7 @@ const shotPowerRef = useRef(0);
         if (!payload || payload.applied) return;
         payload.applied = true;
         const {
+          base,
           aimDir,
           physicsSpin,
           clampedPower,
@@ -26796,8 +26790,14 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const referenceSpeed = bilardoCueSpeed(clampedPower) * POOL_ROYALE_CUE_SPEED_BOOST;
-        cue.vel.copy(shotDir3).multiplyScalar(referenceSpeed);
+        const launchVelocity = base?.clone?.();
+        if (launchVelocity?.lengthSq?.() > 1e-8) {
+          cue.vel.copy(launchVelocity);
+        } else {
+          const speedBase = SHOT_BASE_SPEED;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
+        }
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
@@ -26815,7 +26815,7 @@ const shotPowerRef = useRef(0);
           .copy(sideAxis)
           .multiplyScalar(offsetScaled.x * BALL_R)
           .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
-        const impulseMag = BALL_MASS * referenceSpeed;
+        const impulseMag = BALL_MASS * cue.vel.length();
         const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
         const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
         if (cue.omega) {
@@ -27010,9 +27010,6 @@ const shotPowerRef = useRef(0);
         if (shotPrediction.railNormal) replayTags.add('bank');
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
-          const referenceCueSpeed =
-            REFERENCE_CUE_SPEED_BASE +
-            REFERENCE_CUE_SPEED_RANGE * Math.pow(clampedPower, REFERENCE_CUE_SPEED_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -27039,9 +27036,11 @@ const shotPowerRef = useRef(0);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
-            .multiplyScalar(referenceCueSpeed);
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -27243,6 +27242,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
