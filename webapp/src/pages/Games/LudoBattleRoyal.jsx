@@ -241,10 +241,10 @@ const FIREARM_RACK_DISPLAY_TUNING_BY_ID = Object.freeze({
     rotation: [-Math.PI * 0.5, -Math.PI * 0.02, 0]
   })
 });
-const BOTTOM_PLAYER_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
-  // Keep the local/bottom user's parked firearm perfectly flat on the table.
-  position: [0.078, 0, -0.014],
-  rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
+const UNIFORM_FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
+  // Use AK-47 rack pose as the global baseline so every firearm sits in the exact same slot/angle.
+  position: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.position],
+  rotation: [...FIREARM_RACK_DISPLAY_TUNING_BY_ID.ak47VolleyAttack.rotation]
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
@@ -766,6 +766,11 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
 }
 
+function orientFirearmRackFlat(root) {
+  if (!root?.isObject3D) return;
+  root.rotation.set(0, 0, 0);
+}
+
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
   if (muted) return false;
   const config = CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
@@ -1132,10 +1137,8 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
     ? FIREARM_RACK_DISPLAY_TUNING.large
     : FIREARM_RACK_DISPLAY_TUNING.default;
-  const weaponSpecificDisplayTuning = FIREARM_RACK_DISPLAY_TUNING_BY_ID[captureAnimationId] ?? null;
-  const bottomPlayerDisplayTuning = entry?.playerIndex === 0 ? BOTTOM_PLAYER_FIREARM_RACK_DISPLAY_TUNING : null;
-  const displayPosition = bottomPlayerDisplayTuning?.position ?? weaponSpecificDisplayTuning?.position ?? displayTuning.position;
-  const displayRotation = bottomPlayerDisplayTuning?.rotation ?? weaponSpecificDisplayTuning?.rotation ?? displayTuning.rotation;
+  const displayPosition = UNIFORM_FIREARM_RACK_DISPLAY_TUNING.position;
+  const displayRotation = UNIFORM_FIREARM_RACK_DISPLAY_TUNING.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
   fitObjectToTargetSize(
     clone,
@@ -6985,7 +6988,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientCaptureVehicleTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
+      orientFirearmRackFlat(entry.weaponRack);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7104,7 +7107,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
-      orientCaptureVehicleTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
+      orientFirearmRackFlat(weaponRackFx.root);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
