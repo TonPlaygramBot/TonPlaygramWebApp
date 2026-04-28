@@ -232,7 +232,7 @@ const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
   large: Object.freeze({
     targetSizeMultiplier: 1.9,
     position: [0.086, 0, -0.016],
-    rotation: [-Math.PI * 0.5, Math.PI * 0.02, 0]
+    rotation: [-Math.PI * 0.5, Math.PI * 0.5, 0]
   })
 });
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
@@ -244,9 +244,9 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   }),
   // Long guns stay on the wider octagon rail zones (red long markings in reference shots).
   large: Object.freeze({
-    side: 0.266,
-    inward: -0.01,
-    outward: 0.108
+    side: 0.246,
+    inward: -0.02,
+    outward: 0.132
   })
 });
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -712,34 +712,34 @@ const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
-  missileJavelin: '▸',
-  droneAttack: '◈',
-  fighterJetAttack: '◁',
-  helicopterAttack: '◎',
-  fpsGunAttack: '▬',
-  glockSidearmAttack: '▮',
-  assaultRifleAttack: '▰',
-  uziSprayAttack: '▯',
-  ak47VolleyAttack: '▰',
-  krsvBurstAttack: '▰',
-  smithSidearmAttack: '▮',
-  mosinMarksmanAttack: '▤',
-  sigsauerTacticalAttack: '▮',
-  grenadeBlastAttack: '⬢',
-  shotgunBlastAttack: '▭',
-  sniperShotAttack: '▤',
-  smgBurstAttack: '▯',
-  compactCarbineAttack: '▰',
-  marksmanDmrAttack: '▤',
-  polyShotgun01Attack: '▬',
-  polyAssaultRifle01Attack: '▰',
-  polyPistol01Attack: '▮',
-  polyRevolver01Attack: '◖',
-  polySawedOff01Attack: '▭',
-  polyRevolver02Attack: '◗',
-  polyShotgun02Attack: '▤',
-  polyShotgun03Attack: '▥',
-  polySmg01Attack: '▯'
+  missileJavelin: '🚀',
+  droneAttack: '🛸',
+  fighterJetAttack: '✈️',
+  helicopterAttack: '🚁',
+  fpsGunAttack: '🔫',
+  glockSidearmAttack: '🔫',
+  assaultRifleAttack: '🪖',
+  uziSprayAttack: '🔫',
+  ak47VolleyAttack: '🪖',
+  krsvBurstAttack: '🪖',
+  smithSidearmAttack: '🔫',
+  mosinMarksmanAttack: '🎯',
+  sigsauerTacticalAttack: '🔫',
+  grenadeBlastAttack: '💣',
+  shotgunBlastAttack: '🧨',
+  sniperShotAttack: '🎯',
+  smgBurstAttack: '🔫',
+  compactCarbineAttack: '🪖',
+  marksmanDmrAttack: '🎯',
+  polyShotgun01Attack: '🧨',
+  polyAssaultRifle01Attack: '🪖',
+  polyPistol01Attack: '🔫',
+  polyRevolver01Attack: '🔫',
+  polySawedOff01Attack: '🧨',
+  polyRevolver02Attack: '🔫',
+  polyShotgun02Attack: '🧨',
+  polyShotgun03Attack: '🧨',
+  polySmg01Attack: '🔫'
 });
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
@@ -1038,6 +1038,36 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 }
 
 async function createCaptureWeaponRackFx() {
+  const createRackSwitchIconMesh = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.92)';
+    ctx.beginPath();
+    ctx.arc(128, 128, 114, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.95)';
+    ctx.stroke();
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 128px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⇄', 128, 136);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.056, 0.056),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+    );
+    mesh.name = 'captureWeaponSwitchIcon';
+    mesh.position.set(0.085, 0.066, -0.026);
+    return mesh;
+  };
+
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
   weaponHolder.position.set(0.04, 0.032, -0.018);
@@ -1053,11 +1083,14 @@ async function createCaptureWeaponRackFx() {
 
   const actionButton = new THREE.Mesh(
     new THREE.CylinderGeometry(0.024, 0.026, 0.015, 28),
-    createCaptureVehicleMaterial('truck', { color: '#ef4444', roughness: 0.22, metalness: 0.15, emissive: '#5f0a0a' })
+    createCaptureVehicleMaterial('truck', { color: '#1d4ed8', roughness: 0.22, metalness: 0.15, emissive: '#0c4a6e' })
   );
   actionButton.name = 'captureActionButton';
   actionButton.position.set(0.074, 0.03, -0.022);
   root.add(actionButton);
+
+  const switchIcon = createRackSwitchIconMesh();
+  if (switchIcon) root.add(switchIcon);
 
   const actionButtonHit = new THREE.Mesh(
     new THREE.CylinderGeometry(0.013, 0.013, 0.01, 16),
@@ -1080,6 +1113,7 @@ async function createCaptureWeaponRackFx() {
     weaponHolder,
     actionButton,
     actionButtonHit,
+    switchIcon,
     weaponRackHit,
     selectedCaptureAnimationId: null
   };
@@ -6974,21 +7008,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
         const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
-        const showActionButton =
-          selectedCaptureAnimationId === 'fighterJetAttack' ||
-          selectedCaptureAnimationId === 'helicopterAttack' ||
-          selectedCaptureAnimationId === 'droneAttack';
-        entry.weaponRack.visible = showFirearm || showActionButton;
+        entry.weaponRack.visible = showFirearm || CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId);
         if (entry.actionButton?.isObject3D) {
-          entry.actionButton.visible = showActionButton;
-          if (showActionButton) {
-            entry.actionButton.position.set(0.082, 0.033, -0.024);
-          } else {
-            entry.actionButton.position.set(0.074, 0.02, -0.022);
-          }
+          entry.actionButton.visible = entry.weaponRack.visible;
+          entry.actionButton.position.set(0.082, 0.033, -0.024);
+        }
+        if (entry.switchIcon?.isObject3D) {
+          entry.switchIcon.visible = entry.weaponRack.visible;
+          entry.switchIcon.position.set(0.082, 0.066, -0.024);
         }
         if (entry.actionButtonHit?.isObject3D) {
-          entry.actionButtonHit.visible = showActionButton;
+          entry.actionButtonHit.visible = entry.weaponRack.visible;
           entry.actionButtonHit.position.copy(entry.actionButton?.position ?? entry.actionButtonHit.position);
         }
         if (entry.weaponRackHit?.isObject3D) {
@@ -7099,6 +7129,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         weaponAnimationMixers: weaponAnimationMixersRef.current,
         actionButton: weaponRackFx.actionButton ?? null,
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
+        switchIcon: weaponRackFx.switchIcon ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
         selectedCaptureAnimationId: null,
         helicopterRotor: helicopterFx.rotor ?? null,
@@ -11770,7 +11801,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
-                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[13px] leading-none text-slate-100">
+                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[15px] leading-none">
                       {shape}
                     </div>
                     <div className="px-0.5 pb-0.5 leading-tight">{option.label}</div>
@@ -11781,19 +11812,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           </div>
         )}
         <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
-          <div className="pointer-events-auto">
-            <button
-              type="button"
-              onClick={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                openWeaponSwapPopup(rect.right - 6, rect.bottom + 8);
-              }}
-              aria-label="Open quick weapon swap"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-sm text-white shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/35 hover:bg-black/75"
-            >
-              ⇄
-            </button>
-          </div>
           <div className="pointer-events-auto">
             <button
               type="button"
