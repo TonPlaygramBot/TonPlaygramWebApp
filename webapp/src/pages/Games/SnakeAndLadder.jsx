@@ -36,7 +36,6 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -814,13 +813,13 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
-const CAPTURE_WEAPON_OPTIONS = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
-    id: option.id,
-    label: option.label,
-    icon: option.thumbnail
-  }))
-);
+const CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'drone', label: 'Drone' },
+  { id: 'fighter', label: 'Fighter Jet' },
+  { id: 'helicopter', label: 'Military Helicopter' },
+  { id: 'supportTruck', label: 'Support Truck' },
+  { id: 'javelin', label: 'Javelin Missile' }
+]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -1415,7 +1414,6 @@ export default function SnakeAndLadder() {
   const [playerPopup, setPlayerPopup] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
-  const [showWeaponSwap, setShowWeaponSwap] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
@@ -1763,9 +1761,9 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0]?.id;
+      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || 'drone';
       const aiWeapon = aiWeaponLoadout[mover - 1];
-      const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon || CAPTURE_WEAPON_OPTIONS[0]?.id);
+      const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon || 'drone');
       setBurning((b) => [...new Set([...b, ...victims])]);
       const settleCapture = () => {
         if (!muted) {
@@ -3236,9 +3234,7 @@ export default function SnakeAndLadder() {
   const selectedCaptureWeaponId =
     resolvedAppearance?.captureWeapon?.id && isSnakeOptionUnlocked('captureWeapon', resolvedAppearance.captureWeapon.id, snakeInventory)
       ? resolvedAppearance.captureWeapon.id
-      : CAPTURE_WEAPON_OPTIONS[0]?.id;
-  const unlockedCaptureWeaponIds = snakeInventory?.captureWeapon || [];
-  const quickSwapWeapons = CAPTURE_WEAPON_OPTIONS.filter((option) => unlockedCaptureWeaponIds.includes(option.id));
+      : 'drone';
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
@@ -3248,7 +3244,7 @@ export default function SnakeAndLadder() {
         type: 'normal',
         color: playerColors[i] || '#fff',
         seatIndex: seatAssignments.get(i),
-        weaponType: CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || CAPTURE_WEAPON_OPTIONS[0]?.id
+        weaponType: CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone'
       }))
     : [
         {
@@ -3268,7 +3264,7 @@ export default function SnakeAndLadder() {
           type: 'normal',
           color: playerColors[i + 1],
           seatIndex: i + 1,
-          weaponType: aiWeaponLoadout[i] || CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || CAPTURE_WEAPON_OPTIONS[0]?.id,
+          weaponType: aiWeaponLoadout[i] || CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone',
           tokenShape: aiTokenShapes[i] || TOKEN_SHAPE_OPTIONS[i % TOKEN_SHAPE_OPTIONS.length],
           headPreset: null,
           headPresetId: 'current'
@@ -3820,59 +3816,6 @@ export default function SnakeAndLadder() {
           />
         </div>
         <div className="pointer-events-auto w-full">
-          <div
-            className="fixed z-20 flex flex-col items-end"
-            style={{
-              right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowWeaponSwap((open) => !open)}
-              className="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              aria-label="Swap weapon"
-            >
-              <span className="text-2xl leading-none">⇄</span>
-            </button>
-            {showWeaponSwap ? (
-              <div className="mt-2 max-h-64 w-56 overflow-y-auto rounded-2xl border border-white/20 bg-black/75 p-2 backdrop-blur-md">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">Weapon swap</div>
-                <div className="space-y-1.5">
-                  {quickSwapWeapons.length ? (
-                    quickSwapWeapons.map((option) => {
-                      const isActive = option.id === selectedCaptureWeaponId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => {
-                            setAppearance((prev) => ({
-                              ...prev,
-                              captureWeapon: Math.max(0, CAPTURE_WEAPON_OPTIONS.findIndex((item) => item.id === option.id))
-                            }));
-                            setShowWeaponSwap(false);
-                          }}
-                          className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-[11px] ${
-                            isActive
-                              ? 'border-yellow-300/80 bg-yellow-300/20 text-yellow-100'
-                              : 'border-white/15 bg-white/5 text-white/90'
-                          }`}
-                        >
-                          <img src={option.icon} alt="" className="h-7 w-7 rounded-md border border-white/10 object-cover" />
-                          <span className="truncate">{option.label}</span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[11px] text-white/70">
-                      No unlocked weapons yet. Buy from store first.
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </div>
           <BottomLeftIcons
             onGift={() => setShowGift(true)}
             style={{
