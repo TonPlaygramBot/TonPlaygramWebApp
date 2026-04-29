@@ -67,6 +67,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private AudioSource sfxSource;
         [SerializeField] private Transform attackerCameraAnchor;
         [SerializeField] private Transform liveTargetTransform;
+        [SerializeField] private Transform attackerShotFocusTransform;
         [SerializeField] private Transform weaponRoot;
         [SerializeField] private Transform tableWeaponAnchor;
         [SerializeField] private Transform weaponSwapIcon;
@@ -342,7 +343,22 @@ namespace TonPlaygram.Gameplay.Weapons
                 StopCoroutine(_cameraRoutine);
             }
 
+            SnapCameraToAttackerAnchor();
             _cameraRoutine = StartCoroutine(AimViewRoutine(weapon));
+        }
+
+
+        private void SnapCameraToAttackerAnchor()
+        {
+            if (playerCamera == null || attackerCameraAnchor == null)
+                return;
+
+            if (playerCamera.transform.parent != attackerCameraAnchor)
+            {
+                playerCamera.transform.SetParent(attackerCameraAnchor, true);
+            }
+
+            playerCamera.transform.localPosition = _baseCameraLocalPos + firstPersonAimOffset;
         }
 
         private void RefreshWeaponPose(Vector3 shotDirection)
@@ -420,7 +436,8 @@ namespace TonPlaygram.Gameplay.Weapons
                 t += Time.deltaTime;
                 Vector3 targetPos = bulletTransform.position - (bulletTransform.forward * bulletFollowDistance) + (Vector3.up * bulletFollowHeight);
                 playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, targetPos, Mathf.Clamp01(Time.deltaTime * cameraTrackLerp));
-                Quaternion toBullet = Quaternion.LookRotation((bulletTransform.position - playerCamera.transform.position).normalized, Vector3.up);
+                Vector3 lookPoint = bulletTransform.position + (bulletTransform.forward * 0.55f);
+                Quaternion toBullet = Quaternion.LookRotation((lookPoint - playerCamera.transform.position).normalized, Vector3.up);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toBullet, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
             }
@@ -482,6 +499,11 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private Vector3 ResolveLiveTargetPosition()
         {
+            if (attackerShotFocusTransform != null)
+            {
+                return attackerShotFocusTransform.position;
+            }
+
             if (liveTargetTransform != null)
             {
                 return liveTargetTransform.position;
