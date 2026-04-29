@@ -60,6 +60,53 @@ const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack'
 ]);
 
+
+const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
+  pistol: 'sigsauerTacticalAttack',
+  smg: 'polySmg01Attack',
+  assaultRifle: 'ak47VolleyAttack',
+  marksman: 'sniperShotAttack',
+  shotgun: 'shotgunBlastAttack',
+  revolver: 'polyRevolver02Attack',
+  explosive: 'grenadeBlastAttack'
+});
+
+const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
+  glockSidearmAttack: 'pistol',
+  pistolSidearmAttack: 'pistol',
+  pistolHolsterAttack: 'pistol',
+  smithSidearmAttack: 'pistol',
+  sigsauerTacticalAttack: 'pistol',
+  polyPistol01Attack: 'pistol',
+  uziSprayAttack: 'smg',
+  smgBurstAttack: 'smg',
+  polySmg01Attack: 'smg',
+  fpsGunAttack: 'assaultRifle',
+  assaultRifleAttack: 'assaultRifle',
+  ak47VolleyAttack: 'assaultRifle',
+  krsvBurstAttack: 'assaultRifle',
+  compactCarbineAttack: 'assaultRifle',
+  polyAssaultRifle01Attack: 'assaultRifle',
+  mosinMarksmanAttack: 'marksman',
+  marksmanDmrAttack: 'marksman',
+  sniperShotAttack: 'marksman',
+  shotgunBlastAttack: 'shotgun',
+  polyShotgun01Attack: 'shotgun',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySawedOff01Attack: 'shotgun',
+  polyRevolver01Attack: 'revolver',
+  polyRevolver02Attack: 'revolver',
+  grenadeBlastAttack: 'explosive'
+});
+
+const shouldShowCaptureAnimationInStore = (optionId) => {
+  if (HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(optionId)) return false;
+  const family = CAPTURE_ANIMATION_FAMILY_BY_ID[optionId];
+  if (!family) return true;
+  return PREFERRED_CAPTURE_ANIMATION_BY_FAMILY[family] === optionId;
+};
+
 const uniqueStoreItemsByName = (items) => {
   const seen = new Set();
   return items.filter((item) => {
@@ -148,7 +195,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
   ...CAPTURE_ANIMATION_OPTIONS.slice(1)
-    .filter((option) => !HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(option.id))
+    .filter((option) => shouldShowCaptureAnimationInStore(option.id))
     .map((option, idx) => ({
       id: `ludo-capture-animation-${option.id}`,
       type: 'captureAnimation',

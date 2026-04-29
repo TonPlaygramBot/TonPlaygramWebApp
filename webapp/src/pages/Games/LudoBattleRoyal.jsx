@@ -830,6 +830,21 @@ function orientFirearmRackTowardBoardCenter(root, target) {
   root.rotation.z = 0;
 }
 
+function orientBottomWeaponHolderTowardBoardCenter(entry, boardCenter) {
+  if (!entry?.weaponHolder?.isObject3D || !boardCenter?.isVector3) return;
+  const holderParent = entry.weaponHolder.parent;
+  if (!holderParent?.isObject3D) return;
+  const holderWorld = entry.weaponHolder.getWorldPosition(new THREE.Vector3());
+  const lookTarget = boardCenter.clone();
+  lookTarget.y = holderWorld.y;
+  const inward = lookTarget.sub(holderWorld);
+  if (inward.lengthSq() < 1e-8) return;
+  // Align the local +Z axis (weapon muzzle direction) toward table center.
+  const worldQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), inward.normalize());
+  const parentQuatInv = holderParent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  entry.weaponHolder.quaternion.copy(parentQuatInv.multiply(worldQuat));
+}
+
 function resolveFirearmBallisticsProfile(captureAnimationId = '') {
   const profileKey = FIREARM_BALLISTICS_PROFILE_BY_ID[captureAnimationId] || 'default';
   return FIREARM_BALLISTICS_PROFILE[profileKey] || FIREARM_BALLISTICS_PROFILE.default;
@@ -7117,6 +7132,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
+      if (playerIndex === 0) orientBottomWeaponHolderTowardBoardCenter(entry, arena.boardLookTarget);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7236,6 +7252,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
       orientFirearmRackTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
+      if (playerIndex === 0) orientBottomWeaponHolderTowardBoardCenter(weaponRackFx, arena.boardLookTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
