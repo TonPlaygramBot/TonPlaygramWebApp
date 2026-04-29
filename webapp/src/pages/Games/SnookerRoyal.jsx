@@ -94,21 +94,10 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { BILARDO_STRIKE_TIME_MS } from './shared/bilardoShotModel';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const BILARDO_SHARED_HUMAN_GLTF_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const BILARDO_REFERENCE_TABLE_TOP_Y = 0.84;
-const BILARDO_REFERENCE_HUMAN_HEIGHT = BILARDO_REFERENCE_TABLE_TOP_Y * 2;
-const SNOOKER_HUMAN_BASE_SCALE = 1.18;
-const SNOOKER_HUMAN_VISUAL_SCALE_BOOST = 2.22;
-const BILARDO_EDGE_MARGIN = 0.62;
-const BILARDO_DESIRED_SHOOT_DISTANCE = 1.06;
-const BILARDO_PULL_TO_POSE_THRESHOLD = 0.035;
-const BILARDO_CUE_HAND_GRIP_RATIO = 0.76;
-const SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET = 0;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -20734,9 +20723,6 @@ const powerRef = useRef(hud.power);
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
-      const humanActor = null;
-      const updateSnookerHumanFromAim = () => {};
-
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
         const state = cueGalleryStateRef.current;
@@ -22155,11 +22141,6 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-            updateSnookerHumanFromAim(aimDir, clampedPower, {
-              state: 'striking',
-              cueBack: TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET),
-              cueTip: cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET)
-            });
             requestAnimationFrame(animateStroke);
           };
           requestAnimationFrame(animateStroke);
@@ -24932,11 +24913,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(aimDir2D, powerStrength, {
-            state: resolveSnookerHumanPoseState('dragging', powerStrength),
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -25091,11 +25067,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(remoteAimDir, powerStrength, {
-            state: resolveSnookerHumanPoseState('dragging', powerStrength),
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -25196,13 +25167,6 @@ const powerRef = useRef(hud.power);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
-          updateSnookerHumanFromAim(planDir, powerTarget, {
-            state: resolveSnookerHumanPoseState('dragging', powerTarget, {
-              forcePose: true
-            }),
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: tipTarget
-          });
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -25215,13 +25179,6 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
-          updateSnookerHumanFromAim(aimDirRef.current, powerRef.current ?? 0, {
-            state: cueAnimating
-              ? 'striking'
-              : resolveSnookerHumanPoseState('idle', powerRef.current ?? 0),
-            cueBack: TMP_VEC3_BUTT,
-            cueTip: cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET)
-          });
           updateChalkVisibility(null);
         }
 
@@ -25230,9 +25187,6 @@ const powerRef = useRef(hud.power);
           if (precisionArea) precisionArea.visible = false;
         }
         chalkAssistTargetRef.current = shouldSlowAim;
-
-
-
 
         // Fizika
         balls.forEach((ball) => {
