@@ -119,8 +119,6 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import {
   chooseHumanEdgePosition as chooseBilardoHumanEdgePosition,
-  createBilardoHumanRig,
-  updateBilardoHumanPose
 } from './shared/bilardoHumanRig.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
@@ -24662,76 +24660,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const seatConfigs = [
-          { seat: 'A', x: 0, z: 0, facingY: 0 },
-          { seat: 'B', x: 0, z: 0, facingY: Math.PI }
-        ];
-        const loader = new GLTFLoader().setCrossOrigin('anonymous');
-        seatConfigs.forEach((cfg) => {
-          const human = createBilardoHumanRig(scene, {
-            loader,
-            modelUrl: BILARDO_SHQIP_HUMAN_URL,
-            humanScale: 1.18,
-            humanVisualYawFix: Math.PI,
-            tableTopY: TABLE_Y + TABLE.THICK,
-            edgeMargin: HUMAN_EDGE_MARGIN,
-            desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
-            bridgePalmTableLift: 0.001
-          });
-          human.root.position.set(cfg.x, floorY, cfg.z);
-          human.yaw = cfg.facingY;
-          const rig = { seat: cfg.seat, human, group: human.root };
-          playerCharacterRigsRef.current.push(rig);
-        });
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        const cueBall = ballsRef.current?.find((b) => b?.id === 'cue' && b?.active !== false);
-        if (!cueBall || !Number.isFinite(dtSeconds) || dtSeconds <= 0) return;
-        const aimForward = new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y).normalize();
-        if (aimForward.lengthSq() < 1e-6) aimForward.set(0, 0, -1);
-        const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-        const cueBallWorld = new THREE.Vector3(cueBall.pos.x, TABLE_Y + TABLE.THICK + BALL_R, cueBall.pos.y);
-
-        const bridgeTarget = cueBallWorld
-          .clone()
-          .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-          .addScaledVector(aimSide, HUMAN_BRIDGE_HAND_SIDE)
-          .setY(TABLE_Y + TABLE.THICK + 0.001);
-        const cueTip = cueBallWorld.clone().addScaledVector(aimForward, -CUE_TIP_GAP);
-        const gripTarget = cueTip
-          .clone()
-          .addScaledVector(aimForward, -HUMAN_CUE_LENGTH * HUMAN_GRIP_RATIO)
-          .addScaledVector(aimSide, 0.018)
-          .addScaledVector(new THREE.Vector3(0, 1, 0), -0.008);
-
-        const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-        const humanRootTarget = chooseBilardoHumanEdgePosition(cueBallWorld, aimForward, {
-          tableW: PLAY_W,
-          tableL: PLAY_H,
-          edgeMargin: HUMAN_EDGE_MARGIN,
-          desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
-        }).setY(floorY);
-        const idleLeft = humanRootTarget.clone().add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-        const idleRight = humanRootTarget.clone().add(new THREE.Vector3(0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-        const state = shooting ? 'striking' : isDragging ? 'dragging' : 'idle';
-        playerCharacterRigsRef.current.forEach((rig) => {
-          const human = rig?.human;
-          if (!human) return;
-          updateBilardoHumanPose(human, dtSeconds, {
-            state,
-            power: clamp(powerRef.current || 0, 0, 1),
-            rootTarget: humanRootTarget,
-            aimForward,
-            bridgeTarget,
-            gripTarget,
-            idleRight,
-            idleLeft,
-            cueBack: gripTarget,
-            cueTip
-          });
-        });
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
