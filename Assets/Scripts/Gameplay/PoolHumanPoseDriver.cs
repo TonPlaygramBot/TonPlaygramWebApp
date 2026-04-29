@@ -36,8 +36,8 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        public float edgeMargin = 0.21f;
-        public float desiredShootDistance = 0.74f;
+        public float edgeMargin = 0.3f;
+        public float desiredShootDistance = 0.88f;
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
@@ -56,9 +56,9 @@ namespace Aiming
         public float gripRatio = 0.76f;
         public float stanceHeight = 0f;
         [Tooltip("How much closer to the table edge the chest/head moves while aiming.")]
-        [Range(0f, 0.2f)] public float tableLeanDepth = 0.08f;
+        [Range(0f, 0.2f)] public float tableLeanDepth = 0.055f;
         [Tooltip("Extra right-hand pull distance, matching the live power slider pullback.")]
-        [Range(0f, 0.4f)] public float gripPullRange = 0.24f;
+        [Range(0f, 0.4f)] public float gripPullRange = 0.3f;
         [Tooltip("Right hand grip point from cue root towards cue tip (meters).")]
         [Range(0.05f, 0.9f)] public float rightHandGripFromCueRoot = 0.18f;
         [Tooltip("Primary right hand grip distance measured backward from cue tip (meters). Keeps the hand behind the bridge like Bilardo stance.")]
@@ -68,7 +68,7 @@ namespace Aiming
         [Tooltip("Small right-hand vertical offset so fingers wrap the cue instead of intersecting it.")]
         [Range(-0.1f, 0.15f)] public float rightHandVerticalOffset = 0.025f;
         [Tooltip("Moves chest/head closer to cue line to mimic real snooker stance.")]
-        [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.085f;
+        [Range(0f, 0.18f)] public float chinToCueForwardBias = 0.1f;
         [Tooltip("Makes lead shoulder slightly lower for realistic bridge alignment.")]
         [Range(0f, 0.16f)] public float shoulderDrop = 0.055f;
 
@@ -153,9 +153,16 @@ namespace Aiming
                 aimForward = _lockedStrikeAimForward;
             }
 
+            bool shouldUseShootPose = cueController.CurrentShotState != CueController.ShotState.Idle ||
+                                      cueController.IsCameraLowered ||
+                                      cueController.CurrentPullNormalized > 0.001f;
+            CueController.ShotState visualShotState = shouldUseShootPose
+                ? CueController.ShotState.Dragging
+                : CueController.ShotState.Idle;
+
             UpdateHumanPose(
                 dt,
-                cueController.CurrentShotState,
+                visualShotState,
                 navigatedRootTarget,
                 aimForward,
                 bridgeHandTarget,
