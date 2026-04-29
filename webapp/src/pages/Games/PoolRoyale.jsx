@@ -1939,10 +1939,10 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 0.88; // push the shooter farther outward so the body stays clearly on the table perimeter
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.42; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
+const HUMAN_EDGE_MARGIN = 1.22; // push the shooter farther outward so the body stays clearly on the table perimeter
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.76; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 3.85; // widen the perimeter walk ring so feet never step onto the table mesh
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
 const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
@@ -24687,8 +24687,7 @@ const shotPowerRef = useRef(0);
           return { seat, human };
         };
         playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0),
-          makeRig('B', sideOffset, zOffset, Math.PI)
+          makeRig('A', -sideOffset, -zOffset, 0)
         ];
       };
 
@@ -24799,15 +24798,16 @@ const shotPowerRef = useRef(0);
           const human = rig?.human;
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
-          const isShooter = anim?.seat === activeSeat;
-          const isHumanShooter = seat === activeSeat;
+          const singleHumanMode = rigs.length === 1;
+          const isShooter = singleHumanMode ? true : anim?.seat === activeSeat;
+          const isHumanShooter = singleHumanMode ? true : seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
           const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
           const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (isShotActive && seat === shotSeat && shotAge < 420) mode = 'strike';
+          else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
           else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
