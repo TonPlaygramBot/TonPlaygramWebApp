@@ -36,7 +36,7 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
-import { CAPTURE_ANIMATION_OPTIONS } from "../../config/ludoBattleOptions.js";
+import { SNAKE_CAPTURE_WEAPON_OPTIONS as CAPTURE_ANIMATION_OPTIONS } from "../../config/snakeCaptureWeaponOptions.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
