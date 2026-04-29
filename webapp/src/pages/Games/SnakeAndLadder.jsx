@@ -1266,6 +1266,7 @@ export default function SnakeAndLadder() {
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
+  const [showWeaponSwapMenu, setShowWeaponSwapMenu] = useState(false);
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
   const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
@@ -1277,6 +1278,13 @@ export default function SnakeAndLadder() {
   const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
   const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
   const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
+  const ownedCaptureWeapons = useMemo(
+    () =>
+      CAPTURE_WEAPON_OPTIONS.filter((option) =>
+        isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
+      ),
+    [snakeInventory]
+  );
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
@@ -3828,12 +3836,61 @@ export default function SnakeAndLadder() {
             showMute={false}
             showGift
             showCamera2d={false}
-            order={['gift']}
+            order={['swapWeapon', 'gift']}
+            extraActions={[
+              {
+                key: 'swapWeapon',
+                label: 'Swap',
+                icon: '🔁',
+                onClick: () => setShowWeaponSwapMenu((prev) => !prev),
+                ariaLabel: 'Swap capture weapon'
+              }
+            ]}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
           />
         </div>
+        {showWeaponSwapMenu ? (
+          <div
+            className="pointer-events-auto fixed z-30 right-3 rounded-2xl border border-white/15 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
+            style={{
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 7.3rem)',
+              maxWidth: '18rem',
+              width: 'min(72vw, 18rem)'
+            }}
+          >
+            <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-yellow-200/90">
+              Weapon Swap
+            </div>
+            <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+              {ownedCaptureWeapons.map((weapon) => {
+                const active = resolvedAppearance?.captureWeapon?.id === weapon.id;
+                return (
+                  <button
+                    key={`swap-${weapon.id}`}
+                    type="button"
+                    onClick={() => {
+                      const idx = CAPTURE_WEAPON_OPTIONS.findIndex((option) => option.id === weapon.id);
+                      if (idx >= 0) {
+                        setAppearance((prev) => normalizeAppearance({ ...prev, captureWeapon: idx }));
+                      }
+                      setShowWeaponSwapMenu(false);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-xl border px-2 py-2 text-left text-[11px] font-semibold ${
+                      active
+                        ? 'border-yellow-300/70 bg-yellow-400/90 text-slate-950'
+                        : 'border-white/15 bg-white/5 text-slate-100 hover:bg-white/10'
+                    }`}
+                  >
+                    <img src={weapon.thumbnail} alt={weapon.label} className="h-8 w-8 rounded-md border border-white/20 object-cover" />
+                    <span className="truncate">{weapon.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         {/* Player photos stacked vertically */}
         <div className="absolute inset-0 z-20 pointer-events-none">
           {players.map((player, seat) => {
