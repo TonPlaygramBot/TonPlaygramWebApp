@@ -10021,16 +10021,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 handWeaponAttachment.weapon.position.lerpVectors(rackLocal, handWeaponAttachment.weapon.position, blend);
               }
             }
-            if (targetToken?.isObject3D) {
-              const liveTargetPos = targetToken.getWorldPosition(new THREE.Vector3());
-              muzzleTarget.copy(liveTargetPos).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
+            const liveTarget = resolveLiveTokenPosition({
+              token: targetToken,
+              player: targetPlayer,
+              tokenIndex: targetTokenIndex,
+              fallbackPosition: targetPosition
+            });
+            if (liveTarget?.isVector3) {
+              muzzleTarget.copy(liveTarget).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
               const parent = handWeaponAttachment.weapon.parent;
               const targetLocal = parent.worldToLocal(muzzleTarget.clone());
               if (elapsed >= pickupLeadMs + reloadLeadMs) {
-                handWeaponAttachment.weapon.lookAt(targetLocal);
-                handWeaponAttachment.weapon.rotateY(Math.PI);
+                const lookMatrix = new THREE.Matrix4().lookAt(
+                  handWeaponAttachment.weapon.position,
+                  targetLocal,
+                  new THREE.Vector3(0, 1, 0)
+                );
+                const targetQuat = new THREE.Quaternion()
+                  .setFromRotationMatrix(lookMatrix)
+                  .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
+                handWeaponAttachment.weapon.quaternion.slerp(targetQuat, 0.24);
               } else {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.02) * 0.006;
               }
@@ -10106,6 +10118,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               entry.root.position.copy(mid);
               entry.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
             });
+            let leadBulletPos = null;
             bullets.forEach((bulletMesh, idx) => {
               const spawnAt = Number(bulletMesh.userData?.spawnAt ?? 0);
               const life = elapsed - spawnAt;
@@ -10123,35 +10136,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.userData.completed = true;
                 bulletMesh.visible = false;
               }
-              if (idx === shots - 1 && singleShotFirearm) {
-                const aimDirNow = muzzleTarget.clone().sub(muzzleOrigin).normalize();
-                const followOffset = aimDirNow
-                  .clone()
-                  .multiplyScalar(-0.11)
-                  .add(new THREE.Vector3(0, 0.08, 0.03));
-                setCameraFocus({
-                  target: bulletPos,
-                  follow: true,
-                  priority: 10,
-                  ttl: 0,
-                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.016) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                  followOffset,
-                  force: true
-                });
-              }
-              if (idx === shots - 1 && !singleShotFirearm && shotProgress > 0.86) {
-                const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.12);
-                setCameraFocus({
-                  target: bulletPos,
-                  follow: true,
-                  priority: 10,
-                  ttl: 0,
-                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.02) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                  followOffset: new THREE.Vector3(pullback.x, 0.09, pullback.z),
-                  force: true
-                });
+              if (!leadBulletPos && shotProgress > 0.2 && shotProgress < 0.995) {
+                leadBulletPos = bulletPos.clone();
               }
             });
+            if (leadBulletPos?.isVector3) {
+              const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.115);
+              setCameraFocus({
+                target: leadBulletPos,
+                follow: true,
+                priority: 10,
+                ttl: 0,
+                offset: Math.max(0.02, (CAMERA_TARGET_LIFT + (singleShotFirearm ? 0.016 : 0.02)) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                followOffset: new THREE.Vector3(pullback.x, singleShotFirearm ? 0.08 : 0.09, pullback.z),
+                force: true
+              });
+            }
             shells.forEach((shell, idx) => {
               const shellState = shellStates[idx];
               const launchAt = idx * (cadenceMs * 0.7);
