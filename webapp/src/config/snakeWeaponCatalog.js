@@ -34,3 +34,20 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   { id: 'slot-17-mrtk-gun-glb', label: 'MRTK Gun GLB', thumbnail: swatchThumbnail(['#0369a1','#0f172a','#e0f2fe']), urls: [SNAKE_KNOWN_WORKING_GLB.mrtk, SNAKE_KNOWN_WORKING_GLB.mrtkRaw, SNAKE_KNOWN_WORKING_GLB.mrtkMaster] },
   { id: 'slot-18-fps-gun-gltf', label: 'FPS Shotgun', thumbnail: swatchThumbnail(['#f59e0b','#111827','#fde68a']), urls: [SNAKE_KNOWN_WORKING_GLB.fps, SNAKE_KNOWN_WORKING_GLB.fpsRaw, SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }
 ]);
+
+
+export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
+  fighter: 'poly-assault-rifle-01',
+  helicopter: 'poly-shotgun-02',
+  supporttruck: 'poly-smg-01',
+  drone: 'poly-shotgun-01'
+});
+
+export const normalizeSnakeWeaponId = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+export const resolveSnakeCaptureWeaponId = (weaponId) => {
+  const normalized = normalizeSnakeWeaponId(weaponId);
+  if (!normalized) return '';
+  return SNAKE_CAPTURE_WEAPON_ALIAS_MAP[normalized] || normalized;
+};

@@ -36,7 +36,10 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from "../../config/snakeWeaponCatalog.js";
+import {
+  SNAKE_CAPTURE_WEAPON_OPTIONS,
+  resolveSnakeCaptureWeaponId
+} from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -817,9 +820,16 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
 const CAPTURE_WEAPON_OPTIONS = Object.freeze(
   SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
     id: option.id,
-    label: option.label
+    label: option.label,
+    thumbnail: option.thumbnail
   }))
 );
+
+const resolveCaptureWeaponOptionById = (weaponId) => {
+  const resolvedId = resolveSnakeCaptureWeaponId(weaponId);
+  if (!resolvedId) return null;
+  return CAPTURE_WEAPON_OPTIONS.find((option) => option.id === resolvedId) || null;
+};
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -1278,13 +1288,25 @@ export default function SnakeAndLadder() {
   const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
   const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
   const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
-  const ownedCaptureWeapons = useMemo(
-    () =>
-      CAPTURE_WEAPON_OPTIONS.filter((option) =>
-        isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
-      ),
-    [snakeInventory]
-  );
+  const ownedCaptureWeapons = useMemo(() => {
+    const inventoryWeaponIds = Array.isArray(snakeInventory?.captureWeapon)
+      ? snakeInventory.captureWeapon
+      : [];
+    const resolvedInventoryWeapons = inventoryWeaponIds
+      .map((weaponId) => resolveCaptureWeaponOptionById(weaponId))
+      .filter(Boolean);
+    const unlockedCatalogWeapons = CAPTURE_WEAPON_OPTIONS.filter((option) =>
+      isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
+    );
+    const merged = new Map();
+    [...resolvedInventoryWeapons, ...unlockedCatalogWeapons].forEach((weapon) => {
+      merged.set(weapon.id, weapon);
+    });
+    if (!merged.size && CAPTURE_WEAPON_OPTIONS[0]) {
+      merged.set(CAPTURE_WEAPON_OPTIONS[0].id, CAPTURE_WEAPON_OPTIONS[0]);
+    }
+    return Array.from(merged.values());
+  }, [snakeInventory]);
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
