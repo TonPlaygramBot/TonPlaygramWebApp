@@ -23,6 +23,7 @@ import {
   DEFAULT_TABLE_CUSTOMIZATION
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
+import { LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON, normalizeSnakeCaptureWeaponKind } from '../config/snakeCaptureWeapons.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 
@@ -555,65 +556,6 @@ const CAPTURE_CENTER_STAGE_LIFT = TOKEN_HEIGHT * 7.6;
 const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
-// Keep Snake & Ladder capture tuning aligned with Ludo Battle Royale flight behaviour,
-// while staying isolated in this file so changes here never alter other games.
-const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
-  fighter: Object.freeze({ speed: 0.92, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  helicopter: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  drone: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
-  javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
-});
-const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
-  fighter: 0,
-  helicopter: 0,
-  drone: 0,
-  supportTruck: 0,
-  javelin: 0
-});
-const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
-  fighter: 0,
-  helicopter: 0,
-  drone: 0,
-  supportTruck: 0,
-  javelin: 0
-});
-const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
-  missileJavelin: 'javelin',
-  droneAttack: 'drone',
-  fighterJetAttack: 'fighter',
-  helicopterAttack: 'helicopter',
-  fpsGunAttack: 'supportTruck',
-  glockSidearmAttack: 'supportTruck',
-  assaultRifleAttack: 'supportTruck',
-  uziSprayAttack: 'supportTruck',
-  ak47VolleyAttack: 'supportTruck',
-  krsvBurstAttack: 'supportTruck',
-  smithSidearmAttack: 'supportTruck',
-  mosinMarksmanAttack: 'supportTruck',
-  sigsauerTacticalAttack: 'supportTruck',
-  grenadeBlastAttack: 'supportTruck',
-  shotgunBlastAttack: 'supportTruck',
-  sniperShotAttack: 'supportTruck',
-  smgBurstAttack: 'supportTruck',
-  compactCarbineAttack: 'supportTruck',
-  marksmanDmrAttack: 'supportTruck',
-  polyShotgun01Attack: 'supportTruck',
-  polyAssaultRifle01Attack: 'supportTruck',
-  polyPistol01Attack: 'supportTruck',
-  polyRevolver01Attack: 'supportTruck',
-  polySawedOff01Attack: 'supportTruck',
-  polyRevolver02Attack: 'supportTruck',
-  polyShotgun02Attack: 'supportTruck',
-  polyShotgun03Attack: 'supportTruck',
-  polySmg01Attack: 'supportTruck'
-});
-
-function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
-  return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
-}
-
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;
   const planar = new THREE.Vector3(point.x, 0, point.z);

@@ -1,7 +1,7 @@
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
-import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from './snakeCaptureWeapons.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -27,13 +27,6 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen Token' },
   { id: 'king', label: 'King Token' }
 ]);
-const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze(
-  CAPTURE_ANIMATION_OPTIONS.map((option) => ({
-    id: option.id,
-    label: option.label,
-    thumbnail: option.thumbnail
-  }))
-);
 
 export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
   { id: 'current', label: 'Current' },
