@@ -24685,11 +24685,65 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        const template = await ensureSeatedHumanTemplate();
+        const rig = createPlayerCharacterRig({
+          seat: 'A',
+          x: 0,
+          z: PLAY_H * 0.48,
+          facingY: Math.PI,
+          template
+        });
+        playerCharacterRigsRef.current = [rig];
+        world.add(rig);
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        void dtSeconds;
+        const rig = playerCharacterRigsRef.current[0];
+        const anim = rig?.userData?.anim;
+        if (!rig || !anim || !cue?.active) return;
+        const dir2 = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
+        if (dir2.lengthSq() < 1e-6) dir2.set(0, 1);
+        dir2.normalize();
+        const forward = new THREE.Vector3(dir2.x, 0, dir2.y).normalize();
+        const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+        const rootTarget = new THREE.Vector3(
+          cue.pos.x - forward.x * (TABLE.W * 0.38),
+          floorY,
+          cue.pos.y - forward.z * (TABLE.H * 0.38)
+        );
+        anim.rootTarget = anim.rootTarget || rootTarget.clone();
+        anim.rootTarget.lerp(rootTarget, 1 - Math.exp(-4.6 * Math.max(0.001, dtSeconds)));
+        rig.position.copy(anim.rootTarget);
+        const targetYaw = Math.atan2(-forward.x, -forward.z);
+        anim.yaw = Number.isFinite(anim.yaw) ? anim.yaw : rig.rotation.y;
+        anim.yaw = THREE.MathUtils.lerp(anim.yaw, targetYaw, 1 - Math.exp(-7.2 * Math.max(0.001, dtSeconds)));
+        rig.rotation.y = anim.yaw;
+
+        const grip = anim.gripHand;
+        const bridge = anim.bridgeHand;
+        if (!grip || !bridge) return;
+        const gripIdle = new THREE.Vector3(0.31, 0.8, -0.015);
+        const gripLocal = gripIdle.clone().addScaledVector(forward, -0.06);
+        grip.position.copy(gripLocal);
+        const cueDir = new THREE.Vector3(-forward.x, 0.45, -forward.z).normalize();
+        grip.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
+
+        const bridgeWorld = new THREE.Vector3(
+          cue.pos.x - forward.x * (BALL_R * 4.2),
+          floorY + TABLE.THICK + 0.015,
+          cue.pos.y - forward.z * (BALL_R * 4.2)
+        );
+        const bridgeLocal = rig.worldToLocal(bridgeWorld.clone());
+        bridge.position.copy(bridgeLocal);
+        bridge.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
+
+        if (anim.model) {
+          anim.poseT = THREE.MathUtils.lerp(anim.poseT || 0, shooting ? 1 : 0, 1 - Math.exp(-6.8 * Math.max(0.001, dtSeconds)));
+          const t = anim.poseT;
+          anim.model.position.y = -0.03 * t;
+          anim.model.rotation.x = -0.15 * t;
+        }
       };
 
       void spawnPlayerCharacters();
