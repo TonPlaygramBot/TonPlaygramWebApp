@@ -36,6 +36,7 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -813,13 +814,12 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
-const CAPTURE_WEAPON_OPTIONS = Object.freeze([
-  { id: 'drone', label: 'Drone' },
-  { id: 'fighter', label: 'Fighter Jet' },
-  { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' },
-  { id: 'javelin', label: 'Javelin Missile' }
-]);
+const CAPTURE_WEAPON_OPTIONS = Object.freeze(
+  SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label
+  }))
+);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
