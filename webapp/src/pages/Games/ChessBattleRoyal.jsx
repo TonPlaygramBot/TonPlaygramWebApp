@@ -7655,6 +7655,37 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
+  const QUICK_SWAP_WEAPON_IDS = useMemo(
+    () =>
+      [
+        'polyShotgun01Attack',
+        'polyAssaultRifle01Attack',
+        'polyPistol01Attack',
+        'polyRevolver01Attack',
+        'polySawedOff01Attack',
+        'polyRevolver02Attack',
+        'polyShotgun02Attack',
+        'polyShotgun03Attack',
+        'polySmg01Attack',
+        'ak47VolleyAttack',
+        'krsvBurstAttack',
+        'smithSidearmAttack',
+        'mosinMarksmanAttack',
+        'uziSprayAttack',
+        'sigsauerTacticalAttack',
+        'sniperShotAttack',
+        'compactCarbineAttack',
+        'fpsGunAttack'
+      ],
+    []
+  );
+  const quickSwapWeapons = useMemo(() => {
+    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
+    return QUICK_SWAP_WEAPON_IDS
+      .filter((id) => ownedIds.has(id))
+      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
+      .filter(Boolean);
+  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
@@ -13862,14 +13893,14 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-1/2 left-3 z-30 -translate-y-1/2 pointer-events-none">
+        <div className="fixed right-3 bottom-[10.4rem] z-50 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-2">
             <button
               type="button"
               onClick={() => setWeaponSwapOpen((open) => !open)}
               aria-expanded={weaponSwapOpen}
               aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-black/65 text-lg shadow-[0_6px_16px_rgba(0,0,0,0.42)] transition hover:border-amber-200 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-300/60 bg-black/65 text-base shadow-[0_6px_16px_rgba(0,0,0,0.42)] transition hover:border-amber-200 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
             >
               🔄
             </button>
@@ -13879,7 +13910,7 @@ function Chess3D({
                   Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {ownedCaptureAnimations.map((option) => {
+                  {(quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations).map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
@@ -13896,7 +13927,7 @@ function Chess3D({
                           <img
                             src={option.thumbnail}
                             alt={option.label}
-                            className="h-9 w-9 rounded-md object-cover"
+                            className="h-9 w-9 rounded-md border border-white/20 bg-black/30 object-cover p-[1px]"
                             loading="lazy"
                           />
                         ) : (
