@@ -10183,6 +10183,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               entry.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
             });
             let leadBulletPos = null;
+            let leadBulletMesh = null;
             bullets.forEach((bulletMesh, idx) => {
               const spawnAt = Number(bulletMesh.userData?.spawnAt ?? 0);
               const life = elapsed - spawnAt;
@@ -10202,12 +10203,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               }
               if (!leadBulletPos && shotProgress > 0.2 && shotProgress < 0.995) {
                 leadBulletPos = bulletPos.clone();
+                leadBulletMesh = bulletMesh;
               }
             });
             if (leadBulletPos?.isVector3) {
               const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.115);
               setCameraFocus({
                 target: leadBulletPos,
+                object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 10,
                 ttl: 0,
@@ -10286,6 +10289,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 impactDirection: shotDir,
                 weaponId: resolvedCaptureAnimationId,
                 tableSurfaceY
+              });
+              setCameraFocus({
+                target: muzzleTarget.clone(),
+                follow: false,
+                priority: 11,
+                ttl: 1.4,
+                offset: Math.max(0.018, (CAMERA_TARGET_LIFT + 0.024) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                force: true
               });
             }
             if (elapsed < durationMs) {
@@ -10594,9 +10605,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             apexHeight,
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
-          const trackAttackCamera = (weaponPosition, targetPosition, shotProgress = 0.5) => {
+          const trackAttackCamera = (
+            weaponPosition,
+            targetPosition,
+            shotProgress = 0.5,
+            followObjectOverride = null,
+            priorityOverride = 8
+          ) => {
             if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
-            if (!CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) return;
+            const shouldTrackAirCamera =
+              CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId) ||
+              selectedCaptureAnimationId === 'missileJavelin';
+            if (!shouldTrackAirCamera) return;
             const framing =
               CAPTURE_ATTACK_CAMERA_FRAME[selectedCaptureAnimationId] ??
               CAPTURE_ATTACK_CAMERA_FRAME.missileJavelin;
@@ -10616,10 +10636,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     .setY(framing.followLift + 0.01)
                 : new THREE.Vector3(0, framing.followLift + 0.01, framing.followPullback + 0.08);
             setCameraFocus({
-              object: primaryFx.root,
+              object: followObjectOverride?.isObject3D ? followObjectOverride : primaryFx.root,
               target: cameraTarget,
               follow: true,
-              priority: 8,
+              priority: priorityOverride,
               ttl: 0,
               offset: Math.max(0.008, (CAMERA_TARGET_LIFT - 0.012) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
               followOffset,
@@ -10687,7 +10707,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.visible = true;
             primaryFx.root.position.copy(pos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            trackAttackCamera(pos, dynamicTo, u);
+            const truckLaunchFocusWindow =
+              selectedCaptureAnimationId === 'missileJavelin' &&
+              parkedVehicleToRestore?.isObject3D &&
+              u < 0.18;
+            if (truckLaunchFocusWindow) {
+              const truckWorld = parkedVehicleToRestore.getWorldPosition(new THREE.Vector3());
+              const truckTarget = truckWorld.clone().lerp(dynamicTo, 0.32);
+              trackAttackCamera(truckWorld, truckTarget, u, parkedVehicleToRestore, 9);
+            } else {
+              trackAttackCamera(pos, dynamicTo, u);
+            }
             const isVerticalImpactVehicle =
               selectedCaptureAnimationId === 'missileJavelin' ||
               selectedCaptureAnimationId === 'droneAttack';
@@ -10752,6 +10782,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     : clamp(0.34 - (pairIndex - 2) * 0.06 - u * 0.08, 0.06, 0.34);
               });
             }
+            let cameraFollowMissileObject = null;
+            let cameraFollowMissilePosition = null;
             if (
               (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
               jetMissiles.length
@@ -10796,6 +10828,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 jetMissile.root.visible = true;
                 jetMissile.root.position.copy(missilePos);
                 jetMissile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, missileDir);
+                if (!cameraFollowMissileObject && missileU > 0.08 && missileU < 0.995) {
+                  cameraFollowMissileObject = jetMissile.root;
+                  cameraFollowMissilePosition = missilePos.clone();
+                }
                 if (
                   selectedCaptureAnimationId === 'helicopterAttack' &&
                   helicopterMissileImpactAt == null &&
@@ -10812,6 +10848,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   puff.scale.setScalar(0.85 + i * 0.12 + missileU * 0.5);
                 });
               });
+            }
+            if (cameraFollowMissileObject && cameraFollowMissilePosition) {
+              trackAttackCamera(cameraFollowMissilePosition, dynamicTo, u, cameraFollowMissileObject, 10);
             }
             if ((selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') && u > 0.88) {
               const retreatDir = pos.clone().sub(dynamicTo).setY(0).normalize();
@@ -10892,12 +10931,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const explosionElapsed = useHelicopterMissileImpact
             ? (elapsed - helicopterMissileImpactAt) / 1000
             : (elapsed - tunedTravelTime) / 1000;
-          if (!useHelicopterMissileImpact) {
-            explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0)));
-            updateExplosionRig(explosionElapsed);
-            if (!explosionTriggered) {
-              explosionTriggered = true;
-              playMissileImpactSound();
+            if (!useHelicopterMissileImpact) {
+              explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0)));
+              updateExplosionRig(explosionElapsed);
+              if (!explosionTriggered) {
+                explosionTriggered = true;
+                setCameraFocus({
+                  target: liveTarget.clone(),
+                  follow: false,
+                  priority: 11,
+                  ttl: 1.8,
+                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.026) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                  force: true
+                });
+                playMissileImpactSound();
               playExplosionBombSound();
               if (targetToken?.isObject3D) {
                 const blastDir = liveTarget.clone().sub(dynamicFrom);
