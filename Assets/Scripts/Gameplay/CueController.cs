@@ -38,9 +38,9 @@ namespace Aiming
         [Min(0f)] public float minStrikeImpulse = 0.25f;
         [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
         [Range(0f, 0.5f)] public float minimumShotPowerNormalized = 0.06f;
-        [Tooltip("Minimum pull/slider amount required to arm release when camera is not lowered (Bilardo parity).")]
+        [Tooltip("Minimum pull/slider amount required to arm release when camera is not lowered.")]
         [Range(0f, 0.25f)] public float releaseTriggerThresholdNormalized = 0.02f;
-        [Tooltip("When UI release is valid but slider callbacks are missing, still fire a minimum-power shot like Snooker/Bilardo.")]
+        [Tooltip("When UI release is valid but slider callbacks are missing, still fire a minimum-power shot.")]
         public bool forceMinimumPowerOnValidRelease = true;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
