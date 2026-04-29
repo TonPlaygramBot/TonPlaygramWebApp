@@ -24685,71 +24685,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        try {
-          const template = await loadSeatedHumanTemplate();
-          const rig = createPlayerCharacterRig({
-            seat: 'A',
-            x: 0,
-            z: TABLE.H * 0.68,
-            facingY: Math.PI,
-            template
-          });
-          scene.add(rig);
-          playerCharacterRigsRef.current = [rig];
-        } catch (error) {
-          const rig = createPlayerCharacterRig({
-            seat: 'A',
-            x: 0,
-            z: TABLE.H * 0.68,
-            facingY: Math.PI,
-            template: null
-          });
-          scene.add(rig);
-          playerCharacterRigsRef.current = [rig];
-          console.warn('Pool Royale fallback human rig enabled', error);
-        }
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
-        const rigs = playerCharacterRigsRef.current;
-        if (!Array.isArray(rigs) || !rigs.length || !cue?.pos) return;
-        const aim = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
-        if (aim.lengthSq() < 1e-6) aim.set(0, 1);
-        aim.normalize();
-        const aimForward = new THREE.Vector3(aim.x, 0, aim.y).normalize();
-        const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-        const cueBallWorld = new THREE.Vector3(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
-        const desiredDist = TABLE.H * 0.25;
-        const edgeX = PLAY_W / 2 + BALL_R * 8.4;
-        const edgeZ = PLAY_H / 2 + BALL_R * 8.4;
-        const desired = cueBallWorld.clone().addScaledVector(aimForward, -desiredDist);
-        const candidates = [
-          new THREE.Vector3(-edgeX, floorY, THREE.MathUtils.clamp(desired.z, -edgeZ, edgeZ)),
-          new THREE.Vector3(edgeX, floorY, THREE.MathUtils.clamp(desired.z, -edgeZ, edgeZ)),
-          new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -edgeX, edgeX), floorY, -edgeZ),
-          new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -edgeX, edgeX), floorY, edgeZ)
-        ];
-        const rootTarget = candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0];
-        rigs.forEach((rig) => {
-          const anim = rig?.userData?.anim;
-          if (!anim) return;
-          anim.rootTarget = anim.rootTarget || rig.position.clone();
-          const smooth = 1 - Math.exp(-Math.max(0.0001, dtSeconds) * 5.6);
-          anim.rootTarget.lerp(rootTarget, smooth);
-          rig.position.copy(anim.rootTarget);
-          const yawTarget = Math.atan2(-aimForward.x, -aimForward.z);
-          anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.rotation.y, yawTarget, 1 - Math.exp(-Math.max(0.0001, dtSeconds) * 8.5));
-          rig.rotation.y = anim.yaw;
-        });
-        const bridgeTarget = cueBallWorld.clone().addScaledVector(aimForward, -BALL_R * 4.25).addScaledVector(side, -BALL_R * 0.25).setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
-        const cueBack = cueBallWorld.clone().addScaledVector(aimForward, -BALL_R * 10.6).addScaledVector(UP, BALL_R * 0.4);
-        activeHumanCueViewRef.current = {
-          cueBack,
-          bridgeTarget,
-          aimForward,
-          side
-        };
         void nowMs;
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
