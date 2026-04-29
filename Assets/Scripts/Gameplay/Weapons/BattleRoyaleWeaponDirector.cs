@@ -84,6 +84,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
         [SerializeField] private float aimPositionLerp = 20f;
         [SerializeField] private bool followAllBullets = true;
+        [SerializeField] private bool forceAttackerAimAnchor = true;
         [SerializeField] private float bulletFollowDistance = 0.4f;
         [SerializeField] private float bulletFollowHeight = 0.14f;
         [SerializeField] private float cameraLookLerp = 18f;
@@ -221,7 +222,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 }
 
                 bool isLeadPellet = pelletIndex == 0;
-                bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet);
+                bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet || weapon.usesPellets);
                 bullet.Initialize(pelletDirection * weapon.muzzleVelocity, this, weapon.weaponType, shotIndex, pelletIndex, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
                 BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, pelletDirection * weapon.muzzleVelocity);
                 if (shouldFollowBullet)
@@ -369,6 +370,11 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
         {
+            if (forceAttackerAimAnchor && attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
+            {
+                playerCamera.transform.SetParent(attackerCameraAnchor, true);
+            }
+
             float elapsed = 0f;
             float duration = Mathf.Max(0.01f, weapon.aimTransitionSeconds);
             float startFov = playerCamera.fieldOfView;
@@ -387,11 +393,6 @@ namespace TonPlaygram.Gameplay.Weapons
                 }
 
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
-                if (attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
-                {
-                    playerCamera.transform.SetParent(attackerCameraAnchor, true);
-                }
-
                 playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
                 Quaternion toTarget = Quaternion.LookRotation((targetWorld - playerCamera.transform.position).normalized, Vector3.up);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toTarget, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
@@ -459,6 +460,11 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private IEnumerator ReturnCameraToDefault()
         {
+            if (forceAttackerAimAnchor && attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
+            {
+                playerCamera.transform.SetParent(attackerCameraAnchor, true);
+            }
+
             float elapsed = 0f;
             const float duration = 0.2f;
             float fromFov = playerCamera.fieldOfView;
