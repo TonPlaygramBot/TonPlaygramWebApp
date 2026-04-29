@@ -68,6 +68,8 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform attackerCameraAnchor;
         [SerializeField] private Transform liveTargetTransform;
         [SerializeField] private Transform weaponRoot;
+        [SerializeField] private Transform tableWeaponAnchor;
+        [SerializeField] private Transform weaponSwapIcon;
         [SerializeField] private Transform rightHandGrip;
         [SerializeField] private Transform leftHandGrip;
 
@@ -86,6 +88,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private float bulletFollowHeight = 0.14f;
         [SerializeField] private float cameraLookLerp = 18f;
         [SerializeField] private float cameraTrackLerp = 15f;
+        [SerializeField] private Vector3 swapIconWorldOffset = new Vector3(0f, 0.11f, 0f);
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
         private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
@@ -99,6 +102,10 @@ namespace TonPlaygram.Gameplay.Weapons
         private Vector3 _baseCameraLocalPos;
         private Transform _baseCameraParent;
         private Quaternion _baseCameraLocalRot;
+        private Vector3 _weaponRootLocalPos;
+        private Quaternion _weaponRootLocalRot;
+        private Vector3 _swapIconWorldPos;
+        private Quaternion _swapIconWorldRot;
 
         private void Awake()
         {
@@ -122,6 +129,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
             BuildProfileMap();
             CacheTokenPieces();
+            CacheStaticAnchors();
             _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
             _projectileListeners = GetComponentsInParent<ILudoProjectileBroadcastEvents>(true);
             Equip(startingWeapon);
@@ -341,8 +349,8 @@ namespace TonPlaygram.Gameplay.Weapons
         {
             if (weaponRoot != null)
             {
-                weaponRoot.position = muzzle.position;
-                weaponRoot.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                weaponRoot.localPosition = _weaponRootLocalPos;
+                weaponRoot.localRotation = _weaponRootLocalRot;
             }
 
             if (rightHandGrip != null)
@@ -492,6 +500,51 @@ namespace TonPlaygram.Gameplay.Weapons
                     continue;
 
                 _profiles[profile.weaponType] = profile;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            MaintainStaticPresentationAnchors();
+        }
+
+        private void CacheStaticAnchors()
+        {
+            if (weaponRoot != null)
+            {
+                _weaponRootLocalPos = weaponRoot.localPosition;
+                _weaponRootLocalRot = weaponRoot.localRotation;
+            }
+
+            if (weaponSwapIcon != null)
+            {
+                Transform iconAnchor = tableWeaponAnchor != null ? tableWeaponAnchor : weaponRoot;
+                if (iconAnchor != null)
+                {
+                    _swapIconWorldPos = iconAnchor.position + swapIconWorldOffset;
+                    _swapIconWorldRot = weaponSwapIcon.rotation;
+                    weaponSwapIcon.position = _swapIconWorldPos;
+                }
+                else
+                {
+                    _swapIconWorldPos = weaponSwapIcon.position;
+                    _swapIconWorldRot = weaponSwapIcon.rotation;
+                }
+            }
+        }
+
+        private void MaintainStaticPresentationAnchors()
+        {
+            if (weaponRoot != null)
+            {
+                weaponRoot.localPosition = _weaponRootLocalPos;
+                weaponRoot.localRotation = _weaponRootLocalRot;
+            }
+
+            if (weaponSwapIcon != null)
+            {
+                weaponSwapIcon.position = _swapIconWorldPos;
+                weaponSwapIcon.rotation = _swapIconWorldRot;
             }
         }
 
