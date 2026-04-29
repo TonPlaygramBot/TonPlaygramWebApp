@@ -599,15 +599,15 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   smgBurstAttack: 'supportTruck',
   compactCarbineAttack: 'supportTruck',
   marksmanDmrAttack: 'supportTruck',
-  polyShotgun01Attack: 'supportTruck',
-  polyAssaultRifle01Attack: 'supportTruck',
-  polyPistol01Attack: 'supportTruck',
-  polyRevolver01Attack: 'supportTruck',
-  polySawedOff01Attack: 'supportTruck',
-  polyRevolver02Attack: 'supportTruck',
-  polyShotgun02Attack: 'supportTruck',
-  polyShotgun03Attack: 'supportTruck',
-  polySmg01Attack: 'supportTruck'
+  polyShotgun01Attack: 'polyShotgun01Attack',
+  polyAssaultRifle01Attack: 'polyAssaultRifle01Attack',
+  polyPistol01Attack: 'polyPistol01Attack',
+  polyRevolver01Attack: 'polyRevolver01Attack',
+  polySawedOff01Attack: 'polySawedOff01Attack',
+  polyRevolver02Attack: 'polyRevolver02Attack',
+  polyShotgun02Attack: 'polyShotgun02Attack',
+  polyShotgun03Attack: 'polyShotgun03Attack',
+  polySmg01Attack: 'polySmg01Attack'
 });
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
@@ -5080,8 +5080,40 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
   });
 }
 
+
+function createPolySeatWeaponMesh(weaponType) {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#1f2937', metalness: 0.75, roughness: 0.35 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 0.45, roughness: 0.4 });
+  const gripMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.2, roughness: 0.7 });
+
+  const add = (geo, mat, x=0,y=0,z=0, rx=0,ry=0,rz=0) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x,y,z);
+    m.rotation.set(rx,ry,rz);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    group.add(m);
+    return m;
+  };
+
+  const longBarrel = /Shotgun|Assault|Smg/.test(weaponType);
+  add(new THREE.BoxGeometry(longBarrel ? 0.62 : 0.42, 0.1, 0.12), bodyMat, 0.03, 0.02, 0);
+  add(new THREE.CylinderGeometry(0.03, 0.03, longBarrel ? 0.45 : 0.24, 10), accentMat, longBarrel ? 0.36 : 0.24, 0.02, 0, 0, 0, Math.PI / 2);
+  add(new THREE.BoxGeometry(0.12, 0.24, 0.09), gripMat, -0.08, -0.12, 0, 0, 0, 0.2);
+  add(new THREE.BoxGeometry(0.18, 0.06, 0.08), accentMat, 0.1, -0.05, 0);
+  if (/Revolver|Pistol/.test(weaponType)) add(new THREE.CylinderGeometry(0.06, 0.06, 0.07, 10), accentMat, 0.09, 0.03, 0, Math.PI/2, 0, 0);
+
+  group.scale.setScalar(TOKEN_HEIGHT * 1.18 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
+  group.rotation.set(0.04, Math.PI * 0.5, -0.06);
+  group.position.y -= TOKEN_HEIGHT * 1.3;
+  return group;
+}
 function createSeatWeaponMesh(weaponType = 'fighter') {
   const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(weaponType);
+  if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
+    return createPolySeatWeaponMesh(normalizedWeaponType);
+  }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
   group.visible = true;
