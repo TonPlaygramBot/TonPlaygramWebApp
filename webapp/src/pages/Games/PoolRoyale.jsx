@@ -24685,75 +24685,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const center = new THREE.Vector3(0, floorY, 0);
-        const edgeX = TABLE.W * 0.5 + 0.7;
-        const rig = createPlayerCharacterRig({
-          seat: 'A',
-          x: -edgeX,
-          z: 0,
-          facingY: Math.PI * 0.5
-        });
-        world.add(rig);
-        playerCharacterRigsRef.current.push(rig);
-        try {
-          const template = await loadSeatedHumanTemplate();
-          if (template && rig?.userData?.anim && !rig.userData.anim.model) {
-            const humanHeight = rig.userData.anim.humanHeight ?? TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-            const avatar = template.clone(true);
-            fitPlayerHumanModelHeight(avatar, humanHeight);
-            avatar.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              child.frustumCulled = false;
-            });
-            rig.add(avatar);
-            rig.userData.anim.model = avatar;
-          }
-        } catch {}
-        rig.userData.anim.rootTarget = center.clone().setX(-edgeX);
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
-        const cueObj = cue?.mesh;
-        const stick = cueStick;
-        if (!cueObj || !stick) return;
-        const cueBallWorld = cueObj.getWorldPosition(new THREE.Vector3());
-        const cueBackWorld = stick.localToWorld(new THREE.Vector3(0, 0, cueLen * 0.5));
-        const cueTipWorld = stick.localToWorld(new THREE.Vector3(0, 0, -cueLen * 0.5));
-        const cueDir = cueTipWorld.clone().sub(cueBackWorld).normalize();
-        const side = new THREE.Vector3(cueDir.z, 0, -cueDir.x).normalize();
-        const rootTarget = cueBallWorld.clone().addScaledVector(cueDir, -1.1);
-        rootTarget.y = floorY;
-        const edgeX = TABLE.W * 0.5 + 0.7;
-        rootTarget.x = THREE.MathUtils.clamp(rootTarget.x, -edgeX, edgeX);
-        rootTarget.z = THREE.MathUtils.clamp(rootTarget.z, -TABLE.H * 0.5 - 0.7, TABLE.H * 0.5 + 0.7);
-        playerCharacterRigsRef.current.forEach((rig) => {
-          const anim = rig?.userData?.anim;
-          if (!anim) return;
-          const blend = 1 - Math.exp(-6 * Math.max(0.001, dtSeconds));
-          rig.position.lerp(rootTarget, blend);
-          const yaw = Math.atan2(-cueDir.x, -cueDir.z);
-          rig.rotation.y = THREE.MathUtils.lerp(rig.rotation.y, yaw, blend);
-          const bridgeTarget = cueBallWorld.clone().addScaledVector(cueDir, -0.22).addScaledVector(side, -0.01);
-          bridgeTarget.y = TABLE_Y + TABLE.THICK + 0.01;
-          const gripTarget = cueBackWorld.clone().addScaledVector(cueDir, HUMAN_GRIP_RATIO);
-          if (anim.bridgeHand) {
-            anim.bridgeHand.position.copy(rig.worldToLocal(bridgeTarget.clone()));
-            anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
-          }
-          if (anim.gripHand) {
-            const gripLocal = rig.worldToLocal(gripTarget.clone());
-            anim.gripHand.position.copy(gripLocal);
-            anim.gripHand.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
-          }
-          if (anim.model) {
-            anim.model.position.y = 0;
-          }
-          anim.walkT = (anim.walkT ?? 0) + dtSeconds * 2.2;
-          const sway = Math.sin((nowMs / 1000) * 2 + anim.walkT) * 0.01;
-          rig.position.y = floorY + sway;
-        });
+        void nowMs;
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
