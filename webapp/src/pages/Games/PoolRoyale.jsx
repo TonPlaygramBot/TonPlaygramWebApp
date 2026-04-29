@@ -118,10 +118,10 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import {
-  createPoolRoyaleHumanRig,
+  createBilardoHumanRig,
   chooseHumanEdgePosition as chooseBilardoHumanEdgePosition,
-  updatePoolRoyaleHumanPose
-} from './shared/poolRoyaleHumanRig.js';
+  updateBilardoHumanPose
+} from './shared/bilardoHumanRig.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -24665,8 +24665,9 @@ const shotPowerRef = useRef(0);
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const makeRig = (seat, x, z, yaw) => {
-          const human = createPoolRoyaleHumanRig(world, {
-            modelUrl: null,
+          const human = createBilardoHumanRig(world, {
+            loader: new GLTFLoader(),
+            modelUrl: BILARDO_SHQIP_HUMAN_URL,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
             poseLambda: HUMAN_POSE_LAMBDA,
@@ -24905,7 +24906,7 @@ const shotPowerRef = useRef(0);
             ) {
               return;
             }
-            updatePoolRoyaleHumanPose(human, dtSeconds, {
+            updateBilardoHumanPose(human, dtSeconds, {
               state,
               rootTarget: walkRoot,
               aimForward,
