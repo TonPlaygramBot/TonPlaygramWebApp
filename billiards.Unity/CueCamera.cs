@@ -105,11 +105,11 @@ public class CueCamera : MonoBehaviour
     [Range(0f, 1f)]
     public float eyeViewStartLowering = 0.45f;
     // Distance in front of the eye anchor used for the look target.
-    public float eyeViewLookAhead = 1.1f;
+    public float eyeViewLookAhead = 1.4f;
     // Slight inward offset to avoid clipping through eyebrows/face meshes.
-    public float eyeViewForwardOffset = 0.03f;
+    public float eyeViewForwardOffset = 0f;
     // Vertical offset to center the cue in first-person framing.
-    public float eyeViewHeightOffset = -0.005f;
+    public float eyeViewHeightOffset = 0f;
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
@@ -819,11 +819,17 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
+        Vector3 eyeForward = playerEyeAnchor.forward;
+        if (eyeForward.sqrMagnitude < 0.0001f)
+        {
+            eyeForward = cueForward;
+        }
+
         Vector3 eyePos = playerEyeAnchor.position +
-                         (cueForward * Mathf.Max(0f, eyeViewForwardOffset)) +
+                         (eyeForward * Mathf.Max(0f, eyeViewForwardOffset)) +
                          (Vector3.up * eyeViewHeightOffset);
         Vector3 eyeLookTarget = eyePos +
-                                (cueForward * Mathf.Max(0.1f, eyeViewLookAhead)) +
+                                (eyeForward * Mathf.Max(0.1f, eyeViewLookAhead)) +
                                 (Vector3.up * cueBallLookOffset);
         Vector3 lookDir = eyeLookTarget - eyePos;
         if (lookDir.sqrMagnitude < 0.0001f)
