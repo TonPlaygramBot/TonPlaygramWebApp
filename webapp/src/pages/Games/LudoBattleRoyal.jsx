@@ -294,10 +294,6 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   fpsGunAttack: {
     label: 'FPS Gun',
     urls: [
-      // Primary source occasionally goes unavailable/rate-limited; keep resilient mirrors first.
-      'https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb',
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
@@ -345,8 +341,6 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   ak47VolleyAttack: {
     label: 'AK-47',
     urls: [
-      'https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb',
-      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
@@ -402,8 +396,6 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
     urls: [
-      'https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb',
-      'https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
