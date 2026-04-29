@@ -70,16 +70,13 @@ namespace Aiming.Gameplay.Rendering
 
         private void EnsureSupportedShader(Material material)
         {
-            Shader selected = ResolveFallbackShader();
-
-            if (selected == null)
+            if (material.shader != null && material.shader.isSupported)
             {
                 return;
             }
 
-            bool unsupported = material.shader == null || !material.shader.isSupported;
-            bool forcePipelineMatch = forceUrpLitShader && material.shader != selected;
-            if (unsupported || forcePipelineMatch)
+            Shader selected = ResolveFallbackShader();
+            if (selected != null)
             {
                 material.shader = selected;
             }
