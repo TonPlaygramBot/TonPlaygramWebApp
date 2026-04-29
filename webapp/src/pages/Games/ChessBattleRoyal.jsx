@@ -9096,11 +9096,11 @@ function Chess3D({
       });
     }
 
-    if (isBeautifulGameSet && arena.piecePrototypes) {
+    if (shouldRefreshBoardPieces && isBeautifulGameSet && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
     }
 
-    if (arena.allPieceMeshes) {
+    if (shouldRefreshBoardPieces && arena.allPieceMeshes) {
       if (isBeautifulGameSet) {
         applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
