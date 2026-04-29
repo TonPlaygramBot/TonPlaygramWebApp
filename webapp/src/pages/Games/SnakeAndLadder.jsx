@@ -36,7 +36,7 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
-import { CAPTURE_ANIMATION_OPTIONS } from "../../config/ludoBattleOptions.js";
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from "../../config/snakeCaptureWeapons.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -814,13 +814,7 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
-const CAPTURE_WEAPON_OPTIONS = Object.freeze(
-  CAPTURE_ANIMATION_OPTIONS.map((option) => ({
-    id: option.id,
-    label: option.label,
-    thumbnail: option.thumbnail
-  }))
-);
+const CAPTURE_WEAPON_OPTIONS = SNAKE_CAPTURE_WEAPON_OPTIONS;
 const LEGACY_CAPTURE_WEAPON_ID_MAP = Object.freeze({
   drone: 'droneAttack',
   fighter: 'fighterJetAttack',
@@ -3267,15 +3261,7 @@ export default function SnakeAndLadder() {
     resolvedAppearance?.captureWeapon?.id
       ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
       : fallbackCaptureWeaponId(0);
-  const ownedCaptureWeapons = useMemo(
-    () =>
-      CAPTURE_WEAPON_OPTIONS.filter((option) =>
-        isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
-      ),
-    [snakeInventory]
-  );
-  const selectableCaptureWeapons =
-    ownedCaptureWeapons.length > 0 ? ownedCaptureWeapons : [CAPTURE_WEAPON_OPTIONS[0]].filter(Boolean);
+  const selectableCaptureWeapons = CAPTURE_WEAPON_OPTIONS;
   const computedIndex = isMultiplayer
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
