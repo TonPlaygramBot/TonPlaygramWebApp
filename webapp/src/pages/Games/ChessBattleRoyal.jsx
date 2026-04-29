@@ -2750,10 +2750,17 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  const styleEntries = [
+    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
+    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
+  ];
+  styleEntries.forEach(([key, max]) => {
+    const raw = Number(value?.[key]);
+    if (!Number.isFinite(raw)) return;
+    normalized[key] = Math.min(Math.max(0, Math.round(raw)), max - 1);
+  });
   if (!Number.isFinite(normalized.captureAnimation)) normalized.captureAnimation = DEFAULT_APPEARANCE.captureAnimation;
   if (!Number.isFinite(normalized.humanCharacter)) normalized.humanCharacter = DEFAULT_APPEARANCE.humanCharacter;
   return normalized;
