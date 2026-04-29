@@ -3661,16 +3661,28 @@ function normalizeModel(object, targetSize) {
 }
 
 function prepareCaptureModel(root) {
+  const maxAnisotropy = 8;
+  const normalizeTexture = (texture, isColor = false) => {
+    if (!texture) return;
+    if (isColor) applySRGBColorSpace(texture);
+    // Keep GLTF-authored UV transforms/wrap modes so original baked textures render as authored.
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+    texture.needsUpdate = true;
+  };
+
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
-      if (material?.map) applySRGBColorSpace(material.map);
-      if (material?.emissiveMap) {
-        applySRGBColorSpace(material.emissiveMap);
-      }
+      normalizeTexture(material?.map, true);
+      normalizeTexture(material?.emissiveMap, true);
+      normalizeTexture(material?.normalMap, false);
+      normalizeTexture(material?.roughnessMap, false);
+      normalizeTexture(material?.metalnessMap, false);
+      normalizeTexture(material?.aoMap, false);
       if (material && 'envMapIntensity' in material) {
         material.envMapIntensity = 1.1;
         material.needsUpdate = true;
