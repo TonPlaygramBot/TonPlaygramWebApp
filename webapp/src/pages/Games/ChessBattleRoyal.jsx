@@ -206,11 +206,19 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
 const VEHICLE_CAPTURE_KINDS = new Set(['truck', 'drone', 'jet', 'helicopter']);
+const FIREARM_CAPTURE_KIND = 'firearm';
 
 function resolveVehicleCaptureKind(optionId, fallbackKind = null) {
   const mapped = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[optionId];
   if (VEHICLE_CAPTURE_KINDS.has(mapped)) return mapped;
   return VEHICLE_CAPTURE_KINDS.has(fallbackKind) ? fallbackKind : null;
+}
+
+function resolveCaptureKindFromAnimationId(optionId, fallbackKind = 'truck') {
+  const vehicleKind = resolveVehicleCaptureKind(optionId, fallbackKind);
+  if (vehicleKind) return vehicleKind;
+  if (FIREARM_CAPTURE_ANIMATION_IDS.has(optionId)) return FIREARM_CAPTURE_KIND;
+  return fallbackKind;
 }
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
@@ -2661,6 +2669,58 @@ const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-siz
 const SHOW_SIDE_PARKING_MARKINGS = false;
 const SHOW_BOARD_SIDE_MARKINGS = false;
 const VEHICLE_BUTTON_CAPTURE_KINDS = new Set(['truck', 'drone', 'helicopter', 'jet']);
+
+function createParkedFirearmDisplay(optionLabel = 'Weapon') {
+  const root = new THREE.Group();
+  const stand = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.26, 0.3, 20),
+    new THREE.MeshStandardMaterial({
+      color: '#111827',
+      metalness: 0.42,
+      roughness: 0.58
+    })
+  );
+  stand.position.y = 0.15;
+  root.add(stand);
+
+  const weaponBar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.86, 0.1, 0.14),
+    new THREE.MeshStandardMaterial({
+      color: '#dbeafe',
+      metalness: 0.3,
+      roughness: 0.38
+    })
+  );
+  weaponBar.position.set(0.08, 0.34, 0);
+  root.add(weaponBar);
+
+  const grip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 0.24, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: '#f59e0b',
+      metalness: 0.12,
+      roughness: 0.84
+    })
+  );
+  grip.position.set(-0.2, 0.16, 0.02);
+  grip.rotation.z = THREE.MathUtils.degToRad(18);
+  root.add(grip);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.24, 12),
+    new THREE.MeshStandardMaterial({
+      color: '#93c5fd',
+      metalness: 0.68,
+      roughness: 0.24
+    })
+  );
+  muzzle.rotation.z = Math.PI / 2;
+  muzzle.position.set(0.52, 0.34, 0);
+  root.add(muzzle);
+
+  root.userData.weaponLabel = optionLabel;
+  return { root };
+}
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7693,11 +7753,14 @@ function Chess3D({
     if (selectedFromAppearance) return selectedFromAppearance;
     return quickSwapCaptureOptions[0]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
   }, [appearance.captureAnimation, quickSwapCaptureOptions]);
+  const randomCaptureAnimationId = useCallback((sourceOptions = CAPTURE_ANIMATION_OPTIONS) => {
+    const list = Array.isArray(sourceOptions) ? sourceOptions.filter(Boolean) : [];
+    if (!list.length) return CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    return list[Math.floor(Math.random() * list.length)]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+  }, []);
+  const aiCaptureAnimationIdRef = useRef(randomCaptureAnimationId());
   const selectedCaptureKind = useMemo(() => {
-    const vehicleKind = resolveVehicleCaptureKind(selectedCaptureAnimationId);
-    if (vehicleKind) return vehicleKind;
-    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
-    return 'truck';
+    return resolveCaptureKindFromAnimationId(selectedCaptureAnimationId, 'truck');
   }, [selectedCaptureAnimationId]);
   const ownedVehicleCaptureKind = useMemo(() => {
     for (const option of ownedCaptureAnimations) {
@@ -7707,13 +7770,29 @@ function Chess3D({
     return 'truck';
   }, [ownedCaptureAnimations]);
   const selectedParkedWeaponKind = useMemo(
-    () => resolveVehicleCaptureKind(selectedCaptureAnimationId, ownedVehicleCaptureKind) || 'truck',
+    () =>
+      resolveVehicleCaptureKind(selectedCaptureAnimationId, ownedVehicleCaptureKind) ||
+      (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId) ? FIREARM_CAPTURE_KIND : 'truck'),
     [ownedVehicleCaptureKind, selectedCaptureAnimationId]
   );
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
+  const ownedCaptureKinds = useMemo(
+    () =>
+      new Set(
+        ownedCaptureAnimations.map((option) => resolveCaptureKindFromAnimationId(option?.id, 'truck')).filter(Boolean)
+      ),
+    [ownedCaptureAnimations]
+  );
+  const ownedCaptureKindsRef = useRef(ownedCaptureKinds);
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
+  useEffect(() => {
+    ownedCaptureKindsRef.current = ownedCaptureKinds;
+  }, [ownedCaptureKinds]);
+  useEffect(() => {
+    aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
+  }, [ownedCaptureAnimations, randomCaptureAnimationId]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
@@ -11198,7 +11277,10 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = selectedCaptureKind;
+      const movingIsWhite = Boolean(movingMesh?.userData?.w);
+      const movingIsAi = movingIsWhite === aiPlaysWhite;
+      const captureAnimationId = movingIsAi ? aiCaptureAnimationIdRef.current : selectedCaptureAnimationId;
+      const captureKind = resolveCaptureKindFromAnimationId(captureAnimationId, selectedCaptureKind);
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -11989,11 +12071,41 @@ function Chess3D({
           ...supportTruck,
           root: supportTruck.root
         });
+
+        const firearmDisplay = createParkedFirearmDisplay(
+          CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId)?.label || 'Weapon'
+        );
+        firearmDisplay.root.scale.setScalar(
+          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER * 0.44
+        );
+        const firearmPad = getAirPadAnchor(isWhite, 'truck', 0);
+        placeParkedUnitOnPad(
+          firearmDisplay.root,
+          firearmPad.clone().add(new THREE.Vector3(0, CAPTURE_TILE_HEIGHT * 0.36, 0)),
+          isWhite ? -Math.PI * 0.18 : Math.PI * 1.18
+        );
+        airPadGroup.add(firearmDisplay.root);
+        parkedAirUnits.push({
+          kind: FIREARM_CAPTURE_KIND,
+          isWhite,
+          slot: 0,
+          busy: false,
+          rotorsActive: false,
+          homePosition: firearmPad.clone(),
+          homeRotation: firearmDisplay.root.rotation.clone(),
+          ...firearmDisplay,
+          root: firearmDisplay.root
+        });
       });
       const currentCaptureKind = selectedParkedWeaponKindRef.current;
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible = unit.busy || unit.kind === currentCaptureKind;
+        const isLocalSide = unit.isWhite !== aiPlaysWhite;
+        const localOwnedKinds = ownedCaptureKindsRef.current;
+        unit.root.visible =
+          unit.busy ||
+          unit.kind === currentCaptureKind ||
+          (isLocalSide && localOwnedKinds instanceof Set && localOwnedKinds.has(unit.kind));
       });
     };
 
@@ -13079,6 +13191,7 @@ function Chess3D({
       }
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
       if (!shouldTriggerAiMove(activeTurnWhite)) return;
+      aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
       aiMovingRef.current = true;
       const mv = bestAIMove(board, activeTurnWhite, 4);
       if (!mv) {
