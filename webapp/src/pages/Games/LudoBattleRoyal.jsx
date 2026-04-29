@@ -1060,6 +1060,7 @@ function findObjectByNeedles(root, needles = []) {
 
 function alignFirearmRackGripAnchor(root) {
   if (!root?.isObject3D) return;
+  const originalPosition = root.position.clone();
   root.updateMatrixWorld?.(true);
   const gripNode =
     findObjectByNeedles(root, [
@@ -1081,6 +1082,11 @@ function alignFirearmRackGripAnchor(root) {
   const bounds = new THREE.Box3().setFromObject(root);
   if (Number.isFinite(bounds.min.y) && bounds.min.y < UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY) {
     root.position.y += UNIFORM_FIREARM_RACK_GRIP_ANCHOR.minSurfaceY - bounds.min.y;
+  }
+  const displacement = root.position.clone().sub(originalPosition);
+  // Prevent extreme snap offsets on models with mismatched rig anchors (e.g. FPS/AK/shotgun variants).
+  if (displacement.length() > 0.16) {
+    root.position.copy(originalPosition);
   }
 }
 
@@ -1263,6 +1269,13 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.z += displayPosition[2];
   alignFirearmRackFlatByBounds(clone, displayRotation);
   alignFirearmRackGripAnchor(clone);
+  clone.updateMatrixWorld?.(true);
+  const stabilizedBounds = new THREE.Box3().setFromObject(clone);
+  const stabilizedCenter = stabilizedBounds.getCenter(new THREE.Vector3());
+  // Keep the parked weapon inside the capture rack footprint so it remains visible on all loadout variants.
+  if (!Number.isFinite(stabilizedCenter.x) || !Number.isFinite(stabilizedCenter.y) || !Number.isFinite(stabilizedCenter.z) || stabilizedCenter.length() > 0.32) {
+    clone.position.set(displayPosition[0], displayPosition[1], displayPosition[2]);
+  }
   entry.weaponHolder.add(clone);
 }
 
