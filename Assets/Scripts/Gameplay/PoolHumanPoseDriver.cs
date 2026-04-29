@@ -546,7 +546,7 @@ namespace Aiming
 
                     Vector3 tipBasedGrip = cueTipPos - (cueDir * gripFromTip);
                     Vector3 rootBasedGrip = cueRootPos + (cueDir * gripFromRoot);
-                    Vector3 grip = Vector3.Lerp(rootBasedGrip, tipBasedGrip, 0.75f);
+                    Vector3 grip = Vector3.Lerp(rootBasedGrip, tipBasedGrip, 0.35f);
                     grip += (cueDir * -handPull);
 
                     float alongFromBridge = Vector3.Dot(grip - bridgeHandTarget, cueDir);
