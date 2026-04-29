@@ -6567,6 +6567,11 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 700;
 const CAMERA_RETURN_ANIMATION_MS = 760;
+const CAMERA_BROADCAST_DYNAMIC_DURATION = {
+  minMs: 460,
+  maxMs: 980,
+  distanceMultiplierMs: 72
+};
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.78, y: 0.92, z: 0.74 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
@@ -11299,6 +11304,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     animateCameraPose(nextView.target, nextView.position, duration);
   }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState, shouldRespectUserCamera]);
 
+  const resolveDynamicBroadcastDuration = useCallback((target) => {
+    const camera = cameraRef.current;
+    if (!camera || !target?.isVector3) return CAMERA_BROADCAST_ANIMATION_MS;
+    const distance = camera.position.distanceTo(target);
+    const dynamicMs =
+      CAMERA_BROADCAST_ANIMATION_MS +
+      (distance - 3.2) * CAMERA_BROADCAST_DYNAMIC_DURATION.distanceMultiplierMs;
+    return clamp(
+      dynamicMs,
+      CAMERA_BROADCAST_DYNAMIC_DURATION.minMs,
+      CAMERA_BROADCAST_DYNAMIC_DURATION.maxMs
+    );
+  }, []);
+
   const setCameraFocus = useCallback(
     (focus = {}) => {
       const state = stateRef.current;
@@ -11352,7 +11371,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         } else {
           cameraTurnStateRef.current.followOffset = null;
         }
-        animateCameraPose(nextFocusState.target, nextFocusState.position, CAMERA_BROADCAST_ANIMATION_MS);
+        animateCameraPose(
+          nextFocusState.target,
+          nextFocusState.position,
+          resolveDynamicBroadcastDuration(nextFocusState.target)
+        );
       }
       if (ttl > 0) {
         if (cameraFocusTimeoutRef.current) {
@@ -11373,7 +11396,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }, Math.max(0, ttl * 1000));
       }
     },
-    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget, shouldRespectUserCamera]
+    [animateCameraPose, isCamera2d, resolveDynamicBroadcastDuration, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget, shouldRespectUserCamera]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
@@ -12319,17 +12342,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         </div>
         <div
-          className="pointer-events-auto absolute z-20 -translate-x-1/2"
-          style={{
-            left: `${seatAnchorMap.get(0)?.x ?? 50}%`,
-            top: `${clamp((seatAnchorMap.get(0)?.y ?? 82) - 10.5, 58, 92)}%`
-          }}
+          className="pointer-events-auto absolute right-3 bottom-[8.15rem] z-20"
         >
           <button
             type="button"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
-              openWeaponSwapPopup(rect.left + rect.width * 0.5, rect.top - 8);
+              openWeaponSwapPopup(rect.left + rect.width * 0.5, rect.top - 10);
             }}
             aria-label="Open quick weapon swap"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/40 bg-black/65 text-base text-amber-100 shadow-[0_8px_22px_rgba(15,23,42,0.55)] transition hover:border-amber-100/70 hover:bg-black/80"
