@@ -1,5 +1,5 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
+import { CAPTURE_ANIMATION_OPTIONS as LUDO_CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -197,6 +197,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   }
 ]);
 
+
+export const CHESS_CAPTURE_ANIMATION_OPTIONS = Object.freeze(
+  LUDO_CAPTURE_ANIMATION_OPTIONS.map((option) => ({ ...option }))
+);
 const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
   'webgl-vietnam-human',
   'webgl-human-body-a',
@@ -380,7 +384,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   headStyle: ['current'],
   humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID],
-  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id]
+  captureAnimation: [CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id]
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
@@ -446,7 +450,7 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   captureAnimation: Object.freeze(
-    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+    CHESS_CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -492,7 +496,7 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
     }, {})
   ),
   captureAnimation: Object.freeze(
-    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+    CHESS_CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.thumbnail;
       return acc;
     }, {})
@@ -722,7 +726,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+  ...CHESS_CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
     id: `chess-capture-animation-${option.id}`,
     type: 'captureAnimation',
     optionId: option.id,
@@ -781,8 +785,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   },
   {
     type: 'captureAnimation',
-    optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
-    label: CAPTURE_ANIMATION_OPTIONS[0]?.label
+    optionId: CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id,
+    label: CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.label
   }
 ];
 
