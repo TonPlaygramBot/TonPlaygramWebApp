@@ -31,6 +31,20 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('gameStateUpdate', game.getState());
   });
 
+  socket.on('setOption', ({ roomId, key, value }) => {
+    const game = games.get(roomId);
+    if (!game) return;
+    game.setOption(key, value);
+    io.to(roomId).emit('gameStateUpdate', game.getState());
+  });
+
+  socket.on('swapWeapon', ({ roomId, weapon }) => {
+    const game = games.get(roomId);
+    if (!game) return;
+    game.swapWeapon(socket.id, weapon);
+    io.to(roomId).emit('gameStateUpdate', game.getState());
+  });
+
   socket.on('disconnect', () => {
     games.forEach((game, id) => {
       if (game.removePlayer(socket.id)) {
