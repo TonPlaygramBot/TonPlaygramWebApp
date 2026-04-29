@@ -10,7 +10,7 @@ namespace Aiming.Gameplay
     {
         [SerializeField] private CueController cueController;
         [SerializeField] private Transform humanRoot;
-        [SerializeField, Min(0f)] private float outsidePadding = 0.12f;
+        [SerializeField, Min(0f)] private float outsidePadding = 0.03f;
         [SerializeField] private bool drawHelpers = true;
 
         private readonly Vector3[] railHelpers = new Vector3[4];
