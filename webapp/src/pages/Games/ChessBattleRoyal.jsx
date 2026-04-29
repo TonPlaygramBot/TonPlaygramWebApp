@@ -49,8 +49,7 @@ import {
   CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_TABLE_FINISH_OPTIONS,
-  CHESS_HUMAN_CHARACTER_OPTIONS,
-  CHESS_CAPTURE_ANIMATION_OPTIONS
+  CHESS_HUMAN_CHARACTER_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
   chessBattleAccountId,
@@ -69,6 +68,7 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -203,7 +203,7 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
   helicopterAttack: 'helicopter'
 });
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
-  CHESS_CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
+  CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
 const CHESS_WEAPON_PANEL_ORDER = Object.freeze([
   'polyShotgun01Attack',
@@ -2759,7 +2759,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['captureAnimation', CHESS_CAPTURE_ANIMATION_OPTIONS.length],
+    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
     ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
@@ -7766,10 +7766,10 @@ function Chess3D({
     const ownedIds = Array.isArray(chessInventory?.captureAnimation) ? chessInventory.captureAnimation : [];
     const uniqueIds = Array.from(new Set(ownedIds.filter(Boolean)));
     const ownedOptions = uniqueIds
-      .map((optionId) => CHESS_CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+      .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
       .filter(Boolean);
     if (ownedOptions.length > 0) return ownedOptions;
-    return CHESS_CAPTURE_ANIMATION_OPTIONS[0] ? [CHESS_CAPTURE_ANIMATION_OPTIONS[0]] : [];
+    return CAPTURE_ANIMATION_OPTIONS[0] ? [CAPTURE_ANIMATION_OPTIONS[0]] : [];
   }, [chessInventory]);
   const quickSwapCaptureOptions = useMemo(() => {
     const byId = new Map(ownedCaptureAnimations.map((option) => [option.id, option]));
@@ -7792,12 +7792,12 @@ function Chess3D({
     if (equippedId) return equippedId;
     const selectedFromAppearance = quickSwapCaptureOptions[appearance.captureAnimation]?.id;
     if (selectedFromAppearance) return selectedFromAppearance;
-    return quickSwapCaptureOptions[0]?.id || CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    return quickSwapCaptureOptions[0]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
   }, [appearance.captureAnimation, chessInventory, quickSwapCaptureOptions]);
-  const randomCaptureAnimationId = useCallback((sourceOptions = CHESS_CAPTURE_ANIMATION_OPTIONS) => {
+  const randomCaptureAnimationId = useCallback((sourceOptions = CAPTURE_ANIMATION_OPTIONS) => {
     const list = Array.isArray(sourceOptions) ? sourceOptions.filter(Boolean) : [];
-    if (!list.length) return CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
-    return list[Math.floor(Math.random() * list.length)]?.id || CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    if (!list.length) return CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    return list[Math.floor(Math.random() * list.length)]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
   }, []);
   const aiCaptureAnimationIdRef = useRef(randomCaptureAnimationId());
   const selectedCaptureKind = useMemo(() => {
@@ -12120,7 +12120,7 @@ function Chess3D({
         });
 
         const firearmDisplay = createParkedFirearmDisplay(
-          CHESS_CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId)?.label || 'Weapon'
+          CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId)?.label || 'Weapon'
         );
         firearmDisplay.root.scale.setScalar(
           CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER * 0.44
