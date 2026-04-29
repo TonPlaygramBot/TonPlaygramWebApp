@@ -3660,49 +3660,21 @@ function normalizeModel(object, targetSize) {
   object.position.y -= normalized.min.y;
 }
 
-function prepareCaptureModel(root, maxAnisotropy = 1) {
+function prepareCaptureModel(root) {
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
-    child.frustumCulled = false;
-    child.visible = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
-      if (!material) return;
-      if (material.map) {
-        applySRGBColorSpace(material.map);
-        material.map.flipY = false;
-        material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
-        material.map.needsUpdate = true;
-      }
-      if (material.emissiveMap) {
+      if (material?.map) applySRGBColorSpace(material.map);
+      if (material?.emissiveMap) {
         applySRGBColorSpace(material.emissiveMap);
-        material.emissiveMap.flipY = false;
-        material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
-        material.emissiveMap.needsUpdate = true;
       }
-      if (material.normalMap) {
-        material.normalMap.flipY = false;
-        material.normalMap.anisotropy = Math.max(material.normalMap.anisotropy ?? 1, maxAnisotropy);
-        material.normalMap.needsUpdate = true;
-      }
-      if (material.roughnessMap) {
-        material.roughnessMap.flipY = false;
-        material.roughnessMap.anisotropy = Math.max(material.roughnessMap.anisotropy ?? 1, maxAnisotropy);
-        material.roughnessMap.needsUpdate = true;
-      }
-      if (material.metalnessMap) {
-        material.metalnessMap.flipY = false;
-        material.metalnessMap.anisotropy = Math.max(material.metalnessMap.anisotropy ?? 1, maxAnisotropy);
-        material.metalnessMap.needsUpdate = true;
-      }
-      material.transparent = false;
-      material.opacity = 1;
-      if ('envMapIntensity' in material) {
+      if (material && 'envMapIntensity' in material) {
         material.envMapIntensity = 1.1;
+        material.needsUpdate = true;
       }
-      material.needsUpdate = true;
     });
   });
 }
@@ -9981,7 +9953,7 @@ function Chess3D({
             }
             if (!model) continue;
             model = model.clone?.(true) ?? model;
-            prepareCaptureModel(model, renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+            prepareCaptureModel(model);
             normalizeModel(model, targetSize);
             captureUnitTemplates[key] = model;
             return model;
@@ -9999,7 +9971,7 @@ function Chess3D({
       const template = captureUnitTemplates[key];
       if (!template) return null;
       const clone = cloneSkinned(template);
-      prepareCaptureModel(clone, renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+      prepareCaptureModel(clone);
       return clone;
     };
 
