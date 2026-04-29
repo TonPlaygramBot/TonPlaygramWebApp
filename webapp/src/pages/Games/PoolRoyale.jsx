@@ -117,12 +117,249 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
-import {
-  createBilardoHumanRig,
-  chooseHumanEdgePosition as chooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
+
+
+
+// Inlined human-rig logic for Pool Royale (kept local to this file for full control).
+const BILARDO_HUMAN_CFG = {
+  poseLambda: 9,
+  moveLambda: 5.6,
+  rotLambda: 8.5,
+  humanScale: 1.18,
+  humanVisualYawFix: Math.PI,
+  stanceWidth: 0.52,
+  bridgePalmTableLift: 0.006,
+  edgeMargin: 0.58,
+  desiredShootDistance: 1.06,
+  chinToCueHeight: 0.11,
+  cueArmElbowRise: 0.43,
+  strikeTime: 0.12,
+  holdTime: 0.05,
+  tableTopY: 0.84
+};
+const BILARDO_HUMAN_Y_AXIS = new THREE.Vector3(0, 1, 0);
+const BILARDO_HUMAN_UP = BILARDO_HUMAN_Y_AXIS;
+const BILARDO_HUMAN_BASIS = new THREE.Matrix4();
+const bilardoHumanClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const bilardoHumanClamp01 = (v) => bilardoHumanClamp(v, 0, 1);
+const bilardoHumanLerp = (a, b, t) => a + (b - a) * t;
+const bilardoHumanEaseInOut = (t) => t * t * (3 - 2 * t);
+const bilardoHumanDampScalar = (c, t, l, dt) => THREE.MathUtils.lerp(c, t, 1 - Math.exp(-l * dt));
+const bilardoHumanDampVector = (c, t, l, dt) => c.lerp(t, 1 - Math.exp(-l * dt));
+const bilardoHumanYawFromForward = (f) => Math.atan2(-f.x, -f.z);
+const bilardoHumanCleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function makeBasisQuaternion(side, up, forward) {
+  BILARDO_HUMAN_BASIS.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
+  return new THREE.Quaternion().setFromRotationMatrix(BILARDO_HUMAN_BASIS);
+}
+
+function createFallbackHuman() {
+  const group = new THREE.Group();
+  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
+  const addBox = (size, pos, mat) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
+  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
+  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
+  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
+  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
+  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
+  head.position.set(0, 1.7, 0);
+  head.castShadow = true;
+  head.receiveShadow = true;
+  group.add(head);
+  return group;
+}
+
+function findBone(all, aliases) {
+  const list = all.map((bone) => ({ bone, name: bilardoHumanCleanName(bone.name) }));
+  const names = aliases.map(bilardoHumanCleanName);
+  for (const alias of names) {
+    const exact = list.find((x) => x.name === alias || x.name.endsWith(alias));
+    if (exact) return exact.bone;
+  }
+  for (const alias of names) {
+    const loose = list.find((x) => x.name.includes(alias));
+    if (loose) return loose.bone;
+  }
+  return undefined;
+}
+
+function buildAvatarBones(model) {
+  const all = [];
+  model.traverse((obj) => obj?.isBone && all.push(obj));
+  const f = (...names) => findBone(all, names);
+  return {
+    hips: f('hips', 'pelvis', 'mixamorigHips'), spine: f('spine', 'spine01', 'mixamorigSpine'), chest: f('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'), neck: f('neck', 'mixamorigNeck'), head: f('head', 'mixamorigHead'),
+    leftUpperArm: f('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'), leftLowerArm: f('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'), leftHand: f('lefthand', 'handl', 'mixamorigLeftHand'),
+    rightUpperArm: f('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'), rightLowerArm: f('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'), rightHand: f('righthand', 'handr', 'mixamorigRightHand'),
+    leftUpperLeg: f('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'), leftLowerLeg: f('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'), leftFoot: f('leftfoot', 'footl', 'mixamorigLeftFoot'),
+    rightUpperLeg: f('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'), rightLowerLeg: f('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'), rightFoot: f('rightfoot', 'footr', 'mixamorigRightFoot')
+  };
+}
+const collectFingerBones = (hand) => {
+  const out = [];
+  hand?.traverse((obj) => {
+    if (!obj?.isBone || obj === hand) return;
+    const n = bilardoHumanCleanName(obj.name);
+    if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((s) => n.includes(s))) out.push(obj);
+  });
+  return out;
+};
+
+function normalizeHuman(model, opts = {}) {
+  model.scale.setScalar(opts.humanScale ?? BILARDO_HUMAN_CFG.humanScale);
+  model.rotation.set(0, opts.humanVisualYawFix ?? BILARDO_HUMAN_CFG.humanVisualYawFix, 0);
+  model.position.set(0, 0, 0);
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box.min.y, -center.z);
+}
+
+function createBilardoHumanRig(scene, opts = {}) {
+  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, cfg: { ...BILARDO_HUMAN_CFG, ...opts } };
+  human.root.visible = false;
+  human.modelRoot.visible = false;
+  scene.add(human.root, human.modelRoot, human.fallback);
+
+  const loader = opts.loader;
+  const modelUrl = opts.modelUrl;
+  if (!loader || !modelUrl) {
+    human.loaded = true;
+    human.fallback.visible = true;
+    return human;
+  }
+
+  loader.setCrossOrigin?.('anonymous');
+  loader.load(modelUrl, (gltf) => {
+    const model = gltf?.scene;
+    normalizeHuman(model, opts);
+    model.traverse((obj) => {
+      if (!obj?.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      obj.frustumCulled = false;
+      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+      materials.forEach((m) => {
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+        m.needsUpdate = true;
+      });
+    });
+    human.bones = buildAvatarBones(model);
+    human.leftFingers = collectFingerBones(human.bones.leftHand);
+    human.rightFingers = collectFingerBones(human.bones.rightHand);
+    [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => bone && human.restQuats.set(bone, bone.quaternion.clone()));
+    human.activeGlb = Boolean(human.bones.hips && human.bones.spine && human.bones.head && human.bones.leftUpperArm && human.bones.leftLowerArm && human.bones.leftHand && human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand && human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.rightUpperLeg && human.bones.rightLowerLeg);
+    human.model = model;
+    human.modelRoot.add(model);
+    human.modelRoot.visible = human.activeGlb;
+    human.fallback.visible = !human.activeGlb;
+    human.loaded = true;
+  }, undefined, () => {
+    human.loaded = true;
+    human.activeGlb = false;
+    human.modelRoot.visible = false;
+    human.fallback.visible = true;
+  });
+
+  return human;
+}
+
+function setBoneWorldQuaternion(bone, q) { if (!bone || !q) return; const parentQ = new THREE.Quaternion(); bone.parent?.getWorldQuaternion(parentQ); bone.quaternion.copy(parentQ.invert().multiply(q)); bone.updateMatrixWorld(true); }
+function firstBoneChild(bone) { return bone?.children.find((c) => c?.isBone); }
+function rotateBoneToward(bone, target, strength = 1, fallbackDir = BILARDO_HUMAN_UP) {
+  if (!bone || strength <= 0) return;
+  const bonePos = bone.getWorldPosition(new THREE.Vector3());
+  const childPos = firstBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) || bonePos.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25);
+  const current = childPos.sub(bonePos).normalize();
+  const desired = target.clone().sub(bonePos);
+  if (desired.lengthSq() < 1e-6 || current.lengthSq() < 1e-6) return;
+  const delta = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), new THREE.Quaternion().setFromUnitVectors(current, desired.normalize()), bilardoHumanClamp01(strength));
+  setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
+}
+function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
+function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 2; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); twistBone(upper, pole, 0.025 * upperStrength); } }
+function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, bilardoHumanClamp01(strength))); }
+
+function poseFingers(fingers, mode, weight) {
+  const w = bilardoHumanClamp01(weight);
+  fingers.forEach((finger, i) => {
+    const n = bilardoHumanCleanName(finger.name); const thumb = n.includes('thumb'); const index = n.includes('index'); const middle = n.includes('middle'); const ring = n.includes('ring'); const pinky = n.includes('pinky') || n.includes('little');
+    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
+    if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
+    if (mode === 'grip') {
+      if (thumb) { finger.rotation.x += 0.34 * w; finger.rotation.y += -0.68 * w; finger.rotation.z += 0.36 * w; return; }
+      const curl = index ? (base ? 0.44 : mid ? 0.72 : 0.52) : middle ? (base ? 0.62 : mid ? 0.9 : 0.62) : ring ? (base ? 0.58 : mid ? 0.76 : 0.56) : pinky ? (base ? 0.5 : mid ? 0.68 : 0.5) : 0;
+      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.08 : middle ? -0.02 : ring ? 0.03 : pinky ? 0.06 : 0) * w; finger.rotation.z += (index ? -0.06 : middle ? -0.01 : ring ? 0.05 : pinky ? 0.1 : 0) * w; return;
+    }
+    if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
+    else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
+    else if (middle) { finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w; finger.rotation.y += -0.12 * w; finger.rotation.z += -0.14 * w; }
+    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : (ring ? 0.12 : 0.1)) * w; finger.rotation.y += (ring ? 0.18 : 0.34) * w; finger.rotation.z += (ring ? 0.28 : 0.46) * w; }
+  });
+}
+
+function driveHuman(human, frame) { /* unchanged structural behavior from source snippet */
+  if (!human.activeGlb || !human.model) { human.fallback.visible = true; human.fallback.position.copy(frame.rootWorld); human.fallback.rotation.y = human.yaw; human.fallback.rotation.x = -0.16 * frame.t; human.fallback.position.y -= 0.035 * frame.t; return; }
+  human.fallback.visible = false; human.modelRoot.visible = true; human.modelRoot.position.copy(frame.rootWorld); human.modelRoot.rotation.y = human.yaw; human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t; human.modelRoot.updateMatrixWorld(true); human.restQuats.forEach((q, bone) => bone.quaternion.copy(q)); human.modelRoot.updateMatrixWorld(true);
+  const b = human.bones; const ik = bilardoHumanEaseInOut(bilardoHumanClamp01(frame.t)); const idle = 1 - ik; const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize(); const shotQ = makeBasisQuaternion(frame.side, BILARDO_HUMAN_UP, frame.forward);
+  if (frame.walkAmount * idle > 0.001) { const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle; if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w; if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w; if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w; if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w; if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w; if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w; if (b.spine) b.spine.rotation.z += c * 0.025 * w; if (b.hips) b.hips.rotation.z -= c * 0.018 * w; }
+  const rightGrip = frame.rightHandWorld.clone().addScaledVector(cueDir, -0.014 * idle - 0.065 * ik).addScaledVector(frame.side, 0.006 * ik).addScaledVector(BILARDO_HUMAN_UP, 0.003 * ik);
+  const rightIdleElbow = rightGrip.clone().addScaledVector(BILARDO_HUMAN_UP, 0.24 + 0.21 * ik).addScaledVector(frame.side, 0.075).addScaledVector(frame.forward, -0.026 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.64); const rightHold = 0.62 + 0.34 * ik;
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, frame.side.clone().addScaledVector(BILARDO_HUMAN_UP, 0.18).normalize(), rightHold, rightHold);
+  const gripSide = frame.side.clone().addScaledVector(BILARDO_HUMAN_UP, -0.18).addScaledVector(frame.forward, 0.08).normalize(); const gripUp = BILARDO_HUMAN_UP.clone().multiplyScalar(0.58).addScaledVector(frame.side, 0.26).addScaledVector(frame.forward, -0.36).normalize();
+  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, -0.03 * idle + 0.1 * ik + 0.05 * frame.stroke, 0.86 + 0.12 * ik); poseFingers(human.rightFingers, 'grip', 0.72 + 0.18 * ik);
+  if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
+  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward); twistBone(b.hips, frame.side, -0.075 * ik); twistBone(b.hips, frame.forward, -0.04 * ik);
+  rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward); twistBone(b.spine, frame.side, -0.23 * ik); twistBone(b.spine, frame.forward, -0.055 * ik);
+  rotateBoneToward(b.chest, frame.neckWorld, (0.52 + 0.3 * ik) * ik, frame.forward); twistBone(b.chest, frame.side, -0.35 * ik); twistBone(b.chest, frame.forward, -0.035 * ik);
+  rotateBoneToward(b.neck, frame.headCenterWorld, 0.66 * ik, frame.forward); twistBone(b.neck, frame.side, -0.13 * ik);
+  setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
+}
+
+function chooseBilardoHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cfg = { ...BILARDO_HUMAN_CFG, ...opts }; const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance); const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin; const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin; const candidates = [new THREE.Vector3(-xEdge, 0, bilardoHumanClamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, bilardoHumanClamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(bilardoHumanClamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(bilardoHumanClamp(desired.x, -xEdge, xEdge), 0, zEdge)]; return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone(); }
+
+function updateBilardoHumanPose(human, dt, frameData) {
+  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
+  const cfg = { ...BILARDO_HUMAN_CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
+  human.poseT = bilardoHumanDampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = bilardoHumanDampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
+  if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
+  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget; bilardoHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
+  const moveAmountRaw = human.root.position.distanceTo(rootGoal); human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10)); human.yaw = bilardoHumanDampScalar(human.yaw, state === 'striking' ? human.strikeYaw : bilardoHumanYawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  const t = bilardoHumanEaseInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = bilardoHumanClamp01(moveAmountRaw * 18) * idle;
+  const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(bilardoHumanClamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
+  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(BILARDO_HUMAN_Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(BILARDO_HUMAN_Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
+  const torso = local(new THREE.Vector3(0, bilardoHumanLerp(1.3, 1.12, t) + breath, bilardoHumanLerp(0.02, -0.16, t) - 0.014 * powerLean));
+  const chest = local(new THREE.Vector3(0, bilardoHumanLerp(1.52, 1.22, t) + breath, bilardoHumanLerp(0.02, -0.42, t) - 0.024 * powerLean));
+  const neck = local(new THREE.Vector3(0, bilardoHumanLerp(1.68, 1.25, t) + breath, bilardoHumanLerp(0.02, -0.61, t) - 0.028 * powerLean));
+  const head = local(new THREE.Vector3(0, bilardoHumanLerp(1.84, 1.34, t) + breath - cfg.chinToCueHeight * 0.16 * t, bilardoHumanLerp(0.04, -0.72, t) - 0.028 * powerLean));
+  const leftShoulder = local(new THREE.Vector3(-0.23, bilardoHumanLerp(1.58, 1.36, t) + breath, bilardoHumanLerp(0, -0.46, t) - 0.018 * human.settleT));
+  const rightShoulder = local(new THREE.Vector3(0.23, bilardoHumanLerp(1.58, 1.36, t) + breath, bilardoHumanLerp(0, -0.34, t) - 0.018 * human.settleT));
+  const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
+  const leftFoot = local(new THREE.Vector3(-0.13, 0.035, 0.03 + walk * 0.03).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, 0.035, -0.36), t));
+  const rightFoot = local(new THREE.Vector3(0.13, 0.035, -0.03 - walk * 0.03).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, 0.035, 0.36), t));
+  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(BILARDO_HUMAN_UP, -0.01 * human.settleT);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
+  const rightHand = frameData.idleRight.clone().lerp(frameData.gripTarget.clone().addScaledVector(forward, 0.046 * stroke * t + 0.065 * follow * power).addScaledVector(BILARDO_HUMAN_UP, -0.004 * follow), t);
+  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(BILARDO_HUMAN_UP, 0.006 * t).addScaledVector(side, -0.044 * t).addScaledVector(forward, 0.065 * t);
+  const rightElbow = rightHand.clone().addScaledVector(BILARDO_HUMAN_UP, bilardoHumanLerp(0.18, cfg.cueArmElbowRise, t)).addScaledVector(side, bilardoHumanLerp(0.03, 0.07, t)).addScaledVector(forward, bilardoHumanLerp(-0.03, 0, t));
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(BILARDO_HUMAN_UP, bilardoHumanLerp(0.18, 0.105, t)).addScaledVector(forward, 0.052 * t).addScaledVector(side, -0.016 * t);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(BILARDO_HUMAN_UP, bilardoHumanLerp(0.18, 0.08, t)).addScaledVector(forward, -0.032 * t).addScaledVector(side, 0.018 * t);
+  human.root.visible = true;
+  driveHuman(human, { t, breath, stroke, follow, walkAmount, forward, side, up: BILARDO_HUMAN_UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: frameData.cueBack || frameData.bridgeTarget || frameData.rootTarget, cueTipWorld: frameData.cueTip || frameData.gripTarget || frameData.rootTarget });
+}
+
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -6311,7 +6548,6 @@ const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
 const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
 const RAIL_OVERHEAD_CROWD_BALL_THRESHOLD = 3;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ensureCueStrokeForwardMotion = ({
   pullPos,
   impactPos,
