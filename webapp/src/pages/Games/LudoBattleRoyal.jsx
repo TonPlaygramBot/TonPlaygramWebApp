@@ -8226,6 +8226,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!dice) return;
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
+
+    if (player === 0 && !immediate) {
+      // On human turns keep the dice where it landed so the seated actor can bend from the torso,
+      // reach to that exact table spot, and grab it before the next throw.
+      stopDiceTransition();
+      beginDiceHoldPose(player, { startMs: performance.now() - 220 });
+      return;
+    }
+
     const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
     const target = resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
     if (immediate) {
