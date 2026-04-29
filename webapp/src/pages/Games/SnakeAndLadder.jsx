@@ -36,7 +36,6 @@ import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -814,14 +813,13 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
-const CAPTURE_WEAPON_OPTIONS = Object.freeze(SNAKE_CAPTURE_WEAPON_OPTIONS);
-const LEGACY_CAPTURE_WEAPON_ID_MAP = Object.freeze({
-  drone: 'droneAttack',
-  fighter: 'fighterJetAttack',
-  helicopter: 'helicopterAttack',
-  supportTruck: 'grenadeBlastAttack',
-  javelin: 'missileJavelin'
-});
+const CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'drone', label: 'Drone' },
+  { id: 'fighter', label: 'Fighter Jet' },
+  { id: 'helicopter', label: 'Military Helicopter' },
+  { id: 'supportTruck', label: 'Support Truck' },
+  { id: 'javelin', label: 'Javelin Missile' }
+]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -941,13 +939,6 @@ const DEFAULT_FRAME_RATE_ID = 'fast120';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
-function normalizeCaptureWeaponId(rawId) {
-  if (!rawId) return CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
-  const normalized = LEGACY_CAPTURE_WEAPON_ID_MAP[rawId] || rawId;
-  if (CAPTURE_WEAPON_OPTIONS.some((option) => option.id === normalized)) return normalized;
-  return CAPTURE_WEAPON_OPTIONS[0]?.id || 'missileJavelin';
-}
-
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -968,11 +959,6 @@ function normalizeAppearance(value = {}) {
       normalized[key] = Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
     }
   });
-  if (typeof value?.captureWeapon === 'string') {
-    const captureId = normalizeCaptureWeaponId(value.captureWeapon);
-    const idx = CAPTURE_WEAPON_OPTIONS.findIndex((option) => option.id === captureId);
-    if (idx >= 0) normalized.captureWeapon = idx;
-  }
   normalized.snakeSkin = 0;
   normalized.tokenFinish = 0;
   return normalized;
@@ -1222,7 +1208,6 @@ export default function SnakeAndLadder() {
     return false;
   });
   const [showConfig, setShowConfig] = useState(false);
-  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
   const [appearance, setAppearance] = useState(() => {
     try {
@@ -1776,9 +1761,7 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      const selectedWeapon = normalizeCaptureWeaponId(
-        resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0]?.id || 'drone'
-      );
+      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || 'drone';
       const aiWeapon = aiWeaponLoadout[mover - 1];
       const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon || 'drone');
       setBurning((b) => [...new Set([...b, ...victims])]);
@@ -3248,48 +3231,21 @@ export default function SnakeAndLadder() {
 
   const playerHeadPreset = resolvedAppearance?.pawnHead?.preset ?? null;
   const playerHeadPresetId = resolvedAppearance?.pawnHead?.id ?? 'current';
-  const fallbackCaptureWeaponId = useCallback(
-    (orderIndex = 0) => {
-      if (!CAPTURE_WEAPON_OPTIONS.length) return 'drone';
-      const normalizedIndex = ((Math.trunc(orderIndex) % CAPTURE_WEAPON_OPTIONS.length) + CAPTURE_WEAPON_OPTIONS.length) %
-        CAPTURE_WEAPON_OPTIONS.length;
-      return CAPTURE_WEAPON_OPTIONS[normalizedIndex]?.id || 'drone';
-    },
-    []
-  );
   const selectedCaptureWeaponId =
-    resolvedAppearance?.captureWeapon?.id
-      ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
-      : fallbackCaptureWeaponId(0);
-  const ownedCaptureWeapons = useMemo(
-    () =>
-      CAPTURE_WEAPON_OPTIONS.filter((option) =>
-        isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
-      ),
-    [snakeInventory]
-  );
-  const selectableCaptureWeapons =
-    ownedCaptureWeapons.length > 0 ? ownedCaptureWeapons : [CAPTURE_WEAPON_OPTIONS[0]].filter(Boolean);
-  const computedIndex = isMultiplayer
-    ? mpPlayers.findIndex((p) => p.id === accountId)
-    : 0;
+    resolvedAppearance?.captureWeapon?.id && isSnakeOptionUnlocked('captureWeapon', resolvedAppearance.captureWeapon.id, snakeInventory)
+      ? resolvedAppearance.captureWeapon.id
+      : 'drone';
 
   const players = isMultiplayer
-    ? mpPlayers.map((p, i) => {
-        const seatIndex = seatAssignments.get(i);
-        const orderIndex = Number.isFinite(seatIndex) ? seatIndex + 1 : i + 1;
-        const isLocalPlayer = computedIndex >= 0 ? i === computedIndex : false;
-        return {
-          id: p.id,
-          position: p.position,
-          photoUrl: p.photoUrl || '/assets/icons/profile.svg',
-          type: 'normal',
-          color: playerColors[i] || '#fff',
-          seatIndex,
-          // Keep local quick-swap weapon synced to parked display (same as Ludo-style behaviour).
-          weaponType: isLocalPlayer ? selectedCaptureWeaponId : fallbackCaptureWeaponId(orderIndex)
-        };
-      })
+    ? mpPlayers.map((p, i) => ({
+        id: p.id,
+        position: p.position,
+        photoUrl: p.photoUrl || '/assets/icons/profile.svg',
+        type: 'normal',
+        color: playerColors[i] || '#fff',
+        seatIndex: seatAssignments.get(i),
+        weaponType: CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone'
+      }))
     : [
         {
           position: pos,
@@ -3308,57 +3264,16 @@ export default function SnakeAndLadder() {
           type: 'normal',
           color: playerColors[i + 1],
           seatIndex: i + 1,
-          weaponType: aiWeaponLoadout[i] || fallbackCaptureWeaponId(i + 1),
+          weaponType: aiWeaponLoadout[i] || CAPTURE_WEAPON_OPTIONS[(i + 1) % CAPTURE_WEAPON_OPTIONS.length]?.id || 'drone',
           tokenShape: aiTokenShapes[i] || TOKEN_SHAPE_OPTIONS[i % TOKEN_SHAPE_OPTIONS.length],
           headPreset: null,
           headPresetId: 'current'
         }))
       ];
-  const handleSoftRestart = useCallback(() => {
-    if (isMultiplayer) return;
-    const aiCount = Math.max(0, ai);
-    const board = generateBoardLocal();
-    const snakesObj = board?.snakes || {};
-    const laddersObj = board?.ladders || {};
-    const diceCellsObj = normalizeDiceCells(board?.diceCells || {});
-    const snk = {};
-    Object.entries(snakesObj).forEach(([s, e]) => {
-      snk[s] = s - e;
-    });
-    const lad = {};
-    Object.entries(laddersObj).forEach(([s, e]) => {
-      const end = typeof e === 'object' ? e.end : e;
-      lad[s] = end - s;
-    });
-    setSnakes(snakesObj);
-    setLadders(laddersObj);
-    setSnakeOffsets(snk);
-    setLadderOffsets(lad);
-    setDiceCells(Object.keys(diceCellsObj).length ? diceCellsObj : generateDiceCellsLocal(snakesObj, laddersObj));
-    setPos(0);
-    setAiPositions(Array(aiCount).fill(0));
-    setRanking([]);
-    setCurrentTurn(0);
-    setSetupPhase(true);
-    setInitialRolls([]);
-    setTurnOrder([]);
-    setGameOver(false);
-    setMoving(false);
-    setPendingExtraRoll(false);
-    setBurning([]);
-    setOffsetPopup(null);
-    setDiceCount(1);
-    setBonusDice(0);
-    setRewardDice(0);
-    setPlayerDiceCounts(Array(aiCount + 1).fill(1));
-    const nextAiWeapons = Array.from({ length: aiCount }, (_, i) => {
-      const randomIndex = Math.floor(Math.random() * CAPTURE_WEAPON_OPTIONS.length);
-      return CAPTURE_WEAPON_OPTIONS[randomIndex]?.id || fallbackCaptureWeaponId(i + 1);
-    });
-    setAiWeaponLoadout(nextAiWeapons);
-    setWeaponSwapOpen(false);
-  }, [ai, fallbackCaptureWeaponId, isMultiplayer]);
 
+  const computedIndex = isMultiplayer
+    ? mpPlayers.findIndex((p) => p.id === accountId)
+    : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const hasLocalExtraRoll = pendingExtraRoll;
   const isMyTurnForRoll =
@@ -3848,87 +3763,12 @@ export default function SnakeAndLadder() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleSoftRestart}
+                    onClick={() => window.location.reload()}
                     className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
                   >
                     Restart game
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div
-        className="absolute z-30 pointer-events-auto"
-        style={{
-          right: 'calc(0.9rem + env(safe-area-inset-right, 0px))',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 9.8rem)'
-        }}
-      >
-        <div className="relative">
-          <button
-            type="button"
-            aria-expanded={weaponSwapOpen}
-            aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
-            onClick={() => setWeaponSwapOpen((prev) => !prev)}
-            className="rounded-full border border-rose-300/70 bg-black/70 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-rose-100 shadow-[0_10px_25px_rgba(244,63,94,0.35)] transition hover:border-rose-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
-          >
-            🔫 Swap · {resolvedAppearance?.captureWeapon?.label || 'Weapon'}
-          </button>
-          {weaponSwapOpen && (
-            <div className="absolute bottom-12 right-0 w-[min(19rem,84vw)] max-h-[52vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/90 p-3 shadow-[0_22px_55px_rgba(2,6,23,0.65)] backdrop-blur-xl">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/70">Quick weapon swap</p>
-
-              <p className="mt-2 text-[10px] uppercase tracking-[0.24em] text-rose-200/85">Current seat weapons</p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {(players || []).slice(0, 4).map((player, idx) => {
-                  const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : idx;
-                  const isLocalSeat = isMultiplayer ? idx === computedIndex : seatIndex === 0;
-                  const weapon = normalizeCaptureWeaponId(player?.weaponType || selectedCaptureWeaponId);
-                  const weaponLabel = CAPTURE_WEAPON_OPTIONS.find((item) => item.id === weapon)?.label || weapon;
-                  return (
-                    <div
-                      key={`parked-weapon-${seatIndex}`}
-                      className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/80"
-                    >
-                      <span className="mr-1 font-semibold uppercase tracking-[0.2em] text-rose-100">S{seatIndex + 1}</span>
-                      <span className="uppercase tracking-[0.1em]">
-                        {isLocalSeat ? `${weaponLabel} (yours)` : `${weaponLabel} (AI random)`}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-2 space-y-2">
-                {selectableCaptureWeapons.map((option) => {
-                  const selected = selectedCaptureWeaponId === option.id;
-                  const optionIndex = CAPTURE_WEAPON_OPTIONS.findIndex((item) => item.id === option.id);
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => {
-                        setAppearance((prev) => normalizeAppearance({ ...prev, captureWeapon: optionIndex }));
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-2 py-2 text-left transition ${
-                        selected
-                          ? 'border-rose-300/80 bg-rose-400/15'
-                          : 'border-white/10 bg-white/5 hover:border-white/20'
-                      }`}
-                    >
-                      <img
-                        src={option.thumbnail || '/assets/icons/gift.svg'}
-                        alt={option.label}
-                        className="h-9 w-14 rounded-md border border-white/10 object-cover"
-                      />
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
-                        {option.label}
-                      </span>
-                    </button>
-                  );
-                })}
               </div>
             </div>
           )}
