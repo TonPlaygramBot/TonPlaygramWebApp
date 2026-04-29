@@ -32,6 +32,9 @@ namespace TonPlaygram.Gameplay.Weapons
         public float spread = 0.012f;
         public float bulletScale = 1f;
         public float shellScale = 1f;
+        public bool usesPellets = false;
+        public int pelletsPerShot = 1;
+        public float pelletSpread = 0.012f;
         public float aimFov = 40f;
         public float aimTransitionSeconds = 0.08f;
         public float impactFollowSeconds = 1.15f;
@@ -45,6 +48,13 @@ namespace TonPlaygram.Gameplay.Weapons
         void OnWeaponEquipped(LudoWeaponType weaponType);
         void OnWeaponShot(LudoWeaponType weaponType, int shotIndex, int totalShots);
         void OnFinalImpact(LudoWeaponType weaponType, Vector3 impactPoint);
+    }
+
+    public interface ILudoProjectileBroadcastEvents
+    {
+        void OnProjectileSpawned(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 origin, Vector3 velocity);
+        void OnProjectileUpdated(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 position, Vector3 velocity);
+        void OnProjectileImpact(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 impactPoint);
     }
 
     public sealed class BattleRoyaleWeaponDirector : MonoBehaviour
@@ -84,6 +94,7 @@ namespace TonPlaygram.Gameplay.Weapons
         private Coroutine _fireRoutine;
         private Coroutine _cameraRoutine;
         private ILudoWeaponEvents[] _eventListeners = Array.Empty<ILudoWeaponEvents>();
+        private ILudoProjectileBroadcastEvents[] _projectileListeners = Array.Empty<ILudoProjectileBroadcastEvents>();
         private float _baseFov = 60f;
         private Vector3 _baseCameraLocalPos;
         private Transform _baseCameraParent;
@@ -112,6 +123,7 @@ namespace TonPlaygram.Gameplay.Weapons
             BuildProfileMap();
             CacheTokenPieces();
             _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
+            _projectileListeners = GetComponentsInParent<ILudoProjectileBroadcastEvents>(true);
             Equip(startingWeapon);
         }
 
@@ -168,7 +180,7 @@ namespace TonPlaygram.Gameplay.Weapons
             Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
             RefreshWeaponPose(shotDirection);
 
-            SpawnBullet(weapon, shotDirection, isLastBullet, shotIndex, totalShots);
+            SpawnProjectiles(weapon, shotDirection, isLastBullet, shotIndex, totalShots);
             SpawnShell(weapon);
             PlayShotSfx(weapon);
 
@@ -178,26 +190,52 @@ namespace TonPlaygram.Gameplay.Weapons
             }
         }
 
-        private void SpawnBullet(WeaponBallisticsProfile weapon, Vector3 direction, bool isLastBullet, int shotIndex, int totalShots)
+        private void SpawnProjectiles(WeaponBallisticsProfile weapon, Vector3 direction, bool isLastBullet, int shotIndex, int totalShots)
         {
             if (weapon.bulletPrefab == null)
                 return;
 
-            GameObject bulletObj = Instantiate(weapon.bulletPrefab, muzzle.position, Quaternion.LookRotation(direction));
-            bulletObj.transform.localScale *= weapon.bulletScale;
+            int pelletCount = weapon.usesPellets ? Mathf.Max(1, weapon.pelletsPerShot) : 1;
+            float pelletScale = ResolveProjectileScale(weapon);
+            float spreadAmount = weapon.usesPellets ? weapon.pelletSpread : weapon.spread;
 
-            BattleRoyaleBullet bullet = bulletObj.GetComponent<BattleRoyaleBullet>();
-            if (bullet == null)
+            for (int pelletIndex = 0; pelletIndex < pelletCount; pelletIndex++)
             {
-                bullet = bulletObj.AddComponent<BattleRoyaleBullet>();
+                Vector3 randomSpread = UnityEngine.Random.insideUnitSphere * spreadAmount;
+                Vector3 pelletDirection = (direction + randomSpread).normalized;
+                GameObject bulletObj = Instantiate(weapon.bulletPrefab, muzzle.position, Quaternion.LookRotation(pelletDirection));
+                bulletObj.transform.localScale *= pelletScale;
+
+                BattleRoyaleBullet bullet = bulletObj.GetComponent<BattleRoyaleBullet>();
+                if (bullet == null)
+                {
+                    bullet = bulletObj.AddComponent<BattleRoyaleBullet>();
+                }
+
+                bool isLeadPellet = pelletIndex == 0;
+                bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet);
+                bullet.Initialize(pelletDirection * weapon.muzzleVelocity, this, weapon.weaponType, shotIndex, pelletIndex, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
+                BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, pelletDirection * weapon.muzzleVelocity);
+                if (shouldFollowBullet)
+                {
+                    StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f));
+                }
+            }
+        }
+
+        private float ResolveProjectileScale(WeaponBallisticsProfile weapon)
+        {
+            if (!weapon.usesPellets)
+            {
+                return weapon.bulletScale;
             }
 
-            bool shouldFollowBullet = followAllBullets || isLastBullet;
-            bullet.Initialize(direction * weapon.muzzleVelocity, this, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
-            if (shouldFollowBullet)
+            if (_profiles.TryGetValue(LudoWeaponType.Shotgun, out var shotgunProfile) && shotgunProfile != null)
             {
-                StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f));
+                return shotgunProfile.bulletScale;
             }
+
+            return weapon.bulletScale;
         }
 
         private void SpawnShell(WeaponBallisticsProfile weapon)
@@ -238,6 +276,30 @@ namespace TonPlaygram.Gameplay.Weapons
                 {
                     _eventListeners[i].OnFinalImpact(_activeWeapon.weaponType, point);
                 }
+            }
+        }
+
+        public void BroadcastProjectileUpdated(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 position, Vector3 velocity)
+        {
+            for (int i = 0; i < _projectileListeners.Length; i++)
+            {
+                _projectileListeners[i].OnProjectileUpdated(weaponType, shotIndex, pelletIndex, position, velocity);
+            }
+        }
+
+        public void BroadcastProjectileImpact(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 impactPoint)
+        {
+            for (int i = 0; i < _projectileListeners.Length; i++)
+            {
+                _projectileListeners[i].OnProjectileImpact(weaponType, shotIndex, pelletIndex, impactPoint);
+            }
+        }
+
+        private void BroadcastProjectileSpawned(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 origin, Vector3 velocity)
+        {
+            for (int i = 0; i < _projectileListeners.Length; i++)
+            {
+                _projectileListeners[i].OnProjectileSpawned(weaponType, shotIndex, pelletIndex, origin, velocity);
             }
         }
 
@@ -449,20 +511,34 @@ namespace TonPlaygram.Gameplay.Weapons
         private Vector3 _velocity;
         private float _life;
         private bool _isLastBullet;
+        private LudoWeaponType _weaponType;
+        private int _shotIndex;
+        private int _pelletIndex;
         private bool _impactSent;
         private BattleRoyaleWeaponDirector _director;
+        private float _broadcastTick;
 
-        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, bool isLastBullet, bool _followByCamera, float followSeconds)
+        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, LudoWeaponType weaponType, int shotIndex, int pelletIndex, bool isLastBullet, bool _followByCamera, float followSeconds)
         {
             _velocity = velocity;
             _director = director;
+            _weaponType = weaponType;
+            _shotIndex = shotIndex;
+            _pelletIndex = pelletIndex;
             _isLastBullet = isLastBullet;
             _life = Mathf.Max(1.2f, followSeconds + 0.55f);
+            _broadcastTick = 0f;
         }
 
         private void Update()
         {
             transform.position += _velocity * Time.deltaTime;
+            _broadcastTick += Time.deltaTime;
+            if (_broadcastTick >= 0.033f)
+            {
+                _broadcastTick = 0f;
+                _director?.BroadcastProjectileUpdated(_weaponType, _shotIndex, _pelletIndex, transform.position, _velocity);
+            }
             _life -= Time.deltaTime;
             if (_life <= 0f)
             {
@@ -476,6 +552,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 return;
 
             _impactSent = true;
+            _director?.BroadcastProjectileImpact(_weaponType, _shotIndex, _pelletIndex, transform.position);
             _director?.OnBulletImpact(transform.position, _isLastBullet);
             Destroy(gameObject);
         }
