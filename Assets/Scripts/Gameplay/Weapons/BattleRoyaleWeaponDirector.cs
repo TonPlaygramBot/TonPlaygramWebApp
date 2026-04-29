@@ -11,45 +11,71 @@ namespace TonPlaygram.Gameplay.Weapons
         MagazineAuto
     }
 
+    public enum LudoWeaponType
+    {
+        Rifle,
+        SMG,
+        Pistol,
+        Shotgun,
+        Sniper,
+        GrenadeLauncher
+    }
+
     [Serializable]
     public sealed class WeaponBallisticsProfile
     {
-        public string weaponId = "rifle";
+        public LudoWeaponType weaponType = LudoWeaponType.Rifle;
         public WeaponFireMode fireMode = WeaponFireMode.MagazineAuto;
         public int magazineSize = 30;
-        public float roundsPerSecond = 12f;
-        public float muzzleVelocity = 240f;
+        public float roundsPerSecond = 10f;
+        public float muzzleVelocity = 220f;
+        public float spread = 0.012f;
         public float bulletScale = 1f;
         public float shellScale = 1f;
-        public float spread = 0.01f;
-        public float aimFov = 43f;
-        public float aimTransitionSeconds = 0.1f;
+        public float aimFov = 40f;
+        public float aimTransitionSeconds = 0.08f;
         public float impactFollowSeconds = 1.15f;
         public GameObject bulletPrefab;
         public GameObject shellPrefab;
+        public AudioClip shotSfx;
+    }
+
+    public interface ILudoWeaponEvents
+    {
+        void OnWeaponEquipped(LudoWeaponType weaponType);
+        void OnWeaponShot(LudoWeaponType weaponType, int shotIndex, int totalShots);
+        void OnFinalImpact(LudoWeaponType weaponType, Vector3 impactPoint);
     }
 
     public sealed class BattleRoyaleWeaponDirector : MonoBehaviour
     {
-        [Header("References")]
+        [Header("Scene refs")]
         [SerializeField] private Camera playerCamera;
         [SerializeField] private Transform muzzle;
         [SerializeField] private Transform shellEject;
         [SerializeField] private Transform targetTokenRoot;
+        [SerializeField] private AudioSource sfxSource;
 
-        [Header("Weapons")]
+        [Header("Weapon presets")]
         [SerializeField] private List<WeaponBallisticsProfile> weaponProfiles = new List<WeaponBallisticsProfile>();
-        [SerializeField] private string startingWeaponId = "rifle";
+        [SerializeField] private LudoWeaponType startingWeapon = LudoWeaponType.Rifle;
 
         [Header("Damage progression")]
-        [SerializeField] private int smallPieceHitsBeforeDestroy = 6;
+        [SerializeField] private int minorPiecesPerNonFinalShot = 3;
 
-        private readonly Dictionary<string, WeaponBallisticsProfile> _profiles = new Dictionary<string, WeaponBallisticsProfile>(StringComparer.OrdinalIgnoreCase);
+        [Header("Camera anchors")]
+        [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
+        [SerializeField] private float aimPositionLerp = 20f;
+
+        private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
+        private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
+
         private WeaponBallisticsProfile _activeWeapon;
         private Coroutine _fireRoutine;
         private Coroutine _cameraRoutine;
-        private float _defaultFov;
-        private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
+        private ILudoWeaponEvents[] _eventListeners = Array.Empty<ILudoWeaponEvents>();
+        private float _baseFov = 60f;
+        private Vector3 _baseCameraLocalPos;
 
         private void Awake()
         {
@@ -58,21 +84,36 @@ namespace TonPlaygram.Gameplay.Weapons
                 playerCamera = Camera.main;
             }
 
-            _defaultFov = playerCamera != null ? playerCamera.fieldOfView : 60f;
+            if (sfxSource == null)
+            {
+                sfxSource = GetComponent<AudioSource>();
+            }
+
+            if (playerCamera != null)
+            {
+                _baseFov = playerCamera.fieldOfView;
+                _baseCameraLocalPos = playerCamera.transform.localPosition;
+            }
+
             BuildProfileMap();
             CacheTokenPieces();
-            Equip(startingWeaponId);
+            _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
+            Equip(startingWeapon);
         }
 
-        public void Equip(string weaponId)
+        public void Equip(LudoWeaponType weaponType)
         {
-            if (!_profiles.TryGetValue(weaponId, out var profile))
+            if (!_profiles.TryGetValue(weaponType, out var profile))
             {
-                Debug.LogWarning($"Unknown weapon profile: {weaponId}");
+                Debug.LogWarning($"Missing profile for weapon {weaponType}");
                 return;
             }
 
             _activeWeapon = profile;
+            for (int i = 0; i < _eventListeners.Length; i++)
+            {
+                _eventListeners[i].OnWeaponEquipped(weaponType);
+            }
         }
 
         public void FireAtToken()
@@ -91,12 +132,14 @@ namespace TonPlaygram.Gameplay.Weapons
         private IEnumerator FireRoutine(WeaponBallisticsProfile weapon)
         {
             int shots = weapon.fireMode == WeaponFireMode.Single ? 1 : Mathf.Max(1, weapon.magazineSize);
-            float shotDelay = weapon.roundsPerSecond <= 0.001f ? 0f : (1f / weapon.roundsPerSecond);
+            float shotDelay = weapon.roundsPerSecond <= 0.001f ? 0f : 1f / weapon.roundsPerSecond;
+
+            BeginAimCamera(weapon);
 
             for (int i = 0; i < shots; i++)
             {
                 bool isLastBullet = i == shots - 1;
-                FireSingleRound(weapon, isLastBullet);
+                FireSingleRound(weapon, i, shots, isLastBullet);
                 if (shotDelay > 0f)
                 {
                     yield return new WaitForSeconds(shotDelay);
@@ -104,15 +147,20 @@ namespace TonPlaygram.Gameplay.Weapons
             }
         }
 
-        private void FireSingleRound(WeaponBallisticsProfile weapon, bool isLastBullet)
+        private void FireSingleRound(WeaponBallisticsProfile weapon, int shotIndex, int totalShots, bool isLastBullet)
         {
-            Vector3 toTarget = (targetTokenRoot.position - muzzle.position).normalized;
-            Vector3 spread = UnityEngine.Random.insideUnitSphere * weapon.spread;
-            Vector3 shotDirection = (toTarget + spread).normalized;
+            Vector3 directionToTarget = (targetTokenRoot.position - muzzle.position).normalized;
+            Vector3 spreadVec = UnityEngine.Random.insideUnitSphere * weapon.spread;
+            Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
 
             SpawnBullet(weapon, shotDirection, isLastBullet);
             SpawnShell(weapon);
-            EnterAimingCamera(weapon);
+            PlayShotSfx(weapon);
+
+            for (int i = 0; i < _eventListeners.Length; i++)
+            {
+                _eventListeners[i].OnWeaponShot(weapon.weaponType, shotIndex, totalShots);
+            }
         }
 
         private void SpawnBullet(WeaponBallisticsProfile weapon, Vector3 direction, bool isLastBullet)
@@ -120,13 +168,13 @@ namespace TonPlaygram.Gameplay.Weapons
             if (weapon.bulletPrefab == null)
                 return;
 
-            GameObject bulletGo = Instantiate(weapon.bulletPrefab, muzzle.position, Quaternion.LookRotation(direction));
-            bulletGo.transform.localScale *= weapon.bulletScale;
+            GameObject bulletObj = Instantiate(weapon.bulletPrefab, muzzle.position, Quaternion.LookRotation(direction));
+            bulletObj.transform.localScale *= weapon.bulletScale;
 
-            var bullet = bulletGo.GetComponent<BattleRoyaleBullet>();
+            BattleRoyaleBullet bullet = bulletObj.GetComponent<BattleRoyaleBullet>();
             if (bullet == null)
             {
-                bullet = bulletGo.AddComponent<BattleRoyaleBullet>();
+                bullet = bulletObj.AddComponent<BattleRoyaleBullet>();
             }
 
             bullet.Initialize(direction * weapon.muzzleVelocity, this, isLastBullet, weapon.impactFollowSeconds);
@@ -137,33 +185,48 @@ namespace TonPlaygram.Gameplay.Weapons
             if (weapon.shellPrefab == null || shellEject == null)
                 return;
 
-            GameObject shellGo = Instantiate(weapon.shellPrefab, shellEject.position, shellEject.rotation);
-            shellGo.transform.localScale *= weapon.shellScale;
+            GameObject shellObj = Instantiate(weapon.shellPrefab, shellEject.position, shellEject.rotation);
+            shellObj.transform.localScale *= weapon.shellScale;
 
-            var rb = shellGo.GetComponent<Rigidbody>();
+            Rigidbody rb = shellObj.GetComponent<Rigidbody>();
             if (rb == null)
             {
-                rb = shellGo.AddComponent<Rigidbody>();
+                rb = shellObj.AddComponent<Rigidbody>();
             }
 
             rb.mass = 0.02f;
-            rb.velocity = shellEject.right * UnityEngine.Random.Range(1.8f, 3.2f) + Vector3.up * UnityEngine.Random.Range(0.8f, 1.4f);
-            rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 12f;
-            Destroy(shellGo, 5f);
+            rb.velocity = (shellEject.right * UnityEngine.Random.Range(1.8f, 3.1f)) + (Vector3.up * UnityEngine.Random.Range(0.8f, 1.3f));
+            rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 13f;
+            Destroy(shellObj, 5f);
         }
 
-        public void OnBulletImpact(Vector3 point, bool lastBullet)
+        private void PlayShotSfx(WeaponBallisticsProfile weapon)
         {
-            ApplyProgressiveTokenDamage(lastBullet);
-            FollowImpact(point, lastBullet);
+            if (sfxSource != null && weapon.shotSfx != null)
+            {
+                sfxSource.PlayOneShot(weapon.shotSfx);
+            }
         }
 
-        private void ApplyProgressiveTokenDamage(bool lastBullet)
+        public void OnBulletImpact(Vector3 point, bool isLastBullet)
+        {
+            ApplyProgressiveDamage(isLastBullet);
+            if (isLastBullet)
+            {
+                StartFinalImpactCamera(point);
+                for (int i = 0; i < _eventListeners.Length; i++)
+                {
+                    _eventListeners[i].OnFinalImpact(_activeWeapon.weaponType, point);
+                }
+            }
+        }
+
+        private void ApplyProgressiveDamage(bool isLastBullet)
         {
             if (_tokenPieces.Count == 0)
                 return;
 
-            if (lastBullet)
+            if (isLastBullet)
             {
                 for (int i = 0; i < _tokenPieces.Count; i++)
                 {
@@ -172,14 +235,14 @@ namespace TonPlaygram.Gameplay.Weapons
                 return;
             }
 
-            int chunks = Mathf.Clamp(smallPieceHitsBeforeDestroy, 1, _tokenPieces.Count);
-            for (int i = 0; i < chunks; i++)
+            int maxPieces = Mathf.Clamp(minorPiecesPerNonFinalShot, 1, _tokenPieces.Count);
+            for (int i = 0; i < maxPieces; i++)
             {
                 _tokenPieces[i].DamageMinor();
             }
         }
 
-        private void EnterAimingCamera(WeaponBallisticsProfile weapon)
+        private void BeginAimCamera(WeaponBallisticsProfile weapon)
         {
             if (playerCamera == null)
                 return;
@@ -189,52 +252,71 @@ namespace TonPlaygram.Gameplay.Weapons
                 StopCoroutine(_cameraRoutine);
             }
 
-            _cameraRoutine = StartCoroutine(LerpFov(weapon.aimFov, weapon.aimTransitionSeconds));
+            _cameraRoutine = StartCoroutine(AimViewRoutine(weapon));
         }
 
-        private void FollowImpact(Vector3 point, bool lastBullet)
-        {
-            if (!lastBullet || playerCamera == null)
-                return;
-
-            if (_cameraRoutine != null)
-            {
-                StopCoroutine(_cameraRoutine);
-            }
-
-            _cameraRoutine = StartCoroutine(FollowImpactRoutine(point, _activeWeapon != null ? _activeWeapon.impactFollowSeconds : 1f));
-        }
-
-        private IEnumerator FollowImpactRoutine(Vector3 point, float seconds)
+        private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
         {
             float elapsed = 0f;
-            Quaternion from = playerCamera.transform.rotation;
-            Vector3 focus = point;
+            float duration = Mathf.Max(0.01f, weapon.aimTransitionSeconds);
+            float startFov = playerCamera.fieldOfView;
+            Vector3 startPos = playerCamera.transform.localPosition;
+            Vector3 targetLocalPos = _baseCameraLocalPos + firstPersonAimOffset;
 
-            while (elapsed < seconds)
+            while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                Vector3 dir = (focus - playerCamera.transform.position).normalized;
-                Quaternion to = Quaternion.LookRotation(dir, Vector3.up);
-                playerCamera.transform.rotation = Quaternion.Slerp(from, to, elapsed / seconds);
+                float t = Mathf.Clamp01(elapsed / duration);
+                playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
+                playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
                 yield return null;
             }
-
-            yield return LerpFov(_defaultFov, 0.2f);
         }
 
-        private IEnumerator LerpFov(float target, float seconds)
+        private void StartFinalImpactCamera(Vector3 point)
         {
             if (playerCamera == null)
-                yield break;
+                return;
 
-            float start = playerCamera.fieldOfView;
+            if (_cameraRoutine != null)
+            {
+                StopCoroutine(_cameraRoutine);
+            }
+
+            float seconds = _activeWeapon != null ? _activeWeapon.impactFollowSeconds : 1f;
+            _cameraRoutine = StartCoroutine(FinalImpactRoutine(point, seconds));
+        }
+
+        private IEnumerator FinalImpactRoutine(Vector3 impactPoint, float seconds)
+        {
             float t = 0f;
+            Quaternion startRot = playerCamera.transform.rotation;
+
             while (t < seconds)
             {
                 t += Time.deltaTime;
-                float k = seconds <= 0f ? 1f : Mathf.Clamp01(t / seconds);
-                playerCamera.fieldOfView = Mathf.Lerp(start, target, k);
+                Vector3 towardImpact = (impactPoint - playerCamera.transform.position).normalized;
+                Quaternion impactRot = Quaternion.LookRotation(towardImpact, Vector3.up);
+                playerCamera.transform.rotation = Quaternion.Slerp(startRot, impactRot, Mathf.Clamp01(t / seconds));
+                yield return null;
+            }
+
+            yield return StartCoroutine(ReturnCameraToDefault());
+        }
+
+        private IEnumerator ReturnCameraToDefault()
+        {
+            float elapsed = 0f;
+            const float duration = 0.2f;
+            float fromFov = playerCamera.fieldOfView;
+            Vector3 fromPos = playerCamera.transform.localPosition;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                playerCamera.fieldOfView = Mathf.Lerp(fromFov, _baseFov, t);
+                playerCamera.transform.localPosition = Vector3.Lerp(fromPos, _baseCameraLocalPos, t);
                 yield return null;
             }
         }
@@ -245,10 +327,10 @@ namespace TonPlaygram.Gameplay.Weapons
             for (int i = 0; i < weaponProfiles.Count; i++)
             {
                 WeaponBallisticsProfile profile = weaponProfiles[i];
-                if (profile == null || string.IsNullOrWhiteSpace(profile.weaponId))
+                if (profile == null)
                     continue;
 
-                _profiles[profile.weaponId] = profile;
+                _profiles[profile.weaponType] = profile;
             }
         }
 
@@ -266,17 +348,17 @@ namespace TonPlaygram.Gameplay.Weapons
     public sealed class BattleRoyaleBullet : MonoBehaviour
     {
         private Vector3 _velocity;
-        private BattleRoyaleWeaponDirector _director;
+        private float _life;
         private bool _isLastBullet;
-        private float _life = 5f;
         private bool _impactSent;
+        private BattleRoyaleWeaponDirector _director;
 
         public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, bool isLastBullet, float followSeconds)
         {
             _velocity = velocity;
             _director = director;
             _isLastBullet = isLastBullet;
-            _life = Mathf.Max(1.2f, followSeconds + 0.5f);
+            _life = Mathf.Max(1.2f, followSeconds + 0.55f);
         }
 
         private void Update()
@@ -302,21 +384,23 @@ namespace TonPlaygram.Gameplay.Weapons
 
     public sealed class TokenPieceHealth : MonoBehaviour
     {
-        [SerializeField] private int minorHitsToDetach = 3;
+        [SerializeField] private int minorHitsToDetach = 2;
         [SerializeField] private Rigidbody rb;
 
-        private int _hits;
+        private int _minorHits;
 
         private void Awake()
         {
             if (rb == null)
+            {
                 rb = GetComponent<Rigidbody>();
+            }
         }
 
         public void DamageMinor()
         {
-            _hits++;
-            if (_hits >= minorHitsToDetach)
+            _minorHits++;
+            if (_minorHits >= minorHitsToDetach)
             {
                 BreakCompletely();
             }
@@ -328,8 +412,8 @@ namespace TonPlaygram.Gameplay.Weapons
                 return;
 
             rb.isKinematic = false;
-            rb.AddExplosionForce(8f, transform.position + Vector3.back, 2f, 0.35f, ForceMode.Impulse);
-            rb.AddTorque(UnityEngine.Random.insideUnitSphere * 5f, ForceMode.Impulse);
+            rb.AddExplosionForce(8f, transform.position + Vector3.back, 2f, 0.3f, ForceMode.Impulse);
+            rb.AddTorque(UnityEngine.Random.insideUnitSphere * 5.5f, ForceMode.Impulse);
         }
     }
 }
