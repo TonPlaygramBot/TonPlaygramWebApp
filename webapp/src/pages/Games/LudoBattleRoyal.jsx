@@ -3201,6 +3201,8 @@ const SEATED_HUMAN_DICE_PHASES = Object.freeze({
   releaseMs: 260,
   followMs: 520
 });
+const FIREARM_ATTACK_CAMERA_PRIORITY = 12;
+const FIREARM_PROJECTILE_CAMERA_PRIORITY = 13;
 const SEATED_HUMAN_TOKEN_PHASES = Object.freeze({
   pickupMs: 220,
   gripMs: 180,
@@ -5696,6 +5698,7 @@ function applySeatedHumanPose(
   let headX = -0.06;
   let headY = 0;
   const bodyLockedMode = mode !== 'idle';
+  const keepDiceForwardBend = mode === 'reachDice' || mode === 'gripDice' || mode === 'holdDice';
 
   if (mode === 'firearmAim') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
@@ -5755,7 +5758,9 @@ function applySeatedHumanPose(
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     headX = THREE.MathUtils.lerp(headX, -0.18, t);
   } else if (mode === 'reachDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.78, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
+    headX = THREE.MathUtils.lerp(headX, -0.22, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.02, t);
@@ -5765,7 +5770,9 @@ function applySeatedHumanPose(
     wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
   } else if (mode === 'gripDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.32, t);
+    headX = THREE.MathUtils.lerp(headX, -0.2, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
@@ -5775,7 +5782,9 @@ function applySeatedHumanPose(
     wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
   } else if (mode === 'holdDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
+    headX = THREE.MathUtils.lerp(headX, -0.16, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.58, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.34, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
@@ -5875,7 +5884,7 @@ function applySeatedHumanPose(
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.28, t);
   }
 
-  if (bodyLockedMode) {
+  if (bodyLockedMode && !keepDiceForwardBend) {
     chestX = 0.12;
     chestY = 0;
     headX = -0.06;
@@ -10131,14 +10140,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(singleShotFirearm ? FIREARM_CAMERA_SIDE_PULLBACK * 0.62 : FIREARM_CAMERA_SIDE_PULLBACK)
+                    .multiplyScalar(singleShotFirearm ? FIREARM_CAMERA_SIDE_PULLBACK * 0.56 : FIREARM_CAMERA_SIDE_PULLBACK * 0.86)
                     .setY(singleShotFirearm ? FIREARM_CAMERA_LIFT * 1.35 : FIREARM_CAMERA_LIFT)
                 : new THREE.Vector3(0, FIREARM_CAMERA_LIFT, FIREARM_CAMERA_SIDE_PULLBACK);
             setCameraFocus({
               target: cameraMid,
               object: handWeaponAttachment?.weapon,
               follow: true,
-              priority: 9,
+              priority: FIREARM_ATTACK_CAMERA_PRIORITY,
               ttl: 0,
               offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.014) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
               followOffset,
@@ -10221,7 +10230,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 target: leadBulletPos,
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
-                priority: 10,
+                priority: FIREARM_PROJECTILE_CAMERA_PRIORITY,
                 ttl: 0,
                 offset: Math.max(0.02, (CAMERA_TARGET_LIFT + (singleShotFirearm ? 0.016 : 0.02)) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
                 followOffset: new THREE.Vector3(pullback.x, singleShotFirearm ? 0.08 : 0.09, pullback.z),
@@ -10232,7 +10241,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               setCameraFocus({
                 target: tracerFocus,
                 follow: true,
-                priority: 9,
+                priority: FIREARM_ATTACK_CAMERA_PRIORITY,
                 ttl: 0,
                 offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.015) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
                 followOffset: new THREE.Vector3(0, 0.08, -0.11),
