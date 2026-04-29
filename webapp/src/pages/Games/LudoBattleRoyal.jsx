@@ -545,13 +545,13 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polySmg01Attack: 28
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
-  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052 }),
-  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042 }),
-  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058 }),
-  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054 }),
-  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036 }),
-  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061 }),
-  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03 })
+  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletSpeed: 0.2, shellRadius: 0.0028 }),
+  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042, bulletRadius: 0.0034, bulletSpeed: 0.21, shellRadius: 0.0026 }),
+  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058, bulletRadius: 0.0033, bulletSpeed: 0.23, shellRadius: 0.0025 }),
+  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054, bulletRadius: 0.0038, bulletSpeed: 0.26, shellRadius: 0.003 }),
+  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036, bulletRadius: 0.0042, bulletSpeed: 0.29, shellRadius: 0.0032 }),
+  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061, bulletRadius: 0.0048, bulletSpeed: 0.17, shellRadius: 0.004 }),
+  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03, bulletRadius: 0.0058, bulletSpeed: 0.14, shellRadius: 0.0046 })
 });
 const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   glockSidearmAttack: 'pistol',
@@ -580,6 +580,34 @@ const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   polyShotgun03Attack: 'shotgun',
   polySawedOff01Attack: 'shotgun',
   grenadeBlastAttack: 'explosive'
+});
+const FIREARM_CALIBER_BY_ID = Object.freeze({
+  glockSidearmAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
+  smithSidearmAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
+  sigsauerTacticalAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
+  uziSprayAttack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
+  smgBurstAttack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
+  polySmg01Attack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
+  assaultRifleAttack: { bulletRadius: 0.0038, shellRadius: 0.0029, bulletSpeed: 0.27 },
+  ak47VolleyAttack: { bulletRadius: 0.0039, shellRadius: 0.003, bulletSpeed: 0.27 },
+  fpsGunAttack: { bulletRadius: 0.0038, shellRadius: 0.0029, bulletSpeed: 0.27 },
+  sniperShotAttack: { bulletRadius: 0.0045, shellRadius: 0.0034, bulletSpeed: 0.3 },
+  mosinMarksmanAttack: { bulletRadius: 0.0044, shellRadius: 0.0033, bulletSpeed: 0.3 },
+  shotgunBlastAttack: { bulletRadius: 0.0052, shellRadius: 0.0042, bulletSpeed: 0.18 },
+  polyShotgun01Attack: { bulletRadius: 0.005, shellRadius: 0.0041, bulletSpeed: 0.18 },
+  grenadeBlastAttack: { bulletRadius: 0.0062, shellRadius: 0.0047, bulletSpeed: 0.14 }
+});
+const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
+  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
+  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
+  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
@@ -9758,6 +9786,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     firearmShotSoundRef.current.currentTime = 0;
     firearmShotSoundRef.current.play().catch(() => {});
   };
+  const playWeaponSfxFromUrl = (url, volume = 1) => {
+    if (!settingsRef.current.soundEnabled || !url) return;
+    let audio = FIREARM_SOURCE_AUDIO_CACHE.get(url);
+    if (!audio) {
+      audio = new Audio(url);
+      audio.preload = 'auto';
+      FIREARM_SOURCE_AUDIO_CACHE.set(url, audio);
+    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = clamp(volume, 0, 1);
+    audio.play().catch(() => {});
+  };
   const playFirearmShellSound = () => {
     if (!settingsRef.current.soundEnabled || !firearmShellSoundRef.current) return;
     firearmShellSoundRef.current.currentTime = 0;
@@ -9923,6 +9964,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
           const ballisticsProfile = resolveFirearmBallisticsProfile(resolvedCaptureAnimationId);
+          const caliberProfile = FIREARM_CALIBER_BY_ID[resolvedCaptureAnimationId] ?? null;
+          const mergedBallistics = caliberProfile
+            ? { ...ballisticsProfile, ...caliberProfile }
+            : ballisticsProfile;
           const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
@@ -9930,6 +9975,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
+          const bulletGeometry = new THREE.SphereGeometry(mergedBallistics.bulletRadius, 10, 10);
+          const bulletMaterial = new THREE.MeshStandardMaterial({
+            color: '#d9dde2',
+            metalness: 0.95,
+            roughness: 0.16
+          });
+          const bullets = Array.from({ length: shots }, (_, index) => {
+            const mesh = new THREE.Mesh(bulletGeometry, bulletMaterial.clone());
+            mesh.visible = false;
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+            mesh.userData.spawnAt = preFireLeadMs + index * cadenceMs;
+            mesh.userData.completed = false;
+            scene.add(mesh);
+            return mesh;
+          });
           const targetReticle = createCaptureTargetReticleFx();
           const shellStates = shells.map(() => ({ landed: false, settledAt: 0 }));
           scene.add(muzzleFx.root);
@@ -10015,6 +10076,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   volume: 0.8 * getGameVolume(),
                   muted: !settingsRef.current.soundEnabled
                 });
+                const openSourceShotUrl = FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[resolvedCaptureAnimationId];
+                if (openSourceShotUrl) {
+                  playWeaponSfxFromUrl(openSourceShotUrl, 0.9 * getGameVolume());
+                }
               }
               const pulse = 1 - ((elapsedShooting % cadenceMs) / Math.max(1, cadenceMs));
               muzzleFx.flash.scale.setScalar(0.76 + pulse * 1.08);
@@ -10030,9 +10095,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               entry.root.visible = active;
               if (!active) return;
               const spread = new THREE.Vector3(
-                (Math.random() - 0.5) * ballisticsProfile.tracerSpread,
-                (Math.random() - 0.5) * ballisticsProfile.tracerSpread * 0.9,
-                (Math.random() - 0.5) * ballisticsProfile.tracerSpread
+                (Math.random() - 0.5) * mergedBallistics.tracerSpread,
+                (Math.random() - 0.5) * mergedBallistics.tracerSpread * 0.9,
+                (Math.random() - 0.5) * mergedBallistics.tracerSpread
               );
               const from = muzzleOrigin.clone().add(spread);
               const to = muzzleTarget.clone().add(spread.multiplyScalar(0.3));
@@ -10040,6 +10105,52 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const dir = to.clone().sub(from).normalize();
               entry.root.position.copy(mid);
               entry.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
+            });
+            bullets.forEach((bulletMesh, idx) => {
+              const spawnAt = Number(bulletMesh.userData?.spawnAt ?? 0);
+              const life = elapsed - spawnAt;
+              if (life < 0) {
+                bulletMesh.visible = false;
+                return;
+              }
+              const shotProgress = clamp((life * mergedBallistics.bulletSpeed) / Math.max(24, cadenceMs * 0.72), 0, 1);
+              const start = muzzleOrigin.clone();
+              const end = muzzleTarget.clone();
+              const bulletPos = start.lerp(end, shotProgress);
+              bulletMesh.visible = shotProgress < 0.995;
+              bulletMesh.position.copy(bulletPos);
+              if (shotProgress >= 0.995) {
+                bulletMesh.userData.completed = true;
+                bulletMesh.visible = false;
+              }
+              if (idx === shots - 1 && singleShotFirearm) {
+                const aimDirNow = muzzleTarget.clone().sub(muzzleOrigin).normalize();
+                const followOffset = aimDirNow
+                  .clone()
+                  .multiplyScalar(-0.11)
+                  .add(new THREE.Vector3(0, 0.08, 0.03));
+                setCameraFocus({
+                  target: bulletPos,
+                  follow: true,
+                  priority: 10,
+                  ttl: 0,
+                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.016) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                  followOffset,
+                  force: true
+                });
+              }
+              if (idx === shots - 1 && !singleShotFirearm && shotProgress > 0.86) {
+                const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.12);
+                setCameraFocus({
+                  target: bulletPos,
+                  follow: true,
+                  priority: 10,
+                  ttl: 0,
+                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.02) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                  followOffset: new THREE.Vector3(pullback.x, 0.09, pullback.z),
+                  force: true
+                });
+              }
             });
             shells.forEach((shell, idx) => {
               const shellState = shellStates[idx];
@@ -10058,12 +10169,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const nextY =
                 shellBase.y +
                 0.018 +
-                Math.sin((shellLife / 760) * Math.PI) * ballisticsProfile.shellArc -
+                Math.sin((shellLife / 760) * Math.PI) * mergedBallistics.shellArc -
                 shellLife * 0.00012;
               shell.position.set(
-                shellBase.x + shellLife * ballisticsProfile.shellDriftX,
+                shellBase.x + shellLife * mergedBallistics.shellDriftX,
                 nextY,
-                shellBase.z + shellLife * ballisticsProfile.shellDriftZ
+                shellBase.z + shellLife * mergedBallistics.shellDriftZ
               );
               if (shell.position.y <= tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006) {
                 shell.position.y = tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006;
@@ -10107,9 +10218,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells].forEach((obj) => {
+            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
+            bulletGeometry.dispose();
+            bulletMaterial.dispose();
             handWeaponAttachment?.release?.();
             if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
