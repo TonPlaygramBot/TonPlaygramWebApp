@@ -7809,13 +7809,14 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
-      // Keep captureAnimation pinned to index 0 because inventory reorder puts the equipped
-      // weapon at the front; storing a stale index can point at a different weapon after sync.
-      setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: 0 }));
+      const nextIdx = quickSwapCaptureOptions.findIndex((option) => option.id === optionId);
+      if (nextIdx >= 0) {
+        setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: nextIdx }));
+      }
       setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
     },
-    [resolvedAccountId, selectedCaptureAnimationId]
+    [quickSwapCaptureOptions, resolvedAccountId, selectedCaptureAnimationId]
   );
   useEffect(() => {
     const handler = (event) => {
