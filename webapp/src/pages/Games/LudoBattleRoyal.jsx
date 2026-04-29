@@ -3169,7 +3169,7 @@ const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const AUTO_ROLL_DURATION_MS = 1100;
-const DICE_RESULT_EXTRA_HOLD_MS = 3000;
+const DICE_RESULT_EXTRA_HOLD_MS = 4500;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -3221,14 +3221,14 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.066 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.128 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = 0.0032 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.022 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.031 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.064 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = 0.025 * MODEL_SCALE;
-const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.035;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.057 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.112 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.003 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.019 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.056 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = 0.011 * MODEL_SCALE;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = -0.01;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
@@ -4861,7 +4861,7 @@ function updateTokenSurfaceOffset(tableThemeId) {
     getShapedTableHeightLift(tableThemeId);
 }
 
-const DICE_SIZE = 0.062;
+const DICE_SIZE = 0.054;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -12107,7 +12107,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 70 });
+    await syncDiceToThrowHand(player, dice, { duration: 12 });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
