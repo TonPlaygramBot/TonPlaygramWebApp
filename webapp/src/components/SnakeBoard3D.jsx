@@ -85,8 +85,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.75;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.65 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.25;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.1 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -94,7 +94,7 @@ const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
-const HUMAN_LEG_FRONT_OFFSET = 0;
+const HUMAN_LEG_FRONT_OFFSET = -0.05;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1741,8 +1741,8 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.56, 0.28, 0.08, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.56, -0.28, -0.08, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));

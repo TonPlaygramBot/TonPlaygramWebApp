@@ -3827,11 +3827,30 @@ export default function SnakeAndLadder() {
             onClick={() => setWeaponSwapOpen((prev) => !prev)}
             className="rounded-full border border-rose-300/70 bg-black/70 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-rose-100 shadow-[0_10px_25px_rgba(244,63,94,0.35)] transition hover:border-rose-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
           >
-            🔫 Swap
+            🔫 Swap · {resolvedAppearance?.captureWeapon?.label || 'Weapon'}
           </button>
           {weaponSwapOpen && (
             <div className="absolute bottom-12 right-0 w-[min(19rem,84vw)] max-h-[52vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/90 p-3 shadow-[0_22px_55px_rgba(2,6,23,0.65)] backdrop-blur-xl">
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/70">Quick weapon swap</p>
+
+              <p className="mt-2 text-[10px] uppercase tracking-[0.24em] text-rose-200/85">Parked weapons by seat</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(players || []).slice(0, 4).map((player, idx) => {
+                  const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : idx;
+                  const weapon = normalizeCaptureWeaponId(player?.weaponType || selectedCaptureWeaponId);
+                  const weaponLabel = CAPTURE_WEAPON_OPTIONS.find((item) => item.id === weapon)?.label || weapon;
+                  return (
+                    <div
+                      key={`parked-weapon-${seatIndex}`}
+                      className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/80"
+                    >
+                      <span className="mr-1 font-semibold uppercase tracking-[0.2em] text-rose-100">S{seatIndex + 1}</span>
+                      <span className="uppercase tracking-[0.1em]">{weaponLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div className="mt-2 space-y-2">
                 {CAPTURE_WEAPON_OPTIONS.map((option) => {
                   const selected = selectedCaptureWeaponId === option.id;
@@ -3842,7 +3861,6 @@ export default function SnakeAndLadder() {
                       type="button"
                       onClick={() => {
                         setAppearance((prev) => normalizeAppearance({ ...prev, captureWeapon: optionIndex }));
-                        setWeaponSwapOpen(false);
                       }}
                       className={`flex w-full items-center gap-3 rounded-xl border px-2 py-2 text-left transition ${
                         selected
