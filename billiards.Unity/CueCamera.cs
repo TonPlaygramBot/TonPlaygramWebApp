@@ -71,7 +71,7 @@ public class CueCamera : MonoBehaviour
     public float tableAssetHeightOffset = 0.01f;
     // Slight vertical offset applied to the look target so the cue ball remains
     // comfortably framed in portrait view.
-    public float cueBallLookOffset = 0.02f;
+    public float cueBallLookOffset = 0.012f;
     // How quickly the aiming axis aligns to the current cue direction.
     public float cueAxisSmoothSpeed = 6f;
     // Field of view used when the camera is fully raised above the cue.
@@ -107,9 +107,9 @@ public class CueCamera : MonoBehaviour
     // Distance in front of the eye anchor used for the look target.
     public float eyeViewLookAhead = 1.1f;
     // Slight inward offset to avoid clipping through eyebrows/face meshes.
-    public float eyeViewForwardOffset = 0.03f;
+    public float eyeViewForwardOffset = 0f;
     // Vertical offset to center the cue in first-person framing.
-    public float eyeViewHeightOffset = -0.005f;
+    public float eyeViewHeightOffset = 0f;
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
@@ -345,6 +345,7 @@ public class CueCamera : MonoBehaviour
     private float smoothedCueDistance;
     private bool hasSmoothedCueDistance;
     private float eyeViewBlend;
+    private bool attemptedEyeAnchorAutoBind;
     private float cueStrikeHoldUntilTime;
     private bool forceImmediateRailOverheadOnNextShot;
     private bool holdCueAimDuringShot;
@@ -796,6 +797,8 @@ public class CueCamera : MonoBehaviour
 
     private void ApplyEyeViewOverride(Vector3 cueForward, float cueLoweringBlend, float deltaTime)
     {
+        AutoBindEyeAnchor();
+
         float targetBlend = 0f;
         if (!shotInProgress && playerEyeAnchor != null)
         {
@@ -834,6 +837,31 @@ public class CueCamera : MonoBehaviour
         Quaternion eyeRotation = Quaternion.LookRotation(lookDir.normalized, Vector3.up);
         transform.position = Vector3.Lerp(transform.position, eyePos, eyeViewBlend);
         transform.rotation = Quaternion.Slerp(transform.rotation, eyeRotation, eyeViewBlend);
+    }
+
+    private void AutoBindEyeAnchor()
+    {
+        if (playerEyeAnchor != null || attemptedEyeAnchorAutoBind)
+        {
+            return;
+        }
+
+        attemptedEyeAnchorAutoBind = true;
+
+        PoolHumanPoseDriver poseDriver = FindObjectOfType<PoolHumanPoseDriver>();
+        if (poseDriver == null)
+        {
+            return;
+        }
+
+        if (poseDriver.head != null)
+        {
+            playerEyeAnchor = poseDriver.head;
+        }
+        else if (poseDriver.neck != null)
+        {
+            playerEyeAnchor = poseDriver.neck;
+        }
     }
 
     private float ResolveCueAimDistance(
