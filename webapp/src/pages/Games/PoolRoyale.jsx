@@ -117,10 +117,28 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
-import {
-  chooseHumanEdgePosition as chooseBilardoHumanEdgePosition,
-} from './shared/bilardoHumanRig.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
+
+
+const BILARDO_HUMAN_CFG = {
+  edgeMargin: 0.58,
+  desiredShootDistance: 1.06,
+};
+
+function chooseBilardoHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
+  const desired = cueBallWorld
+    .clone()
+    .addScaledVector(aimForward, -(opts.desiredShootDistance ?? BILARDO_HUMAN_CFG.desiredShootDistance));
+  const xEdge = (opts.tableW ?? 2.0) / 2 + (opts.edgeMargin ?? BILARDO_HUMAN_CFG.edgeMargin);
+  const zEdge = (opts.tableL ?? 3.6) / 2 + (opts.edgeMargin ?? BILARDO_HUMAN_CFG.edgeMargin);
+  const candidates = [
+    new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge),
+  ];
+  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+}
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
