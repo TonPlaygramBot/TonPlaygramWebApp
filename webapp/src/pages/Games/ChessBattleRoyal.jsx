@@ -7761,10 +7761,16 @@ function Chess3D({
     return [...firearm, ...other];
   }, [ownedCaptureAnimations]);
   const selectedCaptureAnimationId = useMemo(() => {
+    const equippedId = Array.isArray(chessInventory?.captureAnimation)
+      ? chessInventory.captureAnimation.find((optionId) =>
+          quickSwapCaptureOptions.some((option) => option.id === optionId)
+        )
+      : null;
+    if (equippedId) return equippedId;
     const selectedFromAppearance = quickSwapCaptureOptions[appearance.captureAnimation]?.id;
     if (selectedFromAppearance) return selectedFromAppearance;
     return quickSwapCaptureOptions[0]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
-  }, [appearance.captureAnimation, quickSwapCaptureOptions]);
+  }, [appearance.captureAnimation, chessInventory, quickSwapCaptureOptions]);
   const randomCaptureAnimationId = useCallback((sourceOptions = CAPTURE_ANIMATION_OPTIONS) => {
     const list = Array.isArray(sourceOptions) ? sourceOptions.filter(Boolean) : [];
     if (!list.length) return CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
@@ -7806,6 +7812,12 @@ function Chess3D({
     aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
   }, [ownedCaptureAnimations, randomCaptureAnimationId]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
+  useEffect(() => {
+    const selectedIdx = quickSwapCaptureOptions.findIndex((option) => option.id === selectedCaptureAnimationId);
+    if (selectedIdx < 0) return;
+    if (appearance.captureAnimation === selectedIdx) return;
+    setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: selectedIdx }));
+  }, [appearance.captureAnimation, quickSwapCaptureOptions, selectedCaptureAnimationId]);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
