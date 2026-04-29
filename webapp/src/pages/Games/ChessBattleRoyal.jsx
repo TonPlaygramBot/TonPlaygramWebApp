@@ -205,41 +205,6 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
-const CHESS_WEAPON_PANEL_ORDER = Object.freeze([
-  'polyShotgun01Attack',
-  'polyAssaultRifle01Attack',
-  'polyPistol01Attack',
-  'polyRevolver01Attack',
-  'polySawedOff01Attack',
-  'polyRevolver02Attack',
-  'polyShotgun02Attack',
-  'polyShotgun03Attack',
-  'polySmg01Attack',
-  'ak47VolleyAttack',
-  'krsvBurstAttack',
-  'smithSidearmAttack',
-  'mosinMarksmanAttack',
-  'uziSprayAttack',
-  'sigsauerTacticalAttack',
-  'sniperShotAttack',
-  'fpsGunAttack',
-  'marksmanDmrAttack'
-]);
-const VEHICLE_CAPTURE_KINDS = new Set(['truck', 'drone', 'jet', 'helicopter']);
-const FIREARM_CAPTURE_KIND = 'firearm';
-
-function resolveVehicleCaptureKind(optionId, fallbackKind = null) {
-  const mapped = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[optionId];
-  if (VEHICLE_CAPTURE_KINDS.has(mapped)) return mapped;
-  return VEHICLE_CAPTURE_KINDS.has(fallbackKind) ? fallbackKind : null;
-}
-
-function resolveCaptureKindFromAnimationId(optionId, fallbackKind = 'truck') {
-  const vehicleKind = resolveVehicleCaptureKind(optionId, fallbackKind);
-  if (vehicleKind) return vehicleKind;
-  if (FIREARM_CAPTURE_ANIMATION_IDS.has(optionId)) return FIREARM_CAPTURE_KIND;
-  return fallbackKind;
-}
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
@@ -476,12 +441,12 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.88;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
-const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.004;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.64;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
@@ -498,9 +463,9 @@ const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
-const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.97;
-const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.001;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.003;
+const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.004;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
@@ -804,18 +769,18 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
 
   // Baseline pose tuned to match the seated portrait reference:
   // upright torso, shoulders open, both arms spread and hovering over chair arms.
-  addBonePos(rig, rig.hips, 0, -0.384, -0.052);
+  addBonePos(rig, rig.hips, 0, -0.332, -0.052);
   addBoneRot(rig, rig.hips, -0.08, 0, 0);
   addBoneRot(rig, rig.spine, 0.18 + breathe, 0, 0);
   addBoneRot(rig, rig.chest, 0.16 + breathe * 0.5, 0, 0);
   addBoneRot(rig, rig.neck, -0.02, 0, 0);
   addBoneRot(rig, rig.head, -0.03, 0, 0);
 
-  addBoneRot(rig, rig.leftUpperLeg, -1.32, 0.14, 0.04);
-  addBoneRot(rig, rig.leftLowerLeg, -1.34, 0.02, 0.01);
+  addBoneRot(rig, rig.leftUpperLeg, -1.18, 0.14, 0.04);
+  addBoneRot(rig, rig.leftLowerLeg, -1.2, 0.02, 0.01);
   addBoneRot(rig, rig.leftFoot, 0.14, 0.04, 0.02);
-  addBoneRot(rig, rig.rightUpperLeg, -1.32, 0.02, -0.03);
-  addBoneRot(rig, rig.rightLowerLeg, -1.34, -0.02, -0.01);
+  addBoneRot(rig, rig.rightUpperLeg, -1.18, 0.02, -0.03);
+  addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
   addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
@@ -883,18 +848,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
     headX = THREE.MathUtils.lerp(headX, 0.11, t);
-  } else if (mode === 'pressStrikeButton') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.04, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.92, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.28, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.24, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
-    headX = THREE.MathUtils.lerp(headX, 0.13, t);
   }
 
   const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
@@ -2644,7 +2597,6 @@ const DEFAULT_APPEARANCE = {
   whitePieceStyle: 0,
   blackPieceStyle: 1,
   headStyle: 0,
-  captureAnimation: 0,
   humanCharacter: 0,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
@@ -2686,61 +2638,6 @@ const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much f
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
-const SHOW_SIDE_PARKING_MARKINGS = false;
-const SHOW_BOARD_SIDE_MARKINGS = false;
-const VEHICLE_BUTTON_CAPTURE_KINDS = new Set(['truck', 'drone', 'helicopter', 'jet']);
-
-function createParkedFirearmDisplay(optionLabel = 'Weapon') {
-  const root = new THREE.Group();
-  const stand = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.26, 0.3, 20),
-    new THREE.MeshStandardMaterial({
-      color: '#111827',
-      metalness: 0.42,
-      roughness: 0.58
-    })
-  );
-  stand.position.y = 0.15;
-  root.add(stand);
-
-  const weaponBar = new THREE.Mesh(
-    new THREE.BoxGeometry(0.86, 0.1, 0.14),
-    new THREE.MeshStandardMaterial({
-      color: '#dbeafe',
-      metalness: 0.3,
-      roughness: 0.38
-    })
-  );
-  weaponBar.position.set(0.08, 0.34, 0);
-  root.add(weaponBar);
-
-  const grip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.15, 0.24, 0.12),
-    new THREE.MeshStandardMaterial({
-      color: '#f59e0b',
-      metalness: 0.12,
-      roughness: 0.84
-    })
-  );
-  grip.position.set(-0.2, 0.16, 0.02);
-  grip.rotation.z = THREE.MathUtils.degToRad(18);
-  root.add(grip);
-
-  const muzzle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 0.24, 12),
-    new THREE.MeshStandardMaterial({
-      color: '#93c5fd',
-      metalness: 0.68,
-      roughness: 0.24
-    })
-  );
-  muzzle.rotation.z = Math.PI / 2;
-  muzzle.position.set(0.52, 0.34, 0);
-  root.add(muzzle);
-
-  root.userData.weaponLabel = optionLabel;
-  return { root };
-}
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -2759,7 +2656,6 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
     ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
@@ -2774,7 +2670,6 @@ function normalizeAppearance(value = {}) {
   normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
   normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
-  if (!Number.isFinite(normalized.captureAnimation)) normalized.captureAnimation = DEFAULT_APPEARANCE.captureAnimation;
   if (!Number.isFinite(normalized.humanCharacter)) normalized.humanCharacter = DEFAULT_APPEARANCE.humanCharacter;
   return normalized;
 }
@@ -3681,28 +3576,16 @@ function normalizeModel(object, targetSize) {
 }
 
 function prepareCaptureModel(root) {
-  const maxAnisotropy = 8;
-  const normalizeTexture = (texture, isColor = false) => {
-    if (!texture) return;
-    if (isColor) applySRGBColorSpace(texture);
-    // Keep GLTF-authored UV transforms/wrap modes so original baked textures render as authored.
-    texture.flipY = false;
-    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
-    texture.needsUpdate = true;
-  };
-
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
-      normalizeTexture(material?.map, true);
-      normalizeTexture(material?.emissiveMap, true);
-      normalizeTexture(material?.normalMap, false);
-      normalizeTexture(material?.roughnessMap, false);
-      normalizeTexture(material?.metalnessMap, false);
-      normalizeTexture(material?.aoMap, false);
+      if (material?.map) applySRGBColorSpace(material.map);
+      if (material?.emissiveMap) {
+        applySRGBColorSpace(material.emissiveMap);
+      }
       if (material && 'envMapIntensity' in material) {
         material.envMapIntensity = 1.1;
         material.needsUpdate = true;
@@ -7743,129 +7626,53 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
-  const preferredAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
-  const localInventoryAccountId = useMemo(() => chessBattleAccountId(), []);
+  const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
   const [inventoryVersion, setInventoryVersion] = useState(0);
-  const resolvedAccountId = useMemo(() => {
-    if (preferredAccountId === localInventoryAccountId) return preferredAccountId;
-    const preferredInventory = getChessBattleInventory(preferredAccountId);
-    const localInventory = getChessBattleInventory(localInventoryAccountId);
-    const preferredCount = Array.isArray(preferredInventory?.captureAnimation)
-      ? preferredInventory.captureAnimation.length
-      : 0;
-    const localCount = Array.isArray(localInventory?.captureAnimation)
-      ? localInventory.captureAnimation.length
-      : 0;
-    return localCount > preferredCount ? localInventoryAccountId : preferredAccountId;
-  }, [inventoryVersion, localInventoryAccountId, preferredAccountId]);
   const chessInventory = useMemo(
     () => getChessBattleInventory(resolvedAccountId),
     [resolvedAccountId, inventoryVersion]
   );
-  const ownedCaptureAnimations = useMemo(() => {
-    const ownedIds = Array.isArray(chessInventory?.captureAnimation) ? chessInventory.captureAnimation : [];
-    const uniqueIds = Array.from(new Set(ownedIds.filter(Boolean)));
-    const ownedOptions = uniqueIds
-      .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
-      .filter(Boolean);
-    if (ownedOptions.length > 0) return ownedOptions;
-    return CAPTURE_ANIMATION_OPTIONS[0] ? [CAPTURE_ANIMATION_OPTIONS[0]] : [];
-  }, [chessInventory]);
-  const quickSwapCaptureOptions = useMemo(() => {
-    const byId = new Map(ownedCaptureAnimations.map((option) => [option.id, option]));
-    const ordered = CHESS_WEAPON_PANEL_ORDER.map((id) => byId.get(id)).filter(Boolean);
-    if (ordered.length) return ordered;
-    const firearm = [];
-    const other = [];
-    ownedCaptureAnimations.forEach((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) firearm.push(option);
-      else other.push(option);
-    });
-    return [...firearm, ...other];
-  }, [ownedCaptureAnimations]);
   const selectedCaptureAnimationId = useMemo(() => {
-    const equippedId = Array.isArray(chessInventory?.captureAnimation)
-      ? chessInventory.captureAnimation.find((optionId) =>
-          quickSwapCaptureOptions.some((option) => option.id === optionId)
-        )
-      : null;
-    if (equippedId) return equippedId;
-    const selectedFromAppearance = quickSwapCaptureOptions[appearance.captureAnimation]?.id;
-    if (selectedFromAppearance) return selectedFromAppearance;
-    return quickSwapCaptureOptions[0]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
-  }, [appearance.captureAnimation, chessInventory, quickSwapCaptureOptions]);
-  const randomCaptureAnimationId = useCallback((sourceOptions = CAPTURE_ANIMATION_OPTIONS) => {
-    const list = Array.isArray(sourceOptions) ? sourceOptions.filter(Boolean) : [];
-    if (!list.length) return CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
-    return list[Math.floor(Math.random() * list.length)]?.id || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
-  }, []);
-  const aiCaptureAnimationIdRef = useRef(randomCaptureAnimationId());
+    const owned = chessInventory?.captureAnimation;
+    return (Array.isArray(owned) && owned[0]) || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+  }, [chessInventory]);
   const selectedCaptureKind = useMemo(() => {
-    return resolveCaptureKindFromAnimationId(selectedCaptureAnimationId, 'truck');
+    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
+    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
   }, [selectedCaptureAnimationId]);
-  const ownedVehicleCaptureKind = useMemo(() => {
-    for (const option of ownedCaptureAnimations) {
-      const kind = resolveVehicleCaptureKind(option?.id);
-      if (kind) return kind;
-    }
-    return 'truck';
-  }, [ownedCaptureAnimations]);
   const selectedParkedWeaponKind = useMemo(
-    () =>
-      resolveVehicleCaptureKind(selectedCaptureAnimationId, ownedVehicleCaptureKind) ||
-      (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId) ? FIREARM_CAPTURE_KIND : 'truck'),
-    [ownedVehicleCaptureKind, selectedCaptureAnimationId]
+    () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
+    [selectedCaptureAnimationId]
   );
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
-  const ownedCaptureKinds = useMemo(
-    () =>
-      new Set(
-        ownedCaptureAnimations.map((option) => resolveCaptureKindFromAnimationId(option?.id, 'truck')).filter(Boolean)
-      ),
-    [ownedCaptureAnimations]
-  );
-  const ownedCaptureKindsRef = useRef(ownedCaptureKinds);
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
-  useEffect(() => {
-    ownedCaptureKindsRef.current = ownedCaptureKinds;
-  }, [ownedCaptureKinds]);
-  useEffect(() => {
-    aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
-  }, [ownedCaptureAnimations, randomCaptureAnimationId]);
-  const [weaponSwapOpen, setWeaponSwapOpen] = useState(true);
-  useEffect(() => {
-    const selectedIdx = quickSwapCaptureOptions.findIndex((option) => option.id === selectedCaptureAnimationId);
-    if (selectedIdx < 0) return;
-    if (appearance.captureAnimation === selectedIdx) return;
-    setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: selectedIdx }));
-  }, [appearance.captureAnimation, quickSwapCaptureOptions, selectedCaptureAnimationId]);
+  const ownedCaptureAnimations = useMemo(
+    () =>
+      (chessInventory?.captureAnimation || [])
+        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+        .filter(Boolean),
+    [chessInventory]
+  );
+  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
-      const nextIdx = quickSwapCaptureOptions.findIndex((option) => option.id === optionId);
-      if (nextIdx >= 0) {
-        setAppearance((prev) => normalizeAppearance({ ...prev, captureAnimation: nextIdx }));
-      }
       setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
     },
-    [quickSwapCaptureOptions, resolvedAccountId, selectedCaptureAnimationId]
+    [resolvedAccountId, selectedCaptureAnimationId]
   );
   useEffect(() => {
     const handler = (event) => {
-      if (
-        !event?.detail?.accountId ||
-        event.detail.accountId === resolvedAccountId ||
-        event.detail.accountId === localInventoryAccountId
-      ) {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
-  }, [localInventoryAccountId, resolvedAccountId]);
+  }, [resolvedAccountId]);
   const [p1QuickIdx, setP1QuickIdx] = useState(2);
   const [p2QuickIdx, setP2QuickIdx] = useState(3);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
@@ -7933,7 +7740,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('2d');
+  const [viewMode, setViewMode] = useState('3d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -8210,7 +8017,6 @@ function Chess3D({
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableFinish: TABLE_FINISH_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
-        captureAnimation: quickSwapCaptureOptions,
         humanCharacter: HUMAN_CHARACTER_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
       };
@@ -8236,7 +8042,7 @@ function Chess3D({
       });
       return changed ? next : normalized;
     },
-    [chessInventory, quickSwapCaptureOptions]
+    [chessInventory]
   );
 
   useEffect(() => {
@@ -9131,11 +8937,11 @@ function Chess3D({
       });
     }
 
-    if (shouldRefreshBoardPieces && isBeautifulGameSet && arena.piecePrototypes) {
+    if (isBeautifulGameSet && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
     }
 
-    if (shouldRefreshBoardPieces && arena.allPieceMeshes) {
+    if (arena.allPieceMeshes) {
       if (isBeautifulGameSet) {
         applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
@@ -9918,11 +9724,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Always start every new match in 2D mode on portrait flow.
+    // Always start every new match in cinematic 3D mode before any user toggle.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '2d';
-    setViewMode('2d');
-    setViewModeInternal('2d');
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -10628,27 +10434,6 @@ function Chess3D({
       const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
-    const getAttackButtonAnchor = (isWhiteSide) => {
-      const sideX = (isWhiteSide ? -1 : 1) * (half + tile * 1.9);
-      const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + 0.22;
-      return new THREE.Vector3(sideX, yOffset, 0);
-    };
-    const placeParkedUnitOnPad = (root, padPosition, yaw = 0) => {
-      if (!root || !padPosition) return;
-      root.position.copy(padPosition);
-      root.rotation.y = yaw;
-      root.updateMatrixWorld(true);
-      const bounds = new THREE.Box3().setFromObject(root);
-      if (!bounds.isEmpty()) {
-        const center = new THREE.Vector3();
-        bounds.getCenter(center);
-        const centerDeltaX = padPosition.x - center.x;
-        const centerDeltaZ = padPosition.z - center.z;
-        root.position.x += centerDeltaX;
-        root.position.z += centerDeltaZ;
-      }
-      root.updateMatrixWorld(true);
-    };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
       const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
       if (!preferred?.root) return null;
@@ -11324,10 +11109,7 @@ function Chess3D({
         }
         return timing;
       };
-      const movingIsWhite = Boolean(movingMesh?.userData?.w);
-      const movingIsAi = movingIsWhite === aiPlaysWhite;
-      const captureAnimationId = movingIsAi ? aiCaptureAnimationIdRef.current : selectedCaptureAnimationId;
-      const captureKind = resolveCaptureKindFromAnimationId(captureAnimationId, selectedCaptureKind);
+      const captureKind = selectedCaptureKind;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -11625,44 +11407,14 @@ function Chess3D({
       marker.add(text);
       airPadGroup.add(marker);
     };
-    if (SHOW_SIDE_PARKING_MARKINGS) {
-      addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
-      addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
-    }
-    const addAttackButtonMarker = (isWhiteSide) => {
-      const root = new THREE.Group();
-      root.position.copy(getAttackButtonAnchor(isWhiteSide));
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(tile * 0.16, tile * 0.2, tile * 0.08, 18),
-        new THREE.MeshStandardMaterial({ color: '#0b1020', roughness: 0.56, metalness: 0.3 })
-      );
-      base.castShadow = true;
-      base.receiveShadow = true;
-      root.add(base);
-      const button = new THREE.Mesh(
-        new THREE.SphereGeometry(tile * 0.13, 18, 14),
-        new THREE.MeshStandardMaterial({
-          color: '#ef4444',
-          emissive: new THREE.Color('#7f1d1d'),
-          emissiveIntensity: 0.42,
-          roughness: 0.3,
-          metalness: 0.26
-        })
-      );
-      button.position.y = tile * 0.05;
-      button.scale.y = 0.66;
-      button.castShadow = true;
-      root.add(button);
-      airPadGroup.add(root);
-    };
-    addAttackButtonMarker(true);
-    addAttackButtonMarker(false);
+    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
+    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
     // Tiles
     const tiles = [];
@@ -11692,32 +11444,30 @@ function Chess3D({
 
     // Coordinates (optional minimal markers)
     const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
-    if (SHOW_BOARD_SIDE_MARKINGS) {
-      for (let i = 0; i < N; i++) {
-        const mSmall = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.08, 0.8),
+    for (let i = 0; i < N; i++) {
+      const mSmall = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.08, 0.8),
+        coordMat
+      );
+      mSmall.rotation.x = -Math.PI / 2;
+        mSmall.position.set(
+          i * tile - half + tile / 2,
+          BOARD.baseH + 0.13,
+          -half - 0.6
+        );
+        boardVisualGroup.add(mSmall);
+        const nSmall = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.8, 0.08),
           coordMat
         );
-        mSmall.rotation.x = -Math.PI / 2;
-          mSmall.position.set(
-            i * tile - half + tile / 2,
-            BOARD.baseH + 0.13,
-            -half - 0.6
-          );
-          boardVisualGroup.add(mSmall);
-          const nSmall = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.8, 0.08),
-            coordMat
-          );
-          nSmall.rotation.x = -Math.PI / 2;
-        nSmall.position.set(
-            -half - 0.6,
-            BOARD.baseH + 0.13,
-            i * tile - half + tile / 2
-          );
-          boardVisualGroup.add(nSmall);
+        nSmall.rotation.x = -Math.PI / 2;
+      nSmall.position.set(
+          -half - 0.6,
+          BOARD.baseH + 0.13,
+          i * tile - half + tile / 2
+        );
+        boardVisualGroup.add(nSmall);
       }
-    }
 
     let proceduralBoardVisible = false;
     const setProceduralBoardVisible = () => {
@@ -12021,7 +11771,8 @@ function Chess3D({
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
-          placeParkedUnitOnPad(jet.root, jetPad, isWhite ? -Math.PI * 0.15 : Math.PI * 1.15);
+          jet.root.position.copy(jetPad);
+          jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
           const jetHomeRotation = jet.root.rotation.clone();
           airPadGroup.add(jet.root);
           parkedAirUnits.push({
@@ -12045,11 +11796,8 @@ function Chess3D({
           );
           attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
           const heliPad = getAirPadAnchor(isWhite, 'helicopter', slot);
-          placeParkedUnitOnPad(
-            helicopter.root,
-            heliPad,
-            isWhite ? -Math.PI * 0.1 : Math.PI * 1.1
-          );
+          helicopter.root.position.copy(heliPad);
+          helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
           const heliHomeRotation = helicopter.root.rotation.clone();
           airPadGroup.add(helicopter.root);
           parkedAirUnits.push({
@@ -12069,7 +11817,8 @@ function Chess3D({
         if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
         attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
         const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
-        placeParkedUnitOnPad(sideDrone.root, dronePad, isWhite ? -Math.PI * 0.13 : Math.PI * 1.13);
+        sideDrone.root.position.copy(dronePad);
+        sideDrone.root.rotation.y = isWhite ? -Math.PI * 0.13 : Math.PI * 1.13;
         const droneHomeRotation = sideDrone.root.rotation.clone();
         airPadGroup.add(sideDrone.root);
         parkedAirUnits.push({
@@ -12100,11 +11849,8 @@ function Chess3D({
         }
         attachVehicleAvatarBadge(supportTruck.root, badge, isWhite ? 1 : -1);
         const truckPad = getAirPadAnchor(isWhite, 'truck', 0);
-        placeParkedUnitOnPad(
-          supportTruck.root,
-          truckPad,
-          isWhite ? -Math.PI * 0.18 : Math.PI * 1.18
-        );
+        supportTruck.root.position.copy(truckPad);
+        supportTruck.root.rotation.y = isWhite ? -Math.PI * 0.18 : Math.PI * 1.18;
         const truckHomeRotation = supportTruck.root.rotation.clone();
         airPadGroup.add(supportTruck.root);
         parkedAirUnits.push({
@@ -12118,41 +11864,11 @@ function Chess3D({
           ...supportTruck,
           root: supportTruck.root
         });
-
-        const firearmDisplay = createParkedFirearmDisplay(
-          CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === selectedCaptureAnimationId)?.label || 'Weapon'
-        );
-        firearmDisplay.root.scale.setScalar(
-          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER * 0.44
-        );
-        const firearmPad = getAirPadAnchor(isWhite, 'truck', 0);
-        placeParkedUnitOnPad(
-          firearmDisplay.root,
-          firearmPad.clone().add(new THREE.Vector3(0, CAPTURE_TILE_HEIGHT * 0.36, 0)),
-          isWhite ? -Math.PI * 0.18 : Math.PI * 1.18
-        );
-        airPadGroup.add(firearmDisplay.root);
-        parkedAirUnits.push({
-          kind: FIREARM_CAPTURE_KIND,
-          isWhite,
-          slot: 0,
-          busy: false,
-          rotorsActive: false,
-          homePosition: firearmPad.clone(),
-          homeRotation: firearmDisplay.root.rotation.clone(),
-          ...firearmDisplay,
-          root: firearmDisplay.root
-        });
       });
       const currentCaptureKind = selectedParkedWeaponKindRef.current;
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        const isLocalSide = unit.isWhite !== aiPlaysWhite;
-        const localOwnedKinds = ownedCaptureKindsRef.current;
-        unit.root.visible =
-          unit.busy ||
-          unit.kind === currentCaptureKind ||
-          (isLocalSide && localOwnedKinds instanceof Set && localOwnedKinds.has(unit.kind));
+        unit.root.visible = unit.busy || unit.kind === currentCaptureKind;
       });
     };
 
@@ -12849,10 +12565,6 @@ function Chess3D({
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
           isCapture: Boolean(capturedPiece),
-          usesVehicleButton: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind),
-          buttonWorldPos: Boolean(capturedPiece) && VEHICLE_BUTTON_CAPTURE_KINDS.has(selectedCaptureKind)
-            ? getAttackButtonAnchor(moverSeatIndex === 0).clone()
-            : null,
           forwardReach,
           sideReach,
           gripOffset: null,
@@ -13238,7 +12950,6 @@ function Chess3D({
       }
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
       if (!shouldTriggerAiMove(activeTurnWhite)) return;
-      aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
       aiMovingRef.current = true;
       const mv = bestAIMove(board, activeTurnWhite, 4);
       if (!mv) {
@@ -13850,15 +13561,10 @@ function Chess3D({
           const carryPhaseEnd = action.isCapture
             ? SEATED_HUMAN_ATTACK_CARRY_PHASE_END
             : SEATED_HUMAN_CARRY_PHASE_END;
-          const buttonPhaseEnd = action.usesVehicleButton ? 0.22 : 0;
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (action.usesVehicleButton && u < buttonPhaseEnd) {
-            mode = 'pressStrikeButton';
-            intensity = clamp01(u / Math.max(0.001, buttonPhaseEnd));
-            grip = 0.08;
-          } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+          if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
@@ -13928,13 +13634,7 @@ function Chess3D({
             const liftedTo = liveTo.clone();
             liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
             let handTarget = liveFrom.clone();
-            if (action.usesVehicleButton && u < buttonPhaseEnd && action.buttonWorldPos) {
-              const pressT = smoothEase(clamp01(u / Math.max(0.001, buttonPhaseEnd)));
-              const pressStart = liveFrom.clone().setY(liftedFrom.y);
-              const pressTarget = action.buttonWorldPos.clone();
-              handTarget.lerpVectors(pressStart, pressTarget, pressT);
-              action.mesh.position.copy(pressStart);
-            } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+            if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
               handTarget.lerpVectors(liveFrom, liftedFrom, pickupT);
               action.mesh.position.copy(handTarget);
@@ -13963,17 +13663,6 @@ function Chess3D({
               } else {
                 handTarget.copy(carryTarget);
                 action.mesh.position.copy(carryTarget);
-              }
-              if (action.isCapture) {
-                const aimTarget = liveTo.clone();
-                const aimDir = aimTarget.sub(action.mesh.position);
-                if (aimDir.lengthSq() > 1e-6) {
-                  const aimQuat = new THREE.Quaternion().setFromUnitVectors(
-                    new THREE.Vector3(0, 1, 0),
-                    aimDir.normalize()
-                  );
-                  action.mesh.quaternion.slerp(aimQuat, 0.16);
-                }
               }
             } else {
               const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
@@ -14187,10 +13876,10 @@ function Chess3D({
             {weaponSwapOpen && (
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                  Board-side Weapon Switch
+                  Quick Weapon Swap
                 </p>
                 <div className="space-y-2">
-                  {quickSwapCaptureOptions.map((option) => {
+                  {ownedCaptureAnimations.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
@@ -14222,11 +13911,6 @@ function Chess3D({
                       </button>
                     );
                   })}
-                  {quickSwapCaptureOptions.length === 0 && (
-                    <p className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[0.62rem] text-white/65">
-                      No weapons found in inventory yet.
-                    </p>
-                  )}
                 </div>
               </div>
             )}
@@ -14389,53 +14073,6 @@ function Chess3D({
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Capture Weapon</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Pick any weapon you own from inventory.
-                      </p>
-                    </div>
-                    <span className="rounded-lg border border-white/15 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-white/70">
-                      {quickSwapCaptureOptions.length} owned
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    {quickSwapCaptureOptions.map((option) => {
-                      const isSelected = option.id === selectedCaptureAnimationId;
-                      return (
-                        <button
-                          key={`menu-weapon-${option.id}`}
-                          type="button"
-                          onClick={() => handleCaptureAnimationSwap(option.id)}
-                          className={`flex items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            isSelected
-                              ? 'border-emerald-300/80 bg-emerald-300/15'
-                              : 'border-white/10 bg-white/5 hover:border-white/30'
-                          }`}
-                        >
-                          {option.thumbnail ? (
-                            <img
-                              src={option.thumbnail}
-                              alt={option.label}
-                              className="h-9 w-9 rounded-md object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
-                              🧰
-                            </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
-                            <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
                 <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
