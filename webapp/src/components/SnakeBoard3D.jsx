@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -108,6 +109,7 @@ const POLYHAVEN_TEXTURE_CACHE = new Map();
 const SNAKE_TOKEN_PROTOTYPE_CACHE = { promise: null, pieces: null };
 const SNAKE_CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE = new Map();
+const SNAKE_CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
 const SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
@@ -607,7 +609,25 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   polyRevolver02Attack: 'polyRevolver02Attack',
   polyShotgun02Attack: 'polyShotgun02Attack',
   polyShotgun03Attack: 'polyShotgun03Attack',
-  polySmg01Attack: 'polySmg01Attack'
+  polySmg01Attack: 'polySmg01Attack',
+  'poly-shotgun-01': 'polyShotgun01Attack',
+  'poly-assault-rifle-01': 'polyAssaultRifle01Attack',
+  'poly-pistol-01': 'polyPistol01Attack',
+  'poly-revolver-01': 'polyRevolver01Attack',
+  'poly-sawed-off-01': 'polySawedOff01Attack',
+  'poly-revolver-02': 'polyRevolver02Attack',
+  'poly-shotgun-02': 'polyShotgun02Attack',
+  'poly-shotgun-03': 'polyShotgun03Attack',
+  'poly-smg-01': 'polySmg01Attack',
+  'slot-10-ak47-gltf': 'ak47VolleyAttack',
+  'slot-11-krsv-gltf': 'krsvBurstAttack',
+  'slot-12-smith-gltf': 'smithSidearmAttack',
+  'slot-13-mosin-gltf': 'mosinMarksmanAttack',
+  'slot-14-uzi-gltf': 'uziSprayAttack',
+  'slot-15-sigsauer-gltf': 'sigsauerTacticalAttack',
+  'slot-16-awp-glb': 'sniperShotAttack',
+  'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
+  'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
@@ -5081,6 +5101,45 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
 }
 
 
+
+
+const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
+  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+async function loadCaptureWeaponCatalogModel(weaponId) {
+  const option = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[weaponId];
+  const urls = Array.isArray(option?.urls) ? option.urls.filter(Boolean) : [];
+  if (!urls.length) return null;
+  const cacheKey = `${weaponId}:${urls.join('|')}`;
+  if (!SNAKE_CAPTURE_WEAPON_MODEL_CACHE.has(cacheKey)) {
+    SNAKE_CAPTURE_WEAPON_MODEL_CACHE.set(
+      cacheKey,
+      (async () => {
+        const loader = createConfiguredGLTFLoader();
+        for (const url of urls) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const gltf = await loader.loadAsync(url);
+            const root = gltf?.scene || gltf?.scenes?.[0] || null;
+            if (!root) continue;
+            prepareLoadedModel(root);
+            return normalizeCaptureVehicleModel(root);
+          } catch (error) {
+            console.warn(`Capture weapon model load failed`, weaponId, url, error);
+          }
+        }
+        throw new Error(`Failed to load capture weapon model: ${weaponId}`);
+      })()
+    );
+  }
+  const model = await SNAKE_CAPTURE_WEAPON_MODEL_CACHE.get(cacheKey);
+  return model?.clone?.(true) ?? null;
+}
+
 function createPolySeatWeaponMesh(weaponType) {
   const group = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#1f2937', metalness: 0.75, roughness: 0.35 });
@@ -5111,6 +5170,22 @@ function createPolySeatWeaponMesh(weaponType) {
 }
 function createSeatWeaponMesh(weaponType = 'fighter') {
   const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(weaponType);
+  if (SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[weaponType]) {
+    const holder = new THREE.Group();
+    const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
+    holder.add(fallback);
+    loadCaptureWeaponCatalogModel(weaponType)
+      .then((model) => {
+        if (!model || !holder.parent) return;
+        while (holder.children.length) holder.remove(holder.children[0]);
+        model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
+        model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+        model.position.y -= TOKEN_HEIGHT * 1.32;
+        holder.add(model);
+      })
+      .catch(() => {});
+    return holder;
+  }
   if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
     return createPolySeatWeaponMesh(normalizedWeaponType);
   }
