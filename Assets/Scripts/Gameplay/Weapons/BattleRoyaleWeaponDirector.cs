@@ -55,6 +55,11 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform shellEject;
         [SerializeField] private Transform targetTokenRoot;
         [SerializeField] private AudioSource sfxSource;
+        [SerializeField] private Transform attackerCameraAnchor;
+        [SerializeField] private Transform liveTargetTransform;
+        [SerializeField] private Transform weaponRoot;
+        [SerializeField] private Transform rightHandGrip;
+        [SerializeField] private Transform leftHandGrip;
 
         [Header("Weapon presets")]
         [SerializeField] private List<WeaponBallisticsProfile> weaponProfiles = new List<WeaponBallisticsProfile>();
@@ -66,6 +71,11 @@ namespace TonPlaygram.Gameplay.Weapons
         [Header("Camera anchors")]
         [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
         [SerializeField] private float aimPositionLerp = 20f;
+        [SerializeField] private bool followAllBullets = true;
+        [SerializeField] private float bulletFollowDistance = 0.4f;
+        [SerializeField] private float bulletFollowHeight = 0.14f;
+        [SerializeField] private float cameraLookLerp = 18f;
+        [SerializeField] private float cameraTrackLerp = 15f;
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
         private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
@@ -76,6 +86,8 @@ namespace TonPlaygram.Gameplay.Weapons
         private ILudoWeaponEvents[] _eventListeners = Array.Empty<ILudoWeaponEvents>();
         private float _baseFov = 60f;
         private Vector3 _baseCameraLocalPos;
+        private Transform _baseCameraParent;
+        private Quaternion _baseCameraLocalRot;
 
         private void Awake()
         {
@@ -93,6 +105,8 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 _baseFov = playerCamera.fieldOfView;
                 _baseCameraLocalPos = playerCamera.transform.localPosition;
+                _baseCameraParent = playerCamera.transform.parent;
+                _baseCameraLocalRot = playerCamera.transform.localRotation;
             }
 
             BuildProfileMap();
@@ -152,8 +166,9 @@ namespace TonPlaygram.Gameplay.Weapons
             Vector3 directionToTarget = (targetTokenRoot.position - muzzle.position).normalized;
             Vector3 spreadVec = UnityEngine.Random.insideUnitSphere * weapon.spread;
             Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
+            RefreshWeaponPose(shotDirection);
 
-            SpawnBullet(weapon, shotDirection, isLastBullet);
+            SpawnBullet(weapon, shotDirection, isLastBullet, shotIndex, totalShots);
             SpawnShell(weapon);
             PlayShotSfx(weapon);
 
@@ -163,7 +178,7 @@ namespace TonPlaygram.Gameplay.Weapons
             }
         }
 
-        private void SpawnBullet(WeaponBallisticsProfile weapon, Vector3 direction, bool isLastBullet)
+        private void SpawnBullet(WeaponBallisticsProfile weapon, Vector3 direction, bool isLastBullet, int shotIndex, int totalShots)
         {
             if (weapon.bulletPrefab == null)
                 return;
@@ -177,7 +192,12 @@ namespace TonPlaygram.Gameplay.Weapons
                 bullet = bulletObj.AddComponent<BattleRoyaleBullet>();
             }
 
-            bullet.Initialize(direction * weapon.muzzleVelocity, this, isLastBullet, weapon.impactFollowSeconds);
+            bool shouldFollowBullet = followAllBullets || isLastBullet;
+            bullet.Initialize(direction * weapon.muzzleVelocity, this, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
+            if (shouldFollowBullet)
+            {
+                StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f));
+            }
         }
 
         private void SpawnShell(WeaponBallisticsProfile weapon)
@@ -255,6 +275,28 @@ namespace TonPlaygram.Gameplay.Weapons
             _cameraRoutine = StartCoroutine(AimViewRoutine(weapon));
         }
 
+        private void RefreshWeaponPose(Vector3 shotDirection)
+        {
+            if (weaponRoot != null)
+            {
+                weaponRoot.position = muzzle.position;
+                weaponRoot.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+            }
+
+            if (rightHandGrip != null)
+            {
+                rightHandGrip.position = muzzle.position - (shotDirection * 0.12f);
+                rightHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+            }
+
+            if (leftHandGrip != null)
+            {
+                Vector3 leftOffset = Vector3.Cross(Vector3.up, shotDirection).normalized * 0.06f;
+                leftHandGrip.position = muzzle.position - (shotDirection * 0.06f) - leftOffset;
+                leftHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+            }
+        }
+
         private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
         {
             float elapsed = 0f;
@@ -267,8 +309,49 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
+                Vector3 targetWorld = ResolveLiveTargetPosition();
+                Vector3 aimForward = (targetWorld - muzzle.position).normalized;
+                if (aimForward.sqrMagnitude > 0.00001f)
+                {
+                    RefreshWeaponPose(aimForward);
+                }
+
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
+                if (attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
+                {
+                    playerCamera.transform.SetParent(attackerCameraAnchor, true);
+                }
+
                 playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
+                Quaternion toTarget = Quaternion.LookRotation((targetWorld - playerCamera.transform.position).normalized, Vector3.up);
+                playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toTarget, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
+                yield return null;
+            }
+        }
+
+        private void StartBulletFollowCamera(Transform bulletTransform, float seconds)
+        {
+            if (playerCamera == null || bulletTransform == null)
+                return;
+
+            if (_cameraRoutine != null)
+            {
+                StopCoroutine(_cameraRoutine);
+            }
+
+            _cameraRoutine = StartCoroutine(BulletFollowRoutine(bulletTransform, seconds));
+        }
+
+        private IEnumerator BulletFollowRoutine(Transform bulletTransform, float seconds)
+        {
+            float t = 0f;
+            while (t < seconds && bulletTransform != null)
+            {
+                t += Time.deltaTime;
+                Vector3 targetPos = bulletTransform.position - (bulletTransform.forward * bulletFollowDistance) + (Vector3.up * bulletFollowHeight);
+                playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, targetPos, Mathf.Clamp01(Time.deltaTime * cameraTrackLerp));
+                Quaternion toBullet = Quaternion.LookRotation((bulletTransform.position - playerCamera.transform.position).normalized, Vector3.up);
+                playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toBullet, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
             }
         }
@@ -316,9 +399,25 @@ namespace TonPlaygram.Gameplay.Weapons
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 playerCamera.fieldOfView = Mathf.Lerp(fromFov, _baseFov, t);
+                if (_baseCameraParent != null && playerCamera.transform.parent != _baseCameraParent)
+                {
+                    playerCamera.transform.SetParent(_baseCameraParent, true);
+                }
+
                 playerCamera.transform.localPosition = Vector3.Lerp(fromPos, _baseCameraLocalPos, t);
+                playerCamera.transform.localRotation = Quaternion.Slerp(playerCamera.transform.localRotation, _baseCameraLocalRot, t);
                 yield return null;
             }
+        }
+
+        private Vector3 ResolveLiveTargetPosition()
+        {
+            if (liveTargetTransform != null)
+            {
+                return liveTargetTransform.position;
+            }
+
+            return targetTokenRoot != null ? targetTokenRoot.position : muzzle.position + muzzle.forward;
         }
 
         private void BuildProfileMap()
@@ -353,7 +452,7 @@ namespace TonPlaygram.Gameplay.Weapons
         private bool _impactSent;
         private BattleRoyaleWeaponDirector _director;
 
-        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, bool isLastBullet, float followSeconds)
+        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, bool isLastBullet, bool _followByCamera, float followSeconds)
         {
             _velocity = velocity;
             _director = director;
