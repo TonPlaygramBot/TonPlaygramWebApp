@@ -95,11 +95,6 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { BILARDO_STRIKE_TIME_MS } from './shared/bilardoShotModel';
-import {
-  createBilardoHumanRig,
-  chooseHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -20739,97 +20734,8 @@ const powerRef = useRef(hud.power);
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
-      const humanLoader =
-        typeof createConfiguredGLTFLoader === 'function'
-          ? createConfiguredGLTFLoader(renderer)
-          : (() => {
-              const fallbackLoader = new GLTFLoader();
-              fallbackLoader.setCrossOrigin('anonymous');
-              const fallbackDraco = new DRACOLoader();
-              fallbackDraco.setDecoderPath(DRACO_DECODER_PATH);
-              fallbackLoader.setDRACOLoader(fallbackDraco);
-              try {
-                const fallbackKtx2 = new KTX2Loader();
-                fallbackKtx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-                fallbackKtx2.detectSupport(renderer);
-                fallbackLoader.setKTX2Loader(fallbackKtx2);
-              } catch (error) {
-                console.warn('Snooker Royal fallback KTX2 setup failed', error);
-              }
-              fallbackLoader.setMeshoptDecoder(MeshoptDecoder);
-              return fallbackLoader;
-            })();
-      const humanActor = createBilardoHumanRig(scene, {
-        loader: humanLoader,
-        modelUrl: BILARDO_SHARED_HUMAN_GLTF_URL,
-        tableTopY: BALL_CENTER_Y - BALL_R,
-        humanScale: SNOOKER_HUMAN_BASE_SCALE,
-        textureAnisotropy: Math.min(renderer.capabilities?.getMaxAnisotropy?.() || 8, 16),
-        humanVisualYawFix: Math.PI,
-        strikeTime: BILARDO_STRIKE_TIME_MS / 1000,
-        moveLambda: 5.6,
-        rotLambda: 8.5,
-        stanceWidth: 0.52,
-        bridgePalmTableLift: 0.012,
-        chinToCueHeight: 0.11,
-        cueArmElbowRise: 0.43
-      });
-      humanActor.root.visible = true;
-      const snookerTableTopFromGround = Math.max(
-        0.25,
-        (BALL_CENTER_Y - BALL_R) - FLOOR_Y
-      );
-      const snookerTargetHumanHeight = snookerTableTopFromGround * 2;
-      const snookerHumanScaleFactor = THREE.MathUtils.clamp(
-        snookerTargetHumanHeight / BILARDO_REFERENCE_HUMAN_HEIGHT,
-        0.9,
-        14
-      );
-      const snookerHumanScaleBoost = SNOOKER_HUMAN_VISUAL_SCALE_BOOST;
-      const snookerFinalHumanScale = snookerHumanScaleFactor * snookerHumanScaleBoost;
-      humanActor.modelRoot.scale.setScalar(snookerFinalHumanScale);
-      humanActor.fallback.scale.setScalar(snookerFinalHumanScale);
-
-      const bilardoSharedPose = {
-        bridgeHandBackFromBall: 0.245,
-        bridgeHandSide: -0.008,
-        gripRatio: BILARDO_CUE_HAND_GRIP_RATIO,
-        idleRightOffset: new THREE.Vector3(0.24, 1.12, 0.02),
-        idleLeftOffset: new THREE.Vector3(-0.18, 1.08, 0.03)
-      };
-
-      const humanPoseContext = {
-        aimDir: new THREE.Vector2(0, 1),
-        power: 0,
-        state: 'idle',
-        cueBack: new THREE.Vector3(),
-        cueTip: new THREE.Vector3()
-      };
-      const updateSnookerHumanFromAim = (aimDirection, power = 0, options = {}) => {
-        if (!humanActor || !cue?.pos) return;
-        humanPoseContext.aimDir.set(aimDirection?.x ?? 0, aimDirection?.y ?? 1);
-        if (humanPoseContext.aimDir.lengthSq() < 1e-6) {
-          humanPoseContext.aimDir.set(0, 1);
-        } else {
-          humanPoseContext.aimDir.normalize();
-        }
-        humanPoseContext.power = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        humanPoseContext.state = options.state || humanPoseContext.state || 'idle';
-        if (options.cueBack) humanPoseContext.cueBack.copy(options.cueBack);
-        if (options.cueTip) humanPoseContext.cueTip.copy(options.cueTip);
-      };
-      const resolveSnookerHumanPoseState = (
-        preferredState,
-        powerValue,
-        { forcePose = false } = {}
-      ) => {
-        if (preferredState === 'striking') return 'striking';
-        if (forcePose) return 'dragging';
-        const hasPull =
-          THREE.MathUtils.clamp(powerValue ?? 0, 0, 1) >=
-          BILARDO_PULL_TO_POSE_THRESHOLD;
-        return hasPull ? 'dragging' : 'idle';
-      };
+      const humanActor = null;
+      const updateSnookerHumanFromAim = () => {};
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -25325,67 +25231,8 @@ const powerRef = useRef(hud.power);
         }
         chalkAssistTargetRef.current = shouldSlowAim;
 
-        if (humanActor && cue?.pos) {
-          const aimForward = new THREE.Vector3(
-            humanPoseContext.aimDir.x,
-            0,
-            humanPoseContext.aimDir.y
-          ).normalize();
-          const cueBallWorld = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
-            tableW: PLAY_W,
-            tableL: PLAY_H,
-            edgeMargin: Math.max(
-              BILARDO_EDGE_MARGIN,
-              SIDE_RAIL_INNER_THICKNESS * 1.2
-            ),
-            desiredShootDistance: Math.max(
-              cueLen * 0.36,
-              BILARDO_DESIRED_SHOOT_DISTANCE
-            )
-          });
-          // Keep the avatar root on the same floor plane used by Bilardo Shqip so
-          // the stance stays grounded while bending to shoot.
-          rootTarget.y = FLOOR_Y;
-          const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const bridgeTarget = cueBallWorld
-            .clone()
-            .addScaledVector(aimForward, -bilardoSharedPose.bridgeHandBackFromBall)
-            .addScaledVector(aimSide, bilardoSharedPose.bridgeHandSide)
-            .setY(BALL_CENTER_Y - BALL_R + BALL_R * 0.24);
-          const gripTarget = humanPoseContext.cueTip
-            .clone()
-            .lerp(humanPoseContext.cueBack.clone(), bilardoSharedPose.gripRatio)
-            .addScaledVector(aimForward, SNOOKER_HUMAN_CUE_GRIP_BACK_OFFSET);
-          const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-          const upAxis = new THREE.Vector3(0, 1, 0);
-          const idleRight = rootTarget
-            .clone()
-            .add(
-              bilardoSharedPose.idleRightOffset
-                .clone()
-                .applyAxisAngle(upAxis, standingYaw)
-            );
-          const idleLeft = rootTarget
-            .clone()
-            .add(
-              bilardoSharedPose.idleLeftOffset
-                .clone()
-                .applyAxisAngle(upAxis, standingYaw)
-            );
-          updateBilardoHumanPose(humanActor, deltaSeconds, {
-            state: humanPoseContext.state,
-            rootTarget,
-            aimForward,
-            bridgeTarget,
-            gripTarget,
-            idleRight,
-            idleLeft,
-            cueBack: humanPoseContext.cueBack,
-            cueTip: humanPoseContext.cueTip,
-            power: humanPoseContext.power
-          });
-        }
+
+
 
         // Fizika
         balls.forEach((ball) => {

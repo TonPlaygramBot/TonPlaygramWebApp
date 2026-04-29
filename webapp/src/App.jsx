@@ -66,7 +66,6 @@ import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
 import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
-import BilardoShqipGame from './pages/Games/BilardoShqipGame.tsx';
 
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
@@ -372,17 +371,7 @@ export default function App() {
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
-            />
-            <Route
-              path="/games/bilardoshqip"
-              element={
-                <GameLiveAvatarOverlay gameSlug="bilardoshqip">
-                  <BilardoShqipGame />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-            <Route
+            />            <Route
               path="/games/snookerroyale"
               element={
                 <GameLiveAvatarOverlay gameSlug="snookerroyale">

@@ -19,15 +19,7 @@ const gamesCatalog = [
     slug: 'poolroyale',
     image: '/assets/icons/pool-royale.svg',
     description: 'Rack up and run the table in stylish arenas.'
-  },
-  {
-    name: 'Bilardo Shqip Game',
-    route: '/games/bilardoshqip/lobby',
-    slug: 'bilardoshqip',
-    image: '/assets/icons/pool-royale.svg',
-    description: 'Albanian-style billiards with Pool Royale table dimensions.'
-  },
-  {
+  },  {
     name: 'Snooker Royal',
     route: '/games/snookerroyale/lobby',
     slug: 'snookerroyale',
