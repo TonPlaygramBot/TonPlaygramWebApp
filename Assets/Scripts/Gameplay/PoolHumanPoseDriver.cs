@@ -36,9 +36,8 @@ namespace Aiming
         public float sourceTableLength = 3.6f;
         [Tooltip("Reference table width from source implementation.")]
         public float sourceTableWidth = 2f;
-        [Tooltip("How far outside the rail the human must stay. Increase to push the character visually outward on screen.")]
-        public float edgeMargin = 0.32f;
-        public float desiredShootDistance = 0.88f;
+        public float edgeMargin = 0.21f;
+        public float desiredShootDistance = 0.74f;
         [Tooltip("Optional helper waypoints around table sides (left, right, bottom, top) for Bilardo-style perimeter walking.")]
         public Transform[] sideWalkHelpers;
         [Tooltip("Uniform character size multiplier. Values above 1 make the player visually bigger and heavier.")]
@@ -117,8 +116,7 @@ namespace Aiming
             aimForward.Normalize();
 
             Vector3 aimSide = new Vector3(aimForward.z, 0f, -aimForward.x).normalized;
-            bool prepareToShoot = cueController.CurrentShotState != CueController.ShotState.Idle || cueController.CurrentPullNormalized > 0.015f;
-            Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s, prepareToShoot);
+            Vector3 rootTarget = ChooseHumanEdgePosition(cueBall, aimForward, s, cueController.CurrentShotState);
             Vector3 navigatedRootTarget = NavigateAlongTablePerimeter(rootTarget, s, dt);
             CacheRailHelpers();
 
@@ -143,7 +141,7 @@ namespace Aiming
             Vector3 idleRightHandTarget = rootTarget + RotateAroundY(new Vector3(0.22f, 1.18f, 0.04f) * s, standingYaw);
             Vector3 idleLeftHandTarget = rootTarget + RotateAroundY(new Vector3(-0.16f, 1.1f, -0.02f) * s, standingYaw);
             ResolveStrikePoseLock(
-                prepareToShoot,
+                cueController.CurrentShotState,
                 navigatedRootTarget,
                 bridgeHandTarget,
                 aimForward);
@@ -157,7 +155,7 @@ namespace Aiming
 
             UpdateHumanPose(
                 dt,
-                prepareToShoot,
+                cueController.CurrentShotState,
                 navigatedRootTarget,
                 aimForward,
                 bridgeHandTarget,
@@ -167,7 +165,7 @@ namespace Aiming
                 bridgeMode,
                 s);
 
-            cueController.SetCameraLowered(prepareToShoot);
+            cueController.SetCameraLowered(cueController.CurrentShotState != CueController.ShotState.Idle);
         }
 
         float ComputeScaleFactor()
@@ -244,10 +242,10 @@ namespace Aiming
             return cueBallY - cueController.ballRadius + stanceHeight;
         }
 
-        Vector3 ChooseHumanEdgePosition(Vector3 cueBallWorld, Vector3 aimForward, float s, bool prepareToShoot)
+        Vector3 ChooseHumanEdgePosition(Vector3 cueBallWorld, Vector3 aimForward, float s, CueController.ShotState shotState)
         {
             float approachDistance = desiredShootDistance * s;
-            if (prepareToShoot)
+            if (shotState != CueController.ShotState.Idle)
             {
                 approachDistance = Mathf.Max(0.08f, approachDistance - (tableLeanDepth * s));
             }
@@ -425,7 +423,7 @@ namespace Aiming
 
         void UpdateHumanPose(
             float dt,
-            bool prepareToShoot,
+            CueController.ShotState shotState,
             Vector3 rootTarget,
             Vector3 aimForward,
             Vector3 bridgeHandTarget,
@@ -435,7 +433,7 @@ namespace Aiming
             BridgeMode bridgeMode,
             float s)
         {
-            float targetPose = prepareToShoot ? 1f : 0f;
+            float targetPose = shotState == CueController.ShotState.Idle ? 0f : 1f;
             _poseT = DampScalar(_poseT, targetPose, poseLambda, dt);
             root.position = DampVector(root.position, rootTarget, moveLambda, dt);
 
@@ -670,12 +668,12 @@ namespace Aiming
         }
 
         void ResolveStrikePoseLock(
-            bool prepareToShoot,
+            CueController.ShotState shotState,
             Vector3 rootTarget,
             Vector3 bridgeTarget,
             Vector3 aimForward)
         {
-            if (cueController != null && cueController.CurrentShotState == CueController.ShotState.Striking)
+            if (shotState == CueController.ShotState.Striking)
             {
                 if (!_strikePoseLocked)
                 {
