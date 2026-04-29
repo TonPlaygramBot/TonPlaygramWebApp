@@ -5697,64 +5697,7 @@ function applySeatedHumanPose(
   let headY = 0;
   const bodyLockedMode = mode !== 'idle';
 
-  if (mode === 'firearmAim') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.09, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.22, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.06, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.1, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.1, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.05, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.2, t);
-    headX = THREE.MathUtils.lerp(headX, -0.14, t);
-
-  } else if (mode === 'firearmAimPistol') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.18, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.04, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.07, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.06, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.03, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.12, t);
-  } else if (mode === 'firearmAimSmg') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.1, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.26, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.08, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.12, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.06, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-  } else if (mode === 'firearmAimRifle') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.02, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.11, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.12, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.28, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.07, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.14, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.14, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.07, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.22, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
-    headX = THREE.MathUtils.lerp(headX, -0.16, t);
-  } else if (mode === 'firearmAimShotgun') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.06, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.13, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.16, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.32, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.16, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.18, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
-    headX = THREE.MathUtils.lerp(headX, -0.18, t);
-  } else if (mode === 'reachDice') {
+  if (mode === 'reachDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.78, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.08, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
@@ -6254,36 +6197,39 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
       };
     }
     if (isFirearmAttack) {
-      const profileKey = FIREARM_BALLISTICS_PROFILE_BY_ID[attackId] || 'default';
-      const modeByProfile = {
-        pistol: 'firearmAimPistol',
-        smg: 'firearmAimSmg',
-        rifle: 'firearmAimRifle',
-        marksman: 'firearmAimRifle',
-        shotgun: 'firearmAimShotgun',
-        explosive: 'firearmAimShotgun',
-        default: 'firearmAim'
-      };
-      const selectedMode = modeByProfile[profileKey] || modeByProfile.default;
-      const gripByProfile = {
-        pistol: 0.88,
-        smg: 0.92,
-        rifle: 0.94,
-        marksman: 0.95,
-        shotgun: 0.96,
-        explosive: 0.94,
-        default: 0.92
-      };
-      const enterWindow = profileKey === 'shotgun' || profileKey === 'explosive' ? 0.24 : 0.2;
-      const settleWindow = profileKey === 'pistol' ? 0.9 : 0.86;
-      const holdBlend = phase < enterWindow ? easeInOutSine01(phase / enterWindow) : 1;
-      const settleBlend = phase > settleWindow ? 1 - smoother01((phase - settleWindow) / (1 - settleWindow)) : 1;
+      if (phase < 0.22) {
+        return {
+          ...basePose,
+          mode: 'reachDice',
+          intensity: easeInOutSine01(phase / 0.22),
+          handGrip: 0.08 + phase * 2.2,
+          motionTuning: { idleBreathAmp: 0.008, precision: 1.14 }
+        };
+      }
+      if (phase < 0.46) {
+        return {
+          ...basePose,
+          mode: 'gripDice',
+          intensity: smoother01((phase - 0.22) / 0.24),
+          handGrip: 0.7 + smoother01((phase - 0.22) / 0.24) * 0.22,
+          motionTuning: { idleBreathAmp: 0.008, precision: 1.16 }
+        };
+      }
+      if (phase < 0.82) {
+        return {
+          ...basePose,
+          mode: 'release',
+          intensity: 0.78 + smoother01((phase - 0.46) / 0.36) * 0.22,
+          handGrip: 0.96,
+          motionTuning: { idleBreathAmp: 0.007, precision: 1.22 }
+        };
+      }
       return {
         ...basePose,
-        mode: selectedMode,
-        intensity: clamp(holdBlend * settleBlend, 0, 1),
-        handGrip: gripByProfile[profileKey] ?? gripByProfile.default,
-        motionTuning: { idleBreathAmp: 0.007, precision: profileKey === 'marksman' ? 1.28 : 1.22 }
+        mode: 'followThrough',
+        intensity: 1 - smoother01((phase - 0.82) / 0.18),
+        handGrip: 0.58,
+        motionTuning: { idleBreathAmp: 0.008, precision: 1.12 }
       };
     }
     return {
