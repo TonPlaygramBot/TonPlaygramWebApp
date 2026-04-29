@@ -25,7 +25,8 @@ export default function BottomLeftIcons({
   cameraIcon,
   cameraLabel = '2D',
   order = ['chat', 'gift', 'info', 'mute'],
-  actionOffsets = {}
+  actionOffsets = {},
+  extraActions = []
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -92,6 +93,23 @@ export default function BottomLeftIcons({
         )
       : null
   };
+
+  if (Array.isArray(extraActions)) {
+    extraActions.forEach((action) => {
+      if (!action?.key || typeof action.onClick !== 'function' || action.show === false) return;
+      actions[action.key] = (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className={action.buttonClassName || buttonClassName}
+          aria-label={action.ariaLabel || action.label}
+        >
+          <span className={action.iconClassName || iconClassName}>{action.icon ?? '⚡'}</span>
+          <span className={action.labelClassName || labelClassName}>{action.label || action.key}</span>
+        </button>
+      );
+    });
+  }
 
   return (
     <div className={className} style={style}>
