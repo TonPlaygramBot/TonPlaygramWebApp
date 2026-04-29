@@ -2671,10 +2671,19 @@ function spawnTokenBreakDebris({
   impactPoint,
   impactDirection = null,
   weaponId = '',
-  tableSurfaceY = 0
+  tableSurfaceY = 0,
+  profileScale = 1
 }) {
   if (!scene || !token?.isObject3D || !impactPoint?.isVector3) return;
-  const profile = resolveTokenBreakProfile(weaponId);
+  const baseProfile = resolveTokenBreakProfile(weaponId);
+  const profile = {
+    ...baseProfile,
+    count: Math.max(3, Math.round(baseProfile.count * clamp(profileScale, 0.12, 2))),
+    sizeMin: baseProfile.sizeMin * clamp(profileScale, 0.35, 1.8),
+    sizeMax: baseProfile.sizeMax * clamp(profileScale, 0.35, 1.8),
+    impulse: baseProfile.impulse * clamp(profileScale, 0.45, 1.9),
+    lingerMs: baseProfile.lingerMs * clamp(profileScale, 0.4, 1.2)
+  };
   const palette = [];
   token.traverse((node) => {
     if (!node?.isMesh) return;
@@ -9928,7 +9937,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           shells.forEach((entry) => scene.add(entry));
           scene.add(targetReticle.root);
           let shatterDone = false;
+          let chipDamageDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
+          const singleShotFirearm = shots <= 1 || resolvedCaptureAnimationId === 'sniperShotAttack' || resolvedCaptureAnimationId === 'fpsGunAttack';
           const tickFirearm = () => {
             const elapsed = performance.now() - volleyStart;
             const elapsedShooting = Math.max(0, elapsed - preFireLeadMs);
@@ -9958,6 +9969,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const targetLocal = parent.worldToLocal(muzzleTarget.clone());
               if (elapsed >= pickupLeadMs + reloadLeadMs) {
                 handWeaponAttachment.weapon.lookAt(targetLocal);
+                handWeaponAttachment.weapon.rotateY(Math.PI);
               } else {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.02) * 0.006;
               }
@@ -9968,13 +9980,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               solveSeatedLeftArmContactIK(attackerEntry, offhandWorld, elapsed >= pickupLeadMs ? 0.95 : 0.5);
             }
             const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
-            const aimDir = muzzleTarget.clone().sub(muzzleOrigin).setY(0);
+            const aimDir = muzzleTarget.clone().sub(muzzleOrigin);
             const followOffset =
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(FIREARM_CAMERA_SIDE_PULLBACK)
-                    .setY(FIREARM_CAMERA_LIFT)
+                    .multiplyScalar(singleShotFirearm ? FIREARM_CAMERA_SIDE_PULLBACK * 0.62 : FIREARM_CAMERA_SIDE_PULLBACK)
+                    .setY(singleShotFirearm ? FIREARM_CAMERA_LIFT * 1.35 : FIREARM_CAMERA_LIFT)
                 : new THREE.Vector3(0, FIREARM_CAMERA_LIFT, FIREARM_CAMERA_SIDE_PULLBACK);
             setCameraFocus({
               target: cameraMid,
@@ -10063,6 +10075,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               shell.rotation.z += 0.28;
             });
             const impactPhase = clamp((elapsedShooting - shots * cadenceMs * 0.72) / Math.max(140, shots * cadenceMs * 0.28), 0, 1);
+            if (!singleShotFirearm && !chipDamageDone && impactPhase >= 0.36) {
+              chipDamageDone = true;
+              const shotDir = muzzleTarget.clone().sub(muzzleOrigin);
+              spawnTokenBreakDebris({
+                scene,
+                token: hideTarget,
+                impactPoint: muzzleTarget.clone(),
+                impactDirection: shotDir,
+                weaponId: resolvedCaptureAnimationId,
+                tableSurfaceY,
+                profileScale: 0.32
+              });
+            }
             if (!shatterDone && impactPhase >= 0.92) {
               shatterDone = true;
               playGlassShatterSound();
