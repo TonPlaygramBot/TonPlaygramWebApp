@@ -8200,6 +8200,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const resolveDiceHoldContactTarget = (player, fallbackTarget = null) => {
     const dice = diceRef.current;
     if (!dice?.isObject3D) return fallbackTarget ?? null;
+    if (player === 0) {
+      // Keep local/human turn start anchored on the board rail so users see exactly where to tap to roll.
+      return fallbackTarget ?? null;
+    }
     const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
     if (!actorEntry) return fallbackTarget ?? null;
     const helperWorld = new THREE.Vector3();
@@ -8235,28 +8239,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       duration: 260,
       lift: 0.03,
       onComplete: () => beginDiceHoldPose(player)
-    });
-  };
-
-  const animateHumanDicePickupBeforeTurnAdvance = async () => {
-    const state = stateRef.current;
-    const dice = diceRef.current;
-    if (!state || !dice?.isObject3D || dice.userData?.isRolling) return;
-    if (state.turn !== 0 || state.winner || state.animation) return;
-
-    const handTarget = resolveDiceHoldContactTarget(0, null);
-    if (!handTarget?.isVector3) return;
-
-    beginDiceHoldPose(0);
-    await new Promise((resolve) => {
-      animateDicePosition(dice, handTarget, {
-        duration: 300,
-        lift: 0.028,
-        onComplete: resolve
-      });
-    });
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, 170);
     });
   };
 
@@ -11784,8 +11766,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }, 2000 + DICE_RESULT_EXTRA_HOLD_MS);
   }, [setUi]);
 
-  const advanceTurn = async (extraTurn) => {
-    await animateHumanDicePickupBeforeTurnAdvance();
+  const advanceTurn = (extraTurn) => {
     clearTurnAdvanceTimeout();
     clearHumanSelection();
     cancelCameraFocusAnimation();
