@@ -23,7 +23,6 @@ import {
   DEFAULT_TABLE_CUSTOMIZATION
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
-import { normalizeSnakeCaptureWeaponKind } from '../utils/captureWeaponShared.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 
@@ -610,6 +609,10 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   polyShotgun03Attack: 'supportTruck',
   polySmg01Attack: 'supportTruck'
 });
+
+function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
+  return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
+}
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;

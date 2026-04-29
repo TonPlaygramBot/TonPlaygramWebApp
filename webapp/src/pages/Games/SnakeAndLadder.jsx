@@ -814,6 +814,20 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
+const CAPTURE_WEAPON_OPTIONS = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    thumbnail: option.thumbnail
+  }))
+);
+const LEGACY_CAPTURE_WEAPON_ID_MAP = Object.freeze({
+  drone: 'droneAttack',
+  fighter: 'fighterJetAttack',
+  helicopter: 'helicopterAttack',
+  supportTruck: 'grenadeBlastAttack',
+  javelin: 'missileJavelin'
+});
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -3253,7 +3267,15 @@ export default function SnakeAndLadder() {
     resolvedAppearance?.captureWeapon?.id
       ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
       : fallbackCaptureWeaponId(0);
-  const selectableCaptureWeapons = CAPTURE_WEAPON_OPTIONS;
+  const ownedCaptureWeapons = useMemo(
+    () =>
+      CAPTURE_WEAPON_OPTIONS.filter((option) =>
+        isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
+      ),
+    [snakeInventory]
+  );
+  const selectableCaptureWeapons =
+    ownedCaptureWeapons.length > 0 ? ownedCaptureWeapons : [CAPTURE_WEAPON_OPTIONS[0]].filter(Boolean);
   const computedIndex = isMultiplayer
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
