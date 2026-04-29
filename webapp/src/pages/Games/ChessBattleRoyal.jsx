@@ -205,6 +205,26 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
+const CHESS_WEAPON_PANEL_ORDER = Object.freeze([
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyPistol01Attack',
+  'polyRevolver01Attack',
+  'polySawedOff01Attack',
+  'polyRevolver02Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polySmg01Attack',
+  'ak47VolleyAttack',
+  'krsvBurstAttack',
+  'smithSidearmAttack',
+  'mosinMarksmanAttack',
+  'uziSprayAttack',
+  'sigsauerTacticalAttack',
+  'sniperShotAttack',
+  'fpsGunAttack',
+  'marksmanDmrAttack'
+]);
 const VEHICLE_CAPTURE_KINDS = new Set(['truck', 'drone', 'jet', 'helicopter']);
 const FIREARM_CAPTURE_KIND = 'firearm';
 
@@ -7752,6 +7772,9 @@ function Chess3D({
     return CAPTURE_ANIMATION_OPTIONS[0] ? [CAPTURE_ANIMATION_OPTIONS[0]] : [];
   }, [chessInventory]);
   const quickSwapCaptureOptions = useMemo(() => {
+    const byId = new Map(ownedCaptureAnimations.map((option) => [option.id, option]));
+    const ordered = CHESS_WEAPON_PANEL_ORDER.map((id) => byId.get(id)).filter(Boolean);
+    if (ordered.length) return ordered;
     const firearm = [];
     const other = [];
     ownedCaptureAnimations.forEach((option) => {
@@ -7811,7 +7834,7 @@ function Chess3D({
   useEffect(() => {
     aiCaptureAnimationIdRef.current = randomCaptureAnimationId(ownedCaptureAnimations);
   }, [ownedCaptureAnimations, randomCaptureAnimationId]);
-  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
+  const [weaponSwapOpen, setWeaponSwapOpen] = useState(true);
   useEffect(() => {
     const selectedIdx = quickSwapCaptureOptions.findIndex((option) => option.id === selectedCaptureAnimationId);
     if (selectedIdx < 0) return;
@@ -14164,7 +14187,7 @@ function Chess3D({
             {weaponSwapOpen && (
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                  Quick Weapon Swap
+                  Board-side Weapon Switch
                 </p>
                 <div className="space-y-2">
                   {quickSwapCaptureOptions.map((option) => {
