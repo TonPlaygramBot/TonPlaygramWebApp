@@ -13862,21 +13862,21 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-1/2 left-3 z-30 -translate-y-1/2 pointer-events-none">
+        <div className="absolute top-36 right-4 z-30 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-2">
             <button
               type="button"
               onClick={() => setWeaponSwapOpen((open) => !open)}
               aria-expanded={weaponSwapOpen}
-              aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
+              aria-label={weaponSwapOpen ? 'Close weapon inventory swap' : 'Open weapon inventory swap'}
               className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-black/65 text-lg shadow-[0_6px_16px_rgba(0,0,0,0.42)] transition hover:border-amber-200 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
             >
               🔄
             </button>
             {weaponSwapOpen && (
-              <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
+              <div className="max-h-[52vh] w-[15rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                  Quick Weapon Swap
+                  Weapon Inventory Swap
                 </p>
                 <div className="space-y-2">
                   {ownedCaptureAnimations.map((option) => {
@@ -13896,7 +13896,7 @@ function Chess3D({
                           <img
                             src={option.thumbnail}
                             alt={option.label}
-                            className="h-9 w-9 rounded-md object-cover"
+                            className="h-9 w-9 rounded-md object-contain bg-white/5 p-0.5"
                             loading="lazy"
                           />
                         ) : (
