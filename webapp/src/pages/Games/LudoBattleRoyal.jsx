@@ -10292,10 +10292,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               });
               setCameraFocus({
                 target: muzzleTarget.clone(),
-                follow: false,
+                object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
+                follow: true,
                 priority: 11,
                 ttl: 1.4,
                 offset: Math.max(0.018, (CAMERA_TARGET_LIFT + 0.024) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                followOffset: new THREE.Vector3(0, 0.09, -0.12),
                 force: true
               });
             }
@@ -10452,13 +10454,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) {
           setCameraViewForTurn(0, CAMERA_BROADCAST_ANIMATION_MS, { force: true });
         } else {
+          const preLaunchAim = targetPosition.clone().sub(launchAnchor);
+          const preLaunchFollowOffset =
+            preLaunchAim.lengthSq() > 1e-6
+              ? preLaunchAim
+                  .normalize()
+                  .multiplyScalar(-0.12)
+                  .setY(0.1)
+              : new THREE.Vector3(0, 0.1, -0.12);
           moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
           setCameraFocus({
-            target: launchAnchor,
-            follow: false,
-            priority: 7,
-            ttl: 1.1,
-            offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
+            object: parkedVehicleToRestore?.isObject3D ? parkedVehicleToRestore : primaryFx.root,
+            target: launchAnchor.clone().lerp(targetPosition, 0.22),
+            follow: true,
+            priority: 8,
+            ttl: 0.9,
+            offset: Math.max(0.008, (CAMERA_TARGET_LIFT - 0.012) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+            followOffset: preLaunchFollowOffset,
             force: true
           });
         }
@@ -10937,11 +10949,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (!explosionTriggered) {
                 explosionTriggered = true;
                 setCameraFocus({
+                  object: explosion.root,
                   target: liveTarget.clone(),
-                  follow: false,
+                  follow: true,
                   priority: 11,
                   ttl: 1.8,
                   offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.026) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                  followOffset: new THREE.Vector3(0, 0.1, -0.14),
                   force: true
                 });
                 playMissileImpactSound();
