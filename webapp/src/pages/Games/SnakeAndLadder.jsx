@@ -3264,8 +3264,7 @@ export default function SnakeAndLadder() {
     []
   );
   const selectedCaptureWeaponId =
-    resolvedAppearance?.captureWeapon?.id &&
-    isSnakeOptionUnlocked('captureWeapon', normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id), snakeInventory)
+    resolvedAppearance?.captureWeapon?.id
       ? normalizeCaptureWeaponId(resolvedAppearance.captureWeapon.id)
       : fallbackCaptureWeaponId(0);
   const computedIndex = isMultiplayer
@@ -3834,9 +3833,7 @@ export default function SnakeAndLadder() {
             <div className="absolute bottom-12 right-0 w-[min(19rem,84vw)] max-h-[52vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/90 p-3 shadow-[0_22px_55px_rgba(2,6,23,0.65)] backdrop-blur-xl">
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/70">Quick weapon swap</p>
               <div className="mt-2 space-y-2">
-                {CAPTURE_WEAPON_OPTIONS.filter((option) =>
-                  isSnakeOptionUnlocked('captureWeapon', option.id, snakeInventory)
-                ).map((option) => {
+                {CAPTURE_WEAPON_OPTIONS.map((option) => {
                   const selected = selectedCaptureWeaponId === option.id;
                   const optionIndex = CAPTURE_WEAPON_OPTIONS.findIndex((item) => item.id === option.id);
                   return (
