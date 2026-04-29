@@ -545,13 +545,13 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polySmg01Attack: 28
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
-  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletSpeed: 0.2, shellRadius: 0.0028 }),
-  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042, bulletRadius: 0.0034, bulletSpeed: 0.21, shellRadius: 0.0026 }),
-  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058, bulletRadius: 0.0033, bulletSpeed: 0.23, shellRadius: 0.0025 }),
-  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054, bulletRadius: 0.0038, bulletSpeed: 0.26, shellRadius: 0.003 }),
-  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036, bulletRadius: 0.0042, bulletSpeed: 0.29, shellRadius: 0.0032 }),
-  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061, bulletRadius: 0.0048, bulletSpeed: 0.17, shellRadius: 0.004 }),
-  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03, bulletRadius: 0.0058, bulletSpeed: 0.14, shellRadius: 0.0046 })
+  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052 }),
+  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042 }),
+  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058 }),
+  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054 }),
+  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036 }),
+  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061 }),
+  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03 })
 });
 const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   glockSidearmAttack: 'pistol',
@@ -9930,22 +9930,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
-          const bulletGeometry = new THREE.SphereGeometry(ballisticsProfile.bulletRadius, 10, 10);
-          const bulletMaterial = new THREE.MeshStandardMaterial({
-            color: '#d9dde2',
-            metalness: 0.95,
-            roughness: 0.16
-          });
-          const bullets = Array.from({ length: shots }, (_, index) => {
-            const mesh = new THREE.Mesh(bulletGeometry, bulletMaterial.clone());
-            mesh.visible = false;
-            mesh.castShadow = false;
-            mesh.receiveShadow = false;
-            mesh.userData.spawnAt = preFireLeadMs + index * cadenceMs;
-            mesh.userData.completed = false;
-            scene.add(mesh);
-            return mesh;
-          });
           const targetReticle = createCaptureTargetReticleFx();
           const shellStates = shells.map(() => ({ landed: false, settledAt: 0 }));
           scene.add(muzzleFx.root);
@@ -10057,52 +10041,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               entry.root.position.copy(mid);
               entry.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
             });
-            bullets.forEach((bulletMesh, idx) => {
-              const spawnAt = Number(bulletMesh.userData?.spawnAt ?? 0);
-              const life = elapsed - spawnAt;
-              if (life < 0) {
-                bulletMesh.visible = false;
-                return;
-              }
-              const shotProgress = clamp(life / Math.max(30, cadenceMs), 0, 1);
-              const start = muzzleOrigin.clone();
-              const end = muzzleTarget.clone();
-              const bulletPos = start.lerp(end, shotProgress);
-              bulletMesh.visible = shotProgress < 0.995;
-              bulletMesh.position.copy(bulletPos);
-              if (shotProgress >= 0.995) {
-                bulletMesh.userData.completed = true;
-                bulletMesh.visible = false;
-              }
-              if (idx === shots - 1 && singleShotFirearm) {
-                const aimDirNow = muzzleTarget.clone().sub(muzzleOrigin).normalize();
-                const followOffset = aimDirNow
-                  .clone()
-                  .multiplyScalar(-0.11)
-                  .add(new THREE.Vector3(0, 0.08, 0.03));
-                setCameraFocus({
-                  target: bulletPos,
-                  follow: true,
-                  priority: 10,
-                  ttl: 0,
-                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.016) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                  followOffset,
-                  force: true
-                });
-              }
-              if (idx === shots - 1 && !singleShotFirearm && shotProgress > 0.86) {
-                const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.12);
-                setCameraFocus({
-                  target: bulletPos,
-                  follow: true,
-                  priority: 10,
-                  ttl: 0,
-                  offset: Math.max(0.02, (CAMERA_TARGET_LIFT + 0.02) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                  followOffset: new THREE.Vector3(pullback.x, 0.09, pullback.z),
-                  force: true
-                });
-              }
-            });
             shells.forEach((shell, idx) => {
               const shellState = shellStates[idx];
               const launchAt = idx * (cadenceMs * 0.7);
@@ -10169,11 +10107,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
+            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
-            bulletGeometry.dispose();
-            bulletMaterial.dispose();
             handWeaponAttachment?.release?.();
             if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
