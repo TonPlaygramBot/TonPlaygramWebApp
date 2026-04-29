@@ -22,6 +22,8 @@ namespace Aiming.Gameplay.Rendering
         private static readonly int MetallicGlossMapId = Shader.PropertyToID("_MetallicGlossMap");
         private static readonly int OcclusionMapId = Shader.PropertyToID("_OcclusionMap");
         private static readonly int EmissionMapId = Shader.PropertyToID("_EmissionMap");
+        private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int MainTexStId = Shader.PropertyToID("_MainTex_ST");
 
         void Awake()
         {
@@ -112,6 +114,7 @@ namespace Aiming.Gameplay.Rendering
             {
                 TrySetTexture(material, BaseMapId, baseTexture);
                 TrySetTexture(material, MainTexId, baseTexture);
+                SyncTextureTransform(material);
             }
 
             if (material.HasProperty(BaseColorId) && material.HasProperty(ColorId))
@@ -177,6 +180,35 @@ namespace Aiming.Gameplay.Rendering
             if (material.HasProperty(propertyId))
             {
                 material.SetTexture(propertyId, texture);
+            }
+        }
+
+        private static void SyncTextureTransform(Material material)
+        {
+            bool hasBase = material.HasProperty(BaseMapId);
+            bool hasMain = material.HasProperty(MainTexId);
+            if (!hasBase || !hasMain)
+            {
+                return;
+            }
+
+            Vector2 scale = material.GetTextureScale(BaseMapId);
+            Vector2 offset = material.GetTextureOffset(BaseMapId);
+            if (scale == Vector2.zero)
+            {
+                scale = material.GetTextureScale(MainTexId);
+            }
+
+            material.SetTextureScale(MainTexId, scale);
+            material.SetTextureOffset(MainTexId, offset);
+            material.SetTextureScale(BaseMapId, scale);
+            material.SetTextureOffset(BaseMapId, offset);
+
+            if (material.HasProperty(BaseMapStId) && material.HasProperty(MainTexStId))
+            {
+                Vector4 st = new Vector4(scale.x, scale.y, offset.x, offset.y);
+                material.SetVector(BaseMapStId, st);
+                material.SetVector(MainTexStId, st);
             }
         }
     }
