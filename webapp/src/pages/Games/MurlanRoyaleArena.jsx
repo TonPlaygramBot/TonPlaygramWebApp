@@ -1848,10 +1848,10 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
-  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(74), 0, 0);
-  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(74), 0, 0);
-  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-82), 0, 0);
-  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-82), 0, 0);
+  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(64), 0, 0);
+  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(64), 0, 0);
+  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-72), 0, 0);
+  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-72), 0, 0);
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),
@@ -1964,7 +1964,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92;
+  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.05;
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
@@ -2414,7 +2414,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
