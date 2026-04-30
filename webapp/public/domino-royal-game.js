@@ -1026,65 +1026,8 @@ const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK
 ]);
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
-  {
-    id: 'rpm-current',
-    label: 'Current Avatar',
-    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb']
-  },
-  {
-    id: 'rpm-67d411',
-    label: 'RPM 67d411',
-    modelUrls: [
-      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
-      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
-      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
-    ]
-  },
-  {
-    id: 'rpm-67f433',
-    label: 'RPM 67f433',
-    modelUrls: [
-      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
-      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
-      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
-    ]
-  },
-  {
-    id: 'rpm-67e1b5',
-    label: 'RPM 67e1b5',
-    modelUrls: [
-      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
-      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
-      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
-    ]
-  },
-  {
-    id: 'webgl-vietnam-human',
-    label: 'Vietnam Human',
-    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb']
-  },
-  {
-    id: 'webgl-human-body-a',
-    label: 'Human Body A',
-    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb']
-  },
-  {
-    id: 'webgl-human-body-b',
-    label: 'Human Body B',
-    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb']
-  },
-  {
-    id: 'webgl-ai-teacher',
-    label: 'AI Teacher',
-    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb']
-  },
-  {
-    id: 'webgl-ai-teacher-1',
-    label: 'AI Teacher 1',
-    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb']
-  }
-]);
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([]);
+
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
@@ -4047,7 +3990,6 @@ const TABLE_SETUP_SECTIONS = [
   { key: 'dominoStyle', label: 'Domino Colors', options: DOMINO_STYLE_OPTIONS },
   { key: 'dominoDotStyle', label: 'Domino Dots', options: DOMINO_DOT_STYLE_OPTIONS },
   { key: 'dominoFrameStyle', label: 'Domino Frames', options: DOMINO_FRAME_STYLE_OPTIONS },
-  { key: 'humanCharacter', label: 'Human Characters', options: DOMINO_HUMAN_CHARACTER_OPTIONS },
   {
     key: 'highlightStyle',
     label: 'Highlights',
@@ -4095,7 +4037,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   dominoStyle: DOMINO_STYLE_OPTIONS,
   dominoDotStyle: DOMINO_DOT_STYLE_OPTIONS,
   dominoFrameStyle: DOMINO_FRAME_STYLE_OPTIONS,
-  humanCharacter: DOMINO_HUMAN_CHARACTER_OPTIONS,
   highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
   chairTheme: CHAIR_THEME_OPTIONS
 });
@@ -4252,7 +4193,6 @@ function normalizeAppearance(raw) {
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
     ['dominoDotStyle', DOMINO_DOT_STYLE_OPTIONS.length],
     ['dominoFrameStyle', DOMINO_FRAME_STYLE_OPTIONS.length],
-    ['humanCharacter', DOMINO_HUMAN_CHARACTER_OPTIONS.length],
     ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
     ['chairTheme', CHAIR_THEME_OPTIONS.length]
   ];
@@ -7533,10 +7473,6 @@ function createOptionPreview(key, option) {
     case 'chairTheme':
       swatch.style.background = option.seatColor;
       break;
-    case 'humanCharacter':
-      swatch.style.background =
-        'linear-gradient(145deg, rgba(59,130,246,0.72), rgba(15,23,42,0.95))';
-      break;
     default:
       swatch.style.background = '#1f2937';
   }
@@ -8124,7 +8060,6 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
-  void attachSeatedHumanActors(token);
   syncArenaGroundToFurniture();
 }
 
