@@ -120,36 +120,22 @@ import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 
-const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-
-const HUMAN_CFG = {
-  humanScale: 1.18,
-  humanVisualYawFix: Math.PI,
-  poseLambda: 9,
-  moveLambda: 5.6,
-  rotLambda: 8.5,
+const BILARDO_HUMAN_CFG = {
   edgeMargin: 0.58,
   desiredShootDistance: 1.06,
-  bridgePalmTableLift: 0.006,
-  bridgeCueLift: 0.018,
-  bridgeHandBackFromBall: 0.235,
-  bridgeHandSide: -0.012,
-  chinToCueHeight: 0.11,
-  shootCueGripFromBack: 0.58,
-  idleRightHandY: 0.8,
-  idleRightHandX: 0.31,
-  idleRightHandZ: -0.015
 };
 
 function chooseBilardoHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
-  const desired = cueBallWorld.clone().addScaledVector(aimForward, -(opts.desiredShootDistance ?? HUMAN_CFG.desiredShootDistance));
-  const xEdge = (opts.tableW ?? 2.0) / 2 + (opts.edgeMargin ?? HUMAN_CFG.edgeMargin);
-  const zEdge = (opts.tableL ?? 3.6) / 2 + (opts.edgeMargin ?? HUMAN_CFG.edgeMargin);
+  const desired = cueBallWorld
+    .clone()
+    .addScaledVector(aimForward, -(opts.desiredShootDistance ?? BILARDO_HUMAN_CFG.desiredShootDistance));
+  const xEdge = (opts.tableW ?? 2.0) / 2 + (opts.edgeMargin ?? BILARDO_HUMAN_CFG.edgeMargin);
+  const zEdge = (opts.tableL ?? 3.6) / 2 + (opts.edgeMargin ?? BILARDO_HUMAN_CFG.edgeMargin);
   const candidates = [
     new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
     new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)),
     new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge),
-    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge),
   ];
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
@@ -20372,16 +20358,7 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveActiveHumanEyePose = () => {
-          const rig = playerCharacterRigsRef.current?.[0];
-          const eye = rig?.userData?.eyePose;
-          if (!eye?.position || !eye?.target) return null;
-          return {
-            position: eye.position.clone(),
-            target: eye.target.clone(),
-            blend: eye.blend ?? 0
-          };
-        };
+        const resolveActiveHumanEyePose = () => null;
 
 
         const updateBroadcastCameras = ({
@@ -24621,61 +24598,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const cueBall = cueRef.current;
-        const cuePos = cueBall?.pos ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
-        const spawn = chooseBilardoHumanEdgePosition(
-          cuePos,
-          new THREE.Vector3(0, 0, -1),
-          { tableW: TABLE.W, tableL: TABLE.H, edgeMargin: HUMAN_CFG.edgeMargin, desiredShootDistance: HUMAN_CFG.desiredShootDistance }
-        );
-        const rig = createPlayerCharacterRig({ seat: 'A', x: spawn.x, z: spawn.z, facingY: 0, template: null });
-        rig.userData.eyePose = { position: new THREE.Vector3(), target: new THREE.Vector3(), blend: 0 };
-        world.add(rig);
-        playerCharacterRigsRef.current.push(rig);
-        try {
-          const gltf = await new GLTFLoader().setCrossOrigin('anonymous').loadAsync(HUMAN_URL);
-          const withModel = createPlayerCharacterRig({ seat: 'A', x: spawn.x, z: spawn.z, facingY: 0, template: gltf.scene });
-          withModel.userData.eyePose = rig.userData.eyePose;
-          world.remove(rig);
-          world.add(withModel);
-          playerCharacterRigsRef.current = [withModel];
-        } catch (err) {
-          console.warn('Pool Royale human model load failed, using fallback rig.', err);
-        }
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        const rig = playerCharacterRigsRef.current?.[0];
-        if (!rig) return;
-        const cueBall = cueRef.current;
-        if (!cueBall?.pos) return;
-        const camForward = new THREE.Vector3();
-        camera.getWorldDirection(camForward);
-        camForward.y = 0;
-        if (camForward.lengthSq() < 1e-6) camForward.set(0, 0, -1);
-        camForward.normalize();
-        const cueBallWorld = new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y);
-        const target = chooseBilardoHumanEdgePosition(
-          cueBallWorld,
-          camForward,
-          { tableW: TABLE.W, tableL: TABLE.H, edgeMargin: HUMAN_CFG.edgeMargin, desiredShootDistance: HUMAN_CFG.desiredShootDistance }
-        );
-        const moveAlpha = 1 - Math.exp(-HUMAN_MOVE_LAMBDA * Math.max(0.001, dtSeconds));
-        rig.position.lerp(new THREE.Vector3(target.x, floorY, target.z), moveAlpha);
-        const aimYaw = Math.atan2(-camForward.x, -camForward.z);
-        rig.rotation.y = THREE.MathUtils.lerp(rig.rotation.y, aimYaw, 1 - Math.exp(-HUMAN_ROT_LAMBDA * Math.max(0.001, dtSeconds)));
-        const eyeHeight = floorY + HUMAN_PLAYER_TARGET_HEIGHT_METERS * 0.92;
-        const eyePos = rig.position.clone()
-          .add(new THREE.Vector3(0, eyeHeight - floorY, 0))
-          .add(new THREE.Vector3(camForward.z, 0, -camForward.x).multiplyScalar(HUMAN_EYE_CAMERA_SIDE_OFFSET))
-          .addScaledVector(camForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET);
-        const eyeTarget = cueBallWorld.clone().addScaledVector(camForward, BALL_R * 6);
-        rig.userData.eyePose = {
-          position: eyePos,
-          target: eyeTarget,
-          blend: topViewRef.current ? 0 : 1
-        };
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
