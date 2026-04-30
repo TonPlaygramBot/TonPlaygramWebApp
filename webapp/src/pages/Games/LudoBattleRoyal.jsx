@@ -344,7 +344,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
-    scale: 0.13
+    scale: 0.24
   },
   krsvBurstAttack: {
     label: 'KRSV',
@@ -678,9 +678,9 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.274]
   },
   sigsauerTacticalAttack: {
-    position: [0.018, 0.0, 0.082],
-    rotation: [-1.52, -0.03, -1.58],
-    muzzleOffset: [0, 0.012, 0.19]
+    position: [0.021, -0.002, 0.09],
+    rotation: [-1.49, -0.04, -1.57],
+    muzzleOffset: [0, 0.013, 0.208]
   },
   compactCarbineAttack: {
     position: [0.034, -0.004, 0.122],
@@ -764,7 +764,7 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   smgBurstAttack: 1.85,
   compactCarbineAttack: 1.34,
   assaultRifleAttack: 1.2,
-  ak47VolleyAttack: 1.2,
+  ak47VolleyAttack: 3.2,
   krsvBurstAttack: 3.2,
   smithSidearmAttack: 1.2,
   mosinMarksmanAttack: 6,
@@ -3186,13 +3186,13 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.12 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_DICE_PHASES = Object.freeze({
   reachMs: 170,
   gripMs: 120,
