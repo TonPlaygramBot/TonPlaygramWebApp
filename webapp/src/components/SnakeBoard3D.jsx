@@ -87,7 +87,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.21;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+// Raise seated humans higher on portrait screen so they match the earlier morning framing.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.46;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -166,13 +167,13 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 900;
+const DICE_ROLL_DURATION = 820;
 const DICE_SETTLE_DURATION = 120;
 const DICE_RESULT_HOLD_DURATION = 2000;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
+const DICE_THROW_HEIGHT = DICE_SIZE * 1.16;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -2721,30 +2722,31 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
+    // Keep throw path cleaner and more controlled, matching Ludo/Pool style landings.
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.14;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.08;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.08;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.06;
 
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.28;
+    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.03;
     const settleDistance = Math.max(
       bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
+      settleDistanceBase + (Math.random() - 0.15) * DICE_SIZE * 0.12
     );
 
     const start = centerLocal
       .clone()
       .addScaledVector(awayFromBoard, startDistance)
       .addScaledVector(lateral, offset * 0.9 + lateralJitter);
-    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
+    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.12);
     applyAxisOffsets(start, 'start');
 
     const bounce = centerLocal
       .clone()
       .addScaledVector(awayFromBoard, bounceDistance)
       .addScaledVector(lateral, offset * 0.35 + bounceJitter);
-    bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
+    bounce.y = diceBaseY + DICE_SIZE * (0.14 + Math.random() * 0.06);
     applyAxisOffsets(bounce, 'bounce');
 
     const base = centerLocal
@@ -5294,6 +5296,8 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+    // Parked weapon barrel/front should face the opposite side per visual direction request.
+    holder.rotateY(Math.PI);
     holder.rotation.x = 0;
     holder.rotation.z = 0;
   }
