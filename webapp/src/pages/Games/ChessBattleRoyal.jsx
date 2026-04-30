@@ -7687,14 +7687,25 @@ function Chess3D({
       .filter(Boolean);
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
+  const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId || optionId === selectedCaptureAnimationId) return;
       setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
+      setWeaponSwapTargetKind(null);
     },
     [resolvedAccountId, selectedCaptureAnimationId]
   );
+  const quickSwapWeaponList = useMemo(() => {
+    const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
+    if (!weaponSwapTargetKind) return pool;
+    const filtered = pool.filter(
+      (option) => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind
+    );
+    if (filtered.length) return filtered;
+    return pool;
+  }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -11800,6 +11811,12 @@ function Chess3D({
             ...jet,
             root: jet.root
           });
+          jet.root.userData = {
+            ...(jet.root.userData || {}),
+            type: 'parkedWeapon',
+            parkedWeaponKind: 'jet',
+            parkedIsWhite: isWhite
+          };
 
           const helicopter = createFxHelicopter();
           helicopter.root.scale.setScalar(
@@ -11825,6 +11842,12 @@ function Chess3D({
             ...helicopter,
             root: helicopter.root
           });
+          helicopter.root.userData = {
+            ...(helicopter.root.userData || {}),
+            type: 'parkedWeapon',
+            parkedWeaponKind: 'helicopter',
+            parkedIsWhite: isWhite
+          };
         }
         const sideDrone = createFxDrone();
         sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
@@ -11846,6 +11869,12 @@ function Chess3D({
           ...sideDrone,
           root: sideDrone.root
         });
+        sideDrone.root.userData = {
+          ...(sideDrone.root.userData || {}),
+          type: 'parkedWeapon',
+          parkedWeaponKind: 'drone',
+          parkedIsWhite: isWhite
+        };
 
         const supportTruck = createFxSupportTruck();
         supportTruck.root.scale.setScalar(
@@ -11878,6 +11907,12 @@ function Chess3D({
           ...supportTruck,
           root: supportTruck.root
         });
+        supportTruck.root.userData = {
+          ...(supportTruck.root.userData || {}),
+          type: 'parkedWeapon',
+          parkedWeaponKind: 'truck',
+          parkedIsWhite: isWhite
+        };
       });
       const currentCaptureKind = selectedParkedWeaponKindRef.current;
       parkedAirUnits.forEach((unit) => {
@@ -12980,6 +13015,18 @@ function Chess3D({
       if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
+      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
+      for (const hit of parkedIntersects) {
+        let node = hit.object;
+        while (node) {
+          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
+            setWeaponSwapTargetKind(node.userData.parkedWeaponKind);
+            setWeaponSwapOpen(true);
+            return;
+          }
+          node = node.parent;
+        }
+      }
       const intersects = ray.intersectObjects(boardGroup.children, true);
       let obj = null;
       for (const i of intersects) {
@@ -13878,22 +13925,25 @@ function Chess3D({
         </div>
         <div className="fixed right-3 bottom-[10.4rem] z-50 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-2">
-            <button
-              type="button"
-              onClick={() => setWeaponSwapOpen((open) => !open)}
-              aria-expanded={weaponSwapOpen}
-              aria-label={weaponSwapOpen ? 'Close quick weapon swap' : 'Open quick weapon swap'}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-300/60 bg-black/65 text-base shadow-[0_6px_16px_rgba(0,0,0,0.42)] transition hover:border-amber-200 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
-            >
-              🔄
-            </button>
             {weaponSwapOpen && (
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
-                <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                  Quick Weapon Swap
-                </p>
+                <div className="flex items-center justify-between px-2 pb-2">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
+                    Quick Weapon Swap {weaponSwapTargetKind ? `• ${weaponSwapTargetKind}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeaponSwapOpen(false);
+                      setWeaponSwapTargetKind(null);
+                    }}
+                    className="rounded-md border border-white/20 px-1.5 py-0.5 text-[10px] text-white/75 hover:border-white/40 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
                 <div className="space-y-2">
-                  {(quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations).map((option) => {
+                  {quickSwapWeaponList.map((option) => {
                     const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
