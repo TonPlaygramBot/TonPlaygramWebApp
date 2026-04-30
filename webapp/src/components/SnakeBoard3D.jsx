@@ -89,9 +89,8 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.21;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.46;
-// Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
-// with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
+// Pull lower-body seating inward toward the table while preserving the same seat anchors.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
@@ -586,21 +585,21 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   droneAttack: 'drone',
   fighterJetAttack: 'fighter',
   helicopterAttack: 'helicopter',
-  fpsGunAttack: 'supportTruck',
-  glockSidearmAttack: 'supportTruck',
-  assaultRifleAttack: 'supportTruck',
-  uziSprayAttack: 'supportTruck',
-  ak47VolleyAttack: 'supportTruck',
-  krsvBurstAttack: 'supportTruck',
-  smithSidearmAttack: 'supportTruck',
-  mosinMarksmanAttack: 'supportTruck',
-  sigsauerTacticalAttack: 'supportTruck',
-  grenadeBlastAttack: 'supportTruck',
-  shotgunBlastAttack: 'supportTruck',
-  sniperShotAttack: 'supportTruck',
-  smgBurstAttack: 'supportTruck',
-  compactCarbineAttack: 'supportTruck',
-  marksmanDmrAttack: 'supportTruck',
+  fpsGunAttack: 'fpsGunAttack',
+  glockSidearmAttack: 'glockSidearmAttack',
+  assaultRifleAttack: 'assaultRifleAttack',
+  uziSprayAttack: 'uziSprayAttack',
+  ak47VolleyAttack: 'ak47VolleyAttack',
+  krsvBurstAttack: 'krsvBurstAttack',
+  smithSidearmAttack: 'smithSidearmAttack',
+  mosinMarksmanAttack: 'mosinMarksmanAttack',
+  sigsauerTacticalAttack: 'sigsauerTacticalAttack',
+  grenadeBlastAttack: 'grenadeBlastAttack',
+  shotgunBlastAttack: 'shotgunBlastAttack',
+  sniperShotAttack: 'sniperShotAttack',
+  smgBurstAttack: 'smgBurstAttack',
+  compactCarbineAttack: 'compactCarbineAttack',
+  marksmanDmrAttack: 'marksmanDmrAttack',
   polyShotgun01Attack: 'polyShotgun01Attack',
   polyAssaultRifle01Attack: 'polyAssaultRifle01Attack',
   polyPistol01Attack: 'polyPistol01Attack',
