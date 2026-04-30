@@ -24,6 +24,9 @@ namespace Aiming.Gameplay.Rendering
         private static readonly int EmissionMapId = Shader.PropertyToID("_EmissionMap");
         private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
         private static readonly int MainTexStId = Shader.PropertyToID("_MainTex_ST");
+        private static readonly int BaseColorMapId = Shader.PropertyToID("_BaseColorMap");
+        private static readonly int BaseColorTextureId = Shader.PropertyToID("_BaseColorTexture");
+        private static readonly int ColorMapId = Shader.PropertyToID("_ColorMap");
 
         void Awake()
         {
@@ -109,11 +112,14 @@ namespace Aiming.Gameplay.Rendering
 
         private static void CopyPbrMaps(Material material)
         {
-            Texture baseTexture = FirstTexture(material, BaseMapId, MainTexId);
+            Texture baseTexture = FirstTexture(material, BaseMapId, MainTexId, BaseColorMapId, BaseColorTextureId, ColorMapId);
             if (baseTexture != null)
             {
                 TrySetTexture(material, BaseMapId, baseTexture);
                 TrySetTexture(material, MainTexId, baseTexture);
+                TrySetTexture(material, BaseColorMapId, baseTexture);
+                TrySetTexture(material, BaseColorTextureId, baseTexture);
+                TrySetTexture(material, ColorMapId, baseTexture);
                 SyncTextureTransform(material);
             }
 
@@ -183,6 +189,42 @@ namespace Aiming.Gameplay.Rendering
             }
         }
 
+
+        private static Vector2 FirstTextureScale(Material material, params int[] texturePropertyIds)
+        {
+            for (int i = 0; i < texturePropertyIds.Length; i++)
+            {
+                int propertyId = texturePropertyIds[i];
+                if (!material.HasProperty(propertyId))
+                {
+                    continue;
+                }
+
+                Vector2 scale = material.GetTextureScale(propertyId);
+                if (scale != Vector2.zero)
+                {
+                    return scale;
+                }
+            }
+
+            return Vector2.one;
+        }
+
+        private static Vector2 FirstTextureOffset(Material material, params int[] texturePropertyIds)
+        {
+            for (int i = 0; i < texturePropertyIds.Length; i++)
+            {
+                int propertyId = texturePropertyIds[i];
+                if (!material.HasProperty(propertyId))
+                {
+                    continue;
+                }
+
+                return material.GetTextureOffset(propertyId);
+            }
+
+            return Vector2.zero;
+        }
         private static void SyncTextureTransform(Material material)
         {
             bool hasBase = material.HasProperty(BaseMapId);
@@ -192,17 +234,18 @@ namespace Aiming.Gameplay.Rendering
                 return;
             }
 
-            Vector2 scale = material.GetTextureScale(BaseMapId);
-            Vector2 offset = material.GetTextureOffset(BaseMapId);
-            if (scale == Vector2.zero)
-            {
-                scale = material.GetTextureScale(MainTexId);
-            }
+            Vector2 scale = FirstTextureScale(material, BaseMapId, MainTexId, BaseColorMapId, BaseColorTextureId, ColorMapId);
+            Vector2 offset = FirstTextureOffset(material, BaseMapId, MainTexId, BaseColorMapId, BaseColorTextureId, ColorMapId);
 
             material.SetTextureScale(MainTexId, scale);
             material.SetTextureOffset(MainTexId, offset);
             material.SetTextureScale(BaseMapId, scale);
             material.SetTextureOffset(BaseMapId, offset);
+            if (material.HasProperty(BaseColorMapId))
+            {
+                material.SetTextureScale(BaseColorMapId, scale);
+                material.SetTextureOffset(BaseColorMapId, offset);
+            }
 
             if (material.HasProperty(BaseMapStId) && material.HasProperty(MainTexStId))
             {
