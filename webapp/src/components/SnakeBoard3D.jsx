@@ -317,20 +317,20 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
+  TILE_SIZE * 0.22,
+  TILE_SIZE * 0.22,
+  TILE_SIZE * 0.22,
+  TILE_SIZE * 0.22
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.04,
+  'slot-10-ak47-gltf': 0.03,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.07,
+  'slot-18-fps-gun-gltf': 0.062,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -384,6 +384,8 @@ const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
 const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 1.32;
 const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.2;
+const WEAPON_MIN_BOARD_CLEARANCE = TILE_SIZE * 0.52;
+const WEAPON_RIGHT_HAND_SIDE_OFFSET = TOKEN_RADIUS * 0.85;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -647,6 +649,11 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
+const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
+  'slot-10-ak47-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 }),
+  'slot-18-fps-gun-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
+});
+const WEAPON_FLAT_TABLE_ROTATION = Object.freeze({ x: 0.04, z: -0.06 });
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
   return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
@@ -2799,15 +2806,18 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = []
+    startPositions = [],
+    bouncePoints = []
   }
 ) {
   const start = performance.now();
+  const firstImpactAt = 0.46;
+  const secondImpactAt = 0.74;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
-      1.45 + Math.random() * 0.22,
-      1.52 + Math.random() * 0.2,
-      1.32 + Math.random() * 0.18
+      1.5 + Math.random() * 0.25,
+      1.62 + Math.random() * 0.24,
+      1.38 + Math.random() * 0.22
     )
   );
   const wobbleVectors = diceArray.map(
@@ -2824,14 +2834,36 @@ function createDiceRollAnimation(
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const position = startPos.clone().lerp(base, eased);
+        const bounce = bouncePoints[index];
+        let position = startPos.clone().lerp(base, eased);
+        if (bounce) {
+          if (t <= firstImpactAt) {
+            const impactT = easeOutCubic(t / firstImpactAt);
+            position = startPos.clone().lerp(bounce, impactT);
+          } else {
+            const settleT = (t - firstImpactAt) / (1 - firstImpactAt);
+            const easedSettle = easeOutCubic(settleT);
+            position = bounce.clone().lerp(base, easedSettle);
+          }
+        }
         const wobbleStrength = Math.sin(eased * Math.PI);
         position.addScaledVector(wobbleVectors[index], wobbleStrength * DICE_SIZE * 0.48);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeights[index] * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
+        const arcFall = THREE.MathUtils.lerp(startPos.y, baseY, eased);
+        let bounceLift = 0;
+        if (t <= firstImpactAt) {
+          const phaseT = t / firstImpactAt;
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.85;
+        } else if (t <= secondImpactAt) {
+          const phaseT = (t - firstImpactAt) / (secondImpactAt - firstImpactAt);
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.36;
+        } else {
+          const phaseT = (t - secondImpactAt) / Math.max(1e-6, 1 - secondImpactAt);
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.12;
+        }
+        position.y = Math.max(baseY, arcFall + bounceLift);
         die.position.copy(position);
 
-        const spinFactor = 1 - eased * 0.34;
+        const spinFactor = t < firstImpactAt ? 1 - eased * 0.25 : Math.max(0.08, 1 - eased * 1.08);
         die.rotation.x += spinVectors[index].x * spinFactor * 0.19;
         die.rotation.y += spinVectors[index].y * spinFactor * 0.19;
         die.rotation.z += spinVectors[index].z * spinFactor * 0.19;
@@ -5210,7 +5242,12 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
         model.scale.setScalar(
           TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
         );
-        model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+        const parkedRotation = FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType];
+        if (parkedRotation) {
+          model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
+        } else {
+          model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+        }
         model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
@@ -5233,8 +5270,8 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
   group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[normalizedWeaponType] ?? TOKEN_HEIGHT * 1.48;
-  group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[normalizedWeaponType] ?? 0;
-  group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[normalizedWeaponType] ?? 0;
+  group.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
+  group.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -5300,7 +5337,9 @@ function updateSeatWeaponDisplays(board, players = []) {
         .copy(railLayout.railLocal)
         .addScaledVector(
           railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
+          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
+            lateralNudge +
+            WEAPON_RIGHT_HAND_SIDE_OFFSET
         )
         .addScaledVector(
           railLayout.seatDirection,
@@ -5313,6 +5352,13 @@ function updateSeatWeaponDisplays(board, players = []) {
       }
       holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
       holder.position.y += PARKING_VERTICAL_LIFT;
+      const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
+      const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
+      if (radialFromCenter.length() < minClearance) {
+        radialFromCenter.normalize().multiplyScalar(minClearance);
+        holder.position.x = boardLookTarget.x + radialFromCenter.x;
+        holder.position.z = boardLookTarget.z + radialFromCenter.z;
+      }
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -5329,12 +5375,17 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
-    holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+    const lookAwayDirection = holder.position.clone().sub(boardLookTarget).setY(0);
+    if (lookAwayDirection.lengthSq() < 1e-6) lookAwayDirection.set(0, 0, 1);
+    lookAwayDirection.normalize();
+    const lookAwayTarget = holder.position.clone().addScaledVector(lookAwayDirection, TILE_SIZE * 3);
+    holder.lookAt(lookAwayTarget.x, holder.position.y, lookAwayTarget.z);
     if (!isVehicleWeapon) {
       holder.rotateY(Math.PI);
     }
     holder.rotation.x = 0;
-    holder.rotation.z = 0;
+    holder.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
+    holder.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
   }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
