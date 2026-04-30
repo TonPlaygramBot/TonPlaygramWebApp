@@ -8792,6 +8792,11 @@ function Chess3D({
           nextTable.group.add(boardGroup);
           alignBoardGroupToTableSurface(boardGroup, nextTable);
         }
+        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
+        if (nextTable?.group) {
+          nextTable.group.position.x = placementOffset.x;
+          nextTable.group.position.z = placementOffset.z;
+        }
         arena.tableInfo?.dispose?.();
         arena.tableInfo = nextTable;
         arena.tableShapeId = nextTable?.shapeId;
@@ -8804,7 +8809,6 @@ function Chess3D({
         }
         (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
         // Preserve original room layout when table/chair options change so gameplay framing stays stable.
-        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
         arena.tablePlacementOffset = placementOffset.clone();
         if (arena.boardLookTarget) {
           arena.boardLookTarget.x = placementOffset.x;
