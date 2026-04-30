@@ -7645,6 +7645,14 @@ function Chess3D({
     [selectedCaptureAnimationId]
   );
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
+  const FIREARM_SINGLE_SHOT_IDS = useMemo(() => new Set([
+    'polyShotgun01Attack',
+    'polyShotgun02Attack',
+    'polyShotgun03Attack',
+    'sniperShotAttack',
+    'mosinMarksmanAttack',
+    'compactCarbineAttack'
+  ]), []);
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
@@ -7700,9 +7708,20 @@ function Chess3D({
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
     if (!weaponSwapTargetKind) return pool;
-    const filtered = pool.filter(
-      (option) => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind
-    );
+
+    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
+    // Keep full firearm inventory visible when player taps one of those parked vehicles.
+    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
+      const firearmOnly = pool.filter((option) =>
+        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
+      );
+      if (firearmOnly.length) return firearmOnly;
+    }
+
+    const filtered = pool.filter((option) => {
+      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
+    });
     if (filtered.length) return filtered;
     return pool;
   }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
@@ -11306,20 +11325,39 @@ function Chess3D({
         });
       }
       if (captureKind === 'firearm') {
+        const shotFrom = fromPos.clone().lerp(targetPos, 0.38);
+        shotFrom.y += 0.58;
+        const liveTarget = getLiveTargetPosition(targetPos.clone(), targetMesh, 0);
+        const isSingleShot = FIREARM_SINGLE_SHOT_IDS.has(selectedCaptureAnimationId);
+        const bulletCount = isSingleShot ? 1 : 6;
+        const shotDuration = isSingleShot ? 0.34 : 0.78;
+        const bulletSpeed = isSingleShot ? 1.15 : 0.52;
+        const projectiles = [];
+        for (let idx = 0; idx < bulletCount; idx += 1) {
+          const bullet = new THREE.Mesh(
+            new THREE.SphereGeometry(isSingleShot ? 0.045 : 0.032, 10, 10),
+            new THREE.MeshStandardMaterial({ color: '#f8fafc', emissive: '#f59e0b', emissiveIntensity: 0.45, metalness: 0.58, roughness: 0.24 })
+          );
+          bullet.visible = false;
+          captureFxGroup.add(bullet);
+          projectiles.push(bullet);
+        }
         playAudio(missileLaunchSoundRef);
-        const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 1.25);
-        captureFxGroup.add(missileFx.root);
         activeCaptureFx.push({
-          type: 'missile',
+          type: 'firearm',
           t: 0,
-          duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
+          duration: shotDuration,
+          from: shotFrom,
+          to: liveTarget.clone(),
           targetMesh,
-          missileFx
+          isSingleShot,
+          bulletCount,
+          bulletSpeed,
+          projectiles,
+          burstStarted: false,
+          didBreak: false
         });
-        return withAuto3d({ moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 });
+        return withAuto3d({ moveDelayMs: shotDuration * 1000, captureResolveDelayMs: shotDuration * 1000 });
       }
       if (distance <= 1.5) {
         playAudio(swordSoundRef);
@@ -13533,6 +13571,49 @@ function Chess3D({
               }
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'firearm') {
+            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            fx.to.copy(targetPos);
+            const toTarget = targetPos.clone().sub(fx.from);
+            const baseDir = toTarget.lengthSq() > 0.0001 ? toTarget.normalize() : new THREE.Vector3(0, 0, -1);
+            if (!fx.burstStarted) {
+              fx.burstStarted = true;
+              playAudio(missileImpactSoundRef);
+            }
+            const shotGap = fx.isSingleShot ? 1 : 1 / Math.max(1, fx.bulletCount - 1);
+            fx.projectiles?.forEach((bullet, idx) => {
+              const fireAt = shotGap * idx;
+              const localU = clamp01((u - fireAt) / Math.max(0.001, 1 - fireAt));
+              if (u < fireAt) {
+                bullet.visible = false;
+                return;
+              }
+              bullet.visible = true;
+              const jitter = fx.isSingleShot
+                ? new THREE.Vector3(0, 0, 0)
+                : new THREE.Vector3((idx - 2) * 0.014, Math.sin((fx.t + idx) * 16) * 0.006, 0);
+              const bulletPos = fx.from.clone().lerp(targetPos, localU * fx.bulletSpeed).add(jitter);
+              bullet.position.copy(bulletPos);
+            });
+
+            if (!fx.didBreak) {
+              if (fx.isSingleShot && u >= 0.5) {
+                fx.didBreak = true;
+                launchExplosion(targetPos.clone());
+              } else if (!fx.isSingleShot && u >= 0.28) {
+                launchExplosion(targetPos.clone());
+              }
+            }
+
+            if (u >= 1) {
+              launchExplosion(targetPos.clone());
+              fx.projectiles?.forEach((bullet) => {
+                captureFxGroup.remove(bullet);
+                bullet.geometry?.dispose?.();
+                if (bullet.material) bullet.material.dispose?.();
+              });
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'missile') {
