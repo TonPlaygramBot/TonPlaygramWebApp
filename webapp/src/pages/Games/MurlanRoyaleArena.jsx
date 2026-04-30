@@ -105,7 +105,7 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 2.0;
-const ENABLE_3D_HUMAN_CHARACTERS = true;
+const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
@@ -836,39 +836,6 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach(applyToMaterial);
   });
-}
-
-function createFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, primary);
-  grad.addColorStop(1, secondary);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 180; i += 1) {
-    const x = (i * 53) % size;
-    const y = (i * 79) % size;
-    const w = 8 + ((i * 11) % 22);
-    const h = 4 + ((i * 7) % 14);
-    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
-    ctx.fillRect(x, y, w, h);
-  }
-  ctx.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(tex);
-  tex.flipY = false;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-  tex.needsUpdate = true;
-  return tex;
 }
 
 function normalizeMaterialTextures(material, maxAnisotropy = 1) {
@@ -1674,23 +1641,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const gltf = await loader.loadAsync(theme.url);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    const skinTex = createFallbackTexture('#d8c0a6', '#b48d6b');
-    const clothTex = createFallbackTexture('#55739a', '#2c3f54');
-    const hairTex = createFallbackTexture('#7b5d3f', '#3f2f20');
-    root.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      const meshName = `${obj.name || ''}`.toLowerCase();
-      const useSkin = /head|face|neck|ear|hand/.test(meshName);
-      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      materials.forEach((mat) => {
-        if (!mat?.map) mat.map = fallbackTex;
-        normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
-        mat.needsUpdate = true;
-      });
-    });
-    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+    prepareLoadedModel(root);
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -2000,10 +1951,10 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - scaleDelta * 0.04,
-    baseSeatOffsetZ
+    baseSeatOffsetY - 0.06 - scaleDelta * 0.06,
+    baseSeatOffsetZ + 0.42 - scaleDelta * 0.1
   );
-  seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
+  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, characterTheme.seatYaw ?? Math.PI, 0);
 
   seatRoot.add(instance);
   seatRoot.userData.dispose = () => {
