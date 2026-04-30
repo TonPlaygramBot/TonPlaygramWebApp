@@ -7655,37 +7655,11 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const QUICK_SWAP_WEAPON_IDS = useMemo(
-    () =>
-      [
-        'polyShotgun01Attack',
-        'polyAssaultRifle01Attack',
-        'polyPistol01Attack',
-        'polyRevolver01Attack',
-        'polySawedOff01Attack',
-        'polyRevolver02Attack',
-        'polyShotgun02Attack',
-        'polyShotgun03Attack',
-        'polySmg01Attack',
-        'ak47VolleyAttack',
-        'krsvBurstAttack',
-        'smithSidearmAttack',
-        'mosinMarksmanAttack',
-        'uziSprayAttack',
-        'sigsauerTacticalAttack',
-        'sniperShotAttack',
-        'compactCarbineAttack',
-        'fpsGunAttack'
-      ],
-    []
-  );
   const quickSwapWeapons = useMemo(() => {
-    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
-    return QUICK_SWAP_WEAPON_IDS
-      .filter((id) => ownedIds.has(id))
-      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
-      .filter(Boolean);
-  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
+    return (ownedCaptureAnimations || []).filter((option) =>
+      FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
+    );
+  }, [ownedCaptureAnimations]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7711,6 +7685,7 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
+      if (!isChessOptionUnlocked('captureAnimation', optionId, chessInventory)) return;
       const targetKind = weaponSwapTargetKind;
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
       if (targetGroup) {
