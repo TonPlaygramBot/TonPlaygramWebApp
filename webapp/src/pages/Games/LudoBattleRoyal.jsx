@@ -8729,9 +8729,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       if (stoolChanged) {
+        const lockedSeatCameraBeforeSwap = cameraSeatLockPositionRef.current?.isVector3
+          ? cameraSeatLockPositionRef.current.clone()
+          : null;
+        const preservedTurn = stateRef.current?.turn ?? 0;
         await rebuildChairs(stoolTheme);
         arena.textureResolutionKey = textureResolutionKey;
         configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
+        moveDiceToRail(preservedTurn, true);
+        updateTurnIndicator(preservedTurn, true);
+        if (LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+          cameraSeatLockPositionRef.current = lockedSeatCameraBeforeSwap || cameraRef.current?.position?.clone?.() || null;
+        }
 
       } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
         applyChairThemeMaterials(
