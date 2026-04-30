@@ -1952,13 +1952,9 @@ const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.026; // match Bilardo Shqip cue elevation above bridge hand
+const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
-const HUMAN_SHOOT_CUE_GRIP_FROM_BACK = 0.58;
-const HUMAN_RIGHT_HAND_SHOT_EXTRA_BACK = 0.18;
-const HUMAN_RIGHT_HAND_SHOT_LIFT = 0.055;
-const HUMAN_RIGHT_HAND_FORWARD_CLAMP = -0.08;
-const HUMAN_RIGHT_HAND_OUTWARD = 0.14;
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -24688,11 +24684,11 @@ const shotPowerRef = useRef(0);
             bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
             cueLength: HUMAN_CUE_LENGTH,
             bridgeDist: HUMAN_BRIDGE_DIST,
-            shootCueGripFromBack: HUMAN_SHOOT_CUE_GRIP_FROM_BACK,
-            rightHandShotExtraBack: HUMAN_RIGHT_HAND_SHOT_EXTRA_BACK,
-            rightHandShotLift: HUMAN_RIGHT_HAND_SHOT_LIFT,
-            rightHandForwardClamp: HUMAN_RIGHT_HAND_FORWARD_CLAMP,
-            rightHandOutward: HUMAN_RIGHT_HAND_OUTWARD,
+            shootCueGripFromBack: 0.58,
+            rightHandShotExtraBack: 0.18,
+            rightHandShotLift: 0.055,
+            rightHandForwardClamp: -0.08,
+            rightHandOutward: 0.14,
             idleRightHandX: 0.31,
             idleRightHandY: 0.8,
             idleRightHandZ: -0.015,
@@ -24898,13 +24894,7 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const cueShootDir = cueTip.clone().sub(cueBack).normalize();
-            const gripTarget = cueBack
-              .clone()
-              .addScaledVector(cueShootDir, HUMAN_SHOOT_CUE_GRIP_FROM_BACK)
-              .addScaledVector(aimForward, HUMAN_RIGHT_HAND_FORWARD_CLAMP - HUMAN_RIGHT_HAND_SHOT_EXTRA_BACK)
-              .addScaledVector(UP, HUMAN_RIGHT_HAND_SHOT_LIFT)
-              .addScaledVector(side, HUMAN_RIGHT_HAND_OUTWARD);
+            const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
@@ -25040,13 +25030,7 @@ const shotPowerRef = useRef(0);
             .clone()
             .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
             .add(new THREE.Vector3(0, 0.028 * scale, 0));
-          const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
-          const gripHandTarget = cueBackShoot
-            .clone()
-            .addScaledVector(cueShootDir, HUMAN_SHOOT_CUE_GRIP_FROM_BACK)
-            .addScaledVector(aimForward, HUMAN_RIGHT_HAND_FORWARD_CLAMP - HUMAN_RIGHT_HAND_SHOT_EXTRA_BACK)
-            .addScaledVector(UP, HUMAN_RIGHT_HAND_SHOT_LIFT)
-            .addScaledVector(side, HUMAN_RIGHT_HAND_OUTWARD);
+          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
 
           const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
           const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));

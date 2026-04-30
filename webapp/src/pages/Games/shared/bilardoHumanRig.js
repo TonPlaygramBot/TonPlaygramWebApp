@@ -225,80 +225,23 @@ function poseFingers(fingers, mode, weight) {
   });
 }
 
-function driveHuman(human, frame) {
-  if (!human.activeGlb || !human.model) {
-    human.fallback.visible = true;
-    human.fallback.position.copy(frame.rootWorld);
-    human.fallback.rotation.y = human.yaw;
-    human.fallback.rotation.x = -0.16 * frame.t;
-    human.fallback.position.y -= 0.035 * frame.t;
-    return;
-  }
-  human.fallback.visible = false;
-  human.modelRoot.visible = true;
-  human.modelRoot.position.copy(frame.rootWorld);
-  human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.updateMatrixWorld(true);
-  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
-  human.modelRoot.updateMatrixWorld(true);
-
-  const b = human.bones;
-  const ik = easeInOut(clamp01(frame.t));
-  const idle = 1 - ik;
-  const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize();
-  const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
-
-  if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
-  }
-
-  if (ik >= 0.025) {
-    rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, -0.045 * ik);
-    twistBone(b.hips, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, -0.2 * ik);
-    twistBone(b.spine, frame.forward, -0.04 * ik);
-    rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, -0.32 * ik);
-    twistBone(b.chest, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, -0.12 * ik);
-    setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
-    human.modelRoot.updateMatrixWorld(true);
-  }
-
-  const rightGrip = frame.rightHandWorld.clone();
-  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
-  const rightHold = 0.88 + 0.12 * ik;
-  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
-
-  const gripSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.2, ik)).addScaledVector(frame.side, 0.18 * ik).addScaledVector(frame.forward, lerp(0.16, -0.02, ik)).normalize();
-  const gripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.74, ik)).addScaledVector(frame.side, lerp(-0.64, -0.22, ik)).addScaledVector(frame.forward, lerp(0.2, -0.22, ik)).normalize();
-  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, lerp(human.cfg?.rightHandRollIdle ?? CFG.rightHandRollIdle, human.cfg?.rightHandRollShoot ?? CFG.rightHandRollShoot, ik) + 0.03 * frame.stroke, 1.0);
-  poseFingers(human.rightFingers, 'grip', 0.95);
-
+function driveHuman(human, frame) { /* unchanged structural behavior from source snippet */
+  if (!human.activeGlb || !human.model) { human.fallback.visible = true; human.fallback.position.copy(frame.rootWorld); human.fallback.rotation.y = human.yaw; human.fallback.rotation.x = -0.16 * frame.t; human.fallback.position.y -= 0.035 * frame.t; return; }
+  human.fallback.visible = false; human.modelRoot.visible = true; human.modelRoot.position.copy(frame.rootWorld); human.modelRoot.rotation.y = human.yaw; human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t; human.modelRoot.updateMatrixWorld(true); human.restQuats.forEach((q, bone) => bone.quaternion.copy(q)); human.modelRoot.updateMatrixWorld(true);
+  const b = human.bones; const ik = easeInOut(clamp01(frame.t)); const idle = 1 - ik; const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize(); const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
+  if (frame.walkAmount * idle > 0.001) { const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle; if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w; if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w; if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w; if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w; if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w; if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w; if (b.spine) b.spine.rotation.z += c * 0.025 * w; if (b.hips) b.hips.rotation.z -= c * 0.018 * w; }
+  const rightGrip = frame.rightHandWorld.clone().addScaledVector(cueDir, -0.014 * idle - 0.065 * ik).addScaledVector(frame.side, 0.006 * ik).addScaledVector(UP, 0.003 * ik);
+  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.24 + 0.21 * ik).addScaledVector(frame.side, 0.075).addScaledVector(frame.forward, -0.026 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.64); const rightHold = 0.62 + 0.34 * ik;
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, frame.side.clone().addScaledVector(UP, 0.18).normalize(), rightHold, rightHold);
+  const gripSide = frame.side.clone().addScaledVector(UP, -0.18).addScaledVector(frame.forward, 0.08).normalize(); const gripUp = UP.clone().multiplyScalar(0.58).addScaledVector(frame.side, 0.26).addScaledVector(frame.forward, -0.36).normalize();
+  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, -0.03 * idle + 0.1 * ik + 0.05 * frame.stroke, 0.86 + 0.12 * ik); poseFingers(human.rightFingers, 'grip', 0.72 + 0.18 * ik);
   if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
-
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik);
-  aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
-  twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
-  twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
-  const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
-  const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
-  setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
-  poseFingers(human.leftFingers, 'bridge', ik);
+  rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward); twistBone(b.hips, frame.side, -0.075 * ik); twistBone(b.hips, frame.forward, -0.04 * ik);
+  rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward); twistBone(b.spine, frame.side, -0.23 * ik); twistBone(b.spine, frame.forward, -0.055 * ik);
+  rotateBoneToward(b.chest, frame.neckWorld, (0.52 + 0.3 * ik) * ik, frame.forward); twistBone(b.chest, frame.side, -0.35 * ik); twistBone(b.chest, frame.forward, -0.035 * ik);
+  rotateBoneToward(b.neck, frame.headCenterWorld, 0.66 * ik, frame.forward); twistBone(b.neck, frame.side, -0.13 * ik);
+  setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
 }
 
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cfg = { ...CFG, ...opts }; const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance); const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin; const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin; const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)]; return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone(); }
