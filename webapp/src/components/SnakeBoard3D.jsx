@@ -87,7 +87,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.21;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+// Raise seated humans higher on portrait screens to match earlier approved framing.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.95 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.46;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -166,8 +167,8 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 120;
+const DICE_ROLL_DURATION = 760;
+const DICE_SETTLE_DURATION = 180;
 const DICE_RESULT_HOLD_DURATION = 2000;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
@@ -314,13 +315,14 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.8;
+const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.36,
-  TILE_SIZE * 0.34,
-  TILE_SIZE * 0.42,
-  TILE_SIZE * 0.34
+  TILE_SIZE * 0.4,
+  TILE_SIZE * 0.38,
+  TILE_SIZE * 0.46,
+  TILE_SIZE * 0.38
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -2784,13 +2786,15 @@ function createDiceRollAnimation(
   const start = performance.now();
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
+      1.45 + Math.random() * 0.22,
+      1.52 + Math.random() * 0.2,
+      1.32 + Math.random() * 0.18
     )
   );
-  const wobbleVectors = diceArray.map(() => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16));
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.9 + Math.random() * 0.25));
+  const wobbleVectors = diceArray.map(
+    () => new THREE.Vector3((Math.random() - 0.5) * 0.09, 0, (Math.random() - 0.5) * 0.09)
+  );
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.72 + Math.random() * 0.12));
 
   return {
     type: 'diceRoll',
@@ -2808,10 +2812,10 @@ function createDiceRollAnimation(
         position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
-        const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        const spinFactor = 1 - eased * 0.34;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.19;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.19;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.19;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -5171,15 +5175,20 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
   const catalogWeaponType = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] ? rawWeaponType : null;
   const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
+  const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
+    normalizedWeaponType
+  );
+  const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
   if (catalogWeaponType) {
     const holder = new THREE.Group();
     const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
+    fallback.scale.multiplyScalar(firearmScale);
     holder.add(fallback);
     loadCaptureWeaponCatalogModel(catalogWeaponType)
       .then((model) => {
         if (!model || !holder.parent) return;
         while (holder.children.length) holder.remove(holder.children[0]);
-        model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
+        model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale);
         model.rotation.set(0.04, Math.PI * 0.5, -0.06);
         model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
@@ -5188,7 +5197,9 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
     return holder;
   }
   if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
-    return createPolySeatWeaponMesh(normalizedWeaponType);
+    const polyMesh = createPolySeatWeaponMesh(normalizedWeaponType);
+    polyMesh.scale.multiplyScalar(firearmScale);
+    return polyMesh;
   }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
@@ -5247,6 +5258,10 @@ function updateSeatWeaponDisplays(board, players = []) {
     }
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
+    const parkedWeaponKind = normalizeSnakeCaptureWeaponKind(parkedWeaponType);
+    const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
+      parkedWeaponKind
+    );
     if (holder.userData.weaponType !== parkedWeaponType) {
       while (holder.children.length) {
         const child = holder.children.pop();
@@ -5294,6 +5309,9 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+    if (!isVehicleWeapon) {
+      holder.rotateY(Math.PI);
+    }
     holder.rotation.x = 0;
     holder.rotation.z = 0;
   }
