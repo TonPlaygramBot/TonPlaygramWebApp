@@ -317,18 +317,10 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Normalize Extra GLTF weapons against the Quaternius catalog proportions.
-  // Rifles/snipers keep longer silhouettes; sidearms stay compact in portrait view.
+  // Match Gunify AK47 GLTF visual size with the in-game AK baseline.
   'slot-10-ak47-gltf': 0.32,
-  'slot-11-krsv-gltf': 0.31,
-  'slot-12-smith-gltf': 0.24,
-  'slot-13-mosin-gltf': 0.33,
-  'slot-14-uzi-gltf': 0.27,
-  'slot-15-sigsauer-gltf': 0.24,
-  'slot-16-awp-gltf': 0.35,
-  'slot-17-mrtk-gun-gltf': 0.29,
-  // Shotgun blast GLTF tuned to Quaternius shotgun footprint.
-  'slot-18-fps-gun-gltf': 0.28
+  // Match SigSauer GLTF visual size with Glock-sized sidearms.
+  'slot-15-sigsauer-gltf': 0.3
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
