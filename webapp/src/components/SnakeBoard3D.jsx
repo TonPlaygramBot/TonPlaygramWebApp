@@ -352,14 +352,11 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: TILE_SIZE * 0.08, lateral: TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom seat (red): bottom-right marker.
-  Object.freeze({ radial: TILE_SIZE * 0.72, lateral: -TILE_SIZE * 0.78, y: TILE_SIZE * 1.72 }),
-  // Right seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: TILE_SIZE * 0.68, y: TILE_SIZE * 1.72 }),
-  // Top seat (red): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 0.96, lateral: TILE_SIZE * 0.48, y: TILE_SIZE * 1.8 }),
-  // Left seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: -TILE_SIZE * 0.68, y: TILE_SIZE * 1.72 })
+  // Keep weapons parked on dedicated parking slots (helicopter/jet/drone/truck pads).
+  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
+  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
+  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
+  Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -1762,8 +1759,9 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
   // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
+  // Mirror lower-body spread inward toward the table while preserving seated location.
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.12, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.12, -0.02, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
