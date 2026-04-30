@@ -363,7 +363,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Keep the same table/board/chair proportions, but ~22% smaller than current.
 const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
@@ -7771,7 +7771,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('3d');
+  const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -8754,30 +8754,13 @@ function Chess3D({
           arena.boardLookTarget.set(0, targetY, 0);
         }
         (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
-        const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
-        const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
-        const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
-        const placementOffset = alignArenaContentsToRoom(
-          [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)],
-          roomHalfWidth,
-          roomHalfDepth,
-          TABLE_BOTTOM_PLAYER_BIAS_Z
-        );
-        const placementDelta = placementOffset.clone().sub(prevPlacement);
+        // Preserve original room layout when table/chair options change so gameplay framing stays stable.
+        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
         arena.tablePlacementOffset = placementOffset.clone();
         if (arena.boardLookTarget) {
           arena.boardLookTarget.x = placementOffset.x;
           arena.boardLookTarget.z = placementOffset.z;
         }
-        if (arena.camera && (Math.abs(placementDelta.x) > 1e-4 || Math.abs(placementDelta.z) > 1e-4)) {
-          arena.camera.position.x += placementDelta.x;
-          arena.camera.position.z += placementDelta.z;
-        }
-        arena.studioCameras?.forEach((cam) => {
-          if (!cam) return;
-          cam.position.x += placementDelta.x;
-          cam.position.z += placementDelta.z;
-        });
         const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
         groundArenaGroups(arenaGroups, arenaFloorY);
         const updatedFloorY = computeGroupFloorY(arenaGroups);
@@ -9755,11 +9738,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Always start every new match in cinematic 3D mode before any user toggle.
+    // Start every match in locked 2D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '3d';
-    setViewMode('3d');
-    setViewModeInternal('3d');
+    viewModeRef.current = '2d';
+    setViewMode('2d');
+    setViewModeInternal('2d');
 
     const fit = () => {
       const w = host.clientWidth;
