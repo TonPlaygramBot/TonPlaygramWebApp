@@ -53,6 +53,7 @@ import {
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -790,6 +791,9 @@ const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
 const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
+const FIREARM_BROADCAST_PROFILE = Object.freeze({
+  ...LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile
+});
 const FIREARM_TARGET_RETICLE_SIZE = 0.04;
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const CAPTURE_ATTACK_TUNING = Object.freeze({
@@ -10050,6 +10054,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
+          const directorWeaponType =
+            LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[resolvedCaptureAnimationId] ?? 'Rifle';
           const attackerEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === attackerPlayer);
           const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
           const muzzleOrigin = new THREE.Vector3();
@@ -10074,10 +10080,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           muzzleTarget.copy(targetPosition).add(new THREE.Vector3(0, 0.03, 0));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
           const ballisticsProfile = resolveFirearmBallisticsProfile(resolvedCaptureAnimationId);
+          const bridgeBallisticsBias =
+            directorWeaponType === 'Sniper'
+              ? { bulletSpeed: 0.3, tracerSpread: 0.009 }
+              : directorWeaponType === 'Shotgun'
+              ? { tracerSpread: 0.026 }
+              : directorWeaponType === 'SMG'
+              ? { tracerSpread: 0.022 }
+              : {};
           const caliberProfile = FIREARM_CALIBER_BY_ID[resolvedCaptureAnimationId] ?? null;
           const mergedBallistics = caliberProfile
-            ? { ...ballisticsProfile, ...caliberProfile }
-            : ballisticsProfile;
+            ? { ...ballisticsProfile, ...bridgeBallisticsBias, ...caliberProfile }
+            : { ...ballisticsProfile, ...bridgeBallisticsBias };
           const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
@@ -10168,9 +10182,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(singleShotFirearm ? FIREARM_CAMERA_SIDE_PULLBACK * 0.62 : FIREARM_CAMERA_SIDE_PULLBACK)
-                    .setY(singleShotFirearm ? FIREARM_CAMERA_LIFT * 1.35 : FIREARM_CAMERA_LIFT)
-                : new THREE.Vector3(0, FIREARM_CAMERA_LIFT, FIREARM_CAMERA_SIDE_PULLBACK);
+                    .multiplyScalar(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimRearPullback * 0.62 : FIREARM_BROADCAST_PROFILE.aimRearPullback)
+                    .setY(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.28 : FIREARM_BROADCAST_PROFILE.aimLift)
+                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, FIREARM_BROADCAST_PROFILE.aimRearPullback);
             setCameraFocus({
               target: cameraMid,
               object: handWeaponAttachment?.weapon,
@@ -10247,21 +10261,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.userData.completed = true;
                 bulletMesh.visible = false;
               }
-              if (!leadBulletPos && shotProgress > 0.2 && shotProgress < 0.995) {
+              if (
+                !leadBulletPos &&
+                shotProgress > FIREARM_BROADCAST_PROFILE.bulletFollowStart &&
+                shotProgress < FIREARM_BROADCAST_PROFILE.bulletFollowEnd
+              ) {
                 leadBulletPos = bulletPos.clone();
                 leadBulletMesh = bulletMesh;
               }
             });
             if (leadBulletPos?.isVector3) {
-              const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.115);
+              const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-FIREARM_BROADCAST_PROFILE.bulletFollowRearPullback);
+              const bulletFocusTarget = leadBulletPos.clone().lerp(muzzleTarget, FIREARM_BROADCAST_PROFILE.bulletTargetBlend);
               setCameraFocus({
-                target: leadBulletPos,
+                target: bulletFocusTarget,
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 10,
                 ttl: 0,
                 offset: Math.max(0.02, (CAMERA_TARGET_LIFT + (singleShotFirearm ? 0.016 : 0.02)) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                followOffset: new THREE.Vector3(pullback.x, singleShotFirearm ? 0.08 : 0.09, pullback.z),
+                followOffset: new THREE.Vector3(
+                  pullback.x,
+                  singleShotFirearm ? FIREARM_BROADCAST_PROFILE.bulletFollowLift * 1.08 : FIREARM_BROADCAST_PROFILE.bulletFollowLift,
+                  pullback.z
+                ),
                 force: true
               });
             } else if (tracers[0]?.root?.visible) {
@@ -10341,7 +10364,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 11,
-                ttl: 1.4,
+                ttl: FIREARM_BROADCAST_PROFILE.impactHoldTtl,
                 offset: Math.max(0.018, (CAMERA_TARGET_LIFT + 0.024) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
                 followOffset: new THREE.Vector3(0, 0.09, -0.12),
                 force: true
