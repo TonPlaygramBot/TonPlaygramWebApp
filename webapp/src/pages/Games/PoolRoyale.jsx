@@ -1945,9 +1945,9 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 1.24; // enlarge shooter body ~30% versus cue for portrait framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 42.0; // make the shooter ~4x larger than the previous size for portrait-phone readability
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 42.0; // keep legacy world-scale normalization
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -1955,8 +1955,8 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.22; // push the shooter farther outward so the body stays clearly on the table perimeter
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.76; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
+const HUMAN_EDGE_MARGIN = 1.08; // keep shooter tighter to the side rail like reference pose
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.42; // bring shooter toward cue grip so hand stays locked on stick
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
@@ -1998,7 +1998,7 @@ const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak 
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
-const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+const CUE_LENGTH_MULTIPLIER = 1.0; // match base cue length so avatar-to-cue proportions stay true to reference
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
@@ -24723,10 +24723,13 @@ const shotPowerRef = useRef(0);
         const grip = anim.gripHand;
         const bridge = anim.bridgeHand;
         if (!grip || !bridge) return;
-        const gripIdle = new THREE.Vector3(0.31, 0.8, -0.015);
-        const gripLocal = gripIdle.clone().addScaledVector(forward, -0.06);
+        const gripIdle = new THREE.Vector3(0.35, 0.92, -0.06);
+        const gripLocal = gripIdle
+          .clone()
+          .addScaledVector(forward, -0.11)
+          .addScaledVector(side, -0.02);
         grip.position.copy(gripLocal);
-        const cueDir = new THREE.Vector3(-forward.x, 0.45, -forward.z).normalize();
+        const cueDir = new THREE.Vector3(-forward.x, 0.34, -forward.z).normalize();
         grip.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
 
         const bridgeWorld = new THREE.Vector3(
