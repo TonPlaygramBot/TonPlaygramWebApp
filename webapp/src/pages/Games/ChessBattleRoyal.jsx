@@ -7640,10 +7640,6 @@ function Chess3D({
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
     return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
   }, [selectedCaptureAnimationId]);
-  const SINGLE_SHOT_FIREARM_IDS = useMemo(
-    () => new Set(['polyShotgun01Attack', 'polySawedOff01Attack', 'polyShotgun02Attack', 'polyShotgun03Attack', 'sniperShotAttack', 'mosinMarksmanAttack', 'compactCarbineAttack']),
-    []
-  );
   const selectedParkedWeaponKind = useMemo(
     () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
     [selectedCaptureAnimationId]
@@ -7704,20 +7700,9 @@ function Chess3D({
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
     if (!weaponSwapTargetKind) return pool;
-
-    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // Keep full firearm inventory visible when player taps one of those parked vehicles.
-    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmOnly = pool.filter((option) =>
-        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
-      );
-      if (firearmOnly.length) return firearmOnly;
-    }
-
-    const filtered = pool.filter((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
-    });
+    const filtered = pool.filter(
+      (option) => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind
+    );
     if (filtered.length) return filtered;
     return pool;
   }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
@@ -11321,28 +11306,20 @@ function Chess3D({
         });
       }
       if (captureKind === 'firearm') {
-        const isSingleShot = SINGLE_SHOT_FIREARM_IDS.has(selectedCaptureAnimationId);
-        const burstCount = isSingleShot ? 1 : 7;
-        const burstDuration = isSingleShot ? 0.62 : 1.25;
-        const launchBase = getAirPadAnchor(isWhiteSide, 'truck', 0).clone();
-        launchBase.y += BOARD.baseH + 0.52;
-        launchBase.x += isWhiteSide ? 0.22 : -0.22;
         playAudio(missileLaunchSoundRef);
+        const missileFx = createFxMissile();
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 1.25);
+        captureFxGroup.add(missileFx.root);
         activeCaptureFx.push({
-          type: 'firearm',
+          type: 'missile',
           t: 0,
-          duration: burstDuration,
-          from: launchBase,
+          duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
+          from: fromPos.clone(),
           to: targetPos.clone(),
           targetMesh,
-          isSingleShot,
-          burstCount,
-          shotsFired: 0,
-          shotInterval: burstDuration / Math.max(1, burstCount),
-          projectiles: [],
-          sourceUnit: acquireParkedSupportTruck(isWhiteSide)
+          missileFx
         });
-        return withAuto3d({ moveDelayMs: burstDuration * 1000, captureResolveDelayMs: burstDuration * 1000 });
+        return withAuto3d({ moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 });
       }
       if (distance <= 1.5) {
         playAudio(swordSoundRef);
@@ -13484,62 +13461,6 @@ function Chess3D({
               heliMissiles.forEach((missile) => {
                 captureFxGroup.remove(missile.root);
               });
-              activeCaptureFx.splice(i, 1);
-            }
-
-          } else if (fx.type === 'firearm') {
-            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0.08);
-            fx.to.copy(targetPos);
-            const fireOrigin = fx.from.clone();
-            const dirToTarget = targetPos.clone().sub(fireOrigin).normalize();
-            while (fx.shotsFired < fx.burstCount && fx.t >= fx.shotInterval * fx.shotsFired) {
-              const spread = fx.isSingleShot ? 0.004 : 0.022;
-              const bulletGeom = new THREE.SphereGeometry(fx.isSingleShot ? 0.04 : 0.03, 10, 10);
-              const bulletMat = new THREE.MeshStandardMaterial({ color: fx.isSingleShot ? '#fde68a' : '#e5e7eb', emissive: '#f59e0b', emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.3 });
-              const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-              bullet.position.copy(fireOrigin);
-              const jitter = new THREE.Vector3(
-                THREE.MathUtils.randFloatSpread(spread),
-                THREE.MathUtils.randFloatSpread(spread * 0.7),
-                THREE.MathUtils.randFloatSpread(spread)
-              );
-              const velocity = dirToTarget.clone().add(jitter).normalize().multiplyScalar(fx.isSingleShot ? 21 : 16);
-              const trail = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.007, 0.02, 0.2, 8),
-                new THREE.MeshBasicMaterial({ color: '#f8fafc', transparent: true, opacity: 0.7 })
-              );
-              trail.rotation.z = Math.PI / 2;
-              trail.position.copy(fireOrigin);
-              captureFxGroup.add(bullet);
-              captureFxGroup.add(trail);
-              fx.projectiles.push({ bullet, trail, velocity, alive: true, life: 0 });
-              fx.shotsFired += 1;
-            }
-
-            fx.projectiles.forEach((proj) => {
-              if (!proj.alive) return;
-              proj.life += dt;
-              proj.bullet.position.addScaledVector(proj.velocity, dt);
-              proj.trail.position.copy(proj.bullet.position).addScaledVector(proj.velocity.clone().normalize(), -0.08);
-              orientForwardKeepingUp(proj.trail, proj.velocity.clone().normalize());
-              if (proj.bullet.position.distanceTo(targetPos) < 0.22 || proj.life > 0.9) {
-                proj.alive = false;
-                proj.bullet.visible = false;
-                proj.trail.visible = false;
-                launchExplosion(targetPos.clone());
-              }
-            });
-
-            if (fx.t >= fx.duration) {
-              fx.projectiles.forEach((proj) => {
-                captureFxGroup.remove(proj.bullet);
-                captureFxGroup.remove(proj.trail);
-                proj.bullet.geometry?.dispose?.();
-                proj.trail.geometry?.dispose?.();
-                proj.bullet.material?.dispose?.();
-                proj.trail.material?.dispose?.();
-              });
-              if (fx.sourceUnit) returnParkedAirUnit(fx.sourceUnit);
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
