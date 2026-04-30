@@ -14,29 +14,7 @@ const CFG = {
   cueArmElbowRise: 0.43,
   strikeTime: 0.12,
   holdTime: 0.05,
-  tableTopY: 0.84,
-  bridgeHandBackFromBall: 0.235,
-  bridgeHandSide: -0.012,
-  bridgeCueLift: 0.018,
-  cueLength: 1.46,
-  bridgeDist: 0.24,
-  shootCueGripFromBack: 0.58,
-  rightHandShotExtraBack: 0.18,
-  rightHandShotLift: 0.055,
-  rightHandForwardClamp: -0.08,
-  rightHandOutward: 0.14,
-  idleRightHandY: 0.8,
-  idleRightHandX: 0.31,
-  idleRightHandZ: -0.015,
-  rightHandRollIdle: -2.2,
-  rightHandRollShoot: -2.05,
-  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
-  footGroundY: 0.035,
-  kneeBendShot: 0.16,
-  footLockStrength: 1.0,
-  rightElbowShotRise: 0.84,
-  rightElbowShotSide: -0.34,
-  rightElbowShotBack: -0.82
+  tableTopY: 0.84
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -191,14 +169,8 @@ function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
   setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
 }
 function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
-function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); twistBone(upper, pole, 0.025 * upperStrength); } }
+function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 2; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); twistBone(upper, pole, 0.025 * upperStrength); } }
 function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
-
-function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
-  const q = makeBasisQuaternion(side, up, forward);
-  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
-  return socketLocal.clone().applyQuaternion(q);
-}
 
 function poseFingers(fingers, mode, weight) {
   const w = clamp01(weight);
@@ -261,19 +233,9 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const rightFoot = local(new THREE.Vector3(0.13, 0.035, -0.03 - walk * 0.03).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, 0.035, 0.36), t));
   const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
-  const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
-  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
-  const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
-  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.2, handIk)).addScaledVector(side, 0.18 * handIk).addScaledVector(forward, lerp(0.16, -0.02, handIk)).normalize();
-  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.74, handIk)).addScaledVector(side, lerp(-0.64, -0.22, handIk)).addScaledVector(forward, lerp(0.2, -0.22, handIk)).normalize();
-  const backLockedGripPoint = frameData.cueBack.clone().addScaledVector(cueDirForHand, cfg.shootCueGripFromBack).addScaledVector(forward, cfg.rightHandForwardClamp - cfg.rightHandShotExtraBack * t).addScaledVector(UP, cfg.rightHandShotLift * t).addScaledVector(side, cfg.rightHandOutward * t);
-  const liveCueGripPoint = backLockedGripPoint.addScaledVector(forward, 0.012 * stroke * t + 0.012 * follow * power).addScaledVector(side, cfg.rightHandOutward * 0.25 * t);
-  const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
-  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const rightHand = frameData.idleRight.clone().lerp(frameData.gripTarget.clone().addScaledVector(forward, 0.046 * stroke * t + 0.065 * follow * power).addScaledVector(UP, -0.004 * follow), t);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * t).addScaledVector(side, -0.044 * t).addScaledVector(forward, 0.065 * t);
-  const rightElbow = rightHand.clone().addScaledVector(UP, lerp(0.12, cfg.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18, cfg.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04, cfg.rightElbowShotBack, t));
+  const rightElbow = rightHand.clone().addScaledVector(UP, lerp(0.18, cfg.cueArmElbowRise, t)).addScaledVector(side, lerp(0.03, 0.07, t)).addScaledVector(forward, lerp(-0.03, 0, t));
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.18, 0.105, t)).addScaledVector(forward, 0.052 * t).addScaledVector(side, -0.016 * t);
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.18, 0.08, t)).addScaledVector(forward, -0.032 * t).addScaledVector(side, 0.018 * t);
   human.root.visible = true;
