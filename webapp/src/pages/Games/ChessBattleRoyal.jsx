@@ -124,9 +124,9 @@ const CAPTURE_DRONE_ALTITUDE = 2.28; // raise drone lane to stay visibly above k
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.72; // keep jet/helicopter lower, close to truck missile altitude lane
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 4.28; // push jet/helicopter noticeably higher so they never read as low flight
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.02; // keep helicopter near jet lane (small separation)
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.08; // keep helicopter slightly above the jet lane for clearer visual separation
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
@@ -138,7 +138,7 @@ const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
 const CAPTURE_DRONE_CIRCLE_RATIO = 0.92; // keep drone in the loop longer before the dive
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.68; // launch later so missiles clearly fire after the longer round
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.9;
-const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1; // match truck missile speed pacing
+const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.1; // slow jet/helicopter missile travel slightly for better path readability
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.72;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.22;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
@@ -157,7 +157,7 @@ const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pas
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for stricter precision strike alignment
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.05; // lower shared strike lane toward truck missile height
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.7; // raise shared strike lane so jet/helicopter/drone stay clearly higher in-flight
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
@@ -7744,16 +7744,6 @@ function Chess3D({
     if (filtered.length) return filtered;
     return pool;
   }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
-  const selectedWeaponSwapOptionId = useMemo(() => {
-    const targetGroup = weaponSwapTargetKind ? PIECE_GROUP_BY_PARKED_KIND[weaponSwapTargetKind] : null;
-    if (targetGroup) return captureAnimationByPieceGroup[targetGroup] || selectedCaptureAnimationId;
-    return selectedCaptureAnimationId;
-  }, [
-    PIECE_GROUP_BY_PARKED_KIND,
-    captureAnimationByPieceGroup,
-    selectedCaptureAnimationId,
-    weaponSwapTargetKind
-  ]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -8816,15 +8806,6 @@ function Chess3D({
         // Preserve original room layout when table/chair options change so gameplay framing stays stable.
         const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
         arena.tablePlacementOffset = placementOffset.clone();
-        if (nextTable?.group) {
-          nextTable.group.position.x += placementOffset.x;
-          nextTable.group.position.z += placementOffset.z;
-        }
-        (arena.chairs || []).forEach((chair) => {
-          if (!chair?.group) return;
-          chair.group.position.x += placementOffset.x;
-          chair.group.position.z += placementOffset.z;
-        });
         if (arena.boardLookTarget) {
           arena.boardLookTarget.x = placementOffset.x;
           arena.boardLookTarget.z = placementOffset.z;
@@ -14081,7 +14062,7 @@ function Chess3D({
                 </div>
                 <div className="space-y-2">
                   {quickSwapWeaponList.map((option) => {
-                    const isSelected = option.id === selectedWeaponSwapOptionId;
+                    const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
                         key={option.id}
