@@ -19448,9 +19448,19 @@ const shotPowerRef = useRef(0);
           return piece;
         };
         const piecesGroup = new THREE.Group();
-        const centerPawn = placePiece(lightMaterial, 0, 0);
-        centerPawn.scale.setScalar(3.5);
-        piecesGroup.add(centerPawn);
+        const origin = -boardSize / 2 + tile / 2;
+        const rows = [
+          { zIndex: 1, material: lightMaterial },
+          { zIndex: 6, material: darkMaterial }
+        ];
+        rows.forEach(({ zIndex, material }) => {
+          for (let c = 0; c < 8; c += 1) {
+            const x = origin + c * tile;
+            const z = origin + zIndex * tile;
+            const pawn = placePiece(material, x, z);
+            piecesGroup.add(pawn);
+          }
+        });
         piecesGroup.position.y = boardThickness * 0.5;
         boardGroup.add(piecesGroup);
       };
