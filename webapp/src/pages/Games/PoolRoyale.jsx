@@ -1945,9 +1945,9 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 1.24; // enlarge shooter body ~30% versus cue for portrait framing
+const HUMAN_PLAYER_TARGET_HEIGHT_METERS = 1.8; // keep avatar visually human-sized (~1.8m) in portrait view
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 42.0; // keep legacy world-scale normalization
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.0; // keep fallback hand helpers at real-world scale
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24567,7 +24567,7 @@ const shotPowerRef = useRef(0);
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+        const humanHeight = HUMAN_PLAYER_TARGET_HEIGHT_METERS;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
@@ -24686,6 +24686,11 @@ const shotPowerRef = useRef(0);
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
         const template = await ensureSeatedHumanTemplate();
+        if (!template) {
+          console.warn('Skipping fallback oversized player rig because GLTF human template is unavailable.');
+          playerCharacterRigsRef.current = [];
+          return;
+        }
         const rig = createPlayerCharacterRig({
           seat: 'A',
           x: 0,
