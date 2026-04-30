@@ -326,11 +326,11 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.03,
+  'slot-10-ak47-gltf': 0.04,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.062,
+  'slot-18-fps-gun-gltf': 0.07,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -384,7 +384,6 @@ const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
 const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 1.32;
 const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.2;
-const WEAPON_MIN_BOARD_CLEARANCE = TILE_SIZE * 0.52;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -647,10 +646,6 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   'slot-16-awp-glb': 'sniperShotAttack',
   'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
-});
-const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
-  'slot-10-ak47-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 }),
-  'slot-18-fps-gun-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
 });
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
@@ -2804,17 +2799,15 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = [],
-    bouncePoints = []
+    startPositions = []
   }
 ) {
   const start = performance.now();
-  const firstImpactAt = 0.52;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
-      1.5 + Math.random() * 0.25,
-      1.62 + Math.random() * 0.24,
-      1.38 + Math.random() * 0.22
+      1.45 + Math.random() * 0.22,
+      1.52 + Math.random() * 0.2,
+      1.32 + Math.random() * 0.18
     )
   );
   const wobbleVectors = diceArray.map(
@@ -2831,29 +2824,14 @@ function createDiceRollAnimation(
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const bounce = bouncePoints[index];
-        let position = startPos.clone().lerp(base, eased);
-        if (bounce) {
-          if (t <= firstImpactAt) {
-            const impactT = easeOutCubic(t / firstImpactAt);
-            position = startPos.clone().lerp(bounce, impactT);
-          } else {
-            const settleT = (t - firstImpactAt) / (1 - firstImpactAt);
-            const easedSettle = easeOutCubic(settleT);
-            position = bounce.clone().lerp(base, easedSettle);
-          }
-        }
+        const position = startPos.clone().lerp(base, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
         position.addScaledVector(wobbleVectors[index], wobbleStrength * DICE_SIZE * 0.48);
-        const arcFall = THREE.MathUtils.lerp(startPos.y, baseY, eased);
-        const dampedBounce =
-          Math.sin(Math.min(1, eased * 1.6) * Math.PI * 1.65) *
-          bounceHeights[index] *
-          Math.max(0, 1 - eased * 0.8);
-        position.y = Math.max(baseY, arcFall + dampedBounce);
+        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeights[index] * (1 - eased * 0.45);
+        position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
-        const spinFactor = Math.max(0.16, 1 - eased * 0.72);
+        const spinFactor = 1 - eased * 0.34;
         die.rotation.x += spinVectors[index].x * spinFactor * 0.19;
         die.rotation.y += spinVectors[index].y * spinFactor * 0.19;
         die.rotation.z += spinVectors[index].z * spinFactor * 0.19;
@@ -5232,12 +5210,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
         model.scale.setScalar(
           TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
         );
-        const parkedRotation = FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType];
-        if (parkedRotation) {
-          model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
-        } else {
-          model.rotation.set(0.04, Math.PI * 0.5, -0.06);
-        }
+        model.rotation.set(0.04, Math.PI * 0.5, -0.06);
         model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
@@ -5327,9 +5300,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .copy(railLayout.railLocal)
         .addScaledVector(
           railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
-            lateralNudge +
-            TOKEN_RADIUS * 0.45
+          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
         )
         .addScaledVector(
           railLayout.seatDirection,
@@ -5342,13 +5313,6 @@ function updateSeatWeaponDisplays(board, players = []) {
       }
       holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
       holder.position.y += PARKING_VERTICAL_LIFT;
-      const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
-      const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
-      if (radialFromCenter.length() < minClearance) {
-        radialFromCenter.normalize().multiplyScalar(minClearance);
-        holder.position.x = boardLookTarget.x + radialFromCenter.x;
-        holder.position.z = boardLookTarget.z + radialFromCenter.z;
-      }
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -5365,11 +5329,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
-    const lookAwayDirection = holder.position.clone().sub(boardLookTarget).setY(0);
-    if (lookAwayDirection.lengthSq() < 1e-6) lookAwayDirection.set(0, 0, 1);
-    lookAwayDirection.normalize();
-    const lookAwayTarget = holder.position.clone().addScaledVector(lookAwayDirection, TILE_SIZE * 3);
-    holder.lookAt(lookAwayTarget.x, holder.position.y, lookAwayTarget.z);
+    holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     if (!isVehicleWeapon) {
       holder.rotateY(Math.PI);
     }
