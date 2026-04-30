@@ -20358,12 +20358,7 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveActiveHumanEyePose = () => {
-          const pose = activeHumanCueViewRef.current;
-          if (!pose) return null;
-          if (!pose.position || !pose.target) return null;
-          return pose;
-        };
+        const resolveActiveHumanEyePose = () => null;
 
 
         const updateBroadcastCameras = ({
@@ -24603,91 +24598,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const seat = localSeat === 'A' ? 'A' : 'B';
-        let template = null;
-        if (!seatedHumanTemplateRef.current) {
-          try {
-            const loader = new GLTFLoader();
-            loader.setCrossOrigin('anonymous');
-            const gltf = await loader.loadAsync(BILARDO_SHQIP_HUMAN_URL);
-            seatedHumanTemplateRef.current = gltf?.scene ?? null;
-          } catch (err) {
-            console.warn('Pool Royale human avatar load failed, using fallback rig.', err);
-          }
-        }
-        template = seatedHumanTemplateRef.current;
-        const rig = createPlayerCharacterRig({
-          seat,
-          x: 0,
-          z: 0,
-          facingY: 0,
-          template
-        });
-        rig.visible = true;
-        world.add(rig);
-        playerCharacterRigsRef.current = [{ seat, group: rig }];
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        const rigEntry = playerCharacterRigsRef.current[0];
-        const rig = rigEntry?.group;
-        const cueBall = cueRef.current;
-        const cueMesh = cueStickRef.current;
-        if (!rig || !cueBall || !cueMesh) return;
-        const anim = rig.userData?.anim;
-        if (!anim) return;
-        const aim2 = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
-        if (aim2.lengthSq() < 1e-6) aim2.set(0, 1);
-        aim2.normalize();
-        const aimForward = new THREE.Vector3(aim2.x, 0, aim2.y).normalize();
-        const tableBounds = new THREE.Box3().setFromObject(table);
-        const tableOuterWidth = Math.max(0.1, tableBounds.max.x - tableBounds.min.x);
-        const tableOuterLength = Math.max(0.1, tableBounds.max.z - tableBounds.min.z);
-        const rootTarget = chooseBilardoHumanEdgePosition(
-          new THREE.Vector3(cueBall.pos.x, 0, cueBall.pos.y),
-          aimForward,
-          {
-            tableW: tableOuterWidth,
-            tableL: tableOuterLength,
-            edgeMargin: HUMAN_WALK_RING_MARGIN,
-            desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
-          }
-        );
-        const moveLerp = 1 - Math.exp(-Math.max(0.0001, HUMAN_MOVE_LAMBDA) * Math.max(0.001, dtSeconds || 0.016));
-        anim.rootTarget.lerp(rootTarget, moveLerp);
-        rig.position.x = anim.rootTarget.x;
-        rig.position.z = anim.rootTarget.z;
-        const desiredYaw = yawFromForward(aimForward);
-        anim.yaw = dampScalar(anim.yaw ?? desiredYaw, desiredYaw, HUMAN_ROT_LAMBDA, Math.max(0.001, dtSeconds || 0.016));
-        rig.rotation.y = anim.yaw;
-        const blendBase = THREE.MathUtils.clamp((cameraBlendRef.current - HUMAN_SHOOT_BLEND_THRESHOLD) / Math.max(1e-5, 1 - HUMAN_SHOOT_BLEND_THRESHOLD), 0, 1);
-        anim.poseT = dampScalar(anim.poseT ?? 0, blendBase, HUMAN_POSE_LAMBDA, Math.max(0.001, dtSeconds || 0.016));
-        const cueDir = new THREE.Vector3();
-        cueMesh.getWorldDirection(cueDir).normalize();
-        const cueTip = cueMesh.localToWorld(new THREE.Vector3(0, 0, -HUMAN_CUE_LENGTH * 0.5));
-        const cueBack = cueMesh.localToWorld(new THREE.Vector3(0, 0, HUMAN_CUE_LENGTH * 0.5));
-        const bridgeTarget = new THREE.Vector3(cueBall.pos.x, TABLE_Y + TABLE.THICK, cueBall.pos.y)
-          .addScaledVector(aimForward, HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-          .addScaledVector(new THREE.Vector3(aimForward.z, 0, -aimForward.x), HUMAN_BRIDGE_HAND_SIDE);
-        anim.bridgeHand.position.copy(bridgeTarget);
-        anim.bridgeHand.position.y = TABLE_Y + TABLE.THICK + HUMAN_BRIDGE_CUE_LIFT;
-        anim.bridgeHand.lookAt(bridgeTarget.clone().add(cueDir));
-        anim.gripHand.position.copy(cueBack.clone().addScaledVector(cueDir, HUMAN_SHOOT_CUE_GRIP_FROM_BACK));
-        anim.gripHand.quaternion.copy(cueMesh.quaternion);
-        const headY = floorY + (anim.humanHeight || HUMAN_PLAYER_TARGET_HEIGHT_METERS) * (0.9 - 0.18 * anim.poseT);
-        const eyePos = new THREE.Vector3(rig.position.x, headY, rig.position.z)
-          .addScaledVector(aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-          .addScaledVector(new THREE.Vector3(aimForward.z, 0, -aimForward.x), HUMAN_EYE_CAMERA_SIDE_OFFSET);
-        eyePos.y += HUMAN_EYE_CAMERA_HEIGHT_OFFSET;
-        activeHumanCueViewRef.current = {
-          position: eyePos,
-          target: cueBall.pos
-            .clone()
-            .setY(BALL_CENTER_Y)
-            .addScaledVector(aimForward, BALL_R * 1.4),
-          blend: THREE.MathUtils.clamp(anim.poseT, 0, 1)
-        };
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
