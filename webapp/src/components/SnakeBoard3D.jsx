@@ -88,7 +88,7 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -243,6 +243,14 @@ function getSeatHumanOffsets(seatIndex) {
   };
 }
 
+function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds = 0, activeLean = 0) {
+  if (!seatHuman?.root) return;
+  const anchorOffset = getSeatHumanOffsets(seatIndex);
+  seatHuman.root.position.set(0, anchorOffset.y, anchorOffset.z);
+  applySeatedHumanPose(seatHuman, timeSeconds, activeLean);
+  alignSeatedHumanFeetToGround(seatHuman);
+}
+
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
@@ -318,11 +326,11 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.1,
+  'slot-10-ak47-gltf': 0.04,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.1,
+  'slot-18-fps-gun-gltf': 0.07,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -3554,8 +3562,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
           rest: captureModelRestPose(instance),
           baseScale
         };
-        applySeatedHumanPose(seatedHumans[seatIndex], 0, 0);
-        alignSeatedHumanFeetToGround(seatedHumans[seatIndex]);
+        applyChessBattleSeatedHumanBaseline(seatedHumans[seatIndex], seatIndex, 0, 0);
       });
     })
     .catch((error) => {
@@ -5979,8 +5986,7 @@ export default function SnakeBoard3D({
           root.rotation.x = 0;
           root.rotation.y = 0;
           root.rotation.z = 0;
-          applySeatedHumanPose(seatHuman, now * 0.001, throwLean);
-          alignSeatedHumanFeetToGround(seatHuman);
+          applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, now * 0.001, throwLean);
         });
       }
       let hasDiceCenter = false;
