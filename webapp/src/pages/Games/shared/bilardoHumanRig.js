@@ -120,6 +120,7 @@ const collectFingerBones = (hand) => {
 };
 
 function normalizeHuman(model, opts = {}) {
+  if (!model) return;
   model.scale.setScalar(opts.humanScale ?? CFG.humanScale);
   model.rotation.set(0, opts.humanVisualYawFix ?? CFG.humanVisualYawFix, 0);
   model.position.set(0, 0, 0);
@@ -146,6 +147,13 @@ export function createBilardoHumanRig(scene, opts = {}) {
   loader.setCrossOrigin?.('anonymous');
   loader.load(modelUrl, (gltf) => {
     const model = gltf?.scene;
+    if (!model) {
+      human.loaded = true;
+      human.activeGlb = false;
+      human.modelRoot.visible = false;
+      human.fallback.visible = true;
+      return;
+    }
     normalizeHuman(model, opts);
     model.traverse((obj) => {
       if (!obj?.isMesh) return;
@@ -191,7 +199,7 @@ function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
   setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
 }
 function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
-function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); twistBone(upper, pole, 0.025 * upperStrength); } }
+function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); } }
 function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
 
 function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
@@ -207,9 +215,9 @@ function poseFingers(fingers, mode, weight) {
     const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
     if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
     if (mode === 'grip') {
-      if (thumb) { finger.rotation.x += 0.34 * w; finger.rotation.y += -0.68 * w; finger.rotation.z += 0.36 * w; return; }
-      const curl = index ? (base ? 0.44 : mid ? 0.72 : 0.52) : middle ? (base ? 0.62 : mid ? 0.9 : 0.62) : ring ? (base ? 0.58 : mid ? 0.76 : 0.56) : pinky ? (base ? 0.5 : mid ? 0.68 : 0.5) : 0;
-      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.08 : middle ? -0.02 : ring ? 0.03 : pinky ? 0.06 : 0) * w; finger.rotation.z += (index ? -0.06 : middle ? -0.01 : ring ? 0.05 : pinky ? 0.1 : 0) * w; return;
+      if (thumb) { finger.rotation.x += 0.48 * w; finger.rotation.y += -0.82 * w; finger.rotation.z += 0.54 * w; return; }
+      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
+      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w; finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w; return;
     }
     if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
     else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
@@ -223,12 +231,14 @@ function driveHuman(human, frame) { /* unchanged structural behavior from source
   human.fallback.visible = false; human.modelRoot.visible = true; human.modelRoot.position.copy(frame.rootWorld); human.modelRoot.rotation.y = human.yaw; human.modelRoot.position.y += 0.006 * frame.breath - 0.018 * frame.t; human.modelRoot.updateMatrixWorld(true); human.restQuats.forEach((q, bone) => bone.quaternion.copy(q)); human.modelRoot.updateMatrixWorld(true);
   const b = human.bones; const ik = easeInOut(clamp01(frame.t)); const idle = 1 - ik; const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize(); const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
   if (frame.walkAmount * idle > 0.001) { const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle; if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w; if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w; if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.28 * w; if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.28 * w; if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.23 * w; if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.23 * w; if (b.spine) b.spine.rotation.z += c * 0.025 * w; if (b.hips) b.hips.rotation.z -= c * 0.018 * w; }
-  const rightGrip = frame.rightHandWorld.clone().addScaledVector(cueDir, -0.014 * idle - 0.065 * ik).addScaledVector(frame.side, 0.006 * ik).addScaledVector(UP, 0.003 * ik);
-  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.24 + 0.21 * ik).addScaledVector(frame.side, 0.075).addScaledVector(frame.forward, -0.026 * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.64); const rightHold = 0.62 + 0.34 * ik;
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, frame.side.clone().addScaledVector(UP, 0.18).normalize(), rightHold, rightHold);
-  const gripSide = frame.side.clone().addScaledVector(UP, -0.18).addScaledVector(frame.forward, 0.08).normalize(); const gripUp = UP.clone().multiplyScalar(0.58).addScaledVector(frame.side, 0.26).addScaledVector(frame.forward, -0.36).normalize();
-  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, -0.03 * idle + 0.1 * ik + 0.05 * frame.stroke, 0.86 + 0.12 * ik); poseFingers(human.rightFingers, 'grip', 0.72 + 0.18 * ik);
+  const rightGrip = frame.rightHandWorld.clone();
+  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52); const rightHold = 0.88 + 0.12 * ik;
+  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
+  const gripSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.2, ik)).addScaledVector(frame.side, 0.18 * ik).addScaledVector(frame.forward, lerp(0.16, -0.02, ik)).normalize();
+  const gripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.74, ik)).addScaledVector(frame.side, lerp(-0.64, -0.22, ik)).addScaledVector(frame.forward, lerp(0.2, -0.22, ik)).normalize();
+  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, lerp((human.cfg?.rightHandRollIdle ?? CFG.rightHandRollIdle), (human.cfg?.rightHandRollShoot ?? CFG.rightHandRollShoot), ik) + 0.03 * frame.stroke, 1.0); poseFingers(human.rightFingers, 'grip', 0.95);
   if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
   rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.16 + 0.44 * ik) * ik, frame.forward); twistBone(b.hips, frame.side, -0.075 * ik); twistBone(b.hips, frame.forward, -0.04 * ik);
   rotateBoneToward(b.spine, frame.chestCenterWorld, (0.38 + 0.36 * ik) * ik, frame.forward); twistBone(b.spine, frame.side, -0.23 * ik); twistBone(b.spine, frame.forward, -0.055 * ik);
