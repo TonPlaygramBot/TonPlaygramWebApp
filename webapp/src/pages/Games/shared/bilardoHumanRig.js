@@ -146,13 +146,6 @@ export function createBilardoHumanRig(scene, opts = {}) {
   loader.setCrossOrigin?.('anonymous');
   loader.load(modelUrl, (gltf) => {
     const model = gltf?.scene;
-    if (!model) {
-      human.loaded = true;
-      human.activeGlb = false;
-      human.modelRoot.visible = false;
-      human.fallback.visible = true;
-      return;
-    }
     normalizeHuman(model, opts);
     model.traverse((obj) => {
       if (!obj?.isMesh) return;
@@ -198,7 +191,7 @@ function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
   setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
 }
 function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
-function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); } }
+function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); twistBone(upper, pole, 0.025 * upperStrength); } }
 function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
 
 function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
@@ -214,9 +207,9 @@ function poseFingers(fingers, mode, weight) {
     const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
     if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
     if (mode === 'grip') {
-      if (thumb) { finger.rotation.x += 0.48 * w; finger.rotation.y += -0.82 * w; finger.rotation.z += 0.54 * w; return; }
-      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
-      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w; finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w; return;
+      if (thumb) { finger.rotation.x += 0.34 * w; finger.rotation.y += -0.68 * w; finger.rotation.z += 0.36 * w; return; }
+      const curl = index ? (base ? 0.44 : mid ? 0.72 : 0.52) : middle ? (base ? 0.62 : mid ? 0.9 : 0.62) : ring ? (base ? 0.58 : mid ? 0.76 : 0.56) : pinky ? (base ? 0.5 : mid ? 0.68 : 0.5) : 0;
+      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.08 : middle ? -0.02 : ring ? 0.03 : pinky ? 0.06 : 0) * w; finger.rotation.z += (index ? -0.06 : middle ? -0.01 : ring ? 0.05 : pinky ? 0.1 : 0) * w; return;
     }
     if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
     else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }

@@ -6038,7 +6038,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // let the standing view dip a lit
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0126; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -6053,8 +6053,8 @@ const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
   nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
   landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.76, broadcast: 1, margin: 0.93 }),
-  ultraPortrait: Object.freeze({ cue: 0.74, broadcast: 1, margin: 0.92 })
+  portrait: Object.freeze({ cue: 0.82, broadcast: 1, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 1, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
