@@ -317,26 +317,10 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep third-party GLTF/GLB weapons visually aligned with Quaternius catalog proportions.
-  // Quaternius models are treated as baseline (multiplier 1).
-  // Match Gunify AK47 GLTF visual size with Quaternius assault-rifle baseline.
+  // Match Gunify AK47 GLTF visual size with the in-game AK baseline.
   'slot-10-ak47-gltf': 0.32,
-  // Match Gunify KRSV GLTF with Quaternius SMG/compact rifle baseline.
-  'slot-11-krsv-gltf': 0.34,
-  // Match Gunify Smith GLTF with Quaternius pistol baseline.
-  'slot-12-smith-gltf': 0.31,
-  // Match Gunify Mosin GLTF with Quaternius long-gun baseline.
-  'slot-13-mosin-gltf': 0.29,
-  // Match Gunify Uzi GLTF with Quaternius SMG baseline.
-  'slot-14-uzi-gltf': 0.33,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.3,
-  // Match external AWP GLB with Quaternius long-rifle/sniper visual footprint.
-  'slot-16-awp-glb': 0.28,
-  // Match MRTK gun GLB with Quaternius assault-rifle baseline.
-  'slot-17-mrtk-gun-glb': 0.3,
-  // Match FPS shotgun blast model with Quaternius shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.24
+  'slot-15-sigsauer-gltf': 0.3
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
