@@ -1944,9 +1944,10 @@ const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06; // keep the shooter farther back on t
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // keep camera closer to the cue butt so the first-person view matches the rear-hand stance
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.34; // keep a subtle right-eye bias for right-handed stance without exposing the avatar back
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = BALL_R * 6.9; // anchor the camera at approximate human eye level relative to the rear hand/cue butt pose
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = -BALL_R * 0.14; // keep the camera almost exactly above the rear eye line (no forward drift toward the bridge)
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // right-eye offset while keeping the cue axis centered in portrait framing
+const HUMAN_EYE_CAMERA_TARGET_DROP = BALL_R * 0.72; // drop look target a little so the avatar/cue body sits in the lower half of portrait view
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
@@ -20412,7 +20413,12 @@ const shotPowerRef = useRef(0);
           const eyeTarget = cuePose.bridgeTarget
             .clone()
             .addScaledVector(cuePose.aimForward, BALL_R * 10)
-            .setY(Math.max(TABLE_Y + TABLE.THICK + BALL_R * 0.8, eyePos.y - BALL_R * 0.35));
+            .setY(
+              Math.max(
+                TABLE_Y + TABLE.THICK + BALL_R * 0.8,
+                eyePos.y - BALL_R * 0.35 - HUMAN_EYE_CAMERA_TARGET_DROP
+              )
+            );
           return {
             blend: THREE.MathUtils.clamp(
               (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
