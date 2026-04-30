@@ -111,7 +111,7 @@ const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering 
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.12; // minimize stationary launch hold so pawn/truck missiles look continuously in motion
 const CAPTURE_GROUND_TRAVEL_TIME = Math.max(0.24, CAPTURE_DRONE_TOTAL - CAPTURE_GROUND_FIRE_TIME); // keep truck strike pacing aligned with drone
-const CAPTURE_DRONE_TRAVEL_TIME = Math.max(0.2, CAPTURE_GROUND_TRAVEL_TIME * 0.78); // speed up drone strike so it reaches impact faster
+const CAPTURE_DRONE_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME; // keep drone strike speed identical to truck missile travel
 const CAPTURE_DRONE_ATTACK_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_DRONE_TRAVEL_TIME;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
@@ -158,8 +158,8 @@ const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for 
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25; // keep shared strike lane closer to truck missile travel height
-const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
+const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // keep jet/helicopter lane at the same visible height as truck missile travel
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // match truck missile lane height exactly during drone precision strike
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -7655,37 +7655,11 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const QUICK_SWAP_WEAPON_IDS = useMemo(
-    () =>
-      [
-        'polyShotgun01Attack',
-        'polyAssaultRifle01Attack',
-        'polyPistol01Attack',
-        'polyRevolver01Attack',
-        'polySawedOff01Attack',
-        'polyRevolver02Attack',
-        'polyShotgun02Attack',
-        'polyShotgun03Attack',
-        'polySmg01Attack',
-        'ak47VolleyAttack',
-        'krsvBurstAttack',
-        'smithSidearmAttack',
-        'mosinMarksmanAttack',
-        'uziSprayAttack',
-        'sigsauerTacticalAttack',
-        'sniperShotAttack',
-        'compactCarbineAttack',
-        'fpsGunAttack'
-      ],
-    []
-  );
   const quickSwapWeapons = useMemo(() => {
-    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
-    return QUICK_SWAP_WEAPON_IDS
-      .filter((id) => ownedIds.has(id))
-      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
-      .filter(Boolean);
-  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
+    return (ownedCaptureAnimations || []).filter((option) =>
+      FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
+    );
+  }, [ownedCaptureAnimations]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7711,6 +7685,7 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
+      if (!isChessOptionUnlocked('captureAnimation', optionId, chessInventory)) return;
       const targetKind = weaponSwapTargetKind;
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
       if (targetGroup) {
@@ -7724,26 +7699,10 @@ function Chess3D({
     },
     [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
   );
-  const quickSwapWeaponList = useMemo(() => {
-    const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
-    if (!weaponSwapTargetKind) return pool;
-
-    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // Keep full firearm inventory visible when player taps one of those parked vehicles.
-    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmOnly = pool.filter((option) =>
-        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
-      );
-      if (firearmOnly.length) return firearmOnly;
-    }
-
-    const filtered = pool.filter((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
-    });
-    if (filtered.length) return filtered;
-    return pool;
-  }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
+  const quickSwapWeaponList = useMemo(
+    () => (quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations),
+    [ownedCaptureAnimations, quickSwapWeapons]
+  );
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
