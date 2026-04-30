@@ -24567,8 +24567,8 @@ const shotPowerRef = useRef(0);
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = HUMAN_PLAYER_TARGET_HEIGHT_METERS * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
-        const scale = humanHeight / 1.82;
+        const humanHeight = HUMAN_PLAYER_TARGET_HEIGHT_METERS;
+        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
         const gripHand = createGripHandGroup(skinMat);
