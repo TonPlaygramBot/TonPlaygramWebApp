@@ -86,13 +86,13 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.86;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.46 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.44;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
@@ -320,23 +320,23 @@ const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Keep third-party GLTF/GLB weapons visually aligned with Quaternius catalog proportions.
   // Quaternius models are treated as baseline (multiplier 1).
   // Match Gunify AK47 GLTF visual size with Quaternius assault-rifle baseline.
-  'slot-10-ak47-gltf': 0.11,
+  'slot-10-ak47-gltf': 0.32,
   // Match Gunify KRSV GLTF with Quaternius SMG/compact rifle baseline.
-  'slot-11-krsv-gltf': 0.12,
+  'slot-11-krsv-gltf': 0.34,
   // Match Gunify Smith GLTF with Quaternius pistol baseline.
-  'slot-12-smith-gltf': 0.1,
+  'slot-12-smith-gltf': 0.31,
   // Match Gunify Mosin GLTF with Quaternius long-gun baseline.
-  'slot-13-mosin-gltf': 0.1,
+  'slot-13-mosin-gltf': 0.29,
   // Match Gunify Uzi GLTF with Quaternius SMG baseline.
-  'slot-14-uzi-gltf': 0.11,
+  'slot-14-uzi-gltf': 0.33,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.1,
+  'slot-15-sigsauer-gltf': 0.3,
   // Match external AWP GLB with Quaternius long-rifle/sniper visual footprint.
-  'slot-16-awp-glb': 0.09,
+  'slot-16-awp-glb': 0.28,
   // Match MRTK gun GLB with Quaternius assault-rifle baseline.
-  'slot-17-mrtk-gun-glb': 0.1,
+  'slot-17-mrtk-gun-glb': 0.3,
   // Match FPS shotgun blast model with Quaternius shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.08
+  'slot-18-fps-gun-gltf': 0.24
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
