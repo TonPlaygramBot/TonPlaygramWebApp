@@ -8692,6 +8692,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const baseOption = DEFAULT_BASE_OPTION;
 
     (async () => {
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      const preserveCameraState =
+        camera && controls
+          ? {
+              position: camera.position.clone(),
+              target: controls.target.clone(),
+              up: camera.up.clone()
+            }
+          : null;
+
       if (tableChanged) {
         await rebuildTable(tableTheme, tableFinish, tableCloth);
         arena.textureResolutionKey = textureResolutionKey;
@@ -8703,7 +8714,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           arena.defaultLookTarget = arena.boardLookTarget.clone();
           arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
           arena.controls?.update();
-          fitRef.current?.();
           applyBoardGroupScale(arena.boardGroup, arena.tableInfo);
           configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
           const currentTurn = stateRef.current?.turn ?? 0;
@@ -8722,6 +8732,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           { chairMaterials: arena.chairMaterials },
           { seatColor: stoolTheme.seatColor, legColor: stoolTheme.legColor ?? DEFAULT_STOOL_THEME.legColor }
         );
+      }
+
+      if (preserveCameraState && !isCamera2d) {
+        const activeCamera = cameraRef.current;
+        const activeControls = controlsRef.current;
+        if (activeCamera && activeControls) {
+          activeCamera.position.copy(preserveCameraState.position);
+          activeCamera.up.copy(preserveCameraState.up);
+          activeControls.target.copy(preserveCameraState.target);
+          activeControls.update();
+          if (LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+            cameraSeatLockPositionRef.current = activeCamera.position.clone();
+          }
+        }
       }
 
       if (hdriChanged) {
@@ -9283,14 +9307,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (!state || state.turn !== 0 || state.animation || state.winner) return false;
       const humanEntry = parkedCaptureVehiclesRef.current.get(0);
-      const interactiveTargets = [
-        humanEntry?.actionButtonHit,
-        humanEntry?.weaponRackHit,
-        humanEntry?.jet,
-        humanEntry?.helicopter,
-        humanEntry?.droneTruck,
-        humanEntry?.missile
-      ].filter(Boolean);
+      const interactiveTargets = [humanEntry?.actionButtonHit].filter(Boolean);
       if (!interactiveTargets.length) return false;
       const rect = renderer.domElement.getBoundingClientRect();
       const x = ((clientX - rect.left) / rect.width) * 2 - 1;
