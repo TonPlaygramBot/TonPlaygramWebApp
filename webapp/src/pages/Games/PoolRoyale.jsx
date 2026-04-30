@@ -19448,19 +19448,6 @@ const shotPowerRef = useRef(0);
           return piece;
         };
         const piecesGroup = new THREE.Group();
-        const origin = -boardSize / 2 + tile / 2;
-        const rows = [
-          { zIndex: 1, material: lightMaterial },
-          { zIndex: 6, material: darkMaterial }
-        ];
-        rows.forEach(({ zIndex, material }) => {
-          for (let c = 0; c < 8; c += 1) {
-            const x = origin + c * tile;
-            const z = origin + zIndex * tile;
-            const pawn = placePiece(material, x, z);
-            piecesGroup.add(pawn);
-          }
-        });
         piecesGroup.position.y = boardThickness * 0.5;
         boardGroup.add(piecesGroup);
       };
@@ -19709,54 +19696,7 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const ensureSeatedHumanTemplate = async () => {
-        if (seatedHumanTemplateRef.current) {
-          return seatedHumanTemplateRef.current;
-        }
-        if (seatedHumanLoadRef.current) {
-          return seatedHumanLoadRef.current;
-        }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
-          .then((gltf) => {
-            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
-            if (!model) {
-              throw new Error('Missing seated human scene');
-            }
-            model.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              const sourceMaterials = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              const fixedMaterials = sourceMaterials.map((sourceMat) => {
-                if (!sourceMat) return sourceMat;
-                const mat = sourceMat.clone?.() ?? sourceMat;
-                applySRGBColorSpace(mat.map);
-                applySRGBColorSpace(mat.emissiveMap);
-                applySRGBColorSpace(mat.aoMap);
-                applySRGBColorSpace(mat.lightMap);
-                if (mat.map) sharpenTexture(mat.map);
-                if (mat.emissiveMap) sharpenTexture(mat.emissiveMap);
-                mat.needsUpdate = true;
-                return mat;
-              });
-              child.material = Array.isArray(child.material)
-                ? fixedMaterials
-                : fixedMaterials[0];
-            });
-            seatedHumanTemplateRef.current = model;
-            return model;
-          })
-          .catch((error) => {
-            console.warn('Failed to load seated human GLB for Pool Royale', error);
-            return null;
-          })
-          .finally(() => {
-            seatedHumanLoadRef.current = null;
-          });
-        return seatedHumanLoadRef.current;
-      };
+      const ensureSeatedHumanTemplate = async () => null;
 
       const createChessLoungeSet = async ({
         chairOffsets,
@@ -20418,34 +20358,7 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveActiveHumanEyePose = () => {
-          if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
-          const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const cueBias = 1 - cueBlend;
-          if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          const cuePose = activeHumanCueViewRef.current;
-          if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
-            return null;
-          }
-          const eyePos = cuePose.cueBack
-            .clone()
-            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
-          const eyeTarget = cuePose.bridgeTarget
-            .clone()
-            .addScaledVector(cuePose.aimForward, BALL_R * 10)
-            .setY(Math.max(TABLE_Y + TABLE.THICK + BALL_R * 0.8, eyePos.y - BALL_R * 0.35));
-          return {
-            blend: THREE.MathUtils.clamp(
-              (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
-              0,
-              1
-            ),
-            position: eyePos,
-            target: eyeTarget
-          };
-        };
+        const resolveActiveHumanEyePose = () => null;
 
 
         const updateBroadcastCameras = ({
@@ -24685,73 +24598,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const template = await ensureSeatedHumanTemplate();
-        if (!template) {
-          console.warn('Skipping fallback oversized player rig because GLTF human template is unavailable.');
-          playerCharacterRigsRef.current = [];
-          return;
-        }
-        const rig = createPlayerCharacterRig({
-          seat: 'A',
-          x: 0,
-          z: PLAY_H * 0.48,
-          facingY: Math.PI,
-          template
-        });
-        playerCharacterRigsRef.current = [rig];
-        world.add(rig);
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        const rig = playerCharacterRigsRef.current[0];
-        const anim = rig?.userData?.anim;
-        if (!rig || !anim || !cue?.active) return;
-        const dir2 = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
-        if (dir2.lengthSq() < 1e-6) dir2.set(0, 1);
-        dir2.normalize();
-        const forward = new THREE.Vector3(dir2.x, 0, dir2.y).normalize();
-        const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
-        const rootTarget = new THREE.Vector3(
-          cue.pos.x - forward.x * (TABLE.W * 0.38),
-          floorY,
-          cue.pos.y - forward.z * (TABLE.H * 0.38)
-        );
-        anim.rootTarget = anim.rootTarget || rootTarget.clone();
-        anim.rootTarget.lerp(rootTarget, 1 - Math.exp(-4.6 * Math.max(0.001, dtSeconds)));
-        rig.position.copy(anim.rootTarget);
-        const targetYaw = Math.atan2(-forward.x, -forward.z);
-        anim.yaw = Number.isFinite(anim.yaw) ? anim.yaw : rig.rotation.y;
-        anim.yaw = THREE.MathUtils.lerp(anim.yaw, targetYaw, 1 - Math.exp(-7.2 * Math.max(0.001, dtSeconds)));
-        rig.rotation.y = anim.yaw;
-
-        const grip = anim.gripHand;
-        const bridge = anim.bridgeHand;
-        if (!grip || !bridge) return;
-        const gripIdle = new THREE.Vector3(0.35, 0.92, -0.06);
-        const gripLocal = gripIdle
-          .clone()
-          .addScaledVector(forward, -0.11)
-          .addScaledVector(side, -0.02);
-        grip.position.copy(gripLocal);
-        const cueDir = new THREE.Vector3(-forward.x, 0.34, -forward.z).normalize();
-        grip.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
-
-        const bridgeWorld = new THREE.Vector3(
-          cue.pos.x - forward.x * (BALL_R * 4.2),
-          floorY + TABLE.THICK + 0.015,
-          cue.pos.y - forward.z * (BALL_R * 4.2)
-        );
-        const bridgeLocal = rig.worldToLocal(bridgeWorld.clone());
-        bridge.position.copy(bridgeLocal);
-        bridge.quaternion.copy(makeHumanoidBasis(side.clone().multiplyScalar(-1), cueDir));
-
-        if (anim.model) {
-          anim.poseT = THREE.MathUtils.lerp(anim.poseT || 0, shooting ? 1 : 0, 1 - Math.exp(-6.8 * Math.max(0.001, dtSeconds)));
-          const t = anim.poseT;
-          anim.model.position.y = -0.03 * t;
-          anim.model.rotation.x = -0.15 * t;
-        }
+        void dtSeconds;
       };
 
       void spawnPlayerCharacters();
