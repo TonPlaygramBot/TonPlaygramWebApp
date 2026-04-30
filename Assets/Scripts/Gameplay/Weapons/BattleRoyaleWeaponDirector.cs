@@ -68,6 +68,8 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform attackerCameraAnchor;
         [SerializeField] private Transform liveTargetTransform;
         [SerializeField] private Transform weaponRoot;
+        [SerializeField] private Transform tableWeaponAnchor;
+        [SerializeField] private Transform weaponSwapIcon;
         [SerializeField] private Transform rightHandGrip;
         [SerializeField] private Transform leftHandGrip;
 
@@ -82,10 +84,12 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
         [SerializeField] private float aimPositionLerp = 20f;
         [SerializeField] private bool followAllBullets = true;
+        [SerializeField] private bool forceAttackerAimAnchor = true;
         [SerializeField] private float bulletFollowDistance = 0.4f;
         [SerializeField] private float bulletFollowHeight = 0.14f;
         [SerializeField] private float cameraLookLerp = 18f;
         [SerializeField] private float cameraTrackLerp = 15f;
+        [SerializeField] private Vector3 swapIconWorldOffset = new Vector3(0f, 0.11f, 0f);
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
         private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
@@ -99,6 +103,10 @@ namespace TonPlaygram.Gameplay.Weapons
         private Vector3 _baseCameraLocalPos;
         private Transform _baseCameraParent;
         private Quaternion _baseCameraLocalRot;
+        private Vector3 _weaponRootLocalPos;
+        private Quaternion _weaponRootLocalRot;
+        private Vector3 _swapIconWorldPos;
+        private Quaternion _swapIconWorldRot;
 
         private void Awake()
         {
@@ -122,6 +130,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
             BuildProfileMap();
             CacheTokenPieces();
+            CacheStaticAnchors();
             _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
             _projectileListeners = GetComponentsInParent<ILudoProjectileBroadcastEvents>(true);
             Equip(startingWeapon);
@@ -213,7 +222,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 }
 
                 bool isLeadPellet = pelletIndex == 0;
-                bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet);
+                bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet || weapon.usesPellets);
                 bullet.Initialize(pelletDirection * weapon.muzzleVelocity, this, weapon.weaponType, shotIndex, pelletIndex, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
                 BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, pelletDirection * weapon.muzzleVelocity);
                 if (shouldFollowBullet)
@@ -341,8 +350,8 @@ namespace TonPlaygram.Gameplay.Weapons
         {
             if (weaponRoot != null)
             {
-                weaponRoot.position = muzzle.position;
-                weaponRoot.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                weaponRoot.localPosition = _weaponRootLocalPos;
+                weaponRoot.localRotation = _weaponRootLocalRot;
             }
 
             if (rightHandGrip != null)
@@ -361,6 +370,11 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
         {
+            if (forceAttackerAimAnchor && attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
+            {
+                playerCamera.transform.SetParent(attackerCameraAnchor, true);
+            }
+
             float elapsed = 0f;
             float duration = Mathf.Max(0.01f, weapon.aimTransitionSeconds);
             float startFov = playerCamera.fieldOfView;
@@ -379,11 +393,6 @@ namespace TonPlaygram.Gameplay.Weapons
                 }
 
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
-                if (attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
-                {
-                    playerCamera.transform.SetParent(attackerCameraAnchor, true);
-                }
-
                 playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
                 Quaternion toTarget = Quaternion.LookRotation((targetWorld - playerCamera.transform.position).normalized, Vector3.up);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toTarget, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
@@ -451,6 +460,11 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private IEnumerator ReturnCameraToDefault()
         {
+            if (forceAttackerAimAnchor && attackerCameraAnchor != null && playerCamera.transform.parent != attackerCameraAnchor)
+            {
+                playerCamera.transform.SetParent(attackerCameraAnchor, true);
+            }
+
             float elapsed = 0f;
             const float duration = 0.2f;
             float fromFov = playerCamera.fieldOfView;
@@ -492,6 +506,51 @@ namespace TonPlaygram.Gameplay.Weapons
                     continue;
 
                 _profiles[profile.weaponType] = profile;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            MaintainStaticPresentationAnchors();
+        }
+
+        private void CacheStaticAnchors()
+        {
+            if (weaponRoot != null)
+            {
+                _weaponRootLocalPos = weaponRoot.localPosition;
+                _weaponRootLocalRot = weaponRoot.localRotation;
+            }
+
+            if (weaponSwapIcon != null)
+            {
+                Transform iconAnchor = tableWeaponAnchor != null ? tableWeaponAnchor : weaponRoot;
+                if (iconAnchor != null)
+                {
+                    _swapIconWorldPos = iconAnchor.position + swapIconWorldOffset;
+                    _swapIconWorldRot = weaponSwapIcon.rotation;
+                    weaponSwapIcon.position = _swapIconWorldPos;
+                }
+                else
+                {
+                    _swapIconWorldPos = weaponSwapIcon.position;
+                    _swapIconWorldRot = weaponSwapIcon.rotation;
+                }
+            }
+        }
+
+        private void MaintainStaticPresentationAnchors()
+        {
+            if (weaponRoot != null)
+            {
+                weaponRoot.localPosition = _weaponRootLocalPos;
+                weaponRoot.localRotation = _weaponRootLocalRot;
+            }
+
+            if (weaponSwapIcon != null)
+            {
+                weaponSwapIcon.position = _swapIconWorldPos;
+                weaponSwapIcon.rotation = _swapIconWorldRot;
             }
         }
 
