@@ -20358,7 +20358,38 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveActiveHumanEyePose = () => null;
+        const resolveActiveHumanEyePose = () => {
+          const rigs = Array.isArray(playerCharacterRigsRef.current)
+            ? playerCharacterRigsRef.current
+            : [];
+          if (!rigs.length) return null;
+          const cueBall = cueRef.current;
+          const cuePos = cueBall?.pos ?? null;
+          if (!cuePos) return null;
+          const aim = aimDirRef.current;
+          if (!aim || aim.lengthSq() <= 1e-8) return null;
+          const activeRig = rigs.find((entry) => entry?.seat === activePlayerRef.current) ?? rigs[0];
+          const anim = activeRig?.group?.userData?.anim ?? null;
+          if (!anim) return null;
+          const poseT = THREE.MathUtils.clamp(anim.poseT ?? 0, 0, 1);
+          if (poseT <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
+          const right = new THREE.Vector3(aim.y, 0, -aim.x).normalize();
+          const eyePos = new THREE.Vector3(
+            anim.root.x + right.x * HUMAN_EYE_CAMERA_SIDE_OFFSET + aim.x * HUMAN_EYE_CAMERA_FORWARD_OFFSET,
+            floorY + anim.humanHeight * 0.935 + HUMAN_EYE_CAMERA_HEIGHT_OFFSET,
+            anim.root.z + right.z * HUMAN_EYE_CAMERA_SIDE_OFFSET + aim.y * HUMAN_EYE_CAMERA_FORWARD_OFFSET
+          );
+          const target = new THREE.Vector3(
+            cuePos.x + aim.x * BALL_R * 10,
+            CUE_Y + BALL_R * 0.2,
+            cuePos.y + aim.y * BALL_R * 10
+          );
+          return {
+            blend: poseT,
+            position: eyePos,
+            target
+          };
+        };
 
 
         const updateBroadcastCameras = ({
@@ -24506,13 +24537,14 @@ const shotPowerRef = useRef(0);
             humanHeight,
             scale,
             model: avatar,
+            seatSign: seat === 'A' ? 1 : -1,
             poseT: 0,
             walkT: 0,
             yaw: facingY,
             rootTarget: new THREE.Vector3(x, floorY, z),
-            bridgeHand,
-            gripHand,
-            usesFallbackRig: false
+          bridgeHand,
+          gripHand,
+          usesFallbackRig: false
           };
           return rigGroup;
         }
@@ -24587,22 +24619,160 @@ const shotPowerRef = useRef(0);
           rightFoot,
           humanHeight,
           scale,
+          seatSign: seat === 'A' ? 1 : -1,
           poseT: 0,
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: true
         };
         return rigGroup;
       };
 
+      const poolHumanHelpers = {
+        damp: (current, target, lambda, dt) =>
+          THREE.MathUtils.lerp(current, target, 1 - Math.exp(-Math.max(0, lambda) * Math.max(0, dt)))
+      };
+
+      const buildHumanPerimeterCandidates = (desiredX, desiredZ) => {
+        const railOuter = TABLE.WALL * 2.5;
+        const perimeterPadding = BALL_R * 7.5;
+        const halfWOuter = TABLE.W / 2 + railOuter + perimeterPadding;
+        const halfHOuter = TABLE.H / 2 + railOuter + perimeterPadding;
+        const minX = -halfWOuter;
+        const maxX = halfWOuter;
+        const minZ = -halfHOuter;
+        const maxZ = halfHOuter;
+        return [
+          new THREE.Vector2(THREE.MathUtils.clamp(desiredX, minX, maxX), minZ),
+          new THREE.Vector2(THREE.MathUtils.clamp(desiredX, minX, maxX), maxZ),
+          new THREE.Vector2(minX, THREE.MathUtils.clamp(desiredZ, minZ, maxZ)),
+          new THREE.Vector2(maxX, THREE.MathUtils.clamp(desiredZ, minZ, maxZ))
+        ];
+      };
+
+      const resolveHumanDesiredRoot = (cuePos, aim, seatSign = 1) => {
+        const shoulderBias = BALL_R * 4.2 * seatSign;
+        const desiredDistance = PLAYER_CAMERA_DISTANCE * 3.25;
+        return new THREE.Vector2(
+          cuePos.x - aim.x * desiredDistance + aim.y * shoulderBias,
+          cuePos.y - aim.y * desiredDistance - aim.x * shoulderBias
+        );
+      };
+
+      const updateFallbackPose = (anim, cuePos, aim, dtSeconds, powerNorm) => {
+        const s = anim.scale ?? 1;
+        const t = anim.poseT ?? 0;
+        const sideX = aim.y;
+        const sideZ = -aim.x;
+        const chestY = floorY + 1.28 * s - t * 0.18 * s;
+        const neckY = floorY + 1.5 * s - t * 0.25 * s;
+        const headY = floorY + 1.67 * s - t * 0.32 * s;
+        anim.pelvis?.position?.set(0, 0.9 * s, 0.02 * s);
+        anim.torso?.position?.set(0, 1.18 * s - t * 0.08 * s, -t * 0.06 * s);
+        anim.chest?.position?.set(0, chestY, -t * 0.18 * s);
+        anim.neck?.position?.set(0, neckY, -t * 0.26 * s);
+        anim.head?.position?.set(0, headY, -t * 0.34 * s);
+
+        const bridgeX = -0.2 * s + sideX * -0.06 * s;
+        const bridgeZ = -0.18 * s + sideZ * -0.06 * s;
+        const gripX = 0.24 * s + sideX * 0.08 * s;
+        const gripZ = -0.08 * s + sideZ * 0.08 * s;
+        if (anim.bridgeHand) {
+          anim.bridgeHand.position.set(bridgeX, 1.02 * s - t * 0.46 * s, bridgeZ - t * 0.26 * s);
+          anim.bridgeHand.rotation.set(-0.2 - t * 0.45, -0.18, -0.24);
+          anim.bridgeHand.visible = t > 0.04;
+        }
+        if (anim.gripHand) {
+          const stroke = Math.sin(performance.now() * 0.01) * t * (0.05 + powerNorm * 0.06) * s;
+          anim.gripHand.position.set(gripX, 1.12 * s - t * 0.18 * s, gripZ - t * 0.38 * s + stroke);
+          anim.gripHand.rotation.set(-0.1 - t * 0.56, 0.22, 0.54);
+          anim.gripHand.visible = true;
+        }
+        anim.leftUpperArm && setHumanoidSegment(anim.leftUpperArm, new THREE.Vector3(-0.17 * s, 1.42 * s, -0.1 * s), anim.bridgeHand.position.clone().add(new THREE.Vector3(0, 0.06 * s, -0.05 * s)), 0.032 * s);
+        anim.leftLowerArm && setHumanoidSegment(anim.leftLowerArm, anim.bridgeHand.position.clone().add(new THREE.Vector3(0, 0.06 * s, -0.05 * s)), anim.bridgeHand.position.clone(), 0.028 * s);
+        anim.rightUpperArm && setHumanoidSegment(anim.rightUpperArm, new THREE.Vector3(0.17 * s, 1.42 * s, -0.07 * s), anim.gripHand.position.clone().add(new THREE.Vector3(0, 0.1 * s, -0.1 * s)), 0.032 * s);
+        anim.rightLowerArm && setHumanoidSegment(anim.rightLowerArm, anim.gripHand.position.clone().add(new THREE.Vector3(0, 0.1 * s, -0.1 * s)), anim.gripHand.position.clone(), 0.028 * s);
+        anim.leftFoot?.position?.set(-0.17 * s, 0.03 * s, 0.12 * s - t * 0.1 * s);
+        anim.rightFoot?.position?.set(0.2 * s, 0.03 * s, -0.09 * s + t * 0.16 * s);
+        if (anim.leftUpperLeg) setHumanoidSegment(anim.leftUpperLeg, new THREE.Vector3(-0.1 * s, 0.9 * s, 0), new THREE.Vector3(-0.15 * s, 0.46 * s, 0.08 * s), 0.04 * s);
+        if (anim.leftLowerLeg) setHumanoidSegment(anim.leftLowerLeg, new THREE.Vector3(-0.15 * s, 0.46 * s, 0.08 * s), anim.leftFoot.position.clone().add(new THREE.Vector3(0, 0.03 * s, 0)), 0.034 * s);
+        if (anim.rightUpperLeg) setHumanoidSegment(anim.rightUpperLeg, new THREE.Vector3(0.1 * s, 0.9 * s, 0), new THREE.Vector3(0.16 * s, 0.48 * s, -0.08 * s), 0.04 * s);
+        if (anim.rightLowerLeg) setHumanoidSegment(anim.rightLowerLeg, new THREE.Vector3(0.16 * s, 0.48 * s, -0.08 * s), anim.rightFoot.position.clone().add(new THREE.Vector3(0, 0.03 * s, 0)), 0.034 * s);
+        anim.walkT = (anim.walkT ?? 0) + dtSeconds * 3.2;
+      };
+
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        const seats = ['A', 'B'];
+        const loader = new GLTFLoader();
+        let template = null;
+        try {
+          const gltf = await new Promise((resolve, reject) => {
+            loader.load(BILARDO_SHQIP_HUMAN_URL, resolve, undefined, reject);
+          });
+          template = gltf?.scene ?? null;
+        } catch (err) {
+          console.warn('Pool Royale human avatar load failed, using fallback rig.', err);
+        }
+        seats.forEach((seat) => {
+          const rigGroup = createPlayerCharacterRig({
+            seat,
+            x: 0,
+            z: 0,
+            facingY: seat === 'A' ? Math.PI : 0,
+            template
+          });
+          world.add(rigGroup);
+          playerCharacterRigsRef.current.push({ seat, group: rigGroup });
+        });
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         void nowMs;
-        void dtSeconds;
+        const cueBall = cueRef.current;
+        if (!cueBall?.pos) return;
+        const aim = aimDirRef.current;
+        if (!aim || aim.lengthSq() <= 1e-8) return;
+        const shotPower = THREE.MathUtils.clamp(powerNormRef.current ?? 0, 0, 1);
+        const cueBlend = cameraPhi <= CUE_SHOT_PHI + 0.045 ? 1 : 0;
+        playerCharacterRigsRef.current.forEach((entry) => {
+          const anim = entry?.group?.userData?.anim;
+          if (!anim) return;
+          const cuePos = cueBall.pos;
+          const desired = resolveHumanDesiredRoot(cuePos, aim, anim.seatSign ?? 1);
+          const perimeter = buildHumanPerimeterCandidates(desired.x, desired.y);
+          perimeter.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired));
+          const best = perimeter[0];
+          anim.root = anim.root || { x: best.x, z: best.y };
+          anim.poseT = poolHumanHelpers.damp(anim.poseT ?? 0, cueBlend, 8.5, dtSeconds);
+          anim.root.x = poolHumanHelpers.damp(anim.root.x ?? best.x, best.x, 7.2, dtSeconds);
+          anim.root.z = poolHumanHelpers.damp(anim.root.z ?? best.y, best.y, 7.2, dtSeconds);
+          const yaw = Math.atan2(-aim.x, -aim.y);
+          anim.yaw = poolHumanHelpers.damp(anim.yaw ?? yaw, yaw, 10.5, dtSeconds);
+          entry.group.position.set(anim.root.x, floorY, anim.root.z);
+          entry.group.rotation.y = anim.yaw;
+          if (anim.model) {
+            anim.model.visible = true;
+            const lean = (anim.poseT ?? 0) * (0.11 + shotPower * 0.09);
+            anim.model.rotation.x = -lean;
+          }
+          if (anim.usesFallbackRig !== false) {
+            updateFallbackPose(anim, cuePos, aim, dtSeconds, shotPower);
+          } else {
+            if (anim.bridgeHand) {
+              anim.bridgeHand.visible = anim.poseT > 0.05;
+              anim.bridgeHand.position.set(-0.21, 1.02 - anim.poseT * 0.4, -0.2 - anim.poseT * 0.2);
+              anim.bridgeHand.rotation.set(-0.25 - anim.poseT * 0.3, -0.2, -0.32);
+            }
+            if (anim.gripHand) {
+              const stroke = Math.sin(performance.now() * 0.012) * (anim.poseT ?? 0) * (0.02 + shotPower * 0.04);
+              anim.gripHand.visible = true;
+              anim.gripHand.position.set(0.24, 1.06 - anim.poseT * 0.16, -0.12 - anim.poseT * 0.35 + stroke);
+              anim.gripHand.rotation.set(-0.12 - anim.poseT * 0.44, 0.18, 0.58);
+            }
+          }
+        });
       };
 
       void spawnPlayerCharacters();
