@@ -97,7 +97,6 @@ namespace TonPlaygram.Gameplay.Weapons
         private WeaponBallisticsProfile _activeWeapon;
         private Coroutine _fireRoutine;
         private Coroutine _cameraRoutine;
-        private bool _isWeaponAnimationSequenceActive;
         private ILudoWeaponEvents[] _eventListeners = Array.Empty<ILudoWeaponEvents>();
         private ILudoProjectileBroadcastEvents[] _projectileListeners = Array.Empty<ILudoProjectileBroadcastEvents>();
         private float _baseFov = 60f;
@@ -170,7 +169,6 @@ namespace TonPlaygram.Gameplay.Weapons
             int shots = weapon.fireMode == WeaponFireMode.Single ? 1 : Mathf.Max(1, weapon.magazineSize);
             float shotDelay = weapon.roundsPerSecond <= 0.001f ? 0f : 1f / weapon.roundsPerSecond;
 
-            _isWeaponAnimationSequenceActive = true;
             BeginAimCamera(weapon);
 
             for (int i = 0; i < shots; i++)
@@ -182,9 +180,6 @@ namespace TonPlaygram.Gameplay.Weapons
                     yield return new WaitForSeconds(shotDelay);
                 }
             }
-
-            yield return StartCoroutine(ReturnCameraToDefault());
-            _isWeaponAnimationSequenceActive = false;
         }
 
         private void FireSingleRound(WeaponBallisticsProfile weapon, int shotIndex, int totalShots, bool isLastBullet)
@@ -285,10 +280,7 @@ namespace TonPlaygram.Gameplay.Weapons
             ApplyProgressiveDamage(isLastBullet);
             if (isLastBullet)
             {
-                if (_isWeaponAnimationSequenceActive)
-                {
-                    StartFinalImpactCamera(point);
-                }
+                StartFinalImpactCamera(point);
                 for (int i = 0; i < _eventListeners.Length; i++)
                 {
                     _eventListeners[i].OnFinalImpact(_activeWeapon.weaponType, point);
@@ -343,7 +335,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void BeginAimCamera(WeaponBallisticsProfile weapon)
         {
-            if (playerCamera == null || !_isWeaponAnimationSequenceActive)
+            if (playerCamera == null)
                 return;
 
             if (_cameraRoutine != null)
@@ -410,7 +402,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void StartBulletFollowCamera(Transform bulletTransform, float seconds)
         {
-            if (playerCamera == null || bulletTransform == null || !_isWeaponAnimationSequenceActive)
+            if (playerCamera == null || bulletTransform == null)
                 return;
 
             if (_cameraRoutine != null)
@@ -437,7 +429,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void StartFinalImpactCamera(Vector3 point)
         {
-            if (playerCamera == null || !_isWeaponAnimationSequenceActive)
+            if (playerCamera == null)
                 return;
 
             if (_cameraRoutine != null)
@@ -463,6 +455,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 yield return null;
             }
 
+            yield return StartCoroutine(ReturnCameraToDefault());
         }
 
         private IEnumerator ReturnCameraToDefault()
