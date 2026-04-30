@@ -53,6 +53,10 @@ import {
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  resolveDirectorWeaponType,
+  WEAPON_DIRECTOR_BROADCAST_CAMERA_PROFILE
+} from '../../config/ludoBattleWeaponDirectorBridge.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -790,6 +794,19 @@ const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
 const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
+const FIREARM_BROADCAST_PROFILE = Object.freeze({
+  // Keep camera closer to shooter eye-line in portrait mode so aim direction is clearer.
+  aimLift: 0.064,
+  aimRearPullback: 0.124,
+  // Start bullet follow earlier and keep it sticky until impact so viewers can track shots.
+  bulletFollowStart: 0.08,
+  bulletFollowEnd: 0.998,
+  bulletTargetBlend: 0.84,
+  bulletFollowLift: 0.092,
+  bulletFollowRearPullback: 0.138,
+  // Hold on impact long enough to clearly read hit confirmation.
+  impactHoldTtl: 1.85
+});
 const FIREARM_TARGET_RETICLE_SIZE = 0.04;
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const CAPTURE_ATTACK_TUNING = Object.freeze({
@@ -10164,13 +10181,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
             const aimDir = muzzleTarget.clone().sub(muzzleOrigin);
+            const directorWeaponType = resolveDirectorWeaponType(resolvedCaptureAnimationId);
+            const directorCameraProfile = WEAPON_DIRECTOR_BROADCAST_CAMERA_PROFILE[directorWeaponType];
             const followOffset =
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(singleShotFirearm ? FIREARM_CAMERA_SIDE_PULLBACK * 0.62 : FIREARM_CAMERA_SIDE_PULLBACK)
-                    .setY(singleShotFirearm ? FIREARM_CAMERA_LIFT * 1.35 : FIREARM_CAMERA_LIFT)
-                : new THREE.Vector3(0, FIREARM_CAMERA_LIFT, FIREARM_CAMERA_SIDE_PULLBACK);
+                    .multiplyScalar(
+                      singleShotFirearm
+                        ? (directorCameraProfile?.followPullback ?? FIREARM_BROADCAST_PROFILE.aimRearPullback) * 0.62
+                        : directorCameraProfile?.followPullback ?? FIREARM_BROADCAST_PROFILE.aimRearPullback
+                    )
+                    .setY(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.28 : FIREARM_BROADCAST_PROFILE.aimLift)
+                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, directorCameraProfile?.followPullback ?? FIREARM_BROADCAST_PROFILE.aimRearPullback);
             setCameraFocus({
               target: cameraMid,
               object: handWeaponAttachment?.weapon,
@@ -10247,21 +10270,32 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.userData.completed = true;
                 bulletMesh.visible = false;
               }
-              if (!leadBulletPos && shotProgress > 0.2 && shotProgress < 0.995) {
+              if (
+                !leadBulletPos &&
+                shotProgress > FIREARM_BROADCAST_PROFILE.bulletFollowStart &&
+                shotProgress < FIREARM_BROADCAST_PROFILE.bulletFollowEnd
+              ) {
                 leadBulletPos = bulletPos.clone();
                 leadBulletMesh = bulletMesh;
               }
             });
             if (leadBulletPos?.isVector3) {
-              const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-0.115);
+              const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-FIREARM_BROADCAST_PROFILE.bulletFollowRearPullback);
+              const bulletFocusTarget = leadBulletPos.clone().lerp(muzzleTarget, FIREARM_BROADCAST_PROFILE.bulletTargetBlend);
               setCameraFocus({
-                target: leadBulletPos,
+                target: bulletFocusTarget,
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 10,
                 ttl: 0,
                 offset: Math.max(0.02, (CAMERA_TARGET_LIFT + (singleShotFirearm ? 0.016 : 0.02)) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                followOffset: new THREE.Vector3(pullback.x, singleShotFirearm ? 0.08 : 0.09, pullback.z),
+                followOffset: new THREE.Vector3(
+                  pullback.x,
+                  singleShotFirearm
+                    ? (directorCameraProfile?.followLift ?? FIREARM_BROADCAST_PROFILE.bulletFollowLift) * 1.08
+                    : directorCameraProfile?.followLift ?? FIREARM_BROADCAST_PROFILE.bulletFollowLift,
+                  pullback.z
+                ),
                 force: true
               });
             } else if (tracers[0]?.root?.visible) {
@@ -10341,7 +10375,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 11,
-                ttl: 1.4,
+                ttl: FIREARM_BROADCAST_PROFILE.impactHoldTtl,
                 offset: Math.max(0.018, (CAMERA_TARGET_LIFT + 0.024) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
                 followOffset: new THREE.Vector3(0, 0.09, -0.12),
                 force: true
