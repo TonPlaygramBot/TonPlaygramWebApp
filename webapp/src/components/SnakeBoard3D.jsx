@@ -87,7 +87,7 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.21;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.2 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.46;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -166,13 +166,13 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 120;
+const DICE_ROLL_DURATION = 780;
+const DICE_SETTLE_DURATION = 160;
 const DICE_RESULT_HOLD_DURATION = 2000;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
-const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.52;
+const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.94;
+const DICE_THROW_START_EXTRA = TILE_SIZE * 4.05;
+const DICE_THROW_HEIGHT = DICE_SIZE * 1.15;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -313,14 +313,14 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.8;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.42;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.92;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.36,
-  TILE_SIZE * 0.34,
-  TILE_SIZE * 0.42,
-  TILE_SIZE * 0.34
+  TILE_SIZE * 0.46,
+  TILE_SIZE * 0.44,
+  TILE_SIZE * 0.5,
+  TILE_SIZE * 0.44
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -5163,7 +5163,7 @@ function createPolySeatWeaponMesh(weaponType) {
   if (/Revolver|Pistol/.test(weaponType)) add(new THREE.CylinderGeometry(0.06, 0.06, 0.07, 10), accentMat, 0.09, 0.03, 0, Math.PI/2, 0, 0);
 
   group.scale.setScalar(TOKEN_HEIGHT * 1.18 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.rotation.set(0.04, Math.PI * 0.5, -0.06);
+  group.rotation.set(0.04, -Math.PI * 0.5, -0.06);
   group.position.y -= TOKEN_HEIGHT * 1.3;
   return group;
 }
@@ -5180,7 +5180,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
         if (!model || !holder.parent) return;
         while (holder.children.length) holder.remove(holder.children[0]);
         model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-        model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+        model.rotation.set(0.04, -Math.PI * 0.5, -0.06);
         model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
