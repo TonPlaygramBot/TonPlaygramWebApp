@@ -3224,10 +3224,10 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.057 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.112 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.003 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.012 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = -0.008 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.019 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_HOLD = 0.056 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = 0.011 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = -0.006 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = -0.01;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
@@ -3304,7 +3304,7 @@ const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
-const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
+const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = true;
 const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
   fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
   helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
@@ -7768,6 +7768,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         preferredTextureSizes: textureResolutionStack
       };
       const token = ++chairBuildTokenRef.current;
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      const savedCameraPose =
+        camera && controls
+          ? { position: camera.position.clone(), target: controls.target.clone() }
+          : null;
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
       if (chairBuildTokenRef.current !== token || !chairBuild) return;
 
@@ -7802,6 +7808,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       });
       groundArenaToHdriFloor({ preserveView: true });
       updateEnvironmentFloor();
+      if (savedCameraPose && cameraRef.current && controlsRef.current) {
+        cameraRef.current.position.copy(savedCameraPose.position);
+        controlsRef.current.target.copy(savedCameraPose.target);
+        controlsRef.current.update();
+      }
     },
     [groundArenaToHdriFloor, textureResolutionStack, updateEnvironmentFloor]
   );
@@ -8249,6 +8260,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
     beginDiceHoldPose(player, { startMs: performance.now() - 220 });
+    setCameraViewForTurn(player, 240, { force: true });
     animateDicePosition(dice, target, {
       duration: 260,
       lift: 0.03,
