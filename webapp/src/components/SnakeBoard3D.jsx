@@ -166,10 +166,10 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 120;
+const DICE_ROLL_DURATION = 1050;
+const DICE_SETTLE_DURATION = 210;
 const DICE_RESULT_HOLD_DURATION = 2000;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.36;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
@@ -313,14 +313,14 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.8;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.58;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.92;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.36,
-  TILE_SIZE * 0.34,
   TILE_SIZE * 0.42,
-  TILE_SIZE * 0.34
+  TILE_SIZE * 0.4,
+  TILE_SIZE * 0.5,
+  TILE_SIZE * 0.4
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -343,13 +343,13 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat (yellow): bottom-left marker near logo plate.
-  Object.freeze({ radial: TILE_SIZE * 0.18, lateral: TILE_SIZE * 0.64, y: TILE_SIZE * 0.5 }),
+  Object.freeze({ radial: TILE_SIZE * 0.18, lateral: TILE_SIZE * 0.64, y: TILE_SIZE * 0.62 }),
   // Right seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: -TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 }),
+  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: -TILE_SIZE * 0.7, y: TILE_SIZE * 0.62 }),
   // Top seat (yellow): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 0.52, lateral: -TILE_SIZE * 0.42, y: TILE_SIZE * 0.56 }),
+  Object.freeze({ radial: TILE_SIZE * 0.52, lateral: -TILE_SIZE * 0.42, y: TILE_SIZE * 0.72 }),
   // Left seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 })
+  Object.freeze({ radial: TILE_SIZE * 0.08, lateral: TILE_SIZE * 0.7, y: TILE_SIZE * 0.62 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Keep weapons parked on dedicated parking slots (helicopter/jet/drone/truck pads).
@@ -2789,8 +2789,8 @@ function createDiceRollAnimation(
       1.05 + Math.random() * 0.75
     )
   );
-  const wobbleVectors = diceArray.map(() => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16));
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.9 + Math.random() * 0.25));
+  const wobbleVectors = diceArray.map(() => new THREE.Vector3((Math.random() - 0.5) * 0.11, 0, (Math.random() - 0.5) * 0.11));
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.94 + Math.random() * 0.14));
 
   return {
     type: 'diceRoll',
@@ -2808,10 +2808,10 @@ function createDiceRollAnimation(
         position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
-        const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        const spinFactor = 1 - eased * 0.34;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.2;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.2;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.2;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -5163,7 +5163,7 @@ function createPolySeatWeaponMesh(weaponType) {
   if (/Revolver|Pistol/.test(weaponType)) add(new THREE.CylinderGeometry(0.06, 0.06, 0.07, 10), accentMat, 0.09, 0.03, 0, Math.PI/2, 0, 0);
 
   group.scale.setScalar(TOKEN_HEIGHT * 1.18 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.rotation.set(0.04, Math.PI * 0.5, -0.06);
+  group.rotation.set(0.04, -Math.PI * 0.5, -0.06);
   group.position.y -= TOKEN_HEIGHT * 1.3;
   return group;
 }
@@ -5180,7 +5180,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
         if (!model || !holder.parent) return;
         while (holder.children.length) holder.remove(holder.children[0]);
         model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-        model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+        model.rotation.set(0.04, -Math.PI * 0.5, -0.06);
         model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
