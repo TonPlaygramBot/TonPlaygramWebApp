@@ -59,6 +59,30 @@ function makeBasisQuaternion(side, up, forward) {
   return new THREE.Quaternion().setFromRotationMatrix(BASIS_MAT);
 }
 
+function createFallbackHuman() {
+  const group = new THREE.Group();
+  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
+  const addBox = (size, pos, mat) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
+  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
+  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
+  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
+  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
+  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
+  head.position.set(0, 1.7, 0);
+  head.castShadow = true;
+  head.receiveShadow = true;
+  group.add(head);
+  return group;
+}
+
 function findBone(all, aliases) {
   const list = all.map((bone) => ({ bone, name: cleanName(bone.name) }));
   const names = aliases.map(cleanName);
@@ -106,15 +130,16 @@ function normalizeHuman(model, opts = {}) {
 }
 
 export function createBilardoHumanRig(scene, opts = {}) {
-  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, cfg: { ...CFG, ...opts } };
+  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, cfg: { ...CFG, ...opts } };
   human.root.visible = false;
   human.modelRoot.visible = false;
-  scene.add(human.root, human.modelRoot);
+  scene.add(human.root, human.modelRoot, human.fallback);
 
   const loader = opts.loader;
   const modelUrl = opts.modelUrl;
   if (!loader || !modelUrl) {
     human.loaded = true;
+    human.fallback.visible = true;
     return human;
   }
 
@@ -125,6 +150,7 @@ export function createBilardoHumanRig(scene, opts = {}) {
       human.loaded = true;
       human.activeGlb = false;
       human.modelRoot.visible = false;
+      human.fallback.visible = true;
       return;
     }
     normalizeHuman(model, opts);
@@ -147,11 +173,13 @@ export function createBilardoHumanRig(scene, opts = {}) {
     human.model = model;
     human.modelRoot.add(model);
     human.modelRoot.visible = human.activeGlb;
+    human.fallback.visible = !human.activeGlb;
     human.loaded = true;
   }, undefined, () => {
     human.loaded = true;
     human.activeGlb = false;
     human.modelRoot.visible = false;
+    human.fallback.visible = true;
   });
 
   return human;
@@ -198,7 +226,15 @@ function poseFingers(fingers, mode, weight) {
 }
 
 function driveHuman(human, frame) {
-  if (!human.activeGlb || !human.model) return;
+  if (!human.activeGlb || !human.model) {
+    human.fallback.visible = true;
+    human.fallback.position.copy(frame.rootWorld);
+    human.fallback.rotation.y = human.yaw;
+    human.fallback.rotation.x = -0.16 * frame.t;
+    human.fallback.position.y -= 0.035 * frame.t;
+    return;
+  }
+  human.fallback.visible = false;
   human.modelRoot.visible = true;
   human.modelRoot.position.copy(frame.rootWorld);
   human.modelRoot.rotation.y = human.yaw;
