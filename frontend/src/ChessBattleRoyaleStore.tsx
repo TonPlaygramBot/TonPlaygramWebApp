@@ -137,7 +137,16 @@ export default function ChessBattleRoyaleStore() {
 
     const loadOne = async (entry: WeaponEntry, index: number) => {
       try {
-        const gltf = await new Promise<GLTF>((resolve, reject) => makeLoader(entry.urls[0]).load(entry.urls[0], resolve, undefined, reject));
+        let gltf: GLTF | null = null;
+        for (const url of entry.urls) {
+          try {
+            gltf = await new Promise<GLTF>((resolve, reject) => makeLoader(url).load(url, resolve, undefined, reject));
+            break;
+          } catch {
+            // try next candidate URL
+          }
+        }
+        if (!gltf) throw new Error(`All URLs failed for ${entry.name}`);
         const model = gltf.scene;
         normalizeWeapon(model);
         slots[index].add(model);
@@ -206,10 +215,11 @@ export default function ChessBattleRoyaleStore() {
       runtimesRef.current.forEach((runtime, i) => setTimeout(() => fireFromRuntime(runtime), i * 120));
     };
 
-    window.addEventListener('keydown', (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') fireSelected();
       if (e.key.toLowerCase() === 'f') fireAll();
-    });
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     let raf = 0;
     const animate = () => {
@@ -267,13 +277,14 @@ export default function ChessBattleRoyaleStore() {
 
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', onKeyDown);
       renderer.dispose();
       mount.innerHTML = '';
       pelletGeometry.dispose();
       pelletMaterial.dispose();
       trailMaterial.dispose();
     };
-  }, [cameraMode]);
+  }, []);
 
   return (
     <div className='relative h-screen w-full overflow-hidden bg-slate-950 text-white'>
@@ -291,7 +302,11 @@ export default function ChessBattleRoyaleStore() {
           {WEAPON_MANIFEST.map((weapon, index) => (
             <button
               key={weapon.id}
-              onClick={() => setSelectedIndex(index)}
+              onClick={() => {
+                selectedRef.current = index;
+                setSelectedIndex(index);
+                setStatus(`Selected ${index + 1}/${WEAPON_COUNT}: ${weapon.name}`);
+              }}
               className={`rounded-xl border px-2 py-2 text-left text-[11px] font-bold ${selectedIndex === index ? 'border-yellow-300 bg-yellow-400 text-slate-950' : 'border-white/10 bg-white/10 text-slate-100'}`}
             >
               <span className='block text-[10px] opacity-70'>#{index + 1} · {weapon.weaponType}</span>
