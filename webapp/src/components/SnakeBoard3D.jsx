@@ -85,16 +85,16 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.75;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.64 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.3;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = -0.05;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -317,12 +317,12 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Match Gunify AK47 GLTF visual size with the in-game AK baseline.
-  'slot-10-ak47-gltf': 0.128,
+  // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
+  'slot-10-ak47-gltf': 0.1,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
-  // Reduce FPS shotgun footprint to 40% (60% smaller) for table readability.
-  'slot-18-fps-gun-gltf': 0.4,
+  // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
+  'slot-18-fps-gun-gltf': 0.1,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -1774,7 +1774,7 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
   // Mirror lower-body spread inward toward the table while preserving seated location.
   composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.12, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.12, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
