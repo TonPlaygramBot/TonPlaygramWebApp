@@ -5981,32 +5981,16 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
   if (!faceHelper?.isObject3D) return null;
   const position = new THREE.Vector3();
   const target = new THREE.Vector3();
-  const forward = new THREE.Vector3();
   faceHelper.updateMatrixWorld?.(true);
   faceHelper.getWorldPosition(position);
-
-  // Keep the camera exactly on the player eye helper, and aim along the human's own face orientation.
-  faceHelper.getWorldDirection(forward);
-  if (forward.lengthSq() < 1e-8) {
-    forward.set(0, -0.02, 1);
-  }
-  forward.normalize();
-  target.copy(position).addScaledVector(forward, 0.26 * MODEL_SCALE);
-
-  // If we have a board target, softly bias only horizontal yaw so first-person view still faces gameplay.
   if (fallbackTarget?.isVector3) {
-    const boardDirection = fallbackTarget.clone().sub(position).setY(0);
-    const forwardFlat = forward.clone().setY(0);
-    if (boardDirection.lengthSq() > 1e-8 && forwardFlat.lengthSq() > 1e-8) {
-      boardDirection.normalize();
-      forwardFlat.normalize();
-      const blendedFlat = forwardFlat.lerp(boardDirection, 0.22).normalize();
-      target.copy(position)
-        .addScaledVector(blendedFlat, 0.26 * MODEL_SCALE)
-        .add(new THREE.Vector3(0, forward.y * 0.26 * MODEL_SCALE, 0));
-    }
+    target.copy(fallbackTarget);
+  } else if (actorEntry?.rig?.head?.isBone) {
+    actorEntry.rig.head.updateMatrixWorld?.(true);
+    actorEntry.rig.head.getWorldPosition(target);
+  } else {
+    target.copy(position).add(new THREE.Vector3(0, -0.005, 0.08 * MODEL_SCALE));
   }
-
   return {
     position,
     target
@@ -8743,21 +8727,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         await rebuildChairs(stoolTheme);
         arena.textureResolutionKey = textureResolutionKey;
         configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
-
-        // Keep chair swap lightweight: do not move camera now, only refresh the next first-person lock pose.
-        const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-        const refreshedFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, boardLookTargetRef.current);
-        if (refreshedFacePose?.position?.isVector3 && refreshedFacePose?.target?.isVector3) {
-          initialBottomCameraViewRef.current = {
-            position: refreshedFacePose.position.clone(),
-            target: refreshedFacePose.target.clone()
-          };
-          cameraTurnStateRef.current.baseTurnView = {
-            position: refreshedFacePose.position.clone(),
-            target: refreshedFacePose.target.clone()
-          };
-          cameraSeatLockPositionRef.current = refreshedFacePose.position.clone();
-        }
       } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
         applyChairThemeMaterials(
           { chairMaterials: arena.chairMaterials },
