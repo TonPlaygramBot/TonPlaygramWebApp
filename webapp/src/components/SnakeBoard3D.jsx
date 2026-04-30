@@ -85,14 +85,14 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.2;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.6 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.34;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
@@ -318,9 +318,14 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match Gunify AK47 GLTF visual size with the in-game AK baseline.
-  'slot-10-ak47-gltf': 0.32,
+  'slot-10-ak47-gltf': 0.128,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.3
+  'slot-15-sigsauer-gltf': 0.12,
+  // Shrink FPS shotgun by 60% to reduce table obstruction on portrait phones.
+  'slot-18-fps-gun-gltf': 0.312,
+  // Expand long-rifle silhouettes 3× for better readability from the player camera.
+  'slot-13-mosin-gltf': 2.34,
+  'slot-16-awp-glb': 2.34
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
