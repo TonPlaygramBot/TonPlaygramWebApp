@@ -31,7 +31,6 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   { id: 'slot-14-uzi-gltf', label: 'Uzi GLTF', thumbnail: weaponSilhouetteThumbnail(['#0f766e','#111827','#99f6e4']), urls: ['https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf', 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf', SNAKE_KNOWN_WORKING_GLB.mrtk, SNAKE_KNOWN_WORKING_GLB.mrtkMaster] },
   { id: 'slot-15-sigsauer-gltf', label: 'SigSauer GLTF', thumbnail: weaponSilhouetteThumbnail(['#334155','#020617','#f1f5f9']), urls: ['https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf', 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf', SNAKE_KNOWN_WORKING_GLB.pistolHolster, SNAKE_KNOWN_WORKING_GLB.pistolHolsterRaw] },
   { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b','#0f172a','#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
-  { id: 'slot-17-mrtk-gun-glb', label: 'MRTK Gun GLB', thumbnail: weaponSilhouetteThumbnail(['#0369a1','#0f172a','#e0f2fe']), urls: [SNAKE_KNOWN_WORKING_GLB.mrtk, SNAKE_KNOWN_WORKING_GLB.mrtkRaw, SNAKE_KNOWN_WORKING_GLB.mrtkMaster] },
   { id: 'slot-18-fps-gun-gltf', label: 'FPS Shotgun', thumbnail: weaponSilhouetteThumbnail(['#f59e0b','#111827','#fde68a']), urls: [SNAKE_KNOWN_WORKING_GLB.fps, SNAKE_KNOWN_WORKING_GLB.fpsRaw, SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }
 ]);
 
