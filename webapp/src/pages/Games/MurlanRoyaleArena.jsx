@@ -1848,11 +1848,10 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
-  // Lower-body seat contact tuning (mobile portrait): legs sit lower and tuck toward the chair.
-  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(82), 0, 0);
-  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(82), 0, 0);
-  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-96), 0, 0);
-  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-96), 0, 0);
+  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(74), 0, 0);
+  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(74), 0, 0);
+  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-82), 0, 0);
+  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-82), 0, 0);
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),
@@ -1969,8 +1968,8 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - 0.3 - scaleDelta * 0.1,
-    baseSeatOffsetZ - 0.08
+    baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
+    baseSeatOffsetZ - 0.03
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
