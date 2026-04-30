@@ -1641,7 +1641,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const gltf = await loader.loadAsync(theme.url);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+    prepareLoadedModel(root);
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
