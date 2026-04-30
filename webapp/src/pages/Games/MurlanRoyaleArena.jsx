@@ -1641,7 +1641,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const gltf = await loader.loadAsync(theme.url);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -1831,10 +1831,10 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
-  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(74), 0, 0);
-  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(74), 0, 0);
-  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-82), 0, 0);
-  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-82), 0, 0);
+  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-74), 0, 0);
+  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-74), 0, 0);
+  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(82), 0, 0);
+  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(82), 0, 0);
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),
@@ -1954,7 +1954,8 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     baseSeatOffsetY - 0.06 - scaleDelta * 0.06,
     baseSeatOffsetZ + 0.42 - scaleDelta * 0.1
   );
-  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, characterTheme.seatYaw ?? Math.PI, 0);
+  const resolvedSeatYaw = (characterTheme.seatYaw ?? Math.PI) - Math.PI;
+  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, resolvedSeatYaw, 0);
 
   seatRoot.add(instance);
   seatRoot.userData.dispose = () => {
