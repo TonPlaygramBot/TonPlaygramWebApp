@@ -94,17 +94,17 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 0.24; // snap-lift from parking pad like truck missile launch timing
-const CAPTURE_DRONE_CRUISE_TIME = 0.7; // cruise lane duration aligned to truck missile travel pacing
-const CAPTURE_DRONE_DIVE_TIME = 0.24; // quick terminal dive so impact cadence matches truck missile cadence
+const CAPTURE_DRONE_LIFT_TIME = 0.96; // tuned to Ludo Battle Royal pacing
+const CAPTURE_DRONE_CRUISE_TIME = 4.48; // extend drone fly-by so motion reads a bit slower on portrait screens
+const CAPTURE_DRONE_DIVE_TIME = 1.96; // slightly longer terminal phase so drone descent feels less rushed
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // keep legacy path geometry but move at truck-like pacing
+const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL; // jet returns to parking with same cadence family as truck missile lane
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.34; // slow jet/helicopter loop a bit more so the pass is easier to track
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
-const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized launch/return
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -158,8 +158,8 @@ const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for 
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25; // keep shared strike lane closer to truck missile travel height
-const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // keep air units at same visible strike lane as truck missile
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // drone follows identical strike height profile as truck missile
+const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -7655,15 +7655,37 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
+  const QUICK_SWAP_WEAPON_IDS = useMemo(
+    () =>
+      [
+        'polyShotgun01Attack',
+        'polyAssaultRifle01Attack',
+        'polyPistol01Attack',
+        'polyRevolver01Attack',
+        'polySawedOff01Attack',
+        'polyRevolver02Attack',
+        'polyShotgun02Attack',
+        'polyShotgun03Attack',
+        'polySmg01Attack',
+        'ak47VolleyAttack',
+        'krsvBurstAttack',
+        'smithSidearmAttack',
+        'mosinMarksmanAttack',
+        'uziSprayAttack',
+        'sigsauerTacticalAttack',
+        'sniperShotAttack',
+        'compactCarbineAttack',
+        'fpsGunAttack'
+      ],
+    []
+  );
   const quickSwapWeapons = useMemo(() => {
-    const firearm = [];
-    const nonFirearm = [];
-    (ownedCaptureAnimations || []).forEach((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) firearm.push(option);
-      else nonFirearm.push(option);
-    });
-    return [...firearm, ...nonFirearm];
-  }, [ownedCaptureAnimations]);
+    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
+    return QUICK_SWAP_WEAPON_IDS
+      .filter((id) => ownedIds.has(id))
+      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
+      .filter(Boolean);
+  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7689,7 +7711,6 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
-      if (!isChessOptionUnlocked('captureAnimation', optionId, chessInventory)) return;
       const targetKind = weaponSwapTargetKind;
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
       if (targetGroup) {
