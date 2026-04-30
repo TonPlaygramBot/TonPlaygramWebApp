@@ -88,6 +88,9 @@ export default function ChessBattleRoyaleStore() {
   const selectedRef = useRef(0);
   const activeProjectileRef = useRef<Projectile | null>(null);
   const impactFocusUntilRef = useRef(0);
+  const attackFocusUntilRef = useRef(0);
+  const attackRuntimeRef = useRef<RuntimeWeapon | null>(null);
+  const cameraModeRef = useRef<CameraMode>('overview');
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
@@ -142,7 +145,7 @@ export default function ChessBattleRoyaleStore() {
         normalizeWeapon(model);
         slots[index].add(model);
         const muzzle = new THREE.Object3D();
-        muzzle.position.set(0.55, 0.2, 0);
+        muzzle.position.set(0.55, 0.1, 0);
         model.add(muzzle);
         runtimesRef.current.push({ entry, slot: slots[index], root: model, muzzle, basePosition: model.position.clone(), index });
         setLoadedCount((v) => v + 1);
@@ -150,10 +153,17 @@ export default function ChessBattleRoyaleStore() {
         const fallback = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.15), new THREE.MeshStandardMaterial({ color: '#94a3b8' }));
         slots[index].add(fallback);
         const muzzle = new THREE.Object3D();
-        muzzle.position.set(0.45, 0.04, 0);
+        muzzle.position.set(0.45, -0.04, 0);
         fallback.add(muzzle);
         runtimesRef.current.push({ entry, slot: slots[index], root: fallback, muzzle, basePosition: fallback.position.clone(), index });
         setFailedCount((v) => v + 1);
+      }
+    };
+
+    const switchCameraMode = (mode: CameraMode) => {
+      if (cameraModeRef.current !== mode) {
+        cameraModeRef.current = mode;
+        setCameraMode(mode);
       }
     };
 
@@ -192,8 +202,10 @@ export default function ChessBattleRoyaleStore() {
       };
       projectilesRef.current.push(projectile);
       activeProjectileRef.current = projectile;
+      attackRuntimeRef.current = runtime;
+      attackFocusUntilRef.current = performance.now() + 340;
       impactFocusUntilRef.current = performance.now() + 1500;
-      setCameraMode('projectile');
+      switchCameraMode('player');
       setStatus(`Broadcasting ${runtime.entry.shortName}: player view -> projectile tracking -> impact.`);
     };
 
@@ -217,8 +229,7 @@ export default function ChessBattleRoyaleStore() {
       const d = Math.min(clock.getDelta(), 0.033);
 
       runtimesRef.current.forEach((r) => {
-        const selected = r.index === selectedRef.current;
-        r.root.position.y = THREE.MathUtils.lerp(r.root.position.y, r.basePosition.y + (selected ? 0.38 : 0), 0.14);
+        r.root.position.y = THREE.MathUtils.lerp(r.root.position.y, r.basePosition.y, 0.14);
       });
 
       projectilesRef.current.forEach((p) => {
@@ -233,11 +244,20 @@ export default function ChessBattleRoyaleStore() {
         if (p.age > PELLET_LIFETIME || p.mesh.position.distanceTo(target.position) < 1.1) {
           p.alive = false;
           impactFocusUntilRef.current = performance.now() + 1200;
-          setCameraMode('impact');
+          switchCameraMode('impact');
         }
       });
 
-      if (activeProjectileRef.current?.alive) {
+      if (performance.now() < attackFocusUntilRef.current && attackRuntimeRef.current) {
+        const attacker = attackRuntimeRef.current;
+        attacker.muzzle.getWorldPosition(vA);
+        target.getWorldPosition(vB);
+        const side = new THREE.Vector3(0.85, 0.16, 0.22);
+        const camPos = vA.clone().add(side);
+        camera.position.lerp(camPos, 0.2);
+        camera.lookAt(vB.clone().lerp(vA, 0.28));
+      } else if (activeProjectileRef.current?.alive) {
+        switchCameraMode('projectile');
         const p = activeProjectileRef.current;
         const dirTo = p.velocity.clone().normalize();
         const camPos = p.mesh.position.clone().addScaledVector(dirTo, -1.2).add(new THREE.Vector3(0, 0.35, 0.2));
@@ -248,14 +268,12 @@ export default function ChessBattleRoyaleStore() {
         camera.position.lerp(focusPos, 0.1);
         camera.lookAt(target.position);
       } else {
-        if (cameraMode !== 'overview') setCameraMode('overview');
-        const selected = runtimesRef.current.find((r) => r.index === selectedRef.current);
-        if (selected) {
-          selected.muzzle.getWorldPosition(vA);
-          const playerView = vA.clone().add(new THREE.Vector3(0, 0.35, 0.72));
-          camera.position.lerp(playerView, 0.08);
-          camera.lookAt(target.position);
-        }
+        switchCameraMode('overview');
+        attackRuntimeRef.current = null;
+        activeProjectileRef.current = null;
+        const overviewPos = new THREE.Vector3(0, 8, 12);
+        camera.position.lerp(overviewPos, 0.08);
+        camera.lookAt(new THREE.Vector3(0, 0.4, -2.2));
       }
 
       renderer.render(scene, camera);
@@ -273,7 +291,7 @@ export default function ChessBattleRoyaleStore() {
       pelletMaterial.dispose();
       trailMaterial.dispose();
     };
-  }, [cameraMode]);
+  }, []);
 
   return (
     <div className='relative h-screen w-full overflow-hidden bg-slate-950 text-white'>
