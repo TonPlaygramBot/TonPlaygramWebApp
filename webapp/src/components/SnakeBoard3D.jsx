@@ -88,7 +88,7 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.95 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
@@ -243,19 +243,6 @@ function getSeatHumanOffsets(seatIndex) {
   };
 }
 
-function applyChessBattleRoyalSeatHelper(humanAnchor, seatIndex) {
-  if (!humanAnchor) return;
-  const offsets = getSeatHumanOffsets(seatIndex);
-  humanAnchor.position.set(0, offsets.y, offsets.z);
-  humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
-  humanAnchor.userData.seatHelper = Object.freeze({
-    source: 'ChessBattleRoyal',
-    seatIndex,
-    y: offsets.y,
-    z: offsets.z
-  });
-}
-
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
@@ -331,11 +318,11 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.04,
+  'slot-10-ak47-gltf': 0.1,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.07,
+  'slot-18-fps-gun-gltf': 0.1,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -3524,7 +3511,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     group.add(avatarAnchor);
 
     const humanAnchor = new THREE.Object3D();
-    applyChessBattleRoyalSeatHelper(humanAnchor, i);
+    const humanSeatOffset = getSeatHumanOffsets(i);
+    humanAnchor.position.set(0, humanSeatOffset.y, humanSeatOffset.z);
+    humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
