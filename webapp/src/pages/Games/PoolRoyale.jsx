@@ -1945,6 +1945,7 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when th
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.065; // lock camera nearer to eye line while keeping the cue shaft visible in portrait
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 1.15; // keep the eye camera on the rear/butt half of the cue instead of drifting toward the tip
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
@@ -20408,7 +20409,7 @@ const shotPowerRef = useRef(0);
             .clone()
             .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
             .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
+            .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
           return {
             blend: THREE.MathUtils.clamp(
               (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
@@ -24894,7 +24895,13 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const gripTarget = cueTip.clone().lerp(cueBack, HUMAN_GRIP_RATIO);
+            const cueShootDir = cueTip.clone().sub(cueBack).normalize();
+            const gripTarget = cueBack
+              .clone()
+              .addScaledVector(cueShootDir, 0.58)
+              .addScaledVector(aimForward, -0.08 - 0.18)
+              .addScaledVector(WORLD_UP, 0.055)
+              .addScaledVector(side, 0.14);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
