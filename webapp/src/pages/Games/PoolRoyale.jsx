@@ -1947,7 +1947,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_TARGET_HEIGHT_METERS = 1.8; // keep avatar visually human-sized (~1.8m) in portrait view
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.0; // keep fallback hand helpers at real-world scale
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 3.5; // enlarge the in-scene player rig 3.5× to match requested portrait-screen readability
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24567,8 +24567,8 @@ const shotPowerRef = useRef(0);
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = HUMAN_PLAYER_TARGET_HEIGHT_METERS;
-        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const humanHeight = HUMAN_PLAYER_TARGET_HEIGHT_METERS * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const scale = humanHeight / 1.82;
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
         const gripHand = createGripHandGroup(skinMat);
