@@ -5983,19 +5983,24 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
   const target = new THREE.Vector3();
   faceHelper.updateMatrixWorld?.(true);
   faceHelper.getWorldPosition(position);
+
+  // First-person camera must sit on eyes, but should look toward gameplay (dice/board), not at avatar face.
   if (fallbackTarget?.isVector3) {
     target.copy(fallbackTarget);
   } else if (actorEntry?.rig?.head?.isBone) {
     actorEntry.rig.head.updateMatrixWorld?.(true);
     actorEntry.rig.head.getWorldPosition(target);
+    target.z += 0.24 * MODEL_SCALE;
   } else {
-    target.copy(position).add(new THREE.Vector3(0, -0.005, 0.08 * MODEL_SCALE));
+    target.copy(position).add(new THREE.Vector3(0, -0.004, 0.2 * MODEL_SCALE));
   }
+
   return {
     position,
     target
   };
 }
+
 
 function sampleSeatedActionHelper(entry, helperKey, out) {
   if (!out?.isVector3 || !entry) return false;
@@ -8727,6 +8732,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         await rebuildChairs(stoolTheme);
         arena.textureResolutionKey = textureResolutionKey;
         configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
+
       } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
         applyChairThemeMaterials(
           { chairMaterials: arena.chairMaterials },
@@ -11338,6 +11344,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     []
   );
 
+
+  const resolveBottomPlayerGameplayTarget = useCallback(() => {
+    const dice = diceRef.current;
+    if (dice?.isObject3D) {
+      const diceTarget = new THREE.Vector3();
+      dice.getWorldPosition(diceTarget);
+      return diceTarget;
+    }
+    return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
+  }, []);
+
   const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
     cancelCameraViewAnimation();
     if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
@@ -11351,7 +11368,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lockUserTurnSeatViewRef.current = true;
       cameraLookStateRef.current.pitch = 0;
       const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-      const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, boardLookTargetRef.current);
+      const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, resolveBottomPlayerGameplayTarget());
       if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
         cameraTurnStateRef.current.baseTurnView = {
           position: facePose.position.clone(),
@@ -11394,7 +11411,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
     animateCameraPose(nextView.target, nextView.position, duration);
-  }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState, shouldRespectUserCamera]);
+  }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveBottomPlayerGameplayTarget, resolveTurnCameraState, shouldRespectUserCamera]);
 
   const resolveDynamicBroadcastDuration = useCallback((target) => {
     const camera = cameraRef.current;
