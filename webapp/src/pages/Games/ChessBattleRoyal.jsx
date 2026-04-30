@@ -124,9 +124,9 @@ const CAPTURE_DRONE_ALTITUDE = 2.28; // raise drone lane to stay visibly above k
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 4.28; // push jet/helicopter noticeably higher so they never read as low flight
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.75; // lower jet/helicopter lane to match truck missile altitude better in portrait view
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.08; // keep helicopter slightly above the jet lane for clearer visual separation
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet on the same cruise lane height
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
@@ -138,7 +138,7 @@ const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
 const CAPTURE_DRONE_CIRCLE_RATIO = 0.92; // keep drone in the loop longer before the dive
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.68; // launch later so missiles clearly fire after the longer round
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.9;
-const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.1; // slow jet/helicopter missile travel slightly for better path readability
+const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1; // match jet/helicopter missile speed to truck lane pacing
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.72;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.22;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
@@ -157,7 +157,7 @@ const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pas
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for stricter precision strike alignment
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.7; // raise shared strike lane so jet/helicopter/drone stay clearly higher in-flight
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25; // keep shared strike lane closer to truck missile travel height
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
@@ -2635,7 +2635,7 @@ const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable',
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
-const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
+const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18; // keep parked jet/helicopter visually aligned with truck parking lane
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
 
@@ -7753,8 +7753,8 @@ function Chess3D({
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
   }, [resolvedAccountId]);
-  const [p1QuickIdx, setP1QuickIdx] = useState(2);
-  const [p2QuickIdx, setP2QuickIdx] = useState(3);
+  const [p1QuickIdx, setP1QuickIdx] = useState(0);
+  const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -14062,7 +14062,11 @@ function Chess3D({
                 </div>
                 <div className="space-y-2">
                   {quickSwapWeaponList.map((option) => {
-                    const isSelected = option.id === selectedCaptureAnimationId;
+                    const targetGroup = weaponSwapTargetKind ? PIECE_GROUP_BY_PARKED_KIND[weaponSwapTargetKind] : null;
+                    const activeOptionId = targetGroup
+                      ? captureAnimationByPieceGroup[targetGroup]
+                      : selectedCaptureAnimationId;
+                    const isSelected = option.id === activeOptionId;
                     return (
                       <button
                         key={option.id}
