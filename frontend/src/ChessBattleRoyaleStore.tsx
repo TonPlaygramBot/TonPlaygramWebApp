@@ -8,6 +8,7 @@ const GRID_ROWS = 6;
 const GAP_X = 2.35;
 const GAP_Z = 1.48;
 const FPS_SHOTGUN_DISPLAY_LENGTH = 1.18;
+const PARKING_PAD_RADIUS = 0.62;
 
 const PELLET_SPEED = 30;
 const PELLET_LIFETIME = 3.2;
@@ -35,6 +36,71 @@ const EXTRA = {
   fps: 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
 };
 
+
+
+const weaponTypeIcon: Record<WeaponType, string> = {
+  rifle: '🔫',
+  pistol: '🗡️',
+  sniper: '🎯',
+};
+
+const createFallbackWeapon = (weaponType: WeaponType) => {
+  const group = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.45, roughness: 0.35 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.15, 0.16), material);
+  body.position.set(0.05, 0.2, 0);
+  group.add(body);
+
+  const barrelLength = weaponType === 'sniper' ? 0.62 : weaponType === 'rifle' ? 0.48 : 0.33;
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, barrelLength, 12), material);
+  barrel.rotation.z = Math.PI / 2;
+  barrel.position.set(0.45 + barrelLength * 0.42, 0.24, 0);
+  group.add(barrel);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.24, 0.06), material);
+  grip.rotation.z = 0.38;
+  grip.position.set(-0.06, 0.05, 0);
+  group.add(grip);
+
+  return group;
+};
+
+const addSeatedHumanReference = (scene: THREE.Scene) => {
+  const human = new THREE.Group();
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.55 });
+  const pantsMaterial = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.8 });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.5, 5, 10), bodyMaterial);
+  torso.position.set(0, 1.15, 2.1);
+  human.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 14), bodyMaterial);
+  head.position.set(0, 1.72, 2.12);
+  human.add(head);
+
+  const hip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.2, 0.3), pantsMaterial);
+  hip.position.set(0, 0.84, 2.04);
+  human.add(hip);
+
+  const makeLeg = (side: number) => {
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.26, 4, 8), pantsMaterial);
+    upper.rotation.z = side * 0.06;
+    upper.rotation.x = -Math.PI / 2.05;
+    upper.position.set(side * 0.16, 0.74, 2.26);
+
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.074, 0.24, 4, 8), pantsMaterial);
+    lower.rotation.x = Math.PI / 7;
+    lower.position.set(side * 0.16, 0.54, 2.55);
+
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.28), new THREE.MeshStandardMaterial({ color: '#0f172a' }));
+    foot.position.set(side * 0.16, 0.46, 2.7);
+    human.add(upper, lower, foot);
+  };
+
+  makeLeg(-1);
+  makeLeg(1);
+  scene.add(human);
+};
 const WEAPON_MANIFEST: WeaponEntry[] = [
   { id: 'poly-shotgun-01', name: 'Quaternius Shotgun', shortName: 'Shotgun', source: 'Quaternius', weaponType: 'rifle', urls: [polyGlb('032e6589-3188-41bc-b92b-e25528344275')] },
   { id: 'poly-assault-rifle-01', name: 'Quaternius Assault Rifle', shortName: 'Assault Rifle', source: 'Quaternius', weaponType: 'rifle', urls: [polyGlb('b3e6be61-0299-4866-a227-58f5f3fe610b')] },
@@ -126,11 +192,15 @@ export default function ChessBattleRoyaleStore() {
     const target = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, 0.6), new THREE.MeshStandardMaterial({ color: '#f59e0b' }));
     target.position.set(0, 2.2, -15);
     scene.add(target);
+    addSeatedHumanReference(scene);
 
     const slots: THREE.Group[] = [];
     WEAPON_MANIFEST.forEach((_, i) => {
       const slot = new THREE.Group();
       slot.position.copy(slotPosition(i));
+      const parkingPad = new THREE.Mesh(new THREE.CylinderGeometry(PARKING_PAD_RADIUS, PARKING_PAD_RADIUS, 0.04, 28), new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.2, roughness: 0.85 }));
+      parkingPad.position.y = -0.02;
+      slot.add(parkingPad);
       scene.add(slot);
       slots.push(slot);
     });
@@ -140,6 +210,8 @@ export default function ChessBattleRoyaleStore() {
         const gltf = await new Promise<GLTF>((resolve, reject) => makeLoader(entry.urls[0]).load(entry.urls[0], resolve, undefined, reject));
         const model = gltf.scene;
         normalizeWeapon(model);
+        model.rotation.y = -Math.PI / 2;
+        model.position.z = 0.05;
         slots[index].add(model);
         const muzzle = new THREE.Object3D();
         muzzle.position.set(0.55, 0.2, 0);
@@ -147,7 +219,7 @@ export default function ChessBattleRoyaleStore() {
         runtimesRef.current.push({ entry, slot: slots[index], root: model, muzzle, basePosition: model.position.clone(), index });
         setLoadedCount((v) => v + 1);
       } catch {
-        const fallback = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.15), new THREE.MeshStandardMaterial({ color: '#94a3b8' }));
+        const fallback = createFallbackWeapon(entry.weaponType);
         slots[index].add(fallback);
         const muzzle = new THREE.Object3D();
         muzzle.position.set(0.45, 0.04, 0);
@@ -295,6 +367,7 @@ export default function ChessBattleRoyaleStore() {
               className={`rounded-xl border px-2 py-2 text-left text-[11px] font-bold ${selectedIndex === index ? 'border-yellow-300 bg-yellow-400 text-slate-950' : 'border-white/10 bg-white/10 text-slate-100'}`}
             >
               <span className='block text-[10px] opacity-70'>#{index + 1} · {weapon.weaponType}</span>
+              <span className='mr-1 text-sm leading-none'>{weaponTypeIcon[weapon.weaponType]}</span>
               <span className='block truncate'>{weapon.shortName}</span>
             </button>
           ))}
