@@ -1940,19 +1940,19 @@ const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 1.22; // push the shooter farther outward so the body stays clearly on the table perimeter
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.95; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.76; // keep the shooter farther back on the cue butt side instead of drifting over the shaft
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.55; // keep camera closer to the cue butt so the first-person view matches the rear-hand stance
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.34; // keep a subtle right-eye bias for right-handed stance without exposing the avatar back
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.265; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.245; // match Bilardo Shqip bridge hand offset from cue ball
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.026; // match Bilardo Shqip cue elevation above bridge hand
-const HUMAN_GRIP_RATIO = 0.96; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
+const HUMAN_GRIP_RATIO = 0.9; // shift right-hand grip toward the cue butt while keeping the same aiming direction
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
@@ -25042,7 +25042,7 @@ const shotPowerRef = useRef(0);
           }
 
           const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
-          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.49, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.04, 0.08, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.08, -0.02, t) * scale);
+          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.43, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.03, 0.06, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.03, 0.02, t) * scale);
 
           const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
           const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
