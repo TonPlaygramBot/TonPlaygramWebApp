@@ -88,6 +88,9 @@ export default function ChessBattleRoyaleStore() {
   const selectedRef = useRef(0);
   const activeProjectileRef = useRef<Projectile | null>(null);
   const impactFocusUntilRef = useRef(0);
+  const cameraModeRef = useRef<CameraMode>('overview');
+  const selectedHighlightRef = useRef<THREE.Mesh | null>(null);
+  const parkingSpotRef = useRef<THREE.Group | null>(null);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
@@ -97,6 +100,8 @@ export default function ChessBattleRoyaleStore() {
 
   const selectedWeapon = useMemo(() => WEAPON_MANIFEST[selectedIndex], [selectedIndex]);
   useEffect(() => void (selectedRef.current = selectedIndex), [selectedIndex]);
+
+  useEffect(() => void (cameraModeRef.current = cameraMode), [cameraMode]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -134,6 +139,26 @@ export default function ChessBattleRoyaleStore() {
       scene.add(slot);
       slots.push(slot);
     });
+
+    const parkingSpot = new THREE.Group();
+    parkingSpot.position.set(5.1, 0, 0);
+    scene.add(parkingSpot);
+    parkingSpotRef.current = parkingSpot;
+    const parkingPad = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.9, 1.2, 0.08, 24),
+      new THREE.MeshStandardMaterial({ color: '#0ea5e9', emissive: '#0284c7', emissiveIntensity: 0.24 }),
+    );
+    parkingPad.position.set(0, 0.04, 0);
+    parkingSpot.add(parkingPad);
+
+    const selectedHighlight = new THREE.Mesh(
+      new THREE.RingGeometry(0.72, 1.0, 32),
+      new THREE.MeshBasicMaterial({ color: '#fde047', transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
+    );
+    selectedHighlight.rotation.x = -Math.PI / 2;
+    selectedHighlight.position.y = 0.03;
+    scene.add(selectedHighlight);
+    selectedHighlightRef.current = selectedHighlight;
 
     const loadOne = async (entry: WeaponEntry, index: number) => {
       try {
@@ -206,10 +231,11 @@ export default function ChessBattleRoyaleStore() {
       runtimesRef.current.forEach((runtime, i) => setTimeout(() => fireFromRuntime(runtime), i * 120));
     };
 
-    window.addEventListener('keydown', (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') fireSelected();
       if (e.key.toLowerCase() === 'f') fireAll();
-    });
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     let raf = 0;
     const animate = () => {
@@ -219,7 +245,20 @@ export default function ChessBattleRoyaleStore() {
       runtimesRef.current.forEach((r) => {
         const selected = r.index === selectedRef.current;
         r.root.position.y = THREE.MathUtils.lerp(r.root.position.y, r.basePosition.y + (selected ? 0.38 : 0), 0.14);
+        r.slot.position.copy(slotPosition(r.index));
       });
+
+      const selectedRuntime = runtimesRef.current.find((r) => r.index === selectedRef.current);
+      if (selectedRuntime && parkingSpotRef.current) {
+        parkingSpotRef.current.position.y = THREE.MathUtils.lerp(parkingSpotRef.current.position.y, 0, 0.1);
+        parkingSpotRef.current.position.z = THREE.MathUtils.lerp(parkingSpotRef.current.position.z, -6.3, 0.1);
+        parkingSpotRef.current.position.x = THREE.MathUtils.lerp(parkingSpotRef.current.position.x, 4.95, 0.1);
+        selectedRuntime.slot.position.lerp(parkingSpotRef.current.position, 0.16);
+        selectedRuntime.root.rotation.y = THREE.MathUtils.lerp(selectedRuntime.root.rotation.y, -Math.PI / 2, 0.16);
+      }
+      if (selectedHighlightRef.current && selectedRuntime) {
+        selectedHighlightRef.current.position.lerp(selectedRuntime.slot.position.clone().setY(0.03), 0.2);
+      }
 
       projectilesRef.current.forEach((p) => {
         if (!p.alive) return;
@@ -248,7 +287,7 @@ export default function ChessBattleRoyaleStore() {
         camera.position.lerp(focusPos, 0.1);
         camera.lookAt(target.position);
       } else {
-        if (cameraMode !== 'overview') setCameraMode('overview');
+        if (cameraModeRef.current !== 'overview') setCameraMode('overview');
         const selected = runtimesRef.current.find((r) => r.index === selectedRef.current);
         if (selected) {
           selected.muzzle.getWorldPosition(vA);
@@ -267,13 +306,14 @@ export default function ChessBattleRoyaleStore() {
 
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', onKeyDown);
       renderer.dispose();
       mount.innerHTML = '';
       pelletGeometry.dispose();
       pelletMaterial.dispose();
       trailMaterial.dispose();
     };
-  }, [cameraMode]);
+  }, []);
 
   return (
     <div className='relative h-screen w-full overflow-hidden bg-slate-950 text-white'>
