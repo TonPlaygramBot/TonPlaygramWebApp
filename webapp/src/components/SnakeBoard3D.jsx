@@ -87,9 +87,9 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.24;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.21;
-// Lift seated humans to match Chess Battle Royal lower-body seat anchoring on portrait screens.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
+// Raise seated humans higher on portrait screens to match earlier approved framing.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -4.95 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.46;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
@@ -317,10 +317,8 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep imported firearm GLTFs aligned with in-game fallback weapon proportions.
-  'slot-10-ak47-gltf': 0.34,
-  // Match SigSauer GLTF visual size to Glock sidearm profile.
-  'slot-15-sigsauer-gltf': 0.28
+  'slot-10-ak47-gltf': 0.52,
+  'slot-15-sigsauer-gltf': 0.5
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
