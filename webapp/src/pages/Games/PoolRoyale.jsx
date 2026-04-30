@@ -1945,14 +1945,14 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when th
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.09; // lift camera above cue butt so table stays visible in portrait cue view
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // move camera forward from the cue butt toward eye line so we keep a true first-person framing
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.2; // keep camera closer to the cue butt so the first-person view matches the rear-hand stance
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.34; // keep a subtle right-eye bias for right-handed stance without exposing the avatar back
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.245; // match Bilardo Shqip bridge hand offset from cue ball
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.245; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.026; // match Bilardo Shqip cue elevation above bridge hand
-const HUMAN_GRIP_RATIO = 0.9; // shift right-hand grip toward the cue butt while keeping the same aiming direction
+const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
@@ -24676,9 +24676,32 @@ const shotPowerRef = useRef(0);
             strikeTime: 0.11,
             holdTime: 0.05,
             stanceWidth: 0.52,
-            bridgePalmTableLift: 0.012,
+            bridgePalmTableLift: 0.006,
+            bridgeHandBackFromBall: HUMAN_BRIDGE_HAND_BACK_FROM_BALL,
+            bridgeHandSide: HUMAN_BRIDGE_HAND_SIDE,
+            bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
+            cueLength: HUMAN_CUE_LENGTH,
+            bridgeDist: HUMAN_BRIDGE_DIST,
+            desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
             chinToCueHeight: 0.11,
-            cueArmElbowRise: 0.43,
+            cueArmElbowRise: 0.84,
+            shootCueGripFromBack: 0.58,
+            rightHandShotExtraBack: 0.18,
+            rightHandShotLift: 0.055,
+            rightHandForwardClamp: -0.08,
+            rightHandOutward: 0.14,
+            idleRightHandY: 0.8,
+            idleRightHandX: 0.31,
+            idleRightHandZ: -0.015,
+            rightHandRollIdle: -2.2,
+            rightHandRollShoot: -2.05,
+            rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
+            footGroundY: 0.035,
+            footLockStrength: 1.0,
+            kneeBendShot: 0.16,
+            rightElbowShotRise: 0.84,
+            rightElbowShotSide: -0.34,
+            rightElbowShotBack: -0.82,
             tableTopY: TABLE_Y + TABLE.THICK,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
@@ -25042,7 +25065,7 @@ const shotPowerRef = useRef(0);
           }
 
           const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
-          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.43, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.03, 0.06, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.03, 0.02, t) * scale);
+          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.49, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.04, 0.08, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.08, -0.02, t) * scale);
 
           const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
           const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
