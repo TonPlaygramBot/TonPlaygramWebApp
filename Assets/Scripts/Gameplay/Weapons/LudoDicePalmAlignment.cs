@@ -11,7 +11,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform diceTransform;
         [SerializeField] private Transform palmAnchor;
         [SerializeField] private bool alignEveryFrame = true;
-        [SerializeField] private Vector3 palmOffset = new Vector3(0f, -0.012f, 0.016f);
+        [SerializeField] private Vector3 palmOffset = new Vector3(0f, -0.03f, 0.02f);
         [SerializeField] private Vector3 palmEulerOffset = new Vector3(5f, 0f, 90f);
 
         private Quaternion _localRotationOffset;

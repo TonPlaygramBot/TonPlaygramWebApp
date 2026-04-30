@@ -90,6 +90,9 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private float cameraLookLerp = 18f;
         [SerializeField] private float cameraTrackLerp = 15f;
         [SerializeField] private Vector3 swapIconWorldOffset = new Vector3(0f, 0.11f, 0f);
+        [SerializeField] private bool allowDynamicCameraOnlyDuringAnimation = true;
+        [SerializeField] private float turnFocusDuration = 0.22f;
+
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
         private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
@@ -107,6 +110,7 @@ namespace TonPlaygram.Gameplay.Weapons
         private Quaternion _weaponRootLocalRot;
         private Vector3 _swapIconWorldPos;
         private Quaternion _swapIconWorldRot;
+        private bool _isAnimationCameraActive;
 
         private void Awake()
         {
@@ -169,6 +173,7 @@ namespace TonPlaygram.Gameplay.Weapons
             int shots = weapon.fireMode == WeaponFireMode.Single ? 1 : Mathf.Max(1, weapon.magazineSize);
             float shotDelay = weapon.roundsPerSecond <= 0.001f ? 0f : 1f / weapon.roundsPerSecond;
 
+            _isAnimationCameraActive = true;
             BeginAimCamera(weapon);
 
             for (int i = 0; i < shots; i++)
@@ -179,6 +184,11 @@ namespace TonPlaygram.Gameplay.Weapons
                 {
                     yield return new WaitForSeconds(shotDelay);
                 }
+            }
+
+            if (_cameraRoutine == null)
+            {
+                yield return StartCoroutine(ReturnCameraToDefault());
             }
         }
 
@@ -410,6 +420,11 @@ namespace TonPlaygram.Gameplay.Weapons
                 StopCoroutine(_cameraRoutine);
             }
 
+            if (allowDynamicCameraOnlyDuringAnimation && !_isAnimationCameraActive)
+            {
+                return;
+            }
+
             _cameraRoutine = StartCoroutine(BulletFollowRoutine(bulletTransform, seconds));
         }
 
@@ -482,6 +497,32 @@ namespace TonPlaygram.Gameplay.Weapons
 
                 playerCamera.transform.localPosition = Vector3.Lerp(fromPos, _baseCameraLocalPos, t);
                 playerCamera.transform.localRotation = Quaternion.Slerp(playerCamera.transform.localRotation, _baseCameraLocalRot, t);
+                yield return null;
+            }
+
+            _isAnimationCameraActive = false;
+            _cameraRoutine = null;
+        }
+
+        public void FocusCameraOnTurn(Transform turnAnchor)
+        {
+            if (playerCamera == null || turnAnchor == null || _isAnimationCameraActive)
+                return;
+
+            StartCoroutine(FocusTurnRoutine(turnAnchor));
+        }
+
+        private IEnumerator FocusTurnRoutine(Transform turnAnchor)
+        {
+            Vector3 fromForward = playerCamera.transform.forward;
+            float elapsed = 0f;
+            float duration = Mathf.Max(0.01f, turnFocusDuration);
+            while (elapsed < duration && turnAnchor != null && !_isAnimationCameraActive)
+            {
+                elapsed += Time.deltaTime;
+                Vector3 toTarget = (turnAnchor.position - playerCamera.transform.position).normalized;
+                Vector3 lerped = Vector3.Slerp(fromForward, toTarget, Mathf.Clamp01(elapsed / duration));
+                playerCamera.transform.rotation = Quaternion.LookRotation(lerped, Vector3.up);
                 yield return null;
             }
         }
