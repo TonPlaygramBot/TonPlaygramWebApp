@@ -158,8 +158,8 @@ const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for 
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25; // keep shared strike lane closer to truck missile travel height
-const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
+const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_SHORT_STRIKE_ALTITUDE; // align jet/helicopter cruise lane to truck missile lane height
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE; // align drone strike lane to truck missile lane height
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -7655,37 +7655,11 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const QUICK_SWAP_WEAPON_IDS = useMemo(
-    () =>
-      [
-        'polyShotgun01Attack',
-        'polyAssaultRifle01Attack',
-        'polyPistol01Attack',
-        'polyRevolver01Attack',
-        'polySawedOff01Attack',
-        'polyRevolver02Attack',
-        'polyShotgun02Attack',
-        'polyShotgun03Attack',
-        'polySmg01Attack',
-        'ak47VolleyAttack',
-        'krsvBurstAttack',
-        'smithSidearmAttack',
-        'mosinMarksmanAttack',
-        'uziSprayAttack',
-        'sigsauerTacticalAttack',
-        'sniperShotAttack',
-        'compactCarbineAttack',
-        'fpsGunAttack'
-      ],
-    []
-  );
   const quickSwapWeapons = useMemo(() => {
-    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
-    return QUICK_SWAP_WEAPON_IDS
-      .filter((id) => ownedIds.has(id))
-      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
-      .filter(Boolean);
-  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
+    return (ownedCaptureAnimations || []).filter((option) =>
+      FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
+    );
+  }, [ownedCaptureAnimations]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7711,6 +7685,7 @@ function Chess3D({
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
+      if (!isChessOptionUnlocked('captureAnimation', optionId, chessInventory)) return;
       const targetKind = weaponSwapTargetKind;
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
       if (targetGroup) {
