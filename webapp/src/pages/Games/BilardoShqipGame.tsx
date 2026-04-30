@@ -93,6 +93,7 @@ const CFG = {
   holdTime: 0.05,
   cueLength: 1.46,
   bridgeDist: 0.24,
+  gripRatio: 0.76,
   edgeMargin: 0.62,
   desiredShootDistance: 1.06,
   poseLambda: 9,
@@ -105,15 +106,7 @@ const CFG = {
   bridgeCueLift: 0.026,
   bridgeHandBackFromBall: 0.245,
   bridgeHandSide: -0.008,
-  idleRightHandY: 0.8,
-  idleRightHandX: 0.31,
-  idleRightHandZ: -0.015,
-  idleCueGripFromBack: 0.24,
-  shootCueGripFromBack: 0.86,
-  idleCueDir: new THREE.Vector3(0.055, 0.965, -0.13),
-  rightHandRollIdle: -2.2,
-  rightHandRollShoot: -1.05,
-  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
+  gripHandBackOnCue: 0.78,
   chinToCueHeight: 0.11,
   cueArmElbowRise: 0.43,
 };
@@ -606,11 +599,6 @@ function setHandBasis(bone: THREE.Bone | undefined, side: THREE.Vector3, up: THR
   if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
   setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength)));
 }
-function cueSocketOffsetWorld(side: THREE.Vector3, up: THREE.Vector3, forward: THREE.Vector3, roll: number, socketLocal = CFG.rightHandCueSocketLocal) {
-  const q = makeBasisQuaternion(side, up, forward);
-  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
-  return socketLocal.clone().applyQuaternion(q);
-}
 function poseFingers(fingers: THREE.Bone[], mode: "idle" | "bridge" | "grip", weight: number) {
   const w = clamp01(weight);
   fingers.forEach((finger, i) => {
@@ -692,16 +680,13 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
     if (b.hips) b.hips.rotation.z -= c * 0.018 * w;
   }
 
-  const rightGrip = frame.rightHandWorld.clone();
+  const rightGrip = frame.rightHandWorld.clone().addScaledVector(cueDir, -0.028 * (0.25 + 0.75 * ik)).addScaledVector(UP, 0.006 * ik);
   const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.24 + 0.19 * ik).addScaledVector(frame.side, 0.09).addScaledVector(frame.forward, -0.03 * idle);
   const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.68);
   const rightHold = 0.56 + 0.4 * ik;
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(), rightHold, rightHold);
-  const gripSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.24, ik)).addScaledVector(frame.forward, lerp(0.16, 0.05, ik)).normalize();
-  const gripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.6, ik)).addScaledVector(frame.side, lerp(-0.64, -0.28, ik)).addScaledVector(frame.forward, lerp(0.2, -0.1, ik)).normalize();
-  const gripRoll = lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot, ik) + 0.05 * frame.stroke;
-  setHandBasis(b.rightHand, gripSide, gripUp, cueDir, gripRoll, 1.0);
-  poseFingers(human.rightFingers, "grip", 0.95);
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, frame.side.clone().addScaledVector(UP, 0.22).normalize(), rightHold, rightHold);
+  setHandBasis(b.rightHand, frame.side.clone().addScaledVector(UP, -0.08).normalize(), UP.clone().multiplyScalar(0.76).addScaledVector(frame.side, 0.18).addScaledVector(frame.forward, -0.1).normalize(), cueDir, 0.08 * idle + 0.2 * ik + 0.03 * frame.stroke, 0.78 + 0.18 * ik);
+  poseFingers(human.rightFingers, "grip", 0.58 + 0.28 * ik);
 
   if (ik < 0.025) {
     poseFingers(human.leftFingers, "idle", 1);
@@ -771,18 +756,8 @@ function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarg
   const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
   const leftFoot = local(new THREE.Vector3(-0.13, 0.035, 0.03 + walk * 0.03).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, 0.035, -0.36), t));
   const rightFoot = local(new THREE.Vector3(0.13, 0.035, -0.03 - walk * 0.03).lerp(new THREE.Vector3(CFG.stanceWidth * 0.5, 0.035, 0.36), t));
-  const leftHand = idleLeft.clone().lerp(bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(CFG.tableTopY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT), t);
-  const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
-  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
-  const idleGripUp = UP.clone().multiplyScalar(-1).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
-  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.24, handIk)).addScaledVector(forward, lerp(0.16, 0.05, handIk)).normalize();
-  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.6, handIk)).addScaledVector(side, lerp(-0.64, -0.28, handIk)).addScaledVector(forward, lerp(0.2, -0.1, handIk)).normalize();
-  const idleCueGripPoint = idleRight.clone();
-  const liveCueGripPoint = gripTarget.clone().addScaledVector(forward, 0.046 * stroke * t + 0.065 * follow * power);
-  const idleWristTarget = idleCueGripPoint.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, CFG.rightHandRollIdle));
-  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot, handIk)));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const leftHand = idleLeft.clone().lerp(bridgeTarget.clone().addScaledVector(forward, -0.026 * t).addScaledVector(side, -0.018 * t).setY(CFG.tableTopY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.006 * human.settleT), t);
+  const rightHand = idleRight.clone().lerp(gripTarget.clone().addScaledVector(forward, 0.032 * stroke * t + 0.052 * follow * power).addScaledVector(UP, -0.007 * follow), t);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.57).addScaledVector(UP, 0.02 * t).addScaledVector(side, -0.03 * t).addScaledVector(forward, 0.035 * t);
   const rightElbow = rightHand.clone().addScaledVector(UP, lerp(0.18, CFG.cueArmElbowRise, t)).addScaledVector(side, lerp(0.03, 0.07, t)).addScaledVector(forward, lerp(-0.03, 0, t));
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.18, 0.105, t)).addScaledVector(forward, 0.052 * t).addScaledVector(side, -0.016 * t);
@@ -1142,19 +1117,18 @@ export default function BilardoShqipGame() {
       if (state === "striking") gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeNorm));
       const cueTipShoot = cueBallWorld.clone().addScaledVector(aimForward, -(CFG.ballR + gap));
       const cueBackShoot = bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - CFG.bridgeDist - CFG.ballR - gap)).add(new THREE.Vector3(0, 0.028, 0));
+      const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, CFG.gripRatio);
       const standingYaw = yawFromForward(aimForward);
-      const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ).applyAxisAngle(Y_AXIS, standingYaw));
+      const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(0.24, 1.12, 0.02).applyAxisAngle(Y_AXIS, standingYaw));
       const idleLeftHandTarget = humanRootTarget.clone().add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(Y_AXIS, standingYaw));
-      const idleDir = CFG.idleCueDir.clone().applyAxisAngle(Y_AXIS, standingYaw).normalize();
-      const idleCue = cuePoseFromGrip(idleRightHandTarget, idleDir, CFG.idleCueGripFromBack, CFG.cueLength);
-      const shootCueDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
-      const gripHandTarget = cueBackShoot.clone().addScaledVector(shootCueDir, CFG.shootCueGripFromBack);
-      let cueBackVisual = state === "idle" ? idleCue.back : cueBackShoot.clone();
-      let cueTipVisual = state === "idle" ? idleCue.tip : cueTipShoot.clone();
+      let cueBackVisual = cueBackShoot.clone(), cueTipVisual = cueTipShoot.clone();
 
       if (state === "idle") {
         strikeT = 0;
         didHit = false;
+        const idleDir = new THREE.Vector3(0.16, 0.74, -0.22).applyAxisAngle(Y_AXIS, standingYaw).normalize();
+        cueBackVisual = idleRightHandTarget.clone().addScaledVector(idleDir, -0.22);
+        cueTipVisual = idleRightHandTarget.clone().addScaledVector(idleDir, 0.96);
       } else if (state === "dragging") {
         strikeT = 0;
         didHit = false;
