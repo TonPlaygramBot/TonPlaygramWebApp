@@ -7688,21 +7688,59 @@ function Chess3D({
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
+  const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
+    jet: 'kingQueen',
+    helicopter: 'bishopRook',
+    drone: 'knight',
+    truck: 'pawn'
+  }), []);
+  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
+    kingQueen: selectedCaptureAnimationId,
+    bishopRook: selectedCaptureAnimationId,
+    knight: selectedCaptureAnimationId,
+    pawn: selectedCaptureAnimationId
+  }));
+  useEffect(() => {
+    setCaptureAnimationByPieceGroup((prev) => ({
+      kingQueen: prev.kingQueen || selectedCaptureAnimationId,
+      bishopRook: prev.bishopRook || selectedCaptureAnimationId,
+      knight: prev.knight || selectedCaptureAnimationId,
+      pawn: prev.pawn || selectedCaptureAnimationId
+    }));
+  }, [selectedCaptureAnimationId]);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
-      if (!optionId || optionId === selectedCaptureAnimationId) return;
-      setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
+      if (!optionId) return;
+      const targetKind = weaponSwapTargetKind;
+      const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
+      if (targetGroup) {
+        setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
+      }
+      if (optionId !== selectedCaptureAnimationId) {
+        setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
+      }
       setWeaponSwapOpen(false);
       setWeaponSwapTargetKind(null);
     },
-    [resolvedAccountId, selectedCaptureAnimationId]
+    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
   );
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
     if (!weaponSwapTargetKind) return pool;
-    const filtered = pool.filter(
-      (option) => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind
-    );
+
+    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
+    // Keep full firearm inventory visible when player taps one of those parked vehicles.
+    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
+      const firearmOnly = pool.filter((option) =>
+        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
+      );
+      if (firearmOnly.length) return firearmOnly;
+    }
+
+    const filtered = pool.filter((option) => {
+      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
+    });
     if (filtered.length) return filtered;
     return pool;
   }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
@@ -11117,6 +11155,40 @@ function Chess3D({
       return { pos, next };
     };
 
+    const SINGLE_SHOT_FIREARM_IDS = new Set([
+      'polyShotgun01Attack',
+      'polyShotgun02Attack',
+      'polyShotgun03Attack',
+      'sniperShotAttack',
+      'mosinMarksmanAttack',
+      'compactCarbineAttack'
+    ]);
+
+    const resolveFirearmCaptureProfile = () => {
+      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(selectedCaptureAnimationId);
+      return {
+        bulletCount: singleShot ? 1 : 7,
+        duration: singleShot ? 0.62 : 1.15,
+        impactAt: singleShot ? 1 : 0.92,
+        singleShot
+      };
+    };
+
+    const resolvePieceGroupFromType = (pieceType) => {
+      const t = `${pieceType || ''}`.toLowerCase();
+      if (t === 'k' || t === 'q') return 'kingQueen';
+      if (t === 'b' || t === 'r') return 'bishopRook';
+      if (t === 'n') return 'knight';
+      return 'pawn';
+    };
+
+    const resolveCaptureKindForPiece = (pieceType) => {
+      const group = resolvePieceGroupFromType(pieceType);
+      const selectedId = captureAnimationByPieceGroup[group] || selectedCaptureAnimationId;
+      if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)) return 'firearm';
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedId] || 'truck';
+    };
+
     const playCaptureAnimation = ({
       fromPos,
       targetPos,
@@ -11134,7 +11206,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = selectedCaptureKind;
+      const captureKind = resolveCaptureKindForPiece(movingType);
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -11306,20 +11378,31 @@ function Chess3D({
         });
       }
       if (captureKind === 'firearm') {
+        const firearmProfile = resolveFirearmCaptureProfile();
         playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 1.25);
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.52);
+        missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
         activeCaptureFx.push({
-          type: 'missile',
+          type: 'firearm',
           t: 0,
-          duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
+          duration: firearmProfile.duration,
           from: fromPos.clone(),
           to: targetPos.clone(),
           targetMesh,
-          missileFx
+          missileFx,
+          bulletCount: firearmProfile.bulletCount,
+          impactAt: firearmProfile.impactAt,
+          singleShot: firearmProfile.singleShot,
+          firedBullets: 0,
+          hitTriggered: false,
+          muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
-        return withAuto3d({ moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 });
+        return withAuto3d({
+          moveDelayMs: firearmProfile.duration * 1000,
+          captureResolveDelayMs: firearmProfile.duration * 1000
+        });
       }
       if (distance <= 1.5) {
         playAudio(swordSoundRef);
@@ -11914,10 +11997,9 @@ function Chess3D({
           parkedIsWhite: isWhite
         };
       });
-      const currentCaptureKind = selectedParkedWeaponKindRef.current;
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible = unit.busy || unit.kind === currentCaptureKind;
+        unit.root.visible = true;
       });
     };
 
@@ -13137,8 +13219,7 @@ function Chess3D({
 
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible =
-          unit.busy || unit.kind === selectedParkedWeaponKindRef.current;
+        unit.root.visible = true;
         if (unit.rotorsActive && unit.topRotor && unit.topRotorAxis) {
           unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
         }
@@ -13531,6 +13612,43 @@ function Chess3D({
                 fx.hasExploded = true;
                 launchExplosion(targetPos);
               }
+              fx.missileFx.root.visible = false;
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'firearm') {
+            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            fx.to.copy(targetPos);
+            const shooterPos = fx.from.clone().lerp(targetPos, 0.24);
+            shooterPos.y += 0.24;
+            const aimDir = targetPos.clone().sub(shooterPos).normalize();
+            fx.missileFx.root.visible = true;
+            fx.missileFx.root.position.copy(shooterPos).addScaledVector(aimDir, 0.08);
+            orientForwardKeepingUp(fx.missileFx.root, aimDir);
+
+            const bulletsToFire = Math.max(1, fx.bulletCount || 1);
+            const fireStep = 1 / bulletsToFire;
+            const shouldFireCount = Math.min(
+              bulletsToFire,
+              Math.floor((u + 0.0001) / fireStep) + (u > 0.04 ? 1 : 0)
+            );
+            while (fx.firedBullets < shouldFireCount) {
+              fx.firedBullets += 1;
+              const shotProgress = clamp01(fx.firedBullets / bulletsToFire);
+              const shotPos = shooterPos.clone().lerp(targetPos, shotProgress);
+              launchExplosion(shotPos);
+              if (!fx.singleShot && fx.firedBullets < bulletsToFire) {
+                playAudio(missileImpactSoundRef, { volume: 0.25 });
+              }
+            }
+
+            if (!fx.hitTriggered && u >= fx.impactAt) {
+              fx.hitTriggered = true;
+              playAudio(missileImpactSoundRef, { volume: fx.singleShot ? 0.9 : 0.65 });
+              launchExplosion(targetPos);
+            }
+
+            if (u >= 1) {
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
               activeCaptureFx.splice(i, 1);
