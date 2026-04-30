@@ -105,7 +105,7 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 2.0;
-const ENABLE_3D_HUMAN_CHARACTERS = false;
+const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
@@ -1631,17 +1631,34 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 const CHARACTER_MODEL_CACHE = new Map();
 
 async function loadCharacterModel(theme, renderer = null) {
-  if (!theme?.url) throw new Error('Missing character model URL');
-  const cacheKey = `${theme.id || theme.url}::${theme.url}`;
+  const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
+    ? theme.modelUrls
+    : theme?.url
+      ? [theme.url]
+      : [];
+  if (!urls.length) throw new Error('Missing character model URL');
+  const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
   if (CHARACTER_MODEL_CACHE.has(cacheKey)) {
     return CHARACTER_MODEL_CACHE.get(cacheKey);
   }
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
-    const gltf = await loader.loadAsync(theme.url);
-    const root = gltf?.scene || gltf?.scenes?.[0];
+    loader.setCrossOrigin?.('anonymous');
+    let gltf = null;
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        gltf = await loader.loadAsync(url);
+        if (gltf) break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!gltf) throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
+    const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -1947,14 +1964,14 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38;
-  const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18;
+  const baseSeatOffsetY = characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92;
+  const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - 0.06 - scaleDelta * 0.06,
-    baseSeatOffsetZ + 0.42 - scaleDelta * 0.1
+    baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
+    baseSeatOffsetZ - 0.03
   );
-  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, characterTheme.seatYaw ?? Math.PI, 0);
+  seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
   seatRoot.add(instance);
   seatRoot.userData.dispose = () => {
