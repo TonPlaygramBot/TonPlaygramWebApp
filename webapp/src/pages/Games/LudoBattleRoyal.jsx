@@ -5983,14 +5983,38 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
   const target = new THREE.Vector3();
   faceHelper.updateMatrixWorld?.(true);
   faceHelper.getWorldPosition(position);
-  if (fallbackTarget?.isVector3) {
-    target.copy(fallbackTarget);
-  } else if (actorEntry?.rig?.head?.isBone) {
-    actorEntry.rig.head.updateMatrixWorld?.(true);
-    actorEntry.rig.head.getWorldPosition(target);
-  } else {
-    target.copy(position).add(new THREE.Vector3(0, -0.005, 0.08 * MODEL_SCALE));
+
+  const headBone = actorEntry?.rig?.head;
+  const headQuaternion = new THREE.Quaternion();
+  const headForward = new THREE.Vector3(0, 0, 1);
+  if (headBone?.isBone) {
+    headBone.updateMatrixWorld?.(true);
+    headBone.getWorldQuaternion?.(headQuaternion);
+    headForward.applyQuaternion(headQuaternion).normalize();
   }
+
+  if (headForward.lengthSq() < 1e-6) {
+    headForward.set(0, 0, 1);
+  }
+
+  const lookDistance = 1.45 * MODEL_SCALE;
+  target.copy(position).addScaledVector(headForward, lookDistance);
+
+  // Keep a stable horizon-level gaze for first-person eye view and avoid vertical jumps.
+  target.y = position.y;
+
+  if (fallbackTarget?.isVector3) {
+    const boardForwardTarget = fallbackTarget.clone();
+    boardForwardTarget.y = position.y;
+    const toBoard = boardForwardTarget.sub(position);
+    if (toBoard.lengthSq() > 1e-6) {
+      toBoard.normalize();
+      const blendedForward = headForward.clone().lerp(toBoard, 0.12).normalize();
+      target.copy(position).addScaledVector(blendedForward, lookDistance);
+      target.y = position.y;
+    }
+  }
+
   return {
     position,
     target
