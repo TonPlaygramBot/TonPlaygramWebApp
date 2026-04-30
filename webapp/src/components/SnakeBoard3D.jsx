@@ -1762,12 +1762,12 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
   // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.16, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, -0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, -0.02, 0.01, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, 0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, -0.03, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, 0.02, -0.01, 'XYZ'));
 
   composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
   composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
@@ -5224,7 +5224,7 @@ function updateSeatWeaponDisplays(board, players = []) {
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return;
   const keep = new Set();
-  const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
+  const fallbackOrder = ['helicopter', 'fighter', 'drone', 'supportTruck'];
   const playersBySeat = new Map();
   players.forEach((player, index) => {
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
