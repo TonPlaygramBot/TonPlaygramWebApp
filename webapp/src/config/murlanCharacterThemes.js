@@ -15,8 +15,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -33,8 +33,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -51,8 +51,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -69,8 +69,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -87,8 +87,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -105,8 +105,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   },
   {
@@ -123,8 +123,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatOffsetZ: -0.22,
     normalizedSeatOffsetY: -0.4,
     normalizedSeatOffsetZ: 0.52,
-    seatPitch: -0.92,
-    seatYaw: Math.PI,
+    seatPitch: 0,
+    seatYaw: 0,
     handLift: 1.04
   }
 ]);
