@@ -47,3 +47,26 @@ export const swatchThumbnail = (colors = []) => {
   </svg>`;
   return encodeSvg(svg);
 };
+
+export const weaponSilhouetteThumbnail = ({
+  colors = [],
+  path = 'M38 142h180v16H38z',
+  glow = true
+} = {}) => {
+  const [primary = '#1f2937', secondary = '#0f172a', accent = '#ffffff'] = colors;
+  const glowLayer = glow
+    ? '<path d="M26 172h204" stroke="'+accent+'" stroke-width="10" stroke-opacity="0.26" stroke-linecap="round"/>'
+    : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${primary}"/>
+        <stop offset="100%" stop-color="${secondary}"/>
+      </linearGradient>
+    </defs>
+    <rect width="256" height="256" rx="36" fill="url(#bg)"/>
+    ${glowLayer}
+    <path d="${path}" fill="${accent}" fill-opacity="0.92"/>
+  </svg>`;
+  return encodeSvg(svg);
+};
