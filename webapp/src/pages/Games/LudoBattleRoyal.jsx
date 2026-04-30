@@ -8761,7 +8761,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         });
       }
 
-      if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged || qualityChanged) {
+      if (paletteChanged || tokenStyleChanged || tokenPieceChanged) {
         await refreshBoardTokens();
       }
     })();
