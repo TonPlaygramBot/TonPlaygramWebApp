@@ -13,6 +13,8 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private bool alignEveryFrame = true;
         [SerializeField] private Vector3 palmOffset = new Vector3(0f, -0.012f, 0.016f);
         [SerializeField] private Vector3 palmEulerOffset = new Vector3(5f, 0f, 90f);
+        [Tooltip("Extra downward reach in palm local space so the right hand physically goes lower toward the dice.")]
+        [SerializeField] private float extraDownwardReach = 0.018f;
 
         private Quaternion _localRotationOffset;
 
@@ -41,7 +43,8 @@ namespace TonPlaygram.Gameplay.Weapons
             if (diceTransform == null || palmAnchor == null)
                 return;
 
-            diceTransform.position = palmAnchor.TransformPoint(palmOffset);
+            Vector3 adjustedOffset = palmOffset + (Vector3.down * Mathf.Max(0f, extraDownwardReach));
+            diceTransform.position = palmAnchor.TransformPoint(adjustedOffset);
             diceTransform.rotation = palmAnchor.rotation * _localRotationOffset;
         }
     }
