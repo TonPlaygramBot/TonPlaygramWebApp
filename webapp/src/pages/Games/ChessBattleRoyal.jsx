@@ -11402,7 +11402,9 @@ function Chess3D({
           singleShot: firearmProfile.singleShot,
           firedBullets: 0,
           hitTriggered: false,
-          muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
+          muzzleOffset: new THREE.Vector3(0.24, 0.14, 0),
+          activeProjectiles: [],
+          firearmId: selectedCaptureAnimationId
         });
         return withAuto3d({
           moveDelayMs: firearmProfile.duration * 1000,
@@ -13624,7 +13626,7 @@ function Chess3D({
           } else if (fx.type === 'firearm') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             fx.to.copy(targetPos);
-            const shooterPos = fx.from.clone().lerp(targetPos, 0.24);
+            const shooterPos = fx.from.clone().lerp(targetPos, 0.15);
             shooterPos.y += 0.24;
             const aimDir = targetPos.clone().sub(shooterPos).normalize();
             fx.missileFx.root.visible = true;
@@ -13642,8 +13644,46 @@ function Chess3D({
               const shotProgress = clamp01(fx.firedBullets / bulletsToFire);
               const shotPos = shooterPos.clone().lerp(targetPos, shotProgress);
               launchExplosion(shotPos);
+              const pelletCount = /shotgun/i.test(`${fx.firearmId || ''}`) ? 4 : 1;
+              for (let pelletIdx = 0; pelletIdx < pelletCount; pelletIdx += 1) {
+                const drift = pelletCount > 1 ? (pelletIdx - (pelletCount - 1) / 2) * 0.02 : 0;
+                const pelletDir = aimDir
+                  .clone()
+                  .add(new THREE.Vector3(0, pelletCount > 1 ? 0.006 * pelletIdx : 0, drift))
+                  .normalize();
+                fx.activeProjectiles.push({
+                  from: shooterPos.clone(),
+                  to: targetPos.clone().add(new THREE.Vector3(0, pelletCount > 1 ? 0.02 * pelletIdx : 0, drift * 2)),
+                  dir: pelletDir,
+                  age: 0,
+                  life: 0.2 + Math.random() * 0.12,
+                  trailScale: pelletCount > 1 ? 0.2 : 0.28
+                });
+              }
               if (!fx.singleShot && fx.firedBullets < bulletsToFire) {
                 playAudio(missileImpactSoundRef, { volume: 0.25 });
+              }
+            }
+            if (Array.isArray(fx.activeProjectiles) && fx.activeProjectiles.length) {
+              for (let projectileIdx = fx.activeProjectiles.length - 1; projectileIdx >= 0; projectileIdx -= 1) {
+                const projectile = fx.activeProjectiles[projectileIdx];
+                projectile.age += dt;
+                const pu = clamp01(projectile.age / Math.max(0.01, projectile.life));
+                const projectilePos = projectile.from.clone().lerp(projectile.to, pu);
+                const { pos: projectileArcPos } = getCaptureDirectStrikePose({
+                  launchPos: projectile.from,
+                  targetPos: projectile.to,
+                  progress: pu,
+                  altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.22
+                });
+                fx.missileFx.trail?.forEach((puff, idx) => {
+                  puff.position.copy(projectileArcPos).addScaledVector(projectile.dir, -0.07 - idx * 0.08);
+                  puff.scale.setScalar(Math.max(0.08, projectile.trailScale - idx * 0.05) * (1 - pu * 0.7));
+                });
+                if (pu >= 1) {
+                  launchExplosion(projectilePos);
+                  fx.activeProjectiles.splice(projectileIdx, 1);
+                }
               }
             }
 
