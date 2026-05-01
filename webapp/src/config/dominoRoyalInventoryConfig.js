@@ -15,8 +15,6 @@ const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   { id: 'rpm-67f433', label: 'RPM 67f433', description: 'Ready Player Me seated avatar variant.' },
   { id: 'rpm-67e1b5', label: 'RPM 67e1b5', description: 'Ready Player Me seated avatar variant.' },
   { id: 'webgl-vietnam-human', label: 'Vietnam Human', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-human-body-a', label: 'Human Body A', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-human-body-b', label: 'Human Body B', description: 'Imported seated human model from Chess roster.' },
   { id: 'webgl-ai-teacher', label: 'AI Teacher', description: 'Imported seated human model from Chess roster.' },
   { id: 'webgl-ai-teacher-1', label: 'AI Teacher 1', description: 'Imported seated human model from Chess roster.' }
 ]);
