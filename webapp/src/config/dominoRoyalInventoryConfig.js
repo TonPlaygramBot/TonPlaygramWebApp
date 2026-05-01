@@ -1,5 +1,4 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 import {
@@ -10,9 +9,17 @@ import {
   BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS
 } from './battleRoyaleSharedInventory.js';
 
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze(
-  MURLAN_CHARACTER_THEMES.map(({ id, label, description }) => ({ id, label, description }))
-);
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  { id: 'rpm-current', label: 'Current Avatar', description: 'Default Chess Battle Royal human avatar.' },
+  { id: 'rpm-67d411', label: 'RPM 67d411', description: 'Ready Player Me seated avatar variant.' },
+  { id: 'rpm-67f433', label: 'RPM 67f433', description: 'Ready Player Me seated avatar variant.' },
+  { id: 'rpm-67e1b5', label: 'RPM 67e1b5', description: 'Ready Player Me seated avatar variant.' },
+  { id: 'webgl-vietnam-human', label: 'Vietnam Human', description: 'Imported seated human model from Chess roster.' },
+  { id: 'webgl-human-body-a', label: 'Human Body A', description: 'Imported seated human model from Chess roster.' },
+  { id: 'webgl-human-body-b', label: 'Human Body B', description: 'Imported seated human model from Chess roster.' },
+  { id: 'webgl-ai-teacher', label: 'AI Teacher', description: 'Imported seated human model from Chess roster.' },
+  { id: 'webgl-ai-teacher-1', label: 'AI Teacher 1', description: 'Imported seated human model from Chess roster.' }
+]);
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
