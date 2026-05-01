@@ -1,13 +1,13 @@
-import * as THREE from '/vendor/three/build/three.module.js';
-import { OrbitControls } from '/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from '/vendor/three/examples/jsm/environments/RoomEnvironment.js';
-import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
-import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
+import * as THREE from './vendor/three/build/three.module.js';
+import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from './vendor/three/examples/jsm/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from './vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from './vendor/three/examples/jsm/loaders/RGBELoader.js';
+import { DRACOLoader } from './vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from './vendor/three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from './vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from './vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
