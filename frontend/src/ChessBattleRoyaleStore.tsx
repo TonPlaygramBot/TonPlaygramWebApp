@@ -16,6 +16,8 @@ const PELLET_TRAIL_POINTS = 14;
 const WEAPON_TYPES = ['rifle', 'pistol', 'sniper'] as const;
 type WeaponType = (typeof WEAPON_TYPES)[number];
 type CameraMode = 'overview' | 'player' | 'projectile' | 'impact';
+type ParkingSpotId = 'jet' | 'helicopter' | 'truck' | 'drone';
+type PieceGroupId = 'kingQueen' | 'bishops' | 'knightsRooks' | 'pawns';
 
 type WeaponEntry = { id: string; name: string; shortName: string; source: 'Quaternius' | 'Extra'; weaponType: WeaponType; urls: string[] };
 type RuntimeWeapon = { entry: WeaponEntry; slot: THREE.Group; root: THREE.Object3D; muzzle: THREE.Object3D; basePosition: THREE.Vector3; index: number };
@@ -88,15 +90,37 @@ export default function ChessBattleRoyaleStore() {
   const selectedRef = useRef(0);
   const activeProjectileRef = useRef<Projectile | null>(null);
   const impactFocusUntilRef = useRef(0);
+  const selectedGroupRef = useRef<PieceGroupId>('kingQueen');
+  const selectedIndexByGroupRef = useRef<Record<PieceGroupId, number>>({
+    kingQueen: 0,
+    bishops: 1,
+    knightsRooks: 2,
+    pawns: 3,
+  });
+  const sceneApiRef = useRef<{
+    replaceGroupWeapon: (group: PieceGroupId, weaponIndex: number) => void;
+    fireSelectedGroup: () => void;
+  } | null>(null);
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndexByGroup, setSelectedIndexByGroup] = useState<Record<PieceGroupId, number>>({
+    kingQueen: 0,
+    bishops: 1,
+    knightsRooks: 2,
+    pawns: 3,
+  });
+  const [selectedGroup, setSelectedGroup] = useState<PieceGroupId>('kingQueen');
   const [loadedCount, setLoadedCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [status, setStatus] = useState('Loading weapons...');
   const [cameraMode, setCameraMode] = useState<CameraMode>('overview');
 
-  const selectedWeapon = useMemo(() => WEAPON_MANIFEST[selectedIndex], [selectedIndex]);
-  useEffect(() => void (selectedRef.current = selectedIndex), [selectedIndex]);
+  const selectedWeapon = useMemo(
+    () => WEAPON_MANIFEST[selectedIndexByGroup[selectedGroup]],
+    [selectedGroup, selectedIndexByGroup],
+  );
+  useEffect(() => void (selectedRef.current = selectedIndexByGroup[selectedGroup]), [selectedGroup, selectedIndexByGroup]);
+  useEffect(() => void (selectedGroupRef.current = selectedGroup), [selectedGroup]);
+  useEffect(() => void (selectedIndexByGroupRef.current = selectedIndexByGroup), [selectedIndexByGroup]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -127,10 +151,28 @@ export default function ChessBattleRoyaleStore() {
     target.position.set(0, 2.2, -15);
     scene.add(target);
 
+    const parkingSlots: Record<ParkingSpotId, THREE.Group> = {
+      jet: new THREE.Group(),
+      helicopter: new THREE.Group(),
+      truck: new THREE.Group(),
+      drone: new THREE.Group(),
+    };
+    (Object.keys(parkingSlots) as ParkingSpotId[]).forEach((spot, i) => {
+      const slot = parkingSlots[spot];
+      slot.position.copy(slotPosition(i));
+      scene.add(slot);
+    });
+
+    const pieceGroupToSpot: Record<PieceGroupId, ParkingSpotId> = {
+      kingQueen: 'jet',
+      bishops: 'helicopter',
+      knightsRooks: 'truck',
+      pawns: 'drone',
+    };
     const slots: THREE.Group[] = [];
     WEAPON_MANIFEST.forEach((_, i) => {
       const slot = new THREE.Group();
-      slot.position.copy(slotPosition(i));
+      slot.position.copy(slotPosition(i + 4));
       scene.add(slot);
       slots.push(slot);
     });
@@ -210,9 +252,24 @@ export default function ChessBattleRoyaleStore() {
       const runtime = runtimesRef.current.find((r) => r.index === selectedRef.current);
       if (runtime) fireFromRuntime(runtime);
     };
+    const replaceGroupWeapon = (group: PieceGroupId, weaponIndex: number) => {
+      const spot = pieceGroupToSpot[group];
+      const runtime = runtimesRef.current.find((r) => r.index === weaponIndex);
+      if (!runtime) return;
+      const parent = parkingSlots[spot];
+      while (parent.children.length > 0) parent.remove(parent.children[0]);
+      const clone = runtime.root.clone(true);
+      parent.add(clone);
+      setStatus(`Updated ${group} at ${spot} without reloading scene.`);
+    };
 
     const fireAll = () => {
       runtimesRef.current.forEach((runtime, i) => setTimeout(() => fireFromRuntime(runtime), i * 120));
+    };
+    const fireSelectedGroup = () => {
+      const idx = selectedIndexByGroupRef.current[selectedGroupRef.current];
+      const runtime = runtimesRef.current.find((r) => r.index === idx);
+      if (runtime) fireFromRuntime(runtime);
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -272,12 +329,14 @@ export default function ChessBattleRoyaleStore() {
     };
     animate();
 
+    sceneApiRef.current = { replaceGroupWeapon, fireSelectedGroup };
     (window as any).fireSelectedWeapon = fireSelected;
     (window as any).fireAllWeapons = fireAll;
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', onKeyDown);
+      sceneApiRef.current = null;
       renderer.dispose();
       mount.innerHTML = '';
       pelletGeometry.dispose();
@@ -297,17 +356,34 @@ export default function ChessBattleRoyaleStore() {
       </div>
 
       <div className='absolute bottom-3 left-3 right-3 rounded-2xl border border-white/10 bg-slate-950/75 p-3'>
-        <div className='mb-2 text-xs font-black text-yellow-300'>Selected: {selectedIndex + 1}. {selectedWeapon.shortName}</div>
+        <div className='mb-2 flex flex-wrap gap-2 text-[11px]'>
+          {([
+            ['kingQueen', 'King + Queen → Jet'],
+            ['bishops', 'Bishops → Helicopter'],
+            ['knightsRooks', 'Knights + Rooks → Truck'],
+            ['pawns', 'Pawns → Drone'],
+          ] as [PieceGroupId, string][]).map(([group, label]) => (
+            <button
+              key={group}
+              onClick={() => setSelectedGroup(group)}
+              className={`rounded-lg px-2 py-1 font-bold ${selectedGroup === group ? 'bg-yellow-400 text-slate-950' : 'bg-white/10 text-white'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className='mb-2 text-xs font-black text-yellow-300'>Selected {selectedGroup}: #{selectedIndexByGroup[selectedGroup] + 1} {selectedWeapon.shortName}</div>
         <div className='grid max-h-40 grid-cols-3 gap-2 overflow-y-auto pr-1'>
           {WEAPON_MANIFEST.map((weapon, index) => (
             <button
               key={weapon.id}
               onClick={() => {
                 selectedRef.current = index;
-                setSelectedIndex(index);
-                setStatus(`Selected ${index + 1}/${WEAPON_COUNT}: ${weapon.name}`);
+                setSelectedIndexByGroup((prev) => ({ ...prev, [selectedGroup]: index }));
+                sceneApiRef.current?.replaceGroupWeapon(selectedGroup, index);
+                setStatus(`Quick swap ${selectedGroup}: ${weapon.name}`);
               }}
-              className={`rounded-xl border px-2 py-2 text-left text-[11px] font-bold ${selectedIndex === index ? 'border-yellow-300 bg-yellow-400 text-slate-950' : 'border-white/10 bg-white/10 text-slate-100'}`}
+              className={`rounded-xl border px-2 py-2 text-left text-[11px] font-bold ${selectedIndexByGroup[selectedGroup] === index ? 'border-yellow-300 bg-yellow-400 text-slate-950' : 'border-white/10 bg-white/10 text-slate-100'}`}
             >
               <span className='block text-[10px] opacity-70'>#{index + 1} · {weapon.weaponType}</span>
               <span className='block truncate'>{weapon.shortName}</span>
@@ -315,8 +391,8 @@ export default function ChessBattleRoyaleStore() {
           ))}
         </div>
         <div className='mt-2 flex gap-2'>
-          <button onClick={() => (window as any).fireSelectedWeapon?.()} className='rounded-xl bg-yellow-500 px-3 py-2 text-xs font-black text-slate-950'>
-            Fire Selected
+          <button onClick={() => sceneApiRef.current?.fireSelectedGroup()} className='rounded-xl bg-yellow-500 px-3 py-2 text-xs font-black text-slate-950'>
+            Fire Group Weapon
           </button>
           <button onClick={() => (window as any).fireAllWeapons?.()} className='rounded-xl bg-red-700 px-3 py-2 text-xs font-black'>
             Broadcast All
