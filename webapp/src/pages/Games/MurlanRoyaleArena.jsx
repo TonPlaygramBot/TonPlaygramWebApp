@@ -104,12 +104,12 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 1.78;
+const CHARACTER_PROPORTION_SCALE = 1.82;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.84; // keep humans slightly closer to table so legs sit centered between chair and table on portrait mobile
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.8; // nudge humans a bit closer to the table for portrait framing.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -2371,12 +2371,12 @@ const CHAIR_SEAT_INWARD_FACTOR = 1;
 const CHAIR_VISUAL_SCALE = 1.36;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
-  portrait: 0.92,
-  landscape: 0.68
+  portrait: 0.82,
+  landscape: 0.62
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.34,
-  landscape: 1.02
+  portrait: 2.22,
+  landscape: 0.96
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
   portrait: { up: THREE.MathUtils.degToRad(8.5), down: THREE.MathUtils.degToRad(4.5) },
@@ -2438,7 +2438,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.9 * MODEL_SCALE; // Keep human chair slightly closer to table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.84 * MODEL_SCALE; // keep human chair closer to table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -2506,7 +2506,7 @@ const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_WALL_DISTANCE_MULTIPLIER = 1.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.9;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
@@ -5300,7 +5300,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.92;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.9;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
