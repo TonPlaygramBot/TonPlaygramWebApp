@@ -532,10 +532,10 @@ function updateBilardoHumanPose(human, dt, frameData) {
   };
 })();
 
-// Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
-const createBilardoHumanRig = sharedCreateBilardoHumanRig;
-const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
-const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
+// Use the local Pool Royale human rig implementation as the single source of truth for walk/aim/shot behavior.
+const createBilardoHumanRig = bilardoRigLocal.createBilardoHumanRig;
+const chooseBilardoHumanEdgePosition = bilardoRigLocal.chooseBilardoHumanEdgePosition;
+const updateBilardoHumanPose = bilardoRigLocal.updateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
