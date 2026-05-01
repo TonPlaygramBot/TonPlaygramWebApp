@@ -33,27 +33,52 @@ export default function DominoRoyalArena() {
 
     const basePath = import.meta.env.BASE_URL || '/';
     const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`;
-    script.dataset.dominoRoyalScript = 'true';
-    script.onload = () => {
-      if (statusNode) {
-        statusNode.textContent = 'Ready';
+    const scriptCandidates = [
+      `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`,
+      `/domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`
+    ].filter((value, idx, arr) => arr.indexOf(value) === idx);
+
+    let activeScript = null;
+    let disposed = false;
+
+    const loadScriptFrom = (index = 0) => {
+      if (disposed || index >= scriptCandidates.length) {
+        if (statusNode) {
+          statusNode.textContent = 'Game failed to load. Please refresh and try again.';
+        }
+        return;
       }
+
+      const nextScript = document.createElement('script');
+      nextScript.type = 'module';
+      nextScript.src = scriptCandidates[index];
+      nextScript.dataset.dominoRoyalScript = 'true';
+      nextScript.dataset.dominoRoyalScriptAttempt = String(index + 1);
+
+      nextScript.onload = () => {
+        if (disposed) return;
+        if (statusNode) {
+          statusNode.textContent = 'Ready';
+        }
+      };
+
+      nextScript.onerror = () => {
+        nextScript.remove();
+        loadScriptFrom(index + 1);
+      };
+
+      activeScript = nextScript;
+      document.body.appendChild(nextScript);
     };
-    script.onerror = () => {
-      if (statusNode) {
-        statusNode.textContent = 'Game failed to load. Please refresh and try again.';
-      }
-    };
-    document.body.appendChild(script);
+
+    loadScriptFrom();
 
     return () => {
+      disposed = true;
       if (typeof window.__dominoRoyalCleanup === 'function') {
         window.__dominoRoyalCleanup('react-unmount');
       }
-      script.remove();
+      activeScript?.remove();
       if (appRoot) {
         appRoot.replaceChildren();
       }
