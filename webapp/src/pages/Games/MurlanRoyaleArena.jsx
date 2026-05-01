@@ -109,7 +109,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 1.05; // move humans closer to the table for portrait framing.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.74; // bring humans a touch closer to the table for portrait framing.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1846,12 +1846,12 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-40), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(18), 0, THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2), 0);
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(22), 0, THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), 0);
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(4));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(6), 0);
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -1986,7 +1986,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.2;
+  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.08;
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
@@ -2002,9 +2002,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   };
 
   const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize);
-  if (rig?.heldCards?.parent) {
-    rig.heldCards.parent.remove(rig.heldCards);
-  }
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -2049,14 +2046,14 @@ function runCharacterAction(store, rig, action) {
       spine: { x: THREE.MathUtils.degToRad(-10) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-40), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-24) },
-      rightHand: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-4) },
+      rightHand: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-16) },
       head: { x: THREE.MathUtils.degToRad(-6) }
     });
     const throwRelease = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(8) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(44) },
-      rightHand: { x: THREE.MathUtils.degToRad(26), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-2) }
+      rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-8) }
     });
 
     const thrown = createThrownCardMesh(cardsColor);
@@ -2067,13 +2064,13 @@ function runCharacterAction(store, rig, action) {
       rig.bones.rightHand.getWorldPosition(handPos);
     } else {
       rig.seatRoot.getWorldPosition(handPos);
-      handPos.add(rig.seatConfig?.forward?.clone().multiplyScalar(0.16 * MODEL_SCALE) ?? new THREE.Vector3());
-      handPos.y += 0.18 * MODEL_SCALE;
+      handPos.add(rig.seatConfig?.forward?.clone().multiplyScalar(0.34 * MODEL_SCALE) ?? new THREE.Vector3());
+      handPos.y += 0.65 * MODEL_SCALE;
     }
 
     const target = (store.tableAnchor || new THREE.Vector3()).clone();
     target.y += 0.08 * MODEL_SCALE;
-    target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
+    target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.08 * MODEL_SCALE));
 
     thrown.position.copy(handPos);
     thrown.lookAt(target.clone().setY(handPos.y));
@@ -2394,7 +2391,7 @@ const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
-const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(19);
+const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
@@ -2406,13 +2403,13 @@ const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
-const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
+const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.12;
-const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.1;
-const GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 1.12;
-const GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.12;
+const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1;
+const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1;
+const GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 1.06;
+const GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -2426,7 +2423,7 @@ const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
 const COMMUNITY_CARD_CLOSER_TO_HUMAN = -0.08 * MODEL_SCALE;
-const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.004 * MODEL_SCALE;
+const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.028 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
@@ -2440,7 +2437,7 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.74 * MODEL_SCALE; // keep human chair closer to table center (portrait visual direction).
-const TABLE_HEIGHT_LIFT = 0.055 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2.04;
@@ -3853,6 +3850,13 @@ export default function MurlanRoyaleArena({ search }) {
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
+      refreshRigHeldCards(
+        seat.characterRig,
+        player.hand ?? [],
+        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0],
+        cardTextureQualityRef.current
+      );
       const cards = player.hand;
 
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + (player.isHuman ? HUMAN_HAND_EXTRA_LIFT : 0);
@@ -3950,21 +3954,6 @@ export default function MurlanRoyaleArena({ search }) {
           three.selectionTargets.push(mesh);
         }
       });
-
-      if (player.isHuman && seat.characterRig) {
-        const rig = seat.characterRig;
-        if (humanTurn && selectionSet.size > 0) {
-          const pickPose = buildPoseVariant(rig.seatedPose, {
-            spine: { x: THREE.MathUtils.degToRad(-8) },
-            rightUpperArm: { x: THREE.MathUtils.degToRad(-58), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-18) },
-            rightForeArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-6) },
-            rightHand: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-4) }
-          });
-          applyRigPoseLerp(rig, pickPose, 0.6);
-        } else {
-          applyRigPoseLerp(rig, rig.seatedPose, 0.28);
-        }
-      }
     });
 
     const tableAnchor = three.tableAnchor.clone();
