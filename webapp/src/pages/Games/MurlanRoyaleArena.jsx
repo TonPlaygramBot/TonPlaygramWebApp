@@ -108,6 +108,7 @@ const CHARACTER_PROPORTION_SCALE = 1.82;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
+const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.68; // bring seated humans closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
@@ -2430,10 +2431,12 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.12;
-const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.1;
-const GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 1.12;
-const GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.12;
+const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
+const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
+const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
+const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
+const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.06 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.06 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -2460,7 +2463,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.62 * MODEL_SCALE; // keep the human seat visibly closer to table center on phones.
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.52 * MODEL_SCALE; // pull the human seat a bit closer to the table on portrait framing.
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -3891,12 +3894,12 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
-        const isGiftSideSeat = seat?.handVariant === 'giftSide';
+        const isSideSeat = seat?.handVariant === 'side';
         const backLogoVariant = isHumanCard
           ? 'default'
           : seat?.handVariant === 'top'
             ? 'top'
-            : seat?.handVariant === 'giftSide'
+            : seat?.handVariant === 'side'
               ? 'sideGift'
               : 'side';
         setBackLogoOrientation(mesh, backLogoVariant);
@@ -3912,7 +3915,7 @@ export default function MurlanRoyaleArena({ search }) {
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard
           ? HUMAN_HAND_FAN_DIRECTION
-          : isGiftSideSeat
+          : isSideSeat
             ? -HUMAN_HAND_FAN_DIRECTION
             : (forward?.x ?? 0) < -0.45
               ? -HUMAN_HAND_FAN_DIRECTION
@@ -3927,6 +3930,9 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
+        if (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side')) {
+          target.addScaledVector(forward, AI_TOP_SIDE_HAND_OUTWARD_PUSH);
+        }
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
         if (isHumanCard) {
           target.addScaledVector(forward, -HUMAN_HAND_EXTRA_INWARD_PULL);
@@ -3937,7 +3943,8 @@ export default function MurlanRoyaleArena({ search }) {
           centerWeight * fanArcLift +
           (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
           HUMAN_HAND_UP_SHIFT_Y +
-          leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
+          leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
+          (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -5168,6 +5175,7 @@ export default function MurlanRoyaleArena({ search }) {
         );
         const chairModel = chairTemplate.clone(true);
         chair.add(chairModel);
+        chairModel.scale.y *= CHAIR_HEIGHT_TRIM_SCALE;
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
 
@@ -5189,14 +5197,14 @@ export default function MurlanRoyaleArena({ search }) {
         const forward = new THREE.Vector3(x, 0, z).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const isTopSeatOnScreen = forward.z < -0.45;
-        const isGiftSideSeatOnScreen = !isHumanSeat && forward.x > 0.45;
-        const aiSeatSpacingMultiplier = isGiftSideSeatOnScreen
-          ? GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER
+        const isSideSeatOnScreen = !isHumanSeat && Math.abs(forward.x) > 0.45;
+        const aiSeatSpacingMultiplier = isSideSeatOnScreen
+          ? SIDE_AI_HAND_CARD_SPACING_MULTIPLIER
           : isTopSeatOnScreen
             ? TOP_AI_HAND_CARD_SPACING_MULTIPLIER
             : 1;
-        const aiSeatMaxSpreadMultiplier = isGiftSideSeatOnScreen
-          ? GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER
+        const aiSeatMaxSpreadMultiplier = isSideSeatOnScreen
+          ? SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER
           : isTopSeatOnScreen
             ? TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER
             : 1;
@@ -5218,7 +5226,7 @@ export default function MurlanRoyaleArena({ search }) {
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
           stoolPosition,
           stoolHeight,
-          handVariant: isGiftSideSeatOnScreen ? 'giftSide' : isTopSeatOnScreen ? 'top' : 'default'
+          handVariant: isSideSeatOnScreen ? 'side' : isTopSeatOnScreen ? 'top' : 'default'
         });
 
       }
