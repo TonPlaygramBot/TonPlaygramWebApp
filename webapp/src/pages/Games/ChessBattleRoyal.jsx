@@ -54,7 +54,8 @@ import {
 import {
   chessBattleAccountId,
   getChessBattleInventory,
-  isChessOptionUnlocked
+  isChessOptionUnlocked,
+  setChessBattleEquippedOption
 } from '../../utils/chessBattleInventory.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
@@ -1098,7 +1099,6 @@ function detectRefreshRateHint() {
 
 const GRAPHICS_STORAGE_KEY = 'chessBattleRoyalGraphics';
 const COMMENTARY_PRESET_STORAGE_KEY = 'chessBattleRoyalCommentaryPreset';
-const CAPTURE_SWAP_GROUPS_STORAGE_KEY = 'chessBattleRoyalCaptureAnimationByPieceGroup';
 const COMMENTARY_MUTE_STORAGE_KEY = 'chessBattleRoyalCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
@@ -7680,86 +7680,34 @@ function Chess3D({
     []
   );
   const quickSwapWeapons = useMemo(() => {
-    const prioritized = [];
-    const seen = new Set();
-    const pushOption = (option) => {
-      if (!option?.id || seen.has(option.id)) return;
-      seen.add(option.id);
-      prioritized.push(option);
-    };
-    ownedCaptureAnimations.forEach(pushOption);
-    QUICK_SWAP_WEAPON_IDS
+    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
+    return QUICK_SWAP_WEAPON_IDS
+      .filter((id) => ownedIds.has(id))
       .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
-      .forEach(pushOption);
-    return prioritized;
+      .filter(Boolean);
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
     jet: 'kingQueen',
-    helicopter: 'bishop',
-    truck: 'knightRook',
-    drone: 'pawn'
+    helicopter: 'bishopRook',
+    drone: 'knight',
+    truck: 'pawn'
   }), []);
-  const resolveDefaultCaptureAnimationIdByKind = useCallback(
-    (kind) => {
-      const ownedIds = new Set((chessInventory?.captureAnimation || []).filter(Boolean));
-      const fallbackByKind = {
-        jet: 'fighterJetAttack',
-        helicopter: 'helicopterAttack',
-        truck: 'missileJavelin',
-        drone: 'droneAttack'
-      };
-      const preferredOwned = CAPTURE_ANIMATION_OPTIONS.find(
-        (option) => option?.id && ownedIds.has(option.id) && GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === kind
-      );
-      if (preferredOwned?.id) return preferredOwned.id;
-      if (fallbackByKind[kind]) return fallbackByKind[kind];
-      return selectedCaptureAnimationId;
-    },
-    [chessInventory, selectedCaptureAnimationId]
-  );
-  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = window.localStorage?.getItem(CAPTURE_SWAP_GROUPS_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            return {
-              kingQueen: parsed.kingQueen || selectedCaptureAnimationId,
-              bishop: parsed.bishop || selectedCaptureAnimationId,
-              knightRook: parsed.knightRook || selectedCaptureAnimationId,
-              pawn: parsed.pawn || selectedCaptureAnimationId
-            };
-          }
-        }
-      } catch {}
-    }
-    return {
-      kingQueen: selectedCaptureAnimationId,
-      bishop: selectedCaptureAnimationId,
-      knightRook: selectedCaptureAnimationId,
-      pawn: selectedCaptureAnimationId
-    };
-  });
+  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
+    kingQueen: selectedCaptureAnimationId,
+    bishopRook: selectedCaptureAnimationId,
+    knight: selectedCaptureAnimationId,
+    pawn: selectedCaptureAnimationId
+  }));
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
-      kingQueen: prev.kingQueen || resolveDefaultCaptureAnimationIdByKind('jet'),
-      bishop: prev.bishop || resolveDefaultCaptureAnimationIdByKind('helicopter'),
-      knightRook: prev.knightRook || resolveDefaultCaptureAnimationIdByKind('truck'),
-      pawn: prev.pawn || resolveDefaultCaptureAnimationIdByKind('drone')
+      kingQueen: prev.kingQueen || selectedCaptureAnimationId,
+      bishopRook: prev.bishopRook || selectedCaptureAnimationId,
+      knight: prev.knight || selectedCaptureAnimationId,
+      pawn: prev.pawn || selectedCaptureAnimationId
     }));
-  }, [resolveDefaultCaptureAnimationIdByKind]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage?.setItem(
-        CAPTURE_SWAP_GROUPS_STORAGE_KEY,
-        JSON.stringify(captureAnimationByPieceGroup)
-      );
-    } catch {}
-  }, [captureAnimationByPieceGroup]);
+  }, [selectedCaptureAnimationId]);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
@@ -7768,10 +7716,13 @@ function Chess3D({
       if (targetGroup) {
         setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
       }
+      if (optionId !== selectedCaptureAnimationId) {
+        setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
+      }
       setWeaponSwapOpen(false);
       setWeaponSwapTargetKind(null);
     },
-    [PIECE_GROUP_BY_PARKED_KIND, weaponSwapTargetKind]
+    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
   );
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
@@ -11230,8 +11181,8 @@ function Chess3D({
     const resolvePieceGroupFromType = (pieceType) => {
       const t = `${pieceType || ''}`.toLowerCase();
       if (t === 'k' || t === 'q') return 'kingQueen';
-      if (t === 'b') return 'bishop';
-      if (t === 'n' || t === 'r') return 'knightRook';
+      if (t === 'b' || t === 'r') return 'bishopRook';
+      if (t === 'n') return 'knight';
       return 'pawn';
     };
 
