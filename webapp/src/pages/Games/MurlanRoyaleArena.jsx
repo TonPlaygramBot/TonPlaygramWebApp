@@ -109,7 +109,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.8; // nudge humans a bit closer to the table for portrait framing.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.74; // bring humans a touch closer to the table for portrait framing.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1879,8 +1879,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
   if (!rig) return;
-  if (rig.heldCards) rig.heldCards.visible = false;
-  return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
@@ -1988,7 +1986,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.05;
+  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.08;
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
@@ -2438,7 +2436,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.84 * MODEL_SCALE; // keep human chair closer to table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.74 * MODEL_SCALE; // keep human chair closer to table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -2506,8 +2504,8 @@ const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_WALL_DISTANCE_MULTIPLIER = 1.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.9;
-const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
+const CAMERA_UP_TILT_FORWARD_BLEND = 0.38 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
 const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
@@ -3860,14 +3858,7 @@ export default function MurlanRoyaleArena({ search }) {
         cardTextureQualityRef.current
       );
       const cards = player.hand;
-      if (!player.isHuman) {
-        cards.forEach((card) => {
-          const entry = cardMap.get(card.id);
-          if (!entry?.mesh) return;
-          entry.mesh.visible = false;
-        });
-        return;
-      }
+
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + (player.isHuman ? HUMAN_HAND_EXTRA_LIFT : 0);
       const forward = seat.forward;
       const right = seat.right;
