@@ -1026,7 +1026,111 @@ const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK
 ]);
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([]);
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current',
+    label: 'Current Avatar',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67d411',
+    label: 'RPM 67d411',
+    modelUrls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67f433',
+    label: 'RPM 67f433',
+    modelUrls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67e1b5',
+    label: 'RPM 67e1b5',
+    modelUrls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'webgl-vietnam-human',
+    label: 'Vietnam Human',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'webgl-ai-teacher',
+    label: 'AI Teacher',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  },
+  {
+    id: 'webgl-ai-teacher-1',
+    label: 'AI Teacher 1',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
+  }
+]);
 
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
