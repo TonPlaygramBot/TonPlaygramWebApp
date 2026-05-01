@@ -167,8 +167,8 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 760;
-const DICE_SETTLE_DURATION = 180;
+const DICE_ROLL_DURATION = 980;
+const DICE_SETTLE_DURATION = 240;
 const DICE_RESULT_HOLD_DURATION = 2000;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
@@ -2811,25 +2811,27 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const firstImpactAt = 0.46;
-  const secondImpactAt = 0.74;
+  const firstImpactAt = 0.42;
+  const secondImpactAt = 0.71;
+  const thirdImpactAt = 0.88;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
-      1.5 + Math.random() * 0.25,
-      1.62 + Math.random() * 0.24,
-      1.38 + Math.random() * 0.22
+      1.68 + Math.random() * 0.42,
+      1.74 + Math.random() * 0.34,
+      1.52 + Math.random() * 0.3
     )
   );
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.09, 0, (Math.random() - 0.5) * 0.09)
   );
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.72 + Math.random() * 0.12));
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.8 + Math.random() * 0.2));
 
   return {
     type: 'diceRoll',
     update: (now) => {
       const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
       const eased = easeOutCubic(t);
+      const travelEase = t < firstImpactAt ? easeOutCubic(t / firstImpactAt) : 1;
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
@@ -2838,11 +2840,10 @@ function createDiceRollAnimation(
         let position = startPos.clone().lerp(base, eased);
         if (bounce) {
           if (t <= firstImpactAt) {
-            const impactT = easeOutCubic(t / firstImpactAt);
-            position = startPos.clone().lerp(bounce, impactT);
+            position = startPos.clone().lerp(bounce, travelEase);
           } else {
             const settleT = (t - firstImpactAt) / (1 - firstImpactAt);
-            const easedSettle = easeOutCubic(settleT);
+            const easedSettle = easeOutQuart(settleT);
             position = bounce.clone().lerp(base, easedSettle);
           }
         }
@@ -2852,21 +2853,26 @@ function createDiceRollAnimation(
         let bounceLift = 0;
         if (t <= firstImpactAt) {
           const phaseT = t / firstImpactAt;
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.85;
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.92;
         } else if (t <= secondImpactAt) {
           const phaseT = (t - firstImpactAt) / (secondImpactAt - firstImpactAt);
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.36;
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.44;
+        } else if (t <= thirdImpactAt) {
+          const phaseT = (t - secondImpactAt) / (thirdImpactAt - secondImpactAt);
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.2;
         } else {
-          const phaseT = (t - secondImpactAt) / Math.max(1e-6, 1 - secondImpactAt);
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.12;
+          const phaseT = (t - thirdImpactAt) / Math.max(1e-6, 1 - thirdImpactAt);
+          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.09;
         }
         position.y = Math.max(baseY, arcFall + bounceLift);
         die.position.copy(position);
 
-        const spinFactor = t < firstImpactAt ? 1 - eased * 0.25 : Math.max(0.08, 1 - eased * 1.08);
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.19;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.19;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.19;
+        const impactDamping =
+          t <= firstImpactAt ? 1 : t <= secondImpactAt ? 0.68 : t <= thirdImpactAt ? 0.42 : 0.24;
+        const spinFactor = Math.max(0.06, (1 - eased * 0.92) * impactDamping);
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.2;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.2;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.2;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
