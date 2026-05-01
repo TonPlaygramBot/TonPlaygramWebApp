@@ -7687,63 +7687,18 @@ function Chess3D({
       .filter(Boolean);
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
-  const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
-  const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
-    jet: 'kingQueen',
-    helicopter: 'bishopRook',
-    drone: 'knight',
-    truck: 'pawn'
-  }), []);
-  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
-    kingQueen: selectedCaptureAnimationId,
-    bishopRook: selectedCaptureAnimationId,
-    knight: selectedCaptureAnimationId,
-    pawn: selectedCaptureAnimationId
-  }));
-  useEffect(() => {
-    setCaptureAnimationByPieceGroup((prev) => ({
-      kingQueen: prev.kingQueen || selectedCaptureAnimationId,
-      bishopRook: prev.bishopRook || selectedCaptureAnimationId,
-      knight: prev.knight || selectedCaptureAnimationId,
-      pawn: prev.pawn || selectedCaptureAnimationId
-    }));
-  }, [selectedCaptureAnimationId]);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
-      if (!optionId) return;
-      const targetKind = weaponSwapTargetKind;
-      const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
-      if (targetGroup) {
-        setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
-      }
-      if (optionId !== selectedCaptureAnimationId) {
-        setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
-      }
+      if (!optionId || optionId === selectedCaptureAnimationId) return;
+      setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
       setWeaponSwapOpen(false);
-      setWeaponSwapTargetKind(null);
     },
-    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
+    [resolvedAccountId, selectedCaptureAnimationId]
   );
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
-    if (!weaponSwapTargetKind) return pool;
-
-    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // Keep full firearm inventory visible when player taps one of those parked vehicles.
-    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmOnly = pool.filter((option) =>
-        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
-      );
-      if (firearmOnly.length) return firearmOnly;
-    }
-
-    const filtered = pool.filter((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
-    });
-    if (filtered.length) return filtered;
     return pool;
-  }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
+  }, [ownedCaptureAnimations, quickSwapWeapons]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -11178,19 +11133,9 @@ function Chess3D({
       };
     };
 
-    const resolvePieceGroupFromType = (pieceType) => {
-      const t = `${pieceType || ''}`.toLowerCase();
-      if (t === 'k' || t === 'q') return 'kingQueen';
-      if (t === 'b' || t === 'r') return 'bishopRook';
-      if (t === 'n') return 'knight';
-      return 'pawn';
-    };
-
-    const resolveCaptureKindForPiece = (pieceType) => {
-      const group = resolvePieceGroupFromType(pieceType);
-      const selectedId = captureAnimationByPieceGroup[group] || selectedCaptureAnimationId;
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)) return 'firearm';
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedId] || 'truck';
+    const resolveCaptureKindForPiece = () => {
+      if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
     };
 
     const playCaptureAnimation = ({
@@ -11203,10 +11148,9 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
-      const withAuto3d = (timing = {}, options = {}) => {
-        const useDynamicCamera = options.dynamicCamera !== false;
+      const withAuto3d = (timing = {}) => {
         const durationMs = Math.max(0, timing.captureResolveDelayMs ?? timing.moveDelayMs ?? 0);
-        if (useDynamicCamera && durationMs > 0) {
+        if (durationMs > 0) {
           runCaptureInTemporary3dView(durationMs);
         }
         return timing;
@@ -11242,13 +11186,10 @@ function Chess3D({
           strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE,
           targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
-        return withAuto3d(
-          {
-            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-          },
-          { dynamicCamera: false }
-        );
+        return withAuto3d({
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        });
       }
       if (captureKind === 'drone') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_DRONE_ATTACK_TOTAL * 1000;
@@ -11279,13 +11220,10 @@ function Chess3D({
           droneFx,
           strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
         });
-        return withAuto3d(
-          {
-            moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
-          },
-          { dynamicCamera: false }
-        );
+        return withAuto3d({
+          moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
+        });
       }
       if (captureKind === 'helicopter') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
@@ -11335,13 +11273,10 @@ function Chess3D({
           missileFx
         });
         const helicopterImpactDelayMs = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) * 1000;
-        return withAuto3d(
-          {
-            moveDelayMs: helicopterImpactDelayMs,
-            captureResolveDelayMs: helicopterImpactDelayMs
-          },
-          { dynamicCamera: false }
-        );
+        return withAuto3d({
+          moveDelayMs: helicopterImpactDelayMs,
+          captureResolveDelayMs: helicopterImpactDelayMs
+        });
       }
       if (captureKind === 'jet') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
@@ -11386,13 +11321,10 @@ function Chess3D({
           missileFx
         });
         const jetImpactDelayMs = getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
-        return withAuto3d(
-          {
-            moveDelayMs: jetImpactDelayMs,
-            captureResolveDelayMs: jetImpactDelayMs
-          },
-          { dynamicCamera: false }
-        );
+        return withAuto3d({
+          moveDelayMs: jetImpactDelayMs,
+          captureResolveDelayMs: jetImpactDelayMs
+        });
       }
       if (captureKind === 'firearm') {
         const firearmProfile = resolveFirearmCaptureProfile();
@@ -13119,7 +13051,6 @@ function Chess3D({
         let node = hit.object;
         while (node) {
           if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
-            setWeaponSwapTargetKind(node.userData.parkedWeaponKind);
             setWeaponSwapOpen(true);
             return;
           }
@@ -14064,13 +13995,12 @@ function Chess3D({
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <div className="flex items-center justify-between px-2 pb-2">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                    Quick Weapon Swap {weaponSwapTargetKind ? `• ${weaponSwapTargetKind}` : ''}
+                    Quick Weapon Swap
                   </p>
                   <button
                     type="button"
                     onClick={() => {
                       setWeaponSwapOpen(false);
-                      setWeaponSwapTargetKind(null);
                     }}
                     className="rounded-md border border-white/20 px-1.5 py-0.5 text-[10px] text-white/75 hover:border-white/40 hover:text-white"
                   >
@@ -14079,11 +14009,7 @@ function Chess3D({
                 </div>
                 <div className="space-y-2">
                   {quickSwapWeaponList.map((option) => {
-                    const targetGroup = weaponSwapTargetKind ? PIECE_GROUP_BY_PARKED_KIND[weaponSwapTargetKind] : null;
-                    const activeOptionId = targetGroup
-                      ? captureAnimationByPieceGroup[targetGroup]
-                      : selectedCaptureAnimationId;
-                    const isSelected = option.id === activeOptionId;
+                    const isSelected = option.id === selectedCaptureAnimationId;
                     return (
                       <button
                         key={option.id}
