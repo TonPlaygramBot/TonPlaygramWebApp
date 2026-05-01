@@ -734,9 +734,9 @@ async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
   });
 }
 
-function normalizePbrTexture(texture, maxAnisotropy = 1, { preserveWrapping = false } = {}) {
+function normalizePbrTexture(texture, maxAnisotropy = 1, { preserveWrapping = false, preserveFlipY = false } = {}) {
   if (!texture) return;
-  texture.flipY = false;
+  if (!preserveFlipY) texture.flipY = false;
   if (!preserveWrapping) {
     texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
     texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
@@ -842,16 +842,16 @@ function normalizeMaterialTextures(material, maxAnisotropy = 1) {
   if (!material) return;
   if (material.map) {
     applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy, { preserveWrapping: true });
+    normalizePbrTexture(material.map, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
   }
   if (material.emissiveMap) {
     applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy, { preserveWrapping: true });
+    normalizePbrTexture(material.emissiveMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
   }
-  normalizePbrTexture(material.normalMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true });
+  normalizePbrTexture(material.normalMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+  normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+  normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+  normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
 }
 
 function prepareLoadedModel(model, options = {}) {
@@ -2350,7 +2350,7 @@ const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
 const CHAIR_SEAT_INWARD_FACTOR = 1;
-const CHAIR_VISUAL_SCALE = 1.3;
+const CHAIR_VISUAL_SCALE = 1.36;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   portrait: 0.92,
@@ -2420,7 +2420,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.46 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.62 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
