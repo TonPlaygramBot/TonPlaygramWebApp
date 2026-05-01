@@ -10,15 +10,13 @@ import {
 } from './battleRoyaleSharedInventory.js';
 
 const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
-  { id: 'rpm-current', label: 'Current Avatar', description: 'Default Chess Battle Royal human avatar.' },
+  { id: 'rpm-current', label: 'Current Avatar', description: 'Ready Player Me seated avatar with full PBR texture maps.' },
   { id: 'rpm-67d411', label: 'RPM 67d411', description: 'Ready Player Me seated avatar variant.' },
   { id: 'rpm-67f433', label: 'RPM 67f433', description: 'Ready Player Me seated avatar variant.' },
   { id: 'rpm-67e1b5', label: 'RPM 67e1b5', description: 'Ready Player Me seated avatar variant.' },
-  { id: 'webgl-vietnam-human', label: 'Vietnam Human', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-human-body-a', label: 'Human Body A', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-human-body-b', label: 'Human Body B', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-ai-teacher', label: 'AI Teacher', description: 'Imported seated human model from Chess roster.' },
-  { id: 'webgl-ai-teacher-1', label: 'AI Teacher 1', description: 'Imported seated human model from Chess roster.' }
+  { id: 'webgl-vietnam-human', label: 'Vietnam Human', description: 'Open WebGL GLB humanoid seated variant.' },
+  { id: 'webgl-ai-teacher', label: 'AI Teacher', description: 'Open-source AI Teacher avatar adapted to seated pose.' },
+  { id: 'webgl-ai-teacher-1', label: 'AI Teacher 1', description: 'Second AI Teacher seated variant.' }
 ]);
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
