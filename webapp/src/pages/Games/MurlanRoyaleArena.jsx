@@ -104,7 +104,7 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 2.0;
+const CHARACTER_PROPORTION_SCALE = 1.7;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
@@ -874,6 +874,23 @@ function prepareLoadedModel(model, options = {}) {
         mat.needsUpdate = true;
       });
     }
+  });
+}
+
+function tuneCharacterGltfMaterials(model) {
+  if (!model) return;
+  model.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (typeof mat.metalness === 'number') mat.metalness = Math.min(mat.metalness, 0.08);
+      if (typeof mat.roughness === 'number') mat.roughness = Math.max(mat.roughness, 0.72);
+      if (typeof mat.envMapIntensity === 'number') mat.envMapIntensity = Math.min(mat.envMapIntensity, 0.45);
+      if (typeof mat.emissiveIntensity === 'number') mat.emissiveIntensity = Math.min(mat.emissiveIntensity, 0.15);
+      if (mat.map) applySRGBColorSpace(mat.map);
+      mat.needsUpdate = true;
+    });
   });
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
@@ -1659,6 +1676,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+    tuneCharacterGltfMaterials(root);
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -1839,7 +1857,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   };
 
   // Match Ludo Battle Royal seated framing: keep characters visually lower on portrait screens.
-  instance.position.y -= 0.09 * MODEL_SCALE;
+  instance.position.y -= 0.14 * MODEL_SCALE;
 
   // Professional seated base pose aligned with Ludo human-leg orientation.
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
@@ -1968,12 +1986,12 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.05;
+  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.16;
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
-    baseSeatOffsetZ - 0.03
+    baseSeatOffsetY - 0.26 - scaleDelta * 0.1,
+    baseSeatOffsetZ - 0.1
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
@@ -2419,6 +2437,9 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
+const HUMAN_SEAT_OUTWARD_OFFSET = 0.48 * MODEL_SCALE;
+const TOP_AI_SEAT_OUTWARD_OFFSET = 0.74 * MODEL_SCALE;
+const SIDE_AI_SEAT_OUTWARD_OFFSET = 0.58 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -5154,6 +5175,11 @@ export default function MurlanRoyaleArena({ search }) {
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const isTopSeatOnScreen = forward.z < -0.45;
         const isGiftSideSeatOnScreen = !isHumanSeat && forward.x > 0.45;
+        const outwardOffset = isHumanSeat
+          ? HUMAN_SEAT_OUTWARD_OFFSET
+          : isTopSeatOnScreen
+            ? TOP_AI_SEAT_OUTWARD_OFFSET
+            : SIDE_AI_SEAT_OUTWARD_OFFSET;
         const aiSeatSpacingMultiplier = isGiftSideSeatOnScreen
           ? GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER
           : isTopSeatOnScreen
@@ -5166,7 +5192,7 @@ export default function MurlanRoyaleArena({ search }) {
             : 1;
         const focus = forward
           .clone()
-          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
+          .multiplyScalar(seatRadius + outwardOffset - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
         stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
@@ -5178,8 +5204,16 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: resolveSeatHandRadius(activeTableRadius, isHumanSeat),
-          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING * aiSeatSpacingMultiplier,
-          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
+          spacing: isTopSeatOnScreen
+            ? 0
+            : isHumanSeat
+              ? HUMAN_HAND_CARD_SPACING
+              : AI_HAND_CARD_SPACING * aiSeatSpacingMultiplier,
+          maxSpread: isTopSeatOnScreen
+            ? 0
+            : isHumanSeat
+              ? HUMAN_HAND_CARD_MAX_SPREAD
+              : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
           stoolPosition,
           stoolHeight,
           handVariant: isGiftSideSeatOnScreen ? 'giftSide' : isTopSeatOnScreen ? 'top' : 'default'
