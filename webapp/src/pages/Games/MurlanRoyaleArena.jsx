@@ -104,7 +104,7 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 1.72;
+const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
@@ -803,9 +803,6 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
     if (!material) return;
     material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
     material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
-    if (material.color?.setRGB) material.color.setRGB(1, 1, 1);
-    if (material.emissive?.setRGB) material.emissive.setRGB(0, 0, 0);
-    material.emissiveIntensity = 0;
 
     if (material.map) {
       normalizeTexture(material.map, true);
@@ -1881,8 +1878,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
   if (!rig) return;
-  if (rig.heldCards) rig.heldCards.visible = false;
-  return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
@@ -1977,7 +1972,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - 0.29 - scaleDelta * 0.1,
+    baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
     baseSeatOffsetZ - 0.03
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
@@ -2422,8 +2417,8 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.19 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = -0.16 * MODEL_SCALE; // Negative pushes human seat outward, away from table center (portrait visual direction).
+const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
