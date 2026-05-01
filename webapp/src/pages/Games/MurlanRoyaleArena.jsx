@@ -107,8 +107,9 @@ const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 1.72;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
-const CHAIR_SIZE_SCALE = 1.08;
+const CHAIR_SIZE_SCALE = 1.12;
 const ARENA_PROP_SCALE = 1;
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.1; // push seated humans slightly farther from the table
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1963,6 +1964,8 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     if (!obj?.isMesh) return;
     obj.castShadow = true;
     obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => normalizeMaterialTextures(mat, 8)); // keep original glTF UV mapping while refreshing sampling
   });
   normalizeCharacterPivot(instance);
 
@@ -1975,7 +1978,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   seatRoot.position.set(
     0,
     baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
-    baseSeatOffsetZ - 0.03
+    baseSeatOffsetZ - 0.03 - HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
