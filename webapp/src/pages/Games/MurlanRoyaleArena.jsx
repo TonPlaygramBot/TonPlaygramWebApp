@@ -1838,9 +1838,12 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     currentActionId: 0
   };
 
-  // Professional seated base pose for portrait framing.
-  applyRotationOffset(hips, THREE.MathUtils.degToRad(-4), 0, 0);
-  applyRotationOffset(spine, THREE.MathUtils.degToRad(-2), 0, 0);
+  // Match Ludo Battle Royal seated framing: keep characters visually lower on portrait screens.
+  instance.position.y -= 0.09 * MODEL_SCALE;
+
+  // Professional seated base pose aligned with Ludo human-leg orientation.
+  applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
   applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
   applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(4));
@@ -1848,10 +1851,11 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
-  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(64), 0, 0);
-  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(64), 0, 0);
-  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-72), 0, 0);
-  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-72), 0, 0);
+  // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
+  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),
