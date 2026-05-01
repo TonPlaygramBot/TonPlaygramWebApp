@@ -3153,8 +3153,8 @@ const AI_CHAIR_RADIUS =
   CHAIR_INWARD_PULL;
 // Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
 const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
-// Keep the bottom/local-player seat distinctly farther out than the rest.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
+// Keep bottom/local-player seat aligned with the same table distance used by the other chairs.
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -3324,7 +3324,7 @@ const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.58;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.42;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.5;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.8;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
@@ -11256,6 +11256,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) return null;
     direction.normalize();
+
+    if (seatIndex === 0) {
+      const baseView = cameraTurnStateRef.current.baseTurnView;
+      if (!baseView?.position?.isVector3 || !baseView?.target?.isVector3) return null;
+      return {
+        position: baseView.position.clone(),
+        target: baseView.target.clone()
+      };
+    }
 
     const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
     if (isTopOrBottomSeat) {
