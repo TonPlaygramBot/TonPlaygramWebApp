@@ -107,9 +107,9 @@ const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 1.72;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
-const CHAIR_SIZE_SCALE = 1.12;
+const CHAIR_SIZE_SCALE = 1.18;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.1; // push seated humans slightly farther from the table
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.2; // push seated humans farther from the table for clearer portrait framing
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1965,7 +1965,12 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     obj.castShadow = true;
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((mat) => normalizeMaterialTextures(mat, 8)); // keep original glTF UV mapping while refreshing sampling
+    // Preserve the character's original glTF texture mapping exactly (no UV/wrap/flip remap).
+    mats.forEach((mat) => {
+      if (mat?.map) applySRGBColorSpace(mat.map);
+      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      mat.needsUpdate = true;
+    });
   });
   normalizeCharacterPivot(instance);
 
