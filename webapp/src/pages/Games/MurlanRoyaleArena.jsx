@@ -104,7 +104,7 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 1.72;
+const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
@@ -1878,8 +1878,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
   if (!rig) return;
-  if (rig.heldCards) rig.heldCards.visible = false;
-  return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
@@ -2420,7 +2418,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.22 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -5141,7 +5139,7 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanSeat = Boolean(player?.isHuman);
         const seatRadius =
           (isHumanSeat
-            ? AI_CHAIR_RADIUS + HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET
+            ? AI_CHAIR_RADIUS - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
