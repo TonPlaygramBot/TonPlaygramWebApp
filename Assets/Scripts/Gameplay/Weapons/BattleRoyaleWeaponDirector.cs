@@ -81,7 +81,8 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private int minorPiecesPerNonFinalShot = 3;
 
         [Header("Camera anchors")]
-        [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
+        [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.06f, -0.075f, 0.14f);
+        [SerializeField] private bool lockCameraPositionDuringAim = true;
         [SerializeField] private float aimPositionLerp = 20f;
         [SerializeField] private bool followAllBullets = true;
         [SerializeField] private bool forceAttackerAimAnchor = true;
@@ -89,6 +90,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private float bulletFollowHeight = 0.14f;
         [SerializeField] private float cameraLookLerp = 18f;
         [SerializeField] private float cameraTrackLerp = 15f;
+        [SerializeField] private bool translateCameraOnFinalBulletOnly = true;
         [SerializeField] private Vector3 swapIconWorldOffset = new Vector3(0f, 0.11f, 0f);
         [SerializeField] private bool allowDynamicCameraOnlyDuringAnimation = true;
         [SerializeField] private float turnFocusDuration = 0.22f;
@@ -237,7 +239,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, pelletDirection * weapon.muzzleVelocity);
                 if (shouldFollowBullet)
                 {
-                    StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f));
+                    StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f), shotIndex == totalShots - 1);
                 }
             }
         }
@@ -403,14 +405,21 @@ namespace TonPlaygram.Gameplay.Weapons
                 }
 
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
-                playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
+                if (lockCameraPositionDuringAim)
+                {
+                    playerCamera.transform.localPosition = targetLocalPos;
+                }
+                else
+                {
+                    playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
+                }
                 Quaternion toTarget = Quaternion.LookRotation((targetWorld - playerCamera.transform.position).normalized, Vector3.up);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toTarget, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
             }
         }
 
-        private void StartBulletFollowCamera(Transform bulletTransform, float seconds)
+        private void StartBulletFollowCamera(Transform bulletTransform, float seconds, bool isFinalShot)
         {
             if (playerCamera == null || bulletTransform == null)
                 return;
@@ -425,17 +434,21 @@ namespace TonPlaygram.Gameplay.Weapons
                 return;
             }
 
-            _cameraRoutine = StartCoroutine(BulletFollowRoutine(bulletTransform, seconds));
+            _cameraRoutine = StartCoroutine(BulletFollowRoutine(bulletTransform, seconds, isFinalShot));
         }
 
-        private IEnumerator BulletFollowRoutine(Transform bulletTransform, float seconds)
+        private IEnumerator BulletFollowRoutine(Transform bulletTransform, float seconds, bool isFinalShot)
         {
             float t = 0f;
             while (t < seconds && bulletTransform != null)
             {
                 t += Time.deltaTime;
-                Vector3 targetPos = bulletTransform.position - (bulletTransform.forward * bulletFollowDistance) + (Vector3.up * bulletFollowHeight);
-                playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, targetPos, Mathf.Clamp01(Time.deltaTime * cameraTrackLerp));
+                bool translateCamera = !translateCameraOnFinalBulletOnly || isFinalShot;
+                if (translateCamera)
+                {
+                    Vector3 targetPos = bulletTransform.position - (bulletTransform.forward * bulletFollowDistance) + (Vector3.up * bulletFollowHeight);
+                    playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, targetPos, Mathf.Clamp01(Time.deltaTime * cameraTrackLerp));
+                }
                 Quaternion toBullet = Quaternion.LookRotation((bulletTransform.position - playerCamera.transform.position).normalized, Vector3.up);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toBullet, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
