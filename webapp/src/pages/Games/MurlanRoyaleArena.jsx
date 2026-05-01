@@ -109,7 +109,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88; // reduce backward pull so seated humans appear closer to the table.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.68; // bring seated humans closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
@@ -1791,7 +1791,20 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
   instance.add(heldCards);
-  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
+  const isBottomHumanSeat = Boolean(player?.isHuman);
+  const isSideSeat = !isBottomHumanSeat && ((resolvedSeatIndex % CHAIR_COUNT) === 1 || (resolvedSeatIndex % CHAIR_COUNT) === 3);
+  const sideSeatLift = isSideSeat ? 0.2 * MODEL_SCALE : 0;
+  const sideSeatForward = isSideSeat ? 0.06 * MODEL_SCALE : 0;
+  const sideSeatLateralPull =
+    isSideSeat
+      ? ((resolvedSeatIndex % CHAIR_COUNT) === 1 ? -0.045 * MODEL_SCALE : 0.045 * MODEL_SCALE)
+      : 0;
+  heldCards.position.set(
+    sideSeatLateralPull,
+    0.7 * MODEL_SCALE + sideSeatLift,
+    0.95 * MODEL_SCALE + sideSeatForward
+  );
   heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
   heldCards.scale.setScalar(1.45);
 
@@ -2447,7 +2460,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.74 * MODEL_SCALE; // keep human chair closer to table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.62 * MODEL_SCALE; // keep the human seat visibly closer to table center on phones.
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
