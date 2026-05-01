@@ -3324,8 +3324,8 @@ const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.58;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.46;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.58;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.8;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.32 * MODEL_SCALE;
@@ -6933,7 +6933,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     pointerId: null,
     active: false,
     lastX: 0,
-    lastY: 0
+    lastY: 0,
+    lockedPosition: null
   });
   const syncSkyboxToCameraRef = useRef(() => {});
   const tableBuildTokenRef = useRef(0);
@@ -9368,7 +9369,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       const target = getCameraLookTarget();
       if (!target) return;
+      if (cameraLookStateRef.current.lockedPosition?.isVector3) {
+        camera.position.copy(cameraLookStateRef.current.lockedPosition);
+      }
       controls.target.copy(target);
+      camera.lookAt(target);
     };
 
     let pointerLocked = false;
@@ -9399,6 +9404,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         cameraLookStateRef.current.active = true;
         cameraLookStateRef.current.lastX = clientX;
         cameraLookStateRef.current.lastY = clientY;
+        cameraLookStateRef.current.lockedPosition = camera.position.clone();
       }
     };
     onPointerMove = (event) => {
@@ -9438,6 +9444,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (lookState.pointerId === event?.pointerId) {
         lookState.pointerId = null;
         lookState.active = false;
+        lookState.lockedPosition = null;
       }
       if (pointerLocked) {
         pointerLocked = false;
@@ -9783,6 +9790,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraLookStateRef.current.active = false;
       cameraLookStateRef.current.yaw = 0;
       cameraLookStateRef.current.pitch = 0;
+      cameraLookStateRef.current.lockedPosition = null;
       if (controls && syncSkyboxToCameraRef.current) {
         controls.removeEventListener('change', syncSkyboxToCameraRef.current);
       }
