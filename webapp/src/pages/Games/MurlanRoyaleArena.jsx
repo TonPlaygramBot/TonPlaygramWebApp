@@ -1659,19 +1659,6 @@ async function loadCharacterModel(theme, renderer = null) {
     const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true });
-    root.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => {
-        if (!mat) return;
-        if (mat.map) mat.color?.set?.('#ffffff');
-        if (mat.emissive) mat.emissive.set('#000000');
-        if (typeof mat.emissiveIntensity === 'number') mat.emissiveIntensity = 0;
-        if (typeof mat.roughness === 'number') mat.roughness = Math.max(mat.roughness, 0.78);
-        if (typeof mat.metalness === 'number') mat.metalness = Math.min(mat.metalness, 0.12);
-        mat.needsUpdate = true;
-      });
-    });
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -1978,15 +1965,15 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
-  const seatScale = (characterTheme.scale ?? 0.72) * CHARACTER_PROPORTION_SCALE;
+  const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.1;
+  const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.05;
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
     baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
-    baseSeatOffsetZ + 0.04
+    baseSeatOffsetZ - 0.03
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
@@ -2198,19 +2185,6 @@ async function loadPolyhavenModel(assetId, renderer = null) {
       throw new Error(`Missing scene for ${assetId}`);
     }
     prepareLoadedModel(root, { preserveGltfTextureMapping: true });
-    root.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => {
-        if (!mat) return;
-        if (mat.map) mat.color?.set?.('#ffffff');
-        if (mat.emissive) mat.emissive.set('#000000');
-        if (typeof mat.emissiveIntensity === 'number') mat.emissiveIntensity = 0;
-        if (typeof mat.roughness === 'number') mat.roughness = Math.max(mat.roughness, 0.78);
-        if (typeof mat.metalness === 'number') mat.metalness = Math.min(mat.metalness, 0.12);
-        mat.needsUpdate = true;
-      });
-    });
     return root;
   })();
 
@@ -2444,7 +2418,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = -0.08 * MODEL_SCALE; // Push human seat outward so body sits farther from center on portrait screens.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -3882,7 +3856,6 @@ export default function MurlanRoyaleArena({ search }) {
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const isGiftSideSeat = seat?.handVariant === 'giftSide';
-        const isTopAiSeat = !isHumanCard && seat?.handVariant === 'top';
         const backLogoVariant = isHumanCard
           ? 'default'
           : seat?.handVariant === 'top'
@@ -3891,10 +3864,6 @@ export default function MurlanRoyaleArena({ search }) {
               ? 'sideGift'
               : 'side';
         setBackLogoOrientation(mesh, backLogoVariant);
-        if (isTopAiSeat) {
-          mesh.visible = false;
-          return;
-        }
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
