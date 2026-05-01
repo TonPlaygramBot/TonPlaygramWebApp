@@ -109,7 +109,8 @@ const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 1.08; // move humans visibly closer to the table for portrait framing.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88; // reduce backward pull so seated humans appear closer to the table.
+const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1990,7 +1991,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? -0.24;
   seatRoot.position.set(
     0,
-    baseSeatOffsetY - 0.22 - scaleDelta * 0.08,
+    baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - HUMAN_CHARACTER_EXTRA_LOWER_OFFSET,
     baseSeatOffsetZ - 0.03 - HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
@@ -2371,7 +2372,7 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.56 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
-const CHAIR_GAP = 0.152 * MODEL_SCALE;
+const CHAIR_GAP = 0.19 * MODEL_SCALE; // push chairs slightly farther from the table ring.
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
