@@ -36,7 +36,12 @@ const CFG = {
   footLockStrength: 1.0,
   rightElbowShotRise: 0.84,
   rightElbowShotSide: -0.34,
-  rightElbowShotBack: -0.82
+  rightElbowShotBack: -0.82,
+  shotUpperBodyLean: 0.9,
+  shotRootForwardDrift: 0.006,
+  shotFollowDrift: 0.01,
+  shotFootSlide: 0.25,
+  shotBridgeHandDrop: 0.018
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -336,8 +341,8 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const moveAmountRaw = human.root.position.distanceTo(rootGoal); human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10)); human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
   const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
   const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
-  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
+  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const upperBodyT = Math.pow(t, cfg.shotUpperBodyLean ?? 0.9); const lowerBodyT = t * (cfg.shotFootSlide ?? 0.25); const powerLean = power * upperBodyT;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, (cfg.shotRootForwardDrift ?? 0.006) * powerLean + (cfg.shotFollowDrift ?? 0.01) * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
   const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
@@ -345,9 +350,9 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
   const rightShoulder = local(new THREE.Vector3(0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.34, t) - 0.018 * human.settleT));
   const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
-  const leftFoot = local(new THREE.Vector3(-0.13, cfg.footGroundY, 0.03 + walk * 0.018).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34), t));
-  const rightFoot = local(new THREE.Vector3(0.13, cfg.footGroundY, -0.03 - walk * 0.018).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34), t));
-  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT);
+  const leftFoot = local(new THREE.Vector3(-0.13, cfg.footGroundY, 0.03 + walk * 0.018).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34), lowerBodyT));
+  const rightFoot = local(new THREE.Vector3(0.13, cfg.footGroundY, -0.03 - walk * 0.018).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34), lowerBodyT));
+  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * upperBodyT).addScaledVector(side, -0.012 * upperBodyT).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -(cfg.shotBridgeHandDrop ?? 0.018) * upperBodyT).addScaledVector(UP, -0.01 * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
   const handIk = easeInOut(clamp01(t));
