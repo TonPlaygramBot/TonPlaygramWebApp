@@ -838,23 +838,20 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-function preserveOriginalGltfMaterialTextures(material, maxAnisotropy = 1) {
+function normalizeMaterialTextures(material, maxAnisotropy = 1) {
   if (!material) return;
   if (material.map) {
     applySRGBColorSpace(material.map);
-    material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
-    material.map.needsUpdate = true;
+    normalizePbrTexture(material.map, maxAnisotropy, { preserveWrapping: true });
   }
   if (material.emissiveMap) {
     applySRGBColorSpace(material.emissiveMap);
-    material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
-    material.emissiveMap.needsUpdate = true;
+    normalizePbrTexture(material.emissiveMap, maxAnisotropy, { preserveWrapping: true });
   }
-  [material.normalMap, material.roughnessMap, material.metalnessMap, material.aoMap].forEach((texture) => {
-    if (!texture) return;
-    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
-    texture.needsUpdate = true;
-  });
+  normalizePbrTexture(material.normalMap, maxAnisotropy, { preserveWrapping: true });
+  normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveWrapping: true });
+  normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveWrapping: true });
+  normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true });
 }
 
 function prepareLoadedModel(model, options = {}) {
@@ -867,7 +864,7 @@ function prepareLoadedModel(model, options = {}) {
       mats.forEach((mat) => {
         if (!mat) return;
         if (preserveGltfTextureMapping) {
-          preserveOriginalGltfMaterialTextures(mat, maxAnisotropy);
+          normalizeMaterialTextures(mat, maxAnisotropy);
         } else {
           if (mat.map) applySRGBColorSpace(mat.map);
           if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
@@ -2353,7 +2350,7 @@ const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
 const CHAIR_SEAT_INWARD_FACTOR = 1;
-const CHAIR_VISUAL_SCALE = 1.35;
+const CHAIR_VISUAL_SCALE = 1.3;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   portrait: 0.92,
@@ -2423,7 +2420,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.62 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.46 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
