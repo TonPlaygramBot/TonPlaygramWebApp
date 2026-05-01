@@ -109,7 +109,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.34; // push seated humans farther from the table for clearer portrait framing
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.52; // push seated humans farther from the table for clearer portrait framing on portrait mobile
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1659,7 +1659,7 @@ async function loadCharacterModel(theme, renderer = null) {
     if (!gltf) throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
     const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 });
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -2194,7 +2194,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
     }
-    prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 });
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
     return root;
   })();
 
@@ -2428,7 +2428,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.62 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.82 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
