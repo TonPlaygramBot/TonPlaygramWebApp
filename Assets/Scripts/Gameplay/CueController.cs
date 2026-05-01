@@ -202,17 +202,6 @@ namespace Aiming
         public void SetCameraLowered(bool lowered)
         {
             _cameraLowered = lowered;
-
-            if (_cameraLowered && _shotState == ShotState.Idle)
-            {
-                BeginCharge();
-                return;
-            }
-
-            if (!_cameraLowered && _shotState == ShotState.Dragging && _power < releaseTriggerThresholdNormalized)
-            {
-                CancelCharge();
-            }
         }
 
         public void CancelCharge()
