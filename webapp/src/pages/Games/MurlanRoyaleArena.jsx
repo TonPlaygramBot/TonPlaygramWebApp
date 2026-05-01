@@ -104,8 +104,9 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 2.0;
+const CHARACTER_PROPORTION_SCALE = 1.72;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
+const ENABLE_CHARACTER_HELD_CARDS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
@@ -838,20 +839,25 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 1) {
+function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTextureMapping = false } = {}) {
   if (!material) return;
-  if (material.map) {
-    applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy, { preserveWrapping: true });
-  }
-  if (material.emissiveMap) {
-    applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy, { preserveWrapping: true });
-  }
-  normalizePbrTexture(material.normalMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveWrapping: true });
-  normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true });
+  const normalizeTex = (texture, isColor = false) => {
+    if (!texture) return;
+    if (isColor) applySRGBColorSpace(texture);
+    texture.flipY = false;
+    if (!preserveGltfTextureMapping) {
+      texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+      texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+    }
+    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+    texture.needsUpdate = true;
+  };
+  normalizeTex(material.map, true);
+  normalizeTex(material.emissiveMap, true);
+  normalizeTex(material.normalMap, false);
+  normalizeTex(material.roughnessMap, false);
+  normalizeTex(material.metalnessMap, false);
+  normalizeTex(material.aoMap, false);
 }
 
 function prepareLoadedModel(model, options = {}) {
@@ -864,7 +870,7 @@ function prepareLoadedModel(model, options = {}) {
       mats.forEach((mat) => {
         if (!mat) return;
         if (preserveGltfTextureMapping) {
-          normalizeMaterialTextures(mat, maxAnisotropy);
+          normalizeMaterialTextures(mat, maxAnisotropy, { preserveGltfTextureMapping: true });
         } else {
           if (mat.map) applySRGBColorSpace(mat.map);
           if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
@@ -1777,21 +1783,24 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
   const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
 
-  const heldCards = createCharacterCards({
-    handLift: characterTheme.handLift ?? 0.94,
-    handCardsInput: player?.hand ?? [],
-    cardTheme,
-    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
-    cardTextureSize
-  });
+  let heldCards = null;
+  if (ENABLE_CHARACTER_HELD_CARDS) {
+    heldCards = createCharacterCards({
+      handLift: characterTheme.handLift ?? 0.94,
+      handCardsInput: player?.hand ?? [],
+      cardTheme,
+      playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
+      cardTextureSize
+    });
 
-  heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
-  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
+    heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+    heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
-  instance.add(heldCards);
-  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
-  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.45);
+    instance.add(heldCards);
+    heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+    heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+    heldCards.scale.setScalar(1.45);
+  }
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1877,7 +1886,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 }
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
-  if (!rig) return;
+  if (!rig || !ENABLE_CHARACTER_HELD_CARDS || !rig.heldCards) return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
@@ -2418,7 +2427,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.06 * MODEL_SCALE; // Pull human seat slightly inward so body rests closer to the chair.
+const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.34 * MODEL_SCALE; // Push human seat farther from table center (portrait visual direction).
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
@@ -5139,7 +5148,7 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanSeat = Boolean(player?.isHuman);
         const seatRadius =
           (isHumanSeat
-            ? AI_CHAIR_RADIUS - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
+            ? AI_CHAIR_RADIUS + HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
