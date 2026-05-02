@@ -845,7 +845,7 @@ const SFX = {
 };
 
 /* ---------- Renderer / Scene ---------- */
-const app = document.getElementById('app');
+const app = document.getElementById('domino-royal-app') || document.getElementById('app');
 function createRendererWithFallback() {
   const attempts = [
     { antialias: true, alpha: true, powerPreference: 'high-performance' },
@@ -8405,7 +8405,7 @@ function makeDomino(
 }
 
 /* ---------- Game State ---------- */
-const statusEl = document.getElementById('status');
+const statusEl = document.getElementById('domino-royal-status') || document.getElementById('status');
 const btnDraw = document.getElementById('draw');
 const btnPass = document.getElementById('pass');
 const setControlEnabled = (enabled) => {
