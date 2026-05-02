@@ -58,12 +58,12 @@ public class CueCamera : MonoBehaviour
     // Keeps the framing over the upper half of the cue rather than drifting to
     // the plastic cap.
     [Range(0.1f, 1f)]
-    public float cueBackFraction = 0.32f;
+    public float cueBackFraction = 0.24f;
     // When the camera is fully lowered we further tighten the clamp so that the
     // framing slides forward along the cue toward the cue ball instead of
     // lingering near the butt.
     [Range(0.05f, 1f)]
-    public float cueLoweredBackFraction = 0.18f;
+    public float cueLoweredBackFraction = 0.12f;
     // Radius of the cue ball so the aiming view can remain above the cloth while
     // gliding toward the shot.
     public float cueBallRadius = 0.028575f;
@@ -105,19 +105,25 @@ public class CueCamera : MonoBehaviour
     [Range(0f, 1f)]
     public float eyeViewStartLowering = 0.45f;
     // Distance in front of the eye anchor used for the look target.
-    public float eyeViewLookAhead = 1.1f;
+    public float eyeViewLookAhead = 1.4f;
     // Slight inward offset to avoid clipping through eyebrows/face meshes.
-    public float eyeViewForwardOffset = 0f;
+    public float eyeViewForwardOffset = 0.03f;
     // Vertical offset to center the cue in first-person framing.
-    public float eyeViewHeightOffset = 0f;
+    public float eyeViewHeightOffset = 0.01f;
+    // Pulls the camera slightly backward from the face anchor so the avatar
+    // stands farther down the cue and does not clip the screen in portrait mode.
+    public float eyeViewBackOffset = 0.08f;
+    // Use the eye anchor forward vector (head orientation) for true first-person
+    // camera motion that follows the human character gaze while aiming.
+    public bool useEyeAnchorForward = true;
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
-    public float cueRaisedDistanceScale = 0.7f;
+    public float cueRaisedDistanceScale = 0.62f;
     // Scale applied once the camera is fully lowered toward the cue. Lower
     // values bring the framing tighter to the cue ball and aiming line.
     [Range(0.1f, 1f)]
-    public float cueLoweredDistanceScale = 0.38f;
+    public float cueLoweredDistanceScale = 0.28f;
     // Bias used when lowering the camera to keep it hovering just above the cue
     // instead of drifting upward toward the player's face.
     [Range(0.1f, 1f)]
@@ -822,11 +828,23 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
-        Vector3 eyePos = playerEyeAnchor.position +
-                         (cueForward * Mathf.Max(0f, eyeViewForwardOffset)) +
+        Vector3 eyeForward = cueForward;
+        if (useEyeAnchorForward && playerEyeAnchor != null)
+        {
+            Vector3 anchorForward = playerEyeAnchor.forward;
+            anchorForward.y = 0f;
+            if (anchorForward.sqrMagnitude > 0.0001f)
+            {
+                eyeForward = anchorForward.normalized;
+            }
+        }
+
+        Vector3 eyePos = playerEyeAnchor.position -
+                         (eyeForward * Mathf.Max(0f, eyeViewBackOffset)) +
+                         (eyeForward * Mathf.Max(0f, eyeViewForwardOffset)) +
                          (Vector3.up * eyeViewHeightOffset);
         Vector3 eyeLookTarget = eyePos +
-                                (cueForward * Mathf.Max(0.1f, eyeViewLookAhead)) +
+                                (eyeForward * Mathf.Max(0.1f, eyeViewLookAhead)) +
                                 (Vector3.up * cueBallLookOffset);
         Vector3 lookDir = eyeLookTarget - eyePos;
         if (lookDir.sqrMagnitude < 0.0001f)
