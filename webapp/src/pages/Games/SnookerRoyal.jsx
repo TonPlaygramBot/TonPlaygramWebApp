@@ -20431,6 +20431,40 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
+      const humanActor = new THREE.Group();
+      const humanModelRoot = new THREE.Group();
+      humanActor.add(humanModelRoot);
+      humanActor.visible = false;
+      table.add(humanActor);
+      const humanLoader = new GLTFLoader();
+      humanLoader.setCrossOrigin('anonymous');
+      humanLoader.load(
+        'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+        (gltf) => {
+          const model = gltf?.scene;
+          if (!model) return;
+          model.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          });
+          const scaleFactor = SCALE * 1.18;
+          model.scale.setScalar(scaleFactor);
+          model.rotation.set(0, Math.PI, 0);
+          model.position.set(0, 0, 0);
+          model.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.set(-center.x, -box.min.y, -center.z);
+          humanModelRoot.add(model);
+          humanActor.visible = true;
+        },
+        undefined,
+        () => {
+          humanActor.visible = false;
+        }
+      );
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -25967,6 +26001,19 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
+          if (humanActor.visible && cueStick) {
+            const yaw = cueStick.rotation.y;
+            const forwardX = Math.sin(yaw - Math.PI);
+            const forwardZ = Math.cos(yaw - Math.PI);
+            const sideX = forwardZ;
+            const sideZ = -forwardX;
+            humanActor.position.set(
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              0,
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
+            );
+            humanActor.rotation.y = yaw;
+          }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
             isOnlineMatch &&
