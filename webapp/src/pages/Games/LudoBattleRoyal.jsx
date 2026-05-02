@@ -9405,6 +9405,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         cameraLookStateRef.current.lastX = clientX;
         cameraLookStateRef.current.lastY = clientY;
         cameraLookStateRef.current.lockedPosition = camera.position.clone();
+        // Freeze OrbitControls while using custom look so drag only rotates view
+        // and never shifts/lifts camera position.
+        controls.enabled = false;
       }
     };
     onPointerMove = (event) => {
@@ -9449,6 +9452,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (pointerLocked) {
         pointerLocked = false;
         if (controls) controls.enabled = true;
+        return;
+      }
+      if (lookState.active === false && controls) {
+        controls.enabled = true;
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -9726,6 +9733,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             camera.position.lerp(followCameraTarget, 0.12);
           }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
+        }
+      }
+
+      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+        const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
+          ? cameraLookStateRef.current.lockedPosition
+          : cameraSeatLockPositionRef.current?.isVector3
+            ? cameraSeatLockPositionRef.current
+            : null;
+        if (hardLockedPosition) {
+          camera.position.copy(hardLockedPosition);
         }
       }
 
