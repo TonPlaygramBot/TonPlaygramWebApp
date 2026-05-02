@@ -20,11 +20,14 @@ type Act = "idle" | "run" | "throw" | "recover";
 type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
-type Hud = { score: number; last: number; power: number; msg: string };
+type Hud = { total: number; frame: number; ball: 1 | 2; power: number; msg: string; board: string[] };
+type GraphicsQuality = "low" | "medium" | "high";
 
 const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
 const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const OAK = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
+const HDRI_OPTIONS = ["Dancing Hall", "Sepulchral Chapel Rotunda", "Vestibule"] as const;
+const FLOOR_OPTIONS = ["Rosewood Veneer 01", "Oak Veneer 01", "Dark Wood", "Wood Table 001"] as const;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -190,10 +193,6 @@ function buildLane(scene: THREE.Scene) {
   const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
   const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
   for (let i=0;i<7;i++) { const p = box(1.05,.03,.55,0xd9f4ff,.2); p.position.set(i%2?-1.25:1.25,3.24,lerp(7.2,-11.2,i/6)); g.add(p); }
-  const left = box(.18,3.5,30.6,0x111722,.92); left.position.set(-3.95,1.65,-2.8); g.add(left);
-  const right = left.clone(); right.position.x = 3.95; g.add(right);
-  const back = box(8.1,3.5,.18,0x111722,.92); back.position.set(0,1.65,-13.35); g.add(back);
-  const ceil = box(8.1,.16,30.6,0x1b2430,.72,.15); ceil.position.set(0,3.35,-2.8); g.add(ceil);
   cast(g);
 }
 
@@ -241,13 +240,13 @@ function release(b: Ball, intent: { releaseX: number; targetX: number; speed: nu
   b.held = false; b.rolling = true; b.hook = intent.hook; b.p.copy(p); b.v.copy(t.sub(p).normalize().multiplyScalar(intent.speed)); b.m.position.copy(b.p);
 }
 
-function Stat({ n, v }: { n: string; v: string | number }) {
-  return <div style={{padding:"6px 8px",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,background:"rgba(255,255,255,.07)"}}><div style={{fontSize:10,opacity:.65,fontWeight:800}}>{n}</div><div style={{fontSize:16,fontWeight:950,color:"#7be2ff"}}>{v}</div></div>;
-}
-
 export default function BowlingGame() {
   const host = useRef<HTMLDivElement | null>(null), canvas = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<Hud>({ power: 0, score: 0, last: 0, msg: "Swipe up to bowl" });
+  const [hud, setHud] = useState<Hud>({ total: 0, frame: 1, ball: 1, power: 0, msg: "Swipe up to bowl", board: Array(10).fill("") });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [graphics, setGraphics] = useState<GraphicsQuality>("high");
+  const [selectedHdri, setSelectedHdri] = useState<string>(HDRI_OPTIONS[0]);
+  const [selectedFloor, setSelectedFloor] = useState<string>(FLOOR_OPTIONS[1]);
 
   useEffect(() => {
     if (!host.current || !canvas.current) return;
@@ -265,40 +264,66 @@ export default function BowlingGame() {
     const aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.85 })); aimLine.visible = false; scene.add(aimLine);
     const mark = new THREE.Mesh(new THREE.RingGeometry(.24,.31,36), new THREE.MeshBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.72, side:THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
 
-    let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0;
+    let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false;
+    let frame=1, ballNo:1|2=1, framePins=0, total=0, scores=Array<string>(10).fill("");
+    const applyHit = (hit:number) => {
+      framePins += hit;
+      if (framePins >= 10 || ballNo === 2) {
+        scores[frame - 1] = framePins >= 10 ? (ballNo === 1 ? "X" : "/") : `${framePins}`;
+        total += framePins;
+        frame = Math.min(10, frame + 1);
+        ballNo = 1;
+        framePins = 0;
+      } else {
+        ballNo = 2;
+      }
+      setHud(h => ({ ...h, total, frame, ball: ballNo, board: [...scores] }));
+    };
     const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
-    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:"Ball returned to player. Swipe again."})); };
+    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; setHud(h=>({...h,power:0,msg:"Ball returned to player. Swipe again."})); };
     const down = (e:PointerEvent) => { if(active || ball.rolling || rig.act!=="idle") return; canvas.current!.setPointerCapture(e.pointerId); active=true; id=e.pointerId; sx=e.clientX; sy=e.clientY; intent=calc(e.clientX,e.clientY); showAim(intent); };
     const move = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; intent=calc(e.clientX,e.clientY); showAim(intent); };
     const up = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; try{canvas.current!.releasePointerCapture(e.pointerId)}catch{} active=false; id=null; aimLine.visible=mark.visible=false; intent=calc(e.clientX,e.clientY); if(intent.power<.05){setHud(h=>({...h,power:0,msg:"Swipe higher for power"}));return} pending=intent; rig.act="run"; rig.t=0; rig.from.copy(rig.p); rig.to.set(clamp(intent.releaseX*.34,-.4,.4),C.y,C.stopZ); setHud(h=>({...h,power:0,msg:"Running to the line"})); };
     const resize = () => { const w=host.current!.clientWidth,h=host.current!.clientHeight; renderer.setPixelRatio(Math.min(2,devicePixelRatio||1)); renderer.setSize(w,h,false); cam.aspect=w/h; cam.fov=cam.aspect<.72?52:46; cam.updateProjectionMatrix(); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); };
     canvas.current.addEventListener("pointerdown",down); canvas.current.addEventListener("pointermove",move); canvas.current.addEventListener("pointerup",up); canvas.current.addEventListener("pointercancel",up); window.addEventListener("resize",resize); resize();
 
-    let frame=0, prev=performance.now();
+    let rFrame=0, prev=performance.now();
     function loop(){
-      frame=requestAnimationFrame(loop); const now=performance.now(), dt=Math.min(.033,(now-prev)/1000); prev=now;
+      rFrame=requestAnimationFrame(loop); const now=performance.now(), dt=Math.min(.033,(now-prev)/1000); prev=now;
       updateRig(rig,ball,dt);
       if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
-      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`})); setTimeout(reset,700); } } else if(moving) settle=0;
+      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ const lastHit=clamp(before-standing(pins),0,10); shot=true; applyHit(lastHit); setHud(h=>({...h,msg:`Knocked ${lastHit} pins`})); setTimeout(reset,700); } } else if(moving) settle=0;
       sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
     }
     loop();
-    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize",resize); renderer.dispose(); };
+    return () => { cancelAnimationFrame(rFrame); window.removeEventListener("resize",resize); renderer.dispose(); };
   }, []);
 
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
-    <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      <div style={{position:"absolute",left:10,right:10,top:10,padding:12,borderRadius:20,color:"white",background:"linear-gradient(180deg,rgba(7,12,19,.82),rgba(7,12,19,.55))",border:"1px solid rgba(123,226,255,.22)",boxShadow:"0 18px 45px rgba(0,0,0,.34)",backdropFilter:"blur(12px)"}}>
-        <div style={{fontSize:14,fontWeight:950,letterSpacing:.4}}>MOBILE BOWLING GAME</div>
-        <div style={{fontSize:11,opacity:.72,fontWeight:700,marginBottom:9}}>fixed player camera · oak lane · no return mechanism</div>
-        <div style={{display:"flex",gap:8}}><Stat n="SCORE" v={hud.score}/><Stat n="LAST" v={hud.last}/><Stat n="POWER" v={`${Math.round(hud.power*100)}%`}/></div>
-        <div style={{marginTop:9,fontSize:12,fontWeight:750,opacity:.92}}>{hud.msg}</div>
+    <div style={{position:"fixed",inset:0,fontFamily:"system-ui,-apple-system,sans-serif"}}>
+      <button onClick={() => setMenuOpen(v => !v)} style={{position:"absolute",top:12,left:12,zIndex:20,width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.3)",background:"rgba(7,12,19,.7)",color:"#fff"}}>☰</button>
+      <div style={{position:"absolute",left:10,right:10,top:10,padding:"8px 10px",borderRadius:14,color:"white",background:"rgba(6,10,16,.8)",border:"1px solid rgba(123,226,255,.22)",paddingLeft:58}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}><span>🧑‍🦱 Player</span><strong>{hud.total}</strong></div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}><strong>{Math.max(0, Math.floor(hud.total * 0.85))}</strong><span>🤖 AI</span></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:4,fontSize:10}}>
+          {hud.board.map((v, i) => <div key={i} style={{border:"1px solid rgba(255,255,255,.2)",borderRadius:6,padding:"3px 0",textAlign:"center"}}>{v || "-"}</div>)}
+        </div>
+        <div style={{marginTop:4,fontSize:11,opacity:.9}}>Frame {hud.frame} · Ball {hud.ball} · {hud.msg}</div>
       </div>
-      <div style={{position:"absolute",left:12,bottom:18,maxWidth:275,color:"white",background:"rgba(7,12,19,.58)",border:"1px solid rgba(255,255,255,.13)",borderRadius:18,padding:"10px 12px",lineHeight:1.42,fontSize:12,boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(10px)"}}>Swipe visually upward to throw.<br/>Slide left or right while swiping to aim and hook.<br/>The ball resets back to the player.</div>
-      <div style={{position:"absolute",right:12,bottom:24,width:52,height:166,borderRadius:999,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",overflow:"hidden",boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(8px)"}}><div style={{position:"absolute",left:0,right:0,bottom:0,height:`${Math.round(hud.power*100)}%`,background:"linear-gradient(180deg,rgba(123,226,255,.55),rgba(123,226,255,.95))"}}/><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(0,0,0,.82)",fontSize:11,fontWeight:950,writingMode:"vertical-rl",transform:"rotate(180deg)"}}>POWER</div></div>
+      {menuOpen && <div style={{position:"absolute",left:12,top:60,width:290,zIndex:20,background:"rgba(7,12,19,.92)",border:"1px solid rgba(255,255,255,.2)",borderRadius:14,color:"#fff",padding:10}}>
+        <div style={{fontWeight:800,marginBottom:8}}>Graphics & Inventory</div>
+        <div style={{fontSize:12,marginBottom:4}}>Graphics</div>
+        <div style={{display:"flex",gap:6,marginBottom:10}}>{(["low","medium","high"] as GraphicsQuality[]).map(q => <button key={q} onClick={()=>setGraphics(q)} style={{padding:"4px 8px",borderRadius:8,border:"1px solid #335",background:graphics===q?"#7be2ff":"#1a2635",color:graphics===q?"#00151f":"#fff"}}>{q}</button>)}</div>
+        <div style={{fontSize:12,marginBottom:4}}>HDRI (Store Purchases)</div>
+        <div style={{display:"grid",gap:4,marginBottom:10}}>{HDRI_OPTIONS.map(h => <button key={h} onClick={()=>setSelectedHdri(h)} style={{textAlign:"left",padding:"4px 8px",borderRadius:8,border:"1px solid #335",background:selectedHdri===h?"#7be2ff":"#1a2635",color:selectedHdri===h?"#00151f":"#fff"}}>{h}</button>)}</div>
+        <div style={{fontSize:12,marginBottom:4}}>Floor Finish (Pool Royal textures)</div>
+        <div style={{display:"grid",gap:4}}>{FLOOR_OPTIONS.map(f => <button key={f} onClick={()=>setSelectedFloor(f)} style={{textAlign:"left",padding:"4px 8px",borderRadius:8,border:"1px solid #335",background:selectedFloor===f?"#7be2ff":"#1a2635",color:selectedFloor===f?"#00151f":"#fff"}}>{f}</button>)}</div>
+      </div>}
     </div>
   </div>;
 }
