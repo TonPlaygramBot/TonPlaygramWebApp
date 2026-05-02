@@ -40,33 +40,22 @@ export class SnakeGame {
     if (!player) return null;
 
     const rand = () => Math.floor(Math.random() * 6) + 1;
-    const normalizeDie = (value) => {
-      const n = Number(value);
-      return Number.isFinite(n)
-        ? Math.max(1, Math.min(6, Math.floor(n)))
-        : null;
-    };
+    const provided = Number(diceValue);
+    const dice = Number.isFinite(provided)
+      ? Math.max(1, Math.min(6, Math.floor(provided)))
+      : rand();
 
-    const dice = Array.isArray(diceValue)
-      ? diceValue.slice(0, 2).map(normalizeDie).map((v) => v ?? rand())
-      : (() => {
-          const parsed = normalizeDie(diceValue);
-          if (parsed != null) return [parsed];
-          return [rand(), rand()];
-        })();
-
-    const total = dice.reduce((sum, value) => sum + value, 0);
     let target = player.position;
     let extraTurn = false;
 
     if (player.position === 0) {
-      if (dice.includes(6)) {
+      if (dice === 6) {
         player.isActive = true;
         target = 1;
       }
     } else if (player.position < FINAL_TILE) {
-      if (player.position + total <= FINAL_TILE) {
-        target = player.position + total;
+      if (player.position + dice <= FINAL_TILE) {
+        target = player.position + dice;
       }
     }
 
@@ -93,7 +82,7 @@ export class SnakeGame {
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
-    } else if (dice.includes(6)) {
+    } else if (dice === 6) {
       extraTurn = true;
     }
 
@@ -107,7 +96,7 @@ export class SnakeGame {
 
     return {
       player: player.id,
-      dice,
+      dice: [dice],
       path,
       position: player.position,
       extraTurn,
