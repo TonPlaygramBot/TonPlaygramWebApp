@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { useLocation } from "react-router-dom";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
@@ -806,9 +807,15 @@ function predictLanding(ball: BallState) {
 }
 
 export default function MobileThreeTennisPrototype() {
+  const { search } = useLocation();
+  const query = new URLSearchParams(search);
+  const playerName = query.get("name") || "You";
+  const playerAvatar = query.get("avatar") || "";
+  const rivalName = query.get("mode") === "online" ? "Opponent" : "AI";
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
+  const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
 
@@ -1091,9 +1098,20 @@ export default function MobileThreeTennisPrototype() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.54)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 800, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.22)", textAlign: "center", minWidth: 174 }}>
-          You {hud.nearScore} — {hud.farScore} AI
-          <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 2 }}>{hud.status}</div>
+        <div style={{ position: "absolute", left: 10, right: 10, top: 8, color: "white", background: "rgba(5,12,18,0.78)", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 10px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ width: 30, height: 30, borderRadius: "999px", overflow: "hidden", border: "1px solid rgba(255,255,255,.25)", background: "#1f2937" }}>{playerAvatar ? <img src={playerAvatar} alt={playerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}</div>
+              <div><div style={{ fontWeight: 700 }}>{playerName}</div><div style={{ opacity: 0.7 }}>Points {hud.nearScore}</div></div>
+            </div>
+            <div style={{ textAlign: "center", fontWeight: 900, fontSize: 18, letterSpacing: 1 }}>{tennisPoint(hud.nearScore)} : {tennisPoint(hud.farScore)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div><div style={{ fontWeight: 700, textAlign: "right" }}>{rivalName}</div><div style={{ opacity: 0.7, textAlign: "right" }}>Points {hud.farScore}</div></div>
+              <div style={{ width: 30, height: 30, borderRadius: "999px", border: "1px solid rgba(255,255,255,.25)", background: "#334155", display: "flex", alignItems: "center", justifyContent: "center" }}>🎾</div>
+            </div>
+            <button type="button" style={{ pointerEvents: "auto", width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.08)", color: "#fff" }} onClick={() => alert("Menu: graphics options are available from the game settings panel.")}>☰</button>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 6, textAlign: "center" }}>{hud.status}</div>
         </div>
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 236 }}>
           Procedural hands removed.<br />The character right hand holds the racket.<br />Swipe up to serve or hit deep.
