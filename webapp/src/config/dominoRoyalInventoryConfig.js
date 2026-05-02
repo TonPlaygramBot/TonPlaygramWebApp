@@ -9,15 +9,7 @@ import {
   BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS
 } from './battleRoyaleSharedInventory.js';
 
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
-  { id: 'rpm-current', label: 'Current Avatar', description: 'Ready Player Me seated avatar with full PBR texture maps.' },
-  { id: 'rpm-67d411', label: 'RPM 67d411', description: 'Ready Player Me public avatar seated with the same rig logic and motion set.' },
-  { id: 'rpm-67f433', label: 'RPM 67f433', description: 'Ready Player Me public avatar aligned to default seated scale/orientation.' },
-  { id: 'rpm-67e1b5', label: 'RPM 67e1b5', description: 'Ready Player Me public avatar using the same seated helper offsets.' },
-  { id: 'webgl-vietnam-human', label: 'Vietnam Human', description: 'Open WebGL GLB humanoid seated with the same scale/orientation rig.' },
-  { id: 'webgl-ai-teacher', label: 'AI Teacher', description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.' },
-  { id: 'webgl-ai-teacher-1', label: 'AI Teacher 1', description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.' }
-]);
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([]);
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
@@ -137,7 +129,7 @@ const DOMINO_DEFAULT_IDS = Object.freeze({
   tableWood: 'peelingPaintWeathered',
   tableCloth: 'emerald',
   chairTheme: 'dining_chair_02',
-  humanCharacter: 'rpm-current'
+  humanCharacter: null
 });
 
 const getDefaultOptionId = (options) => options?.[0]?.id;
