@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
+import { getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from "../../utils/tennisInventory.js";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -1019,6 +1021,9 @@ export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
+  const [showMenu, setShowMenu] = useState(false);
+  const [crowdOn, setCrowdOn] = useState(true);
+  const [selectedHdri, setSelectedHdri] = useState(TENNIS_HDRI_OPTIONS[0]?.id || "");
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
 
@@ -1059,6 +1064,7 @@ export default function MobileRealisticTableTennisGame() {
     const rim = new THREE.DirectionalLight(0xb8e6ff, 0.55);
     rim.position.set(2.4, 2.1, -3.1);
     scene.add(rim);
+    const ambientLevel = { current: 0.64 };
 
     addBox(scene, [5.2, 0.055, 6.6], [0, -0.03, 0], material(0x1d2830, 0.92, 0.0));
     addBox(scene, [4.8, 0.01, 6.1], [0, 0.002, 0], transparentMaterial(0x2f4651, 0.22));
@@ -1096,6 +1102,11 @@ export default function MobileRealisticTableTennisGame() {
     let pointLockT = 0;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
+    const hitAudio = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+    const crowdAudio = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
+    crowdAudio.loop = true;
+    crowdAudio.volume = 0.18;
+    crowdAudio.play().catch(() => {});
 
     const awardPoint = (winner: PlayerSide, reason: PointReason) => {
       if (pointLock) return;
@@ -1115,6 +1126,8 @@ export default function MobileRealisticTableTennisGame() {
         reason === "wrongSide" ? "Wrong side" :
         "Miss";
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0 });
+      if (crowdOn) crowdAudio.currentTime = 0;
+      if (crowdOn) crowdAudio.play().catch(() => {});
     };
 
     const resize = () => {
@@ -1273,6 +1286,8 @@ export default function MobileRealisticTableTennisGame() {
         ball.spin.x *= 0.82;
         ball.spin.y *= 0.86;
         handleTableBounce(side);
+        hitAudio.currentTime = 0;
+        hitAudio.play().catch(() => {});
       }
 
       if (ball.pos.y <= CFG.ballR && !isOverTable(ball.pos.x, ball.pos.z, 0.08) && ball.lastHitBy) {
@@ -1321,6 +1336,7 @@ export default function MobileRealisticTableTennisGame() {
         const label = plan.tactic === "loop" ? "AI loop" : plan.tactic === "push" ? "AI short push" : plan.tactic === "wide" ? "AI wide angle" : plan.tactic === "body" ? "AI body shot" : "AI drive";
         setHudSafe({ status: label });
       }
+      farPlayer.speed = 3.65;
     }
 
     function checkSwingHits() {
@@ -1394,6 +1410,8 @@ export default function MobileRealisticTableTennisGame() {
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
       renderer.dispose();
+      crowdAudio.pause();
+      hitAudio.pause();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.isMesh) {
@@ -1412,20 +1430,24 @@ export default function MobileRealisticTableTennisGame() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        <button onClick={() => setShowMenu((v) => !v)} style={{ position: "absolute", left: 10, top: 10, pointerEvents: "auto", borderRadius: 12, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(0,0,0,0.55)", color: "#fff", padding: "8px 10px", fontSize: 18 }}>☰</button>
+        {showMenu && (
+          <div style={{ position: "absolute", left: 10, top: 56, width: 210, maxHeight: 360, overflow: "auto", pointerEvents: "auto", background: "rgba(7,11,22,0.92)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, padding: 8, color: "#fff" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Graphics / HDRI</div>
+            {TENNIS_HDRI_OPTIONS.filter((o) => isTennisOptionUnlocked(getTennisInventory(tennisAccountId()).unlocks, 'environmentHdri', o.id)).map((o) => (
+              <button key={o.id} onClick={() => setSelectedHdri(o.id)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginBottom: 6, background: selectedHdri === o.id ? "rgba(56,189,248,0.3)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 10, padding: 6, color: "#fff" }}>
+                <img src={o.thumbnail} alt={o.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover" }} />
+                <span style={{ fontSize: 12, textAlign: "left" }}>{o.name}</span>
+              </button>
+            ))}
+            <button onClick={() => setCrowdOn((v) => !v)} style={{ width: "100%", marginTop: 6, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 8, padding: 8 }}>
+              Crowd sound: {crowdOn ? "On" : "Off"}
+            </button>
+          </div>
+        )}
         <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
           You {hud.nearScore} — {hud.farScore} AI
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
-        </div>
-
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 265 }}>
-          Paddle is mounted to the character right-hand bone.<br />
-          AI can serve, place wide/body shots, push short, loop, and recover.<br />
-          Swipe left/right adds side spin. Swipe up hits deeper.
-        </div>
-
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
         </div>
 
         <div style={{ position: "absolute", right: 12, top: 76, width: 48, height: 86, borderRadius: 999, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden" }}>
