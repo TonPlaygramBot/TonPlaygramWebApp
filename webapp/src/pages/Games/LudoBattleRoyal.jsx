@@ -9738,13 +9738,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
-        const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
-          ? cameraLookStateRef.current.lockedPosition
-          : cameraSeatLockPositionRef.current?.isVector3
-            ? cameraSeatLockPositionRef.current
-            : null;
+        const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
+        const gameplayTarget = (() => {
+          const dice = diceRef.current;
+          if (dice?.isObject3D) {
+            const target = new THREE.Vector3();
+            dice.getWorldPosition(target);
+            return target;
+          }
+          return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
+        })();
+        const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
+        const hardLockedPosition = liveFacePose?.position?.isVector3
+          ? liveFacePose.position
+          : cameraLookStateRef.current.lockedPosition?.isVector3
+            ? cameraLookStateRef.current.lockedPosition
+            : cameraSeatLockPositionRef.current?.isVector3
+              ? cameraSeatLockPositionRef.current
+              : null;
         if (hardLockedPosition) {
           camera.position.copy(hardLockedPosition);
+          if (liveFacePose?.target?.isVector3 && controls) {
+            controls.target.copy(liveFacePose.target);
+          }
         }
       }
 
