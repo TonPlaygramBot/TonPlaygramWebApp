@@ -110,7 +110,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_TABLE_CLOSER_OFFSET = 0.18; // pull seated humans toward table on portrait framing (visual closer).
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.68; // bring seated humans closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
@@ -1675,7 +1675,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     ? handCardsInput.slice(0, 5)
     : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
   const safeCount = Math.max(handCards.length, 2);
-  const cardGeometry = createCardGeometry(0.186 * MODEL_SCALE, 0.27 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
+  const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
     cornerRadiusRatio: 0.18,
     segments: 14
@@ -1803,11 +1803,11 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       : 0;
   heldCards.position.set(
     sideSeatLateralPull,
-    0.76 * MODEL_SCALE + sideSeatLift,
-    0.84 * MODEL_SCALE + sideSeatForward
+    0.7 * MODEL_SCALE + sideSeatLift,
+    0.95 * MODEL_SCALE + sideSeatForward
   );
   heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.3);
+  heldCards.scale.setScalar(1.45);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1916,9 +1916,9 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.userData.cardsSignature = cardsSignature;
 
   rig.instance.add(nextCards);
-  nextCards.position.set(0.0 * MODEL_SCALE, 0.76 * MODEL_SCALE, 0.84 * MODEL_SCALE);
+  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
   nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  nextCards.scale.setScalar(1.3);
+  nextCards.scale.setScalar(1.45);
 
   rig.heldCards = nextCards;
 }
@@ -2006,7 +2006,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   seatRoot.position.set(
     0,
     baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - HUMAN_CHARACTER_EXTRA_LOWER_OFFSET,
-    baseSeatOffsetZ - 0.03 + HUMAN_CHARACTER_TABLE_CLOSER_OFFSET
+    baseSeatOffsetZ - 0.03 - HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET
   );
   seatRoot.rotation.set(characterTheme.seatPitch ?? 0, characterTheme.seatYaw ?? 0, 0);
 
