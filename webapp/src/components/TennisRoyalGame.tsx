@@ -126,6 +126,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const clamp01 = (v: number) => clamp(v, 0, 1);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const sideOfZ = (z: number): PlayerSide => (z >= 0 ? "near" : "far");
 const opposite = (side: PlayerSide): PlayerSide => (side === "near" ? "far" : "near");
 
@@ -221,8 +222,63 @@ function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
 }
 
-function createFallbackHuman(color: number) { const g = new THREE.Group(); const skin = material(0xf0c7a0, 0.78, 0.02); const shirt = material(color, 0.74, 0.02); const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 20), skin); head.position.y = 1.62; g.add(head); addCylinder(g, 0.24, 0.31, 0.72, [0, 1.04, 0], shirt, 28); enableShadow(g); return g; }
-function createRacket(color: number) { const g = new THREE.Group(); const frameMat = material(color, 0.36, 0.45); const head = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.019, 12, 52), frameMat); head.scale.y = 1.34; head.position.y = 0.56; enableShadow(head); g.add(head); return g; }
+function createFallbackHuman(color: number) {
+  const g = new THREE.Group();
+  const skin = material(0xf0c7a0, 0.78, 0.02);
+  const shirt = material(color, 0.74, 0.02);
+  const shorts = material(0x20232a, 0.76, 0.02);
+  const shoe = material(0xffffff, 0.55, 0.03);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 20), skin);
+  head.position.y = 1.62;
+  g.add(head);
+  addCylinder(g, 0.055, 0.06, 0.12, [0, 1.43, 0], skin, 18);
+  const torso = addCylinder(g, 0.24, 0.31, 0.72, [0, 1.04, 0], shirt, 28);
+  torso.scale.x = 0.78;
+  const hips = addCylinder(g, 0.24, 0.25, 0.24, [0, 0.61, 0], shorts, 22);
+  hips.scale.x = 0.9;
+  const leftLeg = addCylinder(g, 0.07, 0.085, 0.63, [-0.13, 0.31, 0], shorts, 16);
+  const rightLeg = addCylinder(g, 0.07, 0.085, 0.63, [0.13, 0.31, 0], shorts, 16);
+  leftLeg.rotation.z = 0.06;
+  rightLeg.rotation.z = -0.06;
+  addBox(g, [0.23, 0.055, 0.34], [-0.13, 0.035, -0.04], shoe);
+  addBox(g, [0.23, 0.055, 0.34], [0.13, 0.035, -0.04], shoe);
+  enableShadow(g);
+  return g;
+}
+function createRacket(color: number) {
+  const g = new THREE.Group();
+  const handleMat = material(0x1d1d1f, 0.55, 0.1);
+  const frameMat = material(color, 0.36, 0.45);
+  const stringMat = transparentMaterial(0xffffff, 0.5, 0.42);
+
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.42, 16), handleMat);
+  handle.position.y = -0.11;
+  enableShadow(handle);
+  g.add(handle);
+
+  const throatA = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.29, 12), frameMat);
+  throatA.position.set(-0.048, 0.22, 0);
+  throatA.rotation.z = -0.18;
+  enableShadow(throatA);
+  g.add(throatA);
+  const throatB = throatA.clone();
+  throatB.position.x *= -1;
+  throatB.rotation.z *= -1;
+  g.add(throatB);
+
+  const head = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.019, 12, 52), frameMat);
+  head.scale.y = 1.34;
+  head.position.y = 0.56;
+  enableShadow(head);
+  g.add(head);
+
+  const stringPlane = new THREE.Mesh(new THREE.CircleGeometry(0.182, 36), stringMat);
+  stringPlane.scale.y = 1.3;
+  stringPlane.position.y = 0.56;
+  g.add(stringPlane);
+  return g;
+}
 function findFirstBone(root: THREE.Object3D, tests: string[]) { let found: THREE.Bone | undefined; root.traverse((o) => { if (found) return; const b = o as THREE.Bone; if (!b.isBone) return; const n = b.name.toLowerCase().replace(/[_.\-\s]/g, ""); if (tests.some((t) => n.includes(t))) found = b; }); return found; }
 function findHumanBones(model: THREE.Object3D): BonePack { return { rightShoulder: findFirstBone(model, ["rightshoulder"]), rightUpperArm: findFirstBone(model, ["rightarm"]), rightForeArm: findFirstBone(model, ["rightforearm"]), rightHand: findFirstBone(model, ["righthand"]), leftShoulder: findFirstBone(model, ["leftshoulder"]), leftUpperArm: findFirstBone(model, ["leftarm"]), leftForeArm: findFirstBone(model, ["leftforearm"]), leftHand: findFirstBone(model, ["lefthand"]) }; }
 function captureRestPose(bones: BonePack) { const out: BoneRest[] = []; Object.values(bones).forEach((bone) => { if (bone && !out.some((r) => r.bone === bone)) out.push({ bone, q: bone.quaternion.clone() }); }); return out; }
