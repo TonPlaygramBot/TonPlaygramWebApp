@@ -64,10 +64,15 @@ export default function DiceRoller({
     onRollStart && onRollStart();
 
     const rand = () => {
-      if (window.crypto && window.crypto.getRandomValues) {
+      if (window.crypto?.getRandomValues) {
         const arr = new Uint32Array(1);
-        window.crypto.getRandomValues(arr);
-        return (arr[0] % 6) + 1;
+        const maxUnbiased = Math.floor(0x100000000 / 6) * 6;
+        let value = 0;
+        do {
+          window.crypto.getRandomValues(arr);
+          value = arr[0];
+        } while (value >= maxUnbiased);
+        return (value % 6) + 1;
       }
       return Math.floor(Math.random() * 6) + 1;
     };
