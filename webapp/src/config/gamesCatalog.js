@@ -1,5 +1,13 @@
 const gamesCatalog = [
 
+
+  {
+    name: 'Table Tennis',
+    route: '/games/tabletennis/lobby',
+    slug: 'tabletennis',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: 'Swipe-to-play table tennis with spin, AI rallies, and realistic paddle physics.'
+  },
   {
     name: 'Tennis',
     route: '/games/tennis',
