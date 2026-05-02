@@ -1795,8 +1795,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
   const isBottomHumanSeat = Boolean(player?.isHuman);
   const isSideSeat = !isBottomHumanSeat && ((resolvedSeatIndex % CHAIR_COUNT) === 1 || (resolvedSeatIndex % CHAIR_COUNT) === 3);
-  const sideSeatLift = isSideSeat ? 0.2 * MODEL_SCALE : 0;
-  const sideSeatForward = isSideSeat ? 0.06 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 0.24 * MODEL_SCALE : 0;
+  const sideSeatForward = isSideSeat ? 0.1 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? ((resolvedSeatIndex % CHAIR_COUNT) === 1 ? -0.045 * MODEL_SCALE : 0.045 * MODEL_SCALE)
@@ -1861,11 +1861,11 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-40), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(18), 0, THREE.MathUtils.degToRad(0));
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-48), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(22), 0, THREE.MathUtils.degToRad(0));
   applyRotationOffset(leftHand, THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2), 0);
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(22), 0, THREE.MathUtils.degToRad(0));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-52), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(26), 0, THREE.MathUtils.degToRad(0));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), 0);
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
@@ -2435,8 +2435,8 @@ const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
-const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.06 * MODEL_SCALE;
-const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.06 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.09 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.1 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -5316,7 +5316,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.9;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.86;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
