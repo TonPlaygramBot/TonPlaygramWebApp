@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
-type StrokeAction = "ready" | "forehand" | "serve";
+type StrokeAction = "ready" | "forehand" | "backhand" | "slice" | "lob" | "serve";
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -113,9 +113,9 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 4.65,
+  aiSpeed: 5.45,
   reach: 0.92,
-  swingDuration: 0.42,
+  swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
@@ -184,6 +184,7 @@ function getWorldPos(obj: THREE.Object3D) {
 }
 
 function addCourt(scene: THREE.Scene) {
+  const adBoards: THREE.Mesh[] = [];
   const group = new THREE.Group();
   scene.add(group);
 
@@ -225,6 +226,11 @@ function addCourt(scene: THREE.Scene) {
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
   for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
+  const adMatA = material(0x0ea5e9, 0.35, 0.05);
+  const adMatB = material(0xf97316, 0.35, 0.05);
+  const adSpecs: Array<[number, number, number, number]> = [[-3.7, 1.25, -4.2, 0],[3.7,1.25,-4.2,0],[-3.7,1.25,4.2,0],[3.7,1.25,4.2,0],[-3.2,1.25,0,Math.PI/2],[3.2,1.25,0,-Math.PI/2]];
+  adSpecs.forEach(([x,y,z,ry],idx)=>{ const board = addBox(group,[1.8,0.62,0.06],[x,y,z], idx%2===0?adMatA:adMatB); board.rotation.y=ry; adBoards.push(board);});
+  (group as THREE.Group & { userData: Record<string, unknown> }).userData.adBoards = adBoards;
   return group;
 }
 
@@ -702,15 +708,17 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
 }
 
-function makeAiTarget(near: HumanRig, ball: BallState) {
+function makeAiTarget(near: HumanRig, ball: BallState, style: "drive" | "slice" | "lob" = "drive") {
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0) / (CFG.courtL / 2 - 1.0));
   const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
-  const z = lerp(1.35, CFG.courtL / 2 - 1.0, 0.35 + pressure * 0.55);
-  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, 0.42, 0.92);
+  const zBias = style === "lob" ? 0.72 : style === "slice" ? 0.44 : 0.56;
+  const z = lerp(1.35, CFG.courtL / 2 - 0.84, 0.3 + pressure * zBias);
+  const powerBoost = style === "drive" ? 0.12 : style === "slice" ? -0.04 : 0.02;
+  const power = clamp(0.52 + pressure * 0.36 + Math.random() * 0.16 + powerBoost, 0.45, 0.98);
   return { target: new THREE.Vector3(x, CFG.ballR, z), power };
 }
 
-function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
+function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false, action: StrokeAction = "forehand") {
   const target = hit.target.clone();
   target.x = clamp(target.x, -CFG.courtW / 2 + 0.28, CFG.courtW / 2 - 0.28);
   target.z = player.side === "near" ? clamp(target.z, -CFG.courtL / 2 + 0.6, -0.65) : clamp(target.z, 0.65, CFG.courtL / 2 - 0.6);
@@ -719,7 +727,9 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
-  ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.3 + hit.power * 0.9;
+  if (action === "slice") { ball.vel.y *= 0.9; ball.vel.x += (Math.random()-0.5)*0.55; }
+  if (action === "lob") { ball.vel.y += 1.1; }
+  ball.spin = serve ? 0.75 + hit.power * 0.65 : (action === "slice" ? 1.2 : 0.35) + hit.power * (action === "forehand" || action === "backhand" ? 1.05 : 0.85);
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
@@ -854,7 +864,8 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
 
-    addCourt(scene);
+    const court = addCourt(scene);
+    const adBoards = ((court as THREE.Group).userData.adBoards || []) as THREE.Mesh[];
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
@@ -1013,7 +1024,12 @@ export default function MobileThreeTennisPrototype() {
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
-      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        const r = Math.random();
+        const action: StrokeAction = r > 0.76 ? "lob" : r > 0.5 ? "slice" : r > 0.24 ? "backhand" : "forehand";
+        const aiStyle = action === "lob" ? "lob" : action === "slice" ? "slice" : "drive";
+        startSwing(farPlayer, makeAiTarget(nearPlayer, ball, aiStyle), action);
+      }
     }
 
     function checkSwingHits() {
@@ -1021,14 +1037,14 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            performHit(player, ball, player.desiredHit, true);
+            performHit(player, ball, player.desiredHit, true, player.action);
             setHudSafe({ status: "Serve sent" });
           }
           continue;
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
-          performHit(player, ball, player.desiredHit, false);
+          performHit(player, ball, player.desiredHit, false, player.action);
           setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
@@ -1068,17 +1084,19 @@ export default function MobileThreeTennisPrototype() {
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
       const portrait = camera.aspect < 0.72;
-      const followY = portrait ? 4.95 : 4.45;
-      const followBack = portrait ? 6.7 : 6.15;
-      const lookAheadZ = portrait ? 8.75 : 8.2;
+      const followY = portrait ? 5.35 : 4.9;
+      const followBack = portrait ? 8.85 : 8.1;
+      const lookAheadZ = portrait ? 10.45 : 9.6;
 
-      cameraDesiredPos.set(
-        nearPlayer.pos.x * 0.22,
-        followY,
-        nearPlayer.pos.z + followBack
-      );
+      cameraDesiredPos.set(nearPlayer.pos.x * 0.18, followY, nearPlayer.pos.z + followBack);
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
-      cameraTarget.set(nearPlayer.pos.x * 0.16, 0.96, nearPlayer.pos.z - lookAheadZ);
+      cameraTarget.set(nearPlayer.pos.x * 0.1, 0.92, nearPlayer.pos.z - lookAheadZ);
+      adBoards.forEach((board, idx) => {
+        const pulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(now * 0.002 + idx));
+        const mat = board.material as THREE.MeshStandardMaterial;
+        mat.emissive.setHex(idx % 2 === 0 ? 0x0ea5e9 : 0xf97316);
+        mat.emissiveIntensity = pulse;
+      });
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
