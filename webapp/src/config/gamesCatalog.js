@@ -85,6 +85,14 @@ const gamesCatalog = [
     image: '/assets/icons/Backgammonroyallogo.png',
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
+
+  {
+    name: 'Table Tennis',
+    route: '/games/tabletennis',
+    slug: 'tabletennis',
+    image: '/assets/icons/pool-royale.svg',
+    description: 'Fast-paced 3D table tennis rallies with touch controls.'
+  },
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
