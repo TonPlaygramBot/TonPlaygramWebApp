@@ -9,9 +9,9 @@ const gamesCatalog = [
   },
 
   {
-    name: 'Table Tennis',
-    route: '/games/tabletennis',
-    slug: 'tabletennis',
+    name: 'Ping Pong',
+    route: '/games/pingpong',
+    slug: 'pingpong',
     image: '/assets/icons/Goal%20rush%20logo.png',
     description: 'Fast-paced table tennis rallies with swipe controls and spin.'
   },
