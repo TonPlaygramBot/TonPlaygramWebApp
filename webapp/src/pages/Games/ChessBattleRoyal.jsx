@@ -7695,19 +7695,19 @@ function Chess3D({
     truck: 'pawn'
   }), []);
   const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
-    kingQueen: selectedCaptureAnimationId,
-    bishopRook: selectedCaptureAnimationId,
-    knight: selectedCaptureAnimationId,
-    pawn: selectedCaptureAnimationId
+    kingQueen: 'fighterJetAttack',
+    bishopRook: 'helicopterAttack',
+    knight: 'droneAttack',
+    pawn: 'missileJavelin'
   }));
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
-      kingQueen: prev.kingQueen || selectedCaptureAnimationId,
-      bishopRook: prev.bishopRook || selectedCaptureAnimationId,
-      knight: prev.knight || selectedCaptureAnimationId,
-      pawn: prev.pawn || selectedCaptureAnimationId
+      kingQueen: prev.kingQueen || 'fighterJetAttack',
+      bishopRook: prev.bishopRook || 'helicopterAttack',
+      knight: prev.knight || 'droneAttack',
+      pawn: prev.pawn || 'missileJavelin'
     }));
-  }, [selectedCaptureAnimationId]);
+  }, []);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
