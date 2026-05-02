@@ -48,6 +48,13 @@ const gamesCatalog = [
     description: 'Race to the top with quick dice rolls.'
   },
   {
+    name: 'Tennis Royal',
+    route: '/games/tennisroyal/lobby',
+    slug: 'tennisroyal',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: '1v1 tennis battles online or versus AI.'
+  },
+  {
     name: 'Murlan Royale',
     route: '/games/murlanroyale/lobby',
     slug: 'murlanroyale',
