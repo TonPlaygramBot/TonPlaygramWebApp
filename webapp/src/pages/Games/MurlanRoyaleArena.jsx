@@ -110,7 +110,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.74; // bring seated humans slightly closer to the table on portrait mobile framing.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.68; // bring seated humans closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
@@ -1803,11 +1803,11 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       : 0;
   heldCards.position.set(
     sideSeatLateralPull,
-    0.78 * MODEL_SCALE + sideSeatLift,
-    1.04 * MODEL_SCALE + sideSeatForward
+    0.7 * MODEL_SCALE + sideSeatLift,
+    0.95 * MODEL_SCALE + sideSeatForward
   );
   heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.32);
+  heldCards.scale.setScalar(1.45);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1916,9 +1916,9 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.userData.cardsSignature = cardsSignature;
 
   rig.instance.add(nextCards);
-  nextCards.position.set(0.0 * MODEL_SCALE, 0.78 * MODEL_SCALE, 1.04 * MODEL_SCALE);
+  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
   nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  nextCards.scale.setScalar(1.32);
+  nextCards.scale.setScalar(1.45);
 
   rig.heldCards = nextCards;
 }
