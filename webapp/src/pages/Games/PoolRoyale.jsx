@@ -25090,7 +25090,7 @@ const shotPowerRef = useRef(0);
             stanceWidth: 0.52,
             bridgePalmTableLift: 0.006,
             chinToCueHeight: 0.11,
-            cueArmElbowRise: 0.84,
+            cueArmElbowRise: 0.18,
             tableTopY: TABLE_Y + TABLE.THICK,
             desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
             bridgeHandBackFromBall: HUMAN_BRIDGE_HAND_BACK_FROM_BALL,
@@ -25100,7 +25100,7 @@ const shotPowerRef = useRef(0);
             bridgeDist: HUMAN_BRIDGE_DIST,
             shootCueGripFromBack: 0.58,
             rightHandShotExtraBack: 0.18,
-            rightHandShotLift: 0.055,
+            rightHandShotLift: -0.30,
             rightHandForwardClamp: -0.08,
             rightHandOutward: 0.14,
             idleRightHandX: 0.31,
@@ -25109,9 +25109,9 @@ const shotPowerRef = useRef(0);
             rightHandRollIdle: -2.2,
             rightHandRollShoot: -2.05,
             rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
-            rightElbowShotRise: 0.84,
-            rightElbowShotSide: -0.34,
-            rightElbowShotBack: -0.82,
+            rightElbowShotRise: 0.18,
+            rightElbowShotSide: -0.46,
+            rightElbowShotBack: -0.78,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
