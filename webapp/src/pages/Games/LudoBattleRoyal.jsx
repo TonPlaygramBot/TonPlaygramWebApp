@@ -9737,14 +9737,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
-      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
-        const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
-          ? cameraLookStateRef.current.lockedPosition
-          : cameraSeatLockPositionRef.current?.isVector3
-            ? cameraSeatLockPositionRef.current
-            : null;
-        if (hardLockedPosition) {
-          camera.position.copy(hardLockedPosition);
+      if (!isCamera2d && camera && controls && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+        const state = stateRef.current;
+        const shouldUseBottomSeatFpv = Boolean(state && state.turn === 0 && lockUserTurnSeatViewRef.current);
+        if (shouldUseBottomSeatFpv) {
+          const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
+          const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, resolveBottomPlayerGameplayTarget());
+          if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
+            camera.position.copy(facePose.position);
+            controls.target.lerp(facePose.target, 0.28);
+            cameraSeatLockPositionRef.current = facePose.position.clone();
+            cameraTurnStateRef.current.currentTarget = controls.target.clone();
+          }
+        } else {
+          const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
+            ? cameraLookStateRef.current.lockedPosition
+            : cameraSeatLockPositionRef.current?.isVector3
+              ? cameraSeatLockPositionRef.current
+              : null;
+          if (hardLockedPosition) {
+            camera.position.copy(hardLockedPosition);
+          }
         }
       }
 
