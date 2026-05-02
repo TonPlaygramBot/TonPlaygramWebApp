@@ -69,6 +69,8 @@ import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import Tennis from './pages/Games/Tennis.tsx';
 import TableTennis from './pages/Games/TableTennis.tsx';
 import TennisLobby from './pages/Games/TennisLobby.jsx';
+import Bowling from './pages/Games/Bowling.tsx';
+import BowlingLobby from './pages/Games/BowlingLobby.jsx';
 
 
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
