@@ -134,6 +134,7 @@ import {
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
+import { addTennisUnlock, getTennisInventory, isTennisOptionUnlocked, listOwnedTennisOptions, tennisAccountId } from '../utils/tennisInventory.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -1066,7 +1067,7 @@ const storeMeta = {
     defaults: POOL_ROYALE_DEFAULT_LOADOUT,
     labels: POOL_ROYALE_OPTION_LABELS,
     typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
+    accountId: TENNIS_STORE_ACCOUNT_ID
   },
   bilardoshqip: {
     name: 'Bilardo Shqip',
@@ -1074,7 +1075,7 @@ const storeMeta = {
     defaults: POOL_ROYALE_DEFAULT_LOADOUT,
     labels: POOL_ROYALE_OPTION_LABELS,
     typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
+    accountId: TENNIS_STORE_ACCOUNT_ID
   },
   snookerroyale: {
     name: 'Snooker Royal',
@@ -1170,7 +1171,7 @@ const storeMeta = {
     defaults: TENNIS_DEFAULT_LOADOUT,
     labels: TENNIS_OPTION_LABELS,
     typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
+    accountId: TENNIS_STORE_ACCOUNT_ID
   },
   texasholdem: {
     name: "Texas Hold'em",
@@ -1222,6 +1223,9 @@ export default function Store() {
   );
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
+  );
+  const [tennisOwned, setTennisOwned] = useState(() =>
+    getTennisInventory(tennisAccountId(accountId))
   );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
@@ -1350,6 +1354,7 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+    setTennisOwned(getTennisInventory(tennisAccountId(accountId)));
     let cancelled = false;
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
@@ -1668,6 +1673,7 @@ export default function Store() {
           if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
           if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
+          if (slug === 'tennis') return addTennisUnlock('environmentHdri', optionId, accountId);
           return Promise.resolve();
         })
       );
@@ -1838,7 +1844,8 @@ export default function Store() {
       murlanOwned,
       dominoOwned,
       snakeOwned,
-      texasOwned
+      texasOwned,
+      tennisOwned
     ]
   );
 
