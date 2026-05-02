@@ -6,6 +6,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { useLocation } from "react-router-dom";
+import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
+import { getTennisInventory, tennisAccountId } from "../../utils/tennisInventory.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
@@ -186,39 +188,7 @@ function getWorldPos(obj: THREE.Object3D) {
 }
 
 
-function createScrollingAdTexture(title: string, subtitle: string, bg: string, fg: string) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 256;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return { texture: new THREE.CanvasTexture(canvas), update: () => {} };
-  let offset = 0;
-  const update = (dt: number) => {
-    offset = (offset + dt * 180) % canvas.width;
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    for (let x = -canvas.width; x < canvas.width * 2; x += 280) {
-      const px = x - offset;
-      ctx.fillStyle = "rgba(255,255,255,0.08)";
-      ctx.fillRect(px, 0, 120, canvas.height);
-      ctx.fillStyle = fg;
-      ctx.font = "900 54px system-ui";
-      ctx.fillText(title, px + 16, 98);
-      ctx.font = "700 28px system-ui";
-      ctx.fillText(subtitle, px + 16, 156);
-    }
-  };
-  update(0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.needsUpdate = true;
-  return { texture, update: (dt: number) => { update(dt); texture.needsUpdate = true; } };
-}
-
 function addCourt(scene: THREE.Scene) {
-  const adBoards: Array<{ mesh: THREE.Mesh; update: (dt:number)=>void }> = [];
   const group = new THREE.Group();
   scene.add(group);
 
@@ -260,13 +230,6 @@ function addCourt(scene: THREE.Scene) {
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
   for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
-  const adSpecs: Array<[number, number, number, number, string, string]> = [[-3.7, 1.25, -4.2, 0, "POOL ROYALE", "Play now"],[3.7,1.25,-4.2,0,"SNOOKER ROYAL","New arenas"],[-3.7,1.25,4.2,0,"GOAL RUSH","1v1 challenge"],[3.7,1.25,4.2,0,"TEXAS HOLDEM","Live tables"],[-3.2,1.25,0,Math.PI/2,"CHESS BATTLE","Tactics"],[3.2,1.25,0,-Math.PI/2,"SNAKE LADDER","Quick match"]];
-  adSpecs.forEach(([x,y,z,ry,title,subtitle],idx)=>{
-    const ad = createScrollingAdTexture(title, subtitle, idx % 2 === 0 ? "#0f172a" : "#1f2937", idx % 2 === 0 ? "#38bdf8" : "#f97316");
-    const mat = new THREE.MeshStandardMaterial({ map: ad.texture, emissive: new THREE.Color(0x111111), emissiveIntensity: 0.35, roughness: 0.4, metalness: 0.06 });
-    const board = addBox(group,[1.9,0.64,0.05],[x,y,z], mat); board.rotation.y=ry; adBoards.push({ mesh: board, update: ad.update });
-  });
-  (group as THREE.Group & { userData: Record<string, unknown> }).userData.adBoards = adBoards;
   return group;
 }
 
@@ -867,6 +830,8 @@ export default function MobileThreeTennisPrototype() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
+  const [ownedHdris, setOwnedHdris] = useState<string[]>([]);
+  const [selectedHdri, setSelectedHdri] = useState<string>(TENNIS_HDRI_OPTIONS[0]?.id || "");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
@@ -874,18 +839,32 @@ export default function MobileThreeTennisPrototype() {
   useEffect(() => { hudRef.current = hud; }, [hud]);
 
   useEffect(() => {
+    const accountId = tennisAccountId();
+    const inventory = getTennisInventory(accountId);
+    const unlocked = Array.isArray(inventory?.environmentHdri) ? inventory.environmentHdri : [];
+    const defaults = TENNIS_HDRI_OPTIONS[0]?.id ? [TENNIS_HDRI_OPTIONS[0].id] : [];
+    const owned = Array.from(new Set([...defaults, ...unlocked]));
+    setOwnedHdris(owned);
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("tennisHdriEnvironment") : "";
+    setSelectedHdri(owned.includes(stored || "") ? (stored as string) : owned[0] || defaults[0] || "");
+  }, []);
+
+  useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-    renderer.setClearColor(0x07100c, 1);
+    const bgColor = ({ suburbanGarden: 0x07100c, countryTrackMidday: 0x102a2f, autumnPark: 0x2a1a10, rooitouPark: 0x0d1a12, rotesRathaus: 0x19161a, veniceDawn2: 0x301a22, piazzaSanMarco: 0x1b2233 } as Record<string, number>)[selectedHdri] ?? 0x07100c;
+    renderer.setClearColor(bgColor, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x07100c, 12, 21);
+    const hdriColorMap: Record<string, number> = { suburbanGarden: 0x07100c, countryTrackMidday: 0x102a2f, autumnPark: 0x2a1a10, rooitouPark: 0x0d1a12, rotesRathaus: 0x19161a, veniceDawn2: 0x301a22, piazzaSanMarco: 0x1b2233 };
+    const fogColor = hdriColorMap[selectedHdri] ?? 0x07100c;
+    scene.fog = new THREE.Fog(fogColor, 12, 21);
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
     const cameraTarget = new THREE.Vector3(0, 0.96, -0.95);
@@ -907,7 +886,6 @@ export default function MobileThreeTennisPrototype() {
     scene.add(sun);
 
     const court = addCourt(scene);
-    const adBoards = ((court as THREE.Group).userData.adBoards || []) as Array<{ mesh: THREE.Mesh; update: (dt:number)=>void }>;
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
@@ -929,8 +907,6 @@ export default function MobileThreeTennisPrototype() {
     crowdLoop.loop = true; crowdLoop.volume = 0.22;
     const cheerFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     cheerFx.volume = 0.45;
-    const hitFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
-    hitFx.volume = 0.32;
     let pointLock = false;
     let pointLockT = 0;
 
@@ -1086,14 +1062,14 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            performHit(player, ball, player.desiredHit, true, player.action, hitFx);
+            performHit(player, ball, player.desiredHit, true, player.action);
             setHudSafe({ status: "Serve sent" });
           }
           continue;
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
-          performHit(player, ball, player.desiredHit, false, player.action, hitFx);
+          performHit(player, ball, player.desiredHit, false, player.action);
           setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
@@ -1140,12 +1116,6 @@ export default function MobileThreeTennisPrototype() {
       cameraDesiredPos.set(nearPlayer.pos.x * 0.18, followY, nearPlayer.pos.z + followBack);
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
       cameraTarget.set(nearPlayer.pos.x * 0.1, 0.92, nearPlayer.pos.z - lookAheadZ);
-      adBoards.forEach((board, idx) => {
-        board.update(dt);
-        const pulse = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(now * 0.002 + idx));
-        const mat = board.mesh.material as THREE.MeshStandardMaterial;
-        mat.emissiveIntensity = pulse;
-      });
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }

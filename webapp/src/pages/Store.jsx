@@ -134,6 +134,7 @@ import {
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
+import { addTennisUnlock, getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from '../utils/tennisInventory.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -496,7 +497,8 @@ const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   poolroyale: 'poolHdriEnvironment',
   bilardoshqip: 'bilardoShqipHdriEnvironment',
-  snookerroyale: 'snookerHdriEnvironment'
+  snookerroyale: 'snookerHdriEnvironment',
+  tennis: 'tennisHdriEnvironment'
 });
 
 function HdriEquirectangularPreview({ src, title }) {
@@ -1223,6 +1225,9 @@ export default function Store() {
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
   );
+  const [tennisOwned, setTennisOwned] = useState(() =>
+    getTennisInventory(tennisAccountId(accountId))
+  );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -1350,6 +1355,7 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+    setTennisOwned(getTennisInventory(tennisAccountId(accountId)));
     let cancelled = false;
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
@@ -1786,6 +1792,11 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
       })),
+      tennis: TENNIS_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tennis'
+      })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1823,6 +1834,8 @@ export default function Store() {
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
+      tennis: (type, optionId) =>
+        isTennisOptionUnlocked(type, optionId, tennisOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
@@ -1838,7 +1851,8 @@ export default function Store() {
       murlanOwned,
       dominoOwned,
       snakeOwned,
-      texasOwned
+      texasOwned,
+      tennisOwned
     ]
   );
 
@@ -1871,6 +1885,8 @@ export default function Store() {
         DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snake: (item) =>
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      tennis: (item) =>
+        TENNIS_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
         TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
@@ -1891,6 +1907,7 @@ export default function Store() {
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
+      tennis: TYPE_LABELS,
       texasholdem: TEXAS_TYPE_LABELS
     }),
     []
@@ -2558,6 +2575,10 @@ export default function Store() {
           } else if (slug === 'snake') {
             setSnakeOwned(
               addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
+          } else if (slug === 'tennis') {
+            setTennisOwned(
+              addTennisUnlock(entry.type, entry.optionId, resolvedAccountId)
             );
           } else if (slug === 'texasholdem') {
             setTexasOwned(
