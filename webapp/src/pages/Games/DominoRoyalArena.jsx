@@ -4,12 +4,14 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-01-domino-murlan-characters-v39';
+const DOMINO_ROYAL_APP_ID = 'domino-royal-app';
+const DOMINO_ROYAL_STATUS_ID = 'domino-royal-status';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-02-domino-root-fix-v40';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
-    const statusNode = document.getElementById('status');
-    const appRoot = document.getElementById('app');
+    const statusNode = document.getElementById(DOMINO_ROYAL_STATUS_ID);
+    const appRoot = document.getElementById(DOMINO_ROYAL_APP_ID);
     if (statusNode) {
       statusNode.textContent = 'Loading Domino Royal…';
     }
@@ -62,8 +64,8 @@ export default function DominoRoyalArena() {
 
   return (
     <div className="relative h-full w-full bg-black">
-      <div id="app" />
-      <div id="status" role="status">Ready</div>
+      <div id={DOMINO_ROYAL_APP_ID} />
+      <div id={DOMINO_ROYAL_STATUS_ID} role="status">Ready</div>
       <button id="configButton" type="button" aria-label="Open game settings menu">
         <span aria-hidden="true">☰</span>
         <span>Menu</span>
@@ -80,7 +82,7 @@ export default function DominoRoyalArena() {
         <div id="configSections" />
       </div>
       <style>{`
-        #app {
+        #domino-royal-app {
           transform: scale(0.97);
           transform-origin: center center;
         }
@@ -142,7 +144,7 @@ export default function DominoRoyalArena() {
         #quickActions .quick-action[data-action="chat"] {
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
         }
-        #status {
+        #domino-royal-status {
           display: block !important;
           opacity: 0;
           pointer-events: none;
@@ -185,7 +187,7 @@ export default function DominoRoyalArena() {
                 clamp(2.8rem, 8vh, 3.4rem) + 3.1rem
             ) !important;
           }
-          #status {
+          #domino-royal-status {
             top: auto !important;
             bottom: calc(
               env(safe-area-inset-bottom, 0px) + clamp(6.9rem, 15vh, 8.8rem)
