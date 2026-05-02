@@ -61,7 +61,7 @@ export default function TennisLobby() {
     <div className="relative min-h-screen bg-[#070b16] text-text">
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
-        <GameLobbyHeader slug="tennis" title="Table Tennis Lobby" badge="1v1 only" />
+        <GameLobbyHeader slug="tennis" title="Tennis Lobby" badge="1v1 only" />
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4 text-white/80">
           <p className="text-xs">Mode rules: AI is free, Online uses TPC streak stake.</p>
           <div className="mt-3 grid grid-cols-2 gap-3">
