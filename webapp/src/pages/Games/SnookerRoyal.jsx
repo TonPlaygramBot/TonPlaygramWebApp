@@ -17846,6 +17846,42 @@ const powerRef = useRef(hud.power);
               syncBlendToSpherical();
             }
           }
+
+          const cueViewReady =
+            humanActor?.visible &&
+            cueStick?.visible &&
+            cue?.active &&
+            !shooting &&
+            !replayPlaybackRef.current;
+          const cueViewBlend = THREE.MathUtils.clamp(
+            (TMP_SPH.phi - (CAMERA.maxPhi - 0.26)) / 0.18,
+            0,
+            1
+          );
+          if (cueViewReady && cueViewBlend > 0) {
+            const cueYaw = cueStick.rotation.y;
+            const cueForward = TMP_VEC3_A.set(
+              Math.sin(cueYaw - Math.PI),
+              0,
+              Math.cos(cueYaw - Math.PI)
+            ).normalize();
+            const cueSide = TMP_VEC3_B.set(cueForward.z, 0, -cueForward.x).normalize();
+            const eyeHeight = 1.58 * worldScaleFactor;
+            const eyeOffsetBack = 0.4 * worldScaleFactor;
+            const eyeOffsetSide = -0.08 * worldScaleFactor;
+            const eyePos = TMP_VEC3_C
+              .copy(humanActor.position)
+              .addScaledVector(cueForward, eyeOffsetBack)
+              .addScaledVector(cueSide, eyeOffsetSide);
+            eyePos.y = eyeHeight;
+            const cueFocus = TMP_VEC3_D
+              .copy(cue.pos3D || lookTarget)
+              .addScaledVector(cueForward, -3.4 * worldScaleFactor);
+            cueFocus.y = Math.max(baseSurfaceWorldY + 0.05 * worldScaleFactor, cueFocus.y + 0.02 * worldScaleFactor);
+            camera.position.lerp(eyePos, cueViewBlend);
+            lookTarget = lookTarget.clone().lerp(cueFocus, cueViewBlend);
+          }
+
           camera.lookAt(lookTarget);
           renderCamera = camera;
           broadcastArgs.focusWorld =
@@ -26008,9 +26044,9 @@ const powerRef = useRef(hud.power);
             const sideX = forwardZ;
             const sideZ = -forwardX;
             humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              cueStick.position.x - forwardX * (SCALE * 2.28) - sideX * (SCALE * 0.26),
               0,
-              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
+              cueStick.position.z - forwardZ * (SCALE * 2.28) - sideZ * (SCALE * 0.26)
             );
             humanActor.rotation.y = yaw;
           }
