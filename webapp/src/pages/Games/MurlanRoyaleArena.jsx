@@ -1773,10 +1773,10 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 3.04 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 3.32 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -3.56 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -1.16 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 6.08 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 6.64 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -7.12 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -2.32 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? (normalizedSeatIndex === 1 ? -0.04 * MODEL_SCALE : 0.04 * MODEL_SCALE)
