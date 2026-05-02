@@ -8,13 +8,6 @@ const gamesCatalog = [
     description: '3D tennis rally with swipe controls and physics.'
   },
   {
-    name: 'Table Tennis',
-    route: '/games/tabletennis',
-    slug: 'tabletennis',
-    image: '/assets/icons/Goal%20rush%20logo.png',
-    description: 'Realistic 3D table tennis with swipe spin, serves, and AI rallies.'
-  },
-  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
