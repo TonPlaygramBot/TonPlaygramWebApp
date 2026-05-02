@@ -1,5 +1,13 @@
 const gamesCatalog = [
 
+
+  {
+    name: 'Ping Pong',
+    route: '/games/pingpong',
+    slug: 'pingpong',
+    image: '/assets/icons/tennis-icon.svg',
+    description: 'Fast 3D ping pong rallies with swipe controls and spin.'
+  },
   {
     name: 'Tennis',
     route: '/games/tennis/lobby',
