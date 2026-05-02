@@ -9037,6 +9037,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
+    const initialPolar = controls.getPolarAngle();
+    // Keep camera at a fixed seated height while still allowing left/right look.
+    // This prevents upward drift when users look around on portrait/mobile.
+    controls.minPolarAngle = initialPolar;
+    controls.maxPolarAngle = initialPolar;
     const initialAzimuth = controls.getAzimuthalAngle();
     controls.minAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
       ? initialAzimuth - CAMERA_FREE_LOOK_AZIMUTH_RANGE
