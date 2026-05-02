@@ -1,5 +1,13 @@
 const gamesCatalog = [
 
+
+  {
+    name: 'Table Tennis',
+    route: '/games/table-tennis/lobby',
+    slug: 'table-tennis',
+    image: '/assets/icons/tennis-icon.svg',
+    description: 'Portrait-friendly 3D table tennis with swipe spin and power controls.'
+  },
   {
     name: 'Tennis',
     route: '/games/tennis/lobby',
