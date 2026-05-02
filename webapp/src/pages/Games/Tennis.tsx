@@ -187,6 +187,8 @@ function getWorldPos(obj: THREE.Object3D) {
 
 
 function createScrollingAdTexture(title: string, subtitle: string, bg: string, fg: string) {
+  // Billboard ads removed for Tennis arena.
+
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 256;
@@ -260,12 +262,6 @@ function addCourt(scene: THREE.Scene) {
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
   for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
-  const adSpecs: Array<[number, number, number, number, string, string]> = [[-3.7, 1.25, -4.2, 0, "POOL ROYALE", "Play now"],[3.7,1.25,-4.2,0,"SNOOKER ROYAL","New arenas"],[-3.7,1.25,4.2,0,"GOAL RUSH","1v1 challenge"],[3.7,1.25,4.2,0,"TEXAS HOLDEM","Live tables"],[-3.2,1.25,0,Math.PI/2,"CHESS BATTLE","Tactics"],[3.2,1.25,0,-Math.PI/2,"SNAKE LADDER","Quick match"]];
-  adSpecs.forEach(([x,y,z,ry,title,subtitle],idx)=>{
-    const ad = createScrollingAdTexture(title, subtitle, idx % 2 === 0 ? "#0f172a" : "#1f2937", idx % 2 === 0 ? "#38bdf8" : "#f97316");
-    const mat = new THREE.MeshStandardMaterial({ map: ad.texture, emissive: new THREE.Color(0x111111), emissiveIntensity: 0.35, roughness: 0.4, metalness: 0.06 });
-    const board = addBox(group,[1.9,0.64,0.05],[x,y,z], mat); board.rotation.y=ry; adBoards.push({ mesh: board, update: ad.update });
-  });
   (group as THREE.Group & { userData: Record<string, unknown> }).userData.adBoards = adBoards;
   return group;
 }
@@ -929,8 +925,7 @@ export default function MobileThreeTennisPrototype() {
     crowdLoop.loop = true; crowdLoop.volume = 0.22;
     const cheerFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     cheerFx.volume = 0.45;
-    const hitFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
-    hitFx.volume = 0.32;
+    const hitFx: HTMLAudioElement | undefined = undefined;
     let pointLock = false;
     let pointLockT = 0;
 
