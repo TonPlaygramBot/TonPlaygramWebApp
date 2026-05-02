@@ -48,13 +48,6 @@ const gamesCatalog = [
     description: 'Race to the top with quick dice rolls.'
   },
   {
-    name: 'Tennis Royal',
-    route: '/games/tennisroyal/lobby',
-    slug: 'tennisroyal',
-    image: '/assets/icons/Goal%20rush%20logo.png',
-    description: '1v1 tennis battles online or versus AI.'
-  },
-  {
     name: 'Murlan Royale',
     route: '/games/murlanroyale/lobby',
     slug: 'murlanroyale',
@@ -91,13 +84,6 @@ const gamesCatalog = [
     slug: 'tavullbattleroyal',
     image: '/assets/icons/Backgammonroyallogo.png',
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
-  },
-  {
-    name: 'Table Tennis Royal',
-    route: '/games/tabletennisroyal/lobby',
-    slug: 'tabletennisroyal',
-    image: '/assets/icons/Air%20hockey%20game%20logo.png',
-    description: 'Realistic 1v1 table tennis online or vs AI with flag avatars.'
   },
   {
     name: 'Ludo Battle Royal',

@@ -28,8 +28,6 @@ import GoalRush from './pages/Games/GoalRush.jsx';
 import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
-import TennisRoyal from './pages/Games/TennisRoyal.tsx';
-import TennisRoyalLobby from './pages/Games/TennisRoyalLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import LudoBattleRoyal from './pages/Games/LudoBattleRoyal.jsx';
@@ -38,8 +36,6 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
-import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
-import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
 
 const ChessBattleRoyal = React.lazy(
   () => import('./pages/Games/ChessBattleRoyal.jsx')
@@ -189,8 +185,6 @@ export default function App() {
             />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
-            <Route path="/games/tennisroyal/lobby" element={<TennisRoyalLobby />} />
-            <Route path="/games/tennisroyal" element={<TennisRoyal />} />
             <Route
               path="/games/chessbattleroyal/lobby"
               element={
@@ -347,15 +341,6 @@ export default function App() {
               }
             />
 
-            <Route path="/games/tabletennisroyal/lobby" element={<TableTennisRoyalLobby />} />
-            <Route
-              path="/games/tabletennisroyal"
-              element={
-                <GameLiveAvatarOverlay gameSlug="tabletennisroyal"> 
-                  <TableTennisRoyal />
-                </GameLiveAvatarOverlay>
-              }
-            />
             <Route
               path="/games/murlanroyale/lobby"
               element={<MurlanRoyaleLobby />}
