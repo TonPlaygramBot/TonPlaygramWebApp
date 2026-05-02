@@ -7,6 +7,14 @@ const gamesCatalog = [
     image: '/assets/icons/Goal%20rush%20logo.png',
     description: '3D tennis rally with swipe controls and physics.'
   },
+
+  {
+    name: 'Table Tennis',
+    route: '/games/tabletennis',
+    slug: 'tabletennis',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: 'Fast-paced table tennis rallies with swipe controls and spin.'
+  },
   {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
