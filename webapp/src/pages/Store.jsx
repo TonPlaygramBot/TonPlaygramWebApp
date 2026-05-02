@@ -133,7 +133,6 @@ import {
 } from '../config/texasHoldemInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
-import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -1163,14 +1162,6 @@ const storeMeta = {
     labels: SNAKE_OPTION_LABELS,
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
-  },
-  tennis: {
-    name: 'Tennis',
-    items: TENNIS_STORE_ITEMS,
-    defaults: TENNIS_DEFAULT_LOADOUT,
-    labels: TENNIS_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
   },
   texasholdem: {
     name: "Texas Hold'em",
