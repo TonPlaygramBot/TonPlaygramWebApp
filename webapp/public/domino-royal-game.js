@@ -1,13 +1,13 @@
-import * as THREE from './vendor/three/build/three.module.js';
-import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from './vendor/three/examples/jsm/environments/RoomEnvironment.js';
-import { RoundedBoxGeometry } from './vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import { RGBELoader } from './vendor/three/examples/jsm/loaders/RGBELoader.js';
-import { DRACOLoader } from './vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from './vendor/three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from './vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from './vendor/three/examples/jsm/utils/SkeletonUtils.js';
+import * as THREE from '/vendor/three/build/three.module.js';
+import { OrbitControls } from '/vendor/three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from '/vendor/three/examples/jsm/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
+import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1026,91 +1026,7 @@ const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK
 ]);
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([
-  {
-    id: 'rpm-current',
-    label: 'Current Avatar',
-    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'rpm-67d411',
-    label: 'RPM 67d411',
-    modelUrls: [
-      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
-      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
-      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
-    ],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'rpm-67f433',
-    label: 'RPM 67f433',
-    modelUrls: [
-      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
-      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
-      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
-    ],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'rpm-67e1b5',
-    label: 'RPM 67e1b5',
-    modelUrls: [
-      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
-      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
-      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
-    ],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'webgl-vietnam-human',
-    label: 'Vietnam Human',
-    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'webgl-ai-teacher',
-    label: 'AI Teacher',
-    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  },
-  {
-    id: 'webgl-ai-teacher-1',
-    label: 'AI Teacher 1',
-    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
-    scale: 1.0,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0
-  }
-]);
-const HUMAN_MODEL_LOAD_TIMEOUT_MS = 4500;
+const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([]);
 
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -8038,24 +7954,18 @@ async function loadSeatedHumanTemplate(option) {
         const candidates = normalizeHumanModelUrlCandidates(
           targetOption.modelUrls || fallbackOption.modelUrls || []
         );
-        if (!candidates.length) return null;
         let gltf = null;
         let lastError = null;
         for (const url of candidates) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            gltf = await Promise.race([
-              loader.loadAsync(url),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Seated human load timeout: ${url}`)), HUMAN_MODEL_LOAD_TIMEOUT_MS)
-              )
-            ]);
+            gltf = await loader.loadAsync(url);
             if (gltf) break;
           } catch (error) {
             lastError = error;
           }
         }
-        if (!gltf) return null;
+        if (!gltf) throw lastError || new Error('Missing seated human scene');
         const root = gltf.scene || gltf.scenes?.[0] || gltf;
         normalizeSeatedHumanRootToChair(root);
         root.traverse((obj) => {
@@ -8172,22 +8082,18 @@ async function attachSeatedHumanActors(token) {
       } catch (error) {
         console.warn('Domino Royal human seat model failed, using default', option?.id, error);
         // eslint-disable-next-line no-await-in-loop
-        template = await loadSeatedHumanTemplate(DOMINO_HUMAN_CHARACTER_OPTIONS[0] || null);
+        template = await loadSeatedHumanTemplate(DOMINO_HUMAN_CHARACTER_OPTIONS[0]);
       }
-      if (!template || token !== chairBuildToken) continue;
+      if (!template || token !== chairBuildToken) return;
       const actor = cloneSkeleton(template);
       const actorScale =
-        (template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template)) *
-        (option?.scale ?? 1);
+        template.userData?.seatedHumanScale ?? computeSeatedHumanScale(template);
       actor.scale.setScalar(actorScale);
-      const seatOffsetY = option?.normalizedSeatOffsetY ?? -0.4;
-      const seatOffsetZ = option?.normalizedSeatOffsetZ ?? 0.52;
-      const seatYOffset = SEATED_HUMAN_SEAT_Y_OFFSET + seatOffsetY * MODEL_SCALE * 0.12;
       const seatZOffset =
-        SEATED_HUMAN_SEAT_Z_OFFSET + seatOffsetZ * MODEL_SCALE * 0.02 +
+        SEATED_HUMAN_SEAT_Z_OFFSET +
         (index === HUMAN_SEAT_INDEX ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
-      actor.position.set(0, seatYOffset, seatZOffset);
-      actor.rotation.set(option?.seatPitch ?? 0, SEATED_HUMAN_FACING_Y + (option?.seatYaw ?? 0), 0);
+      actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
+      actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
       const rig = saveBoneRig(actor);
       applySeatedHumanPose(rig);
       alignSeatedHumanFeetToGroundPlane(actor, rig);
@@ -8207,9 +8113,6 @@ async function buildChairs(
   try {
     const chairData = await ensureChairTemplateForTheme(option);
     placeChairsWithOption(option, chairData, token);
-    if (token === chairBuildToken) {
-      await attachSeatedHumanActors(token);
-    }
   } catch (error) {
     console.warn('Failed to load GLTF chair theme for Domino', error);
   }
