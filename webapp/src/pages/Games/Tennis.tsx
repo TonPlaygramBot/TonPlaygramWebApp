@@ -1065,7 +1065,15 @@ export default function MobileThreeTennisPrototype() {
 
     animate();
 
-    return () => {
+  
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const playerName = searchParams.get("player") || "You";
+  const opponentName = searchParams.get("opponent") || "AI";
+  const tennisPointLabels = ["0", "15", "30", "40"];
+  const nearPoint = tennisPointLabels[Math.min(hud.nearScore, 3)] || "40";
+  const farPoint = tennisPointLabels[Math.min(hud.farScore, 3)] || "40";
+
+  return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", onPointerDown);
@@ -1091,9 +1099,19 @@ export default function MobileThreeTennisPrototype() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.54)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 800, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.22)", textAlign: "center", minWidth: 174 }}>
-          You {hud.nearScore} — {hud.farScore} AI
-          <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 2 }}>{hud.status}</div>
+        <div style={{ position: "absolute", top: 10, left: 10, right: 10, color: "white", pointerEvents: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 32, height: 32, borderRadius: 999, background: "#50c8ff" }} /><strong>{playerName}</strong></div>
+            <button style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(0,0,0,0.45)", color: "white", padding: "6px 10px" }}>☰</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><strong>{opponentName}</strong><div style={{ width: 32, height: 32, borderRadius: 999, background: "#ff8ab2" }} /></div>
+          </div>
+          <div style={{ background: "rgba(0,0,0,0.54)", border: "1px solid rgba(255,255,255,0.16)", padding: "8px 12px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, fontWeight: 800 }}>
+              <span>{playerName}</span><span>{hud.nearScore}</span><span>{nearPoint}</span>
+              <span>{opponentName}</span><span>{hud.farScore}</span><span>{farPoint}</span>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 4, textAlign: "center" }}>{hud.status}</div>
+          </div>
         </div>
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 236 }}>
           Procedural hands removed.<br />The character right hand holds the racket.<br />Swipe up to serve or hit deep.
