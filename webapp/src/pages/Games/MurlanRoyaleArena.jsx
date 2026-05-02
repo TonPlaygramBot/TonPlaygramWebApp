@@ -110,7 +110,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.24;
 const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
-const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.74; // bring seated humans closer to the table on portrait mobile framing.
+const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.68; // bring seated humans closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
@@ -2364,7 +2364,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 0.96 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 1.04 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.01 * MODEL_SCALE * CARD_SCALE; // Extra-trimmed thickness to avoid dark edge wedges.
@@ -2426,7 +2426,7 @@ const AI_HAND_BOTTOM_SHIFT_Y = 0;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
-const HUMAN_HAND_UP_SHIFT_Y = 0.15 * MODEL_SCALE;
+const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
@@ -2440,7 +2440,7 @@ const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.06 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
-const HUMAN_HAND_EXTRA_INWARD_PULL = 0.4 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_INWARD_PULL = 0.46 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
 const HAND_CARDS_INWARD_BIAS = 0.18 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
