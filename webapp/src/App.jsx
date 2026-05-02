@@ -373,7 +373,8 @@ export default function App() {
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
-            />            <Route
+            />
+            <Route
               path="/games/snookerroyale"
               element={
                 <GameLiveAvatarOverlay gameSlug="snookerroyale">
