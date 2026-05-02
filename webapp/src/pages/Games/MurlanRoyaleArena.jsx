@@ -1794,20 +1794,25 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   instance.add(heldCards);
   const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
   const isBottomHumanSeat = Boolean(player?.isHuman);
-  const isSideSeat = !isBottomHumanSeat && ((resolvedSeatIndex % CHAIR_COUNT) === 1 || (resolvedSeatIndex % CHAIR_COUNT) === 3);
-  const sideSeatLift = isSideSeat ? 0.24 * MODEL_SCALE : 0;
-  const sideSeatForward = isSideSeat ? 0.1 * MODEL_SCALE : 0;
+  const normalizedSeatIndex = resolvedSeatIndex % CHAIR_COUNT;
+  const isSideSeat = !isBottomHumanSeat && (normalizedSeatIndex === 1 || normalizedSeatIndex === 3);
+  const isTopSeat = !isBottomHumanSeat && normalizedSeatIndex === 2;
+  const sideSeatLift = isSideSeat ? 0.39 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 0.46 * MODEL_SCALE : 0;
+  const nonBottomForwardPull = !isBottomHumanSeat ? -0.34 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -0.06 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
-      ? ((resolvedSeatIndex % CHAIR_COUNT) === 1 ? -0.045 * MODEL_SCALE : 0.045 * MODEL_SCALE)
+      ? (normalizedSeatIndex === 1 ? -0.03 * MODEL_SCALE : 0.03 * MODEL_SCALE)
       : 0;
+  const bottomCardLower = isBottomHumanSeat ? -0.08 * MODEL_SCALE : 0;
   heldCards.position.set(
     sideSeatLateralPull,
-    0.76 * MODEL_SCALE + sideSeatLift,
-    0.86 * MODEL_SCALE + sideSeatForward
+    0.76 * MODEL_SCALE + sideSeatLift + topSeatLift + bottomCardLower,
+    0.86 * MODEL_SCALE + nonBottomForwardPull + bottomForwardPull
   );
   heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.3);
+  heldCards.scale.setScalar(1.18);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1861,12 +1866,12 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-48), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(22), 0, THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2), 0);
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-52), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(26), 0, THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), 0);
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-52), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-1));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(41), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-56), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(1));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(45), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(14), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(2));
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
