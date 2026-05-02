@@ -1765,6 +1765,30 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
+function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
+  const isBottomHumanSeat = Boolean(player?.isHuman);
+  const normalizedSeatIndex = resolvedSeatIndex % CHAIR_COUNT;
+  const isSideSeat = !isBottomHumanSeat && (normalizedSeatIndex === 1 || normalizedSeatIndex === 3);
+  const isTopSeat = !isBottomHumanSeat && normalizedSeatIndex === 2;
+
+  // Lift opponent cards higher and push them outward (away from table center)
+  // so they sit closer to the avatar/chest area in portrait framing.
+  const sideSeatLift = isSideSeat ? 0.56 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 0.68 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -0.52 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -0.07 * MODEL_SCALE : 0;
+  const sideSeatLateralPull =
+    isSideSeat
+      ? (normalizedSeatIndex === 1 ? -0.04 * MODEL_SCALE : 0.04 * MODEL_SCALE)
+      : 0;
+
+  return {
+    x: sideSeatLateralPull,
+    y: 0.76 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? -0.08 * MODEL_SCALE : 0),
+    z: 0.86 * MODEL_SCALE + nonBottomOutwardPush + bottomForwardPull
+  };
+}
+
 function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
@@ -1793,23 +1817,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
   instance.add(heldCards);
   const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
-  const isBottomHumanSeat = Boolean(player?.isHuman);
-  const normalizedSeatIndex = resolvedSeatIndex % CHAIR_COUNT;
-  const isSideSeat = !isBottomHumanSeat && (normalizedSeatIndex === 1 || normalizedSeatIndex === 3);
-  const isTopSeat = !isBottomHumanSeat && normalizedSeatIndex === 2;
-  const sideSeatLift = isSideSeat ? 0.4 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 0.48 * MODEL_SCALE : 0;
-  const nonBottomForwardPull = !isBottomHumanSeat ? -0.34 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -0.07 * MODEL_SCALE : 0;
-  const sideSeatLateralPull =
-    isSideSeat
-      ? (normalizedSeatIndex === 1 ? -0.03 * MODEL_SCALE : 0.03 * MODEL_SCALE)
-      : 0;
-  heldCards.position.set(
-    sideSeatLateralPull,
-    0.76 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? -0.08 * MODEL_SCALE : 0),
-    0.86 * MODEL_SCALE + nonBottomForwardPull + bottomForwardPull
-  );
+  const heldCardsPose = computeHeldCardsPose({ player, resolvedSeatIndex });
+  heldCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
   heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
   heldCards.scale.setScalar(1.2);
 
@@ -1855,6 +1864,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightCalf: captureBoneRotation(rightCalf)
     },
     heldCards,
+    heldCardsPose,
+    isBottomHumanSeat: Boolean(player?.isHuman),
     currentActionId: 0
   };
 
@@ -1920,7 +1931,11 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.userData.cardsSignature = cardsSignature;
 
   rig.instance.add(nextCards);
-  nextCards.position.set(0.0 * MODEL_SCALE, 0.76 * MODEL_SCALE, 0.86 * MODEL_SCALE);
+  const heldCardsPose = rig.heldCardsPose || computeHeldCardsPose({
+    player: { isHuman: Boolean(rig.isBottomHumanSeat) },
+    resolvedSeatIndex: rig.seatIndex ?? 0
+  });
+  nextCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
   nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
   nextCards.scale.setScalar(1.3);
 
