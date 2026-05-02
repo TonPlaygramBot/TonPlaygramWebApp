@@ -210,11 +210,68 @@ function isOverTable(x: number, z: number, margin = 0) {
   return Math.abs(x) <= TABLE_HALF_W + margin && Math.abs(z) <= TABLE_HALF_L + margin;
 }
 
-function buildRealisticTableTennisTable() { return new THREE.Group(); }
+function buildRealisticTableTennisTable() {
+  const group = new THREE.Group();
+  const floorMat = material(0x121a22, 0.92, 0.0);
+  const tableTopMat = material(0x1e64b5, 0.56, 0.02);
+  const tableEdgeMat = material(0xe6edf8, 0.42, 0.02);
+  const legMat = material(0x4b5563, 0.44, 0.25);
+  const netMat = transparentMaterial(0xf7fbff, 0.72, 0.35);
+
+  addBox(group, [7.2, 0.04, 8], [0, -0.02, 0], floorMat);
+  addBox(group, [CFG.tableW, CFG.tableTopThickness, CFG.tableL], [0, CFG.tableY, 0], tableTopMat);
+  addBox(group, [CFG.tableW, 0.01, 0.02], [0, CFG.tableY + CFG.tableTopThickness / 2 + 0.006, 0], tableEdgeMat);
+
+  const legY = CFG.tableY / 2;
+  const legOffsetX = CFG.tableW / 2 - 0.14;
+  const legOffsetZ = CFG.tableL / 2 - 0.22;
+  addCylinder(group, 0.035, 0.04, CFG.tableY, [-legOffsetX, legY, -legOffsetZ], legMat, 20);
+  addCylinder(group, 0.035, 0.04, CFG.tableY, [legOffsetX, legY, -legOffsetZ], legMat, 20);
+  addCylinder(group, 0.035, 0.04, CFG.tableY, [-legOffsetX, legY, legOffsetZ], legMat, 20);
+  addCylinder(group, 0.035, 0.04, CFG.tableY, [legOffsetX, legY, legOffsetZ], legMat, 20);
+
+  addBox(group, [CFG.tableW + CFG.netPostOutside * 2, CFG.netH, 0.015], [0, CFG.tableY + CFG.netH / 2, 0], netMat);
+  return group;
+}
 function addTable(scene: THREE.Scene) { const fallback = buildRealisticTableTennisTable(); scene.add(fallback); return fallback; }
-function normalizeHuman(model: THREE.Object3D, targetHeight: number) { void model; void targetHeight; }
-function createFallbackHuman(color: number) { void color; return new THREE.Group(); }
-function createTableTennisPaddle(colorA: number, colorB = 0x090909) { void colorA; void colorB; return new THREE.Group(); }
+function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
+  model.rotation.set(0, CFG.playerVisualYawFix, 0);
+  model.position.set(0, 0, 0);
+  model.scale.setScalar(1);
+  model.updateMatrixWorld(true);
+  let box = new THREE.Box3().setFromObject(model);
+  const h = Math.max(0.001, box.max.y - box.min.y);
+  model.scale.setScalar(targetHeight / h);
+  model.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
+}
+function createFallbackHuman(color: number) {
+  const g = new THREE.Group();
+  const skin = material(0xefc6a0, 0.76, 0.01);
+  const shirt = material(color, 0.68, 0.02);
+  const pants = material(0x17202c, 0.84, 0.0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 18), skin);
+  head.position.y = 1.56;
+  g.add(head);
+  addCylinder(g, 0.2, 0.24, 0.62, [0, 1.08, 0], shirt, 20);
+  addCylinder(g, 0.17, 0.2, 0.5, [0, 0.54, 0], pants, 20);
+  enableShadow(g);
+  return g;
+}
+function createTableTennisPaddle(colorA: number, colorB = 0x090909) {
+  const g = new THREE.Group();
+  const blade = material(colorA, 0.48, 0.03);
+  const grip = material(colorB, 0.62, 0.06);
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.014, 36), blade);
+  face.rotation.x = Math.PI / 2;
+  face.position.y = 0.22;
+  g.add(face);
+  addCylinder(g, 0.016, 0.014, 0.18, [0, 0.12, 0], grip, 16);
+  enableShadow(g);
+  return g;
+}
 function findHumanBones(model: THREE.Object3D): BonePack { void model; return {}; }
 function captureRestPose(bones: BonePack) { void bones; return [] as BoneRest[]; }
 function makeArmChain(shoulder: THREE.Bone | undefined, upper: THREE.Bone | undefined, fore: THREE.Bone | undefined, hand: THREE.Bone | undefined): ArmChain | undefined { void shoulder; void upper; void fore; void hand; return undefined; }
@@ -222,8 +279,18 @@ function serveTossPosition(player: HumanRig, tRaw: number) { void tRaw; return p
 function serveContactPosition(player: HumanRig) { return player.pos.clone(); }
 function resetBallForServe(ball: BallState, server: HumanRig) { void server; ball.lastHitBy = null; }
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3): HumanRig {
-  const g = new THREE.Group(); scene.add(g);
-  return { side, root:g, modelRoot:g, fallback:g, paddle:g, model:null, bones:{}, rest:[], pos:start.clone(), target:start.clone(), yaw:0, action:"ready", swingT:0, cooldown:0, desiredHit:null, hitThisSwing:false, speed:CFG.playerSpeed };
+  const root = new THREE.Group();
+  const modelRoot = new THREE.Group();
+  const accent = side === "near" ? 0xff6b38 : 0x37b2ff;
+  const fallback = createFallbackHuman(accent);
+  const paddle = createTableTennisPaddle(accent);
+  root.position.copy(start);
+  modelRoot.position.copy(start);
+  modelRoot.rotation.y = side === "near" ? 0 : Math.PI;
+  modelRoot.add(fallback);
+  paddle.position.set(start.x + 0.18, 1.02, start.z + (side === "near" ? -0.08 : 0.08));
+  scene.add(root, modelRoot, paddle);
+  return { side, root, modelRoot, fallback, paddle, model:null, bones:{}, rest:[], pos:start.clone(), target:start.clone(), yaw:0, action:"ready", swingT:0, cooldown:0, desiredHit:null, hitThisSwing:false, speed:CFG.playerSpeed };
 }
 function createBall(): BallState { const m = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR)); return { mesh:m,pos:new THREE.Vector3(),vel:new THREE.Vector3(),spin:new THREE.Vector3(),lastHitBy:null,bounceSide:null,bounceCount:0,phase:{kind:"serve",server:"near",stage:"own"}}; }
 
@@ -238,13 +305,28 @@ export default function MobileRealisticTableTennisGame() {
     if (!host || !canvas) return;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c141d);
     const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 30);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+    scene.add(new THREE.HemisphereLight(0xf4f8ff, 0x274f6a, 0.95));
+    const key = new THREE.DirectionalLight(0xffffff, 1.8);
+    key.position.set(-2.8, 5.4, 3.2);
+    scene.add(key);
     addTable(scene);
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48));
     const ball = createBall();
     resetBallForServe(ball, nearPlayer);
     scene.add(ball.mesh);
-    const resize = () => { const w = Math.max(1, host.clientWidth); const h = Math.max(1, host.clientHeight); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    const resize = () => {
+      const w = Math.max(1, host.clientWidth);
+      const h = Math.max(1, host.clientHeight);
+      renderer.setSize(w, h, false);
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      camera.aspect = w / h;
+      camera.position.set(0, 2.25, 3.45);
+      camera.lookAt(0, CFG.tableY + 0.2, 0);
+      camera.updateProjectionMatrix();
+    };
     window.addEventListener("resize", resize);
     resize();
     let frameId = 0;
