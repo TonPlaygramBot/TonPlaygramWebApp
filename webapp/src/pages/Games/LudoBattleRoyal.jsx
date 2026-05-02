@@ -9376,17 +9376,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       camera.lookAt(target);
     };
 
-    const enforceCustomLookCameraLock = () => {
-      if (!controls || !camera || isCamera2d || !LUDO_CAMERA_CUSTOM_LOOK_ENABLED) return;
-      const lockedPosition = cameraLookStateRef.current.lockedPosition;
-      if (!lockedPosition?.isVector3) return;
-      const target = getCameraLookTarget();
-      if (!target) return;
-      camera.position.copy(lockedPosition);
-      controls.target.copy(target);
-      camera.lookAt(target);
-    };
-
     let pointerLocked = false;
     let onPointerMove = null;
     onPointerDown = (event) => {
@@ -9416,9 +9405,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         cameraLookStateRef.current.lastX = clientX;
         cameraLookStateRef.current.lastY = clientY;
         cameraLookStateRef.current.lockedPosition = camera.position.clone();
-        // Freeze OrbitControls while using custom look so drag only rotates view
-        // and never shifts/lifts camera position.
-        controls.enabled = false;
       }
     };
     onPointerMove = (event) => {
@@ -9463,10 +9449,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (pointerLocked) {
         pointerLocked = false;
         if (controls) controls.enabled = true;
-        return;
-      }
-      if (lookState.active === false && controls) {
-        controls.enabled = true;
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -9752,11 +9734,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
         }
       }
-      // Hard-lock position every frame during custom look so gameplay camera
-      // systems can still retarget view without ever moving the camera anchor.
-      enforceCustomLookCameraLock();
       controls?.update();
-      enforceCustomLookCameraLock();
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
     };
