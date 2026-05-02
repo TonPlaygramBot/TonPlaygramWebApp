@@ -6712,11 +6712,11 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.08;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.11;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 1.76;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.22;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.18;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 1.86;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.065;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.04;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.08;
 const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.145;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -7972,12 +7972,12 @@ function applySeatedHumanPose(rig) {
   addBoneRot(rig, rig.rightUpperLeg, -1.58, 0.03, -0.02, 1);
   addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
   addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
-  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
-  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
-  addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
-  addBoneRot(rig, rig.rightUpperArm, -0.20, -0.02, -0.72, 1);
-  addBoneRot(rig, rig.rightForeArm, -0.50, -0.04, 0.14, 1);
-  addBoneRot(rig, rig.rightHand, -0.08, 0, 0.06, 1);
+  addBoneRot(rig, rig.leftUpperArm, -0.36, 0.08, 0.68, 1);
+  addBoneRot(rig, rig.leftForeArm, -0.72, 0.03, -0.10, 1);
+  addBoneRot(rig, rig.leftHand, -0.20, 0.02, 0.04, 1);
+  addBoneRot(rig, rig.rightUpperArm, -0.30, 0.03, -0.54, 1);
+  addBoneRot(rig, rig.rightForeArm, -0.66, -0.02, 0.06, 1);
+  addBoneRot(rig, rig.rightHand, -0.16, -0.02, 0.02, 1);
   applyRightHandGrip(rig, 0.02);
 }
 
