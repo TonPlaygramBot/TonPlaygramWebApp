@@ -5116,10 +5116,6 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const HUMAN_CUE_FORWARD_OFFSET = 2.18; // move avatar closer to cue so hands can physically reach/hold in shooting pose
-const HUMAN_CUE_SIDE_OFFSET = 0.24; // keep avatar slightly left of cue line for bridge-arm clearance
-const CUE_EYE_CAMERA_BLEND_THRESHOLD = 0.42; // when camera is lowered, snap to eye-level player perspective
-const CUE_EYE_CAMERA_FOV = 68; // slightly wider eye view for phone portrait awareness
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // keep the aiming guide proportional to the ball size
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
@@ -17852,51 +17848,10 @@ const powerRef = useRef(hud.power);
           }
           camera.lookAt(lookTarget);
           renderCamera = camera;
-
-          const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const cueEyeViewActive =
-            humanActor.visible &&
-            cue?.active &&
-            !shooting &&
-            !topViewRef.current &&
-            blend <= CUE_EYE_CAMERA_BLEND_THRESHOLD;
-          if (cueEyeViewActive) {
-            const aimDir = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
-            if (aimDir.lengthSq() < 1e-6) {
-              aimDir.set(Math.sin(cueStick.rotation.y), Math.cos(cueStick.rotation.y));
-            } else {
-              aimDir.normalize();
-            }
-            const eyePos = humanHeadBone
-              ? humanHeadBone.getWorldPosition(new THREE.Vector3())
-              : humanActor.position.clone().add(new THREE.Vector3(0, SCALE * 2.05, 0));
-            const eyeLift = BALL_R * 0.22;
-            eyePos.y += eyeLift;
-            const lookAhead = BALL_R * 16;
-            const lookY = Math.max(baseSurfaceWorldY + BALL_R * 0.8, BALL_CENTER_Y + BALL_R * 0.25);
-            const eyeTarget = new THREE.Vector3(
-              cue.pos.x + aimDir.x * lookAhead,
-              lookY,
-              cue.pos.y + aimDir.y * lookAhead
-            ).multiplyScalar(worldScaleFactor);
-            camera.position.copy(eyePos);
-            if (Number.isFinite(CUE_EYE_CAMERA_FOV) && camera.fov !== CUE_EYE_CAMERA_FOV) {
-              camera.fov = CUE_EYE_CAMERA_FOV;
-              camera.updateProjectionMatrix();
-            }
-            camera.lookAt(eyeTarget);
-            renderCamera = camera;
-            lookTarget = eyeTarget;
-            broadcastArgs.focusWorld = eyeTarget.clone();
-            broadcastArgs.targetWorld = eyeTarget.clone();
-            broadcastArgs.lerp = 0.3;
-          }
-          if (!cueEyeViewActive) {
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
-            broadcastArgs.lerp = 0.22;
-          }
+          broadcastArgs.focusWorld =
+            broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+          broadcastArgs.targetWorld = null;
+          broadcastArgs.lerp = 0.22;
         }
           }
           if (lookTarget) {
@@ -20478,7 +20433,6 @@ const powerRef = useRef(hud.power);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
       const humanActor = new THREE.Group();
       const humanModelRoot = new THREE.Group();
-      let humanHeadBone = null;
       humanActor.add(humanModelRoot);
       humanActor.visible = false;
       table.add(humanActor);
@@ -20503,11 +20457,6 @@ const powerRef = useRef(hud.power);
           const box = new THREE.Box3().setFromObject(model);
           const center = box.getCenter(new THREE.Vector3());
           model.position.set(-center.x, -box.min.y, -center.z);
-          model.traverse((obj) => {
-            if (humanHeadBone || !obj?.isBone) return;
-            const n = String(obj.name || '').toLowerCase();
-            if (n.includes('head')) humanHeadBone = obj;
-          });
           humanModelRoot.add(model);
           humanActor.visible = true;
         },
@@ -26059,9 +26008,9 @@ const powerRef = useRef(hud.power);
             const sideX = forwardZ;
             const sideZ = -forwardX;
             humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * HUMAN_CUE_FORWARD_OFFSET) - sideX * (SCALE * HUMAN_CUE_SIDE_OFFSET),
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
               0,
-              cueStick.position.z - forwardZ * (SCALE * HUMAN_CUE_FORWARD_OFFSET) - sideZ * (SCALE * HUMAN_CUE_SIDE_OFFSET)
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
             );
             humanActor.rotation.y = yaw;
           }
