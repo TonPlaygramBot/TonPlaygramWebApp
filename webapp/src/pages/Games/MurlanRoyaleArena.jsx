@@ -1861,11 +1861,11 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-46), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(24), 0, THREE.MathUtils.degToRad(0));
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-40), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(18), 0, THREE.MathUtils.degToRad(0));
   applyRotationOffset(leftHand, THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2), 0);
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-50), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(28), 0, THREE.MathUtils.degToRad(0));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(0));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(22), 0, THREE.MathUtils.degToRad(0));
   applyRotationOffset(rightHand, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), 0);
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
@@ -2394,7 +2394,7 @@ const CHAIR_SEAT_INWARD_FACTOR = 1;
 const CHAIR_VISUAL_SCALE = 1.36;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
-  portrait: 0.76,
+  portrait: 0.82,
   landscape: 0.62
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
@@ -2435,10 +2435,8 @@ const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
-const AI_TOP_HAND_UP_SHIFT_Y = 0.06 * MODEL_SCALE;
-const AI_TOP_HAND_OUTWARD_PUSH = 0.06 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = 0.09 * MODEL_SCALE;
-const AI_SIDE_HAND_OUTWARD_PUSH = 0.09 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.06 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.06 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -3932,10 +3930,8 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        if (!isHumanCard && seat?.handVariant === 'top') {
-          target.addScaledVector(forward, AI_TOP_HAND_OUTWARD_PUSH);
-        } else if (!isHumanCard && seat?.handVariant === 'side') {
-          target.addScaledVector(forward, AI_SIDE_HAND_OUTWARD_PUSH);
+        if (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side')) {
+          target.addScaledVector(forward, AI_TOP_SIDE_HAND_OUTWARD_PUSH);
         }
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
         if (isHumanCard) {
@@ -3948,11 +3944,7 @@ export default function MurlanRoyaleArena({ search }) {
           (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          (!isHumanCard && seat?.handVariant === 'top'
-            ? AI_TOP_HAND_UP_SHIFT_Y
-            : !isHumanCard && seat?.handVariant === 'side'
-              ? AI_SIDE_HAND_UP_SHIFT_Y
-              : 0);
+          (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
