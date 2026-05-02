@@ -25,6 +25,7 @@ export const gameThumbnails = {
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   tabletennisroyal: '/assets/icons/Air%20hockey%20game%20logo.png',
+  tennisroyal: '/assets/icons/tennis-royal.svg',
 };
 
 const buildLobbyIconSet = (keys, icon) =>
@@ -146,6 +147,10 @@ export const lobbyOptionIcons = {
   tabletennisroyal: buildLobbyIconSet(
     ['mode-local','mode-online','type-single','type-points','points-11','points-21','points-31','players-1','players-2','players-3'],
     '/assets/icons/air-hockey.svg'
+  ),
+  tennisroyal: buildLobbyIconSet(
+    ['type-regular','type-training','type-tournament','mode-ai','mode-online','target-11','target-21','target-31'],
+    '/assets/icons/tennis-royal.svg'
   ),
   ludobattleroyal: buildLobbyIconSet(
     [
