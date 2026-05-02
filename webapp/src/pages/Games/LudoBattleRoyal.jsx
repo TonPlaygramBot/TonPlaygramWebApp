@@ -9405,6 +9405,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         cameraLookStateRef.current.lastX = clientX;
         cameraLookStateRef.current.lastY = clientY;
         cameraLookStateRef.current.lockedPosition = camera.position.clone();
+        // Freeze OrbitControls while using custom look so drag only rotates view
+        // and never shifts/lifts camera position.
+        controls.enabled = false;
       }
     };
     onPointerMove = (event) => {
@@ -9437,7 +9440,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (stateRef.current?.turn === 0) {
         preserveUserTurnCameraRef.current = true;
       }
-      controls?.update();
+      // Keep OrbitControls from applying any orbit/pan deltas while custom look is active.
     };
     onPointerUp = (event) => {
       const lookState = cameraLookStateRef.current;
@@ -9449,6 +9452,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (pointerLocked) {
         pointerLocked = false;
         if (controls) controls.enabled = true;
+        return;
+      }
+      if (lookState.active === false && controls) {
+        controls.enabled = true;
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -9715,7 +9722,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         !isCamera2d &&
         cameraTurnStateRef.current.followObject?.isObject3D &&
         controls &&
-        !LUDO_CAMERA_SEAT_LOCK_ENABLED
+        !LUDO_CAMERA_SEAT_LOCK_ENABLED &&
+        !cameraLookStateRef.current.active
       ) {
         const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
@@ -9734,7 +9742,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
         }
       }
-      controls?.update();
+      // Keep OrbitControls from applying any orbit/pan deltas while custom look is active.
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
     };
