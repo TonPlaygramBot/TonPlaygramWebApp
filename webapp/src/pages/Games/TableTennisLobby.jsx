@@ -28,7 +28,7 @@ export default function TennisLobby() {
   const startGame = async () => {
     if (mode === 'online') {
       await runSimpleOnlineFlow({
-        gameType: 'tennis',
+        gameType: 'tabletennis',
         stake,
         maxPlayers: 2,
         avatar,
@@ -44,7 +44,7 @@ export default function TennisLobby() {
           if (stake.amount) params.set('amount', String(stake.amount));
           if (avatar) params.set('avatar', avatar);
           params.set('name', getTelegramFirstName() || 'Player');
-          navigate(`/games/tennis?${params.toString()}`);
+          navigate(`/games/tabletennis?${params.toString()}`);
         }
       });
       return;
@@ -54,14 +54,14 @@ export default function TennisLobby() {
     params.set('mode', 'ai');
     if (avatar) params.set('avatar', avatar);
     params.set('name', getTelegramFirstName() || 'Player');
-    navigate(`/games/tennis?${params.toString()}`);
+    navigate(`/games/tabletennis?${params.toString()}`);
   };
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
-        <GameLobbyHeader slug="tennis" title="Table Tennis Lobby" badge="1v1 only" />
+        <GameLobbyHeader slug="tabletennis" title="Table Tennis Lobby" badge="1v1 only" />
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4 text-white/80">
           <p className="text-xs">Mode rules: AI is free, Online uses TPC streak stake.</p>
           <div className="mt-3 grid grid-cols-2 gap-3">
