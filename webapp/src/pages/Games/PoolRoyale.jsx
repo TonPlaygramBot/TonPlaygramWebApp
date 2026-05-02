@@ -2352,15 +2352,15 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.58; // push the shooter farther outward so the avatar stays behind the cue butt on portrait screens
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.58; // move the shooter clearly to the cue-butt side so camera no longer sits behind the head
+const HUMAN_EDGE_MARGIN = 1.72; // push the shooter farther outward so the avatar stays behind the cue butt on portrait screens
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.82; // move the shooter deeper behind the cue butt so the full player body stays back on portrait screens
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.065; // lock camera nearer to eye line while keeping the cue shaft visible in portrait
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.02; // keep only a tiny lift because the camera now anchors from the head position
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 1.15; // keep the eye camera on the rear/butt half of the cue instead of drifting toward the tip
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 0.24; // keep first-person view almost exactly at the eyes with just a slight forward nudge
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.08; // subtle right-eye bias while staying centered on the player view
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
@@ -20818,8 +20818,8 @@ const shotPowerRef = useRef(0);
           if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
-          const eyePos = cuePose.cueBack
-            .clone()
+          const eyeAnchor = cuePose.headCenterWorld?.clone?.() || cuePose.cueBack.clone();
+          const eyePos = eyeAnchor
             .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
             .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
             .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
@@ -25320,7 +25320,8 @@ const shotPowerRef = useRef(0);
                 cueBack: cueBack.clone(),
                 bridgeTarget: bridgeTarget.clone(),
                 aimForward: aimForward.clone(),
-                side: side.clone()
+                side: side.clone(),
+                headCenterWorld: walkRoot.clone().addScaledVector(WORLD_UP, 1.28)
               };
             }
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
