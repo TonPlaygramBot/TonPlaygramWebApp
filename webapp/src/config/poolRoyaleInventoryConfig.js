@@ -162,7 +162,14 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 5.1,
     groundResolution: 112,
     arenaScale: 1.26
-  }
+  },
+  suburbanGarden: { cameraHeightM: 1.56, groundRadiusMultiplier: 5, groundResolution: 112, arenaScale: 1.24 },
+  countryTrackMidday: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.2, groundResolution: 112, arenaScale: 1.27 },
+  autumnPark: { cameraHeightM: 1.56, groundRadiusMultiplier: 5, groundResolution: 112, arenaScale: 1.24 },
+  rooitouPark: { cameraHeightM: 1.56, groundRadiusMultiplier: 5, groundResolution: 112, arenaScale: 1.24 },
+  rotesRathaus: { cameraHeightM: 1.59, groundRadiusMultiplier: 5.25, groundResolution: 112, arenaScale: 1.28 },
+  veniceDawn2: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.35, groundResolution: 112, arenaScale: 1.3 },
+  piazzaSanMarco: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.5, groundResolution: 112, arenaScale: 1.33 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -490,6 +497,28 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.01,
     swatches: ['#111827', '#ef4444'],
     description: 'Industrial training hall with strong overhead lighting structure.'
+  },
+
+  {
+    id: 'suburbanGarden', name: 'Suburban Garden', assetId: 'suburban_garden', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2820, exposure: 1.05, environmentIntensity: 1.03, backgroundIntensity: 0.99, swatches: ['#15803d', '#84cc16'], description: 'Outdoor suburban greenery with clean daylight and soft shadowing.'
+  },
+  {
+    id: 'countryTrackMidday', name: 'Country Track Midday', assetId: 'country_track_midday', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2840, exposure: 1.06, environmentIntensity: 1.04, backgroundIntensity: 1, swatches: ['#65a30d', '#facc15'], description: 'Bright midday countryside with neutral sunlight and crisp depth cues.'
+  },
+  {
+    id: 'autumnPark', name: 'Autumn Park', assetId: 'autumn_park', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2860, exposure: 1.07, environmentIntensity: 1.05, backgroundIntensity: 1.01, swatches: ['#b45309', '#f97316'], description: 'Golden park foliage for warm seasonal bounce and natural saturation.'
+  },
+  {
+    id: 'rooitouPark', name: 'Rooitou Park', assetId: 'rooitou_park', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2880, exposure: 1.06, environmentIntensity: 1.04, backgroundIntensity: 1, swatches: ['#065f46', '#2dd4bf'], description: 'Calm urban park lighting with balanced green tones and soft contrast.'
+  },
+  {
+    id: 'rotesRathaus', name: 'Rotes Rathaus', assetId: 'rotes_rathaus', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2900, exposure: 1.08, environmentIntensity: 1.06, backgroundIntensity: 1.02, swatches: ['#7f1d1d', '#fb7185'], description: 'Historic red-brick city backdrop with punchy architectural highlights.'
+  },
+  {
+    id: 'veniceDawn2', name: 'Venice Dawn 2', assetId: 'venice_dawn_2', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2920, exposure: 1.07, environmentIntensity: 1.05, backgroundIntensity: 1.01, swatches: ['#0ea5e9', '#f59e0b'], description: 'Sunrise Venice ambience blending cool sky fill with warm horizon glow.'
+  },
+  {
+    id: 'piazzaSanMarco', name: 'Piazza San Marco', assetId: 'piazza_san_marco', preferredResolutions: ['4k'], fallbackResolution: '4k', price: 2940, exposure: 1.09, environmentIntensity: 1.07, backgroundIntensity: 1.03, swatches: ['#475569', '#f8fafc'], description: 'Iconic Italian square panorama with broad illumination and rich detail.'
   },
   {
     id: 'voortrekkerInterior',
