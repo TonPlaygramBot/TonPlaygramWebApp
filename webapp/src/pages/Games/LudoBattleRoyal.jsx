@@ -9737,6 +9737,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
+      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+        const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
+          ? cameraLookStateRef.current.lockedPosition
+          : cameraSeatLockPositionRef.current?.isVector3
+            ? cameraSeatLockPositionRef.current
+            : null;
+        if (hardLockedPosition) {
+          camera.position.copy(hardLockedPosition);
+        }
+      }
+
       if (!isCamera2d && controls) {
         if (LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
           applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
