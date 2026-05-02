@@ -100,9 +100,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  courtW: 4.18,
-  doublesW: 5.25,
-  courtL: 12.1,
+  courtW: 5.25,
+  doublesW: 6.4,
+  courtL: 14.0,
   serviceLineZ: 2.85,
   netH: 0.64,
   ballR: 0.085,
@@ -196,7 +196,7 @@ function addCourt(scene: THREE.Scene) {
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
-  addBox(group, [9.8, 0.045, 15.9], [0, -0.045, 0], floorMat);
+  addBox(group, [11.6, 0.045, 18.8], [0, -0.045, 0], floorMat);
   addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, -0.015, 0], outerMat);
   addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
   addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
@@ -896,7 +896,7 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 6.95 : 6.15, camera.aspect < 0.72 ? 8.15 : 7.35);
+      camera.position.set(0, camera.aspect < 0.72 ? 6.2 : 5.45, camera.aspect < 0.72 ? 8.15 : 7.35);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1098,7 +1098,7 @@ export default function MobileThreeTennisPrototype() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: 10, right: 10, top: 8, color: "white", background: "rgba(5,12,18,0.78)", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 10px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
+        <div style={{ position: "absolute", left: 10, right: 10, top: 34, color: "white", background: "rgba(5,12,18,0.78)", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 10px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 30, height: 30, borderRadius: "999px", overflow: "hidden", border: "1px solid rgba(255,255,255,.25)", background: "#1f2937" }}>{playerAvatar ? <img src={playerAvatar} alt={playerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}</div>
@@ -1109,7 +1109,7 @@ export default function MobileThreeTennisPrototype() {
               <div><div style={{ fontWeight: 700, textAlign: "right" }}>{rivalName}</div><div style={{ opacity: 0.7, textAlign: "right" }}>Points {hud.farScore}</div></div>
               <div style={{ width: 30, height: 30, borderRadius: "999px", border: "1px solid rgba(255,255,255,.25)", background: "#334155", display: "flex", alignItems: "center", justifyContent: "center" }}>🎾</div>
             </div>
-            <button type="button" style={{ pointerEvents: "auto", width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.08)", color: "#fff" }} onClick={() => alert("Menu: graphics options are available from the game settings panel.")}>☰</button>
+            <button type="button" style={{ pointerEvents: "auto", width: 92, height: 34, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "#fff", fontWeight: 700, letterSpacing: 0.4 }} onClick={() => alert("Menu: graphics options are available from the game settings panel.")}>☰ Menu</button>
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 6, textAlign: "center" }}>{hud.status}</div>
         </div>
