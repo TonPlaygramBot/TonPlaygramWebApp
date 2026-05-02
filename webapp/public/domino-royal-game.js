@@ -8207,6 +8207,9 @@ async function buildChairs(
   try {
     const chairData = await ensureChairTemplateForTheme(option);
     placeChairsWithOption(option, chairData, token);
+    if (token === chairBuildToken) {
+      await attachSeatedHumanActors(token);
+    }
   } catch (error) {
     console.warn('Failed to load GLTF chair theme for Domino', error);
   }
