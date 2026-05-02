@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
-type StrokeAction = "ready" | "forehand" | "backhand" | "slice" | "serve";
+type StrokeAction = "ready" | "forehand" | "serve";
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -113,9 +113,9 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 5.35,
+  aiSpeed: 4.65,
   reach: 0.92,
-  swingDuration: 0.38,
+  swingDuration: 0.42,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
@@ -578,8 +578,6 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     }
     wristPronation = 1.2 * contact - 0.55 * follow;
   } else {
-    const isBackhand = player.action === "backhand";
-    const isSlice = player.action === "slice";
     const prep = clamp01(tRaw / 0.28);
     const slot = clamp01((tRaw - 0.18) / 0.26);
     const contact = clamp01((tRaw - 0.42) / 0.18);
@@ -590,9 +588,9 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = -0.1 * prep + 0.08 * contact;
     shoulderLift = 0.12 * contact;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, (isBackhand ? 0.22 : 0.62) + ballSide * (isBackhand ? -0.6 : 1)).addScaledVector(forward, isBackhand ? -0.18 : -0.35).setY(isSlice ? 1.15 : 1.05);
+    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 + ballSide).addScaledVector(forward, -0.35).setY(1.05);
     const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 + ballSide).addScaledVector(forward, -0.05).setY(0.82);
-    const contactHand = player.pos.clone().addScaledVector(right, isBackhand ? -0.22 + ballSide * 0.32 : 0.38 + ballSide * 0.45).addScaledVector(forward, isSlice ? 0.58 : 0.72).setY(clamp(ball.pos.y + (isSlice ? 0.08 : 0), 0.68, 1.26));
+    const contactHand = player.pos.clone().addScaledVector(right, 0.38 + ballSide * 0.45).addScaledVector(forward, 0.72).setY(clamp(ball.pos.y, 0.72, 1.24));
     const followHand = player.pos.clone().addScaledVector(right, -0.42).addScaledVector(forward, 0.34).setY(1.38);
 
     rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, contact).lerp(followHand, follow);
@@ -705,12 +703,10 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState) {
-  const shotVariant = Math.random();
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0) / (CFG.courtL / 2 - 1.0));
   const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
   const z = lerp(1.35, CFG.courtL / 2 - 1.0, 0.35 + pressure * 0.55);
-  const powerBoost = shotVariant > 0.8 ? 0.12 : shotVariant < 0.3 ? -0.06 : 0.02;
-  const power = clamp(0.52 + pressure * 0.42 + Math.random() * 0.16 + powerBoost, 0.44, 0.98);
+  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, 0.42, 0.92);
   return { target: new THREE.Vector3(x, CFG.ballR, z), power };
 }
 
@@ -860,30 +856,6 @@ export default function MobileThreeTennisPrototype() {
 
     addCourt(scene);
 
-    const adBillboards: THREE.Mesh[] = [];
-    const makeAdTexture = (label: string, a: string, b: string) => {
-      const c = document.createElement("canvas"); c.width = 1024; c.height = 256;
-      const ctx = c.getContext("2d")!;
-      const g = ctx.createLinearGradient(0,0,c.width,0); g.addColorStop(0,a); g.addColorStop(1,b);
-      ctx.fillStyle = g; ctx.fillRect(0,0,c.width,c.height);
-      ctx.fillStyle = "rgba(255,255,255,0.2)";
-      for (let x=0;x<c.width;x+=140){ctx.fillRect(x,0,24,c.height);}
-      ctx.fillStyle = "#fff"; ctx.font = "900 88px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, c.width/2, c.height/2);
-      const tex = new THREE.CanvasTexture(c); tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(1.2,1);
-      return tex;
-    };
-    const adConfigs = [
-      { text: "TONPLAYGRAM LIVE", x: -4.9, z: -1.2, rot: Math.PI/2, colors:["#0ea5e9", "#6366f1"] },
-      { text: "TENNIS PRO TOUR", x: 4.9, z: 1.2, rot: -Math.PI/2, colors:["#22c55e", "#14b8a6"] },
-      { text: "ARENA ENERGY", x: 0, z: -8.4, rot: 0, colors:["#f97316", "#ef4444"] },
-    ];
-    adConfigs.forEach((ad) => {
-      const tex = makeAdTexture(ad.text, ad.colors[0], ad.colors[1]);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveIntensity: 0.2, side: THREE.DoubleSide }));
-      mesh.position.set(ad.x, 0.85, ad.z); mesh.rotation.y = ad.rot; adBillboards.push(mesh); scene.add(mesh);
-    });
-
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
     const ball = createBall();
@@ -924,8 +896,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 52 : 47;
-      camera.position.set(0, camera.aspect < 0.72 ? 5.8 : 5.3, camera.aspect < 0.72 ? 12.4 : 11.4);
+      camera.fov = camera.aspect < 0.72 ? 48 : 42;
+      camera.position.set(0, camera.aspect < 0.72 ? 5.25 : 4.7, camera.aspect < 0.72 ? 9.9 : 8.9);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1041,11 +1013,7 @@ export default function MobileThreeTennisPrototype() {
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
-      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
-        const shotRoll = Math.random();
-        const action: StrokeAction = shotRoll < 0.42 ? "forehand" : shotRoll < 0.74 ? "backhand" : "slice";
-        startSwing(farPlayer, makeAiTarget(nearPlayer, ball), action);
-      }
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
     }
 
     function checkSwingHits() {
@@ -1061,8 +1029,7 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
           performHit(player, ball, player.desiredHit, false);
-          const label = player.action === "slice" ? "Slice return" : player.action === "backhand" ? "Backhand return" : "Forehand return";
-          setHudSafe({ status: player.side === "near" ? label : `AI ${label.toLowerCase()}` });
+          setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
     }
@@ -1096,30 +1063,22 @@ export default function MobileThreeTennisPrototype() {
       updatePoseAndRacket(nearPlayer, ball);
       updatePoseAndRacket(farPlayer, ball);
 
-      adBillboards.forEach((board, idx) => {
-        const mat = board.material as THREE.MeshStandardMaterial;
-        if (mat.map) {
-          mat.map.offset.x = (mat.map.offset.x + dt * (0.08 + idx * 0.04)) % 1;
-          mat.map.needsUpdate = true;
-        }
-      });
-
       ghost.position.x += (nearPlayer.target.x - ghost.position.x) * (1 - Math.exp(-12 * dt));
       ghost.position.z += (nearPlayer.target.z - ghost.position.z) * (1 - Math.exp(-12 * dt));
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
       const portrait = camera.aspect < 0.72;
-      const followY = portrait ? 5.55 : 5.05;
-      const followBack = portrait ? 8.85 : 8.2;
-      const lookAheadZ = portrait ? 10.9 : 10.2;
+      const followY = portrait ? 4.95 : 4.45;
+      const followBack = portrait ? 6.7 : 6.15;
+      const lookAheadZ = portrait ? 8.75 : 8.2;
 
       cameraDesiredPos.set(
-        nearPlayer.pos.x * 0.18,
+        nearPlayer.pos.x * 0.22,
         followY,
         nearPlayer.pos.z + followBack
       );
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
-      cameraTarget.set(nearPlayer.pos.x * 0.12, 0.92, nearPlayer.pos.z - lookAheadZ);
+      cameraTarget.set(nearPlayer.pos.x * 0.16, 0.96, nearPlayer.pos.z - lookAheadZ);
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
