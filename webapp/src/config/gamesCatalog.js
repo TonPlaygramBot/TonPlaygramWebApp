@@ -2,7 +2,7 @@ const gamesCatalog = [
 
   {
     name: 'Tennis',
-    route: '/games/tennis/lobby',
+    route: '/games/tennis',
     slug: 'tennis',
     image: '/assets/icons/Goal%20rush%20logo.png',
     description: '3D tennis rally with swipe controls and physics.'
