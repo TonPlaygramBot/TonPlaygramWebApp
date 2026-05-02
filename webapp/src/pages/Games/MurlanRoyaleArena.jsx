@@ -1773,9 +1773,9 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 48.64 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 53.12 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -56.96 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 97.28 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 106.24 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -113.92 * MODEL_SCALE : 0;
   const bottomForwardPull = isBottomHumanSeat ? -18.56 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
@@ -2454,8 +2454,8 @@ const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
-const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.32 * MODEL_SCALE;
-const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.34 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.64 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.68 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
