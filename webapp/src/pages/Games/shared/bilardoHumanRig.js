@@ -22,7 +22,7 @@ const CFG = {
   bridgeDist: 0.24,
   shootCueGripFromBack: 0.58,
   rightHandShotExtraBack: 0.18,
-  rightHandShotLift: 0.055,
+  rightHandShotLift: -0.30,
   rightHandForwardClamp: -0.08,
   rightHandOutward: 0.14,
   idleRightHandY: 0.8,
@@ -35,9 +35,9 @@ const CFG = {
   footGroundY: 0.035,
   kneeBendShot: 0.16,
   footLockStrength: 1.0,
-  rightElbowShotRise: 0.84,
-  rightElbowShotSide: -0.34,
-  rightElbowShotBack: -0.82,
+  rightElbowShotRise: 0.18,
+  rightElbowShotSide: -0.46,
+  rightElbowShotBack: -0.78,
   rightForearmOutward: 0.36,
   rightForearmBack: 0.44,
   rightForearmDown: 0.48,
@@ -285,11 +285,10 @@ function driveHuman(human, frame) {
   }
 
   const rightGrip = frame.rightHandWorld.clone();
-  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
-  const rightHold = 0.88 + 0.12 * ik;
-  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
+  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.04 + 0.14 * ik).addScaledVector(frame.side, -0.2).addScaledVector(frame.forward, -0.03 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.5);
+  const pole = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.32).addScaledVector(frame.forward, -0.55).normalize();
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, pole, 0.9 + 0.1 * ik, 1.0);
 
   const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
   const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
@@ -348,10 +347,10 @@ export function updateBilardoHumanPose(human, dt, frameData) {
   const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - cfg.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) + breath - cfg.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
   const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
   const rightShoulder = local(new THREE.Vector3(0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.34, t) - 0.018 * human.settleT));
   const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
