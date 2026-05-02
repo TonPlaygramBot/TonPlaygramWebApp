@@ -38,6 +38,8 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
+import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
+import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
 
 const ChessBattleRoyal = React.lazy(
   () => import('./pages/Games/ChessBattleRoyal.jsx')
@@ -341,6 +343,16 @@ export default function App() {
               element={
                 <GameLiveAvatarOverlay gameSlug="domino-royal">
                   <DominoRoyal />
+                </GameLiveAvatarOverlay>
+              }
+            />
+
+            <Route path="/games/tabletennisroyal/lobby" element={<TableTennisRoyalLobby />} />
+            <Route
+              path="/games/tabletennisroyal"
+              element={
+                <GameLiveAvatarOverlay gameSlug="tabletennisroyal"> 
+                  <TableTennisRoyal />
                 </GameLiveAvatarOverlay>
               }
             />
