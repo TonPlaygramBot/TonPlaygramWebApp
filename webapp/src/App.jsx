@@ -66,6 +66,7 @@ import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
 import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
+import Tennis from './pages/Games/Tennis.tsx';
 
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
@@ -369,6 +370,16 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
+
+            <Route
+              path="/games/tennis"
+              element={
+                <GameLiveAvatarOverlay gameSlug="tennis">
+                  <Tennis />
+                </GameLiveAvatarOverlay>
+              }
+            />
+
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
