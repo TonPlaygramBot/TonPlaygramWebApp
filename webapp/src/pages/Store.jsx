@@ -140,6 +140,7 @@ import {
   SNAKE_OPTION_LABELS,
   SNAKE_STORE_ITEMS
 } from '../config/snakeInventoryConfig.js';
+import { BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import {
   addDominoRoyalUnlock,
   dominoRoyalAccountId,
@@ -468,7 +469,8 @@ const HDRI_TARGET_GAMES = Object.freeze([
   { slug: 'murlanroyale', label: 'Murlan Royale' },
   { slug: 'domino-royal', label: 'Domino Royal' },
   { slug: 'snake', label: 'Snake & Ladder' },
-  { slug: 'texasholdem', label: 'Texas Holdem Arena' }
+  { slug: 'texasholdem', label: 'Texas Holdem Arena' },
+  { slug: 'bowling', label: 'Bowling' }
 ]);
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
@@ -497,7 +499,8 @@ const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   poolroyale: 'poolHdriEnvironment',
   bilardoshqip: 'bilardoShqipHdriEnvironment',
-  snookerroyale: 'snookerHdriEnvironment'
+  snookerroyale: 'snookerHdriEnvironment',
+  bowling: 'bowlingHdriEnvironment'
 });
 
 function HdriEquirectangularPreview({ src, title }) {
@@ -1180,6 +1183,14 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
+  },
+  bowling: {
+    name: 'Bowling',
+    items: BOWLING_STORE_ITEMS,
+    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
+    labels: POOL_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
   }
 };
 
@@ -1656,7 +1667,7 @@ export default function Store() {
         hdriSelectedGames.map((slug) => {
           const optionId = optionIdByGame[slug];
           if (!optionId) return Promise.resolve();
-          if (slug === 'poolroyale' || slug === 'bilardoshqip') {
+          if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'bowling') {
             return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
           }
           if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
@@ -1799,6 +1810,11 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'tennis'
+      })),
+      bowling: BOWLING_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'bowling'
       }))
     }),
     []
@@ -1835,7 +1851,9 @@ export default function Store() {
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
       tennis: (type, optionId) =>
-        isTennisOptionUnlocked(type, optionId, tennisOwned)
+        isTennisOptionUnlocked(type, optionId, tennisOwned),
+      bowling: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned)
     }),
     [
       airOwned,
@@ -2492,7 +2510,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'bowling') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
