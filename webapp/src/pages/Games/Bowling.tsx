@@ -1,337 +1,304 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+/*
+EXPORT SETUP
+1) npx create-next-app@latest bowling-game --ts --app
+2) cd bowling-game && npm i three
+3) Replace app/page.tsx with this file
+4) Preview: npm run dev
+5) Static export: next.config.js -> const nextConfig={output:"export"}; export default nextConfig;
+6) Build: npm run build
+Controls: swipe visually upward to throw. Slide left/right while swiping to aim and hook.
+Game: fixed player camera, same human character, oak lane, no ball-return mechanism. Ball resets back to player after pins settle.
+*/
+
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover";
-type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
+type Act = "idle" | "run" | "throw" | "recover";
+type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
+type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
+type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
+type Hud = { score: number; last: number; power: number; msg: string };
 
-type HudState = {
-  power: number;
-  status: string;
-  activePlayer: number;
-  p1: number;
-  p2: number;
-  frame: number;
-  roll: number;
-};
-
-type ThrowIntent = {
-  power: number;
-  releaseX: number;
-  targetX: number;
-  hook: number;
-  speed: number;
-};
-
-type ControlState = {
-  active: boolean;
-  pointerId: number | null;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  intent: ThrowIntent | null;
-};
-
-type BowlingFrame = {
-  rolls: number[];
-  cumulative: number | null;
-};
-
-type ScorePlayer = {
-  name: string;
-  frames: BowlingFrame[];
-  total: number;
-};
-
-type HumanRig = {
-  root: THREE.Group;
-  modelRoot: THREE.Group;
-  fallback: THREE.Group;
-  shadow: THREE.Mesh;
-  model: THREE.Object3D | null;
-  pos: THREE.Vector3;
-  yaw: number;
-  action: PlayerAction;
-  approachT: number;
-  throwT: number;
-  recoverT: number;
-  walkCycle: number;
-  approachFrom: THREE.Vector3;
-  approachTo: THREE.Vector3;
-};
-
-type BallState = {
-  mesh: THREE.Mesh;
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  held: boolean;
-  rolling: boolean;
-  inGutter: boolean;
-  hook: number;
-  returnState: BallReturnState;
-  returnT: number;
-};
-
-type PinState = {
-  root: THREE.Group;
-  start: THREE.Vector3;
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  tilt: number;
-  tiltDir: THREE.Vector3;
-  angularVel: number;
-  standing: boolean;
-  knocked: boolean;
-};
-
-const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HDRI_URL = "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr";
-const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
-const OAK = {
-  diff: `${OAK_BASE}oak_veneer_01_diff_2k.jpg`,
-  rough: `${OAK_BASE}oak_veneer_01_rough_2k.jpg`,
-  normal: `${OAK_BASE}oak_veneer_01_nor_gl_2k.jpg`,
-};
-
-const UP = new THREE.Vector3(0, 1, 0);
-
-const CFG = {
-  laneY: 0.08,
-  laneHalfW: 1.56,
-  gutterHalfW: 2.08,
-  playerStartZ: 7.15,
-  approachStopZ: 4.95,
-  foulZ: 4.55,
-  arrowsZ: 0.95,
-  pinDeckZ: -10.75,
-  backStopZ: -13.15,
-  ballR: 0.18,
-  pinR: 0.17,
-  pinToppleThreshold: 0.58,
-  approachDuration: 0.56,
-  throwDuration: 0.9,
-  recoverDuration: 0.28,
-  releaseT: 0.56,
-};
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const clamp01 = (v: number) => clamp(v, 0, 1);
+const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
+const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const OAK = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-const easeInOut = (t: number) => t * t * (3 - 2 * t);
+const smooth = (t: number) => t * t * (3 - 2 * t);
+const out = (t: number) => 1 - Math.pow(1 - t, 3);
 
-function makeEmptyPlayers(): ScorePlayer[] {
-  const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
-  return [
-    { name: "PLAYER 1", frames: makeFrames(), total: 0 },
-    { name: "PLAYER 2", frames: makeFrames(), total: 0 },
-  ];
-}
-
-function clonePlayers(players: ScorePlayer[]) {
-  return players.map((p) => ({ ...p, frames: p.frames.map((f) => ({ rolls: [...f.rolls], cumulative: f.cumulative })) }));
-}
-
-function frameComplete(frame: BowlingFrame, index: number) {
-  const r = frame.rolls;
-  if (index < 9) return r[0] === 10 || r.length >= 2;
-  if (r.length < 2) return false;
-  if (r[0] === 10 || r[0] + r[1] === 10) return r.length >= 3;
-  return r.length >= 2;
-}
-
-function currentFrameIndex(player: ScorePlayer) {
-  const idx = player.frames.findIndex((f, i) => !frameComplete(f, i));
-  return idx === -1 ? 9 : idx;
-}
-
-function playerFinished(player: ScorePlayer) {
-  return player.frames.every((f, i) => frameComplete(f, i));
-}
-
-function recomputePlayerTotals(player: ScorePlayer) {
-  const flat = player.frames.flatMap((f) => f.rolls);
-  let rollIndex = 0;
-  let running = 0;
-
-  for (let frame = 0; frame < 10; frame++) {
-    const out = player.frames[frame];
-    out.cumulative = null;
-
-    if (frame < 9) {
-      const a = flat[rollIndex];
-      if (a == null) break;
-
-      if (a === 10) {
-        const b = flat[rollIndex + 1];
-        const c = flat[rollIndex + 2];
-        if (b == null || c == null) break;
-        running += 10 + b + c;
-        out.cumulative = running;
-        rollIndex += 1;
-      } else {
-        const b = flat[rollIndex + 1];
-        if (b == null) break;
-        const base = a + b;
-        if (base === 10) {
-          const c = flat[rollIndex + 2];
-          if (c == null) break;
-          running += 10 + c;
-        } else {
-          running += base;
-        }
-        out.cumulative = running;
-        rollIndex += 2;
-      }
-    } else {
-      if (!frameComplete(out, frame)) break;
-      running += out.rolls.reduce((s, v) => s + v, 0);
-      out.cumulative = running;
-    }
-  }
-
-  player.total = running;
-}
-
-function addRollToPlayer(player: ScorePlayer, knocked: number) {
-  const frameIndex = currentFrameIndex(player);
-  const frame = player.frames[frameIndex];
-
-  if (frameIndex < 9) {
-    if (frame.rolls.length === 0) frame.rolls.push(clamp(knocked, 0, 10));
-    else if (frame.rolls.length === 1) frame.rolls.push(clamp(knocked, 0, 10 - frame.rolls[0]));
-  } else {
-    if (frame.rolls.length === 0) {
-      frame.rolls.push(clamp(knocked, 0, 10));
-    } else if (frame.rolls.length === 1) {
-      const max = frame.rolls[0] === 10 ? 10 : 10 - frame.rolls[0];
-      frame.rolls.push(clamp(knocked, 0, max));
-    } else if (frame.rolls.length === 2) {
-      let max = 10;
-      if (frame.rolls[0] === 10 && frame.rolls[1] !== 10) max = 10 - frame.rolls[1];
-      frame.rolls.push(clamp(knocked, 0, max));
-    }
-  }
-
-  recomputePlayerTotals(player);
-  return { frameIndex, frameEnded: frameComplete(frame, frameIndex), gameFinished: playerFinished(player) };
-}
-
-function standingPinsCount(pins: PinState[]) {
-  return pins.filter((p) => p.root.visible && p.standing && p.tilt < CFG.pinToppleThreshold).length;
-}
-
-function enableShadow(obj: THREE.Object3D) {
-  obj.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (mesh.isMesh) {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.frustumCulled = false;
-    }
+function cast(o: THREE.Object3D) {
+  o.traverse(c => {
+    const m = c as THREE.Mesh;
+    if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; }
   });
-  return obj;
+  return o;
 }
 
-function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+function box(w: number, h: number, d: number, color: number, rough = .6, metal = 0) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal }));
 }
 
-function setTexRepeat(tex: THREE.Texture, rx: number, ry: number) {
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(rx, ry);
-  tex.anisotropy = 8;
+function oakMaterial(loader: THREE.TextureLoader) {
+  try {
+    const d = loader.load(OAK + "oak_veneer_01_diff_2k.jpg");
+    const r = loader.load(OAK + "oak_veneer_01_rough_2k.jpg");
+    const n = loader.load(OAK + "oak_veneer_01_nor_gl_2k.jpg");
+    [d, r, n].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1.05, 8.5); t.anisotropy = 8; });
+    d.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshPhysicalMaterial({ map: d, roughnessMap: r, normalMap: n, roughness: .2, clearcoat: 1, clearcoatRoughness: .05 });
+  } catch {
+    return new THREE.MeshPhysicalMaterial({ color: 0xd3a365, roughness: .25, clearcoat: 1 });
+  }
 }
 
-function loadOakMaterial(loader: THREE.TextureLoader, repeatX: number, repeatY: number) {
-  const diff = loader.load(OAK.diff);
-  const rough = loader.load(OAK.rough);
-  const normal = loader.load(OAK.normal);
-  diff.colorSpace = THREE.SRGBColorSpace;
-  setTexRepeat(diff, repeatX, repeatY);
-  setTexRepeat(rough, repeatX, repeatY);
-  setTexRepeat(normal, repeatX, repeatY);
-  return new THREE.MeshPhysicalMaterial({
-    map: diff,
-    roughnessMap: rough,
-    normalMap: normal,
-    roughness: 0.22,
-    metalness: 0.02,
-    clearcoat: 1,
-    clearcoatRoughness: 0.055,
-    reflectivity: 0.92,
+function ballTexture() {
+  const c = document.createElement("canvas"), x = c.getContext("2d")!;
+  c.width = c.height = 512;
+  const g = x.createRadialGradient(160, 120, 20, 256, 256, 330);
+  g.addColorStop(0, "#9ee7ff"); g.addColorStop(.45, "#2d88ff"); g.addColorStop(1, "#07103b");
+  x.fillStyle = g; x.fillRect(0, 0, 512, 512); x.globalAlpha = .2;
+  for (let i = 0; i < 24; i++) {
+    x.strokeStyle = i % 2 ? "#91f1ff" : "#06112f"; x.lineWidth = 5 + Math.random() * 8;
+    x.beginPath(); x.moveTo(Math.random() * 512, Math.random() * 512);
+    for (let j = 0; j < 4; j++) x.lineTo(Math.random() * 512, Math.random() * 512);
+    x.stroke();
+  }
+  x.globalAlpha = 1; x.fillStyle = "rgba(0,0,0,.55)";
+  [[202, 187, 14], [242, 215, 14], [191, 246, 13]].forEach(([a, b, r]) => { x.beginPath(); x.arc(a, b, r, 0, Math.PI * 2); x.fill(); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+function makeBall(): Ball {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(C.ballR, 56, 40), new THREE.MeshPhysicalMaterial({ map: ballTexture(), roughness: .08, clearcoat: 1, clearcoatRoughness: .03 }));
+  const p = new THREE.Vector3(.36, .92, C.startZ);
+  cast(m); m.position.copy(p);
+  return { m, p, v: new THREE.Vector3(), held: true, rolling: false, hook: 0 };
+}
+
+function makePinMesh() {
+  const g = new THREE.Group();
+  const white = new THREE.MeshPhysicalMaterial({ color: 0xfffbf2, roughness: .2, clearcoat: 1 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xd72d37, roughness: .28 });
+  const raw = [.045,0,.09,.06,.085,.2,.16,.36,.14,.5,.068,.62,.076,.7,.038,.74,0,.74];
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i < raw.length; i += 2) pts.push(new THREE.Vector2(raw[i], raw[i + 1]));
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 42), white));
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(.082, .072, .035, 40), red);
+  stripe.position.y = .615; g.add(stripe);
+  return cast(g);
+}
+
+function makePins(scene: THREE.Scene) {
+  const data = [[0,0],[-.32,-.56],[.32,-.56],[-.64,-1.12],[0,-1.12],[.64,-1.12],[-.96,-1.68],[-.32,-1.68],[.32,-1.68],[.96,-1.68]];
+  return data.map(([x, z]) => {
+    const g = makePinMesh(), p = new THREE.Vector3(x, C.y + .09, C.pinZ + z);
+    g.position.copy(p); scene.add(g);
+    return { g, p: p.clone(), s: p.clone(), v: new THREE.Vector3(), tilt: 0, axis: new THREE.Vector3(0, 0, -1), down: false } as Pin;
   });
 }
 
-function makeFallbackWoodMaterial() {return new THREE.MeshPhysicalMaterial({ color: 0xd3a365 });}
-
-function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
-  model.rotation.set(0, Math.PI, 0);
-  model.position.set(0, 0, 0);
-  model.scale.setScalar(1);
-  model.updateMatrixWorld(true);
-  let box = new THREE.Box3().setFromObject(model);
-  const h = Math.max(0.001, box.max.y - box.min.y);
-  model.scale.setScalar(targetHeight / h);
-  model.updateMatrixWorld(true);
-  box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
+function resetPins(pins: Pin[]) {
+  pins.forEach(p => { p.p.copy(p.s); p.v.set(0,0,0); p.tilt = 0; p.axis.set(0,0,-1); p.down = false; p.g.visible = true; p.g.position.copy(p.p); p.g.rotation.set(0,0,0); });
 }
 
-function makeFallbackHuman(color: number) { const g = new THREE.Group(); return g; }
+const standing = (pins: Pin[]) => pins.filter(p => p.g.visible && !p.down && p.tilt < .58).length;
 
-function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): HumanRig {
-  const root = new THREE.Group();
-  const modelRoot = new THREE.Group();
-  const fallback = makeFallbackHuman(accent);
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.34, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false }));
-  shadow.rotation.x = -Math.PI / 2;
-  modelRoot.position.copy(start);
-  modelRoot.add(fallback);
-  shadow.position.set(start.x, CFG.laneY + 0.01, start.z);
-  scene.add(root, modelRoot, shadow);
-  const rig: HumanRig = { root, modelRoot, fallback, shadow, model: null, pos: start.clone(), yaw: 0, action: "idle", approachT: 0, throwT: 0, recoverT: 0, walkCycle: 0, approachFrom: start.clone(), approachTo: start.clone() };
-  new GLTFLoader().setCrossOrigin("anonymous").load(HUMAN_URL, (gltf) => { const model = gltf.scene; normalizeHuman(model, 1.82); enableShadow(model); rig.model = model; rig.fallback.visible = false; rig.modelRoot.add(model); }, undefined, () => { rig.fallback.visible = true; });
+function normalize(model: THREE.Object3D, h: number) {
+  model.rotation.set(0, Math.PI, 0); model.scale.setScalar(1); model.updateMatrixWorld(true);
+  let b = new THREE.Box3().setFromObject(model); model.scale.setScalar(h / Math.max(.001, b.max.y - b.min.y));
+  model.updateMatrixWorld(true); b = new THREE.Box3().setFromObject(model);
+  const c = b.getCenter(new THREE.Vector3()); model.position.add(new THREE.Vector3(-c.x, -b.min.y, -c.z));
+}
+
+function fallbackHuman() {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xecc5a2, roughness: .82 });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0xff7a2f, roughness: .72 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x1f232c, roughness: .84 });
+  const shoe = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .56 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.17, 24, 18), skin); head.position.y = 1.62;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.22, .54, 6, 14), shirt); body.position.y = 1.05;
+  g.add(head, body);
+  [-.12, .12].forEach(x => {
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(.07, .52, 4, 10), pants); leg.position.set(x, .35, 0); g.add(leg);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(.18, .06, .28), shoe); foot.position.set(x, .03, -.02); g.add(foot);
+  });
+  [-.32, .32].forEach((x, i) => {
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(.055, .42, 4, 10), skin); arm.position.set(x, 1.16, i ? .06 : 0); arm.rotation.z = i ? -.18 : .22; g.add(arm);
+  });
+  return cast(g);
+}
+
+function makeRig(scene: THREE.Scene): Rig {
+  const p = new THREE.Vector3(0, C.y, C.startZ), body = new THREE.Group(), fallback = fallbackHuman();
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(.34, 32), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .18, depthWrite: false }));
+  sh.rotation.x = -Math.PI / 2; body.position.copy(p); body.add(fallback); sh.position.set(p.x, C.y + .01, p.z); scene.add(body, sh);
+  const rig: Rig = { body, fallback, sh, model: null, p: p.clone(), act: "idle", t: 0, from: p.clone(), to: p.clone(), cycle: 0 };
+  new GLTFLoader().setCrossOrigin("anonymous").load(HUMAN, gltf => { normalize(gltf.scene, 1.82); cast(gltf.scene); rig.model = gltf.scene; fallback.visible = false; body.add(gltf.scene); }, undefined, () => fallback.visible = true);
   return rig;
 }
 
-function syncHuman(rig: HumanRig) { rig.modelRoot.position.copy(rig.pos); rig.modelRoot.rotation.y = rig.yaw; rig.shadow.position.set(rig.pos.x, CFG.laneY + 0.01, rig.pos.z); }
-function getHeldBallWorldPosition(rig: HumanRig) { return new THREE.Vector3(0.34, 0.94, 0.16).add(rig.pos); }
-function makeBallMaterial(colors: [string, string, string]) { return new THREE.MeshPhysicalMaterial({ color: 0x2d88ff }); }
-function createActiveBall() { const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 32), makeBallMaterial(["#9ee7ff", "#2d88ff", "#0d1d50"])); const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ); mesh.position.copy(pos); return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0 } as BallState; }
-function createPinMesh() { return new THREE.Group(); }
-function createPins(scene: THREE.Scene) { return [] as PinState[]; }
-function resetPins(pins: PinState[]) {}
-function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) { const monitorCanvas = document.createElement("canvas"); monitorCanvas.width = 1280; monitorCanvas.height = 576; const monitorCtx = monitorCanvas.getContext("2d")!; const monitorTex = new THREE.CanvasTexture(monitorCanvas); monitorTex.colorSpace = THREE.SRGBColorSpace; return { monitorCtx, monitorTex }; }
-function drawMonitor() {}
-function createFrameRollSymbols(frame: BowlingFrame, frameIndex: number) { return ["", ""]; }
-function computeIntent(hostWidth: number, hostHeight: number, startX: number, startY: number, x: number, y: number): ThrowIntent { return { power: 0, releaseX: 0, targetX: 0, hook: 0, speed: 0 }; }
-function startApproach(rig: HumanRig, intent: ThrowIntent) {}
-function updateHuman(rig: HumanRig, ball: BallState, dt: number) {}
-function releaseBall(ball: BallState, intent: ThrowIntent) {}
-function updateAimVisual(line: THREE.Line, marker: THREE.Mesh, intent: ThrowIntent | null) {}
-function updatePins(pins: PinState[], dt: number) { return false; }
-function startBallReturn(ball: BallState) {}
-function updateBallReturn(ball: BallState, dt: number) { return false; }
-function updateBall(ball: BallState, pins: PinState[], dt: number) { return false; }
-function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number) {}
+function heldPos(r: Rig) {
+  let v = new THREE.Vector3(.34, .94, .16);
+  if (r.act === "run") { const s = Math.sin(r.cycle); v.set(.36, .82 + Math.abs(s) * .05, .14 + s * .09); }
+  if (r.act === "throw") {
+    const t = clamp(r.t, 0, 1);
+    if (t < .38) { const k = smooth(t / .38); v.set(lerp(.34,.44,k), lerp(.86,.55,k), lerp(.16,-.68,k)); }
+    else if (t < .56) { const k = smooth((t - .38) / .18); v.set(lerp(.44,.22,k), lerp(.55,.42,k), lerp(-.68,1.24,k)); }
+    else { const k = out((t - .56) / .44); v.set(lerp(.22,.16,k), lerp(.42,1.42,k), lerp(1.24,.48,k)); }
+  }
+  return v.add(r.p);
+}
 
-function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) { return <div />; }
+function updateRig(r: Rig, b: Ball, dt: number) {
+  if (r.act === "run") {
+    r.t = clamp(r.t + dt / .56, 0, 1); r.cycle += dt * 16.8; r.p.lerpVectors(r.from, r.to, smooth(r.t));
+    if (r.model) { r.model.position.y = Math.abs(Math.sin(r.cycle)) * .046; r.model.rotation.x = .035; r.model.rotation.z = Math.sin(r.cycle) * .02; }
+    if (r.t >= 1) { r.act = "throw"; r.t = .001; }
+  } else if (r.act === "throw") {
+    r.t += dt / .9;
+    if (r.model) { const t = clamp(r.t, 0, 1); r.model.rotation.x = t < .55 ? lerp(0,.18,t/.55) : lerp(.18,-.05,(t-.55)/.45); r.model.rotation.z = t < .45 ? lerp(0,-.04,t/.45) : lerp(-.04,.02,(t-.45)/.55); }
+    if (r.t >= 1) { r.act = "recover"; r.t = .001; }
+  } else if (r.act === "recover") {
+    r.t += dt / .28; if (r.model) { r.model.rotation.x = lerp(-.05, 0, clamp(r.t,0,1)); r.model.rotation.z *= .82; }
+    if (r.t >= 1) { r.act = "idle"; r.t = 0; }
+  } else if (r.model) { r.model.position.y *= .82; r.model.rotation.x *= .82; r.model.rotation.z *= .82; }
+  r.body.position.copy(r.p); r.body.rotation.y = 0; r.sh.position.set(r.p.x, C.y + .01, r.p.z);
+  if (b.held) { b.p.copy(heldPos(r)); b.m.position.copy(b.p); }
+}
 
-export default function MobileBowlingRealistic() { return <div />; }
+function buildLane(scene: THREE.Scene) {
+  const g = new THREE.Group(), w = oakMaterial(new THREE.TextureLoader()); scene.add(g);
+  const floor = box(8.8,.18,31.5,0x080a0e,.9); floor.position.set(0,-.12,-3.4); g.add(floor);
+  const lane = new THREE.Mesh(new THREE.BoxGeometry(C.laneW*2,.08,19.25), w); lane.position.set(0,C.y,-4.05); g.add(lane);
+  const approach = new THREE.Mesh(new THREE.BoxGeometry(4.85,.08,4.55), w); approach.position.set(0,C.y,7.35); g.add(approach);
+  const oil = new THREE.Mesh(new THREE.PlaneGeometry(C.laneW*2-.08,13.25), new THREE.MeshPhysicalMaterial({ color:0xffffff, transparent:true, opacity:.105, roughness:.035, clearcoat:1 }));
+  oil.rotation.x = -Math.PI / 2; oil.position.set(0, C.y + .047, -2.62); g.add(oil);
+  for (const sx of [-1, 1]) {
+    const gut = box(.48,.16,19.7,0x202b36,.42,.25); gut.position.set(sx*1.9,C.y-.01,-4.1); g.add(gut);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.09,.18,19.9), w); rail.position.set(sx*2.2,C.y+.06,-4.1); g.add(rail);
+    const led = new THREE.Mesh(new THREE.BoxGeometry(.035,.02,18.7), new THREE.MeshBasicMaterial({ color:0x68d7ff, transparent:true, opacity:.35 })); led.position.set(sx*1.61,C.y+.085,-4.1); g.add(led);
+  }
+  const foul = box(3.58,.025,.06,0xffffff,.35); foul.position.set(0,C.y+.075,C.foulZ); g.add(foul);
+  for (let i=-3;i<=3;i++) { const s = new THREE.Shape(); s.moveTo(0,.24); s.lineTo(-.11,-.16); s.lineTo(.11,-.16); s.closePath(); const a = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshStandardMaterial({color:0x12395e,roughness:.5})); a.rotation.x=-Math.PI/2; a.position.set(i*.34,C.y+.018,.95-Math.abs(i)*.08); g.add(a); }
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(4.15,.15,2.25), w); deck.position.set(0,C.y+.02,C.pinZ-.85); g.add(deck);
+  const pit = box(4.85,.58,1.35,0x06080b,.9); pit.position.set(0,-.08,-12.35); g.add(pit);
+  const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
+  const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
+  for (let i=0;i<7;i++) { const p = box(1.05,.03,.55,0xd9f4ff,.2); p.position.set(i%2?-1.25:1.25,3.24,lerp(7.2,-11.2,i/6)); g.add(p); }
+  const left = box(.18,3.5,30.6,0x111722,.92); left.position.set(-3.95,1.65,-2.8); g.add(left);
+  const right = left.clone(); right.position.x = 3.95; g.add(right);
+  const back = box(8.1,3.5,.18,0x111722,.92); back.position.set(0,1.65,-13.35); g.add(back);
+  const ceil = box(8.1,.16,30.6,0x1b2430,.72,.15); ceil.position.set(0,3.35,-2.8); g.add(ceil);
+  cast(g);
+}
+
+function updatePins(pins: Pin[], b: Ball, dt: number) {
+  let moving = false;
+  if (b.rolling && Math.abs(b.p.x) < C.laneW + .1) for (const p of pins) {
+    if (!p.g.visible) continue;
+    const dx = p.p.x - b.p.x, dz = p.p.z - b.p.z, d = Math.hypot(dx, dz);
+    if (d < C.ballR + C.pinR && d > .001) {
+      const n = new THREE.Vector3(dx/d,0,dz/d), s = Math.hypot(b.v.x,b.v.z), imp = Math.max(1, s*.78);
+      p.v.addScaledVector(n, imp); p.v.z += b.v.z * .18; p.axis.copy(n); p.down = true; b.v.addScaledVector(n, -.6); b.v.multiplyScalar(.92);
+    }
+  }
+  for (let i=0;i<pins.length;i++) for (let j=i+1;j<pins.length;j++) {
+    const a = pins[i], c = pins[j]; if (!a.g.visible || !c.g.visible) continue;
+    const dx = c.p.x - a.p.x, dz = c.p.z - a.p.z, d = Math.hypot(dx, dz);
+    if (d < C.pinR * 1.8 && d > .001) { const n = new THREE.Vector3(dx/d,0,dz/d); a.v.addScaledVector(n,-.45); c.v.addScaledVector(n,.45); a.down = c.down = true; a.axis.copy(n).multiplyScalar(-1); c.axis.copy(n); }
+  }
+  for (const p of pins) {
+    if (!p.g.visible) continue;
+    const s = Math.hypot(p.v.x, p.v.z); if (s > .015 || p.tilt > .015) moving = true;
+    p.p.addScaledVector(p.v, dt); p.v.multiplyScalar(Math.exp(-2.05 * dt));
+    if (p.down || s > .28) p.tilt = clamp(p.tilt + (s * 1.2 + .7) * dt, 0, 1.46);
+    if (Math.abs(p.p.x) > 2.35 || p.p.z < C.backZ - .25 || p.p.z > C.pinZ + 1.15) p.g.visible = false;
+    p.g.position.copy(p.p); const d = p.axis.lengthSq() > .001 ? p.axis : new THREE.Vector3(0,0,-1); p.g.rotation.x = d.z * p.tilt; p.g.rotation.z = -d.x * p.tilt;
+  }
+  return moving;
+}
+
+function updateBall(b: Ball, pins: Pin[], dt: number) {
+  if (!b.rolling) return false;
+  const sp = Math.hypot(b.v.x,b.v.z), gutter = Math.abs(b.p.x) > C.laneW;
+  if (!gutter && sp > .85 && b.p.z < 2.6) b.v.x += b.hook * clamp((2.4 - b.p.z) / 8.4, 0, 1) * dt;
+  b.v.multiplyScalar(Math.exp((gutter ? -1.24 : -.4) * dt)); b.p.addScaledVector(b.v, dt); b.p.x = clamp(b.p.x, -C.gutterW, C.gutterW);
+  b.p.y = C.y + C.ballR + (gutter ? -.08 : .02); b.m.position.copy(b.p);
+  if (sp > .02) b.m.rotateOnWorldAxis(new THREE.Vector3(b.v.z,0,-b.v.x).normalize(), sp / C.ballR * dt);
+  updatePins(pins, b, dt);
+  if (b.p.z <= C.backZ + .45 || sp < .12) { b.rolling = false; b.v.set(0,0,0); return false; }
+  return true;
+}
+
+function release(b: Ball, intent: { releaseX: number; targetX: number; speed: number; hook: number }) {
+  const p = new THREE.Vector3(intent.releaseX, C.y + C.ballR + .02, C.foulZ - .16);
+  const t = new THREE.Vector3(intent.targetX, C.y + C.ballR + .02, C.pinZ + .4);
+  b.held = false; b.rolling = true; b.hook = intent.hook; b.p.copy(p); b.v.copy(t.sub(p).normalize().multiplyScalar(intent.speed)); b.m.position.copy(b.p);
+}
+
+function Stat({ n, v }: { n: string; v: string | number }) {
+  return <div style={{padding:"6px 8px",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,background:"rgba(255,255,255,.07)"}}><div style={{fontSize:10,opacity:.65,fontWeight:800}}>{n}</div><div style={{fontSize:16,fontWeight:950,color:"#7be2ff"}}>{v}</div></div>;
+}
+
+export default function BowlingGame() {
+  const host = useRef<HTMLDivElement | null>(null), canvas = useRef<HTMLCanvasElement | null>(null);
+  const [hud, setHud] = useState<Hud>({ power: 0, score: 0, last: 0, msg: "Swipe up to bowl" });
+
+  useEffect(() => {
+    if (!host.current || !canvas.current) return;
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas.current, antialias: true, powerPreference: "high-performance" });
+    renderer.setClearColor(0x07090d); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07090d); scene.fog = new THREE.Fog(0x07090d, 18, 39);
+    const cam = new THREE.PerspectiveCamera(52, 1, .05, 80); cam.position.set(0, 2.9, 10.8); cam.lookAt(0, C.y + .74, -2.6);
+    scene.add(new THREE.HemisphereLight(0xcceaff, 0x130b06, .82));
+    const key = new THREE.DirectionalLight(0xffffff, 1.55); key.position.set(-4.5, 7.5, 7.5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key);
+    for (let i=0;i<6;i++) { const l = new THREE.PointLight(i%2 ? 0xffefdc : 0x78dcff, .46, 10.8, 1.9); l.position.set(i%2 ? -1.12 : 1.12, 2.8, lerp(6.5,-11.7,i/5)); scene.add(l); }
+    buildLane(scene);
+    const pins = makePins(scene), rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
+    const sh = new THREE.Mesh(new THREE.CircleGeometry(.24, 32), new THREE.MeshBasicMaterial({ color:0, transparent:true, opacity:.22, depthWrite:false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
+    const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+    const aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.85 })); aimLine.visible = false; scene.add(aimLine);
+    const mark = new THREE.Mesh(new THREE.RingGeometry(.24,.31,36), new THREE.MeshBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.72, side:THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
+
+    let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0;
+    const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
+    const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
+    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:"Ball returned to player. Swipe again."})); };
+    const down = (e:PointerEvent) => { if(active || ball.rolling || rig.act!=="idle") return; canvas.current!.setPointerCapture(e.pointerId); active=true; id=e.pointerId; sx=e.clientX; sy=e.clientY; intent=calc(e.clientX,e.clientY); showAim(intent); };
+    const move = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; intent=calc(e.clientX,e.clientY); showAim(intent); };
+    const up = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; try{canvas.current!.releasePointerCapture(e.pointerId)}catch{} active=false; id=null; aimLine.visible=mark.visible=false; intent=calc(e.clientX,e.clientY); if(intent.power<.05){setHud(h=>({...h,power:0,msg:"Swipe higher for power"}));return} pending=intent; rig.act="run"; rig.t=0; rig.from.copy(rig.p); rig.to.set(clamp(intent.releaseX*.34,-.4,.4),C.y,C.stopZ); setHud(h=>({...h,power:0,msg:"Running to the line"})); };
+    const resize = () => { const w=host.current!.clientWidth,h=host.current!.clientHeight; renderer.setPixelRatio(Math.min(2,devicePixelRatio||1)); renderer.setSize(w,h,false); cam.aspect=w/h; cam.fov=cam.aspect<.72?52:46; cam.updateProjectionMatrix(); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); };
+    canvas.current.addEventListener("pointerdown",down); canvas.current.addEventListener("pointermove",move); canvas.current.addEventListener("pointerup",up); canvas.current.addEventListener("pointercancel",up); window.addEventListener("resize",resize); resize();
+
+    let frame=0, prev=performance.now();
+    function loop(){
+      frame=requestAnimationFrame(loop); const now=performance.now(), dt=Math.min(.033,(now-prev)/1000); prev=now;
+      updateRig(rig,ball,dt);
+      if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
+      updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
+      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`})); setTimeout(reset,700); } } else if(moving) settle=0;
+      sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
+    }
+    loop();
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize",resize); renderer.dispose(); };
+  }, []);
+
+  return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
+    <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif"}}>
+      <div style={{position:"absolute",left:10,right:10,top:10,padding:12,borderRadius:20,color:"white",background:"linear-gradient(180deg,rgba(7,12,19,.82),rgba(7,12,19,.55))",border:"1px solid rgba(123,226,255,.22)",boxShadow:"0 18px 45px rgba(0,0,0,.34)",backdropFilter:"blur(12px)"}}>
+        <div style={{fontSize:14,fontWeight:950,letterSpacing:.4}}>MOBILE BOWLING GAME</div>
+        <div style={{fontSize:11,opacity:.72,fontWeight:700,marginBottom:9}}>fixed player camera · oak lane · no return mechanism</div>
+        <div style={{display:"flex",gap:8}}><Stat n="SCORE" v={hud.score}/><Stat n="LAST" v={hud.last}/><Stat n="POWER" v={`${Math.round(hud.power*100)}%`}/></div>
+        <div style={{marginTop:9,fontSize:12,fontWeight:750,opacity:.92}}>{hud.msg}</div>
+      </div>
+      <div style={{position:"absolute",left:12,bottom:18,maxWidth:275,color:"white",background:"rgba(7,12,19,.58)",border:"1px solid rgba(255,255,255,.13)",borderRadius:18,padding:"10px 12px",lineHeight:1.42,fontSize:12,boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(10px)"}}>Swipe visually upward to throw.<br/>Slide left or right while swiping to aim and hook.<br/>The ball resets back to the player.</div>
+      <div style={{position:"absolute",right:12,bottom:24,width:52,height:166,borderRadius:999,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",overflow:"hidden",boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(8px)"}}><div style={{position:"absolute",left:0,right:0,bottom:0,height:`${Math.round(hud.power*100)}%`,background:"linear-gradient(180deg,rgba(123,226,255,.55),rgba(123,226,255,.95))"}}/><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(0,0,0,.82)",fontSize:11,fontWeight:950,writingMode:"vertical-rl",transform:"rotate(180deg)"}}>POWER</div></div>
+    </div>
+  </div>;
+}
