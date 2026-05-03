@@ -42,7 +42,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     resolution: '8K assets',
     description: '8K profile for 120 Hz displays.'
-  }
+  },
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
   FRAME_RATE_OPTIONS.reduce((acc, option) => {
@@ -3599,6 +3599,77 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     environmentIntensity: 1.04,
     backgroundIntensity: 0.99
   }
+
+  {
+    id: 'suburbanGarden',
+    name: 'Suburban Garden',
+    assetId: 'suburban_garden',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'countryTrackMidday',
+    name: 'Countrytrack Midday',
+    assetId: 'country_track_midday',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'autumnPark',
+    name: 'Autumn Park',
+    assetId: 'autumn_park',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.99
+  },
+  {
+    id: 'rooitouPark',
+    name: 'Rooitou Park',
+    assetId: 'rooitou_park',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.02,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'rotesRathaus',
+    name: 'Rotes Rathaus',
+    assetId: 'rotes_rathaus',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.06,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'veniceDawn2',
+    name: 'Venice Dawn 2',
+    assetId: 'venice_dawn_2',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.03,
+    environmentIntensity: 1,
+    backgroundIntensity: 0.96
+  },
+  {
+    id: 'piazzaSanMarco',
+    name: 'Piazza San Marco',
+    assetId: 'piazza_san_marco',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.99
+  },
 ]);
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
@@ -11234,3 +11305,73 @@ if (shouldRunHallwayEntry) {
 } else {
   positionCameraForViewport({ force: true });
 }
+  {
+    id: 'suburbanGarden',
+    name: 'Suburban Garden',
+    assetId: 'suburban_garden',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'countryTrackMidday',
+    name: 'Countrytrack Midday',
+    assetId: 'country_track_midday',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'autumnPark',
+    name: 'Autumn Park',
+    assetId: 'autumn_park',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.99
+  },
+  {
+    id: 'rooitouPark',
+    name: 'Rooitou Park',
+    assetId: 'rooitou_park',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.02,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'rotesRathaus',
+    name: 'Rotes Rathaus',
+    assetId: 'rotes_rathaus',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.06,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'veniceDawn2',
+    name: 'Venice Dawn 2',
+    assetId: 'venice_dawn_2',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.03,
+    environmentIntensity: 1,
+    backgroundIntensity: 0.96
+  },
+  {
+    id: 'piazzaSanMarco',
+    name: 'Piazza San Marco',
+    assetId: 'piazza_san_marco',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.05,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.99
+  },
