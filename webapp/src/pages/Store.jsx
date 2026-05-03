@@ -1042,6 +1042,8 @@ const USAGE_BY_TYPE = {
   },
 };
 
+const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
+
 const hashString = (value) => {
   let hash = 0;
   if (!value) return hash;
@@ -1059,6 +1061,14 @@ const formatShortDate = (date) =>
   }).format(date);
 
 const storeMeta = {
+  tennis: {
+    name: 'Tennis',
+    items: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
+    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
+    labels: POOL_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   tabletennis: {
     name: 'Table Tennis',
     items: [
@@ -1793,6 +1803,11 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'texasholdem'
       })),
+      tennis: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)).map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tennis'
+      })),
       tabletennis: [
         ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri'),
         ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
@@ -1833,6 +1848,8 @@ export default function Store() {
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
+      tennis: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
