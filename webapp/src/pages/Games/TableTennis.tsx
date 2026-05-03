@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { CHESS_HUMAN_CHARACTER_OPTIONS } from "../../config/chessBattleInventoryConfig.js";
+import { POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
+import { getChessBattleInventory, isChessOptionUnlocked } from "../../utils/chessBattleInventory.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
@@ -113,11 +116,10 @@ type ControlState = {
   startPlayer: THREE.Vector3;
 };
 
-const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const TABLE_GLTF_URL = "";
-const HDRI_URLS = [
+const DEFAULT_HDRI_URLS = [
   "https://threejs.org/examples/textures/equirectangular/royal_esplanade_1k.hdr",
-  "https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr",
+  "https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
 ];
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -517,7 +519,7 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number): HumanRig {
+function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, humanUrl?: string): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
@@ -554,7 +556,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   paddle.visible = true;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
-    HUMAN_URL,
+    humanUrl || CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0],
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
@@ -1035,8 +1037,52 @@ export default function MobileRealisticTableTennisGame() {
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsId, setGraphicsId] = useState<'performance' | 'balanced' | 'ultra'>(() => 'balanced');
+  const accountId = typeof window !== "undefined" ? window.localStorage.getItem("accountId") || "guest" : "guest";
+  const [inventory] = useState(() => getChessBattleInventory(accountId));
+  const unlockedHumanCharacters = useMemo(
+    () =>
+      CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
+        isChessOptionUnlocked("humanCharacter", option.id, inventory)
+      ),
+    [inventory]
+  );
+  const unlockedHdris = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((option) =>
+        isChessOptionUnlocked("environmentHdri", option.id, inventory)
+      ),
+    [inventory]
+  );
+  const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState<string>("");
+  const [selectedHdriId, setSelectedHdriId] = useState<string>("");
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
+  useEffect(() => {
+    const fallbackHuman = unlockedHumanCharacters[0]?.id || CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id || "default";
+    const fallbackHdri = unlockedHdris[0]?.id || POOL_ROYALE_HDRI_VARIANTS[0]?.id || "colorfulStudio";
+    const savedHuman = typeof window !== "undefined" ? window.localStorage.getItem("tableTennisSelectedHumanCharacter") : null;
+    const savedHdri = typeof window !== "undefined" ? window.localStorage.getItem("tableTennisSelectedHdri") : null;
+    setSelectedHumanCharacterId(
+      savedHuman && unlockedHumanCharacters.some((entry) => entry.id === savedHuman) ? savedHuman : fallbackHuman
+    );
+    setSelectedHdriId(savedHdri && unlockedHdris.some((entry) => entry.id === savedHdri) ? savedHdri : fallbackHdri);
+  }, [unlockedHdris, unlockedHumanCharacters]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (selectedHumanCharacterId) window.localStorage.setItem("tableTennisSelectedHumanCharacter", selectedHumanCharacterId);
+    if (selectedHdriId) window.localStorage.setItem("tableTennisSelectedHdri", selectedHdriId);
+  }, [selectedHdriId, selectedHumanCharacterId]);
+
+
+  const selectedHumanOption = useMemo(
+    () => unlockedHumanCharacters.find((option) => option.id === selectedHumanCharacterId) || unlockedHumanCharacters[0],
+    [selectedHumanCharacterId, unlockedHumanCharacters]
+  );
+  const selectedHdriOption = useMemo(
+    () => unlockedHdris.find((option) => option.id === selectedHdriId) || unlockedHdris[0],
+    [selectedHdriId, unlockedHdris]
+  );
 
   useEffect(() => {
     const host = hostRef.current;
@@ -1055,8 +1101,13 @@ export default function MobileRealisticTableTennisGame() {
     scene.fog = new THREE.Fog(0x091014, 4.7, 8.2);
     let activeEnvMap: THREE.Texture | null = null;
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
+    const hdriCandidateUrls = selectedHdriOption?.assetId ? [
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/${selectedHdriOption.assetId}_4k.hdr`,
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/${selectedHdriOption.assetId}_4k.exr`,
+      ...DEFAULT_HDRI_URLS
+    ] : DEFAULT_HDRI_URLS;
     const loadHdri = (idx = 0) => {
-      const url = HDRI_URLS[idx];
+      const url = hdriCandidateUrls[idx];
       if (!url) return;
       hdriLoader.load(url, (hdrTex) => {
         const env = pmrem.fromEquirectangular(hdrTex).texture;
@@ -1095,8 +1146,9 @@ export default function MobileRealisticTableTennisGame() {
 
     addTable(scene);
 
-    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e);
-    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48), 0x4ab7ff);
+    const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
+    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e, humanModelUrl);
+    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48), 0x4ab7ff, humanModelUrl);
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
@@ -1468,7 +1520,7 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, [graphicsId]);
+  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
@@ -1485,7 +1537,7 @@ export default function MobileRealisticTableTennisGame() {
           ☰
         </button>
         {menuOpen && (
-          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
+          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, maxHeight: "68vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
             <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginBottom: 8 }}>Graphics</div>
             {[
               { id: "performance", label: "Performance" },
@@ -1496,28 +1548,25 @@ export default function MobileRealisticTableTennisGame() {
                 {option.label}
               </button>
             ))}
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>Human Characters</div>
+            {unlockedHumanCharacters.map((option) => (
+              <button key={option.id} type="button" onClick={() => setSelectedHumanCharacterId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHumanCharacterId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🙂</span>}
+                <span>{option.label}</span>
+              </button>
+            ))}
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>HDRI</div>
+            {unlockedHdris.map((option) => (
+              <button key={option.id} type="button" onClick={() => setSelectedHdriId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHdriId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🌆</span>}
+                <span>{option.label}</span>
+              </button>
+            ))}
           </div>
         )}
         <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
           You {hud.nearScore} — {hud.farScore} AI
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
-        </div>
-
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 265 }}>
-          Paddle is mounted to the character right-hand bone.<br />
-          AI can serve, place wide/body shots, push short, loop, and recover.<br />
-          Swipe left/right adds side spin. Swipe up hits deeper.
-        </div>
-
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
-
-        <div style={{ position: "absolute", right: 12, top: 76, width: 48, height: 86, borderRadius: 999, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden" }}>
-          <div style={{ position: "absolute", left: `${hud.spin >= 0 ? 24 : 24 + hud.spin * 24}px`, width: `${Math.abs(hud.spin) * 24}px`, top: 0, bottom: 0, background: "rgba(255,255,255,0.7)" }} />
-          <div style={{ position: "absolute", left: 23, top: 0, bottom: 0, width: 2, background: "rgba(255,255,255,0.28)" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>SPIN</div>
         </div>
       </div>
     </div>
