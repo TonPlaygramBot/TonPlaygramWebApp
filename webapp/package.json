@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/write-build-metadata.mjs && node --max-old-space-size=3072 ./node_modules/vite/bin/vite.js build",
+    "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
     "preview": "vite preview",
     "generate:native-assets": "node scripts/generate-native-assets.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
@@ -44,8 +44,7 @@
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^3.4.1",
     "three": "^0.164.0",
-    "vite": "^4.4.9",
-    "@letele/playing-cards": "^0.1.0"
+    "vite": "^4.4.9"
   },
   "devDependencies": {
     "@capacitor/cli": "6.1.2",
