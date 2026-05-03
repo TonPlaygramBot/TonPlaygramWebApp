@@ -22,7 +22,6 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 type Act = "idle" | "run" | "throw" | "recover";
 type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
-type SeatState = "idle" | "walkToSeat" | "seated" | "walkToLane";
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
 type Frame = { rolls: number[]; marks: string[]; total: number | null };
@@ -31,9 +30,6 @@ type RulesState = { rolls: number[]; frame: number; ballInFrame: 1 | 2 | 3; done
 
 const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
 const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const PIN_MODEL = "https://market-assets.fra1.cdn.digitaloceanspaces.com/market-assets/models/bowling-pin/model.gltf";
-const ROYAL_CHAIR = "https://market-assets.fra1.cdn.digitaloceanspaces.com/market-assets/models/chair/model.gltf";
-const ROYAL_TABLE = "https://market-assets.fra1.cdn.digitaloceanspaces.com/market-assets/models/round-table/model.gltf";
 const WOOD = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/";
 const HDRI_PRESETS = [{id:"dancingHall",name:"Dancing Hall",file:"dancing_hall_1k.hdr"},{id:"sepulchralChapelRotunda",name:"Sepulchral Chapel Rotunda",file:"sepulchral_chapel_rotunda_1k.hdr"},{id:"vestibule",name:"Vestibule",file:"vestibule_1k.hdr"}];
 const FLOOR_FINISHES = ["Rosewood Veneer 01", "Oak Veneer 01", "Dark Wood", "Wood Table 001"];
@@ -104,20 +100,10 @@ function makePinMesh() {
   return cast(g);
 }
 
-function buildPinVisual() {
-  return new Promise<THREE.Object3D>((resolve) => {
-    const loader = new GLTFLoader().setCrossOrigin("anonymous");
-    loader.load(PIN_MODEL, (gltf) => { normalize(gltf.scene, .74); cast(gltf.scene); resolve(gltf.scene); }, undefined, () => resolve(makePinMesh()));
-  });
-}
-
-async function makePins(scene: THREE.Scene) {
+function makePins(scene: THREE.Scene) {
   const data = [[0,0],[-.32,-.56],[.32,-.56],[-.64,-1.12],[0,-1.12],[.64,-1.12],[-.96,-1.68],[-.32,-1.68],[.32,-1.68],[.96,-1.68]];
-  const base = await buildPinVisual();
   return data.map(([x, z]) => {
-    const g = new THREE.Group();
-    g.add(base.clone(true));
-    const p = new THREE.Vector3(x, C.y + .09, C.pinZ + z);
+    const g = makePinMesh(), p = new THREE.Vector3(x, C.y + .09, C.pinZ + z);
     g.position.copy(p); scene.add(g);
     return { g, p: p.clone(), s: p.clone(), v: new THREE.Vector3(), tilt: 0, axis: new THREE.Vector3(0, 0, -1), down: false } as Pin;
   });
@@ -193,17 +179,6 @@ function updateRig(r: Rig, b: Ball, dt: number) {
   if (b.held) { b.p.copy(heldPos(r)); b.m.position.copy(b.p); }
 }
 
-
-function buildLounge(scene: THREE.Scene) {
-  const seatAnchor = new THREE.Vector3(-1.78, C.y, 9.2);
-  const gltf = new GLTFLoader().setCrossOrigin("anonymous");
-  gltf.load(ROYAL_TABLE, (m) => { normalize(m.scene, .95); cast(m.scene); m.scene.position.set(-2.2, C.y, 9.6); scene.add(m.scene); });
-  [[-2.75,9.5],[-1.65,9.05],[-2.35,8.65]].forEach(([x,z]) => {
-    gltf.load(ROYAL_CHAIR, (m) => { normalize(m.scene, .94); cast(m.scene); m.scene.position.set(x, C.y, z); m.scene.rotation.y = Math.PI*0.42; scene.add(m.scene); });
-  });
-  return seatAnchor;
-}
-
 function buildLane(scene: THREE.Scene, floorKey: string) {
   const g = new THREE.Group(), w = woodMaterial(new THREE.TextureLoader(), floorKey); scene.add(g);
   const floor = box(8.8,.18,31.5,0x080a0e,.9); floor.position.set(0,-.12,-3.4); g.add(floor);
@@ -221,11 +196,6 @@ function buildLane(scene: THREE.Scene, floorKey: string) {
   const pit = box(4.85,.58,1.35,0x06080b,.9); pit.position.set(0,-.08,-12.35); g.add(pit);
   const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
   const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
-  const sweep = box(4.3,.09,.08,0xd8dde6,.22,.78); sweep.position.set(0,.74,-11.95); g.add(sweep);
-  const accelerator = box(.24,.14,17.4,0x29313d,.44,.35); accelerator.position.set(2.02,.04,-3.6); g.add(accelerator);
-  const lift = box(.34,1.26,.28,0x3a4757,.34,.48); lift.position.set(2.02,.66,-12.45); g.add(lift);
-  const storeRack = box(1.1,.28,.42,0x252d38,.4,.28); storeRack.position.set(.9,.16,7.85); g.add(storeRack);
-  for (let i=0;i<3;i++){ const b= new THREE.Mesh(new THREE.SphereGeometry(.14,20,16), new THREE.MeshStandardMaterial({color:0x2c4a8b,roughness:.2,metalness:.15})); b.position.set(.55+i*.3,.31,7.85); g.add(b);}
   // Removed side light strips to match requested clean look.
   // Lower lane to visually sit on HDRI ground from portrait camera.
   g.position.y = -0.05;
@@ -335,23 +305,18 @@ export default function BowlingGame() {
     const key = new THREE.DirectionalLight(0xffffff, 1.55); key.position.set(-4.5, 7.5, 7.5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key);
     for (let i=0;i<2;i++) { const l = new THREE.PointLight(0xffefdc, .22, 7.8, 2.2); l.position.set(i?-.7:.7, 2.8, 5.7); scene.add(l); }
     buildLane(scene, floor);
-    const seatTarget = buildLounge(scene);
-    const rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
-    let pins: Pin[] = [];
-    makePins(scene).then((created)=>{ pins = created; });
+    const pins = makePins(scene), rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(.24, 32), new THREE.MeshBasicMaterial({ color:0, transparent:true, opacity:.22, depthWrite:false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
     const aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.85 })); aimLine.visible = false; scene.add(aimLine);
     const mark = new THREE.Mesh(new THREE.RingGeometry(.24,.31,36), new THREE.MeshBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.72, side:THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
 
     let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0;
-    let seatState: SeatState = "idle";
     let rules: RulesState = { rolls: [], frame: 1, ballInFrame: 1, done: false };
     let sideReturnActive = false;
     const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
-    const reset = () => {
-      if (!pins.length) return; rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; seatState="idle"; setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":"Ball returned from side. Swipe again."})); };
+    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":"Ball returned from side. Swipe again."})); };
     const startSideReturn = () => {
       sideReturnActive = true;
       const path = [
@@ -409,25 +374,12 @@ export default function BowlingGame() {
     function loop(){
       frame=requestAnimationFrame(loop); const now=performance.now(), dt=Math.min(.033,(now-prev)/1000); prev=now;
       updateRig(rig,ball,dt);
-      if (!pins.length) { renderer.render(scene,cam); return; }
       if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
       if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
         pushRoll(lastHit);
         setHud(h=>({...h,msg:rules.done?"Game finished":"Ball entering side return"}));
-        setTimeout(()=>{ seatState="walkToSeat"; startSideReturn(); },250); } } else if(moving) settle=0;
-      if (seatState === "walkToSeat") {
-        rig.p.lerp(new THREE.Vector3(seatTarget.x, C.y, seatTarget.z), 0.04);
-        if (rig.p.distanceTo(seatTarget) < 0.12) { seatState = "seated"; setHud(h=>({...h,msg:"Player seated like Murlan Royal turn loop"})); }
-      }
-      if (seatState === "seated" && ball.held && rig.act === "idle") {
-        seatState = "walkToLane";
-      }
-      if (seatState === "walkToLane") {
-        const lanePos = new THREE.Vector3(0, C.y, C.startZ);
-        rig.p.lerp(lanePos, 0.05);
-        if (rig.p.distanceTo(lanePos) < 0.1) seatState = "idle";
-      }
+        setTimeout(startSideReturn,250); } } else if(moving) settle=0;
       sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
     }
     loop();
