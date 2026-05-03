@@ -110,6 +110,14 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
   {
+    name: 'Go Crazy',
+    route: '/games/gocrazy/lobby',
+    slug: 'gocrazy',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: 'Arcade kart chaos for 2-8 players online or vs AI with world-flag avatars.'
+  },
+
+  {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
