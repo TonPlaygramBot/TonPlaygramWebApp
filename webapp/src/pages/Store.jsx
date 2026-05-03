@@ -168,6 +168,18 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
+import {
+  BOWLING_DEFAULT_LOADOUT,
+  BOWLING_OPTION_LABELS,
+  BOWLING_STORE_ITEMS
+} from '../config/bowlingInventoryConfig.js';
+import {
+  addBowlingUnlock,
+  bowlingAccountId,
+  getBowlingInventory,
+  isBowlingOptionUnlocked,
+  listOwnedBowlingOptions
+} from '../utils/bowlingInventory.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -1040,6 +1052,10 @@ const USAGE_BY_TYPE = {
     title: 'Token shape',
     description: 'Changes the 3D token shape shown in matches and previews.'
   },
+  floorFinish: {
+    title: 'Floor finish',
+    description: 'Changes lane and approach floor textures.'
+  }
 };
 
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
@@ -1191,6 +1207,14 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
+  },
+  bowling: {
+    name: 'Bowling',
+    items: BOWLING_STORE_ITEMS,
+    defaults: BOWLING_DEFAULT_LOADOUT,
+    labels: BOWLING_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
   }
 };
 
@@ -1234,6 +1258,9 @@ export default function Store() {
   );
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
+  );
+  const [bowlingOwned, setBowlingOwned] = useState(() =>
+    getBowlingInventory(bowlingAccountId(accountId))
   );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
@@ -1362,6 +1389,7 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+    setBowlingOwned(getBowlingInventory(bowlingAccountId(accountId)));
     let cancelled = false;
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
@@ -1680,6 +1708,7 @@ export default function Store() {
           if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
           if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
+          if (slug === 'bowling') return addBowlingUnlock('environmentHdri', optionId, accountId);
           return Promise.resolve();
         })
       );
