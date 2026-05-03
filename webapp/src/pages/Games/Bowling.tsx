@@ -15,16 +15,23 @@ Game: fixed player camera, same human character, oak lane, no ball-return mechan
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 type Act = "idle" | "run" | "throw" | "recover";
 type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
+type Frame = { rolls: number[]; marks: string[]; total: number | null };
 type Hud = { score: number; last: number; power: number; msg: string };
 
 const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
 const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const OAK = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
+const WOOD = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/";
+const HDRI_PRESETS = [{id:"dancingHall",name:"Dancing Hall",file:"dancing_hall_1k.hdr"},{id:"sepulchralChapelRotunda",name:"Sepulchral Chapel Rotunda",file:"sepulchral_chapel_rotunda_1k.hdr"},{id:"vestibule",name:"Vestibule",file:"vestibule_1k.hdr"}];
+const FLOOR_FINISHES = ["Rosewood Veneer 01", "Oak Veneer 01", "Dark Wood", "Wood Table 001"];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -42,11 +49,11 @@ function box(w: number, h: number, d: number, color: number, rough = .6, metal =
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal }));
 }
 
-function oakMaterial(loader: THREE.TextureLoader) {
+function woodMaterial(loader: THREE.TextureLoader, key = "oak_veneer_01") {
   try {
-    const d = loader.load(OAK + "oak_veneer_01_diff_2k.jpg");
-    const r = loader.load(OAK + "oak_veneer_01_rough_2k.jpg");
-    const n = loader.load(OAK + "oak_veneer_01_nor_gl_2k.jpg");
+    const d = loader.load(`${WOOD}${key}/${key}_diff_2k.jpg`);
+    const r = loader.load(`${WOOD}${key}/${key}_rough_2k.jpg`);
+    const n = loader.load(`${WOOD}${key}/${key}_nor_gl_2k.jpg`);
     [d, r, n].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1.05, 8.5); t.anisotropy = 8; });
     d.colorSpace = THREE.SRGBColorSpace;
     return new THREE.MeshPhysicalMaterial({ map: d, roughnessMap: r, normalMap: n, roughness: .2, clearcoat: 1, clearcoatRoughness: .05 });
@@ -171,8 +178,8 @@ function updateRig(r: Rig, b: Ball, dt: number) {
   if (b.held) { b.p.copy(heldPos(r)); b.m.position.copy(b.p); }
 }
 
-function buildLane(scene: THREE.Scene) {
-  const g = new THREE.Group(), w = oakMaterial(new THREE.TextureLoader()); scene.add(g);
+function buildLane(scene: THREE.Scene, floorKey: string) {
+  const g = new THREE.Group(), w = woodMaterial(new THREE.TextureLoader(), floorKey); scene.add(g);
   const floor = box(8.8,.18,31.5,0x080a0e,.9); floor.position.set(0,-.12,-3.4); g.add(floor);
   const lane = new THREE.Mesh(new THREE.BoxGeometry(C.laneW*2,.08,19.25), w); lane.position.set(0,C.y,-4.05); g.add(lane);
   const approach = new THREE.Mesh(new THREE.BoxGeometry(4.85,.08,4.55), w); approach.position.set(0,C.y,7.35); g.add(approach);
@@ -190,10 +197,6 @@ function buildLane(scene: THREE.Scene) {
   const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
   const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
   for (let i=0;i<7;i++) { const p = box(1.05,.03,.55,0xd9f4ff,.2); p.position.set(i%2?-1.25:1.25,3.24,lerp(7.2,-11.2,i/6)); g.add(p); }
-  const left = box(.18,3.5,30.6,0x111722,.92); left.position.set(-3.95,1.65,-2.8); g.add(left);
-  const right = left.clone(); right.position.x = 3.95; g.add(right);
-  const back = box(8.1,3.5,.18,0x111722,.92); back.position.set(0,1.65,-13.35); g.add(back);
-  const ceil = box(8.1,.16,30.6,0x1b2430,.72,.15); ceil.position.set(0,3.35,-2.8); g.add(ceil);
   cast(g);
 }
 
@@ -248,17 +251,37 @@ function Stat({ n, v }: { n: string; v: string | number }) {
 export default function BowlingGame() {
   const host = useRef<HTMLDivElement | null>(null), canvas = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<Hud>({ power: 0, score: 0, last: 0, msg: "Swipe up to bowl" });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [graphics, setGraphics] = useState("High");
+  const [inventory, setInventory] = useState<string[]>([]);
+  const [floor, setFloor] = useState("oak_veneer_01");
+  const [activeHdri, setActiveHdri] = useState("dancingHall");
+  const [frames, setFrames] = useState<Frame[]>(Array.from({length:10}, () => ({rolls:[], marks:[], total:null})));
+
+
+  useEffect(() => {
+    const invRaw = localStorage.getItem("tonplaygram:bowlingInventory:v1");
+    const acc = localStorage.getItem("accountId") || "guest";
+    const inv = invRaw ? JSON.parse(invRaw) : {};
+    const owned = inv?.[acc] || { environmentHdri:["dancingHall"], floorFinish:["oakVeneer01"] };
+    setInventory([...(owned.environmentHdri||[]), ...(owned.floorFinish||[])]);
+    if (owned.environmentHdri?.[0]) setActiveHdri(owned.environmentHdri[0]);
+  }, []);
 
   useEffect(() => {
     if (!host.current || !canvas.current) return;
     const renderer = new THREE.WebGLRenderer({ canvas: canvas.current, antialias: true, powerPreference: "high-performance" });
     renderer.setClearColor(0x07090d); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07090d); scene.fog = new THREE.Fog(0x07090d, 18, 39);
+    const draco = new DRACOLoader(); draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/");
+    const ktx2 = new KTX2Loader(); ktx2.setTranscoderPath("https://unpkg.com/three@0.169.0/examples/jsm/libs/basis/").detectSupport(renderer);
+    const hdri = HDRI_PRESETS.find(h=>h.id===activeHdri);
+    if (hdri) new RGBELoader().load(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/${hdri.file}`, (tex)=>{ tex.mapping = THREE.EquirectangularReflectionMapping; scene.environment = tex; scene.background = tex; scene.fog = null as any; });
     const cam = new THREE.PerspectiveCamera(52, 1, .05, 80); cam.position.set(0, 2.9, 10.8); cam.lookAt(0, C.y + .74, -2.6);
     scene.add(new THREE.HemisphereLight(0xcceaff, 0x130b06, .82));
     const key = new THREE.DirectionalLight(0xffffff, 1.55); key.position.set(-4.5, 7.5, 7.5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key);
     for (let i=0;i<6;i++) { const l = new THREE.PointLight(i%2 ? 0xffefdc : 0x78dcff, .46, 10.8, 1.9); l.position.set(i%2 ? -1.12 : 1.12, 2.8, lerp(6.5,-11.7,i/5)); scene.add(l); }
-    buildLane(scene);
+    buildLane(scene, floor);
     const pins = makePins(scene), rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(.24, 32), new THREE.MeshBasicMaterial({ color:0, transparent:true, opacity:.22, depthWrite:false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -281,7 +304,23 @@ export default function BowlingGame() {
       updateRig(rig,ball,dt);
       if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
-      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`})); setTimeout(reset,700); } } else if(moving) settle=0;
+      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
+        setFrames(prev => {
+          const next = prev.map(f=>({...f, rolls:[...f.rolls], marks:[...f.marks]}));
+          const fi = next.findIndex(f => f.rolls.length < 2);
+          if (fi >= 0) {
+            const f = next[fi];
+            const pinLeft = f.rolls[0] == null ? 10 : Math.max(0, 10 - f.rolls[0]);
+            const pinsHit = Math.min(lastHit, pinLeft);
+            f.rolls.push(pinsHit);
+            if (f.rolls.length === 1 && pinsHit === 10) { f.marks = ["X"]; }
+            else if (f.rolls.length === 2 && (f.rolls[0] + f.rolls[1] === 10)) { f.marks = [String(f.rolls[0]), "/"]; }
+            else { f.marks = f.rolls.map(String); }
+            if (f.rolls.length === 2 || f.rolls[0] === 10) f.total = (f.rolls[0]||0)+(f.rolls[1]||0);
+          }
+          return next;
+        });
+        setTimeout(reset,700); } } else if(moving) settle=0;
       sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
     }
     loop();
@@ -290,15 +329,25 @@ export default function BowlingGame() {
 
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
-    <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      <div style={{position:"absolute",left:10,right:10,top:10,padding:12,borderRadius:20,color:"white",background:"linear-gradient(180deg,rgba(7,12,19,.82),rgba(7,12,19,.55))",border:"1px solid rgba(123,226,255,.22)",boxShadow:"0 18px 45px rgba(0,0,0,.34)",backdropFilter:"blur(12px)"}}>
-        <div style={{fontSize:14,fontWeight:950,letterSpacing:.4}}>MOBILE BOWLING GAME</div>
-        <div style={{fontSize:11,opacity:.72,fontWeight:700,marginBottom:9}}>fixed player camera · oak lane · no return mechanism</div>
-        <div style={{display:"flex",gap:8}}><Stat n="SCORE" v={hud.score}/><Stat n="LAST" v={hud.last}/><Stat n="POWER" v={`${Math.round(hud.power*100)}%`}/></div>
-        <div style={{marginTop:9,fontSize:12,fontWeight:750,opacity:.92}}>{hud.msg}</div>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif",color:"white"}}>
+      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:12,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
+      <div style={{position:"absolute",left:62,right:12,top:10,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.78)",border:"1px solid rgba(255,255,255,.2)"}}>
+        <div style={{display:"grid",gridTemplateColumns:"120px repeat(10,1fr)",gap:6,alignItems:"center",fontSize:11}}>
+          <div style={{fontWeight:900}}>🎳 PLAYER_01</div>
+          {frames.map((f,i)=><div key={i} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,padding:"2px 0"}}>{f.marks.join(" ") || "-"}</div>)}
+        </div>
       </div>
-      <div style={{position:"absolute",left:12,bottom:18,maxWidth:275,color:"white",background:"rgba(7,12,19,.58)",border:"1px solid rgba(255,255,255,.13)",borderRadius:18,padding:"10px 12px",lineHeight:1.42,fontSize:12,boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(10px)"}}>Swipe visually upward to throw.<br/>Slide left or right while swiping to aim and hook.<br/>The ball resets back to the player.</div>
-      <div style={{position:"absolute",right:12,bottom:24,width:52,height:166,borderRadius:999,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",overflow:"hidden",boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(8px)"}}><div style={{position:"absolute",left:0,right:0,bottom:0,height:`${Math.round(hud.power*100)}%`,background:"linear-gradient(180deg,rgba(123,226,255,.55),rgba(123,226,255,.95))"}}/><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(0,0,0,.82)",fontSize:11,fontWeight:950,writingMode:"vertical-rl",transform:"rotate(180deg)"}}>POWER</div></div>
+      {menuOpen && <div style={{position:"absolute",left:12,top:62,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.9)",border:"1px solid rgba(123,226,255,.3)"}}>
+        <div style={{fontWeight:900,marginBottom:8}}>Game Menu</div>
+        <div style={{fontSize:12,opacity:.9,marginBottom:6}}>Graphics</div>
+        <div style={{display:"flex",gap:6,marginBottom:10}}>{["Low","Medium","High"].map(g=><button key={g} onClick={()=>setGraphics(g)} style={{padding:"4px 8px",borderRadius:8,border:"1px solid #4a6",background:graphics===g?"#2b6":"#122",color:"white"}}>{g}</button>)}</div>
+        <div style={{fontSize:12,opacity:.9}}>Owned inventory</div>
+        <ul style={{margin:"4px 0 10px 18px",padding:0}}>{inventory.map(it=><li key={it}>{it}</li>)}</ul>
+        <div style={{fontSize:12,opacity:.9}}>Store HDRIs</div>
+        <ul style={{margin:"4px 0 10px 18px",padding:0}}>{HDRI_PRESETS.map(it=><li key={it}>{it}</li>)}</ul>
+        <div style={{fontSize:12,opacity:.9}}>Store floor finishes</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{FLOOR_FINISHES.map(it=><button key={it} style={{padding:6,borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"#132",color:"#fff",fontSize:11}}>{it}</button>)}</div>
+      </div>}
     </div>
   </div>;
 }
