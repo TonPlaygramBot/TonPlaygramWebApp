@@ -21,7 +21,13 @@ const ORIGINAL_ASSETS = {
 
 const TAU = Math.PI * 2;
 const CHECKPOINTS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
-const TRACK = { outerX: 31, outerZ: 20, innerX: 17, innerZ: 8.5, centerX: 24, centerZ: 14 };
+const TRACK_PRESETS = {
+  "alpine-ring": { outerX: 44, outerZ: 28, innerX: 28, innerZ: 12, centerX: 36, centerZ: 20, wobble: 0.08, hue: 0x2b2f36 },
+  "sunset-circuit": { outerX: 42, outerZ: 26, innerX: 26, innerZ: 11, centerX: 34, centerZ: 18.5, wobble: 0.1, hue: 0x37312d },
+  "canyon-flow": { outerX: 46, outerZ: 25, innerX: 29, innerZ: 10.8, centerX: 37, centerZ: 17.8, wobble: 0.12, hue: 0x343236 },
+  "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
+  "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
+};
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -33,24 +39,25 @@ function yawFromForward(v) {
   return Math.atan2(v.x, v.z);
 }
 
-function angleOnTrack(pos) {
-  const a = Math.atan2(pos.z / TRACK.centerZ, pos.x / TRACK.centerX);
+function angleOnTrack(pos, track) {
+  const a = Math.atan2(pos.z / track.centerZ, pos.x / track.centerX);
   return a < 0 ? a + TAU : a;
 }
 
-function pointOnTrack(angle, lane = 0) {
-  return new THREE.Vector3(Math.cos(angle) * (TRACK.centerX + lane), 0.18, Math.sin(angle) * (TRACK.centerZ + lane * 0.45));
+function pointOnTrack(angle, track, lane = 0) {
+  const mod = 1 + Math.sin(angle * 3) * track.wobble;
+  return new THREE.Vector3(Math.cos(angle) * (track.centerX + lane) * mod, 0.18, Math.sin(angle) * (track.centerZ + lane * 0.45) * mod);
 }
 
-function tangentYaw(angle) {
-  const dx = -Math.sin(angle) * TRACK.centerX;
-  const dz = Math.cos(angle) * TRACK.centerZ;
+function tangentYaw(angle, track) {
+  const dx = -Math.sin(angle) * track.centerX;
+  const dz = Math.cos(angle) * track.centerZ;
   return Math.atan2(dx, dz);
 }
 
-function trackQuality(pos) {
-  const outer = (pos.x * pos.x) / (TRACK.outerX * TRACK.outerX) + (pos.z * pos.z) / (TRACK.outerZ * TRACK.outerZ);
-  const inner = (pos.x * pos.x) / (TRACK.innerX * TRACK.innerX) + (pos.z * pos.z) / (TRACK.innerZ * TRACK.innerZ);
+function trackQuality(pos, track) {
+  const outer = (pos.x * pos.x) / (track.outerX * track.outerX) + (pos.z * pos.z) / (track.outerZ * track.outerZ);
+  const inner = (pos.x * pos.x) / (track.innerX * track.innerX) + (pos.z * pos.z) / (track.innerZ * track.innerZ);
   return { onRoad: outer <= 1 && inner >= 1 };
 }
 
@@ -137,7 +144,7 @@ async function tryLoadOriginalAssets(loader) {
   return { trucks, truckAnimations, track: track.scene, tree };
 }
 
-function createProceduralTrack(scene) {
+function createProceduralTrack(scene, track) {
   const grass = new THREE.Mesh(new THREE.PlaneGeometry(92, 72), makeMat(0x18351f, 0.95));
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.02;
@@ -145,12 +152,12 @@ function createProceduralTrack(scene) {
   scene.add(grass);
 
   const shape = new THREE.Shape();
-  shape.absellipse(0, 0, TRACK.outerX, TRACK.outerZ, 0, TAU, false, 0);
+  shape.absellipse(0, 0, track.outerX, track.outerZ, 0, TAU, false, 0);
   const hole = new THREE.Path();
-  hole.absellipse(0, 0, TRACK.innerX, TRACK.innerZ, 0, TAU, true, 0);
+  hole.absellipse(0, 0, track.innerX, track.innerZ, 0, TAU, true, 0);
   shape.holes.push(hole);
 
-  const road = new THREE.Mesh(new THREE.ShapeGeometry(shape, 128), makeMat(0x2b2f36, 0.86));
+  const road = new THREE.Mesh(new THREE.ShapeGeometry(shape, 256), makeMat(track.hue, 0.86));
   road.rotation.x = -Math.PI / 2;
   road.position.y = 0.01;
   road.receiveShadow = true;
@@ -158,12 +165,12 @@ function createProceduralTrack(scene) {
 
   const curbMatA = makeMat(0xffffff, 0.52);
   const curbMatB = makeMat(0xd82020, 0.52);
-  for (let i = 0; i < 112; i++) {
-    const a = (i / 112) * TAU;
-    const yaw = tangentYaw(a);
+  for (let i = 0; i < 180; i++) {
+    const a = (i / 180) * TAU;
+    const yaw = tangentYaw(a, track);
     const points = [
-      new THREE.Vector3(Math.cos(a) * TRACK.outerX, 0.035, Math.sin(a) * TRACK.outerZ),
-      new THREE.Vector3(Math.cos(a) * TRACK.innerX, 0.036, Math.sin(a) * TRACK.innerZ)
+      new THREE.Vector3(Math.cos(a) * track.outerX, 0.035, Math.sin(a) * track.outerZ),
+      new THREE.Vector3(Math.cos(a) * track.innerX, 0.036, Math.sin(a) * track.innerZ)
     ];
     for (const p of points) {
       const curb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.28), i % 2 === 0 ? curbMatA : curbMatB);
@@ -178,7 +185,7 @@ function createProceduralTrack(scene) {
   for (let x = -3; x <= 3; x++) {
     for (let z = 0; z < 2; z++) {
       const tile = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.035, 1.05), makeMat((x + z) % 2 === 0 ? 0xffffff : 0x050505, 0.4));
-      tile.position.set(x * 1.05, 0.07, TRACK.centerZ + z * 1.05 - 0.5);
+      tile.position.set(x * 1.05, 0.07, track.centerZ + z * 1.05 - 0.5);
       tile.receiveShadow = true;
       scene.add(tile);
     }
@@ -191,6 +198,16 @@ function createProceduralTrack(scene) {
     cone.position.set(Math.cos(a) * 38, 0.6, Math.sin(a) * 25);
     cone.castShadow = true;
     scene.add(cone);
+  }
+  const tireMat = makeMat(0x101010, 0.95, 0.02);
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * TAU;
+    const rim = i % 2 === 0 ? track.outerX + 2.3 : track.innerX - 1.6;
+    const rz = i % 2 === 0 ? track.outerZ + 2 : track.innerZ - 1.2;
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.18, 12, 28), tireMat);
+    tire.rotation.x = Math.PI / 2;
+    tire.position.set(Math.cos(a) * rim, 0.18, Math.sin(a) * rz);
+    scene.add(tire);
   }
 }
 
@@ -207,7 +224,7 @@ function scatterGltfTrees(scene, tree) {
   }
 }
 
-function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 2, lane = 0) {
+function createTruckVariant(color, name, variant, track, ai = false, angle = Math.PI / 2, lane = 0) {
   const group = new THREE.Group();
   const bodyMat = makeMat(color, 0.48, 0.12);
   const darkMat = makeMat(0x101010, 0.65, 0.18);
@@ -257,14 +274,28 @@ function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 
     }
   }
 
-  const driver = new THREE.Mesh(new THREE.SphereGeometry(0.24, 24, 18), makeMat(ai ? 0xf2d6b3 : 0xffd2a6, 0.6));
-  driver.position.set(0, 1.08, d.cabZ);
-  group.add(driver);
+  const driverGroup = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.35, 4, 8), makeMat(ai ? 0x4f6bd6 : 0xdf3131, 0.6));
+  torso.position.set(0, 0.93, d.cabZ - 0.03);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), makeMat(ai ? 0xf2d6b3 : 0xffd2a6, 0.6));
+  head.position.set(0, 1.26, d.cabZ + 0.05);
+  const armMat = makeMat(ai ? 0x2e3e7a : 0x811f1f, 0.6);
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.25, 4, 8), armMat);
+  const rightArm = leftArm.clone();
+  leftArm.position.set(-0.16, 1.03, d.cabZ + 0.28);
+  rightArm.position.set(0.16, 1.03, d.cabZ + 0.28);
+  leftArm.rotation.z = 0.55;
+  rightArm.rotation.z = -0.55;
+  const steeringWheel = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.035, 10, 28), darkMat);
+  steeringWheel.position.set(0, 0.98, d.cabZ + 0.36);
+  steeringWheel.rotation.x = Math.PI / 2.8;
+  driverGroup.add(torso, head, leftArm, rightArm, steeringWheel);
+  group.add(driverGroup);
 
   enableShadows(group);
-  const pos = pointOnTrack(angle, lane);
+  const pos = pointOnTrack(angle, track, lane);
   group.position.copy(pos);
-  group.rotation.y = tangentYaw(angle);
+  group.rotation.y = tangentYaw(angle, track);
 
   return {
     group,
@@ -287,22 +318,22 @@ function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 
   };
 }
 
-function createOriginalKart(assets, name, ai, angle, lane, index, variant) {
+function createOriginalKart(assets, name, ai, angle, lane, index, variant, track) {
   if (!assets.trucks.length) throw new Error("Original truck asset not loaded.");
   const group = new THREE.Group();
   const model = cloneModel(assets.trucks[index % assets.trucks.length]);
   group.add(model);
-  const pos = pointOnTrack(angle, lane);
+  const pos = pointOnTrack(angle, track, lane);
   group.position.copy(pos);
-  group.rotation.y = tangentYaw(angle);
+  group.rotation.y = tangentYaw(angle, track);
   const animations = assets.truckAnimations[index % assets.truckAnimations.length] || [];
   const mixer = animations.length ? new THREE.AnimationMixer(model) : undefined;
   if (mixer) mixer.clipAction(animations[0]).play();
   return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer };
 }
 
-function updateCheckpoint(kart) {
-  const a = angleOnTrack(kart.pos);
+function updateCheckpoint(kart, track) {
+  const a = angleOnTrack(kart.pos, track);
   const target = CHECKPOINTS[kart.checkpoint % CHECKPOINTS.length];
   const diff = Math.abs(Math.atan2(Math.sin(a - target), Math.cos(a - target)));
   if (diff < 0.18) {
@@ -320,13 +351,13 @@ function applyCrashDamping(kart, dt) {
   kart.speed *= Math.exp(-1.7 * dt);
 }
 
-function updatePlayerKart(kart, input, dt) {
+function updatePlayerKart(kart, input, track, dt) {
   const accel = (input.keys.KeyW || input.keys.ArrowUp ? 1 : 0) - (input.keys.KeyS || input.keys.ArrowDown ? 1 : 0) + input.accel;
   const steerRaw = (input.keys.KeyD || input.keys.ArrowRight ? 1 : 0) - (input.keys.KeyA || input.keys.ArrowLeft ? 1 : 0) + input.steer;
   const brake = input.keys.Space || input.brake;
-  const quality = trackQuality(kart.pos);
+  const quality = trackQuality(kart.pos, track);
   const grip = quality.onRoad ? 1 : 0.55;
-  const maxSpeed = quality.onRoad ? 16.5 : 7.5;
+  const maxSpeed = quality.onRoad ? 16.5 - kart.damage * 0.9 : 7.5 - kart.damage * 0.5;
 
   kart.speed += accel * 24 * dt * grip;
   kart.speed -= (brake ? 30 : 0) * dt * Math.sign(kart.speed || 1);
@@ -339,18 +370,18 @@ function updatePlayerKart(kart, input, dt) {
   kart.pos.addScaledVector(forwardFromYaw(kart.yaw), kart.speed * dt);
 
   if (!quality.onRoad) {
-    const pull = pointOnTrack(angleOnTrack(kart.pos), 0).sub(kart.pos).multiplyScalar(0.55 * dt);
+    const pull = pointOnTrack(angleOnTrack(kart.pos, track), track, 0).sub(kart.pos).multiplyScalar(0.55 * dt);
     kart.pos.add(pull);
   }
 
   kart.group.position.copy(kart.pos);
   kart.group.rotation.y = kart.yaw;
   kart.mixer?.update(dt);
-  updateCheckpoint(kart);
+  updateCheckpoint(kart, track);
 }
 
-function updateAiKart(kart, all, dt) {
-  const target = pointOnTrack(angleOnTrack(kart.pos) + 0.5, kart.lane);
+function updateAiKart(kart, all, track, dt) {
+  const target = pointOnTrack(angleOnTrack(kart.pos, track) + 0.5, track, kart.lane);
   const to = target.sub(kart.pos).normalize();
   const desiredYaw = yawFromForward(to);
   const delta = Math.atan2(Math.sin(desiredYaw - kart.yaw), Math.cos(desiredYaw - kart.yaw));
@@ -370,7 +401,7 @@ function updateAiKart(kart, all, dt) {
   kart.group.position.copy(kart.pos);
   kart.group.rotation.y = kart.yaw;
   kart.mixer?.update(dt);
-  updateCheckpoint(kart);
+  updateCheckpoint(kart, track);
 }
 
 function resolveVehicleCrashes(karts) {
@@ -435,6 +466,9 @@ export default function SuperTuxKartPlayablePreview() {
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
+    const params = new URLSearchParams(window.location.search);
+    const selectedTrackId = params.get("track") || "alpine-ring";
+    const selectedTrack = TRACK_PRESETS[selectedTrackId] || TRACK_PRESETS["alpine-ring"];
     if (!host || !canvas) return;
 
     let cancelled = false;
@@ -528,7 +562,7 @@ export default function SuperTuxKartPlayablePreview() {
 
       if (cancelled) return;
       if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
-      else createProceduralTrack(scene);
+      else createProceduralTrack(scene, selectedTrack);
       scatterGltfTrees(scene, assets?.tree);
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
@@ -543,8 +577,8 @@ export default function SuperTuxKartPlayablePreview() {
       ];
 
       const makeKart = (i) => originalMode && assets?.trucks.length
-        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i])
-        : createTruckVariant(colors[i], names[i], variants[i], i > 0, starts[i].angle, starts[i].lane);
+        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i], selectedTrack)
+        : createTruckVariant(colors[i], names[i], variants[i], selectedTrack, i > 0, starts[i].angle, starts[i].lane);
 
       const player = makeKart(0);
       const ai1 = makeKart(1);
@@ -573,8 +607,8 @@ export default function SuperTuxKartPlayablePreview() {
         const dt = Math.min(0.033, (now - last) / 1000);
         last = now;
         input.brake = Boolean(input.keys.Space);
-        updatePlayerKart(player, input, dt);
-        for (const ai of [ai1, ai2, ai3, ai4]) updateAiKart(ai, karts, dt);
+        updatePlayerKart(player, input, selectedTrack, dt);
+        for (const ai of [ai1, ai2, ai3, ai4]) updateAiKart(ai, karts, selectedTrack, dt);
         const impact = resolveVehicleCrashes(karts);
         if (impact > 0.8) {
           crashTextT = 1.2;
@@ -584,7 +618,7 @@ export default function SuperTuxKartPlayablePreview() {
         updateCamera(dt);
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
         const position = sorted.findIndex((k) => k === player) + 1;
-        const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos).onRoad ? "5-truck racing" : "Off-road slowdown";
+        const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos, selectedTrack).onRoad ? `Track: ${selectedTrackId}` : "Off-road slowdown";
         setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "" });
         renderer.render(scene, camera);
       };
