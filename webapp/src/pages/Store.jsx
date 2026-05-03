@@ -1042,8 +1042,6 @@ const USAGE_BY_TYPE = {
   },
 };
 
-const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
-
 const hashString = (value) => {
   let hash = 0;
   if (!value) return hash;
@@ -1061,14 +1059,6 @@ const formatShortDate = (date) =>
   }).format(date);
 
 const storeMeta = {
-  tennis: {
-    name: 'Tennis',
-    items: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
-    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
-    labels: POOL_ROYALE_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   tabletennis: {
     name: 'Table Tennis',
     items: [
@@ -1664,7 +1654,7 @@ export default function Store() {
         hdriSelectedGames.map((slug) => {
           const optionId = optionIdByGame[slug];
           if (!optionId) return Promise.resolve();
-          if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis') {
+          if (slug === 'poolroyale' || slug === 'bilardoshqip') {
             return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
           }
           if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
@@ -1803,11 +1793,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'texasholdem'
       })),
-      tennis: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)).map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tennis'
-      })),
       tabletennis: [
         ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri'),
         ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
@@ -1848,8 +1833,6 @@ export default function Store() {
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      tennis: (type, optionId) =>
-        isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
@@ -1899,9 +1882,7 @@ export default function Store() {
       snake: (item) =>
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
-        TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tennis: (item) =>
-        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+        TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -1920,8 +1901,7 @@ export default function Store() {
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
-      texasholdem: TEXAS_TYPE_LABELS,
-      tennis: TYPE_LABELS
+      texasholdem: TEXAS_TYPE_LABELS
     }),
     []
   );
@@ -2510,7 +2490,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,

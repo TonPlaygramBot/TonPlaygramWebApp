@@ -3,10 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { useLocation } from "react-router-dom";
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
-import { getPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
@@ -22,9 +19,7 @@ type BallState = {
   bounceCount: number;
 };
 
-type ShotTechnique = "flat" | "topspin" | "slice";
-
-type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique };
+type DesiredHit = { target: THREE.Vector3; power: number };
 
 type BonePack = {
   spine?: THREE.Bone;
@@ -118,9 +113,9 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 5.5,
+  aiSpeed: 4.65,
   reach: 0.92,
-  swingDuration: 0.38,
+  swingDuration: 0.42,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
@@ -233,53 +228,6 @@ function addCourt(scene: THREE.Scene) {
   return group;
 }
 
-
-function addStadiumBillboards(scene: THREE.Scene) {
-  const boardGroup = new THREE.Group();
-  scene.add(boardGroup);
-  const banners = ["TONPLAYGRAM", "TENNIS PRO", "REAL SPEED", "LIVE ARENA"];
-  const fontCanvas = document.createElement("canvas");
-  fontCanvas.width = 512;
-  fontCanvas.height = 128;
-  const ctx = fontCanvas.getContext("2d");
-  const makeTexture = (text: string, t: number) => {
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, fontCanvas.width, fontCanvas.height);
-    const grad = ctx.createLinearGradient(0, 0, fontCanvas.width, 0);
-    grad.addColorStop(0, `hsl(${(t * 40) % 360} 85% 55%)`);
-    grad.addColorStop(1, `hsl(${(180 + t * 65) % 360} 80% 45%)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, fontCanvas.width, fontCanvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.94)";
-    ctx.font = "bold 54px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, fontCanvas.width / 2, fontCanvas.height / 2);
-    const texture = new THREE.CanvasTexture(fontCanvas);
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const panels: THREE.Mesh[] = [];
-  for (let i = 0; i < 6; i++) {
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x0a0a0a, roughness: 0.4, metalness: 0.05 });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), mat);
-    const side = i % 2 === 0 ? 1 : -1;
-    const lane = Math.floor(i / 2);
-    mesh.position.set(side * (CFG.doublesW / 2 + 1.25), 0.95, -4.8 + lane * 4.8);
-    mesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-    boardGroup.add(mesh);
-    panels.push(mesh);
-  }
-  return (elapsed: number) => {
-    panels.forEach((panel, idx) => {
-      const text = banners[(Math.floor(elapsed * 1.8 + idx) % banners.length + banners.length) % banners.length];
-      const tex = makeTexture(text, elapsed + idx * 0.2);
-      if (tex && panel.material instanceof THREE.MeshStandardMaterial) panel.material.map = tex;
-      panel.position.y = 0.95 + Math.sin(elapsed * 2.1 + idx) * 0.03;
-      panel.material.needsUpdate = true;
-    });
-  };
-}
 function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.rotation.set(0, CFG.playerVisualYawFix, 0);
   model.position.set(0, 0, 0);
@@ -754,13 +702,12 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
 }
 
-function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
+function makeAiTarget(near: HumanRig, ball: BallState) {
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0) / (CFG.courtL / 2 - 1.0));
   const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
   const z = lerp(1.35, CFG.courtL / 2 - 1.0, 0.35 + pressure * 0.55);
-  const power = clamp(0.56 + pressure * 0.34 + Math.random() * 0.2, 0.5, 1);
-  const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
-  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
+  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, 0.42, 0.92);
+  return { target: new THREE.Vector3(x, CFG.ballR, z), power };
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
@@ -772,17 +719,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
-  const technique = hit.technique || "flat";
-  if (technique === "topspin") {
-    ball.vel.y += 0.35 + hit.power * 0.35;
-    ball.spin = 1.05 + hit.power * 1.1;
-  } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.1;
-    ball.vel.y -= 0.12;
-    ball.spin = -0.85 - hit.power * 0.45;
-  } else {
-    ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.45 + hit.power * 1.0;
-  }
+  ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.3 + hit.power * 0.9;
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
@@ -878,9 +815,6 @@ export default function MobileThreeTennisPrototype() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [hdriChoices, setHdriChoices] = useState<any[]>([]);
-  const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
@@ -897,16 +831,13 @@ export default function MobileThreeTennisPrototype() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
 
     const scene = new THREE.Scene();
-    let activeEnvMap: THREE.Texture | null = null;
     scene.fog = new THREE.Fog(0x07100c, 12, 21);
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.9, -1.3);
-    const cameraOffset = new THREE.Vector3(0, 4.45, 6.85);
+    const cameraTarget = new THREE.Vector3(0, 0.84, -0.95);
+    const cameraOffset = new THREE.Vector3(0, 3.65, 4.95);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -924,30 +855,7 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
 
-
-    const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
-    const applyHdri = (id: string) => {
-      const variant = POOL_ROYALE_HDRI_VARIANTS.find((v) => v.id === id) || POOL_ROYALE_HDRI_VARIANTS.find((v) => v.id === POOL_ROYALE_DEFAULT_HDRI_ID);
-      if (!variant) return;
-      const order = variant.preferredResolutions?.length ? variant.preferredResolutions : ["4k","2k"];
-      const urls = order.map((res: string) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`);
-      const loadAt = (idx: number) => {
-        if (!urls[idx]) return;
-        hdriLoader.load(urls[idx], (hdrTex) => {
-          const env = pmrem.fromEquirectangular(hdrTex).texture;
-          hdrTex.dispose();
-          if (activeEnvMap) activeEnvMap.dispose();
-          activeEnvMap = env;
-          scene.environment = env;
-          scene.background = env;
-          scene.backgroundBlurriness = 0.42;
-        }, undefined, () => loadAt(idx + 1));
-      };
-      loadAt(0);
-    };
-    applyHdri(selectedHdriId);
     addCourt(scene);
-    const updateBillboards = addStadiumBillboards(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
@@ -964,10 +872,6 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("/assets/sounds/hit-wood-4-94067.mp3");
-    shotFx.volume = 0.5;
-    const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
-    bounceFx.volume = 0.32;
     let last = performance.now();
     let pointLock = false;
     let pointLockT = 0;
@@ -993,9 +897,9 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 4.9, 7.6);
-      else cameraOffset.set(0, 4.45, 6.85);
+      camera.fov = camera.aspect < 0.72 ? 48 : 42;
+      if (camera.aspect < 0.72) cameraOffset.set(0, 3.95, 5.35);
+      else cameraOffset.set(0, 3.65, 4.95);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1122,7 +1026,6 @@ export default function MobileThreeTennisPrototype() {
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
             performHit(player, ball, player.desiredHit, true);
-            void shotFx.play().catch(() => {});
             setHudSafe({ status: "Serve sent" });
           }
           continue;
@@ -1130,7 +1033,6 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
           performHit(player, ball, player.desiredHit, false);
-          void shotFx.play().catch(() => {});
           setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
@@ -1172,8 +1074,7 @@ export default function MobileThreeTennisPrototype() {
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.lerp(cameraPosTarget, 1 - Math.exp(-5.5 * dt));
       cameraTarget.x += (nearPlayer.target.x - cameraTarget.x) * (1 - Math.exp(-5.2 * dt));
-      cameraTarget.z += ((nearPlayer.target.z - 6.9) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
-      updateBillboards(now * 0.001);
+      cameraTarget.z += ((nearPlayer.target.z - 5.6) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
@@ -1187,8 +1088,6 @@ export default function MobileThreeTennisPrototype() {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      if (activeEnvMap) activeEnvMap.dispose();
-      pmrem.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
@@ -1200,20 +1099,7 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getPoolRoyalInventory().then((inventory) => {
-      if (cancelled) return;
-      const owned = new Set(inventory?.environmentHdri || []);
-      const allowed = new Set(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco", POOL_ROYALE_DEFAULT_HDRI_ID]);
-      const options = POOL_ROYALE_HDRI_VARIANTS.filter((v) => allowed.has(v.id) && (owned.has(v.id) || v.id === POOL_ROYALE_DEFAULT_HDRI_ID));
-      setHdriChoices(options);
-      if (!options.some((v) => v.id === selectedHdriId)) setSelectedHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [selectedHdriId]);
+  }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#07100c", touchAction: "none", userSelect: "none" }}>
@@ -1232,22 +1118,10 @@ export default function MobileThreeTennisPrototype() {
               <div><div style={{ fontWeight: 700, textAlign: "right" }}>{rivalName}</div><div style={{ opacity: 0.7, textAlign: "right" }}>Points {hud.farScore}</div></div>
               <div style={{ width: 30, height: 30, borderRadius: "999px", border: "1px solid rgba(255,255,255,.25)", background: "#334155", display: "flex", alignItems: "center", justifyContent: "center" }}>🎾</div>
             </div>
-            <button type="button" style={{ pointerEvents: "auto", width: 92, height: 34, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "#fff", fontWeight: 700, letterSpacing: 0.4 }} onClick={() => setMenuOpen((v) => !v)}>☰ Menu</button>
+            <button type="button" style={{ pointerEvents: "auto", width: 92, height: 34, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "#fff", fontWeight: 700, letterSpacing: 0.4 }} onClick={() => alert("Menu: graphics options are available from the game settings panel.")}>☰ Menu</button>
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 6, textAlign: "center" }}>{hud.status}</div>
         </div>
-
-        {menuOpen && (
-          <div style={{ position: "absolute", right: 10, top: 108, width: 210, maxHeight: 300, overflow: "auto", background: "rgba(8,16,24,0.94)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 12, padding: 8 }}>
-            <div style={{ color: "#fff", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Owned HDRI</div>
-            {hdriChoices.map((opt) => (
-              <button key={opt.id} type="button" onClick={() => { setSelectedHdriId(opt.id); localStorage.setItem("tennisSelectedHdri", opt.id); }} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", marginBottom: 6, borderRadius: 10, border: selectedHdriId === opt.id ? "1px solid #7dd3fc" : "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,0.08)", padding: 6, color: "#fff" }}>
-                <img src={opt.thumbnail} alt={opt.name} style={{ width: 42, height: 24, objectFit: "cover", borderRadius: 6 }} />
-                <span style={{ fontSize: 11, textAlign: "left" }}>{opt.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 236 }}>
           Procedural hands removed.<br />The character right hand holds the racket.<br />Swipe up to serve or hit deep.
         </div>
