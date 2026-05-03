@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "out" | "doubleBounce" | "net" | "wrongSide" | "miss";
@@ -1020,7 +1019,6 @@ export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
 
@@ -1419,18 +1417,22 @@ export default function MobileRealisticTableTennisGame() {
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
         </div>
 
-        <button type="button" onClick={() => setMenuOpen((open) => !open)} style={{ position: "absolute", left: 10, top: 10, pointerEvents: "auto", width: 42, height: 42, borderRadius: 12, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 24, lineHeight: "40px", textAlign: "center" }}>☰</button>
-        {menuOpen ? (
-          <div style={{ position: "absolute", left: 10, top: 58, width: 260, maxHeight: "60vh", overflowY: "auto", pointerEvents: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(8,16,28,0.92)", padding: 10, color: "white" }}>
-            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Graphics (same options as Store)</div>
-            {TENNIS_HDRI_OPTIONS.map((item) => (
-              <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)" }}>
-                <img src={item.thumbnail} alt={item.name} style={{ width: 42, height: 42, borderRadius: 8, objectFit: "cover" }} />
-                <div style={{ fontSize: 12 }}><div style={{ fontWeight: 700 }}>{item.name}</div><div style={{ opacity: 0.78 }}>{item.price} TPC</div></div>
-              </div>
-            ))}
-          </div>
-        ) : null}
+        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 265 }}>
+          Paddle is mounted to the character right-hand bone.<br />
+          AI can serve, place wide/body shots, push short, loop, and recover.<br />
+          Swipe left/right adds side spin. Swipe up hits deeper.
+        </div>
+
+        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
+        </div>
+
+        <div style={{ position: "absolute", right: 12, top: 76, width: 48, height: 86, borderRadius: 999, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden" }}>
+          <div style={{ position: "absolute", left: `${hud.spin >= 0 ? 24 : 24 + hud.spin * 24}px`, width: `${Math.abs(hud.spin) * 24}px`, top: 0, bottom: 0, background: "rgba(255,255,255,0.7)" }} />
+          <div style={{ position: "absolute", left: 23, top: 0, bottom: 0, width: 2, background: "rgba(255,255,255,0.28)" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>SPIN</div>
+        </div>
       </div>
     </div>
   );
