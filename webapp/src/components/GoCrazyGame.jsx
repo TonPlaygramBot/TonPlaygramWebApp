@@ -7,9 +7,12 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 const ORIGINAL_ASSETS = {
-  kartVariants: [
-    "https://threejs.org/examples/models/gltf/ferrari.glb",
-    "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb"
+  truckVariants: [
+    "/stk-original-glb/karts/truck/truck.glb",
+    "/stk-original-glb/karts/truck/truck-2.glb",
+    "/stk-original-glb/karts/truck/truck-3.glb",
+    "/stk-original-glb/karts/truck/truck-4.glb",
+    "/stk-original-glb/karts/truck/truck-5.glb"
   ],
   track: "/stk-original-glb/tracks/main-track/track.glb",
   treeLocal: "/stk-original-glb/environment/tree.glb",
@@ -27,29 +30,16 @@ const TRACK_PRESETS = {
   "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
-const WEAPON_PICKUPS = ["SHOTGUN", "ASSAULT_RIFLE", "PISTOL", "HEAVY_REVOLVER", "SAWED_OFF", "SILVER_REVOLVER", "LONG_SHOTGUN", "PUMP_SHOTGUN", "SMG", "AK47", "KRSV", "SMITH", "MOSIN", "UZI", "SIGSAUER", "AWP_SNIPER", "MRTK_GUN", "FPS_SHOTGUN"]
+const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
 const WEAPON_STORE = [
-  { id: "SHOTGUN", model: "https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb", thumb: "https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.png", price: 0 },
-  { id: "ASSAULT_RIFLE", model: "https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb", price: 350 },
-  { id: "PISTOL", model: "https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb", price: 450 },
-  { id: "HEAVY_REVOLVER", model: "https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb", price: 600 },
-  { id: "SAWED_OFF", model: "https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb", price: 750 },
-  { id: "SILVER_REVOLVER", model: "https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb", price: 850 },
-  { id: "LONG_SHOTGUN", model: "https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb", price: 950 },
-  { id: "PUMP_SHOTGUN", model: "https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb", price: 1050 },
-  { id: "SMG", model: "https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb", price: 1200 },
-  { id: "AK47", model: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb", price: 1300 },
-  { id: "KRSV", model: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb", price: 1450 },
-  { id: "SMITH", model: "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb", price: 1550 },
-  { id: "MOSIN", model: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb", price: 1700 },
-  { id: "UZI", model: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb", price: 1800 },
-  { id: "SIGSAUER", model: "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb", price: 1900 },
-  { id: "AWP_SNIPER", model: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb", price: 2100 },
-  { id: "MRTK_GUN", model: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb", price: 2250 },
-  { id: "FPS_SHOTGUN", model: "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf", price: 2400 }
+  { id: "FIREARM", model: "/gltf/weapons/firearm.glb", price: 0 },
+  { id: "RIFLE", model: "/gltf/weapons/rifle.glb", price: 400 },
+  { id: "MISSILE", model: "/gltf/weapons/missile.glb", price: 1200 },
+  { id: "DRONE", model: "/gltf/weapons/drone.glb", price: 1700 },
+  { id: "HELICOPTER", model: "/gltf/weapons/helicopter.glb", price: 2200 },
+  { id: "JET", model: "/gltf/weapons/jet.glb", price: 2800 }
 ];
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
-const SUPPORT_STRIKE_WEAPONS = new Set(["DRONE", "JET", "HELICOPTER", "MISSILE"]);
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -103,28 +93,6 @@ function makeMat(color, roughness = 0.78, metalness = 0.03) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 
-function makeSupportUnit(kind, color = 0x94a3b8) {
-  const group = new THREE.Group();
-  const body = makeMat(color, 0.58, 0.2);
-  if (kind === "tower") {
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 3.8, 10), body);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.32, 1.1), makeMat(0x4b5563, 0.45, 0.25));
-    head.position.y = 1.95;
-    group.add(base, head);
-  } else if (kind === "drone") {
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.55), body));
-  } else if (kind === "jet") {
-    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.15, 12), body);
-    mesh.rotation.z = -Math.PI / 2;
-    group.add(mesh);
-  } else if (kind === "helicopter") {
-    group.add(new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.72, 6, 10), body));
-  } else if (kind === "truck") {
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.35, 0.55), body));
-  }
-  return enableShadows(group);
-}
-
 function enableShadows(obj) {
   obj.traverse((child) => {
     const mesh = child;
@@ -151,17 +119,6 @@ function normalizeLoadedModel(obj) {
     }
   });
   return obj;
-}
-
-
-function findRightHandNode(root) {
-  let found = null;
-  root?.traverse?.((child) => {
-    const name = (child.name || '').toLowerCase();
-    if (found) return;
-    if (name.includes('righthand') || name.includes('right_hand') || name.includes('hand_r') || name.includes('mixamorigrighthand')) found = child;
-  });
-  return found || root;
 }
 
 function makeLoader() {
@@ -205,12 +162,12 @@ async function tryLoadMurlanHuman(loader) {
 }
 
 async function tryLoadOriginalAssets(loader) {
-  const firstTruck = await loadGltf(loader, ORIGINAL_ASSETS.kartVariants[0]);
+  const firstTruck = await loadGltf(loader, ORIGINAL_ASSETS.truckVariants[0]);
   const track = await loadGltf(loader, ORIGINAL_ASSETS.track);
   const trucks = [firstTruck.scene];
   const truckAnimations = [firstTruck.animations];
 
-  for (const url of ORIGINAL_ASSETS.kartVariants.slice(1)) {
+  for (const url of ORIGINAL_ASSETS.truckVariants.slice(1)) {
     try {
       const extra = await loadGltf(loader, url);
       trucks.push(extra.scene);
@@ -549,7 +506,7 @@ function resolveVehicleCrashes(karts) {
 export default function SuperTuxKartPlayablePreview() {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
-  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, help: true, status: "Loading...", mode: "playable-preview", crash: "", weapon: "SHOTGUN", ammo: 999, weaponIcon: null });
+  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, help: true, status: "Loading...", mode: "playable-preview", crash: "", weapon: "FIREARM", ammo: 999 });
   const hudRef = useRef(hud);
 
   useEffect(() => {
@@ -663,9 +620,9 @@ export default function SuperTuxKartPlayablePreview() {
       else createProceduralTrack(scene, selectedTrack);
       scatterGltfTrees(scene, assets?.tree, selectedTrack);
 
-      const variants = ["ferrari-sport", "go-kart-buggy", "go-kart-buggy", "go-kart-buggy", "go-kart-buggy"];
+      const variants = ["sport", "truck", "heavy", "rally", "longnose"];
       const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
-      const names = ["Ferrari Sport", "Go-Kart Buggy Blue", "Go-Kart Buggy Yellow", "Go-Kart Buggy Green", "Go-Kart Buggy Purple"];
+      const names = ["Red Sport Truck", "Blue Box Truck", "Yellow Heavy Truck", "Green Rally Truck", "Purple Longnose"];
       const starts = [
         { angle: Math.PI / 2, lane: 0 },
         { angle: Math.PI / 2 - 0.18, lane: -1.5 },
@@ -685,49 +642,7 @@ export default function SuperTuxKartPlayablePreview() {
       const ai4 = makeKart(4);
       const karts = [player, ai1, ai2, ai3, ai4];
       karts.forEach((k) => scene.add(k.group));
-      const playerCombat = { activeWeapon: "SHOTGUN", inventory: new Set(["SHOTGUN"]), defenses: new Set(), ammo: { SHOTGUN: 999 }, equippedWeaponMesh: null, equippedWeaponIcon: null };
-      const weaponModelCache = new Map();
-      const createWeaponPickupFromStore = async (weaponId) => {
-        const def = WEAPON_STORE.find((item) => item.id === weaponId);
-        if (!def?.model) return null;
-        try {
-          let cached = weaponModelCache.get(weaponId);
-          if (!cached) {
-            const loaded = await loadGltf(loader, def.model);
-            cached = loaded.scene;
-            weaponModelCache.set(weaponId, cached);
-          }
-          const clone = cloneModel(cached);
-          const box = new THREE.Box3().setFromObject(clone);
-          const size = box.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z) || 1;
-          clone.scale.multiplyScalar(0.7 / maxDim);
-          clone.rotation.x = -0.15;
-          enableShadows(clone);
-          return clone;
-        } catch (error) {
-          console.warn("Weapon pickup GLTF failed", weaponId, error);
-          return null;
-        }
-      };
-
-      const equipWeaponOnDriver = async (weaponId) => {
-        const human = player.group?.userData?.humanModel;
-        if (!human) return;
-        if (playerCombat.equippedWeaponMesh?.parent) playerCombat.equippedWeaponMesh.parent.remove(playerCombat.equippedWeaponMesh);
-        const def = WEAPON_STORE.find((item) => item.id === weaponId);
-        if (!def?.model) return;
-        const loaded = await createWeaponPickupFromStore(weaponId);
-        if (!loaded) return;
-        const rightHand = findRightHandNode(human);
-        loaded.scale.multiplyScalar(0.22);
-        loaded.position.set(0.06, -0.02, 0.02);
-        loaded.rotation.set(0.2, -1.4, 0.1);
-        rightHand.add(loaded);
-        playerCombat.equippedWeaponMesh = loaded;
-        playerCombat.equippedWeaponIcon = def.thumb || null;
-      };
-
+      const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
       const makeWeaponPickupMesh = (weapon) => {
         if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.0, 14), makeMat(0xff7b00, 0.35));
         if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.33, 0), makeMat(0x74f0ff, 0.35));
@@ -736,17 +651,14 @@ export default function SuperTuxKartPlayablePreview() {
         if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.18), makeMat(0xf2d17a, 0.35));
         return new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, 0.18), makeMat(0xffe066, 0.35));
       };
-      const pickups = [];
-      for (let i = 0; i < WEAPON_PICKUPS.length; i += 1) {
-        const weapon = WEAPON_PICKUPS[i];
+      const pickups = WEAPON_PICKUPS.map((weapon, i) => {
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
-        const gltfPickup = await createWeaponPickupFromStore(weapon);
-        const gem = gltfPickup || makeWeaponPickupMesh(weapon);
+        const gem = makeWeaponPickupMesh(weapon);
         gem.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
         gem.userData = { weapon, taken: false };
         scene.add(gem);
-        pickups.push(gem);
-      }
+        return gem;
+      });
       const defensePickups = DEFENSE_PICKUPS.map((defense, i) => {
         const p = pointOnTrack((i / DEFENSE_PICKUPS.length) * TAU + 1.2, selectedTrack, i % 2 === 0 ? -0.62 : 0.62);
         const node = new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 0), makeMat(0x69ff8f, 0.45));
@@ -758,28 +670,6 @@ export default function SuperTuxKartPlayablePreview() {
 
       const activeProjectiles = [];
       const activeAirStrikes = [];
-      const parkedSupportUnits = [];
-
-      const placeSupportScenery = () => {
-        for (let i = 0; i < 6; i += 1) {
-          const towerPos = pointOnTrack((i / 6) * TAU + 0.2, selectedTrack, i % 2 === 0 ? 7.1 : -7.1);
-          const tower = makeSupportUnit("tower", 0x6b7280);
-          tower.position.copy(towerPos).add(new THREE.Vector3(0, 1.9, 0));
-          scene.add(tower);
-        }
-        const supportKinds = ["drone", "jet", "helicopter", "truck"];
-        supportKinds.forEach((kind, kindIndex) => {
-          for (let i = 0; i < karts.length; i += 1) {
-            const p = pointOnTrack((i / karts.length) * TAU + kindIndex * 0.36, selectedTrack, kindIndex % 2 === 0 ? 10.3 : -10.3);
-            const unit = makeSupportUnit(kind, kind === "drone" ? 0x7dd3fc : kind === "jet" ? 0x93c5fd : kind === "helicopter" ? 0x86efac : 0xfca5a5);
-            unit.position.copy(p).add(new THREE.Vector3(0, kind === "drone" ? 2.3 : 0.5, 0));
-            unit.userData = { kind, home: unit.position.clone(), phase: Math.random() * Math.PI * 2 };
-            scene.add(unit);
-            parkedSupportUnits.push(unit);
-          }
-        });
-      };
-      placeSupportScenery();
 
       function spawnProjectile(from, to, color = 0xffaa00, speed = 42, damage = 20) {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), makeMat(color, 0.25, 0.2));
@@ -789,13 +679,12 @@ export default function SuperTuxKartPlayablePreview() {
       }
 
       function callAirSupport(kind, target) {
-        const mode = kind === "MISSILE" ? "truck" : kind.toLowerCase();
-        const parked = parkedSupportUnits.find((unit) => unit.userData.kind === mode);
-        const craft = parked ? cloneModel(parked) : makeSupportUnit(mode, 0xf59e0b);
-        craft.position.copy(parked?.position || target.pos.clone().add(new THREE.Vector3(-6, 5, -6)));
-        craft.userData = { kind: mode, home: (parked?.position || craft.position).clone() };
+        const color = kind === "JET" ? 0x92c7ff : kind === "HELICOPTER" ? 0x6fffa6 : 0xffa14d;
+        const craft = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 8), makeMat(color, 0.3, 0.2));
+        craft.rotation.x = Math.PI / 2;
+        craft.position.copy(target.pos).add(new THREE.Vector3(-6, 9, -6));
         scene.add(craft);
-        activeAirStrikes.push({ kind: mode, craft, target, phase: "launch", t: 0, fired: 0 });
+        activeAirStrikes.push({ kind, craft, target, ttl: 2.2, fired: false });
       }
 
       const raycaster = new THREE.Raycaster();
@@ -839,8 +728,7 @@ export default function SuperTuxKartPlayablePreview() {
           kart.group.userData.humanOffset = i * 0.06;
         });
       }
-      await equipWeaponOnDriver(playerCombat.activeWeapon);
-      setHud((h) => ({ ...h, status: originalMode ? "Original STK GLB mode" : "Playable fallback mode", mode: originalMode ? "original-assets" : "playable-preview", weaponIcon: playerCombat.equippedWeaponIcon }));
+      setHud((h) => ({ ...h, status: originalMode ? "Original STK GLB mode" : "Playable fallback with 5 different trucks", mode: originalMode ? "original-assets" : "playable-preview" }));
 
       let last = performance.now();
       let crashTextT = 0;
@@ -890,8 +778,6 @@ export default function SuperTuxKartPlayablePreview() {
             pickup.visible = false;
             playerCombat.inventory.add(pickup.userData.weapon);
             playerCombat.activeWeapon = pickup.userData.weapon;
-            playerCombat.ammo[pickup.userData.weapon] = Math.max(1, playerCombat.ammo[pickup.userData.weapon] || 20);
-            equipWeaponOnDriver(pickup.userData.weapon);
             hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
           }
         });
@@ -910,11 +796,13 @@ export default function SuperTuxKartPlayablePreview() {
           const target = input.fireTarget || [ai1, ai2, ai3, ai4].filter((k) => k.damage < 100).sort((a,b)=>a.pos.distanceTo(player.pos)-b.pos.distanceTo(player.pos))[0];
           if (target) {
             const w = playerCombat.activeWeapon;
-            const canShoot = (playerCombat.ammo[w] ?? 0) > 0;
+            const canShoot = (playerCombat.ammo[w] ?? 0) > 0 || w === "FIREARM";
             if (canShoot) {
-              playerCombat.ammo[w] = Math.max(0, (playerCombat.ammo[w] ?? 0) - 1);
-              if (!SUPPORT_STRIKE_WEAPONS.has(w)) {
-                spawnProjectile(player.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), 0xffee88, 56, w === "ASSAULT_RIFLE" ? 16 : 10);
+              if (w !== "FIREARM") playerCombat.ammo[w] = Math.max(0, (playerCombat.ammo[w] ?? 0) - 1);
+              if (w === "FIREARM" || w === "RIFLE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), 0xffee88, 56, w === "RIFLE" ? 16 : 10);
+              } else if (w === "MISSILE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(1.1, 0.65, 0)), target.pos.clone().add(new THREE.Vector3(0, 0.7, 0)), 0xff6a00, 34, 34);
               } else {
                 callAirSupport(w, target);
               }
@@ -940,40 +828,22 @@ export default function SuperTuxKartPlayablePreview() {
         }
         for (let i = activeAirStrikes.length - 1; i >= 0; i--) {
           const s = activeAirStrikes[i];
-          s.t += dt;
-          const targetPos = s.target.pos.clone().add(new THREE.Vector3(0, 1.1, 0));
-          if (s.phase === "launch") {
-            const lift = s.kind === "drone" ? 6.2 : 8.7;
-            s.craft.position.lerp(targetPos.clone().add(new THREE.Vector3(-5, lift, -5)), 1 - Math.exp(-2.2 * dt));
-            if (s.t > 0.8) s.phase = "attack";
-          } else if (s.phase === "attack") {
-            const burst = s.kind === "jet" || s.kind === "helicopter" ? 2 : 1;
-            if (s.fired < burst) {
-              spawnProjectile(s.craft.position.clone(), targetPos, 0xff4b2b, 48, s.kind === "drone" ? 42 : 34);
-              s.fired += 1;
-            }
-            s.phase = "return";
-          } else {
-            const home = s.craft.userData.home || s.craft.position;
-            s.craft.position.lerp(home, 1 - Math.exp(-2.8 * dt));
-            if (s.craft.position.distanceTo(home) < 0.5) {
-              scene.remove(s.craft);
-              activeAirStrikes.splice(i, 1);
-            }
+          s.ttl -= dt;
+          const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
+          s.craft.position.lerp(hover, 1 - Math.exp(-3 * dt));
+          if (!s.fired && s.ttl < 1.5) {
+            s.fired = true;
+            spawnProjectile(s.craft.position.clone(), s.target.pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xff4433, 45, 36);
           }
+          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
-        parkedSupportUnits.forEach((unit) => {
-          if (unit.userData.kind === "drone") {
-            unit.position.y = unit.userData.home.y + Math.sin(now * 0.002 + unit.userData.phase) * 0.28;
-          }
-        });
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
         const position = sorted.findIndex((k) => k === player) + 1;
         const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos, selectedTrack).onRoad ? `Track: ${selectedTrackId}` : "Off-road slowdown";
         const weapon = playerCombat.activeWeapon;
         const ammo = playerCombat.ammo[weapon] ?? 0;
-        setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "", weapon, ammo, weaponIcon: playerCombat.equippedWeaponIcon });
+        setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "", weapon, ammo });
         renderer.render(scene, camera);
       };
       animate();
@@ -1020,10 +890,15 @@ export default function SuperTuxKartPlayablePreview() {
             <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.2, textTransform: "uppercase" }}>SuperTuxKart Truck Test</div>
             <div style={{ fontSize: 13, fontWeight: 800 }}>Pos {hud.position}/5 · Lap {hud.lap}</div>
             <div style={{ fontSize: 11, opacity: 0.82 }}>{hud.status} · {Math.round(hud.speed * 8)} km/h</div>
-            <div style={{ fontSize: 11, opacity: 0.9, display: "flex", alignItems: "center", gap: 6 }}>Weapon: {hud.weapon} · Ammo: {hud.ammo}{hud.weaponIcon ? <img src={hud.weaponIcon} alt={hud.weapon} style={{ width: 18, height: 18, borderRadius: 4, objectFit: "cover", border: "1px solid rgba(255,255,255,0.3)" }} /> : null}</div>
+            <div style={{ fontSize: 11, opacity: 0.9 }}>Weapon: {hud.weapon} · Ammo: {hud.ammo}</div>
             {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
           </div>
           <button onClick={() => setHud((h) => ({ ...h, help: !h.help }))} style={{ pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 18, fontWeight: 900 }}>?</button>
+        </div>
+
+        <div style={{ position: "absolute", right: 10, top: 64, maxWidth: 260, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "8px 10px", fontSize: 10 }}>
+          <b>Weapon Store (GLTF slots)</b>
+          {WEAPON_STORE.map((w) => <div key={w.id}>{w.id} · ${w.price} · {w.model}</div>)}
         </div>
 
         {hud.help && (
@@ -1031,6 +906,8 @@ export default function SuperTuxKartPlayablePreview() {
             <b>Controls</b><br />
             Desktop: W/↑ accelerate, S/↓ reverse, A/D steer, Space brake.<br />
             Mobile: drag left side to accelerate/steer, right side to rotate camera.<br />
+            Now includes track weapon pickups and tap-to-fire combat on the right side.<br />
+            Trees are GLTF-only. If no GLTF tree loads, no procedural trees are spawned.<br />
             Current mode: {hud.mode === "original-assets" ? "Original STK GLB assets loaded." : "Playable fallback because original STK GLBs are not available in this preview."}
           </div>
         )}
