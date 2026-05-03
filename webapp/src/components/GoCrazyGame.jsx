@@ -30,7 +30,15 @@ const TRACK_PRESETS = {
   "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
-const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"];
+const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
+const WEAPON_STORE = [
+  { id: "FIREARM", model: "/gltf/weapons/firearm.glb", price: 0 },
+  { id: "RIFLE", model: "/gltf/weapons/rifle.glb", price: 400 },
+  { id: "MISSILE", model: "/gltf/weapons/missile.glb", price: 1200 },
+  { id: "DRONE", model: "/gltf/weapons/drone.glb", price: 1700 },
+  { id: "HELICOPTER", model: "/gltf/weapons/helicopter.glb", price: 2200 },
+  { id: "JET", model: "/gltf/weapons/jet.glb", price: 2800 }
+];
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -50,14 +58,16 @@ function angleOnTrack(pos, track) {
 }
 
 function pointOnTrack(angle, track, lane = 0) {
-  const mod = 1 + Math.sin(angle * 3) * track.wobble;
-  return new THREE.Vector3(Math.cos(angle) * (track.centerX + lane) * mod, 0.18, Math.sin(angle) * (track.centerZ + lane * 0.45) * mod);
+  const mod = 1 + Math.sin(angle * 3) * track.wobble + Math.cos(angle * 5) * track.wobble * 0.45;
+  const hill = Math.sin(angle * 2.5 + Math.cos(angle * 0.7)) * 0.55 + Math.sin(angle * 7) * 0.15;
+  return new THREE.Vector3(Math.cos(angle) * (track.centerX + lane) * mod, 0.18 + hill, Math.sin(angle) * (track.centerZ + lane * 0.45) * mod);
 }
 
 function tangentYaw(angle, track) {
-  const dx = -Math.sin(angle) * track.centerX;
-  const dz = Math.cos(angle) * track.centerZ;
-  return Math.atan2(dx, dz);
+  const e = 0.01;
+  const p1 = pointOnTrack(angle, track, 0);
+  const p2 = pointOnTrack(angle + e, track, 0);
+  return Math.atan2(p2.x - p1.x, p2.z - p1.z);
 }
 
 function trackQuality(pos, track) {
@@ -254,7 +264,10 @@ function scatterGltfTrees(scene, tree) {
     const a = (i / 24) * TAU + 0.08;
     const clone = cloneModel(tree);
     clone.scale.setScalar(0.45 + (i % 4) * 0.09);
-    clone.position.set(Math.cos(a) * (39 + (i % 3) * 2.2), 0, Math.sin(a) * (27 + (i % 2) * 2.3));
+    const side = i % 2 === 0 ? 1 : -1;
+    const sideOffset = side > 0 ? 6.5 : -6.5;
+    const edge = pointOnTrack(a, { ...{centerX: 39, centerZ: 27, wobble: 0.12} }, sideOffset);
+    clone.position.set(edge.x, 0, edge.z);
     clone.rotation.y = a + Math.PI * 0.25;
     enableShadows(clone);
     scene.add(clone);
@@ -401,7 +414,7 @@ function updatePlayerKart(kart, input, track, dt) {
   kart.speed = Math.max(-7, Math.min(maxSpeed, kart.speed));
   kart.speed *= Math.exp(-(quality.onRoad ? 0.65 : 2.2) * dt);
   kart.steer = lerp(kart.steer, clamp(steerRaw, -1, 1), 1 - Math.exp(-5.2 * dt));
-  const steerStrength = 1.35 * grip * clamp(Math.abs(kart.speed) / 9, 0.2, 1.05);
+  const steerStrength = 1.7 * grip * clamp(Math.abs(kart.speed) / 9, 0.24, 1.12);
   kart.yaw -= kart.steer * steerStrength * dt * Math.sign(kart.speed || 1);
   applyCrashDamping(kart, dt);
   kart.pos.addScaledVector(forwardFromYaw(kart.yaw), kart.speed * dt);
@@ -559,8 +572,8 @@ export default function SuperTuxKartPlayablePreview() {
     };
     const onPointerMove = (e) => {
       if (input.pointerId === e.pointerId) {
-        input.steer = clamp((e.clientX - input.startX) / 70, -1, 1);
-        input.accel = clamp(-(e.clientY - input.startY) / 75, -0.65, 1);
+        input.steer = clamp((e.clientX - input.startX) / 48, -1, 1);
+        input.accel = clamp(-(e.clientY - input.startY) / 60, -0.55, 1);
       }
       if (input.lookId === e.pointerId) {
         const dx = e.clientX - input.lastX;
@@ -646,6 +659,25 @@ export default function SuperTuxKartPlayablePreview() {
         scene.add(node);
         return node;
       });
+
+      const activeProjectiles = [];
+      const activeAirStrikes = [];
+
+      function spawnProjectile(from, to, color = 0xffaa00, speed = 42, damage = 20) {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), makeMat(color, 0.25, 0.2));
+        mesh.position.copy(from);
+        scene.add(mesh);
+        activeProjectiles.push({ mesh, vel: to.clone().sub(from).normalize().multiplyScalar(speed), ttl: 2, target: null, damage });
+      }
+
+      function callAirSupport(kind, target) {
+        const color = kind === "JET" ? 0x92c7ff : kind === "HELICOPTER" ? 0x6fffa6 : 0xffa14d;
+        const craft = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 8), makeMat(color, 0.3, 0.2));
+        craft.rotation.x = Math.PI / 2;
+        craft.position.copy(target.pos).add(new THREE.Vector3(-6, 9, -6));
+        scene.add(craft);
+        activeAirStrikes.push({ kind, craft, target, ttl: 2.2, fired: false });
+      }
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
@@ -752,14 +784,43 @@ export default function SuperTuxKartPlayablePreview() {
             const canShoot = (playerCombat.ammo[w] ?? 0) > 0 || w === "FIREARM";
             if (canShoot) {
               if (w !== "FIREARM") playerCombat.ammo[w] = Math.max(0, (playerCombat.ammo[w] ?? 0) - 1);
-              target.damage += w === "FIREARM" || w === "RIFLE" ? 10 : 30;
-              target.speed *= w === "MISSILE" ? 0.35 : 0.6;
-              hudRef.current.crash = `${w} hit ${target.name}`;
+              if (w === "FIREARM" || w === "RIFLE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), 0xffee88, 56, w === "RIFLE" ? 16 : 10);
+              } else if (w === "MISSILE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(1.1, 0.65, 0)), target.pos.clone().add(new THREE.Vector3(0, 0.7, 0)), 0xff6a00, 34, 34);
+              } else {
+                callAirSupport(w, target);
+              }
+              hudRef.current.crash = `${w} locked ${target.name}`;
               if (target.damage > 92) hudRef.current.crash = `${target.name} disabled`;
             }
           }
           input.firePressed = false;
           input.fireTarget = null;
+        }
+
+        for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+          const p = activeProjectiles[i];
+          p.ttl -= dt;
+          p.mesh.position.addScaledVector(p.vel, dt);
+          const hit = [ai1, ai2, ai3, ai4].find((k) => k.pos.distanceTo(p.mesh.position) < 1.2);
+          if (hit) {
+            hit.damage += p.damage;
+            hit.speed *= 0.6;
+            p.ttl = 0;
+          }
+          if (p.ttl <= 0) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); activeProjectiles.splice(i, 1); }
+        }
+        for (let i = activeAirStrikes.length - 1; i >= 0; i--) {
+          const s = activeAirStrikes[i];
+          s.ttl -= dt;
+          const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
+          s.craft.position.lerp(hover, 1 - Math.exp(-3 * dt));
+          if (!s.fired && s.ttl < 1.5) {
+            s.fired = true;
+            spawnProjectile(s.craft.position.clone(), s.target.pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xff4433, 45, 36);
+          }
+          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
@@ -818,6 +879,11 @@ export default function SuperTuxKartPlayablePreview() {
             {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
           </div>
           <button onClick={() => setHud((h) => ({ ...h, help: !h.help }))} style={{ pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 18, fontWeight: 900 }}>?</button>
+        </div>
+
+        <div style={{ position: "absolute", right: 10, top: 64, maxWidth: 260, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "8px 10px", fontSize: 10 }}>
+          <b>Weapon Store (GLTF slots)</b>
+          {WEAPON_STORE.map((w) => <div key={w.id}>{w.id} · ${w.price} · {w.model}</div>)}
         </div>
 
         {hud.help && (
