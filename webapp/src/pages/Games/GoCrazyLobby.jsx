@@ -11,11 +11,19 @@ export default function GoCrazyLobby() {
   const [players, setPlayers] = useState(2);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
+  const [trackId, setTrackId] = useState('sunset-gp');
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
+  const trackOptions = [
+    { id: 'sunset-gp', label: 'Sunset GP' },
+    { id: 'forest-bend', label: 'Forest Bend' },
+    { id: 'coastal-loop', label: 'Coastal Loop' },
+    { id: 'night-curve', label: 'Night Curve' },
+    { id: 'desert-sprint', label: 'Desert Sprint' }
+  ];
 
   const start = () => {
     const params = new URLSearchParams(search);
@@ -23,6 +31,7 @@ export default function GoCrazyLobby() {
     params.set('players', String(players));
     if (selectedFlag) params.set('flag', selectedFlag);
     if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+    params.set('track', trackId);
     navigate(`/games/gocrazy?${params.toString()}`);
   };
 
@@ -40,6 +49,16 @@ export default function GoCrazyLobby() {
           <div className="mt-3">
             <label className="text-xs text-white/60">Players: {players}</label>
             <input type="range" min={2} max={8} value={players} onChange={(e)=>setPlayers(Number(e.target.value))} className="w-full" />
+          </div>
+          <div className="mt-3">
+            <label className="text-xs text-white/60">Track layout</label>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              {trackOptions.map((item) => (
+                <button key={item.id} onClick={() => setTrackId(item.id)} className={`lobby-option-card ${trackId===item.id?'lobby-option-card-active':'lobby-option-card-inactive'}`}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="mt-3 grid gap-2">
             <button onClick={()=>setShowFlagPicker(true)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-white/80">Your Flag: {selectedFlag || '🌐'}</button>
