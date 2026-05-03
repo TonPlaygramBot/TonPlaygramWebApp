@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
+import { GO_CRAZY_STORE_ITEMS } from "../config/goCrazyInventoryConfig.js";
+import { MURLAN_CHARACTER_THEMES } from "../config/murlanCharacterThemes.js";
 
 const ORIGINAL_ASSETS = {
   truckVariants: [
@@ -30,15 +32,31 @@ const TRACK_PRESETS = {
   "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
-const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
+const FERRARI_MODEL_URL = "https://threejs.org/examples/models/gltf/ferrari.glb";
+const BUGGY_MODEL_URL = "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb";
+
 const WEAPON_STORE = [
-  { id: "FIREARM", model: "/gltf/weapons/firearm.glb", price: 0 },
-  { id: "RIFLE", model: "/gltf/weapons/rifle.glb", price: 400 },
-  { id: "MISSILE", model: "/gltf/weapons/missile.glb", price: 1200 },
-  { id: "DRONE", model: "/gltf/weapons/drone.glb", price: 1700 },
-  { id: "HELICOPTER", model: "/gltf/weapons/helicopter.glb", price: 2200 },
-  { id: "JET", model: "/gltf/weapons/jet.glb", price: 2800 }
+  { id: "FIREARM", price: 0, urls: ["https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb"] },
+  { id: "RIFLE", price: 400, urls: ["https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb"] },
+  { id: "SHOTGUN", price: 550, urls: ["https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb"] },
+  { id: "HEAVY_REVOLVER", price: 700, urls: ["https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb"] },
+  { id: "SAWED_OFF", price: 900, urls: ["https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb"] },
+  { id: "SILVER_REVOLVER", price: 950, urls: ["https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb"] },
+  { id: "LONG_SHOTGUN", price: 1050, urls: ["https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb"] },
+  { id: "PUMP_SHOTGUN", price: 1100, urls: ["https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb"] },
+  { id: "SMG", price: 1200, urls: ["https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb"] },
+  { id: "AK47", price: 1300, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf"] },
+  { id: "KRSV", price: 1400, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf"] },
+  { id: "SMITH", price: 1500, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf"] },
+  { id: "MOSIN", price: 1700, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf"] },
+  { id: "UZI", price: 1800, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf"] },
+  { id: "SIGSAUER", price: 1900, urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf"] },
+  { id: "AWP", price: 2200, urls: ["https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb"] },
+  { id: "MRTK_GUN", price: 2400, urls: ["https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb"] },
+  { id: "FPS_SHOTGUN", price: 2600, urls: ["https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf"] }
 ];
+const WEAPON_PICKUPS = WEAPON_STORE.map((w) => w.id);
+const SUPPORT_PARKING = ["TOWER", "HELICOPTER", "JET", "TRUCK", "DRONE"];
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -159,6 +177,16 @@ async function tryLoadMurlanHuman(loader) {
     console.warn("Murlan seated human GLTF could not load.", err);
     return null;
   }
+}
+
+async function tryLoadHumanByUrls(loader, urls = []) {
+  for (const url of urls) {
+    try {
+      const gltf = await loadGltf(loader, url);
+      return gltf.scene;
+    } catch {}
+  }
+  return null;
 }
 
 async function tryLoadOriginalAssets(loader) {
@@ -620,9 +648,9 @@ export default function SuperTuxKartPlayablePreview() {
       else createProceduralTrack(scene, selectedTrack);
       scatterGltfTrees(scene, assets?.tree, selectedTrack);
 
-      const variants = ["sport", "truck", "heavy", "rally", "longnose"];
+      const variants = ["ferrari", "buggy", "ferrari", "buggy", "ferrari"];
       const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
-      const names = ["Red Sport Truck", "Blue Box Truck", "Yellow Heavy Truck", "Green Rally Truck", "Purple Longnose"];
+      const names = ["Ferrari Sport", "Go-Kart Buggy", "Ferrari Sport AI 1", "Go-Kart Buggy AI", "Ferrari Sport AI 2"];
       const starts = [
         { angle: Math.PI / 2, lane: 0 },
         { angle: Math.PI / 2 - 0.18, lane: -1.5 },
@@ -631,9 +659,30 @@ export default function SuperTuxKartPlayablePreview() {
         { angle: Math.PI / 2 - 0.64, lane: -0.4 }
       ];
 
-      const makeKart = (i) => originalMode && assets?.trucks.length
-        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i], selectedTrack)
-        : createTruckVariant(colors[i], names[i], variants[i], selectedTrack, i > 0, starts[i].angle, starts[i].lane);
+
+      const vehicleTemplates = { ferrari: null, buggy: null };
+      try { vehicleTemplates.ferrari = (await loadGltf(loader, FERRARI_MODEL_URL)).scene; } catch (e) { console.warn("Ferrari model failed", e); }
+      try { vehicleTemplates.buggy = (await loadGltf(loader, BUGGY_MODEL_URL)).scene; } catch (e) { console.warn("Buggy model failed", e); }
+
+      const createVehicleFromTemplate = (templateKey, name, ai, angle, lane, index) => {
+        const t = vehicleTemplates[templateKey];
+        if (!t) return createTruckVariant(colors[index], name, "sport", selectedTrack, ai, angle, lane);
+        const group = new THREE.Group();
+        const model = cloneModel(t);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const scale = templateKey === "ferrari" ? 0.95 / maxDim : 1.1 / maxDim;
+        model.scale.setScalar(scale * (templateKey === "ferrari" ? 3.2 : 2.6));
+        model.position.y = 0.2;
+        enableShadows(model);
+        group.add(model);
+        const pos = pointOnTrack(angle, selectedTrack, lane);
+        group.position.copy(pos);
+        group.rotation.y = tangentYaw(angle, selectedTrack);
+        return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: templateKey === "ferrari" ? 1.1 : 1.25, radius: 1.4, crashT: 0, damage: 0, yawKick: 0, variant: templateKey };
+      };
+      const makeKart = (i) => createVehicleFromTemplate(variants[i], names[i], i > 0, starts[i].angle, starts[i].lane, i);
 
       const player = makeKart(0);
       const ai1 = makeKart(1);
@@ -643,22 +692,31 @@ export default function SuperTuxKartPlayablePreview() {
       const karts = [player, ai1, ai2, ai3, ai4];
       karts.forEach((k) => scene.add(k.group));
       const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
-      const makeWeaponPickupMesh = (weapon) => {
-        if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.0, 14), makeMat(0xff7b00, 0.35));
-        if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.33, 0), makeMat(0x74f0ff, 0.35));
-        if (weapon === "HELICOPTER") return new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.5, 6, 10), makeMat(0x89ff9b, 0.35));
-        if (weapon === "JET") return new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.9, 12), makeMat(0x8ec9ff, 0.35));
-        if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.18), makeMat(0xf2d17a, 0.35));
-        return new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, 0.18), makeMat(0xffe066, 0.35));
-      };
-      const pickups = WEAPON_PICKUPS.map((weapon, i) => {
+      const fallbackWeaponPickup = () => new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.16, 0.16), makeMat(0xffe066, 0.35));
+      const pickups = [];
+      for (let i = 0; i < WEAPON_PICKUPS.length; i++) {
+        const weapon = WEAPON_PICKUPS[i];
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
-        const gem = makeWeaponPickupMesh(weapon);
-        gem.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        gem.userData = { weapon, taken: false };
-        scene.add(gem);
-        return gem;
-      });
+        const storeEntry = WEAPON_STORE.find((w) => w.id === weapon);
+        let pickupMesh = fallbackWeaponPickup();
+        if (storeEntry?.urls?.length) {
+          for (const url of storeEntry.urls) {
+            try {
+              const loaded = await loadGltf(loader, url);
+              pickupMesh = loaded.scene;
+              const b = new THREE.Box3().setFromObject(pickupMesh);
+              const maxDim = Math.max(...b.getSize(new THREE.Vector3()).toArray()) || 1;
+              pickupMesh.scale.setScalar(0.75 / maxDim);
+              break;
+            } catch {}
+          }
+        }
+        pickupMesh.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
+        pickupMesh.userData = { weapon, taken: false };
+        enableShadows(pickupMesh);
+        scene.add(pickupMesh);
+        pickups.push(pickupMesh);
+      }
       const defensePickups = DEFENSE_PICKUPS.map((defense, i) => {
         const p = pointOnTrack((i / DEFENSE_PICKUPS.length) * TAU + 1.2, selectedTrack, i % 2 === 0 ? -0.62 : 0.62);
         const node = new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 0), makeMat(0x69ff8f, 0.45));
@@ -666,6 +724,28 @@ export default function SuperTuxKartPlayablePreview() {
         node.userData = { defense, taken: false };
         scene.add(node);
         return node;
+      });
+      const supportPads = [];
+      const supportByPlayer = new Map();
+      karts.forEach((kart, idx) => {
+        const supportType = SUPPORT_PARKING[idx % SUPPORT_PARKING.length];
+        const p = pointOnTrack((idx / karts.length) * TAU + 0.9, selectedTrack, idx % 2 === 0 ? 4.5 : -4.5);
+        const support = new THREE.Group();
+        const body = supportType === "TOWER"
+          ? new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.8, 12), makeMat(0x7c8791, 0.5))
+          : supportType === "HELICOPTER"
+            ? new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.65, 6, 10), makeMat(0x6f7763, 0.45))
+            : supportType === "JET"
+              ? new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.95, 10), makeMat(0x8eb5d4, 0.45))
+              : supportType === "TRUCK"
+                ? new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.36, 0.48), makeMat(0xa92a24, 0.45))
+                : new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), makeMat(0x7b8792, 0.45));
+        support.add(body);
+        support.position.copy(p).add(new THREE.Vector3(0, 0.68, 0));
+        support.userData = { supportType, armed: false, owner: kart };
+        scene.add(support);
+        supportPads.push(support);
+        supportByPlayer.set(kart, supportType);
       });
 
       const activeProjectiles = [];
@@ -706,9 +786,15 @@ export default function SuperTuxKartPlayablePreview() {
       };
       canvas.addEventListener("click", onTargetClick);
 
-      if (murlanHumanTemplate) {
+      const humanTemplates = await Promise.all(
+        MURLAN_CHARACTER_THEMES.map((theme) => tryLoadHumanByUrls(loader, theme.modelUrls || [theme.url]).then((scene) => ({ id: theme.id, scene })))
+      );
+      const validHumans = humanTemplates.filter((entry) => entry.scene);
+      if (murlanHumanTemplate || validHumans.length) {
         karts.forEach((kart, i) => {
-          const human = cloneModel(murlanHumanTemplate);
+          const chosen = i === 0 ? (validHumans[0]?.scene || murlanHumanTemplate) : (validHumans[(i % Math.max(validHumans.length, 1))]?.scene || murlanHumanTemplate);
+          if (!chosen) return;
+          const human = cloneModel(chosen);
           human.scale.setScalar(0.72);
           human.position.set(0, 0.45, -0.05);
           human.rotation.y = 0;
@@ -778,6 +864,8 @@ export default function SuperTuxKartPlayablePreview() {
             pickup.visible = false;
             playerCombat.inventory.add(pickup.userData.weapon);
             playerCombat.activeWeapon = pickup.userData.weapon;
+            const support = supportPads.find((s) => !s.userData.armed);
+            if (support) support.userData.armed = true;
             hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
           }
         });
@@ -837,6 +925,21 @@ export default function SuperTuxKartPlayablePreview() {
           }
           if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
+        supportPads.forEach((support, idx) => {
+          support.rotation.y += dt * 0.6;
+          if (support.userData.supportType === "HELICOPTER" || support.userData.supportType === "DRONE" || support.userData.supportType === "JET") {
+            support.position.y = 0.68 + Math.sin(now * 0.002 + idx) * 0.1;
+          }
+          if (support.userData.armed && player.pos.distanceTo(support.position) < 2.2) {
+            support.userData.armed = false;
+            const target = [ai1, ai2, ai3, ai4].sort((a, b) => a.pos.distanceTo(player.pos) - b.pos.distanceTo(player.pos))[0];
+            if (target) {
+              const kind = support.userData.supportType;
+              if (kind === "TRUCK" || kind === "TOWER") spawnProjectile(support.position.clone(), target.pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xff7043, 42, 28);
+              else callAirSupport(kind === "DRONE" ? "DRONE" : kind, target);
+            }
+          }
+        });
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
         const position = sorted.findIndex((k) => k === player) + 1;
@@ -898,7 +1001,7 @@ export default function SuperTuxKartPlayablePreview() {
 
         <div style={{ position: "absolute", right: 10, top: 64, maxWidth: 260, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "8px 10px", fontSize: 10 }}>
           <b>Weapon Store (GLTF slots)</b>
-          {WEAPON_STORE.map((w) => <div key={w.id}>{w.id} · ${w.price} · {w.model}</div>)}
+          {WEAPON_STORE.map((w) => <div key={w.id}>{w.id} · ${w.price} · {w.urls[0]}</div>)}
         </div>
 
         {hud.help && (
