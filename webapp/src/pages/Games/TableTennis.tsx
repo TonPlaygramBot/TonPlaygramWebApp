@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
-import { getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from "../../utils/tennisInventory.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "out" | "doubleBounce" | "net" | "wrongSide" | "miss";
@@ -141,10 +139,10 @@ const CFG = {
   spinDecay: 0.72,
   playerHeight: 1.72,
   playerSpeed: 2.95,
-  aiSpeed: 3.35,
+  aiSpeed: 3.05,
   reach: 0.48,
-  swingDuration: 0.28,
-  backhandDuration: 0.25,
+  swingDuration: 0.34,
+  backhandDuration: 0.29,
   serveDuration: 0.86,
   hitWindowStart: 0.43,
   hitWindowEnd: 0.72,
@@ -1035,12 +1033,6 @@ export default function MobileRealisticTableTennisGame() {
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedHdriId, setSelectedHdriId] = useState(() => getTennisInventory(tennisAccountId()).environmentHdri?.[0] || TENNIS_HDRI_OPTIONS[0]?.id || "");
-  const ownedHdriIds = useMemo(() => {
-    const inventory = getTennisInventory(tennisAccountId());
-    return TENNIS_HDRI_OPTIONS.filter((item) => isTennisOptionUnlocked("environmentHdri", item.id, inventory)).map((item) => item.id);
-  }, [menuOpen]);
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
 
@@ -1061,7 +1053,8 @@ export default function MobileRealisticTableTennisGame() {
     scene.fog = new THREE.Fog(0x091014, 4.7, 8.2);
     let activeEnvMap: THREE.Texture | null = null;
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
-    const loadHdriByUrl = (url?: string, fallbackIdx = 0) => {
+    const loadHdri = (idx = 0) => {
+      const url = HDRI_URLS[idx];
       if (!url) return;
       hdriLoader.load(url, (hdrTex) => {
         const env = pmrem.fromEquirectangular(hdrTex).texture;
@@ -1072,13 +1065,9 @@ export default function MobileRealisticTableTennisGame() {
         scene.background = env;
         scene.backgroundBlurriness = 0.45;
         scene.environmentIntensity = 1.0;
-      }, undefined, () => {
-        const next = HDRI_URLS[fallbackIdx + 1];
-        if (next) loadHdriByUrl(next, fallbackIdx + 1);
-      });
+      }, undefined, () => loadHdri(idx + 1));
     };
-    const storeHdri = TENNIS_HDRI_OPTIONS.find((item) => item.id === selectedHdriId);
-    loadHdriByUrl(storeHdri?.thumbnail?.full || HDRI_URLS[0], 0);
+    loadHdri();
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 30);
     const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.08, -0.05);
@@ -1140,10 +1129,6 @@ export default function MobileRealisticTableTennisGame() {
     shotFx.volume = 0.55;
     const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
     bounceFx.volume = 0.35;
-    const crowdFx = new Audio("/assets/sounds/football-crowd-3-69245.mp3");
-    crowdFx.loop = true;
-    crowdFx.volume = 0.16;
-    crowdFx.play().catch(() => {});
     const replayFrames: THREE.Vector3[] = [];
     let replayT = 0;
 
@@ -1364,7 +1349,7 @@ export default function MobileRealisticTableTennisGame() {
       const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.22;
       if (incoming) {
         const landing = predictNextTableBounce(ball);
-        const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.52 : 0.36);
+        const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.42 : 0.32);
         farPlayer.target.x = clamp(landing.x, -0.95, 0.95);
         farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 0.86, -TABLE_HALF_L - 0.2);
       } else {
@@ -1460,7 +1445,6 @@ export default function MobileRealisticTableTennisGame() {
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
       renderer.dispose();
-      crowdFx.pause();
       if (activeEnvMap) activeEnvMap.dispose();
       pmrem.dispose();
       scene.traverse((obj) => {
@@ -1473,7 +1457,7 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, [selectedHdriId]);
+  }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
@@ -1486,18 +1470,16 @@ export default function MobileRealisticTableTennisGame() {
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
         </div>
 
-        <button onClick={() => setMenuOpen((prev) => !prev)} style={{ pointerEvents: "auto", position: "absolute", top: 12, left: 12, width: 42, height: 42, borderRadius: 12, border: "1px solid rgba(255,255,255,0.28)", background: "rgba(0,0,0,0.45)", color: "#fff", fontSize: 22, fontWeight: 800 }}>☰</button>
-        {menuOpen && (
-          <div style={{ pointerEvents: "auto", position: "absolute", top: 60, left: 12, width: 240, maxHeight: "70vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(3,8,12,0.92)", color: "#fff", padding: 10 }}>
-            <div style={{ fontSize: 12, opacity: 0.82, marginBottom: 8 }}>Graphics (owned store HDRIs)</div>
-            {TENNIS_HDRI_OPTIONS.filter((item) => ownedHdriIds.includes(item.id)).map((item) => (
-              <button key={item.id} onClick={() => setSelectedHdriId(item.id)} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", borderRadius: 10, border: item.id === selectedHdriId ? "1px solid #60a5fa" : "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", color: "#fff", marginBottom: 8, padding: 6 }}>
-                <img src={item.thumbnail.card} alt={item.name} style={{ width: 48, height: 32, borderRadius: 6, objectFit: "cover" }} />
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 265 }}>
+          Paddle is mounted to the character right-hand bone.<br />
+          AI can serve, place wide/body shots, push short, loop, and recover.<br />
+          Swipe left/right adds side spin. Swipe up hits deeper.
+        </div>
+
+        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
+        </div>
 
         <div style={{ position: "absolute", right: 12, top: 76, width: 48, height: 86, borderRadius: 999, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden" }}>
           <div style={{ position: "absolute", left: `${hud.spin >= 0 ? 24 : 24 + hud.spin * 24}px`, width: `${Math.abs(hud.spin) * 24}px`, top: 0, bottom: 0, background: "rgba(255,255,255,0.7)" }} />
