@@ -131,7 +131,7 @@ const CFG = {
   spinDecay: 0.72,
   playerHeight: 1.72,
   playerSpeed: 2.95,
-  aiSpeed: 3.05,
+  aiSpeed: 3.6,
   reach: 0.48,
   swingDuration: 0.34,
   backhandDuration: 0.29,
@@ -1019,6 +1019,8 @@ export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [graphicsMode, setGraphicsMode] = useState<"performance"|"balanced"|"quality">("balanced");
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
 
@@ -1417,22 +1419,21 @@ export default function MobileRealisticTableTennisGame() {
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
         </div>
 
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 265 }}>
-          Paddle is mounted to the character right-hand bone.<br />
-          AI can serve, place wide/body shots, push short, loop, and recover.<br />
-          Swipe left/right adds side spin. Swipe up hits deeper.
-        </div>
 
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
-
-        <div style={{ position: "absolute", right: 12, top: 76, width: 48, height: 86, borderRadius: 999, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden" }}>
-          <div style={{ position: "absolute", left: `${hud.spin >= 0 ? 24 : 24 + hud.spin * 24}px`, width: `${Math.abs(hud.spin) * 24}px`, top: 0, bottom: 0, background: "rgba(255,255,255,0.7)" }} />
-          <div style={{ position: "absolute", left: 23, top: 0, bottom: 0, width: 2, background: "rgba(255,255,255,0.28)" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>SPIN</div>
-        </div>
+        <button onClick={() => setMenuOpen((v) => !v)} style={{ pointerEvents: "auto", position: "absolute", left: 12, top: 12, width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 21, fontWeight: 900 }}>☰</button>
+        {menuOpen ? (
+          <div style={{ pointerEvents: "auto", position: "absolute", left: 12, top: 60, width: 220, background: "rgba(0,0,0,0.72)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: 10, color: "white" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>Graphics</div>
+            {["performance", "balanced", "quality"].map((mode) => (
+              <button key={mode} onClick={() => setGraphicsMode(mode as any)} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 5, padding: "6px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: graphicsMode === mode ? "rgba(56,189,248,0.3)" : "rgba(255,255,255,0.06)", color: "white" }}>{mode}</button>
+            ))}
+            <div style={{ fontSize: 12, fontWeight: 800, margin: "8px 0 6px" }}>Purchased items</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 8, background: "#123f73", display: "grid", placeItems: "center" }}>🏓</div>
+              <div style={{ width: 42, height: 42, borderRadius: 8, background: "#1e293b", display: "grid", placeItems: "center" }}>🌅</div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
