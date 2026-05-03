@@ -7,6 +7,8 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { useLocation } from "react-router-dom";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
+import { HUMAN_CHARACTER_OPTIONS } from "../../config/ludoBattleOptions.js";
+import { getLudoBattleInventory } from "../../utils/ludoBattleInventory.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
@@ -100,7 +102,8 @@ type ControlState = {
   startPlayer: THREE.Vector3;
 };
 
-const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const DEFAULT_HUMAN_OPTION_ID = HUMAN_CHARACTER_OPTIONS[0]?.id || "readyPlayerMeDefault";
+const HUMAN_OPTIONS_BY_ID = new Map(HUMAN_CHARACTER_OPTIONS.map((option) => [option.id, option]));
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
@@ -118,8 +121,8 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 5.5,
-  reach: 0.92,
+  aiSpeed: 6.8,
+  reach: 1.12,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -193,9 +196,9 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   scene.add(group);
 
   const hideFloor = !!options.hideFloor;
-  const outerMat = material(0x1d7a4b, 0.88, 0.0);
-  const courtMat = material(0x286fb1, 0.82, 0.0);
-  const serviceMat = material(0x2f84c9, 0.82, 0.0);
+  const outerMat = material(0x2d7a36, 0.96, 0.0);
+  const courtMat = material(0x3f9b4b, 0.94, 0.0);
+  const serviceMat = material(0x4aa857, 0.94, 0.0);
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
   const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
@@ -224,7 +227,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
+  const netMesh = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
+  group.userData.netMesh = netMesh;
   addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
@@ -483,7 +487,7 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number): HumanRig {
+function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, humanOptionId: string): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
@@ -517,10 +521,19 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   };
 
   modelRoot.rotation.y = rig.yaw;
+  modelRoot.scale.setScalar(0.9);
   racket.visible = false;
 
-  new GLTFLoader().setCrossOrigin("anonymous").load(
-    HUMAN_URL,
+  const modelUrls = HUMAN_OPTIONS_BY_ID.get(humanOptionId)?.modelUrls?.length ? HUMAN_OPTIONS_BY_ID.get(humanOptionId)?.modelUrls : ["https://threejs.org/examples/models/gltf/readyplayer.me.glb"];
+  const tryLoad = (idx = 0) => {
+    const url = modelUrls?.[idx];
+    if (!url) {
+      rig.fallback.visible = true;
+      rig.racket.visible = false;
+      return;
+    }
+    new GLTFLoader().setCrossOrigin("anonymous").load(
+    url,
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
@@ -536,11 +549,10 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
       rig.racket.visible = true;
     },
     undefined,
-    () => {
-      rig.fallback.visible = true;
-      rig.racket.visible = false;
-    }
+    () => tryLoad(idx + 1)
   );
+  };
+  tryLoad(0);
 
   return rig;
 }
@@ -736,7 +748,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 7.2 + power * 4.2 : 5.2 + power * 2.8;
+  const baseSpeed = serve ? 8.8 + power * 4.8 : 6.3 + power * 3.3;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -748,7 +760,7 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
 function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean) {
   const dx = endX - startX;
   const dy = endY - startY;
-  const power = clamp(Math.hypot(dx, dy) / 185, isServe ? 0.5 : 0.18, 1);
+  const power = clamp(Math.hypot(dx, dy) / 165, isServe ? 0.6 : 0.24, 1);
   const aimX = clamp((dx / 140) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.42, CFG.courtW / 2 - 0.42);
   const upward = clamp((-dy + 40) / 230, 0, 1);
   const targetZ = isServe ? lerp(-1.0, -CFG.serviceLineZ + 0.22, upward) : lerp(-1.15, -CFG.courtL / 2 + 0.88, upward);
@@ -756,10 +768,11 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
-  const pressure = clamp01((Math.abs(ball.pos.z) - 1.0) / (CFG.courtL / 2 - 1.0));
-  const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
-  const z = lerp(1.35, CFG.courtL / 2 - 1.0, 0.35 + pressure * 0.55);
-  const power = clamp(0.56 + pressure * 0.34 + Math.random() * 0.2, 0.5, 1);
+  const pressure = clamp01((Math.abs(ball.pos.z) - 0.6) / (CFG.courtL / 2 - 0.8));
+  const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
+  const x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+  const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
+  const power = clamp(0.64 + pressure * 0.36 + Math.random() * 0.22, 0.58, 1);
   const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
@@ -882,6 +895,7 @@ export default function MobileThreeTennisPrototype() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [hdriChoices, setHdriChoices] = useState<any[]>([]);
   const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
+  const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || DEFAULT_HUMAN_OPTION_ID);
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
@@ -947,11 +961,16 @@ export default function MobileThreeTennisPrototype() {
       loadAt(0);
     };
     applyHdri(selectedHdriId);
-    addCourt(scene, { hideFloor: true });
+    const court = addCourt(scene, { hideFloor: false });
     const updateBillboards = () => {};
 
-    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
-    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
+    const unlockedHumans = (getLudoBattleInventory()?.humanCharacter || [DEFAULT_HUMAN_OPTION_ID]).filter((id: string) => HUMAN_OPTIONS_BY_ID.has(id));
+    const userHumanId = HUMAN_OPTIONS_BY_ID.has(selectedHumanCharacterId) ? selectedHumanCharacterId : (unlockedHumans[0] || DEFAULT_HUMAN_OPTION_ID);
+    const aiPool = unlockedHumans.filter((id: string) => id !== userHumanId);
+    const aiHumanId = aiPool.length ? aiPool[Math.floor(Math.random() * aiPool.length)] : DEFAULT_HUMAN_OPTION_ID;
+
+    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f, userHumanId);
+    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff, aiHumanId);
     const ball = createBall();
     scene.add(ball.mesh);
     resetBallForServe(ball, nearPlayer);
@@ -965,13 +984,19 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("/assets/sounds/hit-wood-4-94067.mp3");
-    shotFx.volume = 0.5;
-    const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
-    bounceFx.volume = 0.32;
+    const shotFx = new Audio("/assets/sounds/billiard-sound-05-288416.mp3");
+    shotFx.volume = 0.6;
+    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+    bounceFx.volume = 0.34;
+    const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
+    crowdFx.volume = 0.32;
+    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
+    faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
     let pointLockT = 0;
+    let replayText = "";
+    let replayT = 0;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
 
@@ -985,6 +1010,9 @@ export default function MobileThreeTennisPrototype() {
         farScore: prev.farScore + (winner === "far" ? 1 : 0),
       };
       const reasonText = reason === "out" ? "Out ball" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net fault" : "Point";
+      replayText = `Replay: ${reasonText} by ${winner === "near" ? "You" : "AI"}`;
+      replayT = 1.7;
+      void (reason === "out" || reason === "doubleBounce" || reason === "net" ? faultFx.play() : crowdFx.play()).catch(() => {});
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
     };
 
@@ -1077,6 +1105,11 @@ export default function MobileThreeTennisPrototype() {
         ball.pos.z = ball.lastHitBy === "near" ? 0.09 : -0.09;
         ball.vel.z *= -0.22;
         ball.vel.y = Math.max(0.25, Math.abs(ball.vel.y) * 0.22);
+        const netHit = court?.userData?.netMesh as THREE.Mesh | undefined;
+        if (netHit) {
+          netHit.position.z = ball.lastHitBy === "near" ? 0.06 : -0.06;
+          setTimeout(() => { if (netHit) netHit.position.z = 0; }, 180);
+        }
         awardPoint(opposite(ball.lastHitBy), "net");
       }
 
@@ -1087,6 +1120,7 @@ export default function MobileThreeTennisPrototype() {
           ball.vel.x *= CFG.groundFriction;
           ball.vel.z *= CFG.groundFriction;
           const bounceSide = sideOfZ(ball.pos.z);
+          void bounceFx.play().catch(() => {});
           if (ball.bounceSide === bounceSide) ball.bounceCount += 1;
           else {
             ball.bounceSide = bounceSide;
@@ -1106,11 +1140,11 @@ export default function MobileThreeTennisPrototype() {
 
     function updateAi() {
       const landing = predictLanding(ball);
-      const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.2);
+      const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 0.9);
       const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 || landing.z < 0);
       if (ballComingToAi) {
         farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-        farPlayer.target.z = clamp(Math.min(-0.95, landing.z + 0.22), -CFG.courtL / 2 + 0.7, -0.82);
+        farPlayer.target.z = clamp(Math.min(-0.72, landing.z + 0.42), -CFG.courtL / 2 + 0.42, -0.64);
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
@@ -1142,6 +1176,11 @@ export default function MobileThreeTennisPrototype() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
+
+      if (replayT > 0) {
+        replayT -= dt;
+        if (replayT > 0.05) setHudSafe({ status: replayText });
+      }
 
       if (pointLock) {
         pointLockT -= dt;
@@ -1201,20 +1240,19 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId]);
+  }, [selectedHdriId, selectedHumanCharacterId]);
 
   useEffect(() => {
     let cancelled = false;
     getPoolRoyalInventory().then((inventory) => {
       if (cancelled) return;
       const owned = new Set(inventory?.environmentHdri || []);
-      const allowed = new Set(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco", POOL_ROYALE_DEFAULT_HDRI_ID]);
-      const options = POOL_ROYALE_HDRI_VARIANTS.filter((v) => allowed.has(v.id) && (owned.has(v.id) || v.id === POOL_ROYALE_DEFAULT_HDRI_ID));
+      const options = POOL_ROYALE_HDRI_VARIANTS.filter((v) => (owned.has(v.id) || v.id === POOL_ROYALE_DEFAULT_HDRI_ID) && v.id !== "neonPhotostudio");
       setHdriChoices(options);
       if (!options.some((v) => v.id === selectedHdriId)) setSelectedHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [selectedHdriId]);
+  }, [selectedHdriId, selectedHumanCharacterId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#07100c", touchAction: "none", userSelect: "none" }}>
@@ -1247,15 +1285,15 @@ export default function MobileThreeTennisPrototype() {
                 <span style={{ fontSize: 11, textAlign: "left" }}>{opt.name}</span>
               </button>
             ))}
+            <div style={{ color: "#fff", fontSize: 12, fontWeight: 700, margin: "10px 0 6px" }}>Owned Characters</div>
+            {(getLudoBattleInventory()?.humanCharacter || [DEFAULT_HUMAN_OPTION_ID]).filter((id: string) => HUMAN_OPTIONS_BY_ID.has(id)).map((id: string) => { const option = HUMAN_OPTIONS_BY_ID.get(id); return (
+              <button key={id} type="button" onClick={() => { setSelectedHumanCharacterId(id); localStorage.setItem("tennisSelectedHumanCharacter", id); }} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", marginBottom: 6, borderRadius: 10, border: selectedHumanCharacterId === id ? "1px solid #7dd3fc" : "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,0.08)", padding: 6, color: "#fff" }}>
+                <span style={{ fontSize: 11, textAlign: "left" }}>{option?.label || id}</span>
+              </button>
+            ); })}
           </div>
         )}
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.12)", padding: "9px 10px", borderRadius: 14, fontSize: 12, lineHeight: 1.35, maxWidth: 236 }}>
-          Procedural hands removed.<br />The character right hand holds the racket.<br />Swipe up to serve or hit deep.
-        </div>
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 48, height: 156, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(255,255,255,0.74)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.75)", fontSize: 11, fontWeight: 900, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
+  
       </div>
     </div>
   );
