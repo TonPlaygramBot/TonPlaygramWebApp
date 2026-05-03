@@ -136,6 +136,11 @@ import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
 import { addTennisUnlock, getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from '../utils/tennisInventory.js';
 import {
+  BOWLING_DEFAULT_LOADOUT,
+  BOWLING_OPTION_LABELS,
+  BOWLING_STORE_ITEMS
+} from '../config/bowlingInventoryConfig.js';
+import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
   SNAKE_STORE_ITEMS
@@ -459,6 +464,7 @@ const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
   )
 );
 const HDRI_TARGET_GAMES = Object.freeze([
+  { slug: 'bowling', label: 'Bowling' },
   { slug: 'bilardoshqip', label: 'Bilardo Shqip' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
   { slug: 'chessbattleroyal', label: 'Chess Battle Royal' },
@@ -497,7 +503,8 @@ const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   poolroyale: 'poolHdriEnvironment',
   bilardoshqip: 'bilardoShqipHdriEnvironment',
-  snookerroyale: 'snookerHdriEnvironment'
+  snookerroyale: 'snookerHdriEnvironment',
+  bowling: 'bowlingHdriEnvironment'
 });
 
 function HdriEquirectangularPreview({ src, title }) {
@@ -1188,6 +1195,14 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
+  },
+  bowling: {
+    name: 'Bowling',
+    items: BOWLING_STORE_ITEMS,
+    defaults: BOWLING_DEFAULT_LOADOUT,
+    labels: BOWLING_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
   }
 };
 
@@ -1807,6 +1822,11 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'tennis'
+      })),
+      bowling: BOWLING_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'bowling'
       }))
     }),
     []
@@ -1843,7 +1863,9 @@ export default function Store() {
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
       tennis: (type, optionId) =>
-        isTennisOptionUnlocked(type, optionId, tennisOwned)
+        isTennisOptionUnlocked(type, optionId, tennisOwned),
+      bowling: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned)
     }),
     [
       airOwned,
@@ -1892,7 +1914,9 @@ export default function Store() {
       snake: (item) =>
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
-        TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+        TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      bowling: (item) =>
+        BOWLING_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -2500,7 +2524,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'bowling') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
