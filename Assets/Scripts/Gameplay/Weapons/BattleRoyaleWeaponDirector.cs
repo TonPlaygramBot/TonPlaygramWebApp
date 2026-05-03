@@ -18,7 +18,11 @@ namespace TonPlaygram.Gameplay.Weapons
         Pistol,
         Shotgun,
         Sniper,
-        GrenadeLauncher
+        GrenadeLauncher,
+        SideMissile,
+        StrikeDrone,
+        AttackHelicopter,
+        StrikeJet
     }
 
     [Serializable]
@@ -41,6 +45,7 @@ namespace TonPlaygram.Gameplay.Weapons
         public GameObject bulletPrefab;
         public GameObject shellPrefab;
         public AudioClip shotSfx;
+        public bool requiresAerialStrike;
     }
 
     public interface ILudoWeaponEvents
@@ -166,6 +171,22 @@ namespace TonPlaygram.Gameplay.Weapons
             }
 
             _fireRoutine = StartCoroutine(FireRoutine(_activeWeapon));
+        }
+
+        public bool TryEquipByPickup(string pickupWeaponId)
+        {
+            if (string.IsNullOrWhiteSpace(pickupWeaponId))
+            {
+                return false;
+            }
+
+            if (!System.Enum.TryParse(pickupWeaponId, true, out LudoWeaponType weaponType))
+            {
+                return false;
+            }
+
+            Equip(weaponType);
+            return true;
         }
 
         private IEnumerator FireRoutine(WeaponBallisticsProfile weapon)
