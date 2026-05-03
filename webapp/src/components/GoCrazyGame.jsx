@@ -21,14 +21,7 @@ const ORIGINAL_ASSETS = {
 
 const TAU = Math.PI * 2;
 const CHECKPOINTS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
-const TRACK_PRESETS = [
-  { id: "sunset-gp", label: "Sunset GP", outerX: 42, outerZ: 29, innerX: 26, innerZ: 13, centerX: 34, centerZ: 21, laneScale: 0.52, bend: 0.22, wobble: 0.8 },
-  { id: "forest-bend", label: "Forest Bend", outerX: 40, outerZ: 31, innerX: 24, innerZ: 14, centerX: 32, centerZ: 22, laneScale: 0.5, bend: 0.38, wobble: 1.2 },
-  { id: "coastal-loop", label: "Coastal Loop", outerX: 45, outerZ: 26, innerX: 27, innerZ: 11, centerX: 36, centerZ: 18, laneScale: 0.45, bend: 0.3, wobble: 0.95 },
-  { id: "night-curve", label: "Night Curve", outerX: 39, outerZ: 33, innerX: 22, innerZ: 14, centerX: 30, centerZ: 23, laneScale: 0.56, bend: 0.44, wobble: 1.4 },
-  { id: "desert-sprint", label: "Desert Sprint", outerX: 44, outerZ: 30, innerX: 28, innerZ: 12.5, centerX: 35, centerZ: 21, laneScale: 0.5, bend: 0.26, wobble: 0.72 }
-];
-const DEFAULT_TRACK = TRACK_PRESETS[0];
+const TRACK = { outerX: 31, outerZ: 20, innerX: 17, innerZ: 8.5, centerX: 24, centerZ: 14 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -40,31 +33,24 @@ function yawFromForward(v) {
   return Math.atan2(v.x, v.z);
 }
 
-function warpRadius(angle, track) {
-  return 1 + Math.sin(angle * 2 + 0.4) * track.bend * 0.16 + Math.sin(angle * 5 - 0.35) * track.bend * 0.09;
-}
-
-function angleOnTrack(pos, track = DEFAULT_TRACK) {
-  const a = Math.atan2(pos.z / track.centerZ, pos.x / track.centerX);
+function angleOnTrack(pos) {
+  const a = Math.atan2(pos.z / TRACK.centerZ, pos.x / TRACK.centerX);
   return a < 0 ? a + TAU : a;
 }
 
-function pointOnTrack(angle, lane = 0, track = DEFAULT_TRACK) {
-  const warp = warpRadius(angle, track);
-  const radiusX = (track.centerX + lane) * warp;
-  const radiusZ = (track.centerZ + lane * track.laneScale) * (1 + Math.sin(angle * 3.3 + 0.7) * track.bend * 0.06);
-  return new THREE.Vector3(Math.cos(angle) * radiusX, 0.18, Math.sin(angle) * radiusZ);
+function pointOnTrack(angle, lane = 0) {
+  return new THREE.Vector3(Math.cos(angle) * (TRACK.centerX + lane), 0.18, Math.sin(angle) * (TRACK.centerZ + lane * 0.45));
 }
 
-function tangentYaw(angle, track = DEFAULT_TRACK) {
-  const dx = -Math.sin(angle) * track.centerX * warpRadius(angle, track);
-  const dz = Math.cos(angle) * track.centerZ * warpRadius(angle + 0.02, track);
+function tangentYaw(angle) {
+  const dx = -Math.sin(angle) * TRACK.centerX;
+  const dz = Math.cos(angle) * TRACK.centerZ;
   return Math.atan2(dx, dz);
 }
 
-function trackQuality(pos, track = DEFAULT_TRACK) {
-  const outer = (pos.x * pos.x) / (track.outerX * track.outerX) + (pos.z * pos.z) / (track.outerZ * track.outerZ);
-  const inner = (pos.x * pos.x) / (track.innerX * track.innerX) + (pos.z * pos.z) / (track.innerZ * track.innerZ);
+function trackQuality(pos) {
+  const outer = (pos.x * pos.x) / (TRACK.outerX * TRACK.outerX) + (pos.z * pos.z) / (TRACK.outerZ * TRACK.outerZ);
+  const inner = (pos.x * pos.x) / (TRACK.innerX * TRACK.innerX) + (pos.z * pos.z) / (TRACK.innerZ * TRACK.innerZ);
   return { onRoad: outer <= 1 && inner >= 1 };
 }
 
@@ -151,7 +137,7 @@ async function tryLoadOriginalAssets(loader) {
   return { trucks, truckAnimations, track: track.scene, tree };
 }
 
-function createProceduralTrack(scene, track = DEFAULT_TRACK) {
+function createProceduralTrack(scene) {
   const grass = new THREE.Mesh(new THREE.PlaneGeometry(92, 72), makeMat(0x18351f, 0.95));
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.02;
@@ -159,9 +145,9 @@ function createProceduralTrack(scene, track = DEFAULT_TRACK) {
   scene.add(grass);
 
   const shape = new THREE.Shape();
-  shape.absellipse(0, 0, track.outerX, track.outerZ, 0, TAU, false, 0);
+  shape.absellipse(0, 0, TRACK.outerX, TRACK.outerZ, 0, TAU, false, 0);
   const hole = new THREE.Path();
-  hole.absellipse(0, 0, track.innerX, track.innerZ, 0, TAU, true, 0);
+  hole.absellipse(0, 0, TRACK.innerX, TRACK.innerZ, 0, TAU, true, 0);
   shape.holes.push(hole);
 
   const road = new THREE.Mesh(new THREE.ShapeGeometry(shape, 128), makeMat(0x2b2f36, 0.86));
@@ -173,11 +159,11 @@ function createProceduralTrack(scene, track = DEFAULT_TRACK) {
   const curbMatA = makeMat(0xffffff, 0.52);
   const curbMatB = makeMat(0xd82020, 0.52);
   for (let i = 0; i < 112; i++) {
-    const a = (i / 152) * TAU;
-    const yaw = tangentYaw(a, track);
+    const a = (i / 112) * TAU;
+    const yaw = tangentYaw(a);
     const points = [
-      pointOnTrack(a, track.outerX - track.centerX, track).setY(0.035),
-      pointOnTrack(a, track.innerX - track.centerX, track).setY(0.036)
+      new THREE.Vector3(Math.cos(a) * TRACK.outerX, 0.035, Math.sin(a) * TRACK.outerZ),
+      new THREE.Vector3(Math.cos(a) * TRACK.innerX, 0.036, Math.sin(a) * TRACK.innerZ)
     ];
     for (const p of points) {
       const curb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.28), i % 2 === 0 ? curbMatA : curbMatB);
@@ -192,7 +178,7 @@ function createProceduralTrack(scene, track = DEFAULT_TRACK) {
   for (let x = -3; x <= 3; x++) {
     for (let z = 0; z < 2; z++) {
       const tile = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.035, 1.05), makeMat((x + z) % 2 === 0 ? 0xffffff : 0x050505, 0.4));
-      tile.position.set(x * 1.05, 0.07, track.centerZ + z * 1.05 - 0.5);
+      tile.position.set(x * 1.05, 0.07, TRACK.centerZ + z * 1.05 - 0.5);
       tile.receiveShadow = true;
       scene.add(tile);
     }
@@ -221,7 +207,7 @@ function scatterGltfTrees(scene, tree) {
   }
 }
 
-function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 2, lane = 0, track = DEFAULT_TRACK) {
+function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 2, lane = 0) {
   const group = new THREE.Group();
   const bodyMat = makeMat(color, 0.48, 0.12);
   const darkMat = makeMat(0x101010, 0.65, 0.18);
@@ -237,7 +223,7 @@ function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 
   };
   const d = dims[variant];
 
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.85,0.28,3.05), bodyMat);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(...d.base), bodyMat);
   base.position.y = 0.38;
   group.add(base);
 
@@ -276,9 +262,9 @@ function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 
   group.add(driver);
 
   enableShadows(group);
-  const pos = pointOnTrack(angle, lane, track);
+  const pos = pointOnTrack(angle, lane);
   group.position.copy(pos);
-  group.rotation.y = tangentYaw(angle, track);
+  group.rotation.y = tangentYaw(angle);
 
   return {
     group,
@@ -297,23 +283,22 @@ function createTruckVariant(color, name, variant, ai = false, angle = Math.PI / 
     crashT: 0,
     damage: 0,
     yawKick: 0,
-    variant,
-    health: 100
+    variant
   };
 }
 
-function createOriginalKart(assets, name, ai, angle, lane, index, variant, track = DEFAULT_TRACK) {
+function createOriginalKart(assets, name, ai, angle, lane, index, variant) {
   if (!assets.trucks.length) throw new Error("Original truck asset not loaded.");
   const group = new THREE.Group();
   const model = cloneModel(assets.trucks[index % assets.trucks.length]);
   group.add(model);
-  const pos = pointOnTrack(angle, lane, track);
+  const pos = pointOnTrack(angle, lane);
   group.position.copy(pos);
-  group.rotation.y = tangentYaw(angle, track);
+  group.rotation.y = tangentYaw(angle);
   const animations = assets.truckAnimations[index % assets.truckAnimations.length] || [];
   const mixer = animations.length ? new THREE.AnimationMixer(model) : undefined;
   if (mixer) mixer.clipAction(animations[0]).play();
-  return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer, health: 100 };
+  return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer };
 }
 
 function updateCheckpoint(kart) {
@@ -335,14 +320,13 @@ function applyCrashDamping(kart, dt) {
   kart.speed *= Math.exp(-1.7 * dt);
 }
 
-function updatePlayerKart(kart, input, dt, track = DEFAULT_TRACK) {
+function updatePlayerKart(kart, input, dt) {
   const accel = (input.keys.KeyW || input.keys.ArrowUp ? 1 : 0) - (input.keys.KeyS || input.keys.ArrowDown ? 1 : 0) + input.accel;
   const steerRaw = (input.keys.KeyD || input.keys.ArrowRight ? 1 : 0) - (input.keys.KeyA || input.keys.ArrowLeft ? 1 : 0) + input.steer;
   const brake = input.keys.Space || input.brake;
-  const quality = trackQuality(kart.pos, track);
+  const quality = trackQuality(kart.pos);
   const grip = quality.onRoad ? 1 : 0.55;
-  const healthFactor = clamp(kart.health / 100, 0.22, 1);
-  const maxSpeed = (quality.onRoad ? 16.5 : 7.5) * healthFactor;
+  const maxSpeed = quality.onRoad ? 16.5 : 7.5;
 
   kart.speed += accel * 24 * dt * grip;
   kart.speed -= (brake ? 30 : 0) * dt * Math.sign(kart.speed || 1);
@@ -355,7 +339,7 @@ function updatePlayerKart(kart, input, dt, track = DEFAULT_TRACK) {
   kart.pos.addScaledVector(forwardFromYaw(kart.yaw), kart.speed * dt);
 
   if (!quality.onRoad) {
-    const pull = pointOnTrack(angleOnTrack(kart.pos, track), 0, track).sub(kart.pos).multiplyScalar(0.55 * dt);
+    const pull = pointOnTrack(angleOnTrack(kart.pos), 0).sub(kart.pos).multiplyScalar(0.55 * dt);
     kart.pos.add(pull);
   }
 
@@ -365,12 +349,12 @@ function updatePlayerKart(kart, input, dt, track = DEFAULT_TRACK) {
   updateCheckpoint(kart);
 }
 
-function updateAiKart(kart, all, dt, track = DEFAULT_TRACK) {
-  const target = pointOnTrack(angleOnTrack(kart.pos, track) + 0.5, kart.lane, track);
+function updateAiKart(kart, all, dt) {
+  const target = pointOnTrack(angleOnTrack(kart.pos) + 0.5, kart.lane);
   const to = target.sub(kart.pos).normalize();
   const desiredYaw = yawFromForward(to);
   const delta = Math.atan2(Math.sin(desiredYaw - kart.yaw), Math.cos(desiredYaw - kart.yaw));
-  let targetSpeed = (12.5 + Math.abs(kart.lane) * 0.8 - kart.damage * 0.35) * clamp(kart.health / 100, 0.2, 1);
+  let targetSpeed = 12.5 + Math.abs(kart.lane) * 0.8 - kart.damage * 0.35;
 
   for (const other of all) {
     if (other === kart) continue;
@@ -427,8 +411,6 @@ function resolveVehicleCrashes(karts) {
       b.crashT = Math.max(b.crashT, 0.35 + impact * 0.03);
       a.damage = clamp(a.damage + impact * 0.07, 0, 10);
       b.damage = clamp(b.damage + impact * 0.07, 0, 10);
-      a.health = clamp(a.health - impact * 1.7, 5, 100);
-      b.health = clamp(b.health - impact * 1.7, 5, 100);
       strongest = Math.max(strongest, impact);
 
       a.group.position.copy(a.pos);
@@ -440,10 +422,10 @@ function resolveVehicleCrashes(karts) {
   return strongest;
 }
 
-export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRESETS[0].id }) {
+export default function SuperTuxKartPlayablePreview() {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
-  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, help: true, status: "Loading...", mode: "playable-preview", crash: "", health: 100, trackName: "" });
+  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, help: true, status: "Loading...", mode: "playable-preview", crash: "" });
   const hudRef = useRef(hud);
 
   useEffect(() => {
@@ -545,9 +527,8 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
       }
 
       if (cancelled) return;
-      const activeTrack = TRACK_PRESETS.find((t) => t.id === selectedTrack) || TRACK_PRESETS[0];
       if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
-      else createProceduralTrack(scene, activeTrack);
+      else createProceduralTrack(scene);
       scatterGltfTrees(scene, assets?.tree);
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
@@ -562,8 +543,8 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
       ];
 
       const makeKart = (i) => originalMode && assets?.trucks.length
-        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i], activeTrack)
-        : createTruckVariant(colors[i], names[i], variants[i], i > 0, starts[i].angle, starts[i].lane, activeTrack);
+        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i])
+        : createTruckVariant(colors[i], names[i], variants[i], i > 0, starts[i].angle, starts[i].lane);
 
       const player = makeKart(0);
       const ai1 = makeKart(1);
@@ -572,7 +553,7 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
       const ai4 = makeKart(4);
       const karts = [player, ai1, ai2, ai3, ai4];
       karts.forEach((k) => scene.add(k.group));
-      setHud((h) => ({ ...h, status: originalMode ? "Original STK GLB mode" : "Playable fallback with 5 different trucks", mode: originalMode ? "original-assets" : "playable-preview", trackName: activeTrack.label }));
+      setHud((h) => ({ ...h, status: originalMode ? "Original STK GLB mode" : "Playable fallback with 5 different trucks", mode: originalMode ? "original-assets" : "playable-preview" }));
 
       let last = performance.now();
       let crashTextT = 0;
@@ -592,8 +573,8 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
         const dt = Math.min(0.033, (now - last) / 1000);
         last = now;
         input.brake = Boolean(input.keys.Space);
-        updatePlayerKart(player, input, dt, activeTrack);
-        for (const ai of [ai1, ai2, ai3, ai4]) updateAiKart(ai, karts, dt, activeTrack);
+        updatePlayerKart(player, input, dt);
+        for (const ai of [ai1, ai2, ai3, ai4]) updateAiKart(ai, karts, dt);
         const impact = resolveVehicleCrashes(karts);
         if (impact > 0.8) {
           crashTextT = 1.2;
@@ -603,8 +584,8 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
         updateCamera(dt);
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
         const position = sorted.findIndex((k) => k === player) + 1;
-        const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos, activeTrack).onRoad ? "5-truck racing" : "Off-road slowdown";
-        setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "", health: player.health });
+        const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos).onRoad ? "5-truck racing" : "Off-road slowdown";
+        setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "" });
         renderer.render(scene, camera);
       };
       animate();
@@ -646,7 +627,7 @@ export default function SuperTuxKartPlayablePreview({ selectedTrack = TRACK_PRES
         <div style={{ position: "absolute", top: 10, left: 10, right: 10, display: "flex", justifyContent: "space-between", gap: 8 }}>
           <div style={{ background: "rgba(0,0,0,0.56)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, padding: "10px 12px", boxShadow: "0 12px 30px rgba(0,0,0,0.22)", maxWidth: 540 }}>
             <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.2, textTransform: "uppercase" }}>SuperTuxKart Truck Test</div>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>Pos {hud.position}/5 · Lap {hud.lap}</div><div style={{fontSize:11,opacity:0.9}}>Track: {hud.trackName} · Kart health: {Math.round(hud.health)}%</div>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>Pos {hud.position}/5 · Lap {hud.lap}</div>
             <div style={{ fontSize: 11, opacity: 0.82 }}>{hud.status} · {Math.round(hud.speed * 8)} km/h</div>
             {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
           </div>
