@@ -103,7 +103,7 @@ type HumanRig = {
   speed: number;
 };
 
-type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number; replay?: string };
+type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number };
 
 type ControlState = {
   active: boolean;
@@ -113,15 +113,6 @@ type ControlState = {
   lastX: number;
   lastY: number;
   startPlayer: THREE.Vector3;
-};
-
-type ReplayEvent = {
-  ts: number;
-  winner: PlayerSide;
-  reason: PointReason;
-  label: string;
-  path: THREE.Vector3[];
-  hitter: PlayerSide | null;
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
@@ -151,10 +142,6 @@ const CFG = {
   playerHeight: 1.72,
   playerSpeed: 2.95,
   aiSpeed: 3.35,
-  aiReaction: 0.045,
-  aiShotVariance: 0.23,
-  aiPowerMin: 0.95,
-  aiPowerMax: 1.32,
   reach: 0.48,
   swingDuration: 0.28,
   backhandDuration: 0.25,
@@ -1071,7 +1058,7 @@ export default function MobileRealisticTableTennisGame() {
     pmrem.compileEquirectangularShader();
 
     const scene = new THREE.Scene();
-    scene.fog = null;
+    scene.fog = new THREE.Fog(0x091014, 4.7, 8.2);
     let activeEnvMap: THREE.Texture | null = null;
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
     const loadHdriByUrl = (url?: string, fallbackIdx = 0) => {
@@ -1115,6 +1102,8 @@ export default function MobileRealisticTableTennisGame() {
     rim.position.set(2.4, 2.1, -3.1);
     scene.add(rim);
 
+    addBox(scene, [5.2, 0.055, 6.6], [0, -0.03, 0], material(0x1d2830, 0.92, 0.0));
+    addBox(scene, [4.8, 0.01, 6.1], [0, 0.002, 0], transparentMaterial(0x2f4651, 0.22));
     addTable(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e);
@@ -1152,17 +1141,11 @@ export default function MobileRealisticTableTennisGame() {
     const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
     bounceFx.volume = 0.35;
     const crowdFx = new Audio("/assets/sounds/football-crowd-3-69245.mp3");
-    const whistleFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
-    whistleFx.volume = 0.24;
-    const applauseFx = new Audio("/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3");
-    applauseFx.volume = 0.32;
     crowdFx.loop = true;
     crowdFx.volume = 0.16;
     crowdFx.play().catch(() => {});
     const replayFrames: THREE.Vector3[] = [];
-    const replayEvents: ReplayEvent[] = [];
     let replayT = 0;
-    let replayCursor = 0;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
 
@@ -1184,15 +1167,7 @@ export default function MobileRealisticTableTennisGame() {
         reason === "net" ? "Net" :
         reason === "wrongSide" ? "Wrong side" :
         "Miss";
-      const currentPath = replayFrames.slice(-120).map((p) => p.clone());
-      replayEvents.unshift({ ts: performance.now(), winner, reason, label: reasonText, path: currentPath, hitter: ball.lastHitBy });
-      if (replayEvents.length > 8) replayEvents.pop();
-      replayCursor = 0;
-      whistleFx.currentTime = 0;
-      whistleFx.play().catch(() => {});
-      applauseFx.currentTime = 0;
-      applauseFx.play().catch(() => {});
-      setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0, replay: `${reasonText} review` });
+      setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0 });
     };
 
     const resize = () => {
@@ -1376,7 +1351,7 @@ export default function MobileRealisticTableTennisGame() {
       const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48);
 
       if (ball.lastHitBy === null && ball.phase.kind === "serve" && ball.phase.server === "far") {
-        farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 0.48), 0.07);
+        farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 0.48), 0.045);
         aiServeWindup += dt;
         if (aiServeWindup > 0.62 && farPlayer.swingT === 0) {
           startSwing(farPlayer, makeAiServeTarget(), "serve");
@@ -1389,20 +1364,15 @@ export default function MobileRealisticTableTennisGame() {
       const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.22;
       if (incoming) {
         const landing = predictNextTableBounce(ball);
-        const anticipation = clamp(ball.vel.length() * 0.02, 0.02, 0.14);
         const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.52 : 0.36);
-        farPlayer.target.x = clamp(landing.x + THREE.MathUtils.randFloatSpread(anticipation), -0.95, 0.95);
+        farPlayer.target.x = clamp(landing.x, -0.95, 0.95);
         farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 0.86, -TABLE_HALF_L - 0.2);
       } else {
-        farPlayer.target.lerp(home, 0.055);
+        farPlayer.target.lerp(home, 0.04);
       }
 
-      if (incoming && canReachBall(farPlayer, ball) && farPlayer.swingT === 0 && Math.random() > CFG.aiReaction) {
+      if (incoming && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
         const plan = makeAiTarget(nearPlayer, ball);
-        plan.target.x = clamp(plan.target.x + THREE.MathUtils.randFloatSpread(CFG.aiShotVariance), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-        plan.power = clamp(plan.power * lerp(CFG.aiPowerMin, CFG.aiPowerMax, Math.random()), 0.82, 1.6);
-        plan.topSpin = clamp(plan.topSpin * lerp(0.85, 1.22, Math.random()), 0.35, 1.9);
-        plan.sideSpin = clamp(plan.sideSpin + THREE.MathUtils.randFloatSpread(0.2), -1.2, 1.2);
         const action: StrokeAction = ball.pos.x - farPlayer.pos.x > 0.1 || plan.tactic === "push" ? "backhand" : "forehand";
         startSwing(farPlayer, plan, action);
         const label = plan.tactic === "loop" ? "AI loop" : plan.tactic === "push" ? "AI short push" : plan.tactic === "wide" ? "AI wide angle" : plan.tactic === "body" ? "AI body shot" : "AI drive";
@@ -1442,13 +1412,7 @@ export default function MobileRealisticTableTennisGame() {
       last = now;
       if (replayT > 0) {
         replayT = Math.max(0, replayT - dtBase);
-        if (replayEvents[0]?.path?.length) {
-          replayCursor = Math.min(replayEvents[0].path.length - 1, replayCursor + 1);
-          ball.mesh.position.copy(replayEvents[0].path[replayCursor]);
-          setHudSafe({ status: "VAR Replay: slow motion review", replay: `${replayEvents[0].label} • frame ${replayCursor + 1}/${replayEvents[0].path.length}` });
-        } else {
-          setHudSafe({ status: "VAR Replay: slow motion review" });
-        }
+        setHudSafe({ status: "VAR Replay: slow motion review" });
       }
 
       if (pointLock) {
