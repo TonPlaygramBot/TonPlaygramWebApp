@@ -1165,6 +1165,14 @@ const storeMeta = {
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
   },
+  'table-tennis': {
+    name: 'Table Tennis',
+    items: TENNIS_STORE_ITEMS,
+    defaults: TENNIS_DEFAULT_LOADOUT,
+    labels: TENNIS_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   tennis: {
     name: 'Tennis',
     items: TENNIS_STORE_ITEMS,
