@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Table tennis icon">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <circle cx="188" cy="196" r="118" fill="#ef4444"/>
+  <rect x="254" y="258" width="170" height="64" rx="20" fill="#f59e0b" transform="rotate(18 254 258)"/>
+  <rect x="294" y="305" width="56" height="120" rx="24" fill="#92400e" transform="rotate(18 294 305)"/>
+  <circle cx="338" cy="146" r="42" fill="#f8fafc"/>
+  <text x="256" y="468" text-anchor="middle" font-size="64" fill="#f8fafc">🏓</text>
+</svg>

@@ -134,6 +134,7 @@ import {
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
+import { BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -1172,6 +1173,12 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
+  bowling: {
+    name: 'Bowling',
+    items: BOWLING_STORE_ITEMS,
+    optionLabels: { environmentHdri: {} },
+    defaultLoadout: { environmentHdri: [BOWLING_STORE_ITEMS[0]?.optionId].filter(Boolean) }
+  },
   texasholdem: {
     name: "Texas Hold'em",
     items: TEXAS_HOLDEM_STORE_ITEMS,
@@ -1785,6 +1792,10 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
+      })),
+      bowling: BOWLING_STORE_ITEMS.map((item) => ({
+        ...item,
+        owned: ownedTennis('environmentHdri', item.optionId)
       })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
