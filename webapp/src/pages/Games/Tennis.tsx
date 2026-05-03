@@ -188,11 +188,11 @@ function getWorldPos(obj: THREE.Object3D) {
   return obj.getWorldPosition(new THREE.Vector3());
 }
 
-function addCourt(scene: THREE.Scene) {
+function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const group = new THREE.Group();
   scene.add(group);
 
-  const floorMat = material(0x152018, 0.96, 0.0);
+  const hideFloor = !!options.hideFloor;
   const outerMat = material(0x1d7a4b, 0.88, 0.0);
   const courtMat = material(0x286fb1, 0.82, 0.0);
   const serviceMat = material(0x2f84c9, 0.82, 0.0);
@@ -201,10 +201,11 @@ function addCourt(scene: THREE.Scene) {
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
-  addBox(group, [11.6, 0.045, 18.8], [0, -0.045, 0], floorMat);
-  addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, -0.015, 0], outerMat);
-  addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
-  addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
+  if (!hideFloor) {
+    addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, -0.015, 0], outerMat);
+    addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
+    addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
+  }
 
   const y = 0.045;
   const thick = 0.045;
@@ -902,7 +903,7 @@ export default function MobileThreeTennisPrototype() {
 
     const scene = new THREE.Scene();
     let activeEnvMap: THREE.Texture | null = null;
-    scene.fog = new THREE.Fog(0x07100c, 12, 21);
+    scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
     const cameraTarget = new THREE.Vector3(0, 0.9, -1.3);
@@ -940,14 +941,14 @@ export default function MobileThreeTennisPrototype() {
           activeEnvMap = env;
           scene.environment = env;
           scene.background = env;
-          scene.backgroundBlurriness = 0.42;
+          scene.backgroundBlurriness = 0.02;
         }, undefined, () => loadAt(idx + 1));
       };
       loadAt(0);
     };
     applyHdri(selectedHdriId);
-    addCourt(scene);
-    const updateBillboards = addStadiumBillboards(scene);
+    addCourt(scene, { hideFloor: true });
+    const updateBillboards = () => {};
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
