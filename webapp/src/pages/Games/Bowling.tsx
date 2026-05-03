@@ -20,7 +20,7 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-type Act = "idle" | "run" | "throw" | "recover";
+type Act = "idle" | "run" | "throw" | "recover" | "toSeat" | "seated" | "fromSeat";
 type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
@@ -174,6 +174,12 @@ function updateRig(r: Rig, b: Ball, dt: number) {
   } else if (r.act === "recover") {
     r.t += dt / .28; if (r.model) { r.model.rotation.x = lerp(-.05, 0, clamp(r.t,0,1)); r.model.rotation.z *= .82; }
     if (r.t >= 1) { r.act = "idle"; r.t = 0; }
+  } else if (r.act === "toSeat" || r.act === "fromSeat") {
+    r.t = clamp(r.t + dt / 1.05, 0, 1);
+    r.p.lerpVectors(r.from, r.to, smooth(r.t));
+    if (r.t >= 1) { r.act = r.act === "toSeat" ? "seated" : "idle"; r.t = 0; }
+  } else if (r.act === "seated") {
+    if (r.model) r.model.rotation.x = -0.25;
   } else if (r.model) { r.model.position.y *= .82; r.model.rotation.x *= .82; r.model.rotation.z *= .82; }
   r.body.position.copy(r.p); r.body.rotation.y = 0; r.sh.position.set(r.p.x, C.y + .01, r.p.z);
   if (b.held) { b.p.copy(heldPos(r)); b.m.position.copy(b.p); }
@@ -196,10 +202,31 @@ function buildLane(scene: THREE.Scene, floorKey: string) {
   const pit = box(4.85,.58,1.35,0x06080b,.9); pit.position.set(0,-.08,-12.35); g.add(pit);
   const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
   const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
-  // Removed side light strips to match requested clean look.
+  const sweepBar = box(3.7,.1,.1,0xcfd6df,.2,.75); sweepBar.position.set(0,.55,-10.9); sweepBar.name = "sweepBar"; g.add(sweepBar);
+  const pitConveyor = box(3.8,.06,1.05,0x232c34,.88,.15); pitConveyor.position.set(0,.02,-12.2); pitConveyor.name = "pitConveyor"; g.add(pitConveyor);
+  const ballLift = box(.36,1.12,.36,0x46525f,.45,.3); ballLift.position.set(2.1,.56,-12.15); ballLift.name = "ballLift"; g.add(ballLift);
+  const returnRail = box(.16,.06,18.3,0x6f7d8e,.33,.55); returnRail.position.set(1.92,.08,-3.2); returnRail.name = "returnRail"; g.add(returnRail);
   // Lower lane to visually sit on HDRI ground from portrait camera.
   g.position.y = -0.05;
   cast(g);
+}
+
+
+function buildLounge(scene: THREE.Scene) {
+  const g = new THREE.Group();
+  const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(.5,.55,.08,24), new THREE.MeshStandardMaterial({color:0x8c6239,roughness:.55}));
+  tableTop.position.set(-1.8,.55,8.7);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(.08,.12,.52,16), new THREE.MeshStandardMaterial({color:0x42301f,roughness:.6}));
+  leg.position.set(-1.8,.26,8.7);
+  g.add(tableTop,leg);
+  const chairMat = new THREE.MeshStandardMaterial({color:0x2e3b4f,roughness:.68});
+  [[-2.4,0,8.7],[-1.2,0,8.7]].forEach(([x,y,z],i)=>{
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(.44,.07,.44), chairMat); seat.position.set(x,.36,z);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(.44,.46,.06), chairMat); back.position.set(x,.62,z+(i?-.19:.19));
+    g.add(seat,back);
+  });
+  scene.add(cast(g));
+  return { seatTarget: new THREE.Vector3(-2.4,C.y,8.45) };
 }
 
 function scoreFromRolls(rolls: number[]) {
@@ -305,6 +332,7 @@ export default function BowlingGame() {
     const key = new THREE.DirectionalLight(0xffffff, 1.55); key.position.set(-4.5, 7.5, 7.5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key);
     for (let i=0;i<2;i++) { const l = new THREE.PointLight(0xffefdc, .22, 7.8, 2.2); l.position.set(i?-.7:.7, 2.8, 5.7); scene.add(l); }
     buildLane(scene, floor);
+    const lounge = buildLounge(scene);
     const pins = makePins(scene), rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(.24, 32), new THREE.MeshBasicMaterial({ color:0, transparent:true, opacity:.22, depthWrite:false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -316,7 +344,7 @@ export default function BowlingGame() {
     let sideReturnActive = false;
     const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
-    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":"Ball returned from side. Swipe again."})); };
+    const reset = () => { rig.act="fromSeat"; rig.t=0; rig.from.copy(rig.p); rig.to.set(0,C.y,C.startZ); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":"Ball returned from side. Swipe again."})); };
     const startSideReturn = () => {
       sideReturnActive = true;
       const path = [
@@ -332,7 +360,7 @@ export default function BowlingGame() {
         ball.p.lerp(t, 0.2);
         ball.m.position.copy(ball.p);
         if (ball.p.distanceTo(t) < 0.08) idx++;
-        if (idx >= path.length) { clearInterval(timer); reset(); }
+        if (idx >= path.length) { clearInterval(timer); rig.act="toSeat"; rig.t=0; rig.from.copy(rig.p); rig.to.copy(lounge.seatTarget); setTimeout(reset,1500); }
       }, 16);
     };
     const pushRoll = (pinsHit:number) => {
