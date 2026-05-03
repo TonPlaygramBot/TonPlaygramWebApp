@@ -120,7 +120,7 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 5.45,
+  aiSpeed: 5.85,
   reach: 0.92,
   swingDuration: 0.38,
   serveDuration: 0.86,
@@ -128,7 +128,7 @@ const CFG = {
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  shotPowerBoost: 1.12,
+  shotPowerBoost: 1.28,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -746,8 +746,9 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
 function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean) {
   const dx = endX - startX;
   const dy = endY - startY;
-  const power = clamp(Math.hypot(dx, dy) / 185, isServe ? 0.5 : 0.18, 1);
-  const aimX = clamp((dx / 140) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.42, CFG.courtW / 2 - 0.42);
+  const swipeLen = Math.hypot(dx, dy);
+  const power = clamp((swipeLen / 170) ** 1.06, isServe ? 0.52 : 0.2, 1);
+  const aimX = clamp((dx / 118) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
   const upward = clamp((-dy + 40) / 230, 0, 1);
   const targetZ = isServe ? lerp(-1.0, -CFG.serviceLineZ + 0.22, upward) : lerp(-1.15, -CFG.courtL / 2 + 0.88, upward);
   return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
@@ -759,7 +760,7 @@ function makeAiTarget(near: HumanRig, ball: BallState, style: "drive" | "slice" 
   const zBias = style === "lob" ? 0.72 : style === "slice" ? 0.44 : 0.56;
   const z = lerp(1.35, CFG.courtL / 2 - 0.84, 0.3 + pressure * zBias);
   const powerBoost = style === "drive" ? 0.12 : style === "slice" ? -0.04 : 0.02;
-  const power = clamp(0.52 + pressure * 0.36 + Math.random() * 0.16 + powerBoost, 0.45, 0.98);
+  const power = clamp(0.56 + pressure * 0.34 + Math.random() * 0.09 + powerBoost, 0.5, 1);
   return { target: new THREE.Vector3(x, CFG.ballR, z), power };
 }
 
@@ -899,7 +900,7 @@ export default function MobileThreeTennisPrototype() {
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.96, -0.95);
+    const cameraTarget = new THREE.Vector3(0, 1.18, -1.15);
     const cameraDesiredPos = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -918,7 +919,7 @@ export default function MobileThreeTennisPrototype() {
     scene.add(sun);
     const hdri = TENNIS_HDRI_OPTIONS.find((opt) => opt.id === selectedHdriId) || TENNIS_HDRI_OPTIONS[0];
     hdriLoader.load(
-      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${hdri.assetId}_2k.hdr`,
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/${hdri.assetId}_4k.hdr`,
       (tex) => {
         tex.mapping = THREE.EquirectangularReflectionMapping;
         const env = pmrem.fromEquirectangular(tex).texture;
@@ -953,6 +954,7 @@ export default function MobileThreeTennisPrototype() {
     cheerFx.volume = 0.45;
     const swingFx = new Audio("/assets/sounds/chingpingu.mp3");
     swingFx.volume = 0.26;
+    let lastCheerAt = 0;
 
     let pointLock = false;
     let pointLockT = 0;
@@ -970,7 +972,15 @@ export default function MobileThreeTennisPrototype() {
       };
       const reasonText = reason === "out" ? "Out ball" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net fault" : "Point";
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
-      cheerFx.currentTime = 0; cheerFx.play().catch(() => {});
+      const scoreGap = Math.abs(next.nearScore - next.farScore);
+      const pressurePoint = Math.max(next.nearScore, next.farScore) >= 3;
+      const clutchPoint = pressurePoint && scoreGap <= 1;
+      const now = performance.now();
+      if (clutchPoint && now - lastCheerAt > 1800) {
+        lastCheerAt = now;
+        cheerFx.currentTime = 0;
+        cheerFx.play().catch(() => {});
+      }
     };
 
     const resize = () => {
@@ -980,7 +990,7 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 5.25 : 4.7, camera.aspect < 0.72 ? 9.9 : 8.9);
+      camera.position.set(0, camera.aspect < 0.72 ? 5.75 : 5.0, camera.aspect < 0.72 ? 10.4 : 9.2);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1044,10 +1054,12 @@ export default function MobileThreeTennisPrototype() {
 
     function updateBall(dt: number) {
       const prevZ = ball.pos.z;
-      ball.vel.y -= CFG.gravity * (1 + ball.spin * 0.18) * dt;
+      ball.vel.y -= CFG.gravity * (1 + ball.spin * 0.2) * dt;
+      const swerve = clamp(ball.spin, -2.8, 2.8);
+      ball.vel.x += swerve * Math.abs(ball.vel.z) * 0.18 * dt;
       ball.vel.multiplyScalar(Math.exp(-CFG.airDrag * dt));
       ball.pos.addScaledVector(ball.vel, dt);
-      ball.spin *= Math.exp(-0.95 * dt);
+      ball.spin *= Math.exp(-0.88 * dt);
 
       if (ball.vel.length() > 0.02) {
         const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x);
@@ -1168,9 +1180,9 @@ export default function MobileThreeTennisPrototype() {
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
       const portrait = camera.aspect < 0.72;
-      const followY = portrait ? 5.35 : 4.9;
-      const followBack = portrait ? 8.85 : 8.1;
-      const lookAheadZ = portrait ? 10.45 : 9.6;
+      const followY = portrait ? 5.95 : 5.2;
+      const followBack = portrait ? 9.55 : 8.7;
+      const lookAheadZ = portrait ? 11.35 : 10.25;
 
       cameraDesiredPos.set(nearPlayer.pos.x * 0.18, followY, nearPlayer.pos.z + followBack);
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
