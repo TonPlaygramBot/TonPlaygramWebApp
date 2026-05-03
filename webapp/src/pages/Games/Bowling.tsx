@@ -21,7 +21,6 @@ type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
 type Hud = { score: number; last: number; power: number; msg: string };
-type BowlingFrame = { rolls: number[] };
 
 const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
 const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
@@ -191,7 +190,10 @@ function buildLane(scene: THREE.Scene) {
   const curtain = box(4.7,1.35,.12,0x0a0b0d,.86); curtain.position.set(0,.8,-13.07); g.add(curtain);
   const pinsetter = box(4.9,.44,1.05,0x202936,.36,.6); pinsetter.position.set(0,1.15,-12.8); g.add(pinsetter);
   for (let i=0;i<7;i++) { const p = box(1.05,.03,.55,0xd9f4ff,.2); p.position.set(i%2?-1.25:1.25,3.24,lerp(7.2,-11.2,i/6)); g.add(p); }
-  // walls + ceiling removed so HDRI/environment lighting remains visible like Pool Royale.
+  const left = box(.18,3.5,30.6,0x111722,.92); left.position.set(-3.95,1.65,-2.8); g.add(left);
+  const right = left.clone(); right.position.x = 3.95; g.add(right);
+  const back = box(8.1,3.5,.18,0x111722,.92); back.position.set(0,1.65,-13.35); g.add(back);
+  const ceil = box(8.1,.16,30.6,0x1b2430,.72,.15); ceil.position.set(0,3.35,-2.8); g.add(ceil);
   cast(g);
 }
 
@@ -239,29 +241,19 @@ function release(b: Ball, intent: { releaseX: number; targetX: number; speed: nu
   b.held = false; b.rolling = true; b.hook = intent.hook; b.p.copy(p); b.v.copy(t.sub(p).normalize().multiplyScalar(intent.speed)); b.m.position.copy(b.p);
 }
 
+function Stat({ n, v }: { n: string; v: string | number }) {
+  return <div style={{padding:"6px 8px",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,background:"rgba(255,255,255,.07)"}}><div style={{fontSize:10,opacity:.65,fontWeight:800}}>{n}</div><div style={{fontSize:16,fontWeight:950,color:"#7be2ff"}}>{v}</div></div>;
+}
+
 export default function BowlingGame() {
   const host = useRef<HTMLDivElement | null>(null), canvas = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<Hud>({ power: 0, score: 0, last: 0, msg: "Swipe up to bowl" });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [graphics, setGraphics] = useState<'low' | 'high'>('high');
-  const [frames, setFrames] = useState<BowlingFrame[]>(Array.from({ length: 10 }, () => ({ rolls: [] })));
-  const [activeFrame, setActiveFrame] = useState(0);
-  const [activeRoll, setActiveRoll] = useState(0);
-  const [inventoryItems] = useState([
-    'Dancing Hall HDRI',
-    'Sepulchral Chapel Rotunda HDRI',
-    'Vestibule HDRI',
-    'Rosewood Veneer 01',
-    'Oak Veneer 01',
-    'Dark Wood',
-    'Wood Table 001'
-  ]);
 
   useEffect(() => {
     if (!host.current || !canvas.current) return;
     const renderer = new THREE.WebGLRenderer({ canvas: canvas.current, antialias: true, powerPreference: "high-performance" });
     renderer.setClearColor(0x07090d); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07090d); scene.fog = new THREE.Fog(0x07090d, 28, 48);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07090d); scene.fog = new THREE.Fog(0x07090d, 18, 39);
     const cam = new THREE.PerspectiveCamera(52, 1, .05, 80); cam.position.set(0, 2.9, 10.8); cam.lookAt(0, C.y + .74, -2.6);
     scene.add(new THREE.HemisphereLight(0xcceaff, 0x130b06, .82));
     const key = new THREE.DirectionalLight(0xffffff, 1.55); key.position.set(-4.5, 7.5, 7.5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key);
@@ -274,19 +266,6 @@ export default function BowlingGame() {
     const mark = new THREE.Mesh(new THREE.RingGeometry(.24,.31,36), new THREE.MeshBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.72, side:THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
 
     let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0;
-    const scoreBowling = (allFrames: BowlingFrame[]) => {
-      const rolls = allFrames.flatMap((f) => f.rolls);
-      let idx = 0;
-      let total = 0;
-      for (let frame = 0; frame < 10; frame += 1) {
-        const first = rolls[idx] ?? 0;
-        const second = rolls[idx + 1] ?? 0;
-        if (first === 10) { total += 10 + (rolls[idx + 1] ?? 0) + (rolls[idx + 2] ?? 0); idx += 1; }
-        else if (first + second === 10) { total += 10 + (rolls[idx + 2] ?? 0); idx += 2; }
-        else { total += first + second; idx += 2; }
-      }
-      return total;
-    };
     const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
     const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:"Ball returned to player. Swipe again."})); };
@@ -302,20 +281,7 @@ export default function BowlingGame() {
       updateRig(rig,ball,dt);
       if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
-      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setFrames((prev) => {
-        const next = prev.map((f) => ({ rolls: [...f.rolls] }));
-        if (activeFrame < 10) next[activeFrame].rolls.push(lastHit);
-        const firstRollStrike = activeRoll === 0 && lastHit === 10;
-        if (activeFrame < 9) {
-          if (firstRollStrike || activeRoll === 1) { setActiveFrame((v) => Math.min(9, v + 1)); setActiveRoll(0); }
-          else setActiveRoll(1);
-        } else {
-          setActiveRoll((v) => Math.min(2, v + 1));
-        }
-        const total = scoreBowling(next);
-        setHud(h=>({...h,score:total,last:lastHit,msg:`Knocked ${lastHit} pins`})); 
-        return next;
-      }); setTimeout(reset,700); } } else if(moving) settle=0;
+      if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`})); setTimeout(reset,700); } } else if(moving) settle=0;
       sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
     }
     loop();
@@ -325,28 +291,14 @@ export default function BowlingGame() {
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
     <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      <button onClick={() => setMenuOpen((v) => !v)} style={{position:'absolute',top:72,left:10,pointerEvents:'auto',width:42,height:42,borderRadius:10,border:'1px solid rgba(255,255,255,.25)',background:'rgba(6,10,18,.8)',color:'#fff'}}>☰</button>
-      {menuOpen && <div style={{position:'absolute',top:120,left:10,width:280,padding:12,borderRadius:12,pointerEvents:'auto',background:'rgba(6,10,18,.92)',border:'1px solid rgba(255,255,255,.2)',color:'#fff'}}>
-        <div style={{fontWeight:800,marginBottom:8}}>Graphics</div>
-        <div style={{display:'flex',gap:8,marginBottom:12}}>
-          <button onClick={() => setGraphics('low')} style={{pointerEvents:'auto'}}>Low</button>
-          <button onClick={() => setGraphics('high')} style={{pointerEvents:'auto'}}>High</button>
-        </div>
-        <div style={{fontWeight:800,marginBottom:6}}>Inventory</div>
-        <div style={{fontSize:12,opacity:.9}}>{inventoryItems.map((i) => <div key={i}>• {i}</div>)}</div>
-      </div>}
-      <div style={{position:"absolute",left:10,right:10,top:10,padding:12,paddingLeft:64,borderRadius:12,color:"white",background:"rgba(7,12,19,.72)",border:"1px solid rgba(123,226,255,.22)"}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:28,height:28,borderRadius:'50%',background:'#6be3ff'}} /><div style={{fontWeight:900}}>Player</div></div>
-          <div style={{fontSize:14,fontWeight:900}}>Total: {hud.score}</div>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(10,minmax(0,1fr))',gap:4}}>
-          {frames.map((f, i) => <div key={i} style={{border:'1px solid rgba(255,255,255,.25)',borderRadius:6,padding:4,background:i===activeFrame?'rgba(107,227,255,.16)':'transparent'}}>
-            <div style={{fontSize:9,opacity:.7}}>F{i+1}</div>
-            <div style={{fontSize:11,fontWeight:700,minHeight:16}}>{f.rolls.join(' | ') || '-'}</div>
-          </div>)}
-        </div>
+      <div style={{position:"absolute",left:10,right:10,top:10,padding:12,borderRadius:20,color:"white",background:"linear-gradient(180deg,rgba(7,12,19,.82),rgba(7,12,19,.55))",border:"1px solid rgba(123,226,255,.22)",boxShadow:"0 18px 45px rgba(0,0,0,.34)",backdropFilter:"blur(12px)"}}>
+        <div style={{fontSize:14,fontWeight:950,letterSpacing:.4}}>MOBILE BOWLING GAME</div>
+        <div style={{fontSize:11,opacity:.72,fontWeight:700,marginBottom:9}}>fixed player camera · oak lane · no return mechanism</div>
+        <div style={{display:"flex",gap:8}}><Stat n="SCORE" v={hud.score}/><Stat n="LAST" v={hud.last}/><Stat n="POWER" v={`${Math.round(hud.power*100)}%`}/></div>
+        <div style={{marginTop:9,fontSize:12,fontWeight:750,opacity:.92}}>{hud.msg}</div>
       </div>
+      <div style={{position:"absolute",left:12,bottom:18,maxWidth:275,color:"white",background:"rgba(7,12,19,.58)",border:"1px solid rgba(255,255,255,.13)",borderRadius:18,padding:"10px 12px",lineHeight:1.42,fontSize:12,boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(10px)"}}>Swipe visually upward to throw.<br/>Slide left or right while swiping to aim and hook.<br/>The ball resets back to the player.</div>
+      <div style={{position:"absolute",right:12,bottom:24,width:52,height:166,borderRadius:999,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",overflow:"hidden",boxShadow:"0 14px 34px rgba(0,0,0,.28)",backdropFilter:"blur(8px)"}}><div style={{position:"absolute",left:0,right:0,bottom:0,height:`${Math.round(hud.power*100)}%`,background:"linear-gradient(180deg,rgba(123,226,255,.55),rgba(123,226,255,.95))"}}/><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(0,0,0,.82)",fontSize:11,fontWeight:950,writingMode:"vertical-rl",transform:"rotate(180deg)"}}>POWER</div></div>
     </div>
   </div>;
 }
