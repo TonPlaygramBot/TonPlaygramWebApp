@@ -126,7 +126,6 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  worldScale: 1.22,
   tableL: 2.74,
   tableW: 1.525,
   tableY: 0.76,
@@ -140,9 +139,9 @@ const CFG = {
   tableRestitution: 0.875,
   tableFriction: 0.965,
   spinDecay: 0.72,
-  playerHeight: 1.86,
+  playerHeight: 1.72,
   playerSpeed: 2.95,
-  aiSpeed: 3.55,
+  aiSpeed: 3.05,
   reach: 0.48,
   swingDuration: 0.34,
   backhandDuration: 0.29,
@@ -152,9 +151,6 @@ const CFG = {
   serveContactT: 0.68,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
-  runThreshold: 0.3,
-  proAiPowerBoost: 1.18,
-  proAiAimTightness: 0.58,
 };
 
 const TABLE_HALF_W = CFG.tableW / 2;
@@ -295,7 +291,6 @@ function createConfiguredGltfLoader(renderer: THREE.WebGLRenderer) {
 
 function addTable(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
   const fallback = buildRealisticTableTennisTable();
-  fallback.scale.setScalar(CFG.worldScale);
   scene.add(fallback);
   if (!TABLE_GLTF_URL) return fallback;
 
@@ -563,10 +558,6 @@ function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: Playe
     hitThisSwing: false,
     speed: side === "near" ? CFG.playerSpeed : CFG.aiSpeed,
   };
-  const avatarScale = CFG.worldScale * 1.18;
-  rig.root.scale.setScalar(avatarScale);
-  rig.modelRoot.scale.setScalar(avatarScale);
-  rig.paddle.scale.setScalar(avatarScale * 1.03);
 
   modelRoot.rotation.y = rig.yaw;
   paddle.visible = true;
@@ -924,9 +915,9 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
 
   return {
     target: new THREE.Vector3(x, BALL_SURFACE_Y, z),
-    power: clamp(power * CFG.proAiPowerBoost, 0.38, 1),
+    power: clamp(power, 0.32, 0.96),
     topSpin: clamp(topSpin, -0.35, 1.25),
-    sideSpin: clamp(sideSpin * CFG.proAiAimTightness, -1, 1),
+    sideSpin: clamp(sideSpin, -1, 1),
     tactic,
   };
 }
@@ -948,7 +939,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   } else {
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
-    const flight = clamp(dist / (3.1 + hit.power * 4.2), 0.17, 0.46);
+    const flight = clamp(dist / (3.45 + hit.power * 3.35), 0.21, 0.54);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (62 + hit.topSpin * 92), hit.sideSpin * 104, hit.sideSpin * 12);
     ball.phase = { kind: "rally" };
@@ -975,13 +966,8 @@ function canReachBall(player: HumanRig, ball: BallState) {
   if (ball.bounceSide !== player.side || ball.bounceCount < 1) return false;
   if (ball.pos.y < CFG.tableY + 0.06 || ball.pos.y > CFG.tableY + 0.62) return false;
   const pose = tableTennisPose(player, ball);
-  const paddleReach = pose.paddleCenter.distanceTo(ball.pos) < 0.2 * CFG.worldScale;
+  const paddleReach = pose.paddleCenter.distanceTo(ball.pos) < 0.24;
   return paddleReach;
-}
-
-function hasPaddleContact(player: HumanRig, ball: BallState, tolerance = 0.2) {
-  const pose = tableTennisPose(player, ball);
-  return pose.paddleCenter.distanceTo(ball.pos) < tolerance * CFG.worldScale;
 }
 
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
@@ -1011,12 +997,10 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const runAmount = clamp01(dist / CFG.runThreshold);
-    const locomotion = runAmount > 0.62 ? "run" : runAmount > 0.08 ? "walk" : "idle";
+    const runAmount = clamp01(dist / 0.18);
     const bob = Math.sin(performance.now() * 0.015) * 0.014 * runAmount;
-    player.model.position.y = bob + (locomotion === "idle" ? -0.008 : 0.004);
+    player.model.position.y = bob - (player.action === "ready" ? 0.012 : 0);
     player.model.rotation.x = 0.025 * runAmount;
-    player.model.rotation.z = locomotion === "run" ? Math.sin(performance.now() * 0.027) * 0.018 : 0;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -1201,33 +1185,10 @@ export default function MobileRealisticTableTennisGame() {
     let last = performance.now();
     let pointLock = false;
     let pointLockT = 0;
-    const audioCtx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
-    const playSfx = (kind: "shot" | "bounce") => {
-      const nowAt = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.035, audioCtx.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.38;
-      const noise = audioCtx.createBufferSource();
-      noise.buffer = noiseBuffer;
-      const gain = audioCtx.createGain();
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = kind === "shot" ? "bandpass" : "highpass";
-      filter.frequency.value = kind === "shot" ? 1200 : 850;
-      osc.type = kind === "shot" ? "triangle" : "sine";
-      osc.frequency.setValueAtTime(kind === "shot" ? 220 : 420, nowAt);
-      osc.frequency.exponentialRampToValueAtTime(kind === "shot" ? 90 : 240, nowAt + 0.07);
-      gain.gain.setValueAtTime(kind === "shot" ? 0.0001 : 0.00008, nowAt);
-      gain.gain.exponentialRampToValueAtTime(kind === "shot" ? 0.08 : 0.05, nowAt + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, nowAt + (kind === "shot" ? 0.09 : 0.06));
-      osc.connect(gain);
-      noise.connect(filter).connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(nowAt);
-      noise.start(nowAt);
-      osc.stop(nowAt + 0.1);
-      noise.stop(nowAt + 0.08);
-    };
+    const shotFx = new Audio("/assets/sounds/hit-wood-4-94067.mp3");
+    shotFx.volume = 0.55;
+    const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
+    bounceFx.volume = 0.35;
     const replayFrames: THREE.Vector3[] = [];
     let replayT = 0;
 
@@ -1420,7 +1381,8 @@ export default function MobileRealisticTableTennisGame() {
         ball.vel.x += ball.spin.y * 0.0012;
         ball.spin.x *= 0.82;
         ball.spin.y *= 0.86;
-        playSfx("bounce");
+        bounceFx.currentTime = 0;
+        bounceFx.play().catch(() => {});
         handleTableBounce(side);
       }
 
@@ -1479,17 +1441,17 @@ export default function MobileRealisticTableTennisGame() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            if (hasPaddleContact(player, ball, 0.24)) {
-              playSfx("shot");
-              performHit(player, ball, player.desiredHit, true);
-            }
+            shotFx.currentTime = 0;
+            shotFx.play().catch(() => {});
+            performHit(player, ball, player.desiredHit, true);
             setHudSafe({ status: player.side === "near" ? "Serve: own side then AI side" : "AI served legally" });
           }
           continue;
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
-          playSfx("shot");
+          shotFx.currentTime = 0;
+          shotFx.play().catch(() => {});
           performHit(player, ball, player.desiredHit, false);
           setHudSafe({ status: player.side === "near" ? "Return sent" : "AI returned" });
         } else if (player.side === "near" && player.swingT > CFG.hitWindowEnd - 0.02) {
