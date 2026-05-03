@@ -107,26 +107,26 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 5.25,
-  doublesW: 6.4,
-  courtL: 14.0,
+  courtW: 6.25,
+  doublesW: 7.6,
+  courtL: 16.6,
   serviceLineZ: 2.85,
   netH: 0.64,
-  ballR: 0.085,
+  ballR: 0.092,
   gravity: 9.8,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
   playerHeight: 1.82,
-  playerSpeed: 5.2,
-  aiSpeed: 6.8,
+  playerSpeed: 5.75,
+  aiSpeed: 7.35,
   reach: 1.12,
-  swingDuration: 0.38,
-  serveDuration: 0.86,
-  hitWindowStart: 0.42,
-  hitWindowEnd: 0.72,
-  serveContactT: 0.72,
+  swingDuration: 0.36,
+  serveDuration: 0.82,
+  hitWindowStart: 0.4,
+  hitWindowEnd: 0.74,
+  serveContactT: 0.7,
   playerVisualYawFix: Math.PI,
 };
 
@@ -542,7 +542,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   };
 
   modelRoot.rotation.y = rig.yaw;
-  modelRoot.scale.setScalar(0.9);
+  modelRoot.scale.setScalar(1.08);
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
@@ -762,8 +762,8 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 8.8 + power * 4.8 : 6.3 + power * 3.3;
-  const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
+  const baseSpeed = serve ? 10.4 + power * 6.2 : 7.4 + power * 4.2;
+  const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.5, serve ? 0.82 : 1.08);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
     (target.y - from.y + 0.5 * CFG.gravity * flight * flight) / flight,
@@ -802,14 +802,14 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   const technique = hit.technique || "flat";
   if (technique === "topspin") {
-    ball.vel.y += 0.35 + hit.power * 0.35;
+    ball.vel.y += 0.3 + hit.power * 0.3;
     ball.spin = 1.05 + hit.power * 1.1;
   } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.1;
+    ball.vel.x += (Math.random() - 0.5) * 1.35;
     ball.vel.y -= 0.12;
     ball.spin = -0.85 - hit.power * 0.45;
   } else {
-    ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.45 + hit.power * 1.0;
+    ball.spin = serve ? 0.8 + hit.power * 0.82 : 0.52 + hit.power * 1.18;
   }
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
@@ -842,6 +842,7 @@ function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeActi
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   const to = player.target.clone().sub(player.pos);
   const dist = to.length();
+  const moveDir = dist > 0.0001 ? to.clone().normalize() : new THREE.Vector3();
   const maxStep = player.speed * dt;
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
@@ -866,10 +867,17 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const runAmount = clamp01(dist / 0.45);
-    const bob = Math.sin(performance.now() * 0.012) * 0.022 * runAmount;
+    const runAmount = clamp01(dist / 0.52);
+    const forward = forwardFromYaw(player.yaw);
+    const strafeAmount = clamp(Math.abs(moveDir.dot(rightFromForward(forward))), 0, 1) * runAmount;
+    const backAmount = clamp(-moveDir.dot(forward), 0, 1) * runAmount;
+    const jogAmount = clamp(moveDir.dot(forward), 0, 1) * runAmount;
+    const bob = Math.sin(performance.now() * (0.012 + 0.006 * strafeAmount)) * (0.018 + 0.014 * jogAmount + 0.008 * strafeAmount);
     player.model.position.y = bob;
-    player.model.rotation.x = 0.035 * runAmount;
+    player.model.position.x = Math.sin(performance.now() * 0.01) * 0.018 * strafeAmount;
+    player.model.rotation.x = 0.02 * jogAmount + 0.06 * backAmount;
+    player.model.rotation.z = Math.sin(performance.now() * 0.01) * 0.12 * strafeAmount;
+    player.model.rotation.y = Math.sin(performance.now() * 0.008) * 0.08 * strafeAmount;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -932,9 +940,9 @@ export default function MobileThreeTennisPrototype() {
     let activeEnvMap: THREE.Texture | null = null;
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.9, -1.3);
-    const cameraOffset = new THREE.Vector3(0, 4.45, 6.85);
+    const camera = new THREE.PerspectiveCamera(43, 1, 0.05, 72);
+    const cameraTarget = new THREE.Vector3(0, 1.08, -1.6);
+    const cameraOffset = new THREE.Vector3(0, 5.2, 8.2);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -1031,9 +1039,9 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 4.9, 7.6);
-      else cameraOffset.set(0, 4.45, 6.85);
+      camera.fov = camera.aspect < 0.72 ? 50 : 43;
+      if (camera.aspect < 0.72) cameraOffset.set(0, 5.7, 9.05);
+      else cameraOffset.set(0, 5.2, 8.2);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
