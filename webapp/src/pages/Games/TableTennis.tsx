@@ -1,10 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { CHESS_HUMAN_CHARACTER_OPTIONS } from "../../config/chessBattleInventoryConfig.js";
-import { POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
-import { getChessBattleInventory, isChessOptionUnlocked } from "../../utils/chessBattleInventory.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
@@ -1038,42 +1035,8 @@ export default function MobileRealisticTableTennisGame() {
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsId, setGraphicsId] = useState<'performance' | 'balanced' | 'ultra'>(() => 'balanced');
-  const accountId = typeof window !== "undefined" ? window.localStorage.getItem("accountId") || "guest" : "guest";
-  const [inventory] = useState(() => getChessBattleInventory(accountId));
-  const unlockedHumanCharacters = useMemo(
-    () =>
-      CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
-        isChessOptionUnlocked("humanCharacter", option.id, inventory)
-      ),
-    [inventory]
-  );
-  const unlockedHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((option) =>
-        isChessOptionUnlocked("environmentHdri", option.id, inventory)
-      ),
-    [inventory]
-  );
-  const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState<string>("");
-  const [selectedHdriId, setSelectedHdriId] = useState<string>("");
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
-  useEffect(() => {
-    const fallbackHuman = unlockedHumanCharacters[0]?.id || CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id || "default";
-    const fallbackHdri = unlockedHdris[0]?.id || POOL_ROYALE_HDRI_VARIANTS[0]?.id || "colorfulStudio";
-    const savedHuman = typeof window !== "undefined" ? window.localStorage.getItem("tableTennisSelectedHumanCharacter") : null;
-    const savedHdri = typeof window !== "undefined" ? window.localStorage.getItem("tableTennisSelectedHdri") : null;
-    setSelectedHumanCharacterId(
-      savedHuman && unlockedHumanCharacters.some((entry) => entry.id === savedHuman) ? savedHuman : fallbackHuman
-    );
-    setSelectedHdriId(savedHdri && unlockedHdris.some((entry) => entry.id === savedHdri) ? savedHdri : fallbackHdri);
-  }, [unlockedHdris, unlockedHumanCharacters]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selectedHumanCharacterId) window.localStorage.setItem("tableTennisSelectedHumanCharacter", selectedHumanCharacterId);
-    if (selectedHdriId) window.localStorage.setItem("tableTennisSelectedHdri", selectedHdriId);
-  }, [selectedHdriId, selectedHumanCharacterId]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -1522,7 +1485,7 @@ export default function MobileRealisticTableTennisGame() {
           ☰
         </button>
         {menuOpen && (
-          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, maxHeight: "68vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
+          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
             <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginBottom: 8 }}>Graphics</div>
             {[
               { id: "performance", label: "Performance" },
@@ -1531,20 +1494,6 @@ export default function MobileRealisticTableTennisGame() {
             ].map((option) => (
               <button key={option.id} type="button" onClick={() => setGraphicsId(option.id as any)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: graphicsId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700 }}>
                 {option.label}
-              </button>
-            ))}
-            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>Human Characters</div>
-            {unlockedHumanCharacters.map((option) => (
-              <button key={option.id} type="button" onClick={() => setSelectedHumanCharacterId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHumanCharacterId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🙂</span>}
-                <span>{option.label}</span>
-              </button>
-            ))}
-            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>HDRI</div>
-            {unlockedHdris.map((option) => (
-              <button key={option.id} type="button" onClick={() => setSelectedHdriId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHdriId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🌆</span>}
-                <span>{option.label}</span>
               </button>
             ))}
           </div>
