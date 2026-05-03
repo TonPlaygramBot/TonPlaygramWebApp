@@ -107,9 +107,9 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 7.4,
-  doublesW: 8.9,
-  courtL: 19.0,
+  courtW: 5.25,
+  doublesW: 6.4,
+  courtL: 14.0,
   serviceLineZ: 2.85,
   netH: 0.64,
   ballR: 0.085,
@@ -118,10 +118,10 @@ const CFG = {
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 1.9,
-  playerSpeed: 5.9,
-  aiSpeed: 8.4,
-  reach: 1.35,
+  playerHeight: 1.82,
+  playerSpeed: 5.2,
+  aiSpeed: 6.8,
+  reach: 1.12,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -129,14 +129,6 @@ const CFG = {
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
 };
-
-const OPEN_SOURCE_SFX = {
-  // Kenney Interface Sounds (CC0): https://kenney.nl/assets/interface-sounds
-  racketHit: "https://cdn.jsdelivr.net/gh/kenneyNL/Assets@master/Audio/interface-sounds/Audio/confirmation_002.ogg",
-  bounce: "https://cdn.jsdelivr.net/gh/kenneyNL/Assets@master/Audio/interface-sounds/Audio/click_001.ogg",
-  crowd: "https://cdn.jsdelivr.net/gh/kenneyNL/Assets@master/Audio/interface-sounds/Audio/positive_2.ogg",
-  fault: "https://cdn.jsdelivr.net/gh/kenneyNL/Assets@master/Audio/interface-sounds/Audio/error_004.ogg",
-} as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clamp01 = (v: number) => clamp(v, 0, 1);
@@ -550,7 +542,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   };
 
   modelRoot.rotation.y = rig.yaw;
-  modelRoot.scale.setScalar(1.18);
+  modelRoot.scale.setScalar(0.9);
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
@@ -770,8 +762,8 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 10.6 + power * 6.1 : 7.8 + power * 4.9;
-  const flight = clamp(flatDist / baseSpeed, serve ? 0.36 : 0.46, serve ? 0.84 : 1.05);
+  const baseSpeed = serve ? 8.8 + power * 4.8 : 6.3 + power * 3.3;
+  const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
     (target.y - from.y + 0.5 * CFG.gravity * flight * flight) / flight,
@@ -792,9 +784,9 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((Math.abs(ball.pos.z) - 0.6) / (CFG.courtL / 2 - 0.8));
   const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
-  const x = clamp(near.pos.x * 0.82 + sideRead + (Math.random() - 0.5) * 0.28, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-  const z = lerp(1.6, CFG.courtL / 2 - 0.85, 0.5 + pressure * 0.45);
-  const power = clamp(0.78 + pressure * 0.38 + Math.random() * 0.16, 0.72, 1);
+  const x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+  const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
+  const power = clamp(0.64 + pressure * 0.36 + Math.random() * 0.22, 0.58, 1);
   const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
@@ -874,14 +866,10 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const gait = clamp01(dist / 0.8);
-    const isRunning = gait > 0.6;
-    const cadence = isRunning ? 16.5 : 8.2;
-    const bobHeight = isRunning ? 0.045 : 0.02;
-    const bob = Math.sin(performance.now() * 0.001 * cadence * Math.PI * 2) * bobHeight * gait;
+    const runAmount = clamp01(dist / 0.45);
+    const bob = Math.sin(performance.now() * 0.012) * 0.022 * runAmount;
     player.model.position.y = bob;
-    player.model.rotation.x = (isRunning ? 0.08 : 0.035) * gait;
-    player.model.rotation.z = Math.sin(performance.now() * 0.001 * cadence * Math.PI * 2 + Math.PI / 2) * (isRunning ? 0.03 : 0.015) * gait;
+    player.model.rotation.x = 0.035 * runAmount;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -1005,13 +993,13 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio(OPEN_SOURCE_SFX.racketHit);
+    const shotFx = new Audio("/assets/sounds/billiard-sound-05-288416.mp3");
     shotFx.volume = 0.6;
-    const bounceFx = new Audio(OPEN_SOURCE_SFX.bounce);
+    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
     bounceFx.volume = 0.34;
-    const crowdFx = new Audio(OPEN_SOURCE_SFX.crowd);
+    const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     crowdFx.volume = 0.32;
-    const faultFx = new Audio(OPEN_SOURCE_SFX.fault);
+    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
     faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
@@ -1173,11 +1161,9 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            if (canReachBall(player, ball)) {
-              performHit(player, ball, player.desiredHit, true);
-              void shotFx.play().catch(() => {});
-              setHudSafe({ status: "Serve sent" });
-            }
+            performHit(player, ball, player.desiredHit, true);
+            void shotFx.play().catch(() => {});
+            setHudSafe({ status: "Serve sent" });
           }
           continue;
         }
