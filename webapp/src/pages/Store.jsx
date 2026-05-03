@@ -134,7 +134,6 @@ import {
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
-import { addTennisUnlock, getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from '../utils/tennisInventory.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -1224,9 +1223,6 @@ export default function Store() {
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
   );
-  const [tennisOwned, setTennisOwned] = useState(() =>
-    getTennisInventory(tennisAccountId(accountId))
-  );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -1794,11 +1790,6 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'texasholdem'
-      })),
-      tennis: TENNIS_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tennis'
       }))
     }),
     []
@@ -1833,9 +1824,7 @@ export default function Store() {
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) =>
-        isTexasOptionUnlocked(type, optionId, texasOwned),
-      tennis: (type, optionId) =>
-        isTennisOptionUnlocked(type, optionId, tennisOwned)
+        isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
     [
       airOwned,
@@ -1849,8 +1838,7 @@ export default function Store() {
       murlanOwned,
       dominoOwned,
       snakeOwned,
-      texasOwned,
-      tennisOwned
+      texasOwned
     ]
   );
 
@@ -2578,10 +2566,6 @@ export default function Store() {
                 entry.optionId,
                 resolvedAccountId
               )
-            );
-          } else if (slug === 'tennis') {
-            setTennisOwned(
-              addTennisUnlock(entry.type, entry.optionId, resolvedAccountId)
             );
           }
         }
