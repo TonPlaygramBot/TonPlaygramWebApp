@@ -1033,6 +1033,8 @@ export default function MobileRealisticTableTennisGame() {
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [graphicsId, setGraphicsId] = useState<'performance' | 'balanced' | 'ultra'>(() => 'balanced');
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
 
@@ -1091,8 +1093,6 @@ export default function MobileRealisticTableTennisGame() {
     rim.position.set(2.4, 2.1, -3.1);
     scene.add(rim);
 
-    addBox(scene, [5.2, 0.055, 6.6], [0, -0.03, 0], material(0x1d2830, 0.92, 0.0));
-    addBox(scene, [4.8, 0.01, 6.1], [0, 0.002, 0], transparentMaterial(0x2f4651, 0.22));
     addTable(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e);
@@ -1166,6 +1166,16 @@ export default function MobileRealisticTableTennisGame() {
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
+    const applyGraphicsPreset = () => {
+      const preset = graphicsId === 'performance'
+        ? { pixelRatio: 1.2, shadows: false, envIntensity: 0.8 }
+        : graphicsId === 'ultra'
+          ? { pixelRatio: 2, shadows: true, envIntensity: 1.2 }
+          : { pixelRatio: 1.6, shadows: true, envIntensity: 1.0 };
+      renderer.setPixelRatio(Math.min(preset.pixelRatio, window.devicePixelRatio || 1));
+      renderer.shadowMap.enabled = preset.shadows;
+      scene.environmentIntensity = preset.envIntensity;
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       if (currentServer === "far" && ball.lastHitBy === null) return;
@@ -1220,6 +1230,7 @@ export default function MobileRealisticTableTennisGame() {
     canvas.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("resize", resize);
     resize();
+    applyGraphicsPreset();
 
     function updateServeTossLock() {
       for (const player of [nearPlayer, farPlayer]) {
@@ -1457,7 +1468,7 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, []);
+  }, [graphicsId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
@@ -1465,6 +1476,28 @@ export default function MobileRealisticTableTennisGame() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          style={{ position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.32)", background: "rgba(5,10,15,0.78)", color: "#fff", fontSize: 20, fontWeight: 800 }}
+          aria-label={menuOpen ? "Close game settings menu" : "Open game settings menu"}
+        >
+          ☰
+        </button>
+        {menuOpen && (
+          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginBottom: 8 }}>Graphics</div>
+            {[
+              { id: "performance", label: "Performance" },
+              { id: "balanced", label: "Balanced" },
+              { id: "ultra", label: "Ultra" }
+            ].map((option) => (
+              <button key={option.id} type="button" onClick={() => setGraphicsId(option.id as any)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: graphicsId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700 }}>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
           You {hud.nearScore} — {hud.farScore} AI
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
