@@ -16,6 +16,9 @@ namespace Aiming.Gameplay.Environment
         [Header("Layout Tuning")]
         [SerializeField, Min(0f)] private float humanOutwardOffset = 0.35f;
         [SerializeField, Min(0.1f)] private float chairScaleMultiplier = 1.08f;
+        [SerializeField] private bool fixHumanFacingDirection = true;
+        [SerializeField] private bool humansShouldFaceTableCenter = true;
+        [SerializeField] private Vector3 humanFacingEulerOffset = new Vector3(0f, 180f, 0f);
         [SerializeField] private bool runOnAwake = true;
 
         void Awake()
@@ -31,6 +34,7 @@ namespace Aiming.Gameplay.Environment
         {
             Vector3 center = tableCenter != null ? tableCenter.position : transform.position;
             PushHumansOutward(center);
+            FixHumanFacing(center);
             ScaleChairs();
         }
 
@@ -58,6 +62,32 @@ namespace Aiming.Gameplay.Environment
                 }
 
                 human.position += horizontalDirection.normalized * humanOutwardOffset;
+            }
+        }
+
+        private void FixHumanFacing(Vector3 center)
+        {
+            if (!fixHumanFacingDirection || humanCharacters == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < humanCharacters.Length; i++)
+            {
+                Transform human = humanCharacters[i];
+                if (human == null)
+                {
+                    continue;
+                }
+
+                Vector3 lookDirection = humansShouldFaceTableCenter ? (center - human.position) : (human.position - center);
+                lookDirection.y = 0f;
+                if (lookDirection.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                human.rotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up) * Quaternion.Euler(humanFacingEulerOffset);
             }
         }
 
