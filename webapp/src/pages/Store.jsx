@@ -134,6 +134,7 @@ import {
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { TENNIS_DEFAULT_LOADOUT, TENNIS_OPTION_LABELS, TENNIS_STORE_ITEMS } from '../config/tennisInventoryConfig.js';
+import { BOWLING_DEFAULT_LOADOUT, BOWLING_OPTION_LABELS, BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -1164,11 +1165,27 @@ const storeMeta = {
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
   },
+  'table-tennis': {
+    name: 'Table Tennis',
+    items: TENNIS_STORE_ITEMS,
+    defaults: TENNIS_DEFAULT_LOADOUT,
+    labels: TENNIS_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   tennis: {
     name: 'Tennis',
     items: TENNIS_STORE_ITEMS,
     defaults: TENNIS_DEFAULT_LOADOUT,
     labels: TENNIS_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
+  bowling: {
+    name: 'Bowling',
+    items: BOWLING_STORE_ITEMS,
+    defaults: BOWLING_DEFAULT_LOADOUT,
+    labels: BOWLING_OPTION_LABELS,
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
