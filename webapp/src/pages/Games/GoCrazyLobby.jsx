@@ -13,6 +13,7 @@ export default function GoCrazyLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
+  const [trackId, setTrackId] = useState('alpine-ring');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -21,6 +22,7 @@ export default function GoCrazyLobby() {
     const params = new URLSearchParams(search);
     params.set('mode', mode);
     params.set('players', String(players));
+    params.set('track', trackId);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     navigate(`/games/gocrazy?${params.toString()}`);
@@ -40,6 +42,16 @@ export default function GoCrazyLobby() {
           <div className="mt-3">
             <label className="text-xs text-white/60">Players: {players}</label>
             <input type="range" min={2} max={8} value={players} onChange={(e)=>setPlayers(Number(e.target.value))} className="w-full" />
+          </div>
+          <div className="mt-3">
+            <label className="text-xs text-white/60">Track</label>
+            <select value={trackId} onChange={(e) => setTrackId(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white">
+              <option value="alpine-ring">Alpine Ring</option>
+              <option value="sunset-circuit">Sunset Circuit</option>
+              <option value="canyon-flow">Canyon Flow</option>
+              <option value="forest-sweep">Forest Sweep</option>
+              <option value="storm-bend">Storm Bend</option>
+            </select>
           </div>
           <div className="mt-3 grid gap-2">
             <button onClick={()=>setShowFlagPicker(true)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-white/80">Your Flag: {selectedFlag || '🌐'}</button>
