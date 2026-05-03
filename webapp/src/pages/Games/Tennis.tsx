@@ -192,13 +192,19 @@ function addCourt(scene: THREE.Scene) {
   const group = new THREE.Group();
   scene.add(group);
 
+  const floorMat = material(0x152018, 0.96, 0.0);
+  const outerMat = material(0x1d7a4b, 0.88, 0.0);
+  const courtMat = material(0x286fb1, 0.82, 0.0);
+  const serviceMat = material(0x2f84c9, 0.82, 0.0);
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
   const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
-  // Keep the arena visually open so the HDRI remains visible from all angles.
-  // We intentionally skip opaque floor/court slabs and only keep gameplay markers.
+  addBox(group, [11.6, 0.045, 18.8], [0, -0.045, 0], floorMat);
+  addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, -0.015, 0], outerMat);
+  addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
+  addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
 
   const y = 0.045;
   const thick = 0.045;
@@ -259,7 +265,7 @@ function addStadiumBillboards(scene: THREE.Scene) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), mat);
     const side = i % 2 === 0 ? 1 : -1;
     const lane = Math.floor(i / 2);
-    mesh.position.set(side * (CFG.doublesW / 2 + 50), 0.95, -4.8 + lane * 4.8);
+    mesh.position.set(side * (CFG.doublesW / 2 + 1.25), 0.95, -4.8 + lane * 4.8);
     mesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
     boardGroup.add(mesh);
     panels.push(mesh);
@@ -941,7 +947,7 @@ export default function MobileThreeTennisPrototype() {
     };
     applyHdri(selectedHdriId);
     addCourt(scene);
-    const updateBillboards = (_elapsed: number) => {};
+    const updateBillboards = addStadiumBillboards(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
