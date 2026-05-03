@@ -107,9 +107,9 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 5.25,
-  doublesW: 6.4,
-  courtL: 14.0,
+  courtW: 5.85,
+  doublesW: 7.1,
+  courtL: 15.4,
   serviceLineZ: 2.85,
   netH: 0.64,
   ballR: 0.085,
@@ -119,8 +119,8 @@ const CFG = {
   groundFriction: 0.86,
   minBallSpeed: 0.12,
   playerHeight: 1.82,
-  playerSpeed: 5.2,
-  aiSpeed: 6.8,
+  playerSpeed: 5.9,
+  aiSpeed: 8.2,
   reach: 1.12,
   swingDuration: 0.38,
   serveDuration: 0.86,
@@ -762,7 +762,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 8.8 + power * 4.8 : 6.3 + power * 3.3;
+  const baseSpeed = serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -786,8 +786,9 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
   const x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
   const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
-  const power = clamp(0.64 + pressure * 0.36 + Math.random() * 0.22, 0.58, 1);
-  const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
+  const power = clamp(0.72 + pressure * 0.42 + Math.random() * 0.2, 0.62, 1);
+  const roll = Math.random();
+  const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.66 ? "slice" : roll < 0.22 ? "lob" : "flat";
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
 
@@ -805,11 +806,11 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.y += 0.35 + hit.power * 0.35;
     ball.spin = 1.05 + hit.power * 1.1;
   } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.1;
+    ball.vel.x += (Math.random() - 0.5) * 1.6;
     ball.vel.y -= 0.12;
-    ball.spin = -0.85 - hit.power * 0.45;
+    ball.spin = -1.15 - hit.power * 0.62;
   } else {
-    ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.45 + hit.power * 1.0;
+    ball.spin = serve ? 0.95 + hit.power * 0.9 : 0.6 + hit.power * 1.25;
   }
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
@@ -866,10 +867,18 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const runAmount = clamp01(dist / 0.45);
-    const bob = Math.sin(performance.now() * 0.012) * 0.022 * runAmount;
+    const runAmount = clamp01(dist / 0.42);
+    const moveDir = dist > 0.0001 ? to.clone().normalize() : new THREE.Vector3();
+    const localForward = forwardFromYaw(player.yaw);
+    const localRight = rightFromForward(localForward);
+    const forwardDot = moveDir.dot(localForward);
+    const sideDot = moveDir.dot(localRight);
+    const walkT = performance.now() * 0.015 + (player.side === "near" ? 0 : Math.PI);
+    const bob = Math.sin(walkT) * 0.03 * runAmount;
+    const strafeLean = sideDot * 0.1 * runAmount;
     player.model.position.y = bob;
-    player.model.rotation.x = 0.035 * runAmount;
+    player.model.rotation.x = 0.05 * runAmount * Math.max(0, forwardDot) - 0.03 * runAmount * Math.max(0, -forwardDot);
+    player.model.rotation.z = strafeLean;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -932,9 +941,9 @@ export default function MobileThreeTennisPrototype() {
     let activeEnvMap: THREE.Texture | null = null;
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.9, -1.3);
-    const cameraOffset = new THREE.Vector3(0, 4.45, 6.85);
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
+    const cameraTarget = new THREE.Vector3(0, 0.95, -1.45);
+    const cameraOffset = new THREE.Vector3(0, 4.95, 7.7);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -993,9 +1002,9 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("/assets/sounds/billiard-sound-05-288416.mp3");
+    const shotFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
     shotFx.volume = 0.6;
-    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+    const bounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
     bounceFx.volume = 0.34;
     const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     crowdFx.volume = 0.32;
@@ -1032,8 +1041,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 4.9, 7.6);
-      else cameraOffset.set(0, 4.45, 6.85);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45, 8.55);
+      else cameraOffset.set(0, 4.95, 7.7);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
