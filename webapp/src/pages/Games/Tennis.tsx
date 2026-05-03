@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
-type StrokeAction = "ready" | "forehand" | "serve";
+type StrokeAction = "ready" | "forehand" | "serve" | "slice" | "topspin" | "volley";
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -113,12 +113,12 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 4.65,
+  aiSpeed: 5.35,
   reach: 0.92,
-  swingDuration: 0.42,
+  swingDuration: 0.35,
   serveDuration: 0.86,
-  hitWindowStart: 0.42,
-  hitWindowEnd: 0.72,
+  hitWindowStart: 0.34,
+  hitWindowEnd: 0.74,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
 };
@@ -183,6 +183,37 @@ function getWorldPos(obj: THREE.Object3D) {
   return obj.getWorldPosition(new THREE.Vector3());
 }
 
+function addMovingBillboards(group: THREE.Group) {
+  const boards: Array<{ mesh: THREE.Mesh; speed: number; phase: number }> = [];
+  const boardMat = (base: number) => new THREE.MeshStandardMaterial({ color: base, roughness: 0.45, metalness: 0.2, emissive: new THREE.Color(base).multiplyScalar(0.08) });
+  const names = ["TONPLAYGRAM", "ACE ENERGY", "COURT VISION", "PRO SPIN", "MATCH POINT", "ROYAL SERVE"];
+  const zRows = [-5.4, -2.1, 1.2, 4.6];
+  zRows.forEach((z, row) => {
+    for (let i = 0; i < 2; i += 1) {
+      const x = i === 0 ? -(CFG.doublesW / 2 + 1.2) : CFG.doublesW / 2 + 1.2;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.78, 0.1), boardMat(i === 0 ? 0x0ea5e9 : 0xef4444));
+      mesh.position.set(x, 1.05, z + (row % 2 ? 0.25 : -0.2));
+      mesh.rotation.y = i === 0 ? Math.PI / 2 : -Math.PI / 2;
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+        const c = document.createElement("canvas"); c.width = 512; c.height = 128;
+        const ctx = c.getContext("2d"); if (ctx) {
+          ctx.fillStyle = "#08121f"; ctx.fillRect(0,0,c.width,c.height);
+          ctx.fillStyle = "#ffffff"; ctx.font = "900 52px Inter, Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(names[(row*2+i)%names.length], c.width/2, c.height/2);
+        }
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+      })(), transparent: true }));
+      label.scale.set(1.35, 0.33, 1);
+      label.position.set(0, 0.03, 0.06);
+      mesh.add(label);
+      enableShadow(mesh);
+      group.add(mesh);
+      boards.push({ mesh, speed: 0.75 + row * 0.08 + i * 0.1, phase: row * 0.7 + i * 1.1 });
+    }
+  });
+  return boards;
+}
+
 function addCourt(scene: THREE.Scene) {
   const group = new THREE.Group();
   scene.add(group);
@@ -225,7 +256,9 @@ function addCourt(scene: THREE.Scene) {
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
   for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
-  return group;
+  const billboards = addMovingBillboards(group);
+
+  return { group, billboards };
 }
 
 function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
@@ -719,7 +752,19 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
-  ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.3 + hit.power * 0.9;
+  if (player.action === "slice") {
+    ball.vel.y *= 0.82;
+    ball.vel.x *= 1.04;
+    ball.spin = -0.55 - hit.power * 0.45;
+  } else if (player.action === "topspin") {
+    ball.vel.y *= 1.06;
+    ball.spin = 0.95 + hit.power * 1.25;
+  } else if (player.action === "volley") {
+    ball.vel.multiplyScalar(1.14);
+    ball.spin = 0.15 + hit.power * 0.35;
+  } else {
+    ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.3 + hit.power * 0.9;
+  }
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
@@ -835,8 +880,8 @@ export default function MobileThreeTennisPrototype() {
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x07100c, 12, 21);
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.96, -0.95);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 80);
+    const cameraTarget = new THREE.Vector3(0, 0.9, -0.4);
     const cameraDesiredPos = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -854,7 +899,7 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
 
-    addCourt(scene);
+    const { billboards } = addCourt(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
@@ -897,7 +942,7 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 5.25 : 4.7, camera.aspect < 0.72 ? 9.9 : 8.9);
+      camera.position.set(0, camera.aspect < 0.72 ? 5.8 : 5.3, camera.aspect < 0.72 ? 11.4 : 10.4);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1003,6 +1048,14 @@ export default function MobileThreeTennisPrototype() {
       ball.mesh.position.copy(ball.pos);
     }
 
+    function chooseAiAction(ballObj: BallState) {
+      if (ballObj.pos.y > 1.15 && Math.abs(ballObj.pos.z) < 3.2) return "volley" as StrokeAction;
+      const r = Math.random();
+      if (r < 0.28) return "slice";
+      if (r < 0.62) return "topspin";
+      return "forehand";
+    }
+
     function updateAi() {
       const landing = predictLanding(ball);
       const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.2);
@@ -1013,7 +1066,14 @@ export default function MobileThreeTennisPrototype() {
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
-      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        const action = chooseAiAction(ball);
+        const hit = makeAiTarget(nearPlayer, ball);
+        if (action === "slice") hit.power *= 0.92;
+        if (action === "topspin") hit.power = Math.min(1, hit.power * 1.06);
+        if (action === "volley") hit.power = Math.min(1, hit.power * 1.12);
+        startSwing(farPlayer, hit, action);
+      }
     }
 
     function checkSwingHits() {
@@ -1068,9 +1128,9 @@ export default function MobileThreeTennisPrototype() {
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
       const portrait = camera.aspect < 0.72;
-      const followY = portrait ? 4.95 : 4.45;
-      const followBack = portrait ? 6.7 : 6.15;
-      const lookAheadZ = portrait ? 8.75 : 8.2;
+      const followY = portrait ? 5.55 : 5.2;
+      const followBack = portrait ? 8.45 : 7.95;
+      const lookAheadZ = portrait ? 10.1 : 9.55;
 
       cameraDesiredPos.set(
         nearPlayer.pos.x * 0.22,
@@ -1078,7 +1138,12 @@ export default function MobileThreeTennisPrototype() {
         nearPlayer.pos.z + followBack
       );
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
-      cameraTarget.set(nearPlayer.pos.x * 0.16, 0.96, nearPlayer.pos.z - lookAheadZ);
+      cameraTarget.set(nearPlayer.pos.x * 0.14, 0.9, nearPlayer.pos.z - lookAheadZ);
+      const t = performance.now() * 0.001;
+      billboards.forEach((entry, idx) => {
+        entry.mesh.position.y = 1.03 + Math.sin(t * entry.speed + entry.phase) * 0.08;
+        entry.mesh.material.emissiveIntensity = 0.55 + 0.45 * Math.sin(t * 2.2 + idx * 0.65);
+      });
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
