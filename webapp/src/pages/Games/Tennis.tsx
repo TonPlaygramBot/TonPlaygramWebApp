@@ -108,11 +108,11 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  courtW: 4.18,
-  doublesW: 5.25,
-  courtL: 12.1,
-  serviceLineZ: 2.85,
-  netH: 0.64,
+  courtW: 8.23,
+  doublesW: 10.97,
+  courtL: 23.77,
+  serviceLineZ: 6.4,
+  netH: 0.92,
   ballR: 0.085,
   gravity: 9.8,
   airDrag: 0.078,
@@ -120,16 +120,16 @@ const CFG = {
   groundFriction: 0.86,
   minBallSpeed: 0.12,
   playerHeight: 1.82,
-  playerSpeed: 5.2,
-  aiSpeed: 4.65,
-  reach: 0.92,
-  swingDuration: 0.42,
+  playerSpeed: 5.8,
+  aiSpeed: 6.4,
+  reach: 1.02,
+  swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  shotPowerBoost: 1.0,
+  shotPowerBoost: 1.28,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -900,8 +900,8 @@ export default function MobileThreeTennisPrototype() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.78, -0.7);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 110);
+    const cameraTarget = new THREE.Vector3(0, 1.1, -2.2);
     const cameraDesiredPos = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -998,8 +998,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 6.95 : 6.15, camera.aspect < 0.72 ? 8.15 : 7.35);
+      camera.fov = camera.aspect < 0.72 ? 50 : 44;
+      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.15, camera.aspect < 0.72 ? 15.8 : 13.4);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
