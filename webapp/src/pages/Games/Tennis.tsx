@@ -836,7 +836,9 @@ export default function MobileThreeTennisPrototype() {
     scene.fog = new THREE.Fog(0x07100c, 12, 21);
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.78, -0.7);
+    const cameraTarget = new THREE.Vector3(0, 0.84, -0.95);
+    const cameraOffset = new THREE.Vector3(0, 3.65, 4.95);
+    const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x254c3d, 0.7));
@@ -896,7 +898,10 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 6.2 : 5.45, camera.aspect < 0.72 ? 8.15 : 7.35);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 3.95, 5.35);
+      else cameraOffset.set(0, 3.65, 4.95);
+      cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
+      camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1066,6 +1071,10 @@ export default function MobileThreeTennisPrototype() {
       ghost.position.z += (nearPlayer.target.z - ghost.position.z) * (1 - Math.exp(-12 * dt));
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
+      cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
+      camera.position.lerp(cameraPosTarget, 1 - Math.exp(-5.5 * dt));
+      cameraTarget.x += (nearPlayer.target.x - cameraTarget.x) * (1 - Math.exp(-5.2 * dt));
+      cameraTarget.z += ((nearPlayer.target.z - 5.6) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
@@ -1098,7 +1107,7 @@ export default function MobileThreeTennisPrototype() {
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: 10, right: 10, top: 34, color: "white", background: "rgba(5,12,18,0.78)", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 10px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
+        <div style={{ position: "absolute", left: 10, right: 10, top: 64, color: "white", background: "rgba(5,12,18,0.78)", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 10px", borderRadius: 14, fontSize: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.22)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 30, height: 30, borderRadius: "999px", overflow: "hidden", border: "1px solid rgba(255,255,255,.25)", background: "#1f2937" }}>{playerAvatar ? <img src={playerAvatar} alt={playerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}</div>
