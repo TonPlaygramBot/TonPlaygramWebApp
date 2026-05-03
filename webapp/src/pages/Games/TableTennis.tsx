@@ -278,16 +278,23 @@ function buildRealisticTableTennisTable() {
   return group;
 }
 
-function addTable(scene: THREE.Scene) {
+function createConfiguredGltfLoader(renderer: THREE.WebGLRenderer) {
+  const loader = new GLTFLoader().setCrossOrigin("anonymous");
+  const dracoLoader = new DRACOLoader().setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  const ktx2Loader = new KTX2Loader().setTranscoderPath("https://cdn.jsdelivr.net/npm/three@0.181.1/examples/jsm/libs/basis/");
+  ktx2Loader.detectSupport(renderer);
+  loader.setDRACOLoader(dracoLoader);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+  loader.setKTX2Loader(ktx2Loader);
+  return loader;
+}
+
+function addTable(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
   const fallback = buildRealisticTableTennisTable();
   scene.add(fallback);
   if (!TABLE_GLTF_URL) return fallback;
 
-  const tableLoader = new GLTFLoader().setCrossOrigin("anonymous");
-  const dracoLoader = new DRACOLoader().setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-  tableLoader.setDRACOLoader(dracoLoader);
-  tableLoader.setMeshoptDecoder?.(MeshoptDecoder);
-  tableLoader.setKTX2Loader(new KTX2Loader().setTranscoderPath("https://cdn.jsdelivr.net/npm/three@0.181.1/examples/jsm/libs/basis/"));
+  const tableLoader = createConfiguredGltfLoader(renderer);
   tableLoader.load(
     TABLE_GLTF_URL,
     (gltf) => {
@@ -519,7 +526,7 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, humanUrl?: string): HumanRig {
+function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: PlayerSide, start: THREE.Vector3, accent: number, humanUrl?: string): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
@@ -555,7 +562,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   modelRoot.rotation.y = rig.yaw;
   paddle.visible = true;
 
-  new GLTFLoader().setCrossOrigin("anonymous").load(
+  createConfiguredGltfLoader(renderer).load(
     humanUrl || CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0],
     (gltf) => {
       const model = gltf.scene;
@@ -1098,7 +1105,7 @@ export default function MobileRealisticTableTennisGame() {
     pmrem.compileEquirectangularShader();
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x091014, 4.7, 8.2);
+    scene.fog = null;
     let activeEnvMap: THREE.Texture | null = null;
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
     const hdriCandidateUrls = selectedHdriOption?.assetId ? [
@@ -1116,7 +1123,8 @@ export default function MobileRealisticTableTennisGame() {
         activeEnvMap = env;
         scene.environment = env;
         scene.background = env;
-        scene.backgroundBlurriness = 0.45;
+        scene.backgroundBlurriness = 0;
+        scene.backgroundIntensity = 1.0;
         scene.environmentIntensity = 1.0;
       }, undefined, () => loadHdri(idx + 1));
     };
@@ -1144,11 +1152,11 @@ export default function MobileRealisticTableTennisGame() {
     rim.position.set(2.4, 2.1, -3.1);
     scene.add(rim);
 
-    addTable(scene);
+    addTable(scene, renderer);
 
     const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
-    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e, humanModelUrl);
-    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48), 0x4ab7ff, humanModelUrl);
+    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e, humanModelUrl);
+    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48), 0x4ab7ff, humanModelUrl);
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
