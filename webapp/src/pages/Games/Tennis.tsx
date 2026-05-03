@@ -118,11 +118,10 @@ const CFG = {
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 1.92,
+  playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 8.4,
-  reach: 1.2,
-  racketContactRadius: 0.34,
+  aiSpeed: 6.8,
+  reach: 1.12,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -257,7 +256,6 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
   for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
-  group.scale.setScalar(1.24);
   return { group, netBody };
 }
 
@@ -544,7 +542,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   };
 
   modelRoot.rotation.y = rig.yaw;
-  modelRoot.scale.setScalar(1.1);
+  modelRoot.scale.setScalar(0.9);
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
@@ -764,7 +762,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 10.2 + power * 5.4 : 7.7 + power * 4.1;
+  const baseSpeed = serve ? 8.8 + power * 4.8 : 6.3 + power * 3.3;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -786,9 +784,9 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((Math.abs(ball.pos.z) - 0.6) / (CFG.courtL / 2 - 0.8));
   const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
-  const x = clamp(near.pos.x * 0.8 + sideRead + (Math.random() - 0.5) * 0.36, -CFG.courtW / 2 + 0.31, CFG.courtW / 2 - 0.31);
-  const z = lerp(1.5, CFG.courtL / 2 - 0.6, 0.5 + pressure * 0.46);
-  const power = clamp(0.78 + pressure * 0.35 + Math.random() * 0.12, 0.72, 1);
+  const x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+  const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
+  const power = clamp(0.64 + pressure * 0.36 + Math.random() * 0.22, 0.58, 1);
   const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
@@ -828,8 +826,10 @@ function canReachBall(player: HumanRig, ball: BallState) {
   const dx = ball.pos.x - pose.racketHead.x;
   const dy = ball.pos.y - pose.racketHead.y;
   const dz = ball.pos.z - pose.racketHead.z;
-  const racketNear = dx * dx + dy * dy * 0.62 + dz * dz < CFG.racketContactRadius * CFG.racketContactRadius;
-  return racketNear;
+  const racketNear = dx * dx + dy * dy * 0.45 + dz * dz < 0.48 * 0.48;
+  const bodyDx = ball.pos.x - player.pos.x;
+  const bodyDz = ball.pos.z - player.pos.z;
+  return racketNear || bodyDx * bodyDx + bodyDz * bodyDz < CFG.reach * CFG.reach;
 }
 
 function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeAction) {
@@ -866,14 +866,10 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const moveSpeed = dist / Math.max(dt, 0.0001);
-    const runAmount = clamp01(moveSpeed / 6.2);
-    const walkAmount = clamp01(moveSpeed / 2.4) * (1 - runAmount * 0.5);
-    const cadence = 6.8 + runAmount * 5.8;
-    const stride = Math.sin(performance.now() * 0.001 * cadence);
-    player.model.position.y = Math.abs(stride) * (0.016 + runAmount * 0.017);
-    player.model.rotation.x = 0.025 * walkAmount + 0.085 * runAmount;
-    player.model.rotation.z = stride * 0.015 * (walkAmount + runAmount);
+    const runAmount = clamp01(dist / 0.45);
+    const bob = Math.sin(performance.now() * 0.012) * 0.022 * runAmount;
+    player.model.position.y = bob;
+    player.model.rotation.x = 0.035 * runAmount;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -997,13 +993,13 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_968e189fbb.mp3?filename=tennis-racket-hit-1-189669.mp3");
+    const shotFx = new Audio("/assets/sounds/billiard-sound-05-288416.mp3");
     shotFx.volume = 0.6;
-    const bounceFx = new Audio("https://cdn.pixabay.com/download/audio/2022/03/10/audio_7dd7f766ef.mp3?filename=tennis-ball-bounce-186942.mp3");
+    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
     bounceFx.volume = 0.34;
-    const crowdFx = new Audio("https://cdn.pixabay.com/download/audio/2022/10/25/audio_946ff95b5c.mp3?filename=small-crowd-cheer-and-applause-111548.mp3");
+    const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     crowdFx.volume = 0.32;
-    const faultFx = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_ef53f3db6f.mp3?filename=referee-whistle-3-18697.mp3");
+    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
     faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
@@ -1153,7 +1149,7 @@ export default function MobileThreeTennisPrototype() {
       const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 || landing.z < 0);
       if (ballComingToAi) {
         farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-        farPlayer.target.z = clamp(Math.min(-0.72, landing.z + 0.32), -CFG.courtL / 2 + 0.42, -0.64);
+        farPlayer.target.z = clamp(Math.min(-0.72, landing.z + 0.42), -CFG.courtL / 2 + 0.42, -0.64);
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
