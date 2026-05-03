@@ -19,9 +19,7 @@ type BallState = {
   bounceCount: number;
 };
 
-type ShotTechnique = "flat" | "topspin" | "slice";
-
-type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique };
+type DesiredHit = { target: THREE.Vector3; power: number };
 
 type BonePack = {
   spine?: THREE.Bone;
@@ -115,9 +113,9 @@ const CFG = {
   minBallSpeed: 0.12,
   playerHeight: 1.82,
   playerSpeed: 5.2,
-  aiSpeed: 5.5,
+  aiSpeed: 4.65,
   reach: 0.92,
-  swingDuration: 0.38,
+  swingDuration: 0.42,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
@@ -230,53 +228,6 @@ function addCourt(scene: THREE.Scene) {
   return group;
 }
 
-
-function addStadiumBillboards(scene: THREE.Scene) {
-  const boardGroup = new THREE.Group();
-  scene.add(boardGroup);
-  const banners = ["TONPLAYGRAM", "TENNIS PRO", "REAL SPEED", "LIVE ARENA"];
-  const fontCanvas = document.createElement("canvas");
-  fontCanvas.width = 512;
-  fontCanvas.height = 128;
-  const ctx = fontCanvas.getContext("2d");
-  const makeTexture = (text: string, t: number) => {
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, fontCanvas.width, fontCanvas.height);
-    const grad = ctx.createLinearGradient(0, 0, fontCanvas.width, 0);
-    grad.addColorStop(0, `hsl(${(t * 40) % 360} 85% 55%)`);
-    grad.addColorStop(1, `hsl(${(180 + t * 65) % 360} 80% 45%)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, fontCanvas.width, fontCanvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.94)";
-    ctx.font = "bold 54px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, fontCanvas.width / 2, fontCanvas.height / 2);
-    const texture = new THREE.CanvasTexture(fontCanvas);
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const panels: THREE.Mesh[] = [];
-  for (let i = 0; i < 6; i++) {
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x0a0a0a, roughness: 0.4, metalness: 0.05 });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), mat);
-    const side = i % 2 === 0 ? 1 : -1;
-    const lane = Math.floor(i / 2);
-    mesh.position.set(side * (CFG.doublesW / 2 + 1.25), 0.95, -4.8 + lane * 4.8);
-    mesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-    boardGroup.add(mesh);
-    panels.push(mesh);
-  }
-  return (elapsed: number) => {
-    panels.forEach((panel, idx) => {
-      const text = banners[(Math.floor(elapsed * 1.8 + idx) % banners.length + banners.length) % banners.length];
-      const tex = makeTexture(text, elapsed + idx * 0.2);
-      if (tex && panel.material instanceof THREE.MeshStandardMaterial) panel.material.map = tex;
-      panel.position.y = 0.95 + Math.sin(elapsed * 2.1 + idx) * 0.03;
-      panel.material.needsUpdate = true;
-    });
-  };
-}
 function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.rotation.set(0, CFG.playerVisualYawFix, 0);
   model.position.set(0, 0, 0);
@@ -751,13 +702,12 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
 }
 
-function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
+function makeAiTarget(near: HumanRig, ball: BallState) {
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0) / (CFG.courtL / 2 - 1.0));
   const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
   const z = lerp(1.35, CFG.courtL / 2 - 1.0, 0.35 + pressure * 0.55);
-  const power = clamp(0.56 + pressure * 0.34 + Math.random() * 0.2, 0.5, 1);
-  const technique: ShotTechnique = pressure > 0.66 ? "topspin" : (Math.random() > 0.5 ? "slice" : "flat");
-  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
+  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, 0.42, 0.92);
+  return { target: new THREE.Vector3(x, CFG.ballR, z), power };
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
@@ -769,17 +719,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
-  const technique = hit.technique || "flat";
-  if (technique === "topspin") {
-    ball.vel.y += 0.35 + hit.power * 0.35;
-    ball.spin = 1.05 + hit.power * 1.1;
-  } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.1;
-    ball.vel.y -= 0.12;
-    ball.spin = -0.85 - hit.power * 0.45;
-  } else {
-    ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.45 + hit.power * 1.0;
-  }
+  ball.spin = serve ? 0.75 + hit.power * 0.65 : 0.3 + hit.power * 0.9;
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
@@ -896,8 +836,8 @@ export default function MobileThreeTennisPrototype() {
     scene.fog = new THREE.Fog(0x07100c, 12, 21);
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 0.9, -1.3);
-    const cameraOffset = new THREE.Vector3(0, 4.45, 6.85);
+    const cameraTarget = new THREE.Vector3(0, 0.84, -0.95);
+    const cameraOffset = new THREE.Vector3(0, 3.65, 4.95);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -916,7 +856,6 @@ export default function MobileThreeTennisPrototype() {
     scene.add(sun);
 
     addCourt(scene);
-    const updateBillboards = addStadiumBillboards(scene);
 
     const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
@@ -958,9 +897,9 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 4.9, 7.6);
-      else cameraOffset.set(0, 4.45, 6.85);
+      camera.fov = camera.aspect < 0.72 ? 48 : 42;
+      if (camera.aspect < 0.72) cameraOffset.set(0, 3.95, 5.35);
+      else cameraOffset.set(0, 3.65, 4.95);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1135,8 +1074,7 @@ export default function MobileThreeTennisPrototype() {
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.lerp(cameraPosTarget, 1 - Math.exp(-5.5 * dt));
       cameraTarget.x += (nearPlayer.target.x - cameraTarget.x) * (1 - Math.exp(-5.2 * dt));
-      cameraTarget.z += ((nearPlayer.target.z - 6.9) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
-      updateBillboards(now * 0.001);
+      cameraTarget.z += ((nearPlayer.target.z - 5.6) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
