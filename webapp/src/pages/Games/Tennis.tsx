@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { useLocation } from "react-router-dom";
 import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
 import { getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from "../../utils/tennisInventory.js";
@@ -22,8 +21,6 @@ type BallState = {
   lastHitBy: PlayerSide | null;
   bounceSide: PlayerSide | null;
   bounceCount: number;
-  serveBounceCount: number;
-  serveServer: PlayerSide | null;
 };
 
 type DesiredHit = { target: THREE.Vector3; power: number };
@@ -128,7 +125,6 @@ const CFG = {
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  shotPowerBoost: 1.12,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -234,7 +230,7 @@ function addCourt(scene: THREE.Scene) {
   const courtMat = material(0x286fb1, 0.82, 0.0);
   const serviceMat = material(0x2f84c9, 0.82, 0.0);
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
-  const netMat = transparentMaterial(0x111111, 0.28, 0.55);
+  const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
@@ -264,8 +260,8 @@ function addCourt(scene: THREE.Scene) {
   addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
-  for (let i = -28; i <= 28; i++) addBox(group, [0.0026, CFG.netH * 0.94, 0.01], [(i * CFG.doublesW) / 56, CFG.netH * 0.47, 0.018], transparentMaterial(0xffffff, 0.22));
-  for (let j = 1; j <= 12; j++) addBox(group, [CFG.doublesW + 0.12, 0.0025, 0.012], [0, (j * CFG.netH) / 13, 0.019], transparentMaterial(0xffffff, 0.2));
+  for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
+  for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
 
   return group;
 }
@@ -553,8 +549,6 @@ function createBall() {
     lastHitBy: null,
     bounceSide: null,
     bounceCount: 0,
-    serveBounceCount: 0,
-    serveServer: null,
   } as BallState;
 }
 
@@ -676,8 +670,6 @@ function resetBallForServe(ball: BallState, near: HumanRig) {
   ball.lastHitBy = null;
   ball.bounceSide = null;
   ball.bounceCount = 0;
-  ball.serveBounceCount = 0;
-  ball.serveServer = near.side;
   ball.mesh.position.copy(ball.pos);
 }
 
@@ -734,7 +726,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = (serve ? 7.2 + power * 4.2 : 5.2 + power * 2.8) * CFG.shotPowerBoost;
+  const baseSpeed = serve ? 7.2 + power * 4.2 : 5.2 + power * 2.8;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -778,8 +770,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
-  ball.serveServer = serve ? player.side : ball.serveServer;
-  ball.serveBounceCount = serve ? 0 : ball.serveBounceCount;
   player.cooldown = serve ? 0.42 : 0.28;
   player.hitThisSwing = true;
   if (hitFx) { hitFx.currentTime = 0; hitFx.play().catch(() => {}); }
@@ -895,8 +885,6 @@ export default function MobileThreeTennisPrototype() {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x07100c, 12, 21);
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
     const cameraTarget = new THREE.Vector3(0, 0.96, -0.95);
@@ -916,17 +904,6 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.top = 9;
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
-    const hdri = TENNIS_HDRI_OPTIONS.find((opt) => opt.id === selectedHdriId) || TENNIS_HDRI_OPTIONS[0];
-    hdriLoader.load(
-      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${hdri.assetId}_2k.hdr`,
-      (tex) => {
-        tex.mapping = THREE.EquirectangularReflectionMapping;
-        const env = pmrem.fromEquirectangular(tex).texture;
-        scene.environment = env;
-        scene.background = env;
-        tex.dispose();
-      }
-    );
 
     const court = addCourt(scene);
 
@@ -951,8 +928,6 @@ export default function MobileThreeTennisPrototype() {
     crowdLoop.loop = true; crowdLoop.volume = 0.22;
     const cheerFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     cheerFx.volume = 0.45;
-    const swingFx = new Audio("/assets/sounds/chingpingu.mp3");
-    swingFx.volume = 0.26;
 
     let pointLock = false;
     let pointLockT = 0;
@@ -1078,16 +1053,6 @@ export default function MobileThreeTennisPrototype() {
           const outsideZ = Math.abs(ball.pos.z) > CFG.courtL / 2;
           if ((outsideX || outsideZ) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
           else if (ball.bounceCount > 1) awardPoint(opposite(bounceSide), "doubleBounce");
-          if (ball.serveServer && ball.serveBounceCount < 2) {
-            ball.serveBounceCount += 1;
-            const expected = ball.serveBounceCount === 1 ? ball.serveServer : opposite(ball.serveServer);
-            const inServiceBox =
-              sideOfZ(ball.pos.z) === expected &&
-              Math.abs(ball.pos.x) <= CFG.courtW / 2 &&
-              Math.abs(ball.pos.z) >= CFG.serviceLineZ;
-            if (!inServiceBox) awardPoint(opposite(ball.serveServer), "out");
-            if (ball.serveBounceCount >= 2) ball.serveServer = null;
-          }
         }
       }
 
@@ -1119,16 +1084,14 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            performHit(player, ball, player.desiredHit, true, player.action, swingFx);
+            performHit(player, ball, player.desiredHit, true, player.action, cheerFx);
             setHudSafe({ status: "Serve sent" });
           }
           continue;
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
-        const racketHead = getWorldPos(player.racket).add(new THREE.Vector3(0, 0.28, 0));
-        const hasPhysicalContact = racketHead.distanceTo(ball.pos) <= CFG.reach * 0.44;
-        if (canReachBall(player, ball) && hasPhysicalContact) {
-          performHit(player, ball, player.desiredHit, false, player.action, swingFx);
+        if (canReachBall(player, ball)) {
+          performHit(player, ball, player.desiredHit, false, player.action, cheerFx);
           setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
@@ -1193,7 +1156,6 @@ export default function MobileThreeTennisPrototype() {
       crowdLoop.pause();
       crowdLoop.currentTime = 0;
       renderer.dispose();
-      pmrem.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.isMesh) {
@@ -1204,7 +1166,7 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId]);
+  }, []);
 
   useEffect(() => {
     const inventory = getTennisInventory(tennisAccountId());
