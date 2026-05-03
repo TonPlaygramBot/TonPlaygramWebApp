@@ -19,6 +19,11 @@ const ORIGINAL_ASSETS = {
   treeRemote: "https://raw.githubusercontent.com/jagenjo/GTR_Framework/master/data/prefabs/tree.glb"
 };
 const MURLAN_HUMAN_MODEL_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const FERRARI_KART_URL = "https://threejs.org/examples/models/gltf/ferrari.glb";
+const BUGGY_KART_URLS = [
+  "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
+  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb"
+];
 
 const TAU = Math.PI * 2;
 const CHECKPOINTS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
@@ -159,6 +164,18 @@ async function tryLoadMurlanHuman(loader) {
     console.warn("Murlan seated human GLTF could not load.", err);
     return null;
   }
+}
+
+async function tryLoadVehicleModel(loader, urls) {
+  for (const url of urls) {
+    try {
+      const gltf = await loadGltf(loader, url);
+      return gltf.scene;
+    } catch (err) {
+      console.warn("Vehicle model URL failed:", url, err);
+    }
+  }
+  return null;
 }
 
 async function tryLoadOriginalAssets(loader) {
@@ -380,6 +397,23 @@ function createOriginalKart(assets, name, ai, angle, lane, index, variant, track
   const mixer = animations.length ? new THREE.AnimationMixer(model) : undefined;
   if (mixer) mixer.clipAction(animations[0]).play();
   return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer };
+}
+
+function fitVehicleModel(model, { targetLength = 2.5, lift = 0.12, yaw = Math.PI } = {}) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 0.0001);
+  const scale = targetLength / maxDim;
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(model);
+  const center = fitted.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y += -fitted.min.y + lift;
+  model.rotation.y += yaw;
+  enableShadows(model);
+  return model;
 }
 
 function updateCheckpoint(kart, track) {
@@ -622,7 +656,7 @@ export default function SuperTuxKartPlayablePreview() {
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
       const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
-      const names = ["Red Sport Truck", "Blue Box Truck", "Yellow Heavy Truck", "Green Rally Truck", "Purple Longnose"];
+      const names = ["Ferrari Sport", "Go-Kart Buggy", "Go-Kart Buggy", "Ferrari Sport", "Go-Kart Buggy"];
       const starts = [
         { angle: Math.PI / 2, lane: 0 },
         { angle: Math.PI / 2 - 0.18, lane: -1.5 },
@@ -642,8 +676,37 @@ export default function SuperTuxKartPlayablePreview() {
       const ai4 = makeKart(4);
       const karts = [player, ai1, ai2, ai3, ai4];
       karts.forEach((k) => scene.add(k.group));
+      const ferrariTemplate = await tryLoadVehicleModel(loader, [FERRARI_KART_URL]);
+      const buggyTemplate = await tryLoadVehicleModel(loader, BUGGY_KART_URLS);
+      karts.forEach((kart, i) => {
+        const useFerrari = i === 0 || i === 3;
+        const template = useFerrari ? ferrariTemplate : buggyTemplate;
+        if (!template) return;
+        kart.group.clear();
+        const vehicle = cloneModel(template);
+        fitVehicleModel(vehicle, { targetLength: useFerrari ? 2.55 : 2.35, lift: 0.1, yaw: Math.PI });
+        kart.group.add(vehicle);
+      });
       const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
+      const WEAPON_MODEL_BY_ID = Object.fromEntries(WEAPON_STORE.map((item) => [item.id, item.model]));
+      const weaponTemplates = {};
+      await Promise.all(WEAPON_PICKUPS.map(async (weapon) => {
+        const modelUrl = WEAPON_MODEL_BY_ID[weapon];
+        if (!modelUrl) return;
+        try {
+          const gltf = await loadGltf(loader, modelUrl);
+          weaponTemplates[weapon] = gltf.scene;
+        } catch (err) {
+          console.warn("Weapon pickup model failed:", weapon, modelUrl, err);
+        }
+      }));
       const makeWeaponPickupMesh = (weapon) => {
+        const model = weaponTemplates[weapon];
+        if (model) {
+          const pickup = cloneModel(model);
+          fitVehicleModel(pickup, { targetLength: 1.08, lift: 0.02, yaw: 0 });
+          return pickup;
+        }
         if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.0, 14), makeMat(0xff7b00, 0.35));
         if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.33, 0), makeMat(0x74f0ff, 0.35));
         if (weapon === "HELICOPTER") return new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.5, 6, 10), makeMat(0x89ff9b, 0.35));
@@ -653,11 +716,11 @@ export default function SuperTuxKartPlayablePreview() {
       };
       const pickups = WEAPON_PICKUPS.map((weapon, i) => {
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
-        const gem = makeWeaponPickupMesh(weapon);
-        gem.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        gem.userData = { weapon, taken: false };
-        scene.add(gem);
-        return gem;
+        const weaponPickup = makeWeaponPickupMesh(weapon);
+        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
+        weaponPickup.userData = { weapon, taken: false };
+        scene.add(weaponPickup);
+        return weaponPickup;
       });
       const defensePickups = DEFENSE_PICKUPS.map((defense, i) => {
         const p = pointOnTrack((i / DEFENSE_PICKUPS.length) * TAU + 1.2, selectedTrack, i % 2 === 0 ? -0.62 : 0.62);
