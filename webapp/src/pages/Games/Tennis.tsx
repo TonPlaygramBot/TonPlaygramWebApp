@@ -6,6 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { GroundedSkybox } from "three/examples/jsm/objects/GroundedSkybox.js";
 import { useLocation } from "react-router-dom";
 import { TENNIS_HDRI_OPTIONS } from "../../config/tennisInventoryConfig.js";
 import { getTennisInventory, isTennisOptionUnlocked, tennisAccountId } from "../../utils/tennisInventory.js";
@@ -107,11 +108,11 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  courtW: 5.25,
-  doublesW: 6.4,
-  courtL: 14.0,
-  serviceLineZ: 2.85,
-  netH: 0.64,
+  courtW: 8.23,
+  doublesW: 10.97,
+  courtL: 23.77,
+  serviceLineZ: 6.4,
+  netH: 0.92,
   ballR: 0.085,
   gravity: 9.8,
   airDrag: 0.078,
@@ -119,9 +120,9 @@ const CFG = {
   groundFriction: 0.86,
   minBallSpeed: 0.12,
   playerHeight: 1.82,
-  playerSpeed: 5.2,
-  aiSpeed: 5.85,
-  reach: 0.92,
+  playerSpeed: 5.8,
+  aiSpeed: 6.4,
+  reach: 1.02,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -899,8 +900,8 @@ export default function MobileThreeTennisPrototype() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 60);
-    const cameraTarget = new THREE.Vector3(0, 1.18, -1.15);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.05, 110);
+    const cameraTarget = new THREE.Vector3(0, 1.1, -2.2);
     const cameraDesiredPos = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -918,6 +919,7 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
     const hdri = TENNIS_HDRI_OPTIONS.find((opt) => opt.id === selectedHdriId) || TENNIS_HDRI_OPTIONS[0];
+    let groundedSkybox: GroundedSkybox | null = null;
     hdriLoader.load(
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/${hdri.assetId}_4k.hdr`,
       (tex) => {
@@ -925,6 +927,13 @@ export default function MobileThreeTennisPrototype() {
         const env = pmrem.fromEquirectangular(tex).texture;
         scene.environment = env;
         scene.background = env;
+        try {
+          groundedSkybox = new GroundedSkybox(tex, 1.65, 60);
+          groundedSkybox.position.y = 0.02;
+          scene.add(groundedSkybox);
+        } catch {
+          groundedSkybox = null;
+        }
         tex.dispose();
       }
     );
@@ -989,8 +998,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 5.75 : 5.0, camera.aspect < 0.72 ? 10.4 : 9.2);
+      camera.fov = camera.aspect < 0.72 ? 50 : 44;
+      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.15, camera.aspect < 0.72 ? 15.8 : 13.4);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1150,6 +1159,7 @@ export default function MobileThreeTennisPrototype() {
       frameId = requestAnimationFrame(animate);
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
+      if (groundedSkybox) groundedSkybox.position.set(nearPlayer.pos.x * 0.08, 0.02, nearPlayer.pos.z - 1.8);
       last = now;
 
       if (pointLock) {
@@ -1180,9 +1190,9 @@ export default function MobileThreeTennisPrototype() {
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
       const portrait = camera.aspect < 0.72;
-      const followY = portrait ? 5.95 : 5.2;
-      const followBack = portrait ? 9.55 : 8.7;
-      const lookAheadZ = portrait ? 11.35 : 10.25;
+      const followY = portrait ? 6.9 : 6.2;
+      const followBack = portrait ? 15.3 : 13.5;
+      const lookAheadZ = portrait ? 19.6 : 17.8;
 
       cameraDesiredPos.set(nearPlayer.pos.x * 0.18, followY, nearPlayer.pos.z + followBack);
       camera.position.lerp(cameraDesiredPos, 1 - Math.exp(-4.5 * dt));
