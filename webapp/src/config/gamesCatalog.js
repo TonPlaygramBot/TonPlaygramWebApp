@@ -110,6 +110,13 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
   {
+    name: 'Weapon Kart',
+    route: '/games/weaponkart/lobby',
+    slug: 'weaponkart',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: 'Drive, collect weapon bubbles, and tap enemies to shoot in a 3D kart arena.'
+  },
+  {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
