@@ -654,11 +654,11 @@ function computeIntent(hostWidth: number, hostHeight: number, startX: number, st
   const vertical = clamp((startY - y) / Math.max(180, hostHeight * 0.38), 0, 1);
   const screenX = clamp((x / hostWidth) * 2 - 1, -1, 1);
   const dragX = clamp((x - startX) / Math.max(90, hostWidth * 0.18), -1, 1);
-  const releaseX = clamp(screenX * 0.84, -0.96, 0.96);
-  const targetX = clamp(screenX * 1.04, -1.1, 1.1);
+  const releaseX = clamp(screenX * 1.0, -1.16, 1.16);
+  const targetX = clamp(screenX * 1.22, -1.38, 1.38);
   const power = vertical;
   const speed = lerp(6.2, 16.4, easeOutCubic(power));
-  const hook = dragX * lerp(0.08, 0.76, power);
+  const hook = dragX * lerp(0.06, 0.64, power);
   return { power, releaseX, targetX, hook, speed };
 }
 
@@ -669,7 +669,7 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.recoverT = 0;
   rig.walkCycle = 0;
   rig.approachFrom.copy(rig.pos);
-  rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
+  rig.approachTo.set(clamp(intent.releaseX * 0.4, -0.52, 0.52), CFG.laneY, CFG.approachStopZ);
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
@@ -960,17 +960,16 @@ export default function MobileBowlingRealistic() {
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
-    renderer.setClearColor(0x090b11, 1);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
+    renderer.toneMappingExposure = 1.14;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x090b11);
-    scene.fog = new THREE.Fog(0x090b11, 18, 38);
+    scene.fog = new THREE.Fog(0x11161f, 36, 86);
 
     const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 80);
     camera.position.set(0, 2.9, 10.8);
@@ -985,6 +984,9 @@ export default function MobileBowlingRealistic() {
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = envTex;
+        scene.background = envTex;
+        scene.backgroundBlurriness = 0.2;
+        scene.backgroundIntensity = 0.92;
         hdr.dispose();
       },
       undefined,
@@ -993,9 +995,9 @@ export default function MobileBowlingRealistic() {
     };
     applyHdri(selectedHdriId);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.28));
-    scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x24160b, 0.6));
-    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x24160b, 0.72));
+    const key = new THREE.DirectionalLight(0xffffff, 1.58);
     key.position.set(-4.2, 7.8, 7.6);
     key.castShadow = true;
     key.shadow.mapSize.width = 2048;
@@ -1269,7 +1271,7 @@ export default function MobileBowlingRealistic() {
         </div> : null}
 
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
-          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />Arena walls, floor, ceiling, and 3D monitor removed.
+          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane (precision boosted).<br />HDRI now renders as full arena background lighting.
         </div>
 
         <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
