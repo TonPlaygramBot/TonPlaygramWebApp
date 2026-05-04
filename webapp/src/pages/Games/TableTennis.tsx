@@ -104,7 +104,6 @@ type HumanRig = {
   speed: number;
 };
 
-type CameraMode = "player" | "broadcast";
 type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number };
 
 type ControlState = {
@@ -358,6 +357,38 @@ function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
 }
 
+
+function applyHumanOriginalTextureMapping(root: THREE.Object3D) {
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    materials.forEach((mat) => {
+      const material = mat as THREE.MeshStandardMaterial;
+      if (material.map) {
+        material.map.colorSpace = THREE.SRGBColorSpace;
+        material.map.flipY = false;
+        material.map.needsUpdate = true;
+      }
+      if (material.emissiveMap) {
+        material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+        material.emissiveMap.flipY = false;
+        material.emissiveMap.needsUpdate = true;
+      }
+      const utilityMaps = [material.normalMap, material.roughnessMap, material.metalnessMap, material.aoMap, material.alphaMap];
+      utilityMaps.forEach((tex) => {
+        if (!tex) return;
+        tex.flipY = false;
+        tex.needsUpdate = true;
+      });
+      material.needsUpdate = true;
+    });
+  });
+}
+
 function createFallbackHuman(color: number) {
   const g = new THREE.Group();
   const skin = material(0xf0c7a0, 0.78, 0.02);
@@ -594,6 +625,7 @@ function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: Playe
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
+      applyHumanOriginalTextureMapping(model);
       enableShadow(model);
       rig.model = model;
       rig.bones = findHumanBones(model);
@@ -1093,7 +1125,6 @@ export default function MobileRealisticTableTennisGame() {
   );
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState<string>("");
   const [selectedHdriId, setSelectedHdriId] = useState<string>("");
-  const [cameraMode, setCameraMode] = useState<CameraMode>("player");
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
   useEffect(() => {
@@ -1585,21 +1616,9 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      if (cameraMode === "player") {
-        const headBone = nearPlayer.bones.neck ?? nearPlayer.bones.chest;
-        const headAnchor = headBone ? getWorldPos(headBone) : nearPlayer.pos.clone().add(new THREE.Vector3(0, 1.6, 0));
-        const playerForward = forwardFromYaw(nearPlayer.yaw);
-        const eyes = headAnchor.clone()
-          .addScaledVector(playerForward, 0.3)
-          .add(new THREE.Vector3(0, 0.26, 0));
-        const look = ball.pos.clone().lerp(new THREE.Vector3(0, CFG.tableY + 0.22, -TABLE_HALF_L * 0.3), 0.12);
-        camera.position.lerp(eyes, 1 - Math.exp(-18 * dt));
-        cameraTarget.lerp(look, 1 - Math.exp(-15 * dt));
-      } else {
-        const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
-        camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
-        cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
-      }
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+      camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
@@ -1626,14 +1645,13 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id, cameraMode]);
+  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
-      <button type="button" onClick={() => setCameraMode((prev) => (prev === "player" ? "broadcast" : "player"))} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "auto", zIndex: 6, borderRadius: 999, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(5,10,15,0.75)", color: "#fff", fontWeight: 800, fontSize: 12 }}>{cameraMode === "player" ? "👁 Player Cam" : "🎥 Broadcast"}</button>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
         <button
           type="button"
