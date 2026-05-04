@@ -250,8 +250,7 @@ function buildRealisticTableTennisTable() {
   const whiteLine = material(0xf6f7f0, 0.45, 0.0);
   const metal = material(0x171c22, 0.38, 0.32);
   const wheelMat = material(0x0b0e12, 0.46, 0.28);
-  const netMat = transparentMaterial(0x0b0b0b, 0.52, 0.72);
-  const netTape = material(0xf2f2f2, 0.42, 0.02);
+  const netMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, transparent: true, opacity: 0.66 });
 
   addBox(group, [CFG.tableW, CFG.tableTopThickness, CFG.tableL], [0, CFG.tableY - CFG.tableTopThickness / 2, 0], tableBlue);
   addBox(group, [CFG.tableW + 0.055, 0.035, CFG.tableL + 0.055], [0, CFG.tableY - CFG.tableTopThickness - 0.015, 0], tableEdge);
@@ -286,27 +285,10 @@ function buildRealisticTableTennisTable() {
   const netY = CFG.tableY + CFG.netH / 2;
   const netSpan = CFG.tableW + CFG.netPostOutside * 2;
   addBox(group, [netSpan, CFG.netH, 0.016], [0, netY, 0], netMat);
-  const holeMat = transparentMaterial(0xffffff, 0.14);
-  for (let row = 0; row < 7; row++) {
-    const y = CFG.tableY + 0.018 + (row / 6) * (CFG.netH - 0.038);
-    const cols = 26;
-    for (let col = 0; col < cols; col++) {
-      const offset = row % 2 === 0 ? 0 : (netSpan / cols) * 0.5;
-      const x = -netSpan / 2 + (col / (cols - 1)) * netSpan + offset;
-      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.0075, 6), holeMat);
-      hole.rotation.y = Math.PI / 2;
-      hole.position.set(x, y, 0.0088);
-      group.add(hole);
-    }
-  }
-  addBox(group, [netSpan + 0.035, 0.014, 0.028], [0, CFG.tableY + CFG.netH + 0.007, 0], netTape);
-  addBox(group, [netSpan + 0.035, 0.012, 0.024], [0, CFG.tableY + 0.008, 0], netTape);
-  const leftPost = addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + 0.08) / 2, 0], metal, 18);
-  const rightPost = addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + 0.08) / 2, 0], metal, 18);
-  leftPost.rotation.z = -0.03;
-  rightPost.rotation.z = 0.03;
-  addBox(group, [0.09, 0.035, 0.13], [-(TABLE_HALF_W + 0.13), CFG.tableY - 0.075, 0], metal);
-  addBox(group, [0.09, 0.035, 0.13], [TABLE_HALF_W + 0.13, CFG.tableY - 0.075, 0], metal);
+  addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
+  addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
+  addBox(group, [0.1, 0.035, 0.13], [-(TABLE_HALF_W + 0.13), CFG.tableY - 0.075, 0], material(0x111827, 0.5, 0.12));
+  addBox(group, [0.1, 0.035, 0.13], [TABLE_HALF_W + 0.13, CFG.tableY - 0.075, 0], material(0x111827, 0.5, 0.12));
 
   enableShadow(group);
   return group;
@@ -426,48 +408,33 @@ function createFallbackHuman(color: number) {
 function createTableTennisPaddle(colorA: number, colorB = 0x090909) {
   const s = PADDLE_SCALE_FACTOR;
   const g = new THREE.Group();
-  const wood = material(0x9a6a35, 0.62, 0.02);
-  const redRubber = material(colorA, 0.86, 0.01);
-  const blackRubber = material(colorB, 0.88, 0.01);
-  const edge = material(0xead5a7, 0.6, 0.0);
+  const wood = material(0x8b5a2b, 0.55, 0.02);
+  const frontMat = material(colorA, 0.58, 0.02);
+  const backMat = material(colorB, 0.62, 0.02);
+  const rimMat = material(0x8b5a2b, 0.48, 0.02);
 
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.048 * s, 0.14 * s, 0.034 * s), wood);
-  handle.position.y = 0.045 * s;
-  handle.rotation.z = 0.02;
-  enableShadow(handle);
-  g.add(handle);
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.012 * s, 56), frontMat);
+  face.rotation.x = Math.PI / 2;
+  face.scale.x = 0.92;
+  face.scale.y = 1.08;
+  face.position.y = 0.19 * s;
+  g.add(face);
 
-  const throat = new THREE.Mesh(new THREE.BoxGeometry(0.07 * s, 0.05 * s, 0.014 * s), wood);
-  throat.position.y = 0.125 * s;
-  enableShadow(throat);
-  g.add(throat);
-
-  const bladeEdge = new THREE.Mesh(new THREE.CylinderGeometry(0.092 * s, 0.092 * s, 0.012 * s, 56), edge);
-  bladeEdge.rotation.x = Math.PI / 2;
-  bladeEdge.scale.x = 0.92;
-  bladeEdge.scale.y = 1.08;
-  bladeEdge.position.y = 0.19 * s;
-  enableShadow(bladeEdge);
-  g.add(bladeEdge);
-
-  const front = new THREE.Mesh(new THREE.CircleGeometry(0.089 * s, 56), redRubber);
-  front.scale.y = 1.08;
-  front.position.set(0, 0.19 * s, 0.0078 * s);
-  g.add(front);
-
-  const back = new THREE.Mesh(new THREE.CircleGeometry(0.089 * s, 56), blackRubber);
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(0.088 * s, 0.088 * s, 0.012 * s, 56), backMat);
+  back.rotation.x = Math.PI / 2;
+  back.scale.x = 0.92;
   back.scale.y = 1.08;
-  back.rotation.y = Math.PI;
   back.position.set(0, 0.19 * s, -0.0078 * s);
   g.add(back);
 
-  for (let i = 0; i < 18; i++) {
-    const dot = new THREE.Mesh(new THREE.BoxGeometry(0.005 * s, 0.005 * s, 0.018 * s), edge);
-    const a = (i / 18) * Math.PI * 2;
-    dot.position.set(Math.cos(a) * 0.084 * 0.92 * s, (0.19 + Math.sin(a) * 0.09 * 1.08) * s, 0);
-    dot.rotation.z = a;
-    g.add(dot);
-  }
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.092 * s, 0.008 * s, 12, 64), rimMat);
+  rim.scale.y = 1.08;
+  rim.position.set(0, 0.19 * s, 0);
+  g.add(rim);
+
+  const handle = new THREE.Mesh(new THREE.CapsuleGeometry(0.018 * s, 0.1 * s, 8, 16), wood);
+  handle.position.y = 0.055 * s;
+  g.add(handle);
 
   enableShadow(g);
   return g;
@@ -674,10 +641,8 @@ function makeBallTexture() {
 }
 
 function createBall() {
-  const tex = new THREE.CanvasTexture(makeBallTexture());
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.58, metalness: 0.0 });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 24), mat);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.01 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 20), mat);
   enableShadow(mesh);
   return {
     mesh,
