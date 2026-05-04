@@ -1777,10 +1777,10 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 116.6 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 128.5 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -132.4 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -24.25 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 132.5 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 144.5 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -153.5 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -32.5 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? (normalizedSeatIndex === 1 ? -0.08 * MODEL_SCALE : 0.08 * MODEL_SCALE)
@@ -2115,6 +2115,11 @@ function runCharacterAction(store, rig, action) {
       rightForeArm: { x: THREE.MathUtils.degToRad(44) },
       rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-8) }
     });
+    const throwPlace = buildPoseVariant(basePose, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(52) },
+      rightHand: { x: THREE.MathUtils.degToRad(14), y: THREE.MathUtils.degToRad(-6) }
+    });
 
     const thrown = createThrownCardMesh(cardsColor);
     store.scene?.add(thrown);
@@ -2177,8 +2182,13 @@ function runCharacterAction(store, rig, action) {
       }
     });
     list.push({
-      start: now + 420,
-      duration: 280,
+      start: now + 390,
+      duration: 150,
+      update: (t) => applyRigPoseLerp(rig, throwPlace, t)
+    });
+    list.push({
+      start: now + 540,
+      duration: 260,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
   }
