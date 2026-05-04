@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Aiming.Gameplay.Bowling
 {
@@ -8,8 +7,6 @@ namespace Aiming.Gameplay.Bowling
     /// </summary>
     public class BowlingBallReturnSystem : MonoBehaviour
     {
-        public UnityEvent onReturnStarted;
-        public UnityEvent onReturnCompleted;
         [SerializeField] private Rigidbody bowlingBall;
         [SerializeField] private Transform[] returnWaypoints;
         [SerializeField] private float moveSpeed = 4.5f;
@@ -27,10 +24,7 @@ namespace Aiming.Gameplay.Bowling
 
             returning = true;
             waypointIndex = 0;
-            bowlingBall.velocity = Vector3.zero;
-            bowlingBall.angularVelocity = Vector3.zero;
             bowlingBall.isKinematic = true;
-            onReturnStarted?.Invoke();
         }
 
         private void Update()
@@ -51,9 +45,6 @@ namespace Aiming.Gameplay.Bowling
                 {
                     returning = false;
                     bowlingBall.isKinematic = false;
-                    bowlingBall.velocity = Vector3.zero;
-                    bowlingBall.angularVelocity = Vector3.zero;
-                    onReturnCompleted?.Invoke();
                 }
             }
         }
