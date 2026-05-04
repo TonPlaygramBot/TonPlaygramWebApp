@@ -126,9 +126,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  tableL: 2.74,
-  tableW: 1.525,
-  tableY: 0.76,
+  // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
+  tableL: 5.8,
+  tableW: 3.2,
+  tableY: 1.45,
   tableTopThickness: 0.075,
   netH: 0.1525,
   netPostOutside: 0.1525,
@@ -139,10 +140,10 @@ const CFG = {
   tableRestitution: 0.875,
   tableFriction: 0.965,
   spinDecay: 0.72,
-  playerHeight: 1.72,
-  playerSpeed: 2.95,
-  aiSpeed: 3.05,
-  reach: 0.48,
+  playerHeight: 2.9,
+  playerSpeed: 3.35,
+  aiSpeed: 3.45,
+  reach: 0.82,
   swingDuration: 0.34,
   backhandDuration: 0.29,
   serveDuration: 0.86,
@@ -976,7 +977,7 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   const maxStep = player.speed * dt;
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
-  player.pos.x = clamp(player.pos.x, -0.95, 0.95);
+  player.pos.x = clamp(player.pos.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
   if (player.side === "near") player.pos.z = clamp(player.pos.z, TABLE_HALF_L + 0.18, TABLE_HALF_L + 0.9);
   else player.pos.z = clamp(player.pos.z, -TABLE_HALF_L - 0.9, -TABLE_HALF_L - 0.18);
 
@@ -1130,8 +1131,8 @@ export default function MobileRealisticTableTennisGame() {
     };
     loadHdri();
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 30);
-    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.08, -0.05);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36);
+    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.1, -0.05);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.64));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x263f4b, 0.8));
@@ -1155,8 +1156,8 @@ export default function MobileRealisticTableTennisGame() {
     addTable(scene, renderer);
 
     const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
-    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 0.48), 0xff6b2e, humanModelUrl);
-    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48), 0x4ab7ff, humanModelUrl);
+    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 1.05), 0xff6b2e, humanModelUrl);
+    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05), 0x4ab7ff, humanModelUrl);
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
@@ -1185,10 +1186,17 @@ export default function MobileRealisticTableTennisGame() {
     let last = performance.now();
     let pointLock = false;
     let pointLockT = 0;
-    const shotFx = new Audio("/assets/sounds/hit-wood-4-94067.mp3");
-    shotFx.volume = 0.55;
-    const bounceFx = new Audio("/assets/sounds/ping-pong-ball-hit-258590.mp3");
-    bounceFx.volume = 0.35;
+    const shotFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+    shotFx.volume = 0.48;
+    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+    bounceFx.volume = 0.28;
+    bounceFx.playbackRate = 1.08;
+    const netFx = new Audio("/assets/sounds/snooker-cue-put-on-table-81295.mp3");
+    netFx.volume = 0.22;
+    netFx.playbackRate = 1.4;
+    const scoreFx = new Audio("/assets/sounds/successful.mp3");
+    scoreFx.volume = 0.26;
+    const playFx = (fx: HTMLAudioElement) => { fx.currentTime = 0; fx.play().catch(() => {}); };
     const replayFrames: THREE.Vector3[] = [];
     let replayT = 0;
 
@@ -1213,6 +1221,7 @@ export default function MobileRealisticTableTennisGame() {
         reason === "wrongSide" ? "Wrong side" :
         "Miss";
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0 });
+      playFx(scoreFx);
     };
 
     const resize = () => {
@@ -1222,7 +1231,7 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 2.85 : 2.45, camera.aspect < 0.72 ? 3.25 : 2.8);
+      camera.position.set(0, camera.aspect < 0.72 ? 4.45 : 3.8, camera.aspect < 0.72 ? 5.25 : 4.6);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1260,7 +1269,7 @@ export default function MobileRealisticTableTennisGame() {
       control.lastY = e.clientY;
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
-      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.0047, -0.95, 0.95);
+      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.0047, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
       nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.0032, TABLE_HALF_L + 0.18, TABLE_HALF_L + 0.9);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 210), spin: clamp(dx / 170, -1, 1) });
 
@@ -1367,6 +1376,7 @@ export default function MobileRealisticTableTennisGame() {
         ball.pos.z = ball.lastHitBy === "near" ? 0.025 : -0.025;
         ball.vel.z *= -0.24;
         ball.vel.y = Math.max(0.1, Math.abs(ball.vel.y) * 0.24);
+        playFx(netFx);
         awardPoint(opposite(ball.lastHitBy), "net");
       }
 
@@ -1381,8 +1391,7 @@ export default function MobileRealisticTableTennisGame() {
         ball.vel.x += ball.spin.y * 0.0012;
         ball.spin.x *= 0.82;
         ball.spin.y *= 0.86;
-        bounceFx.currentTime = 0;
-        bounceFx.play().catch(() => {});
+        playFx(bounceFx);
         handleTableBounce(side);
       }
 
@@ -1392,7 +1401,7 @@ export default function MobileRealisticTableTennisGame() {
         awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
       }
 
-      if ((Math.abs(ball.pos.x) > 2.7 || Math.abs(ball.pos.z) > 3.7 || ball.pos.y < -0.7) && ball.lastHitBy) {
+      if ((Math.abs(ball.pos.x) > TABLE_HALF_W + 1.3 || Math.abs(ball.pos.z) > TABLE_HALF_L + 1.8 || ball.pos.y < -0.7) && ball.lastHitBy) {
         const hitter = ball.lastHitBy;
         const hadLegalBounce = ball.bounceSide === opposite(hitter) && ball.bounceCount >= 1;
         awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
@@ -1404,10 +1413,10 @@ export default function MobileRealisticTableTennisGame() {
     }
 
     function updateAi(dt: number) {
-      const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - 0.48);
+      const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05);
 
       if (ball.lastHitBy === null && ball.phase.kind === "serve" && ball.phase.server === "far") {
-        farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 0.48), 0.045);
+        farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 1.05), 0.045);
         aiServeWindup += dt;
         if (aiServeWindup > 0.62 && farPlayer.swingT === 0) {
           startSwing(farPlayer, makeAiServeTarget(), "serve");
@@ -1421,8 +1430,8 @@ export default function MobileRealisticTableTennisGame() {
       if (incoming) {
         const landing = predictNextTableBounce(ball);
         const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.42 : 0.32);
-        farPlayer.target.x = clamp(landing.x, -0.95, 0.95);
-        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 0.86, -TABLE_HALF_L - 0.2);
+        farPlayer.target.x = clamp(landing.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.45, -TABLE_HALF_L - 0.42);
       } else {
         farPlayer.target.lerp(home, 0.04);
       }
@@ -1441,8 +1450,7 @@ export default function MobileRealisticTableTennisGame() {
         if (player.swingT <= 0 || player.hitThisSwing || !player.desiredHit) continue;
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
-            shotFx.currentTime = 0;
-            shotFx.play().catch(() => {});
+            playFx(shotFx);
             performHit(player, ball, player.desiredHit, true);
             setHudSafe({ status: player.side === "near" ? "Serve: own side then AI side" : "AI served legally" });
           }
@@ -1450,8 +1458,7 @@ export default function MobileRealisticTableTennisGame() {
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
-          shotFx.currentTime = 0;
-          shotFx.play().catch(() => {});
+          playFx(shotFx);
           performHit(player, ball, player.desiredHit, false);
           setHudSafe({ status: player.side === "near" ? "Return sent" : "AI returned" });
         } else if (player.side === "near" && player.swingT > CFG.hitWindowEnd - 0.02) {
@@ -1479,8 +1486,8 @@ export default function MobileRealisticTableTennisGame() {
           farPlayer.action = "ready";
           nearPlayer.swingT = 0;
           farPlayer.swingT = 0;
-          nearPlayer.target.set(0, 0, TABLE_HALF_L + 0.48);
-          farPlayer.target.set(0, 0, -TABLE_HALF_L - 0.48);
+          nearPlayer.target.set(0, 0, TABLE_HALF_L + 1.05);
+          farPlayer.target.set(0, 0, -TABLE_HALF_L - 1.05);
           resetBallForServe(ball, players[currentServer]);
           aiServeWindup = 0;
           setHudSafe({ status: currentServer === "near" ? "Your serve: swipe up" : "AI is serving", power: 0, spin: 0 });
