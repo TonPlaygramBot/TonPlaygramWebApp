@@ -107,29 +107,32 @@ const Y_AXIS = UP;
 
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
+const WORLD_SCALE = 1.5;
+const POWER_TUNE = Math.sqrt(WORLD_SCALE);
+
 const CFG = {
-  courtW: 7.45,
-  doublesW: 8.9,
-  courtL: 19.8,
-  serviceLineZ: 3.65,
-  netH: 0.78,
-  ballR: 0.1,
+  courtW: 7.45 * WORLD_SCALE,
+  doublesW: 8.9 * WORLD_SCALE,
+  courtL: 19.8 * WORLD_SCALE,
+  serviceLineZ: 3.65 * WORLD_SCALE,
+  netH: 0.78 * WORLD_SCALE,
+  ballR: 0.1 * WORLD_SCALE,
   gravity: 9.8,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 2.2,
-  playerSpeed: 7.1,
-  aiSpeed: 9.8,
-  reach: 1.45,
+  playerHeight: 2.2 * WORLD_SCALE,
+  playerSpeed: 7.1 * POWER_TUNE,
+  aiSpeed: 9.8 * POWER_TUNE,
+  reach: 1.45 * WORLD_SCALE,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  serveNearBaselineZ: 8.2,
+  serveNearBaselineZ: 8.2 * WORLD_SCALE,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -547,7 +550,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   };
 
   modelRoot.rotation.y = rig.yaw;
-  modelRoot.scale.setScalar(0.9);
+  modelRoot.scale.setScalar(1.35);
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
@@ -561,7 +564,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         materials.forEach((m) => {
           const mat = m as THREE.MeshStandardMaterial;
-          if ((mat as any).map) (mat as any).map.colorSpace = THREE.SRGBColorSpace;
+          if ((mat as any).map) { (mat as any).map.colorSpace = THREE.SRGBColorSpace; (mat as any).map.needsUpdate = true; }
           mat.needsUpdate = true;
         });
       });
@@ -777,7 +780,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6;
+  const baseSpeed = (serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6) * POWER_TUNE;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -1138,17 +1141,17 @@ export default function MobileThreeTennisPrototype() {
         if (rollAxis.lengthSq() > 0.0001) ball.mesh.rotateOnWorldAxis(rollAxis.normalize(), (ball.vel.length() / CFG.ballR) * dt);
       }
 
-      const crossesNet = (prevZ > 0 && ball.pos.z <= 0) || (prevZ < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.055;
-      if (crossesNet && Math.abs(ball.pos.x) <= CFG.doublesW / 2 + 0.1 && ball.pos.y < CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
-        const incoming = ball.vel.clone();
-        const outgoing = incoming.multiplyScalar(0.2); // 80% power loss on net impact
-        outgoing.z = Math.sign(outgoing.z || (ball.lastHitBy === "near" ? -1 : 1)) * Math.max(0.4, Math.abs(outgoing.z));
-        outgoing.y = Math.max(0.45, Math.abs(outgoing.y) + 0.2);
-        ball.vel.copy(outgoing);
-        ball.pos.z = ball.lastHitBy === "near" ? -0.12 : 0.12;
+      const crossesNet = (prevZ > 0 && ball.pos.z <= 0) || (prevZ < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.055 * WORLD_SCALE;
+      if (crossesNet && Math.abs(ball.pos.x) <= CFG.doublesW / 2 + 0.1 * WORLD_SCALE && ball.pos.y < CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
+        const toward = ball.lastHitBy === "near" ? -1 : 1;
+        const netSlow = Math.exp(-6.5 * dt);
+        ball.vel.x *= netSlow;
+        ball.vel.z = Math.min(0, ball.vel.z * toward) * toward;
+        ball.vel.y = Math.max(0.08, ball.vel.y * 0.12);
+        ball.pos.z = toward * 0.08 * WORLD_SCALE;
+        ball.spin *= 0.35;
         netShakeT = 0.45;
         void netHitFx.play().catch(() => {});
-        awardPoint(opposite(ball.lastHitBy), "net");
       }
 
       if (ball.pos.y <= CFG.ballR) {
@@ -1171,7 +1174,7 @@ export default function MobileThreeTennisPrototype() {
         }
       }
 
-      if ((Math.abs(ball.pos.x) > 7.5 || Math.abs(ball.pos.z) > 9.3 || ball.pos.y < -1.2) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
+      if ((Math.abs(ball.pos.x) > 7.5 * WORLD_SCALE || Math.abs(ball.pos.z) > 9.3 * WORLD_SCALE || ball.pos.y < -1.2 * WORLD_SCALE) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
       if (ball.vel.length() < CFG.minBallSpeed && ball.pos.y <= CFG.ballR + 0.002 && ball.lastHitBy) awardPoint(opposite(sideOfZ(ball.pos.z)), "doubleBounce");
       ball.mesh.position.copy(ball.pos);
     }
