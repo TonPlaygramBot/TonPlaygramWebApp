@@ -61,6 +61,16 @@ const WEAPON_MODEL_CANDIDATES = {
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
 const WEAPON_ICON = { FIREARM: "🔫", RIFLE: "🪖", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", TOWER: "📡" };
 const SUPPORT_PICKUP_TYPES = ["TRUCK", "DRONE", "HELICOPTER", "JET", "TOWER"];
+const PICKUP_BUBBLE_COLORS = {
+  FIREARM: 0xffd166,
+  RIFLE: 0x8ec9ff,
+  MISSILE: 0xff7b54,
+  DRONE: 0x91ffba,
+  HELICOPTER: 0xe8a6ff,
+  JET: 0x7df3ff,
+  TRUCK: 0xffb58f,
+  TOWER: 0xb7ff7f
+};
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -416,6 +426,31 @@ function createTruckVariant(color, name, variant, track, ai = false, angle = Mat
   };
 }
 
+
+function disposeObject3D(root) {
+  if (!root) return;
+  root.traverse?.((obj) => {
+    if (!obj.isMesh) return;
+    obj.geometry?.dispose?.();
+    const mat = obj.material;
+    if (Array.isArray(mat)) mat.forEach((m) => m?.dispose?.());
+    else mat?.dispose?.();
+  });
+}
+
+function addPrecisionHelpers(node, { color = 0xff44ff, size = 0.7 } = {}) {
+  if (!node) return;
+  const box = new THREE.Box3().setFromObject(node);
+  if (!Number.isFinite(box.min.x)) return;
+  const center = box.getCenter(new THREE.Vector3());
+  const helperAnchor = new THREE.Group();
+  helperAnchor.position.copy(center);
+  helperAnchor.add(new THREE.AxesHelper(size));
+  const wire = new THREE.Box3Helper(box, color);
+  node.parent?.add(wire);
+  node.parent?.add(helperAnchor);
+}
+
 function createOriginalKart(assets, name, ai, angle, lane, index, variant, track) {
   if (!assets.trucks.length) throw new Error("Original truck asset not loaded.");
   const group = new THREE.Group();
@@ -743,7 +778,8 @@ export default function SuperTuxKartPlayablePreview() {
           if (res.status === "fulfilled" && res.value) {
             parkedTemplates[kind] = res.value;
             const park = cloneModel(res.value);
-            fitVehicleModel(park, { targetLength: 5.4, lift: 0.05, yaw: 0 });
+            fitVehicleModel(park, { targetLength: 5.4, lift: 0.24, yaw: 0 });
+            addPrecisionHelpers(park, { color: 0x76ffea, size: 0.9 });
             const a = (i / parkedKinds.length) * TAU + 0.18;
             const edge = pointOnTrack(a, selectedTrack, i % 2 === 0 ? 9.5 : -9.5);
             park.position.copy(edge).add(new THREE.Vector3(0, 0.2, 0));
@@ -785,10 +821,12 @@ export default function SuperTuxKartPlayablePreview() {
             weaponPickup.add(mini);
           }
         }
-        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 12), new THREE.MeshStandardMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.28, roughness: 0.2, metalness: 0.05 }));
+        const bubbleColor = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 14), new THREE.MeshStandardMaterial({ color: bubbleColor, emissive: new THREE.Color(bubbleColor).multiplyScalar(0.18), transparent: true, opacity: 0.35, roughness: 0.15, metalness: 0.08 }));
+        bubble.position.y = 0.15;
         weaponPickup.add(bubble);
-        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        weaponPickup.userData = { weapon, taken: false, slotIndex: i };
+        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.88, 0));
+        weaponPickup.userData = { weapon, taken: false, slotIndex: i, baseY: weaponPickup.position.y };
         scene.add(weaponPickup);
         return weaponPickup;
       });
@@ -803,8 +841,12 @@ export default function SuperTuxKartPlayablePreview() {
             if (pickup && !pickup.userData.taken) {
               scene.remove(pickup);
               const upgraded = makeWeaponPickupMesh(weapon);
+              const ubColor = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
+              const ub = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 14), new THREE.MeshStandardMaterial({ color: ubColor, emissive: new THREE.Color(ubColor).multiplyScalar(0.18), transparent: true, opacity: 0.35, roughness: 0.15, metalness: 0.08 }));
+              ub.position.y = 0.15;
+              upgraded.add(ub);
               upgraded.position.copy(pickup.position);
-              upgraded.userData = { ...pickup.userData };
+              upgraded.userData = { ...pickup.userData, baseY: pickup.userData.baseY ?? pickup.position.y };
               scene.add(upgraded);
               pickups[pickups.indexOf(pickup)] = upgraded;
             }
@@ -841,7 +883,7 @@ export default function SuperTuxKartPlayablePreview() {
         fitVehicleModel(craft, { targetLength: 5.4, lift: 0.05, yaw: 0 });
         craft.position.copy(launchPos);
         scene.add(craft);
-        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone() });
+        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone(), phase: Math.random() * TAU });
       }
 
       const raycaster = new THREE.Raycaster();
@@ -922,6 +964,13 @@ export default function SuperTuxKartPlayablePreview() {
         }
         crashTextT = Math.max(0, crashTextT - dt);
         updateCamera(dt);
+        Object.entries(parkedActors).forEach(([kind, actor], idx) => {
+          if (!actor) return;
+          const t = now * 0.0015 + idx * 0.7;
+          if (kind === "HELICOPTER" || kind === "DRONE") actor.position.y = 0.24 + Math.sin(t * 2.2) * 0.06;
+          if (kind === "JET") actor.rotation.z = Math.sin(t * 1.4) * 0.04;
+          actor.rotation.y += dt * (kind === "DRONE" ? 0.35 : 0.08);
+        });
         karts.forEach((kart) => {
           const h = kart.group.userData.humanModel;
           if (!h) return;
@@ -936,7 +985,7 @@ export default function SuperTuxKartPlayablePreview() {
           }
           pickup.visible = true;
           pickup.rotation.y += dt * 1.6;
-          pickup.position.y = 0.62 + Math.sin(now * 0.004 + pickup.position.x) * 0.05;
+          pickup.position.y = (pickup.userData.baseY ?? 0.88) + Math.sin(now * 0.004 + pickup.position.x) * 0.08;
           if (pickup.position.distanceTo(player.pos) < 1.6) {
             pickup.userData.taken = true;
             pickup.visible = false;
@@ -947,7 +996,8 @@ export default function SuperTuxKartPlayablePreview() {
               pickup.userData.taken = false;
               pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
               const np = pointOnTrack(pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
-              pickup.position.copy(np).add(new THREE.Vector3(0, 0.62, 0));
+              pickup.position.copy(np).add(new THREE.Vector3(0, 0.88, 0));
+              pickup.userData.baseY = pickup.position.y;
             }, 2200);
           }
         });
@@ -1001,6 +1051,10 @@ export default function SuperTuxKartPlayablePreview() {
           s.ttl -= dt;
           const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
           const land = s.home.clone();
+          const swing = Math.sin(now * 0.004 + s.phase) * 0.06;
+          if (s.kind === "HELICOPTER" || s.kind === "DRONE") s.craft.rotation.y += dt * 3.8;
+          if (s.kind === "JET") s.craft.rotation.z = swing;
+          if (s.kind === "MISSILE") s.craft.rotation.x = -0.2 + swing * 0.4;
           if (s.stage === "takeoff") {
             s.craft.position.lerp(hover, 1 - Math.exp(-2.8 * dt));
             if (s.craft.position.distanceTo(hover) < 1.5) s.stage = "strike";
@@ -1014,7 +1068,7 @@ export default function SuperTuxKartPlayablePreview() {
             s.fired += 1;
             if (s.fired >= 2) s.stage = "land";
           }
-          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
+          if (s.ttl <= 0) { scene.remove(s.craft); disposeObject3D(s.craft); activeAirStrikes.splice(i, 1); }
         }
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
@@ -1043,14 +1097,7 @@ export default function SuperTuxKartPlayablePreview() {
         canvas.removeEventListener("click", onTargetClick);
       }
       renderer.dispose();
-      scene.traverse((o) => {
-        const mesh = o;
-        if (!mesh.isMesh) return;
-        mesh.geometry?.dispose?.();
-        const mat = mesh.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else mat?.dispose?.();
-      });
+      disposeObject3D(scene);
     };
   }, []);
 
