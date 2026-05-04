@@ -1,5 +1,5 @@
-import BowlingGame from './BowlingGame';
+import ChessBattleRoyaleStore from './ChessBattleRoyaleStore';
 
 export function App() {
-  return <BowlingGame />;
+  return <ChessBattleRoyaleStore />;
 }
