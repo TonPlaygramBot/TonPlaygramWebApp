@@ -25,7 +25,7 @@ type BallState = {
 
 type ShotTechnique = "flat" | "topspin" | "slice";
 
-type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique };
+type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique; swipeDir?: THREE.Vector2 };
 
 type BonePack = {
   spine?: THREE.Bone;
@@ -99,6 +99,8 @@ type ControlState = {
   lastX: number;
   lastY: number;
   startPlayer: THREE.Vector3;
+  startTs: number;
+  lastTs: number;
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
@@ -786,7 +788,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
   const speedScale = CFG.worldScale * 1.22;
-  const baseSpeed = (serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6) * speedScale;
+  const baseSpeed = (serve ? 20.8 + power * 11.6 : 15.2 + power * 9.2) * speedScale;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -795,14 +797,20 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
   );
 }
 
-function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean) {
+function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, durationMs: number, isServe: boolean) {
   const dx = endX - startX;
   const dy = endY - startY;
-  const power = clamp(Math.hypot(dx, dy) / 155, isServe ? 0.78 : 0.38, 1);
-  const aimX = clamp((dx / 140) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.42, CFG.courtW / 2 - 0.42);
-  const upward = clamp((-dy + 40) / 230, 0, 1);
-  const targetZ = isServe ? lerp(-1.0, -CFG.serviceLineZ + 0.22, upward) : lerp(-1.15, -CFG.courtL / 2 + 0.88, upward);
-  return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
+  const dist = Math.hypot(dx, dy);
+  const duration = Math.max(durationMs, 16);
+  const swipeSpeed = (dist / duration) * 1000;
+  const speedBoost = clamp01((swipeSpeed - 240) / 1100);
+  const power = clamp((dist / 170) * 0.45 + speedBoost * 0.95 + (isServe ? 0.58 : 0.36), isServe ? 0.72 : 0.35, 1);
+  const dir = new THREE.Vector2(dx, -dy);
+  if (dir.lengthSq() > 1e-6) dir.normalize();
+  const aimX = clamp((dx / 120) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.36, CFG.courtW / 2 - 0.36);
+  const upward = clamp((-dy + 22) / 210, 0, 1);
+  const targetZ = isServe ? lerp(-1.2, -CFG.serviceLineZ + 0.14, upward) : lerp(-1.25, -CFG.courtL / 2 + 0.66, upward);
+  return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power, swipeDir: dir };
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
@@ -825,6 +833,10 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
+  if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
+    ball.vel.x += hit.swipeDir.x * (2.6 + hit.power * 2.1);
+    ball.vel.z += -hit.swipeDir.y * (1.1 + hit.power * 1.4);
+  }
   const technique = hit.technique || "flat";
   if (technique === "topspin") {
     ball.vel.y += 0.35 + hit.power * 0.35;
@@ -945,7 +957,7 @@ export default function MobileThreeTennisPrototype() {
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
-  const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
+  const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3(), startTs: 0, lastTs: 0 });
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
 
@@ -1088,6 +1100,8 @@ export default function MobileThreeTennisPrototype() {
         lastX: e.clientX,
         lastY: e.clientY,
         startPlayer: nearPlayer.target.clone(),
+        startTs: performance.now(),
+        lastTs: performance.now(),
       };
       setHudSafe({ status: ball.lastHitBy === null ? "Hold, aim serve, release" : "Drag to move, release to swing", power: 0 });
     };
@@ -1097,6 +1111,7 @@ export default function MobileThreeTennisPrototype() {
       if (!control.active || control.pointerId !== e.pointerId) return;
       control.lastX = e.clientX;
       control.lastY = e.clientY;
+      control.lastTs = performance.now();
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
       nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
@@ -1112,7 +1127,8 @@ export default function MobileThreeTennisPrototype() {
       control.active = false;
       control.pointerId = null;
       const isServe = ball.lastHitBy === null;
-      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, isServe);
+      const endTs = performance.now();
+      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe);
       startSwing(nearPlayer, hit, isServe ? "serve" : "forehand");
       setHudSafe({ status: isServe ? "Serve motion" : "Forehand swing", power: 0 });
     };
