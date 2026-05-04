@@ -112,6 +112,10 @@ const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62; // nudge seated humans just a bit closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
+const HUMAN_CARD_HAND_DEBUG_HELPERS =
+  typeof window !== 'undefined' &&
+  (new URLSearchParams(window.location.search).get('showHandHelpers') === '1' ||
+    window.localStorage?.getItem('murlanShowHandHelpers') === '1');
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -1773,10 +1777,10 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 97.28 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 106.24 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -113.92 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -18.56 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 116.6 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 128.5 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -132.4 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -24.25 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? (normalizedSeatIndex === 1 ? -0.08 * MODEL_SCALE : 0.08 * MODEL_SCALE)
@@ -1784,7 +1788,7 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   return {
     x: sideSeatLateralPull,
-    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 0.64 * MODEL_SCALE : 1.28 * MODEL_SCALE),
+    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 0.88 * MODEL_SCALE : 1.72 * MODEL_SCALE),
     z: 0.82 * MODEL_SCALE + nonBottomOutwardPush + bottomForwardPull
   };
 }
@@ -1799,6 +1803,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
   const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
   const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
+  const rightIndexFinger = findBoneByHints(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']);
   const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
   const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
@@ -1840,6 +1845,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightUpperArm,
       rightForeArm,
       rightHand,
+      rightIndexFinger,
       leftUpperArm,
       leftForeArm,
       leftHand,
@@ -1903,6 +1909,23 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightThigh: captureBoneRotation(rightThigh),
     rightCalf: captureBoneRotation(rightCalf)
   };
+
+  if (HUMAN_CARD_HAND_DEBUG_HELPERS) {
+    const handHelper = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018 * MODEL_SCALE, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+    );
+    const fingerHelper = new THREE.Mesh(
+      new THREE.SphereGeometry(0.014 * MODEL_SCALE, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xf97316 })
+    );
+    const cardHelper = new THREE.Mesh(
+      new THREE.SphereGeometry(0.016 * MODEL_SCALE, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0x84cc16 })
+    );
+    seatRoot.add(handHelper, fingerHelper, cardHelper);
+    rig.debugHelpers = { handHelper, fingerHelper, cardHelper };
+  }
 
   return rig;
 }
@@ -2081,9 +2104,9 @@ function runCharacterAction(store, rig, action) {
   if (action.type === 'PLAY') {
     const throwPrep = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-52), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-12) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-6) },
-      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-58), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-16) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-11) },
+      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-12) },
       head: { x: THREE.MathUtils.degToRad(-6) }
     });
     const throwRelease = buildPoseVariant(basePose, {
@@ -2105,6 +2128,13 @@ function runCharacterAction(store, rig, action) {
       handPos.y += 0.18 * MODEL_SCALE;
     }
 
+    const rightFingerPos = handPos.clone();
+    if (rig.bones?.rightIndexFinger) {
+      rig.bones.rightIndexFinger.getWorldPosition(rightFingerPos);
+    } else {
+      rightFingerPos.add((rig.seatConfig?.forward || new THREE.Vector3(0, 0, -1)).clone().multiplyScalar(0.04 * MODEL_SCALE));
+    }
+
     const selectedCardMesh = action.cardId ? store.cardMap?.get(action.cardId)?.mesh : null;
     const pickupPos = handPos.clone();
     if (selectedCardMesh) {
@@ -2116,7 +2146,8 @@ function runCharacterAction(store, rig, action) {
     target.y += 0.08 * MODEL_SCALE;
     target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
 
-    thrown.position.copy(pickupPos);
+    const contactPickupPos = pickupPos.clone().lerp(rightFingerPos, 0.8);
+    thrown.position.copy(contactPickupPos);
     thrown.lookAt(target.clone().setY(handPos.y));
 
     list.push({
@@ -2135,7 +2166,7 @@ function runCharacterAction(store, rig, action) {
           duration: 340,
           update: (t) => {
             const eased = easeInOutCubic(t);
-            thrown.position.lerpVectors(pickupPos, target, eased);
+            thrown.position.lerpVectors(contactPickupPos, target, eased);
             thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.5, eased);
           },
           complete: () => {
@@ -2172,6 +2203,29 @@ function stepCharacterActions(store, time) {
       return false;
     }
     return true;
+  });
+}
+
+function updateRigContactHelpers(store) {
+  if (!store?.characterRigs) return;
+  const tmpHand = new THREE.Vector3();
+  const tmpFinger = new THREE.Vector3();
+  const tmpCard = new THREE.Vector3();
+  store.characterRigs.forEach((rig) => {
+    const helpers = rig?.debugHelpers;
+    if (!helpers) return;
+    rig.bones?.rightHand?.getWorldPosition(tmpHand);
+    if (rig.bones?.rightIndexFinger) rig.bones.rightIndexFinger.getWorldPosition(tmpFinger);
+    else tmpFinger.copy(tmpHand);
+    const firstCard = rig.heldCards?.children?.[0];
+    if (firstCard) firstCard.getWorldPosition(tmpCard);
+    else tmpCard.copy(tmpHand);
+    rig.seatRoot.worldToLocal(tmpHand);
+    rig.seatRoot.worldToLocal(tmpFinger);
+    rig.seatRoot.worldToLocal(tmpCard);
+    helpers.handHelper.position.copy(tmpHand);
+    helpers.fingerHelper.position.copy(tmpFinger);
+    helpers.cardHelper.position.copy(tmpCard);
   });
 }
 
@@ -5456,6 +5510,7 @@ export default function MurlanRoyaleArena({ search }) {
           });
         }
         stepCharacterActions(store, time);
+        updateRigContactHelpers(store);
       };
 
       const animate = (time) => {
