@@ -5,6 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { getMurlanInventory, murlanAccountId } from "../../utils/murlanInventory.js";
+import { MURLAN_CHARACTER_THEMES } from "../../config/murlanCharacterThemes.js";
 
 const SAMPLE = "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0";
 const RAW_SAMPLE = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0";
@@ -400,8 +402,9 @@ async function loadVehicle(loader, urls, M, type) {
   try {
     const loaded = await loadAny(loader, urls);
     const obj = cloneObject(loaded.scene);
-    normalize(obj, 2.3);
+    normalize(obj, type === "ferrari" ? 2.9 : 2.3);
     obj.rotation.y = Math.PI;
+    obj.position.y += type === "ferrari" ? 0.02 : 0;
     return obj;
   } catch {
     const obj = makeFallbackVehicle(M, type);
@@ -410,15 +413,42 @@ async function loadVehicle(loader, urls, M, type) {
   }
 }
 
+function createSeatedRider(M, tint = 0xe8c7a2) {
+  const rider = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.6, metalness: 0.05 });
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x2c3445, roughness: 0.75, metalness: 0.02 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skin);
+  head.position.set(0, 0.86, -0.16);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.26, 6, 10), cloth);
+  torso.rotation.x = Math.PI / 2.2;
+  torso.position.set(0, 0.66, -0.06);
+  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.24, 4, 8), cloth);
+  legL.position.set(-0.08, 0.47, 0.13);
+  legL.rotation.x = -Math.PI / 2.35;
+  const legR = legL.clone();
+  legR.position.x = 0.08;
+  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.2, 4, 8), skin);
+  armL.position.set(-0.13, 0.66, 0.03);
+  armL.rotation.x = -Math.PI / 2.2;
+  const armR = armL.clone();
+  armR.position.x = 0.13;
+  rider.add(head, torso, legL, legR, armL, armR);
+  shadows(rider);
+  return rider;
+}
+
 function createVehicleGroup(model, track, routeT, lane, ai, name, radius = 1.35) {
   const root = new THREE.Group();
   root.add(model);
+  const rider = createSeatedRider(mats(), ai ? 0xd5b39f : 0xf2c9ad);
+  rider.position.set(0, 0.02, -0.12);
+  root.add(rider);
   const pos = point(track, routeT, lane);
   root.position.copy(pos);
   root.rotation.y = frame(track, routeT).yaw;
   root.userData.vehicle = true;
   root.userData.ai = ai;
-  return { root, model, pos: pos.clone(), yaw: root.rotation.y, speed: 0, steer: 0, routeT, lane, targetLane: lane, ai, name, radius, hp: 100, broken: false, inventory: [], selectedId: null };
+  return { root, model, rider, pos: pos.clone(), yaw: root.rotation.y, speed: 0, steer: 0, routeT, lane, targetLane: lane, ai, name, radius, hp: 100, broken: false, inventory: [], selectedId: null };
 }
 
 function updateVehicle(v, input, track, dt) {
@@ -630,6 +660,11 @@ export default function WeaponKartGame() {
   const [hud, setHud] = useState({ status: "Loading...", weapon: "None", ammo: 0, targets: 3, hp: 100, message: "Semi-auto steering active" });
   const [inventoryUi, setInventoryUi] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [showInventoryPage, setShowInventoryPage] = useState(false);
+  const [ownedCharacters, setOwnedCharacters] = useState([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [graphicsMode, setGraphicsMode] = useState("high");
   const inventoryRef = useRef([]);
   const selectedIdRef = useRef(null);
   const touch = useRef({ brake: false });
@@ -668,6 +703,13 @@ export default function WeaponKartGame() {
     renderer.shadowMap.enabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
+    const applyGraphics = (mode) => {
+      const dpr = mode === "performance" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+      renderer.setPixelRatio(dpr);
+      renderer.shadowMap.enabled = mode !== "performance";
+      renderer.toneMappingExposure = mode === "performance" ? 0.96 : 1.05;
+    };
+    applyGraphics(graphicsMode);
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(track.sky, 65, track.fogFar);
@@ -684,7 +726,7 @@ export default function WeaponKartGame() {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
       renderer.setSize(w, h, false);
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      applyGraphics(graphicsMode);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
@@ -804,6 +846,18 @@ export default function WeaponKartGame() {
       vehicles.forEach((v) => scene.add(v.root));
       enemyRoots = vehicles.filter((v) => v.ai).map((v) => v.root);
       player = vehicles[0];
+      const themeById = new Map(MURLAN_CHARACTER_THEMES.map((theme) => [theme.id, theme]));
+      const applyCharacterToPlayer = (characterId) => {
+        const theme = themeById.get(characterId);
+        const tint = Number.isFinite(theme?.accentColor) ? theme.accentColor : 0xf2c9ad;
+        if (player?.rider?.children?.length) {
+          player.rider.children.forEach((mesh) => {
+            if (!mesh.material?.color) return;
+            mesh.material.color.setHex(tint);
+          });
+        }
+      };
+      if (selectedCharacterId) applyCharacterToPlayer(selectedCharacterId);
 
       for (let i = 0; i < WEAPONS.length; i++) {
         const lane = (i % 3 - 1) * 1.55;
@@ -873,7 +927,17 @@ export default function WeaponKartGame() {
       canvas.removeEventListener("pointerup", pointerUp);
       canvas.removeEventListener("pointercancel", pointerUp);
     };
-  }, []);
+  }, [graphicsMode, selectedCharacterId]);
+
+  useEffect(() => {
+    const accountId = (typeof window !== "undefined" && window.localStorage?.getItem("accountId")) || "guest";
+    const inventory = getMurlanInventory(murlanAccountId(accountId));
+    const owned = Array.isArray(inventory?.characters) ? inventory.characters : [];
+    const byId = new Map(MURLAN_CHARACTER_THEMES.map((theme) => [theme.id, theme]));
+    const items = owned.map((id) => byId.get(id)).filter(Boolean);
+    setOwnedCharacters(items);
+    if (!selectedCharacterId && items[0]?.id) setSelectedCharacterId(items[0].id);
+  }, [selectedCharacterId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#85c7f2", touchAction: "none", userSelect: "none" }}>
@@ -889,7 +953,50 @@ export default function WeaponKartGame() {
             <div style={{ fontSize: 11, opacity: 0.75 }}>Flat red/white tire stacks · semi-auto steering · tap enemy cars to shoot</div>
             {hud.message && <div style={{ marginTop: 3, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.message}</div>}
           </div>
+          <button onClick={() => setShowMenu((v) => !v)} style={{ pointerEvents: "auto", width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,.24)", background: "rgba(0,0,0,.58)", color: "#fff", fontSize: 20, fontWeight: 900 }}>☰</button>
         </div>
+        {showMenu && (
+          <div style={{ pointerEvents: "auto", position: "absolute", top: 62, right: 12, width: 260, background: "rgba(3,8,18,.88)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 14, padding: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 8 }}>Graphics</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {["high", "performance"].map((mode) => (
+                <button key={mode} onClick={() => setGraphicsMode(mode)} style={{ flex: 1, borderRadius: 10, height: 34, border: graphicsMode === mode ? "2px solid #ffd166" : "1px solid rgba(255,255,255,.25)", background: graphicsMode === mode ? "rgba(255,209,102,.15)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800 }}>{mode}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 8 }}>Inventory (swap in-game)</div>
+            <div style={{ display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+              {inventoryUi.map((item) => (
+                <button key={`menu-${item.id}`} onClick={() => { selectedIdRef.current = item.id; setSelectedId(item.id); }} style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 10, border: selectedId === item.id ? "1px solid #ffd166" : "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#fff", padding: "6px 8px" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,.12)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 900 }}>{item.icon || item.name.slice(0, 2).toUpperCase()}</div>
+                  <div style={{ flex: 1, fontSize: 12, textAlign: "left" }}>{item.name}</div>
+                  <div style={{ fontSize: 11, opacity: 0.9 }}>{item.ammo}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowInventoryPage(true)} style={{ marginTop: 10, width: "100%", borderRadius: 10, height: 34, border: "1px solid rgba(255,255,255,.22)", background: "rgba(255,255,255,.08)", color: "#fff", fontWeight: 800 }}>Open Inventory Page</button>
+          </div>
+        )}
+        {showInventoryPage && (
+          <div style={{ pointerEvents: "auto", position: "absolute", inset: 12, background: "rgba(3,8,18,.95)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 16, padding: 12, overflow: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 900 }}>Weapon Kart Inventory</div>
+              <button onClick={() => setShowInventoryPage(false)} style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,.28)", background: "rgba(255,255,255,.08)", color: "#fff", height: 30, padding: "0 10px" }}>Close</button>
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Owned seated characters from store</div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {ownedCharacters.map((theme) => (
+                <button key={theme.id} onClick={() => setSelectedCharacterId(theme.id)} style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 12, border: selectedCharacterId === theme.id ? "1px solid #ffd166" : "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.04)", padding: 8, color: "#fff" }}>
+                  <img src={theme.thumbnail} alt={theme.label} style={{ width: 46, height: 46, borderRadius: 8, objectFit: "cover", background: "#111827" }} />
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800 }}>{theme.label}</div>
+                    <div style={{ fontSize: 11, opacity: 0.8 }}>Tap to use in match</div>
+                  </div>
+                </button>
+              ))}
+              {ownedCharacters.length === 0 && <div style={{ fontSize: 12, opacity: 0.8 }}>No character owned yet. Buy from Store → Weapon Kart.</div>}
+            </div>
+          </div>
+        )}
         <button
           onPointerDown={() => (touch.current.brake = true)}
           onPointerUp={() => (touch.current.brake = false)}
