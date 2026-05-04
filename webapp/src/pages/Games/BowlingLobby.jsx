@@ -27,6 +27,9 @@ export default function BowlingLobby() {
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader slug="bowling" title="Bowling Lobby" badge="2–8 players" description="Play vs AI or online with world-flag avatars." />
+        <div className="rounded-xl border border-cyan-300/40 bg-cyan-500/10 px-3 py-2 text-center text-xs font-semibold text-cyan-100">
+          Bowling build: BOWLING_MECHANISM_V3
+        </div>
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4 text-white/80">
           <div className="grid grid-cols-2 gap-3">
             <button type="button" onClick={() => setPlayerFlag(FLAG_EMOJIS[(FLAG_EMOJIS.indexOf(playerFlag) + 1) % FLAG_EMOJIS.length] || '🇺🇸')} className="lobby-option-card lobby-option-card-inactive">
