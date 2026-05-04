@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
 const CFG = {
-  scale: 1,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
@@ -22,8 +21,6 @@ const CFG = {
   cueLength: 1.46,
   bridgeDist: 0.24,
   shootCueGripFromBack: 0.58,
-  idleCueGripFromBack: 0.24,
-  idleCueDir: new THREE.Vector3(0.055, 0.965, -0.13),
   rightForearmOutward: 0.36,
   rightForearmBack: 0.44,
   rightForearmDown: 0.48,
@@ -284,13 +281,11 @@ function driveHuman(human, frame) {
   }
 
   const rightGrip = frame.rightHandWorld.clone();
-  const rightIdleElbow = rightGrip.clone()
-    .addScaledVector(UP, 0.04 * (human.cfg?.scale ?? CFG.scale) + 0.14 * (human.cfg?.scale ?? CFG.scale) * ik)
-    .addScaledVector(frame.side, -0.2 * (human.cfg?.scale ?? CFG.scale))
-    .addScaledVector(frame.forward, -0.03 * (human.cfg?.scale ?? CFG.scale) * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.5);
-  const pole = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.32).addScaledVector(frame.forward, -0.55).normalize();
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, pole, 0.9 + 0.1 * ik, 1.0);
+  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
+  const rightHold = 0.88 + 0.12 * ik;
+  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
 
   const standingHandSide = frame.side.clone().multiplyScalar(-1)
     .addScaledVector(UP, -0.55)
@@ -300,7 +295,7 @@ function driveHuman(human, frame) {
     .addScaledVector(frame.side, -0.64)
     .addScaledVector(frame.forward, 0.2)
     .normalize();
-  const standingCueDir = (human.cfg?.idleCueDir ?? CFG.idleCueDir).clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
+  const standingCueDir = new THREE.Vector3(0.055, 0.965, -0.13).applyAxisAngle(Y_AXIS, human.yaw).normalize();
   const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
   const rollForOrientation = ik >= 0.025
     ? (human.cfg?.rightHandRollIdle ?? CFG.rightHandRollIdle)
