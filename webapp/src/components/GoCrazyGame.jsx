@@ -24,6 +24,11 @@ const BUGGY_KART_URLS = [
   "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb"
 ];
+const SFX_URLS = {
+  pickup: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3",
+  fire: "https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3",
+  explosion: "https://cdn.pixabay.com/download/audio/2022/03/10/audio_270f49b57f.mp3"
+};
 const PARKED_UNIT_MODELS = {
   HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
   JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"],
@@ -42,7 +47,7 @@ const TRACK_PRESETS = {
   "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
-const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
+const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET", "TRUCK"]
 const WEAPON_MODEL_CANDIDATES = {
   FIREARM: [
     "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
@@ -75,11 +80,11 @@ const PICKUP_BUBBLE_COLORS = {
 
 
 const PARKED_UNIT_LAYOUT = Object.freeze({
-  HELICOPTER: { targetLength: 6.2, lift: 0.34, lane: 10.2, yawOffset: 0.5, helperColor: 0x73ffe4 },
-  JET: { targetLength: 6.5, lift: 0.3, lane: -10.4, yawOffset: -0.45, helperColor: 0x77d7ff },
-  TRUCK: { targetLength: 5.8, lift: 0.26, lane: 10.8, yawOffset: 0.2, helperColor: 0xffc277 },
-  DRONE: { targetLength: 4.6, lift: 0.5, lane: -11.1, yawOffset: -0.25, helperColor: 0x8fffb2 },
-  TOWER: { targetLength: 5.1, lift: 0.18, lane: 11.4, yawOffset: 0.15, helperColor: 0xccff83 }
+  HELICOPTER: { targetLength: 6.2, lift: 0.34, lane: 14.8, yawOffset: 0.5, helperColor: 0x73ffe4 },
+  JET: { targetLength: 6.5, lift: 0.3, lane: -15.2, yawOffset: -0.45, helperColor: 0x77d7ff },
+  TRUCK: { targetLength: 5.8, lift: 0.26, lane: 15.4, yawOffset: 0.2, helperColor: 0xffc277 },
+  DRONE: { targetLength: 4.6, lift: 0.5, lane: -14.6, yawOffset: -0.25, helperColor: 0x8fffb2 },
+  TOWER: { targetLength: 5.1, lift: 0.18, lane: 15.8, yawOffset: 0.15, helperColor: 0xccff83 }
 });
 
 const SUPPORT_ANIMATION_PROFILE = Object.freeze({
@@ -144,7 +149,7 @@ function createRoadsideDressings(scene, track) {
   for (let i = 0; i < 84; i++) {
     const a = (i / 84) * TAU;
     const side = i % 2 === 0 ? 1 : -1;
-    const lane = side > 0 ? 12.8 : -12.8;
+    const lane = side > 0 ? 13.9 : -13.9;
     const p = pointOnTrack(a, track, lane);
     const tire = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.1, 10, 18), tireMat);
     tire.position.copy(p).add(new THREE.Vector3(0, 0.25, 0));
@@ -594,6 +599,7 @@ function buildWeaponBubble(weapon) {
   const color = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
   const bubble = new THREE.Mesh(new THREE.SphereGeometry(profile.bubbleSize, 18, 16), createBubbleMaterial(color, profile.opacity));
   bubble.position.y = 0.18;
+  bubble.userData.baseOpacity = profile.opacity * 0.55;
   bubble.userData.kind = "pickup_bubble";
   return bubble;
 }
@@ -602,7 +608,8 @@ function updateBubbleVisual(bubble, now, phase = 0) {
   if (!bubble?.material) return;
   const wave = Math.sin(now * 0.002 + phase);
   bubble.scale.setScalar(1 + wave * 0.05);
-  bubble.material.opacity = clamp((bubble.material.opacity || 0.35) + wave * 0.01, 0.22, 0.52);
+  const baseOpacity = bubble.userData?.baseOpacity ?? 0.2;
+  bubble.material.opacity = clamp(baseOpacity + wave * 0.03, 0.14, 0.3);
   if (bubble.material.emissive) {
     const intensity = 0.12 + (wave + 1) * 0.07;
     bubble.material.emissiveIntensity = intensity;
@@ -785,7 +792,7 @@ function scatterGltfTrees(scene, tree, track) {
     const clone = cloneModel(tree);
     clone.scale.setScalar(0.45 + (i % 4) * 0.09);
     const side = i % 2 === 0 ? 1 : -1;
-    const sideOffset = side > 0 ? 6.5 : -6.5;
+    const sideOffset = side > 0 ? 16.4 : -16.4;
     const edge = pointOnTrack(a, track, sideOffset);
     clone.position.set(edge.x, 0, edge.z);
     clone.rotation.y = a + Math.PI * 0.25;
@@ -1172,6 +1179,20 @@ export default function SuperTuxKartPlayablePreview() {
     let onTargetClick = null;
 
     async function start() {
+      const sfx = {};
+      Object.entries(SFX_URLS).forEach(([k, src]) => {
+        const a = new Audio(src);
+        a.preload = "auto";
+        a.volume = k === "fire" ? 0.35 : 0.45;
+        sfx[k] = a;
+      });
+      const playSfx = (key) => {
+        const base = sfx[key];
+        if (!base) return;
+        const a = base.cloneNode();
+        a.volume = base.volume;
+        a.play().catch(() => {});
+      };
       let assets = null;
       let originalMode = false;
       try {
@@ -1232,7 +1253,7 @@ export default function SuperTuxKartPlayablePreview() {
           const template = useFerrari ? ferrariTemplate : buggyTemplate;
           if (!template) return;
           kart.group.clear();
-          const vehicle = cloneModel(template);
+          const vehicle = preserveOriginalGltfTextures(cloneModel(template));
           if (!useFerrari) stripEmbeddedDriver(vehicle);
           fitVehicleModel(vehicle, { targetLength: useFerrari ? 2.55 : 2.35, lift: 0.1, yaw: Math.PI });
           kart.group.add(vehicle);
@@ -1278,7 +1299,7 @@ export default function SuperTuxKartPlayablePreview() {
         return new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.28, 0.24), makeMat(0xffe066, 0.35));
       };
       const pickupSlots = Array.from({ length: 12 }, (_, i) => (i / 12) * TAU + 0.25);
-      const pickupTypes = [...WEAPON_PICKUPS, ...SUPPORT_PICKUP_TYPES];
+      const pickupTypes = [...WEAPON_PICKUPS];
       const pickups = pickupTypes.map((weapon, i) => {
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
         const weaponPickup = SUPPORT_PICKUP_TYPES.includes(weapon)
@@ -1287,7 +1308,7 @@ export default function SuperTuxKartPlayablePreview() {
         if (SUPPORT_PICKUP_TYPES.includes(weapon)) {
           const src = parkedTemplates[weapon];
           if (src) {
-            const mini = cloneModel(src);
+            const mini = preserveOriginalGltfTextures(cloneModel(src));
             const profile = PICKUP_VISUAL_PROFILE[weapon] || PICKUP_VISUAL_PROFILE.TRUCK;
             fitVehicleModel(mini, { targetLength: profile.modelLength, lift: 0.06, yaw: 0 });
             weaponPickup.add(mini);
@@ -1487,6 +1508,7 @@ hudRef.current.crash = `${ai.name} fired`;
             playerCombat.inventory.add(pickup.userData.weapon);
             playerCombat.activeWeapon = pickup.userData.weapon;
             hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
+            playSfx("pickup");
             setTimeout(() => {
               pickup.userData.taken = false;
               pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
@@ -1524,6 +1546,7 @@ hudRef.current.crash = `${ai.name} fired`;
               } else {
                 callAirSupport(w, target);
               }
+              playSfx("fire");
               hudRef.current.crash = `${w} locked ${target.name}`;
               if (target.damage > 92) hudRef.current.crash = `${target.name} disabled`;
             }
@@ -1541,6 +1564,7 @@ hudRef.current.crash = `${ai.name} fired`;
             hit.damage += p.damage;
             hit.speed *= 0.6;
             p.ttl = 0;
+            playSfx("explosion");
           }
           if (p.ttl <= 0) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); activeProjectiles.splice(i, 1); }
         }
