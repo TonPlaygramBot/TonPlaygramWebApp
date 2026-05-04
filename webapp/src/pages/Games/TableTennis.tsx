@@ -104,6 +104,7 @@ type HumanRig = {
   speed: number;
 };
 
+type CameraMode = "player" | "broadcast";
 type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number };
 
 type ControlState = {
@@ -150,6 +151,8 @@ const CFG = {
   hitWindowStart: 0.43,
   hitWindowEnd: 0.72,
   serveContactT: 0.68,
+  netTopRestitution: 0.34,
+  netFaceRestitution: 0.18,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -234,8 +237,8 @@ function buildRealisticTableTennisTable() {
   const whiteLine = material(0xf6f7f0, 0.45, 0.0);
   const metal = material(0x171c22, 0.38, 0.32);
   const wheelMat = material(0x0b0e12, 0.46, 0.28);
-  const netMat = transparentMaterial(0x050505, 0.46, 0.7);
-  const netTape = material(0xf2f2f2, 0.46, 0.02);
+  const netMat = transparentMaterial(0x0b0b0b, 0.52, 0.72);
+  const netTape = material(0xf2f2f2, 0.42, 0.02);
 
   addBox(group, [CFG.tableW, CFG.tableTopThickness, CFG.tableL], [0, CFG.tableY - CFG.tableTopThickness / 2, 0], tableBlue);
   addBox(group, [CFG.tableW + 0.055, 0.035, CFG.tableL + 0.055], [0, CFG.tableY - CFG.tableTopThickness - 0.015, 0], tableEdge);
@@ -268,10 +271,23 @@ function buildRealisticTableTennisTable() {
   addBox(group, [0.05, 0.035, 1.74], [0.62, 0.39, 0], metal).rotation.y = -0.16;
 
   const netY = CFG.tableY + CFG.netH / 2;
-  addBox(group, [CFG.tableW + CFG.netPostOutside * 2, CFG.netH, 0.012], [0, netY, 0], netMat);
-  addBox(group, [CFG.tableW + CFG.netPostOutside * 2 + 0.035, 0.018, 0.026], [0, CFG.tableY + CFG.netH + 0.009, 0], netTape);
-  for (let i = -6; i <= 6; i++) addBox(group, [0.0035, CFG.netH * 0.86, 0.014], [(i * CFG.tableW) / 12, CFG.tableY + CFG.netH * 0.43, 0.008], transparentMaterial(0xffffff, 0.25));
-  for (let j = 1; j <= 3; j++) addBox(group, [CFG.tableW + 0.12, 0.0035, 0.014], [0, CFG.tableY + (j * CFG.netH) / 4, 0.009], transparentMaterial(0xffffff, 0.24));
+  const netSpan = CFG.tableW + CFG.netPostOutside * 2;
+  addBox(group, [netSpan, CFG.netH, 0.016], [0, netY, 0], netMat);
+  const holeMat = transparentMaterial(0xffffff, 0.14);
+  for (let row = 0; row < 7; row++) {
+    const y = CFG.tableY + 0.018 + (row / 6) * (CFG.netH - 0.038);
+    const cols = 26;
+    for (let col = 0; col < cols; col++) {
+      const offset = row % 2 === 0 ? 0 : (netSpan / cols) * 0.5;
+      const x = -netSpan / 2 + (col / (cols - 1)) * netSpan + offset;
+      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.0075, 6), holeMat);
+      hole.rotation.y = Math.PI / 2;
+      hole.position.set(x, y, 0.0088);
+      group.add(hole);
+    }
+  }
+  addBox(group, [netSpan + 0.035, 0.014, 0.028], [0, CFG.tableY + CFG.netH + 0.007, 0], netTape);
+  addBox(group, [netSpan + 0.035, 0.012, 0.024], [0, CFG.tableY + 0.008, 0], netTape);
   const leftPost = addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + 0.08) / 2, 0], metal, 18);
   const rightPost = addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + 0.08) / 2, 0], metal, 18);
   leftPost.rotation.z = -0.03;
@@ -1069,6 +1085,7 @@ export default function MobileRealisticTableTennisGame() {
   );
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState<string>("");
   const [selectedHdriId, setSelectedHdriId] = useState<string>("");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("player");
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
   useEffect(() => {
@@ -1139,6 +1156,7 @@ export default function MobileRealisticTableTennisGame() {
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36);
     const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.1, -0.05);
+    const netWobble = { amount: 0, side: 0 };
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.64));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x263f4b, 0.8));
@@ -1202,7 +1220,7 @@ export default function MobileRealisticTableTennisGame() {
     netFx.playbackRate = 1.4;
     const scoreFx = new Audio("/assets/sounds/successful.mp3");
     scoreFx.volume = 0.26;
-    const playFx = (fx: HTMLAudioElement) => { fx.currentTime = 0; fx.play().catch(() => {}); };
+    const playFx = (fx: HTMLAudioElement) => { fx.currentTime = 0; const endAt = 1.5; const onTime = () => { if (fx.currentTime >= endAt) { fx.pause(); fx.removeEventListener("timeupdate", onTime); } }; fx.addEventListener("timeupdate", onTime); fx.play().catch(() => {}); };
     const replayFrames: THREE.Vector3[] = [];
     let replayT = 0;
 
@@ -1380,13 +1398,26 @@ export default function MobileRealisticTableTennisGame() {
       const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
       if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
         ball.pos.z = ball.lastHitBy === "near" ? 0.025 : -0.025;
-        ball.vel.z *= -0.24;
-        ball.vel.y = Math.max(0.1, Math.abs(ball.vel.y) * 0.24);
+        ball.vel.z *= -0.05;
+        ball.vel.y = Math.max(0.2, Math.abs(ball.vel.y) * 0.12);
+        ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
+        netWobble.amount = 1;
+        netWobble.side = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1));
         playFx(netFx);
         awardPoint(opposite(ball.lastHitBy), "net");
       }
 
       const descendingThroughSurface = prev.y > BALL_SURFACE_Y && ball.pos.y <= BALL_SURFACE_Y && ball.vel.y < 0;
+      const nearNetTop = Math.abs(ball.pos.z) < 0.02 && ball.pos.y <= CFG.tableY + CFG.netH + CFG.ballR * 0.24 && ball.pos.y > CFG.tableY + CFG.netH - CFG.ballR * 0.5;
+      if (nearNetTop && ball.lastHitBy) {
+        ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
+        ball.vel.z *= -CFG.netTopRestitution;
+        ball.vel.y = Math.max(0.05, ball.vel.y * 0.35);
+        ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
+        netWobble.amount = 1;
+        netWobble.side = Math.sign(ball.pos.z);
+      }
+
       if (descendingThroughSurface && isOverTable(ball.pos.x, ball.pos.z, 0)) {
         ball.pos.y = BALL_SURFACE_Y;
         const side = sideOfZ(ball.pos.z);
@@ -1515,6 +1546,22 @@ export default function MobileRealisticTableTennisGame() {
       (playerGhost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.48 : 0.2;
       if (!controlRef.current.active) (aimGhost.material as THREE.MeshBasicMaterial).opacity *= 0.94;
 
+      netWobble.amount = Math.max(0, netWobble.amount - dt * 2.8);
+      const netObj = scene.getObjectByName("RealisticTableTennisTable_ProceduralGLTFStyle");
+      if (netObj) {
+        netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
+      }
+
+      if (cameraMode === "player") {
+        const eye = nearPlayer.pos.clone().add(new THREE.Vector3(0, 1.63, -0.045));
+        const look = new THREE.Vector3(0, CFG.tableY + 0.18, -TABLE_HALF_L * 0.4);
+        camera.position.lerp(eye, 1 - Math.exp(-12 * dt));
+        cameraTarget.lerp(look, 1 - Math.exp(-11 * dt));
+      } else {
+        const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+        camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
+        cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
+      }
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
@@ -1541,13 +1588,14 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id]);
+  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id, cameraMode]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
+      <button type="button" onClick={() => setCameraMode((prev) => (prev === "player" ? "broadcast" : "player"))} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "auto", zIndex: 6, borderRadius: 999, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(5,10,15,0.75)", color: "#fff", fontWeight: 800, fontSize: 12 }}>{cameraMode === "player" ? "👁 Player Cam" : "🎥 Broadcast"}</button>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
         <button
           type="button"
