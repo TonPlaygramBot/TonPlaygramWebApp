@@ -2,6 +2,14 @@ const gamesCatalog = [
 
 
   {
+    name: 'Real Bowling',
+    route: '/games/bowling/lobby',
+    slug: 'bowling',
+    image: '/assets/icons/air-hockey.svg',
+    description: 'Portrait-friendly 3D bowling with swipe aim and power.'
+  },
+
+  {
     name: 'Table Tennis',
     route: '/games/table-tennis/lobby',
     slug: 'table-tennis',
