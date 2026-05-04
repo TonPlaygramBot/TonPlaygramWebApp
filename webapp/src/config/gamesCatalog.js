@@ -2,14 +2,6 @@ const gamesCatalog = [
 
 
   {
-    name: 'Bowling',
-    route: '/games/bowling/lobby',
-    slug: 'bowling',
-    image: '/assets/icons/BlueBall.webp',
-    description: 'Swipe bowling with world-flag avatars, AI or online modes.'
-  },
-
-  {
     name: 'Table Tennis',
     route: '/games/table-tennis/lobby',
     slug: 'table-tennis',

@@ -69,8 +69,6 @@ import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import Tennis from './pages/Games/Tennis.tsx';
 import TableTennis from './pages/Games/TableTennis.tsx';
 import TennisLobby from './pages/Games/TennisLobby.jsx';
-import Bowling from './pages/Games/Bowling.tsx';
-import BowlingLobby from './pages/Games/BowlingLobby.jsx';
 import GoCrazy from './pages/Games/GoCrazy.tsx';
 import GoCrazyLobby from './pages/Games/GoCrazyLobby.jsx';
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
@@ -404,9 +402,7 @@ export default function App() {
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
-            />
-            <Route path="/games/bowling/lobby" element={<BowlingLobby />} />
-            <Route path="/games/bowling" element={<Bowling />} />            <Route
+            />            <Route
               path="/games/snookerroyale"
               element={
                 <GameLiveAvatarOverlay gameSlug="snookerroyale">
