@@ -3243,7 +3243,8 @@ const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
-const SEATED_HELPER_FACE_CAMERA_UP = 0.062 * MODEL_SCALE;
+// Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
+const SEATED_HELPER_FACE_CAMERA_UP = 0.082 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.098 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
