@@ -23,14 +23,12 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 type Act = "idle" | "run" | "throw" | "recover";
 type Pin = { g: THREE.Group; p: THREE.Vector3; s: THREE.Vector3; v: THREE.Vector3; tilt: number; axis: THREE.Vector3; down: boolean };
 type Ball = { m: THREE.Mesh; p: THREE.Vector3; v: THREE.Vector3; held: boolean; rolling: boolean; hook: number };
-type PinsetterCycle = "idle"|"sweepDown"|"sweepPush"|"sweepLift"|"tableDown"|"tableLift"|"ballReturn";
-type Turn = "player" | "ai";
 type Rig = { body: THREE.Group; fallback: THREE.Group; sh: THREE.Mesh; model: THREE.Object3D | null; p: THREE.Vector3; act: Act; t: number; from: THREE.Vector3; to: THREE.Vector3; cycle: number };
 type Frame = { rolls: number[]; marks: string[]; total: number | null };
 type Hud = { score: number; last: number; power: number; msg: string };
 type RulesState = { rolls: number[]; frame: number; ballInFrame: 1 | 2 | 3; done: boolean };
 
-const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17, sweepZ: -10.9 };
+const C = { y: .08, laneW: 1.56, gutterW: 2.08, startZ: 7.15, stopZ: 4.95, foulZ: 4.55, pinZ: -10.75, backZ: -13.15, ballR: .18, pinR: .17 };
 const HUMAN = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const WOOD = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/";
 const HDRI_PRESETS = [{id:"dancingHall",name:"Dancing Hall",file:"dancing_hall_1k.hdr"},{id:"sepulchralChapelRotunda",name:"Sepulchral Chapel Rotunda",file:"sepulchral_chapel_rotunda_1k.hdr"},{id:"vestibule",name:"Vestibule",file:"vestibule_1k.hdr"}];
@@ -204,40 +202,6 @@ function buildLane(scene: THREE.Scene, floorKey: string) {
   cast(g);
 }
 
-
-function clearFallenPins(pins: Pin[]) {
-  for (const p of pins) {
-    if (!p.g.visible) continue;
-    if (p.down || p.tilt >= 0.58) p.g.visible = false;
-  }
-}
-
-function resetStandingPins(pins: Pin[]) {
-  for (const p of pins) {
-    if (!p.g.visible) continue;
-    p.p.copy(p.s);
-    p.v.set(0, 0, 0);
-    p.tilt = 0;
-    p.axis.set(0, 0, -1);
-    p.down = false;
-    p.g.position.copy(p.p);
-    p.g.rotation.set(0, 0, 0);
-  }
-}
-
-function aiIntent() {
-  const targetX = clamp((Math.random() - 0.5) * 0.7, -0.35, 0.35);
-  const power = 0.58 + Math.random() * 0.34;
-  const hook = (Math.random() - 0.5) * 0.38;
-  return {
-    power,
-    releaseX: clamp(targetX * 0.72, -0.4, 0.4),
-    targetX,
-    hook,
-    speed: lerp(8.8, 15.6, out(power))
-  };
-}
-
 function scoreFromRolls(rolls: number[]) {
   const totals: number[] = [];
   let i = 0;
@@ -315,7 +279,6 @@ export default function BowlingGame() {
   const [floor, setFloor] = useState("oak_veneer_01");
   const [activeHdri, setActiveHdri] = useState("dancingHall");
   const [frames, setFrames] = useState<Frame[]>(Array.from({length:10}, () => ({rolls:[], marks:[], total:null})));
-  const [turn, setTurn] = useState<Turn>("player");
 
 
   useEffect(() => {
@@ -343,22 +306,6 @@ export default function BowlingGame() {
     for (let i=0;i<2;i++) { const l = new THREE.PointLight(0xffefdc, .22, 7.8, 2.2); l.position.set(i?-.7:.7, 2.8, 5.7); scene.add(l); }
     buildLane(scene, floor);
     const pins = makePins(scene), rig = makeRig(scene), ball = makeBall(); scene.add(ball.m);
-    const sweep = box(4.1, 0.12, 0.22, 0xd7e6ff, 0.2, 0.1);
-    sweep.position.set(0, 1.08, C.sweepZ); scene.add(sweep);
-    const pinTable = box(4.3, 0.08, 2.15, 0x223040, 0.35, 0.45);
-    pinTable.position.set(0, 1.35, C.pinZ - 0.85); scene.add(pinTable);
-    const ballRack = new THREE.Group();
-    const rackBase = box(1.35, 0.2, 0.5, 0x2d3a4d, 0.45, 0.2);
-    rackBase.position.set(0, 0.16, 0);
-    ballRack.add(rackBase);
-    [-0.42, 0, 0.42].forEach((x) => {
-      const cradle = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.03, 14, 24), new THREE.MeshStandardMaterial({ color: 0x9fb4cf, roughness: 0.22, metalness: 0.8 }));
-      cradle.rotation.x = Math.PI / 2;
-      cradle.position.set(x, 0.23, 0);
-      ballRack.add(cradle);
-    });
-    ballRack.position.set(1.95, C.y - 0.01, 7.2);
-    scene.add(ballRack);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(.24, 32), new THREE.MeshBasicMaterial({ color:0, transparent:true, opacity:.22, depthWrite:false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
     const aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.85 })); aimLine.visible = false; scene.add(aimLine);
@@ -367,24 +314,26 @@ export default function BowlingGame() {
     let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0;
     let rules: RulesState = { rolls: [], frame: 1, ballInFrame: 1, done: false };
     let sideReturnActive = false;
-    let cycle: PinsetterCycle = "idle";
-    let cycleT = 0;
-    let currentTurn: Turn = "player";
-    let aiTimer = 0;
     const calc = (x:number,y:number) => { const w=host.current!.clientWidth, h=host.current!.clientHeight, screen=clamp(x/w*2-1,-1,1), drag=clamp((x-sx)/Math.max(90,w*.18),-1,1); power=clamp((sy-y)/Math.max(180,h*.38),0,1); return { power, releaseX:clamp(screen*.84,-.96,.96), targetX:clamp(screen*1.04,-1.1,1.1), hook:drag*lerp(.08,.76,power), speed:lerp(6.2,16.4,out(power)) }; };
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
-    let returnPath = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-    let returnIdx = 0;
-    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; cycle="idle"; cycleT=0; sweep.position.y=1.08; sweep.position.z=C.sweepZ; pinTable.position.y=1.35; currentTurn = currentTurn === "player" ? "ai" : "player"; setTurn(currentTurn); setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":currentTurn==="player"?"Your turn":"AI is preparing shot"})); };
+    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":"Ball returned from side. Swipe again."})); };
     const startSideReturn = () => {
       sideReturnActive = true;
-      returnPath = [
+      const path = [
         new THREE.Vector3(1.95, C.y + C.ballR - 0.06, -12.6),
         new THREE.Vector3(1.95, C.y + C.ballR - 0.06, -2.6),
-        new THREE.Vector3(1.92, C.y + C.ballR - 0.06, 6.1),
+        new THREE.Vector3(1.92, C.y + C.ballR - 0.06, 5.7),
         new THREE.Vector3(0.58, C.y + C.ballR + 0.02, C.startZ)
       ];
-      returnIdx = 0;
+      let idx = 0;
+      const timer = setInterval(() => {
+        if (!sideReturnActive) return clearInterval(timer);
+        const t = path[idx];
+        ball.p.lerp(t, 0.2);
+        ball.m.position.copy(ball.p);
+        if (ball.p.distanceTo(t) < 0.08) idx++;
+        if (idx >= path.length) { clearInterval(timer); reset(); }
+      }, 16);
     };
     const pushRoll = (pinsHit:number) => {
       if (rules.done) return;
@@ -415,7 +364,7 @@ export default function BowlingGame() {
         else rules.done = true;
       }
     };
-    const down = (e:PointerEvent) => { if(currentTurn!=="player" || active || ball.rolling || rig.act!=="idle" || cycle!=="idle" || sideReturnActive) return; canvas.current!.setPointerCapture(e.pointerId); active=true; id=e.pointerId; sx=e.clientX; sy=e.clientY; intent=calc(e.clientX,e.clientY); showAim(intent); };
+    const down = (e:PointerEvent) => { if(active || ball.rolling || rig.act!=="idle") return; canvas.current!.setPointerCapture(e.pointerId); active=true; id=e.pointerId; sx=e.clientX; sy=e.clientY; intent=calc(e.clientX,e.clientY); showAim(intent); };
     const move = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; intent=calc(e.clientX,e.clientY); showAim(intent); };
     const up = (e:PointerEvent) => { if(!active || id!==e.pointerId) return; try{canvas.current!.releasePointerCapture(e.pointerId)}catch{} active=false; id=null; aimLine.visible=mark.visible=false; intent=calc(e.clientX,e.clientY); if(intent.power<.05){setHud(h=>({...h,power:0,msg:"Swipe higher for power"}));return} pending=intent; rig.act="run"; rig.t=0; rig.from.copy(rig.p); rig.to.set(clamp(intent.releaseX*.34,-.4,.4),C.y,C.stopZ); setHud(h=>({...h,power:0,msg:"Running to the line"})); };
     const resize = () => { const w=host.current!.clientWidth,h=host.current!.clientHeight; renderer.setPixelRatio(Math.min(2,devicePixelRatio||1)); renderer.setSize(w,h,false); cam.aspect=w/h; cam.fov=cam.aspect<.72?52:46; cam.updateProjectionMatrix(); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); };
@@ -427,37 +376,10 @@ export default function BowlingGame() {
       updateRig(rig,ball,dt);
       if(rig.act==="throw" && pending && rig.t>=.56 && ball.held){ before=standing(pins); release(ball,pending); pending=null; setHud(h=>({...h,msg:"Ball rolling"})); }
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
-      if (sideReturnActive) {
-        const target = returnPath[returnIdx];
-        ball.p.lerp(target, 0.16);
-        ball.m.position.copy(ball.p);
-        if (ball.p.distanceTo(target) < 0.08) returnIdx += 1;
-        if (returnIdx >= returnPath.length) sideReturnActive = false;
-      }
       if(!shot && !ball.rolling && movingWas && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
         pushRoll(lastHit);
-        cycle = "sweepDown"; cycleT = 0;
-        setHud(h=>({...h,msg:rules.done?"Game finished":"Pinsetter cycle started"})); } } else if(moving) settle=0;
-
-      if (cycle !== "idle") {
-        cycleT += dt;
-        if (cycle === "sweepDown") { sweep.position.y = lerp(1.08, 0.44, smooth(clamp(cycleT / 0.45, 0, 1))); if (cycleT >= 0.45) { cycle = "sweepPush"; cycleT = 0; clearFallenPins(pins); } }
-        else if (cycle === "sweepPush") { sweep.position.z = lerp(C.sweepZ, C.backZ + 0.3, smooth(clamp(cycleT / 0.55, 0, 1))); if (cycleT >= 0.55) { cycle = "sweepLift"; cycleT = 0; } }
-        else if (cycle === "sweepLift") { sweep.position.y = lerp(0.44, 1.08, smooth(clamp(cycleT / 0.36, 0, 1))); if (cycleT >= 0.36) { sweep.position.z = C.sweepZ; cycle = "tableDown"; cycleT = 0; } }
-        else if (cycle === "tableDown") { pinTable.position.y = lerp(1.35, 0.54, smooth(clamp(cycleT / 0.42, 0, 1))); if (cycleT >= 0.42) { resetStandingPins(pins); cycle = "tableLift"; cycleT = 0; } }
-        else if (cycle === "tableLift") { pinTable.position.y = lerp(0.54, 1.35, smooth(clamp(cycleT / 0.35, 0, 1))); if (cycleT >= 0.35) { cycle = "ballReturn"; cycleT = 0; setHud(h=>({...h,msg:"Ball returning to player"})); setTimeout(startSideReturn, 120); } }
-        else if (cycle === "ballReturn") { if (!sideReturnActive) cycle = "idle"; }
-      }
-      if (cycle === "ballReturn" && !sideReturnActive) reset();
-      if (currentTurn === "ai" && !rules.done && cycle==="idle" && !ball.rolling && rig.act==="idle" && !sideReturnActive) {
-        aiTimer += dt;
-        if (aiTimer > 1.1) {
-          aiTimer = 0;
-          pending = aiIntent();
-          rig.act = "run"; rig.t = 0; rig.from.copy(rig.p); rig.to.set(clamp(pending.releaseX*.34,-.4,.4),C.y,C.stopZ);
-          setHud(h=>({...h,msg:"AI shooting..."}));
-        }
-      } else if (currentTurn === "player") aiTimer = 0;
+        setHud(h=>({...h,msg:rules.done?"Game finished":"Ball entering side return"}));
+        setTimeout(startSideReturn,250); } } else if(moving) settle=0;
       sh.visible=ball.m.visible; sh.position.set(ball.p.x,C.y+.01,ball.p.z); cam.position.set(0,2.9,10.8); cam.lookAt(0,C.y+.74,-2.6); renderer.render(scene,cam);
     }
     loop();
@@ -467,14 +389,14 @@ export default function BowlingGame() {
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
     <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif",color:"white"}}>
-      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:24,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
-      <div style={{position:"absolute",left:62,right:12,top:24,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.78)",border:"1px solid rgba(255,255,255,.2)"}}>
+      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:12,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
+      <div style={{position:"absolute",left:62,right:12,top:10,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.78)",border:"1px solid rgba(255,255,255,.2)"}}>
         <div style={{display:"grid",gridTemplateColumns:"120px repeat(10,1fr)",gap:6,alignItems:"center",fontSize:11}}>
-          <div style={{fontWeight:900}}>🎳 {turn==="player"?"PLAYER TURN":"AI TURN"}</div>
+          <div style={{fontWeight:900}}>🎳 PLAYER_01</div>
           {frames.map((f,i)=><div key={i} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,padding:"2px 0"}}>{f.marks.join(" ") || "-"}</div>)}
         </div>
       </div>
-      {menuOpen && <div style={{position:"absolute",left:12,top:78,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.9)",border:"1px solid rgba(123,226,255,.3)"}}>
+      {menuOpen && <div style={{position:"absolute",left:12,top:62,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.9)",border:"1px solid rgba(123,226,255,.3)"}}>
         <div style={{fontWeight:900,marginBottom:8}}>Game Menu</div>
         <div style={{fontSize:12,opacity:.9,marginBottom:6}}>Graphics</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>{["Low","Medium","High"].map(g=><button key={g} onClick={()=>setGraphics(g)} style={{padding:"4px 8px",borderRadius:8,border:"1px solid #4a6",background:graphics===g?"#2b6":"#122",color:"white"}}>{g}</button>)}</div>
