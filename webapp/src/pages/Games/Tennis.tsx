@@ -107,29 +107,31 @@ const Y_AXIS = UP;
 
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
+const WORLD_SCALE = 1.22;
+
 const CFG = {
-  courtW: 7.45,
-  doublesW: 8.9,
-  courtL: 19.8,
-  serviceLineZ: 3.65,
-  netH: 0.78,
-  ballR: 0.1,
-  gravity: 9.8,
+  courtW: 7.45 * WORLD_SCALE,
+  doublesW: 8.9 * WORLD_SCALE,
+  courtL: 19.8 * WORLD_SCALE,
+  serviceLineZ: 3.65 * WORLD_SCALE,
+  netH: 0.78 * WORLD_SCALE,
+  ballR: 0.1 * WORLD_SCALE,
+  gravity: 9.8 * WORLD_SCALE,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
-  minBallSpeed: 0.12,
-  playerHeight: 2.2,
-  playerSpeed: 7.1,
-  aiSpeed: 9.8,
-  reach: 1.45,
+  minBallSpeed: 0.12 * WORLD_SCALE,
+  playerHeight: 2.2 * WORLD_SCALE,
+  playerSpeed: 7.1 * WORLD_SCALE,
+  aiSpeed: 9.8 * WORLD_SCALE,
+  reach: 1.45 * WORLD_SCALE,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  serveNearBaselineZ: 8.2,
+  serveNearBaselineZ: 8.2 * WORLD_SCALE,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -777,7 +779,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6;
+  const baseSpeed = (serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6) * WORLD_SCALE;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -958,8 +960,8 @@ export default function MobileThreeTennisPrototype() {
     scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
-    const cameraTarget = new THREE.Vector3(0, 0.95, -1.45);
-    const cameraOffset = new THREE.Vector3(0, 4.95, 7.7);
+    const cameraTarget = new THREE.Vector3(0, 0.95 * WORLD_SCALE, -1.45 * WORLD_SCALE);
+    const cameraOffset = new THREE.Vector3(0, 4.95 * WORLD_SCALE, 7.7 * WORLD_SCALE);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -1060,8 +1062,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45, 8.55);
-      else cameraOffset.set(0, 4.95, 7.7);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45 * WORLD_SCALE, 8.55 * WORLD_SCALE);
+      else cameraOffset.set(0, 4.95 * WORLD_SCALE, 7.7 * WORLD_SCALE);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
