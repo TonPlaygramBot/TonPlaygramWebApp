@@ -315,6 +315,7 @@ export default function BowlingGame() {
   const [floor, setFloor] = useState("oak_veneer_01");
   const [activeHdri, setActiveHdri] = useState("dancingHall");
   const [frames, setFrames] = useState<Frame[]>(Array.from({length:10}, () => ({rolls:[], marks:[], total:null})));
+  const [totalScore, setTotalScore] = useState(0);
   const [turn, setTurn] = useState<Turn>("player");
 
 
@@ -378,6 +379,8 @@ export default function BowlingGame() {
     const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; cycle="idle"; cycleT=0; sweep.position.y=1.08; sweep.position.z=C.sweepZ; pinTable.position.y=1.35; currentTurn = currentTurn === "player" ? "ai" : "player"; setTurn(currentTurn); setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":currentTurn==="player"?"Your turn":"AI is preparing shot"})); };
     const startSideReturn = () => {
       sideReturnActive = true;
+      ball.rolling = false;
+      ball.v.set(0,0,0);
       returnPath = [
         new THREE.Vector3(1.95, C.y + C.ballR - 0.06, -12.6),
         new THREE.Vector3(1.95, C.y + C.ballR - 0.06, -2.6),
@@ -388,13 +391,17 @@ export default function BowlingGame() {
     };
     const pushRoll = (pinsHit:number) => {
       if (rules.done) return;
-      rules.rolls.push(clamp(pinsHit, 0, 10));
+      const maxPinsThisRoll = rules.ballInFrame === 2 && rules.frame < 10
+        ? Math.max(0, 10 - (rules.rolls[rules.rolls.length - 1] ?? 0))
+        : 10;
+      const safePins = clamp(pinsHit, 0, maxPinsThisRoll);
+      rules.rolls.push(safePins);
       const frameIndex = rules.frame - 1;
       setFrames(prev => {
         const next = prev.map(f=>({...f, rolls:[...f.rolls], marks:[...f.marks]}));
         if (frameIndex < 10) {
           const f = next[frameIndex];
-          f.rolls.push(pinsHit);
+          f.rolls.push(safePins);
           if (f.rolls[0] === 10) f.marks = ["X"];
           else if (f.rolls.length >= 2 && f.rolls[0] + f.rolls[1] === 10) f.marks = [String(f.rolls[0]), "/"];
           else f.marks = f.rolls.map(String);
@@ -404,7 +411,7 @@ export default function BowlingGame() {
         return next;
       });
       if (rules.frame < 10) {
-        if (rules.ballInFrame === 1 && pinsHit === 10) { rules.frame++; rules.ballInFrame = 1; }
+        if (rules.ballInFrame === 1 && safePins === 10) { rules.frame++; rules.ballInFrame = 1; }
         else if (rules.ballInFrame === 1) rules.ballInFrame = 2;
         else { rules.frame++; rules.ballInFrame = 1; }
       } else {
@@ -429,13 +436,15 @@ export default function BowlingGame() {
       updateBall(ball,pins,dt); const moving=updatePins(pins,ball,dt); if(moving) movingWas=true;
       if (sideReturnActive) {
         const target = returnPath[returnIdx];
-        ball.p.lerp(target, 0.16);
+        const step = Math.min(6.2 * dt, ball.p.distanceTo(target));
+        if (step > 0) ball.p.add(target.clone().sub(ball.p).normalize().multiplyScalar(step));
         ball.m.position.copy(ball.p);
-        if (ball.p.distanceTo(target) < 0.08) returnIdx += 1;
-        if (returnIdx >= returnPath.length) sideReturnActive = false;
+        if (ball.p.distanceTo(target) < 0.05) returnIdx += 1;
+        if (returnIdx >= returnPath.length) { sideReturnActive = false; ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); }
       }
       if(!shot && shotInFlight && !ball.rolling && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; shotInFlight=false; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
         pushRoll(lastHit);
+        setTotalScore(score + lastHit);
         cycle = "sweepDown"; cycleT = 0;
         setHud(h=>({...h,msg:rules.done?"Game finished":"Pinsetter cycle started"})); } } else if(moving || ball.rolling) settle=0;
 
@@ -467,13 +476,13 @@ export default function BowlingGame() {
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
     <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif",color:"white"}}>
-      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:24,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
-      <div style={{position:"absolute",left:62,right:12,top:48,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.84)",border:"1px solid rgba(123,226,255,.45)"}}>
+      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:56,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
+      <div style={{position:"absolute",left:62,right:12,top:70,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.84)",border:"1px solid rgba(123,226,255,.45)"}}>
         <div style={{display:"grid",gridTemplateColumns:"120px repeat(10,1fr)",gap:6,alignItems:"center",fontSize:11}}>
           <div style={{fontWeight:900}}>🎳 {turn==="player"?"PLAYER TURN":"AI TURN"}</div>
           {frames.map((f,i)=><div key={i} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,padding:"2px 0"}}>{f.marks.join(" ") || "-"}</div>)}
         </div>
-        <div style={{marginTop:4,fontSize:10,opacity:.95,color:"#7be2ff",fontWeight:800}}>BOWLING MECHANISM LIVE • v3</div>
+        <div style={{marginTop:4,display:"flex",justifyContent:"space-between",fontSize:10,opacity:.95,color:"#7be2ff",fontWeight:800}}><span>BOWLING MECHANISM LIVE • v3</span><span>Total: {totalScore}</span></div>
       </div>
       {menuOpen && <div style={{position:"absolute",left:12,top:108,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.92)",border:"1px solid rgba(123,226,255,.45)"}}>
         <div style={{fontWeight:900,marginBottom:8}}>Game Menu</div>
