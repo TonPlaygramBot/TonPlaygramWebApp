@@ -82,6 +82,9 @@ const PARKED_UNIT_LAYOUT = Object.freeze({
   TOWER: { targetLength: 5.1, lift: 0.18, lane: 11.4, yawOffset: 0.15, helperColor: 0xccff83 }
 });
 
+const ROAD_OUTER_LANE = 12.3;
+const ROAD_INNER_LANE = -12.3;
+
 const SUPPORT_ANIMATION_PROFILE = Object.freeze({
   HELICOPTER: { bobSpeed: 2.2, bobAmp: 0.11, yawSpeed: 0.9, bankAmp: 0.04 },
   JET: { bobSpeed: 1.1, bobAmp: 0.04, yawSpeed: 0.25, bankAmp: 0.12 },
@@ -91,12 +94,12 @@ const SUPPORT_ANIMATION_PROFILE = Object.freeze({
 });
 
 const PICKUP_VISUAL_PROFILE = Object.freeze({
-  FIREARM: { modelLength: 1.4, rise: 0.96, bubbleSize: 0.98, opacity: 0.38, spin: 1.5 },
-  RIFLE: { modelLength: 1.62, rise: 1.03, bubbleSize: 1.04, opacity: 0.36, spin: 1.42 },
-  MISSILE: { modelLength: 1.78, rise: 1.08, bubbleSize: 1.08, opacity: 0.34, spin: 1.72 },
-  DRONE: { modelLength: 1.52, rise: 1.04, bubbleSize: 1.05, opacity: 0.34, spin: 1.62 },
-  HELICOPTER: { modelLength: 1.66, rise: 1.07, bubbleSize: 1.07, opacity: 0.35, spin: 1.48 },
-  JET: { modelLength: 1.72, rise: 1.1, bubbleSize: 1.09, opacity: 0.35, spin: 1.55 },
+  FIREARM: { modelLength: 1.4, rise: 0.9, bubbleSize: 1.18, opacity: 0.2, spin: 1.5 },
+  RIFLE: { modelLength: 1.62, rise: 0.92, bubbleSize: 1.24, opacity: 0.18, spin: 1.42 },
+  MISSILE: { modelLength: 1.78, rise: 0.94, bubbleSize: 1.28, opacity: 0.18, spin: 1.72 },
+  DRONE: { modelLength: 1.52, rise: 0.92, bubbleSize: 1.22, opacity: 0.18, spin: 1.62 },
+  HELICOPTER: { modelLength: 1.66, rise: 0.93, bubbleSize: 1.24, opacity: 0.18, spin: 1.48 },
+  JET: { modelLength: 1.72, rise: 0.95, bubbleSize: 1.26, opacity: 0.18, spin: 1.55 },
   TRUCK: { modelLength: 1.76, rise: 1.08, bubbleSize: 1.1, opacity: 0.33, spin: 1.34 },
   TOWER: { modelLength: 1.58, rise: 1.02, bubbleSize: 1.02, opacity: 0.36, spin: 1.25 }
 });
@@ -144,7 +147,7 @@ function createRoadsideDressings(scene, track) {
   for (let i = 0; i < 84; i++) {
     const a = (i / 84) * TAU;
     const side = i % 2 === 0 ? 1 : -1;
-    const lane = side > 0 ? 12.8 : -12.8;
+    const lane = side > 0 ? ROAD_OUTER_LANE : ROAD_INNER_LANE;
     const p = pointOnTrack(a, track, lane);
     const tire = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.1, 10, 18), tireMat);
     tire.position.copy(p).add(new THREE.Vector3(0, 0.25, 0));
@@ -584,8 +587,8 @@ function createBubbleMaterial(colorHex, opacity) {
     emissive: new THREE.Color(colorHex).multiplyScalar(0.22),
     transparent: true,
     opacity,
-    roughness: 0.14,
-    metalness: 0.12
+    roughness: 0.05,
+    metalness: 0.04
   });
 }
 
@@ -602,13 +605,36 @@ function updateBubbleVisual(bubble, now, phase = 0) {
   if (!bubble?.material) return;
   const wave = Math.sin(now * 0.002 + phase);
   bubble.scale.setScalar(1 + wave * 0.05);
-  bubble.material.opacity = clamp((bubble.material.opacity || 0.35) + wave * 0.01, 0.22, 0.52);
+  bubble.material.opacity = clamp((bubble.material.opacity || 0.2) + wave * 0.008, 0.1, 0.33);
   if (bubble.material.emissive) {
     const intensity = 0.12 + (wave + 1) * 0.07;
     bubble.material.emissiveIntensity = intensity;
   }
 }
 
+
+
+function createSfxController() {
+  let ctx = null;
+  const ensureCtx = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  };
+  const blip = (freq = 520, duration = 0.08, type = "sine", gain = 0.035) => {
+    const c = ensureCtx();
+    const t = c.currentTime;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.connect(g).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+  };
+  return { pickup: () => blip(720, 0.14, "triangle", 0.04), fire: () => blip(180, 0.12, "square", 0.03) };
+}
 
 function createRoadSurfaceDetail(scene, track) {
   const root = new THREE.Group();
@@ -1196,6 +1222,7 @@ export default function SuperTuxKartPlayablePreview() {
       const portraitGuide = createPortraitDistanceGuide(scene, selectedTrack);
       const pickupLegend = createWeaponPickupLegend(scene);
       scatterGltfTrees(scene, assets?.tree, selectedTrack);
+      const sfx = createSfxController();
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
       const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
@@ -1232,7 +1259,8 @@ export default function SuperTuxKartPlayablePreview() {
           const template = useFerrari ? ferrariTemplate : buggyTemplate;
           if (!template) return;
           kart.group.clear();
-          const vehicle = cloneModel(template);
+          const vehicle = preserveOriginalGltfTextures(cloneModel(template));
+          attachTextureAuditTag(vehicle, useFerrari ? FERRARI_KART_URL : BUGGY_KART_URLS[0]);
           if (!useFerrari) stripEmbeddedDriver(vehicle);
           fitVehicleModel(vehicle, { targetLength: useFerrari ? 2.55 : 2.35, lift: 0.1, yaw: Math.PI });
           kart.group.add(vehicle);
@@ -1252,7 +1280,8 @@ export default function SuperTuxKartPlayablePreview() {
             fitVehicleModel(park, { targetLength: layout.targetLength, lift: layout.lift, yaw: 0 });
             addPrecisionHelpers(park, { color: layout.helperColor, size: 1.05 });
             const a = (i / parkedKinds.length) * TAU + 0.18;
-            const edge = pointOnTrack(a, selectedTrack, layout.lane);
+            const outsideLane = layout.lane > 0 ? ROAD_OUTER_LANE + 1.7 : ROAD_INNER_LANE - 1.7;
+            const edge = pointOnTrack(a, selectedTrack, outsideLane);
             park.position.copy(edge).add(new THREE.Vector3(0, 0.22, 0));
             park.rotation.y = tangentYaw(a, selectedTrack) + layout.yawOffset;
             scene.add(park);
@@ -1280,7 +1309,7 @@ export default function SuperTuxKartPlayablePreview() {
       const pickupSlots = Array.from({ length: 12 }, (_, i) => (i / 12) * TAU + 0.25);
       const pickupTypes = [...WEAPON_PICKUPS, ...SUPPORT_PICKUP_TYPES];
       const pickups = pickupTypes.map((weapon, i) => {
-        const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
+        const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.15 : -0.15);
         const weaponPickup = SUPPORT_PICKUP_TYPES.includes(weapon)
           ? new THREE.Group()
           : makeWeaponPickupMesh(weapon);
@@ -1487,6 +1516,7 @@ hudRef.current.crash = `${ai.name} fired`;
             playerCombat.inventory.add(pickup.userData.weapon);
             playerCombat.activeWeapon = pickup.userData.weapon;
             hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
+            sfx.pickup();
             setTimeout(() => {
               pickup.userData.taken = false;
               pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
@@ -1511,6 +1541,7 @@ hudRef.current.crash = `${ai.name} fired`;
         });
 
         if (input.firePressed) {
+          sfx.fire();
           const target = input.fireTarget || [ai1, ai2, ai3, ai4].filter((k) => k.damage < 100).sort((a,b)=>a.pos.distanceTo(player.pos)-b.pos.distanceTo(player.pos))[0];
           if (target) {
             const w = playerCombat.activeWeapon;
