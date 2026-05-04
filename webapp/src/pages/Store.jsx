@@ -1181,20 +1181,6 @@ const storeMeta = {
     typeLabels: MURLAN_TYPE_LABELS,
     accountId: MURLAN_STORE_ACCOUNT_ID
   },
-  weaponkart: {
-    name: 'Weapon Kart',
-    items: MURLAN_ROYALE_STORE_ITEMS.filter((item) => item.type === 'characters').map((item) => ({
-      ...item,
-      type: 'humanCharacter'
-    })),
-    defaults: MURLAN_ROYALE_DEFAULT_LOADOUT.filter((entry) => entry.type === 'characters').map((entry) => ({
-      ...entry,
-      type: 'humanCharacter'
-    })),
-    labels: { humanCharacter: MURLAN_ROYALE_OPTION_LABELS.characters },
-    typeLabels: { humanCharacter: 'Seated Characters' },
-    accountId: MURLAN_STORE_ACCOUNT_ID
-  },
   'domino-royal': {
     name: 'Domino Royal',
     items: DOMINO_ROYAL_STORE_ITEMS,
@@ -1828,12 +1814,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'murlanroyale'
       })),
-      weaponkart: MURLAN_ROYALE_STORE_ITEMS.filter((item) => item.type === 'characters').map((item) => ({
-        ...item,
-        type: 'humanCharacter',
-        key: createItemKey('humanCharacter', item.optionId),
-        slug: 'weaponkart'
-      })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1895,8 +1875,6 @@ export default function Store() {
         isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) =>
         isMurlanOptionUnlocked(type, optionId, murlanOwned),
-      weaponkart: (type, optionId) =>
-        isMurlanOptionUnlocked(type === 'humanCharacter' ? 'characters' : type, optionId, murlanOwned),
       'domino-royal': (type, optionId) =>
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
@@ -1949,8 +1927,6 @@ export default function Store() {
         LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) =>
         MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      weaponkart: (item) =>
-        MURLAN_ROYALE_OPTION_LABELS.characters?.[item.optionId] || item.name,
       'domino-royal': (item) =>
         DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snake: (item) =>
@@ -1977,7 +1953,6 @@ export default function Store() {
       tavullbattleroyal: TAVULL_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
-      weaponkart: { humanCharacter: 'Seated Characters' },
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
       texasholdem: TEXAS_TYPE_LABELS,
@@ -2636,14 +2611,6 @@ export default function Store() {
           } else if (slug === 'murlanroyale') {
             setMurlanOwned(
               addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId)
-            );
-          } else if (slug === 'weaponkart') {
-            setMurlanOwned(
-              addMurlanUnlock(
-                entry.type === 'humanCharacter' ? 'characters' : entry.type,
-                entry.optionId,
-                resolvedAccountId
-              )
             );
           } else if (slug === 'domino-royal') {
             setDominoOwned(
