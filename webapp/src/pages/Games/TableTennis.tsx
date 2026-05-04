@@ -127,8 +127,8 @@ const Y_AXIS = UP;
 
 const CFG = {
   // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
-  tableL: 5.8,
-  tableW: 3.2,
+  tableL: 8.7,
+  tableW: 4.8,
   tableY: 1.45,
   tableTopThickness: 0.075,
   netH: 0.1525,
@@ -140,10 +140,10 @@ const CFG = {
   tableRestitution: 0.9,
   tableFriction: 0.965,
   spinDecay: 0.72,
-  playerHeight: 2.9,
+  playerHeight: 4.35,
   playerSpeed: 3.35,
   aiSpeed: 3.45,
-  reach: 0.82,
+  reach: 1.23,
   swingDuration: 0.34,
   backhandDuration: 0.29,
   serveDuration: 0.86,
@@ -152,13 +152,13 @@ const CFG = {
   serveContactT: 0.68,
   netTopRestitution: 0.34,
   netFaceRestitution: 0.18,
-  netPowerRetention: 0.2,
+  netPowerRetention: 0.32,
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 3.7,
-  maxShotSpeed: 9.8,
+  minShotSpeed: 4.8,
+  maxShotSpeed: 12.9,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -1305,7 +1305,7 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 48 : 42;
-      camera.position.set(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+      camera.position.set(0, camera.aspect < 0.72 ? 8.85 : 7.5, camera.aspect < 0.72 ? 10.5 : 9.15);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1447,8 +1447,10 @@ export default function MobileRealisticTableTennisGame() {
 
       const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
       if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
+        const travelDirZ = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1)) || -1;
+        const incomingZ = Math.abs(ball.vel.z);
         ball.pos.z = ball.pos.z >= 0 ? 0.024 : -0.024;
-        ball.vel.z *= -CFG.netFaceRestitution;
+        ball.vel.z = travelDirZ * Math.max(0.18, incomingZ * CFG.netFaceRestitution);
         ball.vel.y = Math.max(0.12, Math.abs(ball.vel.y) * 0.24);
         ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
         reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
@@ -1460,8 +1462,10 @@ export default function MobileRealisticTableTennisGame() {
       const descendingThroughSurface = prev.y > BALL_SURFACE_Y && ball.pos.y <= BALL_SURFACE_Y && ball.vel.y < 0;
       const nearNetTop = Math.abs(ball.pos.z) < 0.02 && ball.pos.y <= CFG.tableY + CFG.netH + CFG.ballR * 0.24 && ball.pos.y > CFG.tableY + CFG.netH - CFG.ballR * 0.5;
       if (nearNetTop && ball.lastHitBy) {
+        const travelDirZ = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1)) || -1;
+        const incomingZ = Math.abs(ball.vel.z);
         ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
-        ball.vel.z *= -CFG.netTopRestitution;
+        ball.vel.z = travelDirZ * Math.max(0.12, incomingZ * CFG.netTopRestitution);
         ball.vel.y = Math.max(0.03, ball.vel.y * 0.3);
         ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
         reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
@@ -1641,7 +1645,7 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 8.85 : 7.5, camera.aspect < 0.72 ? 10.5 : 9.15);
       camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
       cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
