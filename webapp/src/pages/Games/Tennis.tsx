@@ -108,28 +108,28 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 5.85,
-  doublesW: 7.1,
-  courtL: 15.4,
-  serviceLineZ: 2.85,
-  netH: 0.64,
-  ballR: 0.085,
+  courtW: 7.45,
+  doublesW: 8.9,
+  courtL: 19.8,
+  serviceLineZ: 3.65,
+  netH: 0.78,
+  ballR: 0.1,
   gravity: 9.8,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 1.82,
-  playerSpeed: 5.9,
-  aiSpeed: 8.2,
-  reach: 1.12,
+  playerHeight: 2.2,
+  playerSpeed: 7.1,
+  aiSpeed: 9.8,
+  reach: 1.45,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  serveNearBaselineZ: 6.4,
+  serveNearBaselineZ: 8.2,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -1021,14 +1021,14 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
-    shotFx.volume = 0.6;
-    const bounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
-    bounceFx.volume = 0.34;
+    const racketHitFx = new Audio("https://assets.mixkit.co/active_storage/sfx/1104/1104-preview.mp3");
+    racketHitFx.volume = 0.62;
+    const ballBounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/522/522-preview.mp3");
+    ballBounceFx.volume = 0.4;
+    const netHitFx = new Audio("/assets/sounds/goal net.mp3");
+    netHitFx.volume = 0.42;
     const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     crowdFx.volume = 0.32;
-    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
-    faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
     let pointLockT = 0;
@@ -1049,7 +1049,7 @@ export default function MobileThreeTennisPrototype() {
       const reasonText = reason === "out" ? "Out ball" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net fault" : "Point";
       replayText = `Replay: ${reasonText} by ${winner === "near" ? "You" : "AI"}`;
       replayT = 1.7;
-      void (reason === "out" || reason === "doubleBounce" || reason === "net" ? faultFx.play() : crowdFx.play()).catch(() => {});
+      void crowdFx.play().catch(() => {});
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
     };
 
@@ -1140,10 +1140,14 @@ export default function MobileThreeTennisPrototype() {
 
       const crossesNet = (prevZ > 0 && ball.pos.z <= 0) || (prevZ < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.055;
       if (crossesNet && Math.abs(ball.pos.x) <= CFG.doublesW / 2 + 0.1 && ball.pos.y < CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
-        ball.pos.z = ball.lastHitBy === "near" ? 0.09 : -0.09;
-        ball.vel.z *= -0.22;
-        ball.vel.y = Math.max(0.25, Math.abs(ball.vel.y) * 0.22);
+        const incoming = ball.vel.clone();
+        const outgoing = incoming.multiplyScalar(0.2); // 80% power loss on net impact
+        outgoing.z = Math.sign(outgoing.z || (ball.lastHitBy === "near" ? -1 : 1)) * Math.max(0.4, Math.abs(outgoing.z));
+        outgoing.y = Math.max(0.45, Math.abs(outgoing.y) + 0.2);
+        ball.vel.copy(outgoing);
+        ball.pos.z = ball.lastHitBy === "near" ? -0.12 : 0.12;
         netShakeT = 0.45;
+        void netHitFx.play().catch(() => {});
         awardPoint(opposite(ball.lastHitBy), "net");
       }
 
@@ -1154,7 +1158,7 @@ export default function MobileThreeTennisPrototype() {
           ball.vel.x *= CFG.groundFriction;
           ball.vel.z *= CFG.groundFriction;
           const bounceSide = sideOfZ(ball.pos.z);
-          void bounceFx.play().catch(() => {});
+          void ballBounceFx.play().catch(() => {});
           if (ball.bounceSide === bounceSide) ball.bounceCount += 1;
           else {
             ball.bounceSide = bounceSide;
@@ -1191,7 +1195,7 @@ export default function MobileThreeTennisPrototype() {
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
             performHit(player, ball, player.desiredHit, true);
-            void shotFx.play().catch(() => {});
+            void racketHitFx.play().catch(() => {});
             setHudSafe({ status: "Serve sent" });
           }
           continue;
@@ -1199,7 +1203,7 @@ export default function MobileThreeTennisPrototype() {
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
         if (canReachBall(player, ball)) {
           performHit(player, ball, player.desiredHit, false);
-          void shotFx.play().catch(() => {});
+          void racketHitFx.play().catch(() => {});
           setHudSafe({ status: player.side === "near" ? "Forehand return" : "AI returned" });
         }
       }
