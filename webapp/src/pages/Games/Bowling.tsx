@@ -258,17 +258,6 @@ function scoreFromRolls(rolls: number[]) {
   return totals;
 }
 
-
-function isRackResetNeeded(state: RulesState, pinsHit: number) {
-  if (state.frame < 10) return pinsHit === 10 || state.ballInFrame === 2;
-  if (state.ballInFrame === 1) return false;
-  if (state.ballInFrame === 2) {
-    const first = state.rolls[state.rolls.length - 1] ?? 0;
-    return first !== 10 && first + pinsHit < 10;
-  }
-  return true;
-}
-
 function updatePins(pins: Pin[], b: Ball, dt: number) {
   let moving = false;
   if (b.rolling && Math.abs(b.p.x) < C.laneW + .1) for (const p of pins) {
@@ -375,7 +364,7 @@ export default function BowlingGame() {
     const aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.85 })); aimLine.visible = false; scene.add(aimLine);
     const mark = new THREE.Mesh(new THREE.RingGeometry(.24,.31,36), new THREE.MeshBasicMaterial({ color:0x8bd7ff, transparent:true, opacity:.72, side:THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
 
-    let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0, shotInFlight=false, rackResetNeeded=true;
+    let sx=0, sy=0, active=false, id:number|null=null, power=0, intent:any=null, pending:any=null, before=10, movingWas=false, settle=0, shot=false, score=0, lastHit=0, shotInFlight=false;
     let rules: RulesState = { rolls: [], frame: 1, ballInFrame: 1, done: false };
     let sideReturnActive = false;
     let cycle: PinsetterCycle = "idle";
@@ -386,7 +375,7 @@ export default function BowlingGame() {
     const showAim = (it:any) => { aimLine.visible = mark.visible = !!it; if (!it) return; const a=lineGeo.getAttribute("position") as THREE.BufferAttribute; const z=.95+lerp(2.4,-.4,it.power); a.setXYZ(0,it.releaseX,C.y+.1,C.foulZ-.18); a.setXYZ(1,it.targetX,C.y+.1,z); a.needsUpdate=true; mark.position.set(it.targetX,C.y+.11,z); setHud(h=>({...h,power:it.power,msg:"Aim left/right, swipe upward"})); };
     let returnPath = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
     let returnIdx = 0;
-    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); if (rackResetNeeded) resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; cycle="idle"; cycleT=0; sweep.position.y=1.08; sweep.position.z=C.sweepZ; pinTable.position.y=1.35; if (rackResetNeeded) { currentTurn = currentTurn === "player" ? "ai" : "player"; setTurn(currentTurn); } setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":currentTurn==="player"?"Your turn":"AI is preparing shot"})); };
+    const reset = () => { rig.act="idle"; rig.t=0; rig.p.set(0,C.y,C.startZ); rig.from.copy(rig.p); rig.to.copy(rig.p); ball.held=true; ball.rolling=false; ball.v.set(0,0,0); ball.p.copy(heldPos(rig)); ball.m.position.copy(ball.p); resetPins(pins); movingWas=false; settle=0; shot=false; sideReturnActive=false; cycle="idle"; cycleT=0; sweep.position.y=1.08; sweep.position.z=C.sweepZ; pinTable.position.y=1.35; currentTurn = currentTurn === "player" ? "ai" : "player"; setTurn(currentTurn); setHud(h=>({...h,power:0,score,last:lastHit,msg:rules.done?"Game over":currentTurn==="player"?"Your turn":"AI is preparing shot"})); };
     const startSideReturn = () => {
       sideReturnActive = true;
       returnPath = [
@@ -445,10 +434,7 @@ export default function BowlingGame() {
         if (ball.p.distanceTo(target) < 0.08) returnIdx += 1;
         if (returnIdx >= returnPath.length) sideReturnActive = false;
       }
-      if(!shot && shotInFlight && !ball.rolling && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; shotInFlight=false; const liveTotals = scoreFromRolls([...rules.rolls, lastHit]);
-        score = liveTotals[liveTotals.length - 1] ?? score;
-        setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
-        rackResetNeeded = isRackResetNeeded(rules, lastHit);
+      if(!shot && shotInFlight && !ball.rolling && !moving){ settle+=dt; if(settle>.72){ lastHit=clamp(before-standing(pins),0,10); score+=lastHit; shot=true; shotInFlight=false; setHud(h=>({...h,score,last:lastHit,msg:`Knocked ${lastHit} pins`}));
         pushRoll(lastHit);
         cycle = "sweepDown"; cycleT = 0;
         setHud(h=>({...h,msg:rules.done?"Game finished":"Pinsetter cycle started"})); } } else if(moving || ball.rolling) settle=0;
@@ -463,7 +449,6 @@ export default function BowlingGame() {
         else if (cycle === "ballReturn") { if (!sideReturnActive) cycle = "idle"; }
       }
       if (cycle === "ballReturn" && !sideReturnActive) reset();
-      if (cycle === "ballReturn" && cycleT > 4.5) { sideReturnActive = false; cycle = "idle"; reset(); }
       if (currentTurn === "ai" && !rules.done && cycle==="idle" && !ball.rolling && rig.act==="idle" && !sideReturnActive) {
         aiTimer += dt;
         if (aiTimer > 1.1) {
@@ -482,15 +467,15 @@ export default function BowlingGame() {
   return <div style={{position:"fixed",inset:0,overflow:"hidden",background:"#07090d",touchAction:"none",userSelect:"none"}}>
     <div ref={host} style={{position:"absolute",inset:0}}><canvas ref={canvas} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}} /></div>
     <div style={{position:"fixed",inset:0,pointerEvents:"none",fontFamily:"system-ui,-apple-system,sans-serif",color:"white"}}>
-      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:42,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
-      <div style={{position:"absolute",left:62,right:12,top:68,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.84)",border:"1px solid rgba(123,226,255,.45)"}}>
+      <button onClick={()=>setMenuOpen(v=>!v)} style={{position:"absolute",left:12,top:24,pointerEvents:"auto",width:42,height:42,borderRadius:12,border:"1px solid rgba(255,255,255,.35)",background:"rgba(7,12,19,.7)",color:"white",fontSize:22}}>☰</button>
+      <div style={{position:"absolute",left:62,right:12,top:48,padding:"8px 10px",borderRadius:12,background:"rgba(6,8,11,.84)",border:"1px solid rgba(123,226,255,.45)"}}>
         <div style={{display:"grid",gridTemplateColumns:"120px repeat(10,1fr)",gap:6,alignItems:"center",fontSize:11}}>
           <div style={{fontWeight:900}}>🎳 {turn==="player"?"PLAYER TURN":"AI TURN"}</div>
-          {frames.map((f,i)=><div key={i} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,padding:"2px 0"}}><div>{f.marks.join(" ") || "-"}</div><div style={{fontSize:10,opacity:.85,color:"#9be8ff"}}>{f.total ?? ""}</div></div>)}
+          {frames.map((f,i)=><div key={i} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,padding:"2px 0"}}>{f.marks.join(" ") || "-"}</div>)}
         </div>
         <div style={{marginTop:4,fontSize:10,opacity:.95,color:"#7be2ff",fontWeight:800}}>BOWLING MECHANISM LIVE • v3</div>
       </div>
-      {menuOpen && <div style={{position:"absolute",left:12,top:128,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.92)",border:"1px solid rgba(123,226,255,.45)"}}>
+      {menuOpen && <div style={{position:"absolute",left:12,top:108,width:300,padding:12,pointerEvents:"auto",borderRadius:12,background:"rgba(6,9,14,.92)",border:"1px solid rgba(123,226,255,.45)"}}>
         <div style={{fontWeight:900,marginBottom:8}}>Game Menu</div>
         <div style={{fontSize:12,opacity:.9,marginBottom:6}}>Graphics</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>{["Low","Medium","High"].map(g=><button key={g} onClick={()=>setGraphics(g)} style={{padding:"4px 8px",borderRadius:8,border:"1px solid #4a6",background:graphics===g?"#2b6":"#122",color:"white"}}>{g}</button>)}</div>
