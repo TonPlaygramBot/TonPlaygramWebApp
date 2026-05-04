@@ -6,209 +6,615 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
-const TAU = Math.PI * 2;
-const WEAPON_COUNT = 18;
-const VEHICLE_COUNT = 2;
-const AIRCRAFT_COUNT = 3;
-const EQUIPMENT_COUNT = 3;
-const TOTAL_ITEMS = WEAPON_COUNT + VEHICLE_COUNT + AIRCRAFT_COUNT + EQUIPMENT_COUNT;
-
-const TRACK = { outerX: 44, outerZ: 26, innerX: 29, innerZ: 12, centerX: 36, centerZ: 19, wobble: 0.08 };
-const HUD_ICONS = { FIREARM: "🔫", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", RADAR: "📡", BOOST: "⚡", AUTO: "🧠" };
-
-const SAMPLE = "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0";
-const RAW_SAMPLE = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0";
-const FERRARI = "https://threejs.org/examples/models/gltf/ferrari.glb";
-const BUGGY = `${SAMPLE}/Buggy/glTF-Binary/Buggy.glb`;
-const BUGGY_RAW = `${RAW_SAMPLE}/Buggy/glTF-Binary/Buggy.glb`;
-const MILITARY_HOSTS = [
-  "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main",
-  "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main",
-  "https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main"
+const ORIGINAL_ASSETS = {
+  truckVariants: [
+    "/stk-original-glb/karts/truck/truck.glb",
+    "/stk-original-glb/karts/truck/truck-2.glb",
+    "/stk-original-glb/karts/truck/truck-3.glb",
+    "/stk-original-glb/karts/truck/truck-4.glb",
+    "/stk-original-glb/karts/truck/truck-5.glb"
+  ],
+  track: "/stk-original-glb/tracks/main-track/track.glb",
+  treeLocal: "/stk-original-glb/environment/tree.glb",
+  treeRemote: "https://raw.githubusercontent.com/jagenjo/GTR_Framework/master/data/prefabs/tree.glb"
+};
+const MURLAN_HUMAN_MODEL_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const FERRARI_KART_URL = "https://threejs.org/examples/models/gltf/ferrari.glb";
+const BUGGY_KART_URLS = [
+  "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
+  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb"
 ];
-const militaryUrls = (filename) => MILITARY_HOSTS.map((host) => `${host}/${filename}`);
-
-const KNOWN_WORKING_GLB = {
-  awp: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb",
-  awpRaw: "https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb",
-  mrtk: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-  mrtkRaw: "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-  pistolHolster: "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-  pistolHolsterRaw: "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-  fps: "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf",
-  fpsRaw: "https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf"
+const PARKED_UNIT_MODELS = {
+  HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
+  JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"],
+  TRUCK: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb"],
+  DRONE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb"],
+  TOWER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/antenna.glb"]
 };
 
-const DISPLAY_ITEMS = [
-  { id: "poly-shotgun-01", kind: "weapon", urls: ["https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb"] },
-  { id: "poly-assault-rifle-01", kind: "weapon", urls: ["https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb"] },
-  { id: "poly-pistol-01", kind: "weapon", urls: ["https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb"] },
-  { id: "poly-revolver-01", kind: "weapon", urls: ["https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb"] },
-  { id: "poly-sawed-off-01", kind: "weapon", urls: ["https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb"] },
-  { id: "poly-revolver-02", kind: "weapon", urls: ["https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb"] },
-  { id: "poly-shotgun-02", kind: "weapon", urls: ["https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb"] },
-  { id: "poly-shotgun-03", kind: "weapon", urls: ["https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb"] },
-  { id: "poly-smg-01", kind: "weapon", urls: ["https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb"] },
-  { id: "slot-10-ak47-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf", KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw] },
-  { id: "slot-11-krsv-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf", KNOWN_WORKING_GLB.mrtk, KNOWN_WORKING_GLB.mrtkRaw] },
-  { id: "slot-12-smith-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf", KNOWN_WORKING_GLB.pistolHolster, KNOWN_WORKING_GLB.pistolHolsterRaw] },
-  { id: "slot-13-mosin-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf", KNOWN_WORKING_GLB.awp] },
-  { id: "slot-14-uzi-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf", KNOWN_WORKING_GLB.mrtk] },
-  { id: "slot-15-sigsauer-gltf", kind: "weapon", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf", KNOWN_WORKING_GLB.pistolHolster] },
-  { id: "slot-16-awp-glb", kind: "weapon", urls: [KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw] },
-  { id: "slot-17-mrtk-gun-glb", kind: "weapon", urls: [KNOWN_WORKING_GLB.mrtk, KNOWN_WORKING_GLB.mrtkRaw] },
-  { id: "slot-18-fps-gun-gltf", kind: "weapon", urls: [KNOWN_WORKING_GLB.fps, KNOWN_WORKING_GLB.fpsRaw] },
-  { id: "vehicle-ferrari", kind: "vehicle", urls: [FERRARI] },
-  { id: "vehicle-buggy", kind: "vehicle", urls: [BUGGY, BUGGY_RAW, FERRARI] },
-  { id: "air-drone", kind: "aircraft", urls: militaryUrls("drone.glb") },
-  { id: "air-heli", kind: "aircraft", urls: militaryUrls("helicopter.glb") },
-  { id: "air-jet", kind: "aircraft", urls: militaryUrls("f15.glb") },
-  { id: "equip-rocket", kind: "equipment", urls: militaryUrls("atlas_v.glb") },
-  { id: "equip-antenna", kind: "equipment", urls: militaryUrls("antenna.glb") },
-  { id: "equip-truck", kind: "equipment", urls: militaryUrls("fire_truck.glb") }
-];
+const TAU = Math.PI * 2;
+const CHECKPOINTS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+const TRACK_SIZE_MULTIPLIER = { length: 1.55, width: 1.35 };
+const TRACK_PRESETS = {
+  "alpine-ring": { outerX: 44, outerZ: 28, innerX: 28, innerZ: 12, centerX: 36, centerZ: 20, wobble: 0.08, hue: 0x2b2f36 },
+  "sunset-circuit": { outerX: 42, outerZ: 26, innerX: 26, innerZ: 11, centerX: 34, centerZ: 18.5, wobble: 0.1, hue: 0x37312d },
+  "canyon-flow": { outerX: 46, outerZ: 25, innerX: 29, innerZ: 10.8, centerX: 37, centerZ: 17.8, wobble: 0.12, hue: 0x343236 },
+  "forest-sweep": { outerX: 43, outerZ: 29, innerX: 27, innerZ: 12.6, centerX: 35, centerZ: 21, wobble: 0.11, hue: 0x2a3130 },
+  "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
+};
+const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
+const WEAPON_MODEL_CANDIDATES = {
+  FIREARM: [
+    "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
+    "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb"
+  ],
+  RIFLE: [
+    "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+    "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+    "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb"
+  ],
+  MISSILE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/atlas_v.glb"],
+  DRONE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb"],
+  HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
+  JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"]
+};
+const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
+const WEAPON_ICON = { FIREARM: "🔫", RIFLE: "🪖", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", TOWER: "📡" };
+const SUPPORT_PICKUP_TYPES = ["TRUCK", "DRONE", "HELICOPTER", "JET", "TOWER"];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
-const pointOnTrack = (angle, lane = 0) => {
-  const mod = 1 + Math.sin(angle * 3) * TRACK.wobble + Math.cos(angle * 5) * TRACK.wobble * 0.45;
-  return new THREE.Vector3(Math.cos(angle) * (TRACK.centerX + lane) * mod, 0.2 + Math.sin(angle * 2.5) * 0.5, Math.sin(angle) * (TRACK.centerZ + lane * 0.45) * mod);
-};
-const tangentYaw = (angle) => {
+
+function forwardFromYaw(yaw) {
+  return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+}
+
+function yawFromForward(v) {
+  return Math.atan2(v.x, v.z);
+}
+
+function angleOnTrack(pos, track) {
+  const a = Math.atan2(pos.z / track.centerZ, pos.x / track.centerX);
+  return a < 0 ? a + TAU : a;
+}
+
+function pointOnTrack(angle, track, lane = 0) {
+  const mod = 1 + Math.sin(angle * 3) * track.wobble + Math.cos(angle * 5) * track.wobble * 0.45;
+  const hill = Math.sin(angle * 2.5 + Math.cos(angle * 0.7)) * 0.55 + Math.sin(angle * 7) * 0.15;
+  return new THREE.Vector3(Math.cos(angle) * (track.centerX + lane) * mod, 0.18 + hill, Math.sin(angle) * (track.centerZ + lane * 0.45) * mod);
+}
+
+function tangentYaw(angle, track) {
   const e = 0.01;
-  const p1 = pointOnTrack(angle, 0);
-  const p2 = pointOnTrack(angle + e, 0);
+  const p1 = pointOnTrack(angle, track, 0);
+  const p2 = pointOnTrack(angle + e, track, 0);
   return Math.atan2(p2.x - p1.x, p2.z - p1.z);
-};
+}
 
-function runSelfTests() {
-  if (DISPLAY_ITEMS.length !== TOTAL_ITEMS) throw new Error(`Expected ${TOTAL_ITEMS} items`);
+function trackQuality(pos, track) {
+  const outer = (pos.x * pos.x) / (track.outerX * track.outerX) + (pos.z * pos.z) / (track.outerZ * track.outerZ);
+  const inner = (pos.x * pos.x) / (track.innerX * track.innerX) + (pos.z * pos.z) / (track.innerZ * track.innerZ);
+  return { onRoad: outer <= 1 && inner >= 1 };
 }
-runSelfTests();
 
-function cloneModel(model) { return SkeletonUtils.clone(model); }
-function disposeObject(root) {
-  root?.traverse?.((obj) => {
-    if (!obj.isMesh) return;
-    obj.geometry?.dispose?.();
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((m) => {
-      if (!m) return;
-      ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "aoMap", "alphaMap"].forEach((k) => m[k]?.dispose?.());
-      m.dispose?.();
-    });
+
+function scaledTrack(track) {
+  return {
+    ...track,
+    outerX: track.outerX * TRACK_SIZE_MULTIPLIER.width,
+    innerX: track.innerX * TRACK_SIZE_MULTIPLIER.width,
+    centerX: track.centerX * TRACK_SIZE_MULTIPLIER.width,
+    outerZ: track.outerZ * TRACK_SIZE_MULTIPLIER.length,
+    innerZ: track.innerZ * TRACK_SIZE_MULTIPLIER.length,
+    centerZ: track.centerZ * TRACK_SIZE_MULTIPLIER.length
+  };
+}
+
+function makeMat(color, roughness = 0.78, metalness = 0.03) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+function enableShadows(obj) {
+  obj.traverse((child) => {
+    const mesh = child;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+    }
   });
+  return obj;
 }
-function configureModel(model, renderer) {
-  model.traverse((obj) => {
-    if (!obj.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    obj.frustumCulled = false;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((m) => {
-      if (!m) return;
-      ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"].forEach((k) => {
-        const tex = m[k];
-        if (!tex) return;
-        if (k === "map" || k === "emissiveMap") tex.colorSpace = THREE.SRGBColorSpace;
-        tex.flipY = false;
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        tex.needsUpdate = true;
-      });
-      m.needsUpdate = true;
-    });
+
+function cloneModel(model) {
+  return SkeletonUtils.clone(model);
+}
+
+function normalizeLoadedModel(obj) {
+  obj.traverse((child) => {
+    const mesh = child;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+    }
   });
+  return obj;
 }
-function fitModel(model, target = 1.4, lift = 0.06, yaw = 0) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const scale = target / Math.max(size.x, size.y, size.z, 0.0001);
-  model.scale.setScalar(scale);
-  model.updateMatrixWorld(true);
-  const b2 = new THREE.Box3().setFromObject(model);
-  const c = b2.getCenter(new THREE.Vector3());
-  model.position.x -= c.x;
-  model.position.z -= c.z;
-  model.position.y += -b2.min.y + lift;
-  model.rotation.y += yaw;
+
+function makeLoader() {
+  const dracoDecoderPath = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
+  return { dracoDecoderPath };
 }
-function makeLoader(url) {
+
+function loadGltf(dracoDecoderPath, url) {
   const manager = new THREE.LoadingManager();
-  const base = url.slice(0, url.lastIndexOf("/") + 1);
-  manager.setURLModifier((resource) => (/^(https?:)?\/\//i.test(resource) || resource.startsWith("data:") || resource.startsWith("blob:")) ? resource : new URL(resource, base).toString());
   const loader = new GLTFLoader(manager);
   const draco = new DRACOLoader();
-  draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/");
+  draco.setDecoderPath(dracoDecoderPath);
   loader.setDRACOLoader(draco);
   loader.setCrossOrigin("anonymous");
-  return loader;
+  const base = url.slice(0, url.lastIndexOf("/") + 1);
+  manager.setURLModifier((assetUrl) => {
+    if (/^(https?:)?\/\//i.test(assetUrl) || assetUrl.startsWith("data:") || assetUrl.startsWith("blob:")) return assetUrl;
+    return new URL(assetUrl, base).toString();
+  });
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(`Timeout loading ${url}`)), 18000);
+    loader.load(url, (gltf) => {
+      window.clearTimeout(timeout);
+      resolve({ scene: normalizeLoadedModel(gltf.scene), animations: gltf.animations || [] });
+    }, undefined, (err) => {
+      window.clearTimeout(timeout);
+      draco.dispose();
+      reject(err);
+    });
+  });
 }
-async function loadByUrls(urls) {
-  let lastError = null;
+
+async function tryLoadTree(dracoDecoderPath) {
+  try {
+    const local = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.treeLocal);
+    return local.scene;
+  } catch {
+    try {
+      const remote = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.treeRemote);
+      return remote.scene;
+    } catch (err) {
+      console.warn("No GLTF tree available. Trees will be skipped; no procedural trees are spawned.", err);
+      return undefined;
+    }
+  }
+}
+
+async function tryLoadMurlanHuman(dracoDecoderPath) {
+  try {
+    const gltf = await loadGltf(dracoDecoderPath, MURLAN_HUMAN_MODEL_URL);
+    return gltf.scene;
+  } catch (err) {
+    console.warn("Murlan seated human GLTF could not load.", err);
+    return null;
+  }
+}
+
+async function tryLoadVehicleModel(dracoDecoderPath, urls) {
   for (const url of urls) {
     try {
-      const loader = makeLoader(url);
-      const gltf = await new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(() => reject(new Error(`Timeout ${url}`)), 22000);
-        loader.load(url, (v) => { clearTimeout(timeout); resolve(v); }, undefined, (e) => { clearTimeout(timeout); reject(e); });
-      });
-      return { gltf, url };
-    } catch (e) { lastError = e; }
+      const gltf = await loadGltf(dracoDecoderPath, url);
+      return gltf.scene;
+    } catch (err) {
+      console.warn("Vehicle model URL failed:", url, err);
+    }
   }
-  throw lastError || new Error("All urls failed");
+  return null;
 }
 
-function createTrack(scene) {
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(98, 72), new THREE.MeshStandardMaterial({ color: 0x173421, roughness: 0.96 }));
+async function tryLoadOriginalAssets(dracoDecoderPath) {
+  const firstTruck = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.truckVariants[0]);
+  const track = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.track);
+  const trucks = [firstTruck.scene];
+  const truckAnimations = [firstTruck.animations];
+
+  for (const url of ORIGINAL_ASSETS.truckVariants.slice(1)) {
+    try {
+      const extra = await loadGltf(dracoDecoderPath, url);
+      trucks.push(extra.scene);
+      truckAnimations.push(extra.animations);
+    } catch {
+      trucks.push(firstTruck.scene);
+      truckAnimations.push(firstTruck.animations);
+    }
+  }
+
+  const tree = await tryLoadTree(dracoDecoderPath);
+  return { trucks, truckAnimations, track: track.scene, tree };
+}
+
+function createProceduralTrack(scene, track) {
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(92, 72), makeMat(0x18351f, 0.95));
   grass.rotation.x = -Math.PI / 2;
-  grass.position.y = -0.03;
+  grass.position.y = -0.02;
+  grass.receiveShadow = true;
   scene.add(grass);
+
   const shape = new THREE.Shape();
-  shape.absellipse(0, 0, TRACK.outerX, TRACK.outerZ, 0, TAU, false, 0);
+  shape.absellipse(0, 0, track.outerX, track.outerZ, 0, TAU, false, 0);
   const hole = new THREE.Path();
-  hole.absellipse(0, 0, TRACK.innerX, TRACK.innerZ, 0, TAU, true, 0);
+  hole.absellipse(0, 0, track.innerX, track.innerZ, 0, TAU, true, 0);
   shape.holes.push(hole);
-  const road = new THREE.Mesh(new THREE.ShapeGeometry(shape, 300), new THREE.MeshStandardMaterial({ color: 0x2d3138, roughness: 0.9 }));
+
+  const road = new THREE.Mesh(new THREE.ShapeGeometry(shape, 256), makeMat(track.hue, 0.86));
   road.rotation.x = -Math.PI / 2;
   road.position.y = 0.01;
+  road.receiveShadow = true;
   scene.add(road);
+
+  const curbMatA = makeMat(0xffffff, 0.52);
+  const curbMatB = makeMat(0xd82020, 0.52);
   for (let i = 0; i < 180; i++) {
     const a = (i / 180) * TAU;
-    const p = pointOnTrack(a, i % 2 ? 8.5 : -8.5);
-    const tire = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.1, 10, 18), new THREE.MeshStandardMaterial({ color: 0x181a1d, roughness: 0.96 }));
-    tire.position.copy(p).add(new THREE.Vector3(0, 0.24, 0));
-    tire.rotation.x = Math.PI / 2;
-    tire.rotation.z = tangentYaw(a);
-    scene.add(tire);
+    const yaw = tangentYaw(a, track);
+    const points = [
+      new THREE.Vector3(Math.cos(a) * track.outerX, 0.035, Math.sin(a) * track.outerZ),
+      new THREE.Vector3(Math.cos(a) * track.innerX, 0.036, Math.sin(a) * track.innerZ)
+    ];
+    for (const p of points) {
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.28), i % 2 === 0 ? curbMatA : curbMatB);
+      curb.position.copy(p);
+      curb.rotation.y = yaw;
+      curb.castShadow = true;
+      curb.receiveShadow = true;
+      scene.add(curb);
+    }
+  }
+
+  for (let x = -3; x <= 3; x++) {
+    for (let z = 0; z < 2; z++) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.035, 1.05), makeMat((x + z) % 2 === 0 ? 0xffffff : 0x050505, 0.4));
+      tile.position.set(x * 1.05, 0.07, track.centerZ + z * 1.05 - 0.5);
+      tile.receiveShadow = true;
+      scene.add(tile);
+    }
+  }
+
+  const tireBlack = makeMat(0x181818, 0.97, 0.02);
+  const tireRed = makeMat(0xa01717, 0.88, 0.03);
+  const tireWhite = makeMat(0xe3e3e3, 0.7, 0.01);
+  for (let i = 0; i < 140; i++) {
+    const a = (i / 140) * TAU;
+    const yaw = tangentYaw(a, track);
+    const ringSet = [
+      { x: Math.cos(a) * (track.outerX + 2.1), z: Math.sin(a) * (track.outerZ + 1.8), y: 0.2, stacked: i % 3 === 0 },
+      { x: Math.cos(a) * (track.innerX - 1.5), z: Math.sin(a) * (track.innerZ - 1.1), y: 0.2, stacked: i % 4 === 0 }
+    ];
+    ringSet.forEach((entry, idx) => {
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.2, 12, 28), i % 2 === 0 ? tireRed : tireWhite);
+      tire.rotation.x = Math.PI / 2;
+      tire.rotation.y = yaw + (idx === 0 ? 0.05 : -0.05);
+      tire.position.set(entry.x, entry.y, entry.z);
+      scene.add(tire);
+      const top = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.18, 10, 24), tireBlack);
+      top.rotation.x = Math.PI / 2;
+      top.position.set(entry.x, entry.y + 0.02, entry.z);
+      scene.add(top);
+      if (entry.stacked) {
+        const upper = tire.clone();
+        upper.position.y += 0.34;
+        scene.add(upper);
+      }
+    });
   }
 }
 
-export default function GoCrazyGame() {
+function scatterGltfTrees(scene, tree, track) {
+  if (!tree) return;
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * TAU + 0.08;
+    const clone = cloneModel(tree);
+    clone.scale.setScalar(0.45 + (i % 4) * 0.09);
+    const side = i % 2 === 0 ? 1 : -1;
+    const sideOffset = side > 0 ? 6.5 : -6.5;
+    const edge = pointOnTrack(a, track, sideOffset);
+    clone.position.set(edge.x, 0, edge.z);
+    clone.rotation.y = a + Math.PI * 0.25;
+    enableShadows(clone);
+    scene.add(clone);
+  }
+}
+
+function createTruckVariant(color, name, variant, track, ai = false, angle = Math.PI / 2, lane = 0) {
+  const group = new THREE.Group();
+  const bodyMat = makeMat(color, 0.48, 0.12);
+  const darkMat = makeMat(0x101010, 0.65, 0.18);
+  const seatMat = makeMat(0x22252b, 0.7);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x77bfff, roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.65 });
+
+  const dims = {
+    sport: { base: [1.4, 0.32, 2.05], nose: [1.0, 0.22, 0.75], mass: 1.0, radius: 1.25, wheel: 0.28, cabZ: -0.28 },
+    truck: { base: [1.62, 0.46, 2.45], nose: [1.2, 0.34, 0.85], mass: 1.25, radius: 1.45, wheel: 0.34, cabZ: -0.35 },
+    heavy: { base: [1.85, 0.58, 2.8], nose: [1.32, 0.38, 0.9], mass: 1.55, radius: 1.7, wheel: 0.38, cabZ: -0.45 },
+    rally: { base: [1.5, 0.38, 2.3], nose: [1.25, 0.28, 0.8], mass: 1.12, radius: 1.38, wheel: 0.32, cabZ: -0.28 },
+    longnose: { base: [1.58, 0.42, 2.65], nose: [1.08, 0.3, 1.15], mass: 1.22, radius: 1.55, wheel: 0.33, cabZ: -0.52 }
+  };
+  const d = dims[variant];
+
+  const base = new THREE.Mesh(new THREE.BoxGeometry(...d.base), bodyMat);
+  base.position.y = 0.38;
+  group.add(base);
+
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(...d.nose), bodyMat);
+  nose.position.set(0, 0.49, d.base[2] * 0.5 + d.nose[2] * 0.35);
+  group.add(nose);
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.48, 0.72), seatMat);
+  seat.position.set(0, 0.78, d.cabZ);
+  group.add(seat);
+
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.36, 0.08), glassMat);
+  windshield.position.set(0, 0.94, d.cabZ + 0.45);
+  windshield.rotation.x = -0.35;
+  group.add(windshield);
+
+  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(d.base[0] * 1.08, 0.12, 0.3), bodyMat);
+  spoiler.position.set(0, 0.88, -d.base[2] * 0.52);
+  group.add(spoiler);
+
+  const bumperFront = new THREE.Mesh(new THREE.BoxGeometry(d.base[0] * 0.98, 0.16, 0.16), darkMat);
+  bumperFront.position.set(0, 0.3, d.base[2] * 0.56 + d.nose[2] * 0.55);
+  group.add(bumperFront);
+
+  for (const x of [-d.base[0] * 0.56, d.base[0] * 0.56]) {
+    for (const z of [-d.base[2] * 0.34, d.base[2] * 0.38]) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(d.wheel, d.wheel, 0.3, 24), darkMat);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(x, 0.26, z);
+      group.add(wheel);
+    }
+  }
+
+  const driverGroup = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.35, 4, 8), makeMat(ai ? 0x4f6bd6 : 0xdf3131, 0.6));
+  torso.position.set(0, 0.93, d.cabZ - 0.03);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), makeMat(ai ? 0xf2d6b3 : 0xffd2a6, 0.6));
+  head.position.set(0, 1.26, d.cabZ + 0.05);
+  const armMat = makeMat(ai ? 0x2e3e7a : 0x811f1f, 0.6);
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.25, 4, 8), armMat);
+  const rightArm = leftArm.clone();
+  leftArm.position.set(-0.16, 1.03, d.cabZ + 0.28);
+  rightArm.position.set(0.16, 1.03, d.cabZ + 0.28);
+  leftArm.rotation.z = 0.55;
+  rightArm.rotation.z = -0.55;
+  const steeringWheel = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.035, 10, 28), darkMat);
+  steeringWheel.position.set(0, 0.98, d.cabZ + 0.36);
+  steeringWheel.rotation.x = Math.PI / 2.8;
+  driverGroup.add(torso, head, leftArm, rightArm, steeringWheel);
+  group.add(driverGroup);
+
+  enableShadows(group);
+  const pos = pointOnTrack(angle, track, lane);
+  group.position.copy(pos);
+  group.rotation.y = tangentYaw(angle, track);
+
+  return {
+    group,
+    pos: pos.clone(),
+    yaw: group.rotation.y,
+    speed: 0,
+    steer: 0,
+    lap: 1,
+    checkpoint: 0,
+    progress: angle,
+    ai,
+    lane,
+    name,
+    mass: d.mass,
+    radius: d.radius,
+    crashT: 0,
+    damage: 0,
+    yawKick: 0,
+    variant
+  };
+}
+
+function createOriginalKart(assets, name, ai, angle, lane, index, variant, track) {
+  if (!assets.trucks.length) throw new Error("Original truck asset not loaded.");
+  const group = new THREE.Group();
+  const model = cloneModel(assets.trucks[index % assets.trucks.length]);
+  group.add(model);
+  const pos = pointOnTrack(angle, track, lane);
+  group.position.copy(pos);
+  group.rotation.y = tangentYaw(angle, track);
+  const animations = assets.truckAnimations[index % assets.truckAnimations.length] || [];
+  const mixer = animations.length ? new THREE.AnimationMixer(model) : undefined;
+  if (mixer) mixer.clipAction(animations[0]).play();
+  return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer };
+}
+
+function fitVehicleModel(model, { targetLength = 2.5, lift = 0.12, yaw = Math.PI } = {}) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 0.0001);
+  const scale = targetLength / maxDim;
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(model);
+  const center = fitted.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y += -fitted.min.y + lift;
+  model.rotation.y += yaw;
+  enableShadows(model);
+  return model;
+}
+
+function stripEmbeddedDriver(model) {
+  model.traverse((obj) => {
+    const name = (obj.name || "").toLowerCase();
+    if (/(driver|human|pilot|character|head|body|helmet)/.test(name)) obj.visible = false;
+  });
+}
+
+function updateCheckpoint(kart, track) {
+  const a = angleOnTrack(kart.pos, track);
+  const target = CHECKPOINTS[kart.checkpoint % CHECKPOINTS.length];
+  const diff = Math.abs(Math.atan2(Math.sin(a - target), Math.cos(a - target)));
+  if (diff < 0.18) {
+    kart.checkpoint = (kart.checkpoint + 1) % CHECKPOINTS.length;
+    if (kart.checkpoint === 0) kart.lap += 1;
+  }
+  kart.progress = (kart.lap - 1) * TAU + a;
+}
+
+function applyCrashDamping(kart, dt) {
+  if (kart.crashT <= 0) return;
+  kart.crashT = Math.max(0, kart.crashT - dt);
+  kart.yaw += kart.yawKick * dt;
+  kart.yawKick *= Math.exp(-5.5 * dt);
+  kart.speed *= Math.exp(-1.7 * dt);
+}
+
+function updatePlayerKart(kart, input, track, dt) {
+  const accel = (input.keys.KeyW || input.keys.ArrowUp ? 1 : 0) - (input.keys.KeyS || input.keys.ArrowDown ? 1 : 0) + input.accel;
+  const steerRaw = (input.keys.KeyD || input.keys.ArrowRight ? 1 : 0) - (input.keys.KeyA || input.keys.ArrowLeft ? 1 : 0) + input.steer;
+  const brake = input.keys.Space || input.brake;
+  const quality = trackQuality(kart.pos, track);
+  const grip = quality.onRoad ? 1 : 0.55;
+  const maxSpeed = quality.onRoad ? 16.5 - kart.damage * 0.9 : 7.5 - kart.damage * 0.5;
+
+  kart.speed += accel * 24 * dt * grip;
+  kart.speed -= (brake ? 30 : 0) * dt * Math.sign(kart.speed || 1);
+  kart.speed = Math.max(-7, Math.min(maxSpeed, kart.speed));
+  kart.speed *= Math.exp(-(quality.onRoad ? 0.65 : 2.2) * dt);
+  kart.steer = lerp(kart.steer, clamp(steerRaw, -1, 1), 1 - Math.exp(-5.2 * dt));
+  const steerStrength = 1.7 * grip * clamp(Math.abs(kart.speed) / 9, 0.24, 1.12);
+  kart.yaw -= kart.steer * steerStrength * dt * Math.sign(kart.speed || 1);
+  applyCrashDamping(kart, dt);
+  kart.pos.addScaledVector(forwardFromYaw(kart.yaw), kart.speed * dt);
+
+  if (!quality.onRoad) {
+    const pull = pointOnTrack(angleOnTrack(kart.pos, track), track, 0).sub(kart.pos).multiplyScalar(0.55 * dt);
+    kart.pos.add(pull);
+  }
+
+  kart.group.position.copy(kart.pos);
+  kart.group.rotation.y = kart.yaw;
+  kart.mixer?.update(dt);
+  updateCheckpoint(kart, track);
+}
+
+function updateAiKart(kart, all, track, dt) {
+  const target = pointOnTrack(angleOnTrack(kart.pos, track) + 0.5, track, kart.lane);
+  const to = target.sub(kart.pos).normalize();
+  const desiredYaw = yawFromForward(to);
+  const delta = Math.atan2(Math.sin(desiredYaw - kart.yaw), Math.cos(desiredYaw - kart.yaw));
+  let targetSpeed = 12.5 + Math.abs(kart.lane) * 0.8 - kart.damage * 0.35;
+
+  for (const other of all) {
+    if (other === kart) continue;
+    const ahead = other.pos.clone().sub(kart.pos);
+    if (ahead.length() < 4.4 && ahead.dot(forwardFromYaw(kart.yaw)) > 0) targetSpeed *= 0.62;
+  }
+
+  kart.speed = lerp(kart.speed, targetSpeed, 1 - Math.exp(-1.8 * dt));
+  kart.steer = lerp(kart.steer, clamp(delta * 1.4, -1, 1), 1 - Math.exp(-5.5 * dt));
+  kart.yaw += delta * (1 - Math.exp(-2.7 * dt));
+  applyCrashDamping(kart, dt);
+  kart.pos.addScaledVector(forwardFromYaw(kart.yaw), kart.speed * dt);
+  kart.group.position.copy(kart.pos);
+  kart.group.rotation.y = kart.yaw;
+  kart.mixer?.update(dt);
+  updateCheckpoint(kart, track);
+}
+
+function resolveVehicleCrashes(karts) {
+  let strongest = 0;
+  for (let i = 0; i < karts.length; i++) {
+    for (let j = i + 1; j < karts.length; j++) {
+      const a = karts[i];
+      const b = karts[j];
+      const delta = b.pos.clone().sub(a.pos);
+      const dist = Math.max(delta.length(), 0.001);
+      const minDist = a.radius + b.radius;
+      if (dist >= minDist) continue;
+
+      const normal = delta.multiplyScalar(1 / dist);
+      const overlap = minDist - dist;
+      const totalMass = a.mass + b.mass;
+      a.pos.addScaledVector(normal, -overlap * (b.mass / totalMass));
+      b.pos.addScaledVector(normal, overlap * (a.mass / totalMass));
+
+      const va = forwardFromYaw(a.yaw).multiplyScalar(a.speed);
+      const vb = forwardFromYaw(b.yaw).multiplyScalar(b.speed);
+      const rel = vb.clone().sub(va);
+      const closing = -rel.dot(normal);
+      const impact = Math.max(0, closing) + Math.abs(a.speed - b.speed) * 0.18;
+      const restitution = 0.38;
+      const impulse = impact > 0 ? ((1 + restitution) * closing) / (1 / a.mass + 1 / b.mass) : 1.2;
+      const impulseVec = normal.clone().multiplyScalar(impulse);
+      const va2 = va.clone().addScaledVector(impulseVec, -1 / a.mass);
+      const vb2 = vb.clone().addScaledVector(impulseVec, 1 / b.mass);
+
+      a.speed = clamp(va2.dot(forwardFromYaw(a.yaw)), -8, 15);
+      b.speed = clamp(vb2.dot(forwardFromYaw(b.yaw)), -8, 15);
+      const sideA = normal.dot(new THREE.Vector3(Math.cos(a.yaw), 0, -Math.sin(a.yaw)));
+      const sideB = normal.dot(new THREE.Vector3(Math.cos(b.yaw), 0, -Math.sin(b.yaw)));
+      a.yawKick += -sideA * (0.8 + impact * 0.25) / a.mass;
+      b.yawKick += sideB * (0.8 + impact * 0.25) / b.mass;
+      a.crashT = Math.max(a.crashT, 0.35 + impact * 0.03);
+      b.crashT = Math.max(b.crashT, 0.35 + impact * 0.03);
+      a.damage = clamp(a.damage + impact * 0.07, 0, 10);
+      b.damage = clamp(b.damage + impact * 0.07, 0, 10);
+      strongest = Math.max(strongest, impact);
+
+      a.group.position.copy(a.pos);
+      b.group.position.copy(b.pos);
+      a.group.rotation.z = Math.sin(a.crashT * 30) * 0.08;
+      b.group.rotation.z = -Math.sin(b.crashT * 30) * 0.08;
+    }
+  }
+  return strongest;
+}
+
+export default function SuperTuxKartPlayablePreview() {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
-  const [hud, setHud] = useState({ status: "Loading", speed: 0, weapon: "FIREARM", ammo: 999, alert: "", features: ["AUTO", "BOOST", "RADAR"] });
+  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, status: "Loading...", mode: "playable-preview", crash: "", weapon: "FIREARM", ammo: 999, collectedWeapons: ["FIREARM"] });
+  const hudRef = useRef(hud);
+
+  useEffect(() => {
+    hudRef.current = hud;
+  }, [hud]);
 
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
+    const params = new URLSearchParams(window.location.search);
+    const selectedTrackId = params.get("track") || "alpine-ring";
+    const selectedTrack = scaledTrack(TRACK_PRESETS[selectedTrackId] || TRACK_PRESETS["alpine-ring"]);
     if (!host || !canvas) return;
-    let cancelled = false;
-    let frame = 0;
 
+    let cancelled = false;
+    let frameId = 0;
+    const { dracoDecoderPath } = makeLoader();
+    const input = { keys: {}, steer: 0, accel: 0, brake: false, pointerId: null, startX: 0, startY: 0, lookId: null, lastX: 0, camYaw: 0, firePressed: false, fireTarget: null };
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    renderer.setClearColor(0x81bfe8, 1);
+    renderer.setClearColor(0x85c7f2, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x81bfe8, 40, 150);
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 220);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3d2d, 1.35));
+    scene.fog = new THREE.Fog(0x85c7f2, 42, 125);
+    const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 180);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2d3f30, 1.25));
     const sun = new THREE.DirectionalLight(0xffffff, 2.1);
-    sun.position.set(-16, 28, 18);
+    sun.position.set(-18, 32, 18);
     sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -60;
+    sun.shadow.camera.right = 60;
+    sun.shadow.camera.top = 60;
+    sun.shadow.camera.bottom = -60;
     scene.add(sun);
 
     const resize = () => {
@@ -220,297 +626,461 @@ export default function GoCrazyGame() {
       camera.updateProjectionMatrix();
     };
     resize();
+
+    const onKeyDown = (e) => { input.keys[e.code] = true; };
+    const onKeyUp = (e) => { input.keys[e.code] = false; };
+    const onPointerDown = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.setPointerCapture(e.pointerId);
+      if (e.clientX - rect.left < rect.width * 0.55 && input.pointerId === null) {
+        input.pointerId = e.pointerId;
+        input.startX = e.clientX;
+        input.startY = e.clientY;
+      } else {
+        input.lookId = e.pointerId;
+        input.lastX = e.clientX;
+        input.firePressed = true;
+      }
+    };
+    const onPointerMove = (e) => {
+      if (input.pointerId === e.pointerId) {
+        input.steer = clamp((e.clientX - input.startX) / 48, -1, 1);
+        input.accel = clamp(-(e.clientY - input.startY) / 60, -0.55, 1);
+      }
+      if (input.lookId === e.pointerId) {
+        const dx = e.clientX - input.lastX;
+        input.lastX = e.clientX;
+        input.camYaw -= dx * 0.005;
+      }
+    };
+    const onPointerUp = (e) => {
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+      if (input.pointerId === e.pointerId) {
+        input.pointerId = null;
+        input.steer = 0;
+        input.accel = 0;
+      }
+      if (input.lookId === e.pointerId) input.lookId = null;
+      input.firePressed = false;
+    };
+
     window.addEventListener("resize", resize);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerUp);
 
-    createTrack(scene);
+    let onTargetClick = null;
 
-    const input = { keys: {}, steer: 0, accel: 0, brake: false, autoDrive: false, boost: false, radar: true, fire: false };
-    window.addEventListener("keydown", (e) => {
-      input.keys[e.code] = true;
-      if (e.code === "KeyR") input.radar = !input.radar;
-      if (e.code === "KeyB") input.boost = !input.boost;
-      if (e.code === "KeyT") input.autoDrive = !input.autoDrive;
-      if (e.code === "KeyF") input.fire = true;
-    });
-    window.addEventListener("keyup", (e) => { input.keys[e.code] = false; });
-
-    const player = { pos: pointOnTrack(Math.PI / 2, 0), yaw: tangentYaw(Math.PI / 2), speed: 0, lap: 1, progress: Math.PI / 2, ammo: { FIREARM: 999, MISSILE: 4, DRONE: 2, HELICOPTER: 1, JET: 1 }, weapon: "FIREARM", hp: 100 };
-    const ai = [0, 1, 2, 3].map((i) => ({ pos: pointOnTrack(Math.PI / 2 - 0.3 - i * 0.2, i % 2 ? 1 : -1), yaw: tangentYaw(Math.PI / 2 - 0.3 - i * 0.2), speed: 10 + i, progress: 0, hp: 100, name: `AI-${i + 1}` }));
-    const karts = [];
-
-    function fallbackKart(color) {
-      const g = new THREE.Group();
-      g.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 0.8), new THREE.MeshStandardMaterial({ color, roughness: 0.6 })));
-      const top = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.76), new THREE.MeshStandardMaterial({ color: 0x2f3540 }));
-      top.position.set(0.2, 0.3, 0);
-      g.add(top);
-      return g;
-    }
-
-    async function loadCoreVehicles() {
-      const loadNames = [["player", [FERRARI]], ["ai1", [BUGGY, BUGGY_RAW]], ["ai2", [BUGGY, BUGGY_RAW]], ["ai3", [FERRARI]], ["ai4", [BUGGY, BUGGY_RAW]]];
-      for (let i = 0; i < loadNames.length; i++) {
-        const isPlayer = i === 0;
-        let model = null;
-        try {
-          const { gltf } = await loadByUrls(loadNames[i][1]);
-          model = cloneModel(gltf.scene);
-          configureModel(model, renderer);
-          fitModel(model, isPlayer ? 2.8 : 2.4, 0.08, Math.PI);
-        } catch {
-          model = fallbackKart(isPlayer ? 0xff3b30 : 0x31b8ff);
-        }
-        scene.add(model);
-        karts.push(model);
+    async function start() {
+      let assets = null;
+      let originalMode = false;
+      try {
+        assets = await tryLoadOriginalAssets(dracoDecoderPath);
+        originalMode = Boolean(assets.trucks.length && assets.track);
+      } catch (err) {
+        console.warn("Original SuperTuxKart GLB files are not available. Running playable fallback.", err);
+        const tree = await tryLoadTree(dracoDecoderPath);
+        assets = { trucks: [], truckAnimations: [], tree };
       }
-    }
 
-    const parkedTemplates = {};
-    const parkedUnits = [];
-    async function loadSupportUnits() {
-      const defs = [{ key: "DRONE", urls: militaryUrls("drone.glb"), lane: 11.2 }, { key: "HELICOPTER", urls: militaryUrls("helicopter.glb"), lane: -11.2 }, { key: "JET", urls: militaryUrls("f15.glb"), lane: 10.5 }, { key: "TRUCK", urls: militaryUrls("fire_truck.glb"), lane: -10.5 }];
-      for (let i = 0; i < defs.length; i++) {
-        let node;
-        try {
-          const { gltf } = await loadByUrls(defs[i].urls);
-          node = cloneModel(gltf.scene);
-          configureModel(node, renderer);
-          fitModel(node, 5.8, 0.2, 0);
-        } catch {
-          node = fallbackKart(0x88ffad);
-          fitModel(node, 4.5, 0.2, 0);
-        }
-        const a = (i / defs.length) * TAU + 0.3;
-        node.position.copy(pointOnTrack(a, defs[i].lane));
-        node.rotation.y = tangentYaw(a);
-        scene.add(node);
-        parkedUnits.push({ key: defs[i].key, node, phase: Math.random() * TAU, baseY: node.position.y, angle: a });
-        parkedTemplates[defs[i].key] = node;
-      }
-    }
+      const murlanHumanTemplate = await tryLoadMurlanHuman(dracoDecoderPath);
+      if (cancelled) return;
+      if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
+      else createProceduralTrack(scene, selectedTrack);
+      scatterGltfTrees(scene, assets?.tree, selectedTrack);
 
-    const pickups = [];
-    async function loadPickupGallery() {
-      for (let i = 0; i < DISPLAY_ITEMS.length; i++) {
-        const item = DISPLAY_ITEMS[i];
-        const slot = new THREE.Group();
-        const a = (i / DISPLAY_ITEMS.length) * TAU;
-        slot.position.copy(pointOnTrack(a, i % 2 ? 2.2 : -2.2));
-        let visual;
-        try {
-          const { gltf } = await loadByUrls(item.urls);
-          visual = cloneModel(gltf.scene);
-          configureModel(visual, renderer);
-          fitModel(visual, item.kind === "weapon" ? 1.2 : 1.7, 0.05, item.kind === "weapon" ? Math.PI : 0);
-        } catch {
-          visual = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.4), new THREE.MeshStandardMaterial({ color: 0xf5cc66 }));
-        }
-        slot.add(visual);
-        const color = item.kind === "weapon" ? 0x8fd3ff : item.kind === "aircraft" ? 0x8dffad : 0xffba8f;
-        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.96, 16, 14), new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.2), transparent: true, opacity: 0.35 }));
-        bubble.position.y = 0.14;
-        bubble.userData.bubble = true;
-        slot.add(bubble);
-        scene.add(slot);
-        pickups.push({ slot, item, taken: false, angle: a, baseY: slot.position.y, spin: 1.2 + Math.random() * 0.7 });
-      }
-    }
+      const variants = ["sport", "truck", "heavy", "rally", "longnose"];
+      const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
+      const names = ["Ferrari Sport", "Go-Kart Buggy", "Go-Kart Buggy", "Ferrari Sport", "Go-Kart Buggy"];
+      const starts = [
+        { angle: Math.PI / 2, lane: 0 },
+        { angle: Math.PI / 2 - 0.18, lane: -1.5 },
+        { angle: Math.PI / 2 - 0.32, lane: 1.2 },
+        { angle: Math.PI / 2 - 0.48, lane: 0.2 },
+        { angle: Math.PI / 2 - 0.64, lane: -0.4 }
+      ];
 
-    const missiles = [];
-    const airStrikes = [];
-    function spawnMissile(from, target) {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.8, 12), new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0x4f1a00 }));
-      m.position.copy(from);
-      scene.add(m);
-      missiles.push({ mesh: m, vel: target.clone().sub(from).normalize().multiplyScalar(38), ttl: 2.4, target });
-      setHud((h) => ({ ...h, alert: "Incoming missile detected ⚠️" }));
-    }
+      const makeKart = (i) => originalMode && assets?.trucks.length
+        ? createOriginalKart(assets, names[i], i > 0, starts[i].angle, starts[i].lane, i, variants[i], selectedTrack)
+        : createTruckVariant(colors[i], names[i], variants[i], selectedTrack, i > 0, starts[i].angle, starts[i].lane);
 
-    function callCinematicSupport(kind, targetPos) {
-      const src = parkedTemplates[kind];
-      if (!src) return;
-      const craft = cloneModel(src);
-      fitModel(craft, 5.4, 0.06, 0);
-      craft.position.copy(player.pos).add(new THREE.Vector3(-8, 0.8, -8));
-      scene.add(craft);
-      airStrikes.push({ kind, craft, targetPos: targetPos.clone(), phase: Math.random() * TAU, ttl: 4, stage: "entry", fired: false });
-    }
-
-    const clock = new THREE.Clock();
-    Promise.all([loadCoreVehicles(), loadSupportUnits(), loadPickupGallery()]).then(() => {
-      const animate = () => {
+      const player = makeKart(0);
+      const ai1 = makeKart(1);
+      const ai2 = makeKart(2);
+      const ai3 = makeKart(3);
+      const ai4 = makeKart(4);
+      const karts = [player, ai1, ai2, ai3, ai4];
+      karts.forEach((k) => scene.add(k.group));
+      karts.forEach((kart, i) => { kart.group.userData.vehicleType = i === 0 || i === 3 ? "ferrari" : "buggy"; });
+      Promise.allSettled([
+        tryLoadVehicleModel(dracoDecoderPath, [FERRARI_KART_URL]),
+        tryLoadVehicleModel(dracoDecoderPath, BUGGY_KART_URLS)
+      ]).then(([ferrariRes, buggyRes]) => {
         if (cancelled) return;
-        frame = requestAnimationFrame(animate);
-        const dt = Math.min(0.033, clock.getDelta());
+        const ferrariTemplate = ferrariRes.status === "fulfilled" ? ferrariRes.value : null;
+        const buggyTemplate = buggyRes.status === "fulfilled" ? buggyRes.value : null;
+        karts.forEach((kart, i) => {
+          const useFerrari = i === 0 || i === 3;
+          const template = useFerrari ? ferrariTemplate : buggyTemplate;
+          if (!template) return;
+          kart.group.clear();
+          const vehicle = cloneModel(template);
+          if (!useFerrari) stripEmbeddedDriver(vehicle);
+          fitVehicleModel(vehicle, { targetLength: useFerrari ? 2.55 : 2.35, lift: 0.1, yaw: Math.PI });
+          kart.group.add(vehicle);
+        });
+      });
+      const parkedKinds = ["HELICOPTER", "JET", "TRUCK", "DRONE", "TOWER"];
+      const parkedTemplates = {};
+      const parkedActors = {};
+      Promise.allSettled(parkedKinds.map((kind) => tryLoadVehicleModel(dracoDecoderPath, PARKED_UNIT_MODELS[kind] || []))).then((results) => {
+        if (cancelled) return;
+        results.forEach((res, i) => {
+          const kind = parkedKinds[i];
+          if (res.status === "fulfilled" && res.value) {
+            parkedTemplates[kind] = res.value;
+            const park = cloneModel(res.value);
+            fitVehicleModel(park, { targetLength: 5.4, lift: 0.05, yaw: 0 });
+            const a = (i / parkedKinds.length) * TAU + 0.18;
+            const edge = pointOnTrack(a, selectedTrack, i % 2 === 0 ? 9.5 : -9.5);
+            park.position.copy(edge).add(new THREE.Vector3(0, 0.2, 0));
+            park.rotation.y = tangentYaw(a, selectedTrack) + (i % 2 === 0 ? 0.5 : -0.5);
+            scene.add(park);
+            parkedActors[kind] = park;
+          }
+        });
+      });
+      const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
+      const weaponTemplates = {};
+      const makeWeaponPickupMesh = (weapon) => {
+        const model = weaponTemplates[weapon];
+        if (model) {
+          const pickup = cloneModel(model);
+          const sizeByWeapon = { FIREARM: 1.25, RIFLE: 1.45, MISSILE: 1.6, DRONE: 1.35, HELICOPTER: 1.5, JET: 1.55 };
+          fitVehicleModel(pickup, { targetLength: sizeByWeapon[weapon] || 1.2, lift: 0.03, yaw: weapon === "RIFLE" ? Math.PI * 0.5 : 0 });
+          return pickup;
+        }
+        if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.3, 14), makeMat(0xff7b00, 0.35));
+        if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.46, 0), makeMat(0x74f0ff, 0.35));
+        if (weapon === "HELICOPTER") return new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.72, 6, 10), makeMat(0x89ff9b, 0.35));
+        if (weapon === "JET") return new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 12), makeMat(0x8ec9ff, 0.35));
+        if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.24), makeMat(0xf2d17a, 0.35));
+        return new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.28, 0.24), makeMat(0xffe066, 0.35));
+      };
+      const pickupSlots = Array.from({ length: 12 }, (_, i) => (i / 12) * TAU + 0.25);
+      const pickupTypes = [...WEAPON_PICKUPS, ...SUPPORT_PICKUP_TYPES];
+      const pickups = pickupTypes.map((weapon, i) => {
+        const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
+        const weaponPickup = SUPPORT_PICKUP_TYPES.includes(weapon)
+          ? new THREE.Group()
+          : makeWeaponPickupMesh(weapon);
+        if (SUPPORT_PICKUP_TYPES.includes(weapon)) {
+          const src = parkedTemplates[weapon];
+          if (src) {
+            const mini = cloneModel(src);
+            fitVehicleModel(mini, { targetLength: 1.8, lift: 0.03, yaw: 0 });
+            weaponPickup.add(mini);
+          }
+        }
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 12), new THREE.MeshStandardMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.28, roughness: 0.2, metalness: 0.05 }));
+        weaponPickup.add(bubble);
+        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
+        weaponPickup.userData = { weapon, taken: false, slotIndex: i };
+        scene.add(weaponPickup);
+        return weaponPickup;
+      });
+      Promise.allSettled(pickupTypes.map(async (weapon) => {
+        if (SUPPORT_PICKUP_TYPES.includes(weapon)) return;
+        const candidates = WEAPON_MODEL_CANDIDATES[weapon] || [];
+        for (const modelUrl of candidates) {
+          try {
+            const gltf = await loadGltf(dracoDecoderPath, modelUrl);
+            weaponTemplates[weapon] = gltf.scene;
+            const pickup = pickups.find((node) => node.userData.weapon === weapon);
+            if (pickup && !pickup.userData.taken) {
+              scene.remove(pickup);
+              const upgraded = makeWeaponPickupMesh(weapon);
+              upgraded.position.copy(pickup.position);
+              upgraded.userData = { ...pickup.userData };
+              scene.add(upgraded);
+              pickups[pickups.indexOf(pickup)] = upgraded;
+            }
+            break;
+          } catch (err) {
+            console.warn("Weapon pickup model failed:", weapon, modelUrl, err);
+          }
+        }
+      }));
+      const defensePickups = DEFENSE_PICKUPS.map((defense, i) => {
+        const p = pointOnTrack((i / DEFENSE_PICKUPS.length) * TAU + 1.2, selectedTrack, i % 2 === 0 ? -0.62 : 0.62);
+        const node = new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 0), makeMat(0x69ff8f, 0.45));
+        node.position.copy(p).add(new THREE.Vector3(0, 0.52, 0));
+        node.userData = { defense, taken: false };
+        scene.add(node);
+        return node;
+      });
+
+      const activeProjectiles = [];
+      const activeAirStrikes = [];
+
+      function spawnProjectile(from, to, color = 0xffaa00, speed = 42, damage = 20) {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), makeMat(color, 0.25, 0.2));
+        mesh.position.copy(from);
+        scene.add(mesh);
+        activeProjectiles.push({ mesh, vel: to.clone().sub(from).normalize().multiplyScalar(speed), ttl: 2, target: null, damage });
+      }
+
+      function callAirSupport(kind, target) {
+        const template = parkedTemplates[kind];
+        const parked = parkedActors[kind];
+        const launchPos = parked ? parked.position.clone().add(new THREE.Vector3(0, 0.5, 0)) : player.pos.clone().add(new THREE.Vector3(-10, 0.5, -9));
+        const craft = template ? cloneModel(template) : new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 8), makeMat(kind === "JET" ? 0x92c7ff : 0x6fffa6, 0.3, 0.2));
+        fitVehicleModel(craft, { targetLength: 5.4, lift: 0.05, yaw: 0 });
+        craft.position.copy(launchPos);
+        scene.add(craft);
+        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone() });
+      }
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const aiGroups = [ai1.group, ai2.group, ai3.group, ai4.group];
+      aiGroups.forEach((g, idx) => { g.userData.aiRef = [ai1, ai2, ai3, ai4][idx]; });
+      onTargetClick = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(aiGroups, true);
+        if (hits[0]) {
+          const hitGroup = hits[0].object.parent;
+          const aiRef = hits[0].object?.parent?.userData?.aiRef || hitGroup?.userData?.aiRef;
+          input.fireTarget = aiRef || null;
+          input.firePressed = true;
+        }
+      };
+      canvas.addEventListener("click", onTargetClick);
+
+      if (murlanHumanTemplate) {
+        karts.forEach((kart, i) => {
+          if (kart.group.userData.vehicleType !== "ferrari") return;
+          const human = cloneModel(murlanHumanTemplate);
+          human.scale.setScalar(0.66 + (i % 3) * 0.05);
+          human.position.set(0, 0.45, -0.05);
+          human.rotation.y = 0;
+          human.rotation.x = -0.16;
+          human.traverse((child) => {
+            if (child.isBone) {
+              const n = child.name.toLowerCase();
+              if (n.includes("arm") && n.includes("left")) child.rotation.x = -0.8;
+              if (n.includes("arm") && n.includes("right")) child.rotation.x = -0.8;
+              if (n.includes("forearm") && n.includes("left")) child.rotation.z = 0.65;
+              if (n.includes("forearm") && n.includes("right")) child.rotation.z = -0.65;
+            }
+          });
+          enableShadows(human);
+          kart.group.add(human);
+          kart.group.userData.humanModel = human;
+          kart.group.userData.humanOffset = i * 0.06;
+        });
+      }
+      setHud((h) => ({ ...h, status: originalMode ? "Original STK GLB mode" : "Playable fallback with 5 different trucks", mode: originalMode ? "original-assets" : "playable-preview" }));
+
+      let last = performance.now();
+      let crashTextT = 0;
+      const updateCamera = (dt) => {
+        const yaw = player.yaw + Math.PI + input.camYaw * 0.35;
+        const back = forwardFromYaw(yaw).multiplyScalar(8.5);
+        const shake = player.crashT > 0 ? new THREE.Vector3((Math.random() - 0.5) * player.crashT * 0.35, (Math.random() - 0.5) * player.crashT * 0.18, 0) : new THREE.Vector3();
+        const desired = player.pos.clone().add(back).add(new THREE.Vector3(0, 4.4, 0)).add(shake);
+        camera.position.lerp(desired, 1 - Math.exp(-9 * dt));
+        const look = player.pos.clone().add(new THREE.Vector3(0, 1.0, 0)).addScaledVector(forwardFromYaw(player.yaw), 4.2);
+        camera.lookAt(look);
+      };
+
+      const animate = () => {
+        frameId = requestAnimationFrame(animate);
         const now = performance.now();
-
-        const accel = (input.keys.KeyW || input.keys.ArrowUp ? 1 : 0) - (input.keys.KeyS || input.keys.ArrowDown ? 1 : 0);
-        const steer = (input.keys.KeyD || input.keys.ArrowRight ? 1 : 0) - (input.keys.KeyA || input.keys.ArrowLeft ? 1 : 0);
-        const autoAngle = Math.atan2(player.pos.z / TRACK.centerZ, player.pos.x / TRACK.centerX);
-        const autoYaw = tangentYaw(autoAngle + 0.3);
-
-        const controlSteer = input.autoDrive ? clamp(Math.atan2(Math.sin(autoYaw - player.yaw), Math.cos(autoYaw - player.yaw)), -1, 1) : steer;
-        const controlAccel = input.autoDrive ? 0.85 : accel;
-        const maxSpeed = input.boost ? 25 : 16;
-
-        player.speed += controlAccel * 22 * dt;
-        player.speed *= Math.exp(-0.9 * dt);
-        player.speed = clamp(player.speed, -4, maxSpeed);
-        player.yaw -= controlSteer * dt * 1.8;
-        player.pos.add(new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)).multiplyScalar(player.speed * dt));
-
-        if (karts[0]) {
-          karts[0].position.copy(player.pos);
-          karts[0].rotation.y = player.yaw;
+        const dt = Math.min(0.033, (now - last) / 1000);
+        last = now;
+        input.brake = Boolean(input.keys.Space);
+        updatePlayerKart(player, input, selectedTrack, dt);
+        for (const ai of [ai1, ai2, ai3, ai4]) updateAiKart(ai, karts, selectedTrack, dt);
+        for (const ai of [ai1, ai2, ai3, ai4]) {
+          const d = ai.pos.distanceTo(player.pos);
+          if (d < 18 && Math.random() < dt * 0.7) {
+            spawnProjectile(ai.pos.clone().add(new THREE.Vector3(0, 0.95, 0)), player.pos.clone().add(new THREE.Vector3(0, 0.9, 0)), 0xff665c, 38, 8);
+            hudRef.current.crash = `${ai.name} fired`;
+          }
         }
-        ai.forEach((bot, i) => {
-          const targ = pointOnTrack(Math.atan2(bot.pos.z / TRACK.centerZ, bot.pos.x / TRACK.centerX) + 0.5, i % 2 ? 1 : -1);
-          const desired = Math.atan2(targ.x - bot.pos.x, targ.z - bot.pos.z);
-          bot.yaw += Math.atan2(Math.sin(desired - bot.yaw), Math.cos(desired - bot.yaw)) * dt * 2.5;
-          bot.speed = lerp(bot.speed, 12 - i * 0.8, 1 - Math.exp(-1.4 * dt));
-          bot.pos.add(new THREE.Vector3(Math.sin(bot.yaw), 0, Math.cos(bot.yaw)).multiplyScalar(bot.speed * dt));
-          if (karts[i + 1]) {
-            karts[i + 1].position.copy(bot.pos);
-            karts[i + 1].rotation.y = bot.yaw;
-          }
-          if (input.radar && bot.pos.distanceTo(player.pos) < 16 && Math.random() < dt * 0.6) {
-            spawnMissile(bot.pos.clone().add(new THREE.Vector3(0, 0.9, 0)), player.pos.clone().add(new THREE.Vector3(0, 0.7, 0)));
-          }
+        const impact = resolveVehicleCrashes(karts);
+        if (impact > 0.8) {
+          crashTextT = 1.2;
+          hudRef.current.crash = impact > 6 ? "Heavy crash!" : "Vehicle contact";
+        }
+        crashTextT = Math.max(0, crashTextT - dt);
+        updateCamera(dt);
+        karts.forEach((kart) => {
+          const h = kart.group.userData.humanModel;
+          if (!h) return;
+          h.position.y = 0.44 + Math.sin(now * 0.002 + (kart.group.userData.humanOffset || 0)) * 0.01;
         });
-
-        parkedUnits.forEach((u, idx) => {
-          const t = now * 0.001 + u.phase;
-          u.node.position.y = u.baseY + Math.sin(t * (u.key === "DRONE" ? 2.8 : 1.8)) * (u.key === "JET" ? 0.03 : 0.08);
-          u.node.rotation.y += dt * (u.key === "DRONE" ? 1.2 : 0.25);
-          if (u.key === "HELICOPTER") u.node.rotation.z = Math.sin(t * 1.4) * 0.05;
-          if (u.key === "JET") u.node.rotation.z = Math.sin(t * 0.9) * 0.08;
-          if (u.key === "TRUCK") u.node.rotation.x = Math.sin(t * 1.2) * 0.02;
-        });
-
-        pickups.forEach((p, i) => {
-          if (p.taken) return;
-          p.slot.rotation.y += dt * p.spin;
-          p.slot.position.y = p.baseY + Math.sin(now * 0.003 + i) * 0.09;
-          const bubble = p.slot.children.find((n) => n.userData?.bubble);
-          if (bubble) {
-            bubble.scale.setScalar(1 + Math.sin(now * 0.004 + i) * 0.06);
-            bubble.material.opacity = 0.33 + Math.sin(now * 0.002 + i) * 0.08;
+        pickups.forEach((pickup) => {
+          if (pickup.userData.taken) return;
+          const phase = (now * 0.001 + pickup.userData.slotIndex * 0.87) % 14;
+          if (phase > 4.6) {
+            pickup.visible = false;
+            return;
           }
-          if (p.slot.position.distanceTo(player.pos) < 1.6) {
-            p.taken = true;
-            p.slot.visible = false;
-            if (p.item.kind === "weapon") player.weapon = p.item.id.includes("rocket") ? "MISSILE" : "FIREARM";
-            if (p.item.id.includes("rocket")) player.ammo.MISSILE += 1;
-            if (p.item.id.includes("drone")) player.ammo.DRONE += 1;
-            if (p.item.id.includes("helicopter")) player.ammo.HELICOPTER += 1;
-            if (p.item.id.includes("f15")) player.ammo.JET += 1;
+          pickup.visible = true;
+          pickup.rotation.y += dt * 1.6;
+          pickup.position.y = 0.62 + Math.sin(now * 0.004 + pickup.position.x) * 0.05;
+          if (pickup.position.distanceTo(player.pos) < 1.6) {
+            pickup.userData.taken = true;
+            pickup.visible = false;
+            playerCombat.inventory.add(pickup.userData.weapon);
+            playerCombat.activeWeapon = pickup.userData.weapon;
+            hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
             setTimeout(() => {
-              p.taken = false;
-              p.slot.visible = true;
-              const na = Math.random() * TAU;
-              p.slot.position.copy(pointOnTrack(na, Math.random() > 0.5 ? 2.4 : -2.4));
-              p.baseY = p.slot.position.y;
-            }, 2600);
+              pickup.userData.taken = false;
+              pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
+              const np = pointOnTrack(pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
+              pickup.position.copy(np).add(new THREE.Vector3(0, 0.62, 0));
+            }, 2200);
+          }
+        });
+        defensePickups.forEach((pickup) => {
+          if (pickup.userData.taken) return;
+          pickup.rotation.y -= dt * 1.8;
+          if (pickup.position.distanceTo(player.pos) < 1.5) {
+            pickup.userData.taken = true;
+            pickup.visible = false;
+            playerCombat.defenses.add(pickup.userData.defense);
+            hudRef.current.status = `Defense online: ${pickup.userData.defense}`;
           }
         });
 
-        for (let i = missiles.length - 1; i >= 0; i--) {
-          const m = missiles[i];
-          m.ttl -= dt;
-          m.mesh.position.addScaledVector(m.vel, dt);
-          m.mesh.rotation.z += dt * 15;
-          if (m.mesh.position.distanceTo(player.pos) < 1.3) {
-            player.hp = Math.max(0, player.hp - 12);
-            m.ttl = 0;
-            setHud((h) => ({ ...h, alert: "Missile hit! Use defence radar!" }));
+        if (input.firePressed) {
+          const target = input.fireTarget || [ai1, ai2, ai3, ai4].filter((k) => k.damage < 100).sort((a,b)=>a.pos.distanceTo(player.pos)-b.pos.distanceTo(player.pos))[0];
+          if (target) {
+            const w = playerCombat.activeWeapon;
+            const canShoot = (playerCombat.ammo[w] ?? 0) > 0 || w === "FIREARM";
+            if (canShoot) {
+              if (w !== "FIREARM") playerCombat.ammo[w] = Math.max(0, (playerCombat.ammo[w] ?? 0) - 1);
+              if (w === "FIREARM" || w === "RIFLE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), 0xffee88, 56, w === "RIFLE" ? 16 : 10);
+              } else if (w === "MISSILE") {
+                spawnProjectile(player.pos.clone().add(new THREE.Vector3(1.1, 0.65, 0)), target.pos.clone().add(new THREE.Vector3(0, 0.7, 0)), 0xff6a00, 34, 34);
+              } else {
+                callAirSupport(w, target);
+              }
+              hudRef.current.crash = `${w} locked ${target.name}`;
+              if (target.damage > 92) hudRef.current.crash = `${target.name} disabled`;
+            }
           }
-          if (m.ttl <= 0) {
-            scene.remove(m.mesh);
-            disposeObject(m.mesh);
-            missiles.splice(i, 1);
-          }
+          input.firePressed = false;
+          input.fireTarget = null;
         }
 
-        if (input.fire) {
-          const nearest = ai.sort((a, b) => a.pos.distanceTo(player.pos) - b.pos.distanceTo(player.pos))[0];
-          if (player.weapon === "MISSILE" && player.ammo.MISSILE > 0) {
-            spawnMissile(player.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)), nearest.pos.clone().add(new THREE.Vector3(0, 0.8, 0)));
-            player.ammo.MISSILE -= 1;
-          } else if (player.ammo.DRONE > 0) {
-            callCinematicSupport("DRONE", nearest.pos);
-            player.ammo.DRONE -= 1;
-          } else if (player.ammo.HELICOPTER > 0) {
-            callCinematicSupport("HELICOPTER", nearest.pos);
-            player.ammo.HELICOPTER -= 1;
-          } else if (player.ammo.JET > 0) {
-            callCinematicSupport("JET", nearest.pos);
-            player.ammo.JET -= 1;
+        for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+          const p = activeProjectiles[i];
+          p.ttl -= dt;
+          p.mesh.position.addScaledVector(p.vel, dt);
+          const hit = [ai1, ai2, ai3, ai4].find((k) => k.pos.distanceTo(p.mesh.position) < 1.2);
+          if (hit) {
+            hit.damage += p.damage;
+            hit.speed *= 0.6;
+            p.ttl = 0;
           }
-          input.fire = false;
+          if (p.ttl <= 0) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); activeProjectiles.splice(i, 1); }
         }
-
-        for (let i = airStrikes.length - 1; i >= 0; i--) {
-          const a = airStrikes[i];
-          a.ttl -= dt;
-          const hover = a.targetPos.clone().add(new THREE.Vector3(0, 9, 0));
-          if (a.stage === "entry") {
-            a.craft.position.lerp(hover, 1 - Math.exp(-2.8 * dt));
-            if (a.craft.position.distanceTo(hover) < 1.2) a.stage = "attack";
+        for (let i = activeAirStrikes.length - 1; i >= 0; i--) {
+          const s = activeAirStrikes[i];
+          s.ttl -= dt;
+          const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
+          const land = s.home.clone();
+          if (s.stage === "takeoff") {
+            s.craft.position.lerp(hover, 1 - Math.exp(-2.8 * dt));
+            if (s.craft.position.distanceTo(hover) < 1.5) s.stage = "strike";
+          } else if (s.stage === "strike") {
+            s.craft.position.lerp(hover, 1 - Math.exp(-4.5 * dt));
           } else {
-            a.craft.position.lerp(player.pos.clone().add(new THREE.Vector3(-9, 1.2, -9)), 1 - Math.exp(-2.2 * dt));
+            s.craft.position.lerp(land, 1 - Math.exp(-2.4 * dt));
           }
-          a.craft.rotation.y += dt * (a.kind === "DRONE" ? 3.5 : 1.2);
-          a.craft.rotation.z = Math.sin(now * 0.004 + a.phase) * (a.kind === "JET" ? 0.12 : 0.06);
-          if (!a.fired && a.stage === "attack") {
-            a.fired = true;
-            spawnMissile(a.craft.position.clone(), a.targetPos.clone().add(new THREE.Vector3(0, 0.8, 0)));
+          if (s.fired < 2 && s.ttl < 2.5 - s.fired * 0.3) {
+            spawnProjectile(s.craft.position.clone(), s.target.pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xff4433, 45, 36);
+            s.fired += 1;
+            if (s.fired >= 2) s.stage = "land";
           }
-          if (a.ttl <= 0) {
-            scene.remove(a.craft);
-            disposeObject(a.craft);
-            airStrikes.splice(i, 1);
-          }
+          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
 
-        camera.position.lerp(player.pos.clone().add(new THREE.Vector3(Math.sin(player.yaw + Math.PI) * 8.4, 4.8, Math.cos(player.yaw + Math.PI) * 8.4)), 1 - Math.exp(-8 * dt));
-        camera.lookAt(player.pos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)), 4.4));
-
-        setHud({ status: input.autoDrive ? "Auto Drive ON" : "Manual Drive", speed: Math.round(Math.abs(player.speed) * 8), weapon: player.weapon, ammo: player.ammo[player.weapon] ?? player.ammo.FIREARM, alert: input.radar ? (player.hp < 35 ? "Critical HP" : "Radar scanning") : "Radar off", features: [input.autoDrive ? "AUTO ON" : "AUTO OFF", input.boost ? "BOOST ON" : "BOOST OFF", input.radar ? "RADAR ON" : "RADAR OFF"] });
-
+        const sorted = [...karts].sort((a, b) => b.progress - a.progress);
+        const position = sorted.findIndex((k) => k === player) + 1;
+        const baseStatus = originalMode ? "Original STK GLB mode" : trackQuality(player.pos, selectedTrack).onRoad ? `Track: ${selectedTrackId}` : "Off-road slowdown";
+        const weapon = playerCombat.activeWeapon;
+        const ammo = playerCombat.ammo[weapon] ?? 0;
+        setHud({ ...hudRef.current, lap: player.lap, speed: Math.abs(player.speed), position, checkpoint: player.checkpoint, status: baseStatus, crash: crashTextT > 0 ? hudRef.current.crash : "", weapon, ammo, collectedWeapons: Array.from(playerCombat.inventory) });
         renderer.render(scene, camera);
       };
       animate();
-    });
+    }
+    start();
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(frame);
-      renderer.dispose();
-      scene.traverse((obj) => { if (obj.isMesh) disposeObject(obj); });
+      cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
+      if (onTargetClick) {
+        canvas.removeEventListener("click", onTargetClick);
+      }
+      renderer.dispose();
+      scene.traverse((o) => {
+        const mesh = o;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose?.();
+        const mat = mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose?.();
+      });
     };
   }, []);
 
+  const brakeDown = () => window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+  const brakeUp = () => window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#7dbce8" }}>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#85c7f2", touchAction: "none", userSelect: "none" }}>
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
-        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
-      <div style={{ position: "fixed", top: 8, left: 8, right: 8, pointerEvents: "none", color: "white", fontFamily: "system-ui" }}>
-        <div style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 10 }}>
-          <div style={{ fontWeight: 900, fontSize: 12 }}>GO CRAZY REBUILD</div>
-          <div style={{ fontSize: 12 }}>Status: {hud.status}</div>
-          <div style={{ fontSize: 12 }}>Speed: {hud.speed} km/h</div>
-          <div style={{ fontSize: 12 }}>Weapon: {hud.weapon} {HUD_ICONS[hud.weapon] || "🎯"} · Ammo: {hud.ammo}</div>
-          <div style={{ fontSize: 12, color: "#ffd166" }}>Alert: {hud.alert}</div>
-          <div style={{ marginTop: 4, fontSize: 11 }}>{hud.features.join(" · ")}</div>
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif", color: "white" }}>
+        <div style={{ position: "absolute", top: 10, left: 10, right: 10, display: "flex", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ background: "rgba(0,0,0,0.56)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, padding: "10px 12px", boxShadow: "0 12px 30px rgba(0,0,0,0.22)", maxWidth: 540 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.2, textTransform: "uppercase" }}>SuperTuxKart Truck Test</div>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>Pos {hud.position}/5 · Lap {hud.lap}</div>
+            <div style={{ fontSize: 11, opacity: 0.82 }}>{hud.status} · {Math.round(hud.speed * 8)} km/h</div>
+            <div style={{ fontSize: 11, opacity: 0.9 }}>Weapon: {hud.weapon} · Ammo: {hud.ammo}</div>
+            {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
+            <div style={{ marginTop: 4, fontSize: 14 }}>{Array.from(new Set(["FIREARM", hud.weapon])).map((w) => <span key={w} style={{ marginRight: 6 }}>{WEAPON_ICON[w] || "🎯"}</span>)}</div>
+          </div>
         </div>
-      </div>
-      <div style={{ position: "fixed", bottom: 12, left: 12, right: 12, display: "flex", justifyContent: "space-between", gap: 8 }}>
-        <button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyT" }))} style={{ flex: 1, padding: "10px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(0,0,0,0.45)", color: "white" }}>AUTO</button>
-        <button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyB" }))} style={{ flex: 1, padding: "10px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(0,0,0,0.45)", color: "white" }}>BOOST</button>
-        <button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyR" }))} style={{ flex: 1, padding: "10px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(0,0,0,0.45)", color: "white" }}>RADAR</button>
-        <button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyF" }))} style={{ flex: 1, padding: "10px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,89,34,0.65)", color: "white" }}>FIRE</button>
+
+        <div style={{ position: "absolute", left: 12, right: 12, bottom: 20, display: "flex", justifyContent: "center", gap: 8 }}>
+          {(hud.collectedWeapons || ["FIREARM"]).map((k) => [k, WEAPON_ICON[k]]).filter(([, v]) => Boolean(v)).map(([k, v]) => (
+            <div key={k} style={{ background: k === hud.weapon ? "rgba(255,214,102,0.25)" : "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999, width: 34, height: 34, display: "grid", placeItems: "center", fontSize: 18 }}>{v}</div>
+          ))}
+        </div>
+
+        <button onPointerDown={brakeDown} onPointerUp={brakeUp} onPointerCancel={brakeUp} style={{ pointerEvents: "auto", position: "absolute", right: 18, bottom: 22, width: 78, height: 78, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.48)", color: "white", fontSize: 13, fontWeight: 900, boxShadow: "0 12px 30px rgba(0,0,0,0.28)" }}>BRAKE</button>
       </div>
     </div>
   );
