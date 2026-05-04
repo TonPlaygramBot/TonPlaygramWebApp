@@ -81,19 +81,25 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const HUMAN_INITIAL_SCALE = 0.92;
 const HDRI_OPTIONS = [
-  { id: "studio_small_09", name: "Studio Small 09", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
-  { id: "studio_small_03", name: "Studio Small 03", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_03_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
-  { id: "photo_studio_01", name: "Photo Studio 01", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_01_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_01.png?height=160" },
-  { id: "brown_photostudio_02", name: "Brown Photostudio 02", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_02.png?height=160" },
-  { id: "empty_warehouse_01", name: "Empty Warehouse 01", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/empty_warehouse_01_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/empty_warehouse_01.png?height=160" },
-  { id: "industrial_workshop_foundry", name: "Industrial Workshop", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/industrial_workshop_foundry_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/industrial_workshop_foundry.png?height=160" },
-  { id: "abandoned_parking", name: "Abandoned Parking", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/abandoned_parking_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/abandoned_parking.png?height=160" },
-  { id: "aerodynamics_workshop", name: "Aerodynamics Workshop", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/aerodynamics_workshop_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/aerodynamics_workshop.png?height=160" },
-  { id: "lebombo", name: "Lebombo", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/lebombo_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/lebombo.png?height=160" },
-  { id: "skidpan", name: "Skidpan", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/skidpan_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/skidpan.png?height=160" },
+  { id: "studio_small_09", name: "Studio Small 09", slug: "studio_small_09", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
+  { id: "studio_small_03", name: "Studio Small 03", slug: "studio_small_03", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
+  { id: "photo_studio_01", name: "Photo Studio 01", slug: "photo_studio_01", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_01.png?height=160" },
+  { id: "brown_photostudio_02", name: "Brown Photostudio 02", slug: "brown_photostudio_02", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_02.png?height=160" },
+  { id: "empty_warehouse_01", name: "Empty Warehouse 01", slug: "empty_warehouse_01", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/empty_warehouse_01.png?height=160" },
+  { id: "industrial_workshop_foundry", name: "Industrial Workshop", slug: "industrial_workshop_foundry", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/industrial_workshop_foundry.png?height=160" },
+  { id: "abandoned_parking", name: "Abandoned Parking", slug: "abandoned_parking", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/abandoned_parking.png?height=160" },
+  { id: "aerodynamics_workshop", name: "Aerodynamics Workshop", slug: "aerodynamics_workshop", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/aerodynamics_workshop.png?height=160" },
+  { id: "lebombo", name: "Lebombo", slug: "lebombo", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/lebombo.png?height=160" },
+  { id: "skidpan", name: "Skidpan", slug: "skidpan", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/skidpan.png?height=160" },
 ] as const;
 const DEFAULT_HDRI_ID = "studio_small_09";
+const HDRI_QUALITY_SIZE = {
+  performance: "1k",
+  balanced: "2k",
+  ultra: "4k",
+} as const;
 const PORTRAIT_AIM_ASSIST = 0.62;
 const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
 const OAK = {
@@ -370,6 +376,8 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, 1.82);
+      model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
+      lockHumanToLaneGround(model);
       enableShadow(model);
       rig.model = model;
       rig.fallback.visible = false;
@@ -382,6 +390,18 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
   );
 
   return rig;
+}
+
+function getHdriUrl(slug: string, quality: keyof typeof HDRI_QUALITY_SIZE) {
+  const size = HDRI_QUALITY_SIZE[quality];
+  return `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${size}/${slug}_${size}.hdr`;
+}
+
+function lockHumanToLaneGround(model: THREE.Object3D) {
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const groundOffset = CFG.laneY - bounds.min.y;
+  model.position.y += groundOffset;
 }
 
 function syncHuman(rig: HumanRig) {
@@ -980,10 +1000,11 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
-    const applyHdri = (id: string) => {
+    const applyHdri = (id: string, quality: "performance"|"balanced"|"ultra") => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
+      const hdriUrl = getHdriUrl(selected.slug, quality);
       new RGBELoader().setCrossOrigin("anonymous").load(
-      selected.url,
+      hdriUrl,
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = envTex;
@@ -996,7 +1017,7 @@ export default function MobileBowlingRealistic() {
       () => {}
     );
     };
-    applyHdri(selectedHdriId);
+    applyHdri(selectedHdriId, graphicsQuality);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.28));
     scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x24160b, 0.6));
@@ -1125,7 +1146,8 @@ export default function MobileBowlingRealistic() {
     const resize = () => {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      const qualityMaxPixelRatio = graphicsQuality === "performance" ? 1.25 : graphicsQuality === "balanced" ? 1.8 : 2.25;
+      renderer.setPixelRatio(Math.min(qualityMaxPixelRatio, window.devicePixelRatio || 1));
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
