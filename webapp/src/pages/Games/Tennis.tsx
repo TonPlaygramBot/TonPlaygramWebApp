@@ -107,21 +107,23 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 5.85,
-  doublesW: 7.1,
-  courtL: 15.4,
-  serviceLineZ: 2.85,
-  netH: 0.64,
+  // Match Pool Royale table footprint (2:1 playfield) and table-top elevation.
+  courtW: 2.54,
+  doublesW: 2.54,
+  courtL: 1.27,
+  serviceLineZ: 0.3,
+  netH: 0.1525,
+  tableTopY: 0.84,
   ballR: 0.085,
   gravity: 9.8,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 1.82,
+  playerHeight: 1.68,
   playerSpeed: 5.9,
   aiSpeed: 8.2,
-  reach: 1.12,
+  reach: 0.72,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -226,13 +228,22 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
+  const tableY = CFG.tableTopY;
   if (!hideFloor) {
-    addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, -0.015, 0], outerMat);
-    addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
-    addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
+    addBox(group, [CFG.doublesW + 1.15, 0.035, CFG.courtL + 1.15], [0, tableY - 0.02, 0], outerMat);
+    addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, tableY, 0], courtMat);
+    addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, tableY + 0.01, 0], serviceMat);
+    const legMat = material(0x2f2f2f, 0.45, 0.2);
+    const legHeight = CFG.tableTopY - 0.08;
+    const legOffsetX = CFG.courtW * 0.36;
+    const legOffsetZ = CFG.courtL * 0.36;
+    addCylinder(group, 0.04, 0.045, legHeight, [-legOffsetX, legHeight / 2, -legOffsetZ], legMat, 18);
+    addCylinder(group, 0.04, 0.045, legHeight, [legOffsetX, legHeight / 2, -legOffsetZ], legMat, 18);
+    addCylinder(group, 0.04, 0.045, legHeight, [-legOffsetX, legHeight / 2, legOffsetZ], legMat, 18);
+    addCylinder(group, 0.04, 0.045, legHeight, [legOffsetX, legHeight / 2, legOffsetZ], legMat, 18);
   }
 
-  const y = 0.045;
+  const y = tableY + 0.045;
   const thick = 0.045;
   const halfW = CFG.courtW / 2;
   const halfL = CFG.courtL / 2;
@@ -249,12 +260,12 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  const netBody = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
-  addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
-  addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
-  addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
-  for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
-  for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
+  const netBody = addBox(group, [CFG.doublesW + 0.02, CFG.netH, 0.018], [0, tableY + CFG.netH / 2, 0], netMat);
+  addBox(group, [CFG.doublesW + 0.08, 0.024, 0.05], [0, tableY + CFG.netH + 0.012, 0], netWhite);
+  addCylinder(group, 0.022, 0.026, CFG.netH + 0.12, [-(CFG.doublesW / 2 + 0.04), tableY + (CFG.netH + 0.12) / 2, 0], postMat, 16);
+  addCylinder(group, 0.022, 0.026, CFG.netH + 0.12, [CFG.doublesW / 2 + 0.04, tableY + (CFG.netH + 0.12) / 2, 0], postMat, 16);
+  for (let i = -5; i <= 5; i++) addBox(group, [0.006, CFG.netH * 0.92, 0.02], [(i * CFG.doublesW) / 10, tableY + CFG.netH * 0.46, 0.012], transparentMaterial(0xffffff, 0.28));
+  for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.04, 0.006, 0.022], [0, tableY + (j * CFG.netH) / 4, 0.012], transparentMaterial(0xffffff, 0.24));
 
   return { group, netBody };
 }
@@ -579,7 +590,7 @@ function createBall() {
   enableShadow(mesh);
   return {
     mesh,
-    pos: new THREE.Vector3(0, 1.18, CFG.courtL / 2 - 1.25),
+    pos: new THREE.Vector3(0, CFG.tableTopY + 0.28, CFG.courtL / 2 - 0.34),
     vel: new THREE.Vector3(),
     spin: 0,
     lastHitBy: null,
@@ -778,7 +789,7 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   const aimX = clamp((dx / 140) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.42, CFG.courtW / 2 - 0.42);
   const upward = clamp((-dy + 40) / 230, 0, 1);
   const targetZ = isServe ? lerp(-1.0, -CFG.serviceLineZ + 0.22, upward) : lerp(-1.15, -CFG.courtL / 2 + 0.88, upward);
-  return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power };
+  return { target: new THREE.Vector3(aimX, CFG.tableTopY + CFG.ballR, targetZ), power };
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
@@ -789,7 +800,7 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const power = clamp(0.72 + pressure * 0.42 + Math.random() * 0.2, 0.62, 1);
   const roll = Math.random();
   const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.66 ? "slice" : roll < 0.22 ? "lob" : "flat";
-  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
+  return { target: new THREE.Vector3(x, CFG.tableTopY + CFG.ballR, z), power, technique };
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
@@ -847,8 +858,8 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   player.pos.x = clamp(player.pos.x, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-  if (player.side === "near") player.pos.z = clamp(player.pos.z, 0.76, CFG.courtL / 2 - 0.42);
-  else player.pos.z = clamp(player.pos.z, -CFG.courtL / 2 + 0.42, -0.76);
+  if (player.side === "near") player.pos.z = clamp(player.pos.z, 0.16, CFG.courtL / 2 - 0.1);
+  else player.pos.z = clamp(player.pos.z, -CFG.courtL / 2 + 0.1, -0.16);
 
   let face: THREE.Vector3;
   if (ball.lastHitBy === null && player.side === "near") face = new THREE.Vector3(0.22, 0, -1).normalize();
@@ -901,7 +912,7 @@ function predictLanding(ball: BallState) {
   for (let i = 0; i < 95; i++) {
     v.y -= CFG.gravity * dt;
     p.addScaledVector(v, dt);
-    if (p.y <= CFG.ballR) return p;
+    if (p.y <= CFG.tableTopY + CFG.ballR) return p;
   }
   return p;
 }
@@ -986,8 +997,8 @@ export default function MobileThreeTennisPrototype() {
     const courtVisual = addCourt(scene, { hideFloor: false });
     const updateBillboards = () => {};
 
-    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
-    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
+    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 0.2), 0xff7a2f);
+    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 0.2), 0x62d2ff);
     const ball = createBall();
     scene.add(ball.mesh);
     resetBallForServe(ball, nearPlayer);
@@ -1002,13 +1013,14 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
+    // Free SFX already bundled in app assets (community/public-domain style sources).
+    const shotFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
     shotFx.volume = 0.6;
-    const bounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
+    const bounceFx = new Audio("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
     bounceFx.volume = 0.34;
-    const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
+    const crowdFx = new Audio("/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3");
     crowdFx.volume = 0.32;
-    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
+    const faultFx = new Audio("/assets/sounds/crowd-shocked-reaction-352766.mp3");
     faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
@@ -1072,7 +1084,7 @@ export default function MobileThreeTennisPrototype() {
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
       nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, 0.76, CFG.courtL / 2 - 0.42);
+      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.006, 0.16, CFG.courtL / 2 - 0.1);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 185) });
     };
 
@@ -1127,8 +1139,8 @@ export default function MobileThreeTennisPrototype() {
         awardPoint(opposite(ball.lastHitBy), "net");
       }
 
-      if (ball.pos.y <= CFG.ballR) {
-        ball.pos.y = CFG.ballR;
+      if (ball.pos.y <= CFG.tableTopY + CFG.ballR) {
+        ball.pos.y = CFG.tableTopY + CFG.ballR;
         if (ball.vel.y < 0) {
           ball.vel.y = -ball.vel.y * CFG.bounceRestitution;
           ball.vel.x *= CFG.groundFriction;
@@ -1148,17 +1160,17 @@ export default function MobileThreeTennisPrototype() {
       }
 
       if ((Math.abs(ball.pos.x) > 7.5 || Math.abs(ball.pos.z) > 9.3 || ball.pos.y < -1.2) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
-      if (ball.vel.length() < CFG.minBallSpeed && ball.pos.y <= CFG.ballR + 0.002 && ball.lastHitBy) awardPoint(opposite(sideOfZ(ball.pos.z)), "doubleBounce");
+      if (ball.vel.length() < CFG.minBallSpeed && ball.pos.y <= CFG.tableTopY + CFG.ballR + 0.002 && ball.lastHitBy) awardPoint(opposite(sideOfZ(ball.pos.z)), "doubleBounce");
       ball.mesh.position.copy(ball.pos);
     }
 
     function updateAi() {
       const landing = predictLanding(ball);
-      const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 0.9);
+      const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 0.2);
       const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 || landing.z < 0);
       if (ballComingToAi) {
         farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-        farPlayer.target.z = clamp(Math.min(-0.72, landing.z + 0.42), -CFG.courtL / 2 + 0.42, -0.64);
+        farPlayer.target.z = clamp(Math.min(-0.18, landing.z + 0.14), -CFG.courtL / 2 + 0.1, -0.16);
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
@@ -1202,8 +1214,8 @@ export default function MobileThreeTennisPrototype() {
           pointLock = false;
           nearPlayer.action = "ready";
           farPlayer.action = "ready";
-          nearPlayer.target.set(0, 0, CFG.courtL / 2 - 1.04);
-          farPlayer.target.set(0, 0, -CFG.courtL / 2 + 1.04);
+          nearPlayer.target.set(0, 0, CFG.courtL / 2 - 0.2);
+          farPlayer.target.set(0, 0, -CFG.courtL / 2 + 0.2);
           resetBallForServe(ball, nearPlayer);
           setHudSafe({ status: "Swipe up to serve", power: 0 });
         }
