@@ -107,10 +107,10 @@ const Y_AXIS = UP;
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
 const CFG = {
-  courtW: 5.85,
-  doublesW: 7.1,
-  courtL: 15.4,
-  serviceLineZ: 2.85,
+  courtW: 11.7,
+  doublesW: 14.2,
+  courtL: 30.8,
+  serviceLineZ: 5.7,
   netH: 0.64,
   ballR: 0.085,
   gravity: 9.8,
@@ -118,10 +118,10 @@ const CFG = {
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12,
-  playerHeight: 1.82,
-  playerSpeed: 5.9,
-  aiSpeed: 8.2,
-  reach: 1.12,
+  playerHeight: 3.64,
+  playerSpeed: 11.8,
+  aiSpeed: 16.4,
+  reach: 2.24,
   swingDuration: 0.38,
   serveDuration: 0.86,
   hitWindowStart: 0.42,
@@ -222,7 +222,6 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const courtMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.93, metalness: 0, color: new THREE.Color(0x3f9f4f) });
   const serviceMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9, metalness: 0, color: new THREE.Color(0x57b365) });
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
-  const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
   const postMat = material(0x333333, 0.35, 0.25);
 
@@ -249,8 +248,38 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  const netBody = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
-  addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
+  const netCanvas = document.createElement("canvas");
+  netCanvas.width = 1024;
+  netCanvas.height = 256;
+  const netCtx = netCanvas.getContext("2d")!;
+  netCtx.fillStyle = "#3b3b3b";
+  netCtx.fillRect(0, 0, netCanvas.width, netCanvas.height);
+  netCtx.globalCompositeOperation = "destination-out";
+  const hx = 32;
+  const hy = 28;
+  for (let row = 0; row < 12; row++) {
+    for (let col = 0; col < 40; col++) {
+      const cx = 18 + col * hx + (row % 2 ? hx * 0.5 : 0);
+      const cy = 14 + row * hy;
+      netCtx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI / 3) * k + Math.PI / 6;
+        const r = 10;
+        netCtx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      netCtx.closePath();
+      netCtx.fill();
+    }
+  }
+  netCtx.globalCompositeOperation = "source-over";
+  const netTex = new THREE.CanvasTexture(netCanvas);
+  netTex.colorSpace = THREE.SRGBColorSpace;
+  const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.45, roughness: 0.7, metalness: 0.04 });
+  const netBody = new THREE.Mesh(new THREE.PlaneGeometry(CFG.doublesW + 0.35, CFG.netH, 32, 10), netMat);
+  netBody.position.set(0, CFG.netH / 2, 0);
+  group.add(netBody);
+  addBox(group, [CFG.doublesW + 0.55, 0.06, 0.085], [0, CFG.netH + 0.03, 0], netWhite);
+  addBox(group, [CFG.doublesW + 0.55, 0.05, 0.08], [0, 0.03, 0], netWhite);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
@@ -762,8 +791,8 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const baseSpeed = serve ? 10.4 + power * 5.8 : 7.6 + power * 4.6;
-  const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
+  const baseSpeed = serve ? 14.2 + power * 7.1 : 10.8 + power * 5.9;
+  const flight = clamp(flatDist / baseSpeed, serve ? 0.56 : 0.76, serve ? 1.26 : 1.62);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
     (target.y - from.y + 0.5 * CFG.gravity * flight * flight) / flight,
@@ -942,8 +971,8 @@ export default function MobileThreeTennisPrototype() {
     scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
-    const cameraTarget = new THREE.Vector3(0, 0.95, -1.45);
-    const cameraOffset = new THREE.Vector3(0, 4.95, 7.7);
+    const cameraTarget = new THREE.Vector3(0, 1.9, -2.9);
+    const cameraOffset = new THREE.Vector3(0, 9.9, 15.4);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -1002,13 +1031,13 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const shotFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
+    const shotFx = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5b38f31f87.mp3?filename=tennis-hit-20962.mp3");
     shotFx.volume = 0.6;
-    const bounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/2614/2614-preview.mp3");
+    const bounceFx = new Audio("https://cdn.pixabay.com/download/audio/2022/08/04/audio_2dde668d26.mp3?filename=ball-bounce-129548.mp3");
     bounceFx.volume = 0.34;
     const crowdFx = new Audio("/assets/sounds/crowd-cheering-383111.mp3");
     crowdFx.volume = 0.32;
-    const faultFx = new Audio("/assets/sounds/metal-whistle-6121.mp3");
+    const faultFx = new Audio("https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8d97d42b2.mp3?filename=referee-whistle-blow-105020.mp3");
     faultFx.volume = 0.25;
     let last = performance.now();
     let pointLock = false;
@@ -1041,8 +1070,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45, 8.55);
-      else cameraOffset.set(0, 4.95, 7.7);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 10.9, 17.1);
+      else cameraOffset.set(0, 9.9, 15.4);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1223,11 +1252,19 @@ export default function MobileThreeTennisPrototype() {
         netShakeT = Math.max(0, netShakeT - dt);
         const k = netShakeT / 0.45;
         const wobble = Math.sin((0.45 - netShakeT) * 55) * 0.05 * k;
-        courtVisual.netBody.scale.z = 1 + Math.abs(wobble) * 1.6;
-        courtVisual.netBody.position.z = wobble;
+        const g = courtVisual.netBody.geometry as THREE.PlaneGeometry;
+        const pos = g.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const y = pos.getY(i) / CFG.netH;
+          pos.setZ(i, wobble * (1 - Math.abs(x) / (CFG.doublesW * 0.5 + 0.2)) * (0.45 + y));
+        }
+        pos.needsUpdate = true;
       } else {
-        courtVisual.netBody.scale.z += (1 - courtVisual.netBody.scale.z) * (1 - Math.exp(-10 * dt));
-        courtVisual.netBody.position.z += (0 - courtVisual.netBody.position.z) * (1 - Math.exp(-10 * dt));
+        const g = courtVisual.netBody.geometry as THREE.PlaneGeometry;
+        const pos = g.attributes.position;
+        for (let i = 0; i < pos.count; i++) pos.setZ(i, pos.getZ(i) * Math.max(0, 1 - 11 * dt));
+        pos.needsUpdate = true;
       }
 
       ghost.position.x += (nearPlayer.target.x - ghost.position.x) * (1 - Math.exp(-12 * dt));
