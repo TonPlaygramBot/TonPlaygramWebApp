@@ -3,18 +3,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { useLocation } from "react-router-dom";
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { HUMAN_CHARACTER_OPTIONS } from "../../config/ludoBattleOptions.js";
-import { getPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
 type PlayerSide = "near" | "far";
 type PointReason = "winner" | "out" | "doubleBounce" | "net";
 type StrokeAction = "ready" | "forehand" | "serve";
 
 type BallState = {
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
   spin: number;
@@ -107,8 +104,6 @@ const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
-const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
-
 const WORLD_SCALE = 1.2;
 
 const CFG = {
@@ -134,7 +129,7 @@ const CFG = {
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
-  serveNearBaselineZ: 8.2 * WORLD_SCALE,
+  serveNearBaselineZ: 9.75 * WORLD_SCALE,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -229,8 +224,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   grassTex.repeat.set(3.2, 6.4);
   grassTex.colorSpace = THREE.SRGBColorSpace;
   const outerMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.96, metalness: 0 });
-  const courtMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.93, metalness: 0, color: new THREE.Color(0x3f9f4f) });
-  const serviceMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9, metalness: 0, color: new THREE.Color(0x57b365) });
+  const courtMat = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0.01, color: new THREE.Color(0x2c79a7) });
+  const serviceMat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.01, color: new THREE.Color(0x3a8cb8) });
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
   const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
@@ -259,8 +254,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  const netBody = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
-  addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
+  const netBody = addBox(group, [CFG.doublesW - 0.15, CFG.netH * 0.62, 0.035], [0, CFG.netH * 0.31, 0], netMat);
+  addBox(group, [CFG.doublesW + 0.45, 0.042, 0.06], [0, CFG.netH + 0.025, 0], netWhite);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
@@ -357,44 +352,55 @@ function createFallbackHuman(color: number) {
 
 function createRacket(color: number) {
   const g = new THREE.Group();
-  const handleMat = material(0x1d1d1f, 0.55, 0.1);
-  const frameMat = material(color, 0.36, 0.45);
-  const stringMat = transparentMaterial(0xffffff, 0.5, 0.42);
+  const frame = material(color, 0.35, 0.22);
+  const grip = material(0xf8fafc, 0.72, 0.02);
+  const strings = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, transparent: true, opacity: 0.78 });
 
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.42, 16), handleMat);
-  handle.position.y = -0.11;
-  enableShadow(handle);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 0.36, 18), grip);
+  handle.rotation.z = Math.PI / 2;
+  handle.position.x = 0.26;
   g.add(handle);
 
-  const throatA = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.29, 12), frameMat);
-  throatA.position.set(-0.048, 0.22, 0);
-  throatA.rotation.z = -0.18;
-  enableShadow(throatA);
-  g.add(throatA);
-  const throatB = throatA.clone();
-  throatB.position.x *= -1;
-  throatB.rotation.z *= -1;
-  g.add(throatB);
+  const throatL = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.28, 14), frame);
+  throatL.rotation.z = Math.PI / 2 - 0.26;
+  throatL.position.set(0.05, 0.06, 0);
+  g.add(throatL);
 
-  const head = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.019, 12, 52), frameMat);
-  head.scale.y = 1.34;
-  head.position.y = 0.56;
-  enableShadow(head);
+  const throatR = throatL.clone();
+  throatR.rotation.z = Math.PI / 2 + 0.26;
+  throatR.position.y = -0.06;
+  g.add(throatR);
+
+  const head = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.016, 18, 96), frame);
+  head.scale.y = 1.33;
+  head.rotation.z = Math.PI / 2;
+  head.position.x = -0.23;
   g.add(head);
 
-  const stringPlane = new THREE.Mesh(new THREE.CircleGeometry(0.182, 36), stringMat);
-  stringPlane.scale.y = 1.3;
-  stringPlane.position.y = 0.56;
-  g.add(stringPlane);
-  for (let i = -3; i <= 3; i++) {
-    const v = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.48, 0.005), stringMat);
-    v.position.set(i * 0.052, 0.56, 0.007);
-    g.add(v);
-    const h = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.005, 0.005), stringMat);
-    h.position.set(0, 0.56 + i * 0.065, 0.007);
-    g.add(h);
+  for (let i = -5; i <= 5; i++) {
+    const vertical = new THREE.Mesh(new THREE.BoxGeometry(0.0035, 0.0035, 0.44), strings);
+    vertical.position.set(-0.23 + i * 0.035, 0, 0.004);
+    g.add(vertical);
+
+    const horizontal = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.0035, 0.0035), strings);
+    horizontal.position.set(-0.23, i * 0.038, 0.006);
+    g.add(horizontal);
   }
-  return g;
+
+  for (let i = -4; i <= 4; i++) {
+    const diagA = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.003, 0.003), strings);
+    diagA.position.set(-0.23, i * 0.042, 0.008);
+    diagA.rotation.z = Math.PI / 6;
+    g.add(diagA);
+
+    const diagB = diagA.clone();
+    diagB.rotation.z = -Math.PI / 6;
+    g.add(diagB);
+  }
+
+  g.rotation.x = -0.32;
+  g.rotation.y = 0.05;
+  return enableShadow(g);
 }
 
 function findFirstBone(root: THREE.Object3D, tests: string[]) {
@@ -592,13 +598,25 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
 }
 
 function createBall() {
-  const tex = new THREE.CanvasTexture(makeBallTexture());
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.01 });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 24), mat);
-  enableShadow(mesh);
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(CFG.ballR, 42, 28),
+    material(0xd9ff24, 0.55, 0.01)
+  );
+  g.add(shell);
+
+  const seamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  const seamA = new THREE.Mesh(new THREE.TorusGeometry(CFG.ballR * 1.01, CFG.ballR * 0.035, 10, 96), seamMat);
+  seamA.rotation.x = Math.PI / 2;
+  g.add(seamA);
+
+  const seamB = seamA.clone();
+  seamB.rotation.y = Math.PI / 2;
+  g.add(seamB);
+
+  enableShadow(g);
   return {
-    mesh,
+    mesh: g,
     pos: new THREE.Vector3(0, 1.18, CFG.courtL / 2 - 1.25),
     vel: new THREE.Vector3(),
     spin: 0,
@@ -606,24 +624,6 @@ function createBall() {
     bounceSide: null,
     bounceCount: 0,
   } as BallState;
-}
-
-function makeBallTexture() {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 256;
-  const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#d7ff35";
-  ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = "rgba(255,255,255,0.92)";
-  ctx.lineWidth = 18;
-  ctx.beginPath();
-  ctx.arc(62, 128, 92, -Math.PI / 2, Math.PI / 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(194, 128, 92, Math.PI / 2, (Math.PI * 3) / 2);
-  ctx.stroke();
-  return c;
 }
 
 function baseVectors(player: HumanRig) {
@@ -942,6 +942,24 @@ function predictLanding(ball: BallState) {
   return p;
 }
 
+function addRoundedStadium(scene: THREE.Scene) {
+  const g = new THREE.Group();
+  scene.add(g);
+  const ringMat = material(0x334155, 0.8, 0.05);
+  const seatMat = material(0x64748b, 0.72, 0.04);
+  const radius = CFG.courtL * 0.68;
+  for (let i = 0; i < 4; i++) {
+    const bowl = new THREE.Mesh(new THREE.TorusGeometry(radius + i * 1.2, 0.58, 24, 96), i % 2 === 0 ? ringMat : seatMat);
+    bowl.rotation.x = Math.PI / 2;
+    bowl.position.y = 0.8 + i * 0.42;
+    bowl.scale.y = 0.68;
+    g.add(bowl);
+  }
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(radius + 5.6, radius + 5.6, 4.2, 72, 1, true), new THREE.MeshStandardMaterial({ color: 0x1e293b, transparent: true, opacity: 0.78, side: THREE.DoubleSide }));
+  wall.position.y = 2.05;
+  g.add(wall);
+}
+
 export default function MobileThreeTennisPrototype() {
   const { search } = useLocation();
   const query = new URLSearchParams(search);
@@ -951,9 +969,6 @@ export default function MobileThreeTennisPrototype() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [hdriChoices, setHdriChoices] = useState<any[]>([]);
-  const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
@@ -971,13 +986,9 @@ export default function MobileThreeTennisPrototype() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
 
     const scene = new THREE.Scene();
-    let activeEnvMap: THREE.Texture | null = null;
-    scene.fog = null;
-
+    scene.background = new THREE.Color(0x07100c);
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
     const cameraTarget = new THREE.Vector3(0, 0.95 * CFG.worldScale, -1.45 * CFG.worldScale);
     const cameraOffset = new THREE.Vector3(0, 4.95 * CFG.worldScale, 7.7 * CFG.worldScale);
@@ -997,30 +1008,10 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.camera.top = 9;
     sun.shadow.camera.bottom = -9;
     scene.add(sun);
+    scene.environment = null;
 
-
-    const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
-    const applyHdri = (id: string) => {
-      const variant = POOL_ROYALE_HDRI_VARIANTS.find((v) => v.id === id) || POOL_ROYALE_HDRI_VARIANTS.find((v) => v.id === POOL_ROYALE_DEFAULT_HDRI_ID);
-      if (!variant) return;
-      const order = variant.preferredResolutions?.length ? variant.preferredResolutions : ["4k","2k"];
-      const urls = order.map((res: string) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`);
-      const loadAt = (idx: number) => {
-        if (!urls[idx]) return;
-        hdriLoader.load(urls[idx], (hdrTex) => {
-          const env = pmrem.fromEquirectangular(hdrTex).texture;
-          hdrTex.dispose();
-          if (activeEnvMap) activeEnvMap.dispose();
-          activeEnvMap = env;
-          scene.environment = env;
-          scene.background = env;
-          scene.backgroundBlurriness = 0.02;
-        }, undefined, () => loadAt(idx + 1));
-      };
-      loadAt(0);
-    };
-    applyHdri(selectedHdriId);
     const courtVisual = addCourt(scene, { hideFloor: false });
+    addRoundedStadium(scene);
     const updateBillboards = () => {};
 
     const nearHuman = HUMAN_CHARACTER_OPTIONS.find((c) => c.id === selectedHumanCharacterId) || HUMAN_CHARACTER_OPTIONS[0];
@@ -1042,9 +1033,9 @@ export default function MobileThreeTennisPrototype() {
     scene.add(ghost);
 
     let frameId = 0;
-    const racketHitFx = new Audio("https://assets.mixkit.co/active_storage/sfx/1104/1104-preview.mp3");
-    racketHitFx.volume = 0.62;
-    const ballBounceFx = new Audio("https://assets.mixkit.co/active_storage/sfx/522/522-preview.mp3");
+    const racketHitFx = new Audio("/assets/sounds/football-game-sound-effects-359284.mp3");
+    racketHitFx.volume = 0.58;
+    const ballBounceFx = new Audio("/assets/sounds/football-game-sound-effects-359284.mp3");
     ballBounceFx.volume = 0.4;
     const netHitFx = new Audio("/assets/sounds/goal net.mp3");
     netHitFx.volume = 0.42;
@@ -1215,14 +1206,32 @@ export default function MobileThreeTennisPrototype() {
     function updateAi() {
       const landing = predictLanding(ball);
       const home = new THREE.Vector3(0, 0, -CFG.courtL / 2 + 0.9);
-      const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 || landing.z < 0);
+      const isPlayerServe = ball.lastHitBy === null;
+      const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 1.2 || landing.z < 0);
+
+      if (isPlayerServe) {
+        farPlayer.target.x = clamp(nearPlayer.pos.x * 0.35, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+        farPlayer.target.z = clamp(-CFG.serviceLineZ - 0.6, -CFG.courtL / 2 + 0.42, -0.75);
+        if (canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+          startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
+        }
+        return;
+      }
+
       if (ballComingToAi) {
         farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
         farPlayer.target.z = clamp(Math.min(-0.72, landing.z + 0.42), -CFG.courtL / 2 + 0.42, -0.64);
       } else {
-        farPlayer.target.lerp(home, 0.035);
+        // attack mode when AI has initiative
+        const attackX = clamp(ball.pos.x * 0.4, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
+        const attackZ = clamp(-CFG.serviceLineZ + 0.35, -CFG.courtL / 2 + 0.55, -1.2);
+        farPlayer.target.lerp(new THREE.Vector3(attackX, 0, attackZ), 0.04);
+        farPlayer.target.lerp(home, 0.018);
       }
-      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
+
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
+      }
     }
 
     function checkSwingHits() {
@@ -1312,8 +1321,6 @@ export default function MobileThreeTennisPrototype() {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      if (activeEnvMap) activeEnvMap.dispose();
-      pmrem.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
@@ -1325,25 +1332,12 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId, selectedHumanCharacterId]);
+  }, [selectedHumanCharacterId]);
 
   useEffect(() => {
     localStorage.setItem("tennisSelectedHumanCharacter", selectedHumanCharacterId);
   }, [selectedHumanCharacterId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getPoolRoyalInventory().then((inventory) => {
-      if (cancelled) return;
-      const owned = new Set(inventory?.environmentHdri || []);
-      const tennisHdriSet = new Set(TENNIS_HDRI_OPTION_IDS);
-      const options = POOL_ROYALE_HDRI_VARIANTS.filter((v) => tennisHdriSet.has(v.id) && owned.has(v.id));
-      const fallbackId = options[0]?.id || TENNIS_HDRI_OPTION_IDS[0] || POOL_ROYALE_DEFAULT_HDRI_ID;
-      setHdriChoices(options.length ? options : POOL_ROYALE_HDRI_VARIANTS.filter((v) => tennisHdriSet.has(v.id)).slice(0, 1));
-      if (!options.some((v) => v.id === selectedHdriId)) setSelectedHdriId(fallbackId);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [selectedHdriId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#07100c", touchAction: "none", userSelect: "none" }}>
@@ -1362,23 +1356,10 @@ export default function MobileThreeTennisPrototype() {
               <div><div style={{ fontWeight: 700, textAlign: "right" }}>{rivalName}</div><div style={{ opacity: 0.7, textAlign: "right" }}>Points {hud.farScore}</div></div>
               <div style={{ width: 30, height: 30, borderRadius: "999px", border: "1px solid rgba(255,255,255,.25)", background: "#334155", display: "flex", alignItems: "center", justifyContent: "center" }}>🎾</div>
             </div>
-            <button type="button" style={{ pointerEvents: "auto", width: 92, height: 34, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "#fff", fontWeight: 700, letterSpacing: 0.4 }} onClick={() => setMenuOpen((v) => !v)}>☰ Menu</button>
+            
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.82, marginTop: 6, textAlign: "center" }}>{hud.status}</div>
         </div>
-
-        {menuOpen && (
-          <div style={{ position: "absolute", right: 10, top: 108, width: 210, maxHeight: 300, overflow: "auto", background: "rgba(8,16,24,0.94)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 12, padding: 8 }}>
-            <div style={{ color: "#fff", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Owned HDRI</div>
-            {hdriChoices.map((opt) => (
-              <button key={opt.id} type="button" onClick={() => { setSelectedHdriId(opt.id); localStorage.setItem("tennisSelectedHdri", opt.id); }} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", marginBottom: 6, borderRadius: 10, border: selectedHdriId === opt.id ? "1px solid #7dd3fc" : "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,0.08)", padding: 6, color: "#fff" }}>
-                <img src={opt.thumbnail} alt={opt.name} style={{ width: 42, height: 24, objectFit: "cover", borderRadius: 6 }} />
-                <span style={{ fontSize: 11, textAlign: "left" }}>{opt.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
-  
       </div>
     </div>
   );
