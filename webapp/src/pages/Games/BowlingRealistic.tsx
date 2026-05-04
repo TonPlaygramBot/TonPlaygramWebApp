@@ -94,6 +94,7 @@ const HDRI_OPTIONS = [
   { id: "skidpan", name: "Skidpan", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/skidpan_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/skidpan.png?height=160" },
 ] as const;
 const DEFAULT_HDRI_ID = "studio_small_09";
+const PORTRAIT_AIM_ASSIST = 0.62;
 const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
 const OAK = {
   diff: `${OAK_BASE}oak_veneer_01_diff_2k.jpg`,
@@ -652,13 +653,14 @@ function createFrameRollSymbols(frame: BowlingFrame, frameIndex: number) {
 
 function computeIntent(hostWidth: number, hostHeight: number, startX: number, startY: number, x: number, y: number): ThrowIntent {
   const vertical = clamp((startY - y) / Math.max(180, hostHeight * 0.38), 0, 1);
-  const screenX = clamp((x / hostWidth) * 2 - 1, -1, 1);
+  const startScreenX = clamp((startX / hostWidth) * 2 - 1, -1, 1);
   const dragX = clamp((x - startX) / Math.max(90, hostWidth * 0.18), -1, 1);
-  const releaseX = clamp(screenX * 0.84, -0.96, 0.96);
-  const targetX = clamp(screenX * 1.04, -1.1, 1.1);
+  const guidedX = clamp(startScreenX + dragX * PORTRAIT_AIM_ASSIST, -1, 1);
+  const releaseX = clamp(guidedX * 0.92, -1.02, 1.02);
+  const targetX = clamp(guidedX * 1.18, -1.26, 1.26);
   const power = vertical;
   const speed = lerp(6.2, 16.4, easeOutCubic(power));
-  const hook = dragX * lerp(0.08, 0.76, power);
+  const hook = dragX * lerp(0.08, 0.68, power);
   return { power, releaseX, targetX, hook, speed };
 }
 
@@ -970,7 +972,7 @@ export default function MobileBowlingRealistic() {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x090b11);
-    scene.fog = new THREE.Fog(0x090b11, 18, 38);
+    scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 80);
     camera.position.set(0, 2.9, 10.8);
@@ -985,6 +987,9 @@ export default function MobileBowlingRealistic() {
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = envTex;
+        scene.background = envTex;
+        if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
+        if ("backgroundIntensity" in scene) scene.backgroundIntensity = 1;
         hdr.dispose();
       },
       undefined,
@@ -1269,7 +1274,7 @@ export default function MobileBowlingRealistic() {
         </div> : null}
 
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
-          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />Arena walls, floor, ceiling, and 3D monitor removed.
+          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />HDRI skybox is visible and swipe direction maps directly to aim.
         </div>
 
         <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
