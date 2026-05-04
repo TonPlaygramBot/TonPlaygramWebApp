@@ -14,7 +14,7 @@ type PointReason = "winner" | "out" | "doubleBounce" | "net";
 type StrokeAction = "ready" | "forehand" | "serve";
 
 type BallState = {
-  mesh: THREE.Object3D;
+  mesh: THREE.Mesh;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
   spin: number;
@@ -229,8 +229,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   grassTex.repeat.set(3.2, 6.4);
   grassTex.colorSpace = THREE.SRGBColorSpace;
   const outerMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.96, metalness: 0 });
-  const courtMat = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0.01, color: new THREE.Color(0x2c79a7) });
-  const serviceMat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.01, color: new THREE.Color(0x3a8cb8) });
+  const courtMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.93, metalness: 0, color: new THREE.Color(0x3f9f4f) });
+  const serviceMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9, metalness: 0, color: new THREE.Color(0x57b365) });
   const lineMat = material(0xf7f7f7, 0.42, 0.0);
   const netMat = transparentMaterial(0x111111, 0.36, 0.55);
   const netWhite = material(0xf7f7f7, 0.5, 0.0);
@@ -259,8 +259,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  const netBody = addBox(group, [CFG.doublesW - 0.15, CFG.netH * 0.62, 0.035], [0, CFG.netH * 0.31, 0], netMat);
-  addBox(group, [CFG.doublesW + 0.45, 0.042, 0.06], [0, CFG.netH + 0.025, 0], netWhite);
+  const netBody = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
+  addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
   addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
   for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
@@ -357,44 +357,44 @@ function createFallbackHuman(color: number) {
 
 function createRacket(color: number) {
   const g = new THREE.Group();
-  const frame = material(color, 0.35, 0.22);
-  const grip = material(0xf8fafc, 0.72, 0.02);
-  const strings = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, transparent: true, opacity: 0.78 });
+  const handleMat = material(0x1d1d1f, 0.55, 0.1);
+  const frameMat = material(color, 0.36, 0.45);
+  const stringMat = transparentMaterial(0xffffff, 0.5, 0.42);
 
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 0.36, 18), grip);
-  handle.rotation.z = Math.PI / 2;
-  handle.position.x = 0.26;
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.42, 16), handleMat);
+  handle.position.y = -0.11;
+  enableShadow(handle);
   g.add(handle);
 
-  const throatL = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.28, 14), frame);
-  throatL.rotation.z = Math.PI / 2 - 0.26;
-  throatL.position.set(0.05, 0.06, 0);
-  g.add(throatL);
+  const throatA = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.29, 12), frameMat);
+  throatA.position.set(-0.048, 0.22, 0);
+  throatA.rotation.z = -0.18;
+  enableShadow(throatA);
+  g.add(throatA);
+  const throatB = throatA.clone();
+  throatB.position.x *= -1;
+  throatB.rotation.z *= -1;
+  g.add(throatB);
 
-  const throatR = throatL.clone();
-  throatR.rotation.z = Math.PI / 2 + 0.26;
-  throatR.position.y = -0.06;
-  g.add(throatR);
-
-  const head = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.016, 18, 96), frame);
-  head.scale.y = 1.33;
-  head.rotation.z = Math.PI / 2;
-  head.position.x = -0.23;
+  const head = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.019, 12, 52), frameMat);
+  head.scale.y = 1.34;
+  head.position.y = 0.56;
+  enableShadow(head);
   g.add(head);
 
-  for (let i = -5; i <= 5; i++) {
-    const vertical = new THREE.Mesh(new THREE.BoxGeometry(0.0035, 0.0035, 0.44), strings);
-    vertical.position.set(-0.23 + i * 0.035, 0, 0.004);
-    g.add(vertical);
-
-    const horizontal = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.0035, 0.0035), strings);
-    horizontal.position.set(-0.23, i * 0.038, 0.006);
-    g.add(horizontal);
+  const stringPlane = new THREE.Mesh(new THREE.CircleGeometry(0.182, 36), stringMat);
+  stringPlane.scale.y = 1.3;
+  stringPlane.position.y = 0.56;
+  g.add(stringPlane);
+  for (let i = -3; i <= 3; i++) {
+    const v = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.48, 0.005), stringMat);
+    v.position.set(i * 0.052, 0.56, 0.007);
+    g.add(v);
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.005, 0.005), stringMat);
+    h.position.set(0, 0.56 + i * 0.065, 0.007);
+    g.add(h);
   }
-
-  g.rotation.x = -0.16;
-  g.rotation.y = 0.32;
-  return enableShadow(g);
+  return g;
 }
 
 function findFirstBone(root: THREE.Object3D, tests: string[]) {
@@ -592,25 +592,13 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
 }
 
 function createBall() {
-  const g = new THREE.Group();
-  const shell = new THREE.Mesh(
-    new THREE.SphereGeometry(CFG.ballR, 42, 28),
-    material(0xd9ff24, 0.55, 0.01)
-  );
-  g.add(shell);
-
-  const seamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-  const seamA = new THREE.Mesh(new THREE.TorusGeometry(CFG.ballR * 1.01, CFG.ballR * 0.035, 10, 96), seamMat);
-  seamA.rotation.x = Math.PI / 2;
-  g.add(seamA);
-
-  const seamB = seamA.clone();
-  seamB.rotation.y = Math.PI / 2;
-  g.add(seamB);
-
-  enableShadow(g);
+  const tex = new THREE.CanvasTexture(makeBallTexture());
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.01 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 24), mat);
+  enableShadow(mesh);
   return {
-    mesh: g,
+    mesh,
     pos: new THREE.Vector3(0, 1.18, CFG.courtL / 2 - 1.25),
     vel: new THREE.Vector3(),
     spin: 0,
@@ -618,6 +606,24 @@ function createBall() {
     bounceSide: null,
     bounceCount: 0,
   } as BallState;
+}
+
+function makeBallTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#d7ff35";
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.strokeStyle = "rgba(255,255,255,0.92)";
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.arc(62, 128, 92, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(194, 128, 92, Math.PI / 2, (Math.PI * 3) / 2);
+  ctx.stroke();
+  return c;
 }
 
 function baseVectors(player: HumanRig) {
