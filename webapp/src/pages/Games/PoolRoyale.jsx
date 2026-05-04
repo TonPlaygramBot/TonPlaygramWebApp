@@ -25241,7 +25241,7 @@ const shotPowerRef = useRef(0);
           if (isReplay) mode = 'idle';
           else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
-          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
+          else if (isHumanShooter && (hasAim || loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
           if (human) {
@@ -25311,10 +25311,7 @@ const shotPowerRef = useRef(0);
             const cueShootDir = cueTip.clone().sub(cueBack).normalize();
             const gripTarget = cueBack
               .clone()
-              .addScaledVector(cueShootDir, 0.58)
-              .addScaledVector(aimForward, -0.08 - 0.18)
-              .addScaledVector(WORLD_UP, 0.055)
-              .addScaledVector(side, 0.14);
+              .addScaledVector(cueShootDir, 0.58);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBack.clone(),
