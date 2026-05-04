@@ -19,18 +19,6 @@ const ORIGINAL_ASSETS = {
   treeRemote: "https://raw.githubusercontent.com/jagenjo/GTR_Framework/master/data/prefabs/tree.glb"
 };
 const MURLAN_HUMAN_MODEL_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const FERRARI_KART_URL = "https://threejs.org/examples/models/gltf/ferrari.glb";
-const BUGGY_KART_URLS = [
-  "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
-  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb"
-];
-const PARKED_UNIT_MODELS = {
-  HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
-  JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"],
-  TRUCK: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb"],
-  DRONE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb"],
-  TOWER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/antenna.glb"]
-};
 
 const TAU = Math.PI * 2;
 const CHECKPOINTS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
@@ -43,21 +31,14 @@ const TRACK_PRESETS = {
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
 const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET"]
-const WEAPON_MODEL_CANDIDATES = {
-  FIREARM: [
-    "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-    "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb"
-  ],
-  RIFLE: [
-    "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-    "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-    "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb"
-  ],
-  MISSILE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/atlas_v.glb"],
-  DRONE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb"],
-  HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
-  JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"]
-};
+const WEAPON_STORE = [
+  { id: "FIREARM", model: "/gltf/weapons/firearm.glb", price: 0 },
+  { id: "RIFLE", model: "/gltf/weapons/rifle.glb", price: 400 },
+  { id: "MISSILE", model: "/gltf/weapons/missile.glb", price: 1200 },
+  { id: "DRONE", model: "/gltf/weapons/drone.glb", price: 1700 },
+  { id: "HELICOPTER", model: "/gltf/weapons/helicopter.glb", price: 2200 },
+  { id: "JET", model: "/gltf/weapons/jet.glb", price: 2800 }
+];
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -141,42 +122,27 @@ function normalizeLoadedModel(obj) {
 }
 
 function makeLoader() {
-  const dracoDecoderPath = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
-  return { dracoDecoderPath };
-}
-
-function loadGltf(dracoDecoderPath, url) {
-  const manager = new THREE.LoadingManager();
-  const loader = new GLTFLoader(manager);
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(dracoDecoderPath);
-  loader.setDRACOLoader(draco);
+  const loader = new GLTFLoader();
   loader.setCrossOrigin("anonymous");
-  const base = url.slice(0, url.lastIndexOf("/") + 1);
-  manager.setURLModifier((assetUrl) => {
-    if (/^(https?:)?\/\//i.test(assetUrl) || assetUrl.startsWith("data:") || assetUrl.startsWith("blob:")) return assetUrl;
-    return new URL(assetUrl, base).toString();
-  });
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/");
+  loader.setDRACOLoader(draco);
+  return { loader, draco };
+}
+
+function loadGltf(loader, url) {
   return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error(`Timeout loading ${url}`)), 18000);
-    loader.load(url, (gltf) => {
-      window.clearTimeout(timeout);
-      resolve({ scene: normalizeLoadedModel(gltf.scene), animations: gltf.animations || [] });
-    }, undefined, (err) => {
-      window.clearTimeout(timeout);
-      draco.dispose();
-      reject(err);
-    });
+    loader.load(url, (gltf) => resolve({ scene: normalizeLoadedModel(gltf.scene), animations: gltf.animations || [] }), undefined, reject);
   });
 }
 
-async function tryLoadTree(dracoDecoderPath) {
+async function tryLoadTree(loader) {
   try {
-    const local = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.treeLocal);
+    const local = await loadGltf(loader, ORIGINAL_ASSETS.treeLocal);
     return local.scene;
   } catch {
     try {
-      const remote = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.treeRemote);
+      const remote = await loadGltf(loader, ORIGINAL_ASSETS.treeRemote);
       return remote.scene;
     } catch (err) {
       console.warn("No GLTF tree available. Trees will be skipped; no procedural trees are spawned.", err);
@@ -185,9 +151,9 @@ async function tryLoadTree(dracoDecoderPath) {
   }
 }
 
-async function tryLoadMurlanHuman(dracoDecoderPath) {
+async function tryLoadMurlanHuman(loader) {
   try {
-    const gltf = await loadGltf(dracoDecoderPath, MURLAN_HUMAN_MODEL_URL);
+    const gltf = await loadGltf(loader, MURLAN_HUMAN_MODEL_URL);
     return gltf.scene;
   } catch (err) {
     console.warn("Murlan seated human GLTF could not load.", err);
@@ -195,27 +161,15 @@ async function tryLoadMurlanHuman(dracoDecoderPath) {
   }
 }
 
-async function tryLoadVehicleModel(dracoDecoderPath, urls) {
-  for (const url of urls) {
-    try {
-      const gltf = await loadGltf(dracoDecoderPath, url);
-      return gltf.scene;
-    } catch (err) {
-      console.warn("Vehicle model URL failed:", url, err);
-    }
-  }
-  return null;
-}
-
-async function tryLoadOriginalAssets(dracoDecoderPath) {
-  const firstTruck = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.truckVariants[0]);
-  const track = await loadGltf(dracoDecoderPath, ORIGINAL_ASSETS.track);
+async function tryLoadOriginalAssets(loader) {
+  const firstTruck = await loadGltf(loader, ORIGINAL_ASSETS.truckVariants[0]);
+  const track = await loadGltf(loader, ORIGINAL_ASSETS.track);
   const trucks = [firstTruck.scene];
   const truckAnimations = [firstTruck.animations];
 
   for (const url of ORIGINAL_ASSETS.truckVariants.slice(1)) {
     try {
-      const extra = await loadGltf(dracoDecoderPath, url);
+      const extra = await loadGltf(loader, url);
       trucks.push(extra.scene);
       truckAnimations.push(extra.animations);
     } catch {
@@ -224,7 +178,7 @@ async function tryLoadOriginalAssets(dracoDecoderPath) {
     }
   }
 
-  const tree = await tryLoadTree(dracoDecoderPath);
+  const tree = await tryLoadTree(loader);
   return { trucks, truckAnimations, track: track.scene, tree };
 }
 
@@ -428,30 +382,6 @@ function createOriginalKart(assets, name, ai, angle, lane, index, variant, track
   return { group, pos: pos.clone(), yaw: group.rotation.y, speed: 0, steer: 0, lap: 1, checkpoint: 0, progress: angle, ai, lane, name, mass: 1.25 + index * 0.08, radius: 1.45, crashT: 0, damage: 0, yawKick: 0, variant, mixer };
 }
 
-function fitVehicleModel(model, { targetLength = 2.5, lift = 0.12, yaw = Math.PI } = {}) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z, 0.0001);
-  const scale = targetLength / maxDim;
-  model.scale.setScalar(scale);
-  model.updateMatrixWorld(true);
-  const fitted = new THREE.Box3().setFromObject(model);
-  const center = fitted.getCenter(new THREE.Vector3());
-  model.position.x -= center.x;
-  model.position.z -= center.z;
-  model.position.y += -fitted.min.y + lift;
-  model.rotation.y += yaw;
-  enableShadows(model);
-  return model;
-}
-
-function stripEmbeddedDriver(model) {
-  model.traverse((obj) => {
-    const name = (obj.name || "").toLowerCase();
-    if (/(driver|human|pilot|character|head|body|helmet)/.test(name)) obj.visible = false;
-  });
-}
-
 function updateCheckpoint(kart, track) {
   const a = angleOnTrack(kart.pos, track);
   const target = CHECKPOINTS[kart.checkpoint % CHECKPOINTS.length];
@@ -576,7 +506,7 @@ function resolveVehicleCrashes(karts) {
 export default function SuperTuxKartPlayablePreview() {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
-  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, status: "Loading...", mode: "playable-preview", crash: "", weapon: "FIREARM", ammo: 999 });
+  const [hud, setHud] = useState({ lap: 1, speed: 0, position: 1, checkpoint: 0, help: true, status: "Loading...", mode: "playable-preview", crash: "", weapon: "FIREARM", ammo: 999 });
   const hudRef = useRef(hud);
 
   useEffect(() => {
@@ -593,7 +523,7 @@ export default function SuperTuxKartPlayablePreview() {
 
     let cancelled = false;
     let frameId = 0;
-    const { dracoDecoderPath } = makeLoader();
+    const { loader, draco } = makeLoader();
     const input = { keys: {}, steer: 0, accel: 0, brake: false, pointerId: null, startX: 0, startY: 0, lookId: null, lastX: 0, camYaw: 0, firePressed: false, fireTarget: null };
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     renderer.setClearColor(0x85c7f2, 1);
@@ -676,15 +606,15 @@ export default function SuperTuxKartPlayablePreview() {
       let assets = null;
       let originalMode = false;
       try {
-        assets = await tryLoadOriginalAssets(dracoDecoderPath);
+        assets = await tryLoadOriginalAssets(loader);
         originalMode = Boolean(assets.trucks.length && assets.track);
       } catch (err) {
         console.warn("Original SuperTuxKart GLB files are not available. Running playable fallback.", err);
-        const tree = await tryLoadTree(dracoDecoderPath);
+        const tree = await tryLoadTree(loader);
         assets = { trucks: [], truckAnimations: [], tree };
       }
 
-      const murlanHumanTemplate = await tryLoadMurlanHuman(dracoDecoderPath);
+      const murlanHumanTemplate = await tryLoadMurlanHuman(loader);
       if (cancelled) return;
       if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
       else createProceduralTrack(scene, selectedTrack);
@@ -692,7 +622,7 @@ export default function SuperTuxKartPlayablePreview() {
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
       const colors = [0xff3b30, 0x35c3ff, 0xffcc00, 0x7cff6b, 0xb469ff];
-      const names = ["Ferrari Sport", "Go-Kart Buggy", "Go-Kart Buggy", "Ferrari Sport", "Go-Kart Buggy"];
+      const names = ["Red Sport Truck", "Blue Box Truck", "Yellow Heavy Truck", "Green Rally Truck", "Purple Longnose"];
       const starts = [
         { angle: Math.PI / 2, lane: 0 },
         { angle: Math.PI / 2 - 0.18, lane: -1.5 },
@@ -712,81 +642,22 @@ export default function SuperTuxKartPlayablePreview() {
       const ai4 = makeKart(4);
       const karts = [player, ai1, ai2, ai3, ai4];
       karts.forEach((k) => scene.add(k.group));
-      try {
-        const ferrariTemplate = await tryLoadVehicleModel(dracoDecoderPath, [FERRARI_KART_URL]);
-        const buggyTemplate = await tryLoadVehicleModel(dracoDecoderPath, BUGGY_KART_URLS);
-        karts.forEach((kart, i) => {
-          const useFerrari = i === 0 || i === 3;
-          const template = useFerrari ? ferrariTemplate : buggyTemplate;
-          if (!template) return;
-          kart.group.clear();
-          const vehicle = cloneModel(template);
-          if (!useFerrari) stripEmbeddedDriver(vehicle);
-          fitVehicleModel(vehicle, { targetLength: useFerrari ? 2.55 : 2.35, lift: 0.1, yaw: Math.PI });
-          kart.group.add(vehicle);
-          kart.group.userData.vehicleType = useFerrari ? "ferrari" : "buggy";
-        });
-      } catch (err) {
-        console.warn("Vehicle swap failed; using base kart meshes.", err);
-      }
-      try {
-        const parkedKinds = ["HELICOPTER", "JET", "TRUCK", "DRONE", "TOWER"];
-        const parkedTemplates = {};
-        await Promise.all(parkedKinds.map(async (kind) => {
-          const loaded = await tryLoadVehicleModel(dracoDecoderPath, PARKED_UNIT_MODELS[kind] || []);
-          if (loaded) parkedTemplates[kind] = loaded;
-        }));
-        karts.forEach((kart, i) => {
-          const parked = parkedTemplates[parkedKinds[i % parkedKinds.length]];
-          if (!parked) return;
-          const parkedClone = cloneModel(parked);
-          fitVehicleModel(parkedClone, { targetLength: 1.8, lift: 0.02, yaw: 0 });
-          const side = i % 2 === 0 ? 1 : -1;
-          const forward = forwardFromYaw(kart.yaw);
-          const right = new THREE.Vector3(forward.z, 0, -forward.x).multiplyScalar(side * 5.2);
-          parkedClone.position.copy(kart.pos.clone().add(right).add(new THREE.Vector3(0, 0.05, 0)));
-          parkedClone.rotation.y = kart.yaw + (side > 0 ? 0.4 : -0.4);
-          scene.add(parkedClone);
-        });
-      } catch (err) {
-        console.warn("Parked units failed to load; continuing without them.", err);
-      }
       const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
-      const weaponTemplates = {};
-      await Promise.all(WEAPON_PICKUPS.map(async (weapon) => {
-        const candidates = WEAPON_MODEL_CANDIDATES[weapon] || [];
-        for (const modelUrl of candidates) {
-          try {
-            const gltf = await loadGltf(dracoDecoderPath, modelUrl);
-            weaponTemplates[weapon] = gltf.scene;
-            break;
-          } catch (err) {
-            console.warn("Weapon pickup model failed:", weapon, modelUrl, err);
-          }
-        }
-      }));
       const makeWeaponPickupMesh = (weapon) => {
-        const model = weaponTemplates[weapon];
-        if (model) {
-          const pickup = cloneModel(model);
-          const sizeByWeapon = { FIREARM: 1.25, RIFLE: 1.45, MISSILE: 1.6, DRONE: 1.35, HELICOPTER: 1.5, JET: 1.55 };
-          fitVehicleModel(pickup, { targetLength: sizeByWeapon[weapon] || 1.2, lift: 0.03, yaw: weapon === "RIFLE" ? Math.PI * 0.5 : 0 });
-          return pickup;
-        }
-        if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.3, 14), makeMat(0xff7b00, 0.35));
-        if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.46, 0), makeMat(0x74f0ff, 0.35));
-        if (weapon === "HELICOPTER") return new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.72, 6, 10), makeMat(0x89ff9b, 0.35));
-        if (weapon === "JET") return new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 12), makeMat(0x8ec9ff, 0.35));
-        if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.24), makeMat(0xf2d17a, 0.35));
-        return new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.28, 0.24), makeMat(0xffe066, 0.35));
+        if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.0, 14), makeMat(0xff7b00, 0.35));
+        if (weapon === "DRONE") return new THREE.Mesh(new THREE.OctahedronGeometry(0.33, 0), makeMat(0x74f0ff, 0.35));
+        if (weapon === "HELICOPTER") return new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.5, 6, 10), makeMat(0x89ff9b, 0.35));
+        if (weapon === "JET") return new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.9, 12), makeMat(0x8ec9ff, 0.35));
+        if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.18), makeMat(0xf2d17a, 0.35));
+        return new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, 0.18), makeMat(0xffe066, 0.35));
       };
       const pickups = WEAPON_PICKUPS.map((weapon, i) => {
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
-        const weaponPickup = makeWeaponPickupMesh(weapon);
-        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        weaponPickup.userData = { weapon, taken: false };
-        scene.add(weaponPickup);
-        return weaponPickup;
+        const gem = makeWeaponPickupMesh(weapon);
+        gem.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
+        gem.userData = { weapon, taken: false };
+        scene.add(gem);
+        return gem;
       });
       const defensePickups = DEFENSE_PICKUPS.map((defense, i) => {
         const p = pointOnTrack((i / DEFENSE_PICKUPS.length) * TAU + 1.2, selectedTrack, i % 2 === 0 ? -0.62 : 0.62);
@@ -837,9 +708,8 @@ export default function SuperTuxKartPlayablePreview() {
 
       if (murlanHumanTemplate) {
         karts.forEach((kart, i) => {
-          if (kart.group.userData.vehicleType !== "ferrari") return;
           const human = cloneModel(murlanHumanTemplate);
-          human.scale.setScalar(0.66 + (i % 3) * 0.05);
+          human.scale.setScalar(0.72);
           human.position.set(0, 0.45, -0.05);
           human.rotation.y = 0;
           human.rotation.x = -0.16;
@@ -983,6 +853,7 @@ export default function SuperTuxKartPlayablePreview() {
     return () => {
       cancelled = true;
       cancelAnimationFrame(frameId);
+      draco.dispose();
       window.removeEventListener("resize", resize);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
@@ -1022,7 +893,24 @@ export default function SuperTuxKartPlayablePreview() {
             <div style={{ fontSize: 11, opacity: 0.9 }}>Weapon: {hud.weapon} · Ammo: {hud.ammo}</div>
             {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
           </div>
+          <button onClick={() => setHud((h) => ({ ...h, help: !h.help }))} style={{ pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 18, fontWeight: 900 }}>?</button>
         </div>
+
+        <div style={{ position: "absolute", right: 10, top: 64, maxWidth: 260, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "8px 10px", fontSize: 10 }}>
+          <b>Weapon Store (GLTF slots)</b>
+          {WEAPON_STORE.map((w) => <div key={w.id}>{w.id} · ${w.price} · {w.model}</div>)}
+        </div>
+
+        {hud.help && (
+          <div style={{ position: "absolute", left: 10, bottom: 18, maxWidth: 352, background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, padding: "10px 12px", fontSize: 12, lineHeight: 1.35 }}>
+            <b>Controls</b><br />
+            Desktop: W/↑ accelerate, S/↓ reverse, A/D steer, Space brake.<br />
+            Mobile: drag left side to accelerate/steer, right side to rotate camera.<br />
+            Now includes track weapon pickups and tap-to-fire combat on the right side.<br />
+            Trees are GLTF-only. If no GLTF tree loads, no procedural trees are spawned.<br />
+            Current mode: {hud.mode === "original-assets" ? "Original STK GLB assets loaded." : "Playable fallback because original STK GLBs are not available in this preview."}
+          </div>
+        )}
 
         <button onPointerDown={brakeDown} onPointerUp={brakeUp} onPointerCancel={brakeUp} style={{ pointerEvents: "auto", position: "absolute", right: 18, bottom: 22, width: 78, height: 78, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.48)", color: "white", fontSize: 13, fontWeight: 900, boxShadow: "0 12px 30px rgba(0,0,0,0.28)" }}>BRAKE</button>
       </div>
