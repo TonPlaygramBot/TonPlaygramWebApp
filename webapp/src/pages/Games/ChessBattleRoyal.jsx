@@ -363,8 +363,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Keep the same table/board/chair proportions, but ~22% smaller than current.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.66; // Keep the same table/board/chair proportions, but ~22% smaller than current.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -380,7 +380,7 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.82; // Make chair bodies slightly bigger while preserving overall style.
+const CHAIR_FOOTPRINT_SHRINK = 0.9; // Make chair bodies slightly bigger while preserving overall style.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -403,16 +403,16 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.9; // Slightly widen/deepen chairs so they read larger in portrait.
+const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.01 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.045 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.01 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
 const CHAIR_TABLE_SHAPE_BIAS = 0.18 * MODEL_SCALE;
-const CHAIR_HUMAN_LEG_GAP = 0.06 * MODEL_SCALE;
+const CHAIR_HUMAN_LEG_GAP = 0.02 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -440,10 +440,10 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.32;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.95;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.05;
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.12;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
@@ -456,8 +456,8 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.62; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
-const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
+const FPV_FACE_FORWARD_OFFSET = 0.02; // keep camera very close and centered in front of the face.
+const FPV_FACE_UP_OFFSET = 0.0; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
@@ -470,8 +470,8 @@ const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 const SEATED_HUMAN_FINGER_HELPER_RADIUS = 0.012;
-const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.32;
-const SEATED_HUMAN_REACH_SIDE_GAIN = 0.22;
+const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.5;
+const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
 const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
@@ -609,6 +609,8 @@ function saveBoneRig(modelRoot) {
     chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
     neck: findBoneByNeedle(bones, 'neck'),
     head: findBoneByNeedle(bones, 'head'),
+    leftEye: findBoneByNeedle(bones, 'lefteye', 'eye_l', 'l_eye'),
+    rightEye: findBoneByNeedle(bones, 'righteye', 'eye_r', 'r_eye'),
     leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
     leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
     leftFoot: findBoneByNeedle(bones, 'leftfoot'),
@@ -13905,8 +13907,10 @@ function Chess3D({
         addBoneRot(localActorEntry.rig, localActorEntry.rig.head, fpState.pitch * 0.85, 0, 0);
         fpState.bobTime += dt * (2.2 + Math.abs(fpState.targetYaw - fpState.yaw) * 6);
         const bobOffset = Math.sin(fpState.bobTime * 7.2) * FPV_BOB_AMPLITUDE;
-        const eyeWorld = localActorEntry.rig.head.getWorldPosition(new THREE.Vector3());
-        const headQuat = localActorEntry.rig.head.getWorldQuaternion(new THREE.Quaternion());
+        const rig = localActorEntry.rig;
+        const eyeWorld = averageBoneWorldPosition([rig.leftEye, rig.rightEye])
+          ?? rig.head.getWorldPosition(new THREE.Vector3());
+        const headQuat = rig.head.getWorldQuaternion(new THREE.Quaternion());
         const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
         const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat);
         camera.position
