@@ -954,17 +954,17 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
     const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.56);
-    const flight = clamp(0.22 + (1 - hit.power) * 0.09, 0.22, 0.32);
+    const flight = clamp(0.18 + (1 - hit.power) * 0.075, 0.17, 0.28);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
-    ball.spin.set(-dirZ * (46 + hit.topSpin * 42), hit.sideSpin * 78, hit.sideSpin * 8);
+    ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
   } else {
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const flight = clamp(dist / ((3.45 + hit.power * 3.35) * speedScale), 0.18, 0.48);
+    const flight = clamp(dist / ((4.2 + hit.power * 4.1) * speedScale), 0.14, 0.4);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
-    ball.spin.set(-dirZ * (62 + hit.topSpin * 92), hit.sideSpin * 104, hit.sideSpin * 12);
+    ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
   }
 
@@ -1220,7 +1220,7 @@ export default function MobileRealisticTableTennisGame() {
     netFx.playbackRate = 1.4;
     const scoreFx = new Audio("/assets/sounds/successful.mp3");
     scoreFx.volume = 0.26;
-    const playFx = (fx: HTMLAudioElement) => { fx.currentTime = 0; const endAt = 1.5; const onTime = () => { if (fx.currentTime >= endAt) { fx.pause(); fx.removeEventListener("timeupdate", onTime); } }; fx.addEventListener("timeupdate", onTime); fx.play().catch(() => {}); };
+    const playFx = (fx: HTMLAudioElement) => { fx.pause(); fx.currentTime = 0; const endAt = 1.0; const onTime = () => { if (fx.currentTime >= endAt) { fx.pause(); fx.removeEventListener("timeupdate", onTime); } }; fx.addEventListener("timeupdate", onTime); fx.play().catch(() => {}); };
     const replayFrames: THREE.Vector3[] = [];
     let replayT = 0;
 
@@ -1553,10 +1553,15 @@ export default function MobileRealisticTableTennisGame() {
       }
 
       if (cameraMode === "player") {
-        const eye = nearPlayer.pos.clone().add(new THREE.Vector3(0, 1.63, -0.045));
-        const look = new THREE.Vector3(0, CFG.tableY + 0.18, -TABLE_HALF_L * 0.4);
-        camera.position.lerp(eye, 1 - Math.exp(-12 * dt));
-        cameraTarget.lerp(look, 1 - Math.exp(-11 * dt));
+        const headBone = nearPlayer.bones.neck ?? nearPlayer.bones.chest;
+        const headAnchor = headBone ? getWorldPos(headBone) : nearPlayer.pos.clone().add(new THREE.Vector3(0, 1.6, 0));
+        const playerForward = forwardFromYaw(nearPlayer.yaw);
+        const eyes = headAnchor.clone()
+          .addScaledVector(playerForward, 0.108)
+          .add(new THREE.Vector3(0, 0.082, 0));
+        const look = ball.pos.clone().lerp(new THREE.Vector3(0, CFG.tableY + 0.2, -TABLE_HALF_L * 0.34), 0.2);
+        camera.position.lerp(eyes, 1 - Math.exp(-18 * dt));
+        cameraTarget.lerp(look, 1 - Math.exp(-15 * dt));
       } else {
         const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
         camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
