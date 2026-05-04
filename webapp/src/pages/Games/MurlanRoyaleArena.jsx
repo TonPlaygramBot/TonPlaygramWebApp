@@ -1773,10 +1773,10 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 101.44 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 111.36 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -121.12 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -24.32 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 97.28 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 106.24 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -113.92 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -18.56 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? (normalizedSeatIndex === 1 ? -0.08 * MODEL_SCALE : 0.08 * MODEL_SCALE)
@@ -1784,7 +1784,7 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   return {
     x: sideSeatLateralPull,
-    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 0.88 * MODEL_SCALE : 1.52 * MODEL_SCALE),
+    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 0.64 * MODEL_SCALE : 1.28 * MODEL_SCALE),
     z: 0.82 * MODEL_SCALE + nonBottomOutwardPush + bottomForwardPull
   };
 }
@@ -1796,9 +1796,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const rightUpperArm = findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']);
   const rightForeArm = findBoneByHints(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']);
   const rightHand = findBoneByHints(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']);
-  const rightIndexProximal = findBoneByHints(instance, ['rightindex1', 'indexfinger1.r', 'index_01_r', 'index1_r', 'indexproximalr']);
-  const rightIndexMid = findBoneByHints(instance, ['rightindex2', 'indexfinger2.r', 'index_02_r', 'index2_r', 'indexintermediater']);
-  const rightIndexDistal = findBoneByHints(instance, ['rightindex3', 'indexfinger3.r', 'index_03_r', 'index3_r', 'indexdistalr']);
   const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
   const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
   const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
@@ -1843,9 +1840,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightUpperArm,
       rightForeArm,
       rightHand,
-      rightIndexProximal,
-      rightIndexMid,
-      rightIndexDistal,
       leftUpperArm,
       leftForeArm,
       leftHand,
@@ -1872,8 +1866,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     heldCards,
     heldCardsPose,
     isBottomHumanSeat: Boolean(player?.isHuman),
-    currentActionId: 0,
-    contactHelpers: []
+    currentActionId: 0
   };
 
   // Match Ludo Battle Royal seated framing: keep characters visually lower on portrait screens.
@@ -1902,9 +1895,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightUpperArm: captureBoneRotation(rightUpperArm),
     rightForeArm: captureBoneRotation(rightForeArm),
     rightHand: captureBoneRotation(rightHand),
-    rightIndexProximal: captureBoneRotation(rightIndexProximal),
-    rightIndexMid: captureBoneRotation(rightIndexMid),
-    rightIndexDistal: captureBoneRotation(rightIndexDistal),
     leftUpperArm: captureBoneRotation(leftUpperArm),
     leftForeArm: captureBoneRotation(leftForeArm),
     leftHand: captureBoneRotation(leftHand),
@@ -1913,15 +1903,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightThigh: captureBoneRotation(rightThigh),
     rightCalf: captureBoneRotation(rightCalf)
   };
-  if (CHARACTER_CONTACT_HELPERS_ENABLED) {
-    const handHelper = new THREE.AxesHelper(0.07 * MODEL_SCALE);
-    const tipHelper = new THREE.AxesHelper(0.045 * MODEL_SCALE);
-    const cardsHelper = new THREE.BoxHelper(heldCards, 0x00e5ff);
-    if (rightHand) rightHand.add(handHelper);
-    if (rightIndexDistal) rightIndexDistal.add(tipHelper);
-    instance.add(cardsHelper);
-    rig.contactHelpers.push(handHelper, tipHelper, cardsHelper);
-  }
 
   return rig;
 }
@@ -2101,22 +2082,9 @@ function runCharacterAction(store, rig, action) {
     const throwPrep = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-10) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-52), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-12) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-12) },
-      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-10) },
-      rightIndexProximal: { x: THREE.MathUtils.degToRad(14) },
-      rightIndexMid: { x: THREE.MathUtils.degToRad(18) },
-      rightIndexDistal: { x: THREE.MathUtils.degToRad(14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-6) },
+      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-8) },
       head: { x: THREE.MathUtils.degToRad(-6) }
-    });
-    const cardPinchPose = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-14) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-58), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-10) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-20) },
-      rightHand: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-8) },
-      rightIndexProximal: { x: THREE.MathUtils.degToRad(30) },
-      rightIndexMid: { x: THREE.MathUtils.degToRad(28) },
-      rightIndexDistal: { x: THREE.MathUtils.degToRad(16) },
-      head: { x: THREE.MathUtils.degToRad(-8) }
     });
     const throwRelease = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(8) },
@@ -2141,7 +2109,7 @@ function runCharacterAction(store, rig, action) {
     const pickupPos = handPos.clone();
     if (selectedCardMesh) {
       selectedCardMesh.getWorldPosition(pickupPos);
-      pickupPos.y += CARD_PICK_CONTACT_LIFT;
+      pickupPos.y += 0.01 * MODEL_SCALE;
     }
 
     const target = (store.tableAnchor || new THREE.Vector3()).clone();
@@ -2153,17 +2121,12 @@ function runCharacterAction(store, rig, action) {
 
     list.push({
       start: now,
-      duration: 120,
+      duration: 180,
       update: (t) => applyRigPoseLerp(rig, throwPrep, t)
     });
     list.push({
-      start: now + 120,
-      duration: 130,
-      update: (t) => applyRigPoseLerp(rig, cardPinchPose, t)
-    });
-    list.push({
-      start: now + 250,
-      duration: 220,
+      start: now + 180,
+      duration: 210,
       update: (t) => applyRigPoseLerp(rig, throwRelease, t),
       complete: () => {
         const flightStart = performance.now();
@@ -2183,7 +2146,7 @@ function runCharacterAction(store, rig, action) {
       }
     });
     list.push({
-      start: now + 500,
+      start: now + 420,
       duration: 280,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
@@ -2520,10 +2483,6 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET = 0.52 * MODEL_SCALE; // pull the human seat a bit closer to the table on portrait framing.
-const CHARACTER_CONTACT_HELPERS_ENABLED =
-  typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('murlanContactHelpers') === '1';
-const CARD_PICK_CONTACT_LIFT = 0.014 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 1;
