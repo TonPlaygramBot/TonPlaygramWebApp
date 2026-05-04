@@ -61,6 +61,104 @@ const WEAPON_MODEL_CANDIDATES = {
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
 const WEAPON_ICON = { FIREARM: "🔫", RIFLE: "🪖", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", TOWER: "📡" };
 const SUPPORT_PICKUP_TYPES = ["TRUCK", "DRONE", "HELICOPTER", "JET", "TOWER"];
+const PICKUP_BUBBLE_COLORS = {
+  FIREARM: 0xffd166,
+  RIFLE: 0x8ec9ff,
+  MISSILE: 0xff7b54,
+  DRONE: 0x91ffba,
+  HELICOPTER: 0xe8a6ff,
+  JET: 0x7df3ff,
+  TRUCK: 0xffb58f,
+  TOWER: 0xb7ff7f
+};
+
+
+
+const PARKED_UNIT_LAYOUT = Object.freeze({
+  HELICOPTER: { targetLength: 6.2, lift: 0.34, lane: 10.2, yawOffset: 0.5, helperColor: 0x73ffe4 },
+  JET: { targetLength: 6.5, lift: 0.3, lane: -10.4, yawOffset: -0.45, helperColor: 0x77d7ff },
+  TRUCK: { targetLength: 5.8, lift: 0.26, lane: 10.8, yawOffset: 0.2, helperColor: 0xffc277 },
+  DRONE: { targetLength: 4.6, lift: 0.5, lane: -11.1, yawOffset: -0.25, helperColor: 0x8fffb2 },
+  TOWER: { targetLength: 5.1, lift: 0.18, lane: 11.4, yawOffset: 0.15, helperColor: 0xccff83 }
+});
+
+const SUPPORT_ANIMATION_PROFILE = Object.freeze({
+  HELICOPTER: { bobSpeed: 2.2, bobAmp: 0.11, yawSpeed: 0.9, bankAmp: 0.04 },
+  JET: { bobSpeed: 1.1, bobAmp: 0.04, yawSpeed: 0.25, bankAmp: 0.12 },
+  TRUCK: { bobSpeed: 0.9, bobAmp: 0.03, yawSpeed: 0.1, bankAmp: 0.02 },
+  DRONE: { bobSpeed: 2.8, bobAmp: 0.13, yawSpeed: 1.35, bankAmp: 0.06 },
+  TOWER: { bobSpeed: 0.6, bobAmp: 0.02, yawSpeed: 0.07, bankAmp: 0 }
+});
+
+const PICKUP_VISUAL_PROFILE = Object.freeze({
+  FIREARM: { modelLength: 1.4, rise: 0.96, bubbleSize: 0.98, opacity: 0.38, spin: 1.5 },
+  RIFLE: { modelLength: 1.62, rise: 1.03, bubbleSize: 1.04, opacity: 0.36, spin: 1.42 },
+  MISSILE: { modelLength: 1.78, rise: 1.08, bubbleSize: 1.08, opacity: 0.34, spin: 1.72 },
+  DRONE: { modelLength: 1.52, rise: 1.04, bubbleSize: 1.05, opacity: 0.34, spin: 1.62 },
+  HELICOPTER: { modelLength: 1.66, rise: 1.07, bubbleSize: 1.07, opacity: 0.35, spin: 1.48 },
+  JET: { modelLength: 1.72, rise: 1.1, bubbleSize: 1.09, opacity: 0.35, spin: 1.55 },
+  TRUCK: { modelLength: 1.76, rise: 1.08, bubbleSize: 1.1, opacity: 0.33, spin: 1.34 },
+  TOWER: { modelLength: 1.58, rise: 1.02, bubbleSize: 1.02, opacity: 0.36, spin: 1.25 }
+});
+
+function preserveOriginalGltfTextures(model) {
+  model.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      const maps = ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "aoMap", "alphaMap"];
+      maps.forEach((key) => {
+        if (!mat[key]) return;
+        mat[key].colorSpace = key === "map" || key === "emissiveMap" ? THREE.SRGBColorSpace : mat[key].colorSpace;
+        mat[key].flipY = false;
+        mat[key].needsUpdate = true;
+      });
+      mat.needsUpdate = true;
+    });
+  });
+  return model;
+}
+
+function addTrackPrecisionHelpers(scene, track) {
+  const helperGroup = new THREE.Group();
+  helperGroup.name = "track_precision_helpers";
+  const ringSegments = 96;
+  for (let i = 0; i < ringSegments; i++) {
+    const a = (i / ringSegments) * TAU;
+    const o = pointOnTrack(a, track, 8.8);
+    const marker = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.15), makeMat(i % 2 === 0 ? 0x36f0ff : 0xffb347, 0.55, 0.04));
+    marker.position.copy(o).add(new THREE.Vector3(0, 0.08, 0));
+    marker.rotation.y = tangentYaw(a, track);
+    helperGroup.add(marker);
+  }
+  scene.add(helperGroup);
+  return helperGroup;
+}
+
+function createRoadsideDressings(scene, track) {
+  const dressings = new THREE.Group();
+  dressings.name = "roadside_dressings";
+  const tireMat = makeMat(0x1a1c1f, 0.93, 0.07);
+  const treadMat = makeMat(0x2f3136, 0.85, 0.1);
+  for (let i = 0; i < 84; i++) {
+    const a = (i / 84) * TAU;
+    const side = i % 2 === 0 ? 1 : -1;
+    const lane = side > 0 ? 12.8 : -12.8;
+    const p = pointOnTrack(a, track, lane);
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.1, 10, 18), tireMat);
+    tire.position.copy(p).add(new THREE.Vector3(0, 0.25, 0));
+    tire.rotation.x = Math.PI * 0.5;
+    tire.rotation.z = tangentYaw(a, track) + (side > 0 ? 0.15 : -0.15);
+    dressings.add(tire);
+    const tread = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.06, 0.3), treadMat);
+    tread.position.copy(p).add(new THREE.Vector3(0, 0.1, 0));
+    tread.rotation.y = tangentYaw(a, track);
+    dressings.add(tread);
+  }
+  scene.add(dressings);
+  return dressings;
+}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -228,6 +326,380 @@ async function tryLoadOriginalAssets(dracoDecoderPath) {
 
   const tree = await tryLoadTree(dracoDecoderPath);
   return { trucks, truckAnimations, track: track.scene, tree };
+}
+
+
+function createVisualCalibrationToolkit(scene, track) {
+  const root = new THREE.Group();
+  root.name = "portrait_visual_calibration";
+  const ringMat = makeMat(0x44c0ff, 0.55, 0.08);
+  const innerMat = makeMat(0xffad4a, 0.58, 0.08);
+  const laneMat = makeMat(0x67ff95, 0.62, 0.06);
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * TAU;
+    const outer = pointOnTrack(a, track, 11.9);
+    const inner = pointOnTrack(a, track, -11.9);
+    const o = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), ringMat);
+    o.position.copy(outer).add(new THREE.Vector3(0, 0.12, 0));
+    root.add(o);
+    const inn = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), innerMat);
+    inn.position.copy(inner).add(new THREE.Vector3(0, 0.12, 0));
+    root.add(inn);
+    if (i % 6 === 0) {
+      const lane = pointOnTrack(a, track, 0);
+      const l = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.28, 8), laneMat);
+      l.position.copy(lane).add(new THREE.Vector3(0, 0.14, 0));
+      root.add(l);
+    }
+  }
+  scene.add(root);
+  return root;
+}
+
+function attachTextureAuditTag(model, sourceUrl = "") {
+  const audit = { sourceUrl, textureCount: 0, materialCount: 0 };
+  model.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    audit.materialCount += mats.length;
+    mats.forEach((mat) => {
+      if (!mat) return;
+      ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "aoMap", "alphaMap"].forEach((k) => {
+        if (mat[k]) audit.textureCount += 1;
+      });
+    });
+  });
+  model.userData.textureAudit = audit;
+  return model;
+}
+
+function normalizePickupMaterialExposure(node, exposure = 1) {
+  node.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (typeof mat.envMapIntensity === "number") mat.envMapIntensity = Math.max(0.35, exposure);
+      if (typeof mat.roughness === "number") mat.roughness = clamp(mat.roughness, 0.16, 0.92);
+      if (typeof mat.metalness === "number") mat.metalness = clamp(mat.metalness, 0.02, 0.6);
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function createSupportAnimationState(kind, node) {
+  return {
+    kind,
+    node,
+    basePosition: node.position.clone(),
+    baseRotation: node.rotation.clone(),
+    t: Math.random() * TAU,
+    pulse: Math.random() * 1000,
+    enginePhase: Math.random() * TAU,
+    stage: "idle"
+  };
+}
+
+function updateSupportAnimationState(state, dt, nowMs) {
+  const profile = SUPPORT_ANIMATION_PROFILE[state.kind] || SUPPORT_ANIMATION_PROFILE.TRUCK;
+  state.t += dt;
+  const bob = Math.sin(state.t * profile.bobSpeed + state.enginePhase) * profile.bobAmp;
+  state.node.position.y = state.basePosition.y + bob;
+  state.node.rotation.z = state.baseRotation.z + Math.sin(state.t * 1.35) * profile.bankAmp;
+  state.node.rotation.y += dt * profile.yawSpeed;
+  if (state.kind === "HELICOPTER" || state.kind === "DRONE") {
+    state.node.rotation.x = state.baseRotation.x + Math.sin(state.t * (state.kind === "DRONE" ? 2.6 : 1.9)) * 0.05;
+  }
+  state.pulse = (state.pulse + dt * 1000) % 2000;
+  if (state.pulse < 700) state.stage = "idle";
+  else if (state.pulse < 1400) state.stage = "scan";
+  else state.stage = "stabilize";
+  if (state.stage === "scan") state.node.rotation.y += dt * 0.25;
+  if (state.stage === "stabilize") state.node.rotation.z *= 0.98;
+  state.node.userData.animState = { stage: state.stage, timestamp: nowMs };
+}
+
+function createPickupState(node, weapon, slotIndex) {
+  return {
+    node,
+    weapon,
+    slotIndex,
+    phase: Math.random() * TAU,
+    pulse: 0,
+    visibleState: true,
+    respawnAt: 0
+  };
+}
+
+function updatePickupState(state, now, dt) {
+  const profile = PICKUP_VISUAL_PROFILE[state.weapon] || PICKUP_VISUAL_PROFILE.FIREARM;
+  state.phase += dt * profile.spin;
+  state.pulse += dt;
+  state.node.rotation.y += dt * profile.spin;
+  const bob = Math.sin(now * 0.004 + state.phase) * 0.11;
+  state.node.position.y = (state.node.userData.baseY ?? profile.rise) + bob;
+  const bubble = state.node.children.find((c) => c.isMesh && c.geometry?.type === "SphereGeometry");
+  if (bubble) {
+    bubble.scale.setScalar(1 + Math.sin(now * 0.003 + state.phase) * 0.06);
+    bubble.material.opacity = profile.opacity + Math.sin(now * 0.002 + state.phase) * 0.05;
+  }
+}
+
+function createAirSupportMotion(kind, craft, target, home) {
+  return {
+    kind,
+    craft,
+    target,
+    home,
+    stage: "takeoff",
+    fired: 0,
+    ttl: 3.8,
+    t: Math.random() * TAU,
+    thrust: 0
+  };
+}
+
+function updateAirSupportMotion(motion, dt, now) {
+  motion.ttl -= dt;
+  motion.t += dt;
+  motion.thrust = clamp(motion.thrust + dt * 1.8, 0, 1);
+  const hover = motion.target.pos.clone().add(new THREE.Vector3(0, 8.8, 0));
+  const returnHome = motion.home.clone();
+  if (motion.kind === "HELICOPTER" || motion.kind === "DRONE") motion.craft.rotation.y += dt * 4.2;
+  if (motion.kind === "JET") motion.craft.rotation.z = Math.sin(now * 0.004 + motion.t) * 0.08;
+  if (motion.kind === "MISSILE") motion.craft.rotation.x = -0.25 + Math.sin(now * 0.005 + motion.t) * 0.08;
+  if (motion.stage === "takeoff") {
+    motion.craft.position.lerp(hover, 1 - Math.exp(-2.9 * dt));
+    if (motion.craft.position.distanceTo(hover) < 1.4) motion.stage = "strike";
+  } else if (motion.stage === "strike") {
+    motion.craft.position.lerp(hover, 1 - Math.exp(-4.6 * dt));
+  } else {
+    motion.craft.position.lerp(returnHome, 1 - Math.exp(-2.2 * dt));
+  }
+}
+
+
+function createRuntimeProfiler() {
+  const state = {
+    frameCount: 0,
+    totalDt: 0,
+    maxDt: 0,
+    spikes: 0,
+    lastStamp: performance.now(),
+    samples: [],
+    drawCalls: 0,
+    triangles: 0
+  };
+  return {
+    tick(dt, renderer) {
+      state.frameCount += 1;
+      state.totalDt += dt;
+      state.maxDt = Math.max(state.maxDt, dt);
+      if (dt > 0.033) state.spikes += 1;
+      if (renderer?.info?.render) {
+        state.drawCalls = renderer.info.render.calls;
+        state.triangles = renderer.info.render.triangles;
+      }
+      if (state.frameCount % 120 === 0) {
+        const avg = state.totalDt / Math.max(1, state.frameCount);
+        state.samples.push({ avg, max: state.maxDt, spikes: state.spikes, drawCalls: state.drawCalls, triangles: state.triangles });
+        if (state.samples.length > 12) state.samples.shift();
+      }
+    },
+    toHudText() {
+      if (!state.samples.length) return "Profiler warming...";
+      const last = state.samples[state.samples.length - 1];
+      const fps = last.avg > 0 ? Math.round(1 / last.avg) : 0;
+      return `FPS ${fps} · spikes ${last.spikes} · dc ${last.drawCalls}`;
+    }
+  };
+}
+
+function createObjectPool(factory, size = 12) {
+  const free = [];
+  const used = new Set();
+  for (let i = 0; i < size; i++) free.push(factory());
+  return {
+    acquire() {
+      const obj = free.pop() || factory();
+      used.add(obj);
+      return obj;
+    },
+    release(obj) {
+      if (!obj) return;
+      used.delete(obj);
+      free.push(obj);
+    },
+    forEachUsed(cb) {
+      used.forEach(cb);
+    },
+    dispose(disposeFn) {
+      used.forEach((obj) => disposeFn(obj));
+      free.forEach((obj) => disposeFn(obj));
+      used.clear();
+      free.length = 0;
+    }
+  };
+}
+
+function ensureSupportWeaponTextureFallbacks(model) {
+  model.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (!mat.map && typeof mat.color?.setHex === "function") {
+        mat.color.setHex(mat.color.getHex() || 0xffffff);
+      }
+      if (mat.transparent && mat.opacity < 0.4) mat.opacity = 0.85;
+      mat.needsUpdate = true;
+    });
+  });
+  return model;
+}
+
+function addGroundAlignmentGrid(scene, track) {
+  const group = new THREE.Group();
+  group.name = "ground_alignment_grid";
+  const lineMat = makeMat(0x3f4f65, 0.82, 0.03);
+  for (let i = 0; i < 44; i++) {
+    const a = (i / 44) * TAU;
+    const c = pointOnTrack(a, track, 0);
+    const crossA = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 2.2), lineMat);
+    crossA.position.copy(c).add(new THREE.Vector3(0, 0.03, 0));
+    crossA.rotation.y = tangentYaw(a, track);
+    group.add(crossA);
+    const crossB = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 0.18), lineMat);
+    crossB.position.copy(c).add(new THREE.Vector3(0, 0.03, 0));
+    crossB.rotation.y = tangentYaw(a, track);
+    group.add(crossB);
+  }
+  scene.add(group);
+  return group;
+}
+
+function createBubbleMaterial(colorHex, opacity) {
+  return new THREE.MeshStandardMaterial({
+    color: colorHex,
+    emissive: new THREE.Color(colorHex).multiplyScalar(0.22),
+    transparent: true,
+    opacity,
+    roughness: 0.14,
+    metalness: 0.12
+  });
+}
+
+function buildWeaponBubble(weapon) {
+  const profile = PICKUP_VISUAL_PROFILE[weapon] || PICKUP_VISUAL_PROFILE.FIREARM;
+  const color = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
+  const bubble = new THREE.Mesh(new THREE.SphereGeometry(profile.bubbleSize, 18, 16), createBubbleMaterial(color, profile.opacity));
+  bubble.position.y = 0.18;
+  bubble.userData.kind = "pickup_bubble";
+  return bubble;
+}
+
+function updateBubbleVisual(bubble, now, phase = 0) {
+  if (!bubble?.material) return;
+  const wave = Math.sin(now * 0.002 + phase);
+  bubble.scale.setScalar(1 + wave * 0.05);
+  bubble.material.opacity = clamp((bubble.material.opacity || 0.35) + wave * 0.01, 0.22, 0.52);
+  if (bubble.material.emissive) {
+    const intensity = 0.12 + (wave + 1) * 0.07;
+    bubble.material.emissiveIntensity = intensity;
+  }
+}
+
+
+function createRoadSurfaceDetail(scene, track) {
+  const root = new THREE.Group();
+  root.name = "road_surface_detail";
+  const stripeMat = makeMat(0xe7e8ea, 0.72, 0.05);
+  const patchMat = makeMat(0x444a54, 0.9, 0.02);
+  for (let i = 0; i < 120; i++) {
+    const a = (i / 120) * TAU;
+    const mid = pointOnTrack(a, track, 0);
+    if (i % 2 === 0) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 1.4), stripeMat);
+      stripe.position.copy(mid).add(new THREE.Vector3(0, 0.03, 0));
+      stripe.rotation.y = tangentYaw(a, track);
+      root.add(stripe);
+    }
+    if (i % 5 === 0) {
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.5), patchMat);
+      patch.rotation.x = -Math.PI * 0.5;
+      patch.rotation.z = a * 0.7;
+      patch.position.copy(mid).add(new THREE.Vector3(0, 0.025, 0));
+      root.add(patch);
+    }
+  }
+  scene.add(root);
+  return root;
+}
+
+function createRoadsideWeaponPads(scene, track) {
+  const root = new THREE.Group();
+  root.name = "roadside_weapon_pads";
+  const matA = makeMat(0x2f3d4d, 0.74, 0.12);
+  const matB = makeMat(0x40546c, 0.74, 0.12);
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * TAU;
+    const side = i % 2 === 0 ? 1 : -1;
+    const p = pointOnTrack(a, track, side > 0 ? 9.3 : -9.3);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 0.08, 18), i % 2 === 0 ? matA : matB);
+    pad.position.copy(p).add(new THREE.Vector3(0, 0.06, 0));
+    root.add(pad);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.73, 0.05, 8, 18), makeMat(0x8bc7ff, 0.4, 0.2));
+    rim.position.copy(p).add(new THREE.Vector3(0, 0.12, 0));
+    rim.rotation.x = Math.PI * 0.5;
+    root.add(rim);
+  }
+  scene.add(root);
+  return root;
+}
+
+
+function createPortraitDistanceGuide(scene, track) {
+  const root = new THREE.Group();
+  root.name = "portrait_distance_guide";
+  const nearMat = makeMat(0x67ffc6, 0.6, 0.04);
+  const farMat = makeMat(0xff9f67, 0.6, 0.04);
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * TAU;
+    const near = pointOnTrack(a, track, 4.6);
+    const far = pointOnTrack(a, track, -4.6);
+    const n = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.25), nearMat);
+    n.position.copy(near).add(new THREE.Vector3(0, 0.14, 0));
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.25), farMat);
+    f.position.copy(far).add(new THREE.Vector3(0, 0.14, 0));
+    root.add(n, f);
+  }
+  scene.add(root);
+  return root;
+}
+
+
+function createWeaponPickupLegend(scene) {
+  const root = new THREE.Group();
+  root.name = "weapon_pickup_legend";
+  const keys = ["FIREARM", "RIFLE", "MISSILE", "DRONE", "HELICOPTER", "JET"];
+  keys.forEach((k, i) => {
+    const color = PICKUP_BUBBLE_COLORS[k] || 0xffffff;
+    const marker = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), makeMat(color, 0.45, 0.09));
+    marker.position.set(-6 + i * 0.5, 0.18, -6.4);
+    root.add(marker);
+  });
+  scene.add(root);
+  return root;
+}
+
+
+function createSceneDebugBanner() {
+  return {
+    buildStatusText(mode, profilerText) {
+      const modeText = mode === "original-assets" ? "Original GLTF" : "Fallback GLTF";
+      return `${modeText} · ${profilerText}`;
+    }
+  };
 }
 
 function createProceduralTrack(scene, track) {
@@ -414,6 +886,31 @@ function createTruckVariant(color, name, variant, track, ai = false, angle = Mat
     yawKick: 0,
     variant
   };
+}
+
+
+function disposeObject3D(root) {
+  if (!root) return;
+  root.traverse?.((obj) => {
+    if (!obj.isMesh) return;
+    obj.geometry?.dispose?.();
+    const mat = obj.material;
+    if (Array.isArray(mat)) mat.forEach((m) => m?.dispose?.());
+    else mat?.dispose?.();
+  });
+}
+
+function addPrecisionHelpers(node, { color = 0xff44ff, size = 0.7 } = {}) {
+  if (!node) return;
+  const box = new THREE.Box3().setFromObject(node);
+  if (!Number.isFinite(box.min.x)) return;
+  const center = box.getCenter(new THREE.Vector3());
+  const helperAnchor = new THREE.Group();
+  helperAnchor.position.copy(center);
+  helperAnchor.add(new THREE.AxesHelper(size));
+  const wire = new THREE.Box3Helper(box, color);
+  node.parent?.add(wire);
+  node.parent?.add(helperAnchor);
 }
 
 function createOriginalKart(assets, name, ai, angle, lane, index, variant, track) {
@@ -690,6 +1187,14 @@ export default function SuperTuxKartPlayablePreview() {
       if (cancelled) return;
       if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
       else createProceduralTrack(scene, selectedTrack);
+      const roadsideDressings = createRoadsideDressings(scene, selectedTrack);
+      const trackHelpers = addTrackPrecisionHelpers(scene, selectedTrack);
+      const visualCalibration = createVisualCalibrationToolkit(scene, selectedTrack);
+      const groundAlignment = addGroundAlignmentGrid(scene, selectedTrack);
+      const roadSurfaceDetail = createRoadSurfaceDetail(scene, selectedTrack);
+      const weaponPads = createRoadsideWeaponPads(scene, selectedTrack);
+      const portraitGuide = createPortraitDistanceGuide(scene, selectedTrack);
+      const pickupLegend = createWeaponPickupLegend(scene);
       scatterGltfTrees(scene, assets?.tree, selectedTrack);
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
@@ -742,12 +1247,14 @@ export default function SuperTuxKartPlayablePreview() {
           const kind = parkedKinds[i];
           if (res.status === "fulfilled" && res.value) {
             parkedTemplates[kind] = res.value;
-            const park = cloneModel(res.value);
-            fitVehicleModel(park, { targetLength: 5.4, lift: 0.05, yaw: 0 });
+            const park = preserveOriginalGltfTextures(cloneModel(res.value));
+            const layout = PARKED_UNIT_LAYOUT[kind] || PARKED_UNIT_LAYOUT.TRUCK;
+            fitVehicleModel(park, { targetLength: layout.targetLength, lift: layout.lift, yaw: 0 });
+            addPrecisionHelpers(park, { color: layout.helperColor, size: 1.05 });
             const a = (i / parkedKinds.length) * TAU + 0.18;
-            const edge = pointOnTrack(a, selectedTrack, i % 2 === 0 ? 9.5 : -9.5);
-            park.position.copy(edge).add(new THREE.Vector3(0, 0.2, 0));
-            park.rotation.y = tangentYaw(a, selectedTrack) + (i % 2 === 0 ? 0.5 : -0.5);
+            const edge = pointOnTrack(a, selectedTrack, layout.lane);
+            park.position.copy(edge).add(new THREE.Vector3(0, 0.22, 0));
+            park.rotation.y = tangentYaw(a, selectedTrack) + layout.yawOffset;
             scene.add(park);
             parkedActors[kind] = park;
           }
@@ -758,9 +1265,9 @@ export default function SuperTuxKartPlayablePreview() {
       const makeWeaponPickupMesh = (weapon) => {
         const model = weaponTemplates[weapon];
         if (model) {
-          const pickup = cloneModel(model);
-          const sizeByWeapon = { FIREARM: 1.25, RIFLE: 1.45, MISSILE: 1.6, DRONE: 1.35, HELICOPTER: 1.5, JET: 1.55 };
-          fitVehicleModel(pickup, { targetLength: sizeByWeapon[weapon] || 1.2, lift: 0.03, yaw: weapon === "RIFLE" ? Math.PI * 0.5 : 0 });
+          const pickup = preserveOriginalGltfTextures(cloneModel(model));
+          const profile = PICKUP_VISUAL_PROFILE[weapon] || PICKUP_VISUAL_PROFILE.FIREARM;
+          fitVehicleModel(pickup, { targetLength: profile.modelLength || 1.2, lift: 0.06, yaw: weapon === "RIFLE" ? Math.PI * 0.5 : 0 });
           return pickup;
         }
         if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.3, 14), makeMat(0xff7b00, 0.35));
@@ -781,14 +1288,18 @@ export default function SuperTuxKartPlayablePreview() {
           const src = parkedTemplates[weapon];
           if (src) {
             const mini = cloneModel(src);
-            fitVehicleModel(mini, { targetLength: 1.8, lift: 0.03, yaw: 0 });
+            const profile = PICKUP_VISUAL_PROFILE[weapon] || PICKUP_VISUAL_PROFILE.TRUCK;
+            fitVehicleModel(mini, { targetLength: profile.modelLength, lift: 0.06, yaw: 0 });
             weaponPickup.add(mini);
           }
         }
-        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 12), new THREE.MeshStandardMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.28, roughness: 0.2, metalness: 0.05 }));
+        const profile = PICKUP_VISUAL_PROFILE[weapon] || PICKUP_VISUAL_PROFILE.FIREARM;
+        const bubbleColor = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
+        const bubble = buildWeaponBubble(weapon);
         weaponPickup.add(bubble);
-        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        weaponPickup.userData = { weapon, taken: false, slotIndex: i };
+        addPrecisionHelpers(weaponPickup, { color: bubbleColor, size: 0.45 });
+        weaponPickup.position.copy(p).add(new THREE.Vector3(0, profile.rise, 0));
+        weaponPickup.userData = { weapon, taken: false, slotIndex: i, baseY: weaponPickup.position.y, spin: profile.spin };
         scene.add(weaponPickup);
         return weaponPickup;
       });
@@ -803,8 +1314,11 @@ export default function SuperTuxKartPlayablePreview() {
             if (pickup && !pickup.userData.taken) {
               scene.remove(pickup);
               const upgraded = makeWeaponPickupMesh(weapon);
+              const ubColor = PICKUP_BUBBLE_COLORS[weapon] || 0x8fd3ff;
+              const ub = buildWeaponBubble(weapon);
+              upgraded.add(ub);
               upgraded.position.copy(pickup.position);
-              upgraded.userData = { ...pickup.userData };
+              upgraded.userData = { ...pickup.userData, baseY: pickup.userData.baseY ?? pickup.position.y };
               scene.add(upgraded);
               pickups[pickups.indexOf(pickup)] = upgraded;
             }
@@ -841,7 +1355,7 @@ export default function SuperTuxKartPlayablePreview() {
         fitVehicleModel(craft, { targetLength: 5.4, lift: 0.05, yaw: 0 });
         craft.position.copy(launchPos);
         scene.add(craft);
-        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone() });
+        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone(), phase: Math.random() * TAU });
       }
 
       const raycaster = new THREE.Raycaster();
@@ -922,6 +1436,18 @@ export default function SuperTuxKartPlayablePreview() {
         }
         crashTextT = Math.max(0, crashTextT - dt);
         updateCamera(dt);
+        Object.entries(parkedActors).forEach(([kind, actor], idx) => {
+          if (!actor) return;
+          const profile = SUPPORT_ANIMATION_PROFILE[kind] || SUPPORT_ANIMATION_PROFILE.TRUCK;
+          ensureSupportWeaponTextureFallbacks(actor);
+          const t = now * 0.001 + idx * 0.73;
+          const baseY = PARKED_UNIT_LAYOUT[kind]?.lift ?? 0.2;
+          actor.position.y = baseY + Math.sin(t * profile.bobSpeed) * profile.bobAmp;
+          actor.rotation.y += dt * profile.yawSpeed;
+          actor.rotation.z = Math.sin(t * 1.4) * profile.bankAmp;
+          if (kind === "DRONE") actor.rotation.x = Math.sin(t * 2.1) * 0.07;
+          if (kind === "HELICOPTER") actor.rotation.x = Math.sin(t * 1.7) * 0.05;
+        });
         karts.forEach((kart) => {
           const h = kart.group.userData.humanModel;
           if (!h) return;
@@ -935,8 +1461,10 @@ export default function SuperTuxKartPlayablePreview() {
             return;
           }
           pickup.visible = true;
-          pickup.rotation.y += dt * 1.6;
-          pickup.position.y = 0.62 + Math.sin(now * 0.004 + pickup.position.x) * 0.05;
+          pickup.rotation.y += dt * (pickup.userData.spin || 1.5);
+          pickup.position.y = (pickup.userData.baseY ?? 0.88) + Math.sin(now * 0.004 + pickup.position.x) * 0.11;
+          const bubbleNode = pickup.children.find((c) => c.userData?.kind === "pickup_bubble");
+          updateBubbleVisual(bubbleNode, now, pickup.userData.slotIndex || 0);
           if (pickup.position.distanceTo(player.pos) < 1.6) {
             pickup.userData.taken = true;
             pickup.visible = false;
@@ -947,7 +1475,8 @@ export default function SuperTuxKartPlayablePreview() {
               pickup.userData.taken = false;
               pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
               const np = pointOnTrack(pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
-              pickup.position.copy(np).add(new THREE.Vector3(0, 0.62, 0));
+              pickup.position.copy(np).add(new THREE.Vector3(0, 0.88, 0));
+              pickup.userData.baseY = pickup.position.y;
             }, 2200);
           }
         });
@@ -1001,6 +1530,10 @@ export default function SuperTuxKartPlayablePreview() {
           s.ttl -= dt;
           const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
           const land = s.home.clone();
+          const swing = Math.sin(now * 0.004 + s.phase) * 0.06;
+          if (s.kind === "HELICOPTER" || s.kind === "DRONE") s.craft.rotation.y += dt * 3.8;
+          if (s.kind === "JET") s.craft.rotation.z = swing;
+          if (s.kind === "MISSILE") s.craft.rotation.x = -0.2 + swing * 0.4;
           if (s.stage === "takeoff") {
             s.craft.position.lerp(hover, 1 - Math.exp(-2.8 * dt));
             if (s.craft.position.distanceTo(hover) < 1.5) s.stage = "strike";
@@ -1014,7 +1547,7 @@ export default function SuperTuxKartPlayablePreview() {
             s.fired += 1;
             if (s.fired >= 2) s.stage = "land";
           }
-          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
+          if (s.ttl <= 0) { scene.remove(s.craft); disposeObject3D(s.craft); activeAirStrikes.splice(i, 1); }
         }
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
@@ -1043,14 +1576,7 @@ export default function SuperTuxKartPlayablePreview() {
         canvas.removeEventListener("click", onTargetClick);
       }
       renderer.dispose();
-      scene.traverse((o) => {
-        const mesh = o;
-        if (!mesh.isMesh) return;
-        mesh.geometry?.dispose?.();
-        const mat = mesh.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else mat?.dispose?.();
-      });
+      disposeObject3D(scene);
     };
   }, []);
 
