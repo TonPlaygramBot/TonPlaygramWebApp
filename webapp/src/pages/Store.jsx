@@ -131,6 +131,7 @@ import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_HOLDEM_STORE_ITEMS
 } from '../config/texasHoldemInventoryConfig.js';
+import { BOWLING_DEFAULT_LOADOUT, BOWLING_OPTION_LABELS, BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import {
@@ -1205,6 +1206,14 @@ const storeMeta = {
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
   },
+  bowling: {
+    name: 'Real Bowling',
+    items: BOWLING_STORE_ITEMS,
+    defaults: BOWLING_DEFAULT_LOADOUT,
+    labels: BOWLING_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   texasholdem: {
     name: "Texas Hold'em",
     items: TEXAS_HOLDEM_STORE_ITEMS,
@@ -1825,6 +1834,11 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
       })),
+      bowling: BOWLING_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'bowling'
+      })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1879,6 +1893,7 @@ export default function Store() {
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
       tennis: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
+      bowling: (type, optionId) => optionId === BOWLING_DEFAULT_LOADOUT.environmentHdri,
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
     }),
