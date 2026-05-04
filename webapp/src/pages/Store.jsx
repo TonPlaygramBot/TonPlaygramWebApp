@@ -168,18 +168,6 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
-import {
-  GO_CRAZY_DEFAULT_LOADOUT,
-  GO_CRAZY_OPTION_LABELS,
-  GO_CRAZY_STORE_ITEMS
-} from '../config/goCrazyInventoryConfig.js';
-import {
-  addGoCrazyUnlock,
-  getGoCrazyInventory,
-  goCrazyAccountId,
-  isGoCrazyOptionUnlocked,
-  listOwnedGoCrazyOptions
-} from '../utils/goCrazyInventory.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -1207,18 +1195,6 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
-  },
-  gocrazy: {
-    name: 'Go Crazy',
-    items: GO_CRAZY_STORE_ITEMS,
-    defaults: GO_CRAZY_DEFAULT_LOADOUT,
-    labels: GO_CRAZY_OPTION_LABELS,
-    typeLabels: {
-      weapon: 'Weapons',
-      support: 'Air Support',
-      defense: 'Defense'
-    },
-    accountId: POOL_STORE_ACCOUNT_ID
   }
 };
 
@@ -1262,9 +1238,6 @@ export default function Store() {
   );
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
-  );
-  const [goCrazyOwned, setGoCrazyOwned] = useState(() =>
-    getGoCrazyInventory(goCrazyAccountId(accountId))
   );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
@@ -1393,7 +1366,6 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-    setGoCrazyOwned(getGoCrazyInventory(goCrazyAccountId(accountId)));
     let cancelled = false;
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
@@ -1848,11 +1820,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'tabletennis'
       })),
-      gocrazy: GO_CRAZY_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'gocrazy'
-      }))
     }),
     []
   );
@@ -1889,8 +1856,6 @@ export default function Store() {
         isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
-      gocrazy: (type, optionId) =>
-        isGoCrazyOptionUnlocked(type, optionId, goCrazyOwned)
     }),
     [
       airOwned,
@@ -1905,7 +1870,6 @@ export default function Store() {
       dominoOwned,
       snakeOwned,
       texasOwned,
-      goCrazyOwned
     ]
   );
 
@@ -1940,8 +1904,6 @@ export default function Store() {
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
         TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      gocrazy: (item) =>
-        GO_CRAZY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       tennis: (item) =>
         POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
@@ -2638,10 +2600,6 @@ export default function Store() {
                 entry.optionId,
                 resolvedAccountId
               )
-            );
-          } else if (slug === 'gocrazy') {
-            setGoCrazyOwned(
-              addGoCrazyUnlock(entry.type, entry.optionId, resolvedAccountId)
             );
           }
         }
