@@ -152,6 +152,8 @@ const CFG = {
   serveContactT: 0.68,
   netTopRestitution: 0.34,
   netFaceRestitution: 0.18,
+  netPowerRetention: 0.2,
+  bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
@@ -175,6 +177,13 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const sideOfZ = (z: number): PlayerSide => (z >= 0 ? "near" : "far");
 const opposite = (side: PlayerSide): PlayerSide => (side === "near" ? "far" : "near");
+
+function reduceImpactPower(velocity: THREE.Vector3, keepRatio: number, minSpeed = 0.35) {
+  const speed = velocity.length();
+  if (speed <= 0.0001) return;
+  const capped = Math.max(minSpeed, speed * clamp(keepRatio, 0.05, 1));
+  velocity.multiplyScalar(capped / speed);
+}
 
 function material(color: number, roughness = 0.72, metalness = 0.02) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
@@ -1440,8 +1449,9 @@ export default function MobileRealisticTableTennisGame() {
       if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
         ball.pos.z = ball.pos.z >= 0 ? 0.024 : -0.024;
         ball.vel.z *= -CFG.netFaceRestitution;
-        ball.vel.y = Math.max(0.16, Math.abs(ball.vel.y) * 0.28);
+        ball.vel.y = Math.max(0.12, Math.abs(ball.vel.y) * 0.24);
         ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
         netWobble.amount = 1;
         netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
         playFx(netFx);
@@ -1452,10 +1462,25 @@ export default function MobileRealisticTableTennisGame() {
       if (nearNetTop && ball.lastHitBy) {
         ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
         ball.vel.z *= -CFG.netTopRestitution;
-        ball.vel.y = Math.max(0.05, ball.vel.y * 0.35);
+        ball.vel.y = Math.max(0.03, ball.vel.y * 0.3);
         ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
         netWobble.amount = 1;
         netWobble.side = Math.sign(ball.pos.z);
+      }
+
+      for (const player of [nearPlayer, farPlayer]) {
+        const torsoCenter = player.pos.clone().setY(CFG.tableY + 0.34);
+        const delta = ball.pos.clone().sub(torsoCenter);
+        delta.y *= 1.18;
+        const collisionRadius = 0.22;
+        if (delta.lengthSq() > collisionRadius * collisionRadius) continue;
+        const normal = delta.lengthSq() > 0.0001 ? delta.normalize() : new THREE.Vector3(0, 0.4, player.side === "near" ? 1 : -1).normalize();
+        ball.pos.copy(torsoCenter).addScaledVector(normal, collisionRadius + 0.004);
+        const vn = ball.vel.dot(normal);
+        if (vn < 0) ball.vel.addScaledVector(normal, -(1 + 0.18) * vn);
+        reduceImpactPower(ball.vel, CFG.bodyPowerRetention, 0.26);
+        ball.vel.y = Math.max(ball.vel.y, 0.05);
       }
 
       if (descendingThroughSurface && isOverTable(ball.pos.x, ball.pos.z, 0)) {
