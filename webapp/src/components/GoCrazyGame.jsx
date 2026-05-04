@@ -5,25 +5,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import {
-  GO_CRAZY_SUPPORT_KINDS,
-  GO_CRAZY_WEAPON_TUNING,
-  disposeObject3D,
-  addPrecisionHelpers,
-  createRoadsideDecor,
-  createProceduralRoadMarkup,
-  createTrackTroubleshootingGrid,
-  attachPickupBubble,
-  configurePickupBase,
-  updatePickupVisuals,
-  createSupportAnimationState,
-  tickSupportAnimationState,
-  animateAirStrikeCraft,
-  createWeaponVisibilityRing,
-  updateWeaponVisibilityRing,
-  movePickupToTrackSlot,
-  enhanceOriginalGltfMaterials
-} from "./goCrazySceneSystems";
 
 const ORIGINAL_ASSETS = {
   truckVariants: [
@@ -142,7 +123,7 @@ function enableShadows(obj) {
       mesh.frustumCulled = false;
     }
   });
-  return enhanceOriginalGltfMaterials(obj);
+  return obj;
 }
 
 function cloneModel(model) {
@@ -158,7 +139,7 @@ function normalizeLoadedModel(obj) {
       mesh.frustumCulled = false;
     }
   });
-  return enhanceOriginalGltfMaterials(obj);
+  return obj;
 }
 
 function makeLoader() {
@@ -435,8 +416,6 @@ function createTruckVariant(color, name, variant, track, ai = false, angle = Mat
   };
 }
 
-
-
 function createOriginalKart(assets, name, ai, angle, lane, index, variant, track) {
   if (!assets.trucks.length) throw new Error("Original truck asset not loaded.");
   const group = new THREE.Group();
@@ -711,9 +690,6 @@ export default function SuperTuxKartPlayablePreview() {
       if (cancelled) return;
       if (originalMode && assets?.track) scene.add(cloneModel(assets.track));
       else createProceduralTrack(scene, selectedTrack);
-      createProceduralRoadMarkup(scene, selectedTrack, pointOnTrack, tangentYaw);
-      createRoadsideDecor({ scene, pointOnTrack, tangentYaw, track: selectedTrack, count: 52 });
-      createTrackTroubleshootingGrid(scene, 64, 4);
       scatterGltfTrees(scene, assets?.tree, selectedTrack);
 
       const variants = ["sport", "truck", "heavy", "rally", "longnose"];
@@ -757,7 +733,7 @@ export default function SuperTuxKartPlayablePreview() {
           kart.group.add(vehicle);
         });
       });
-      const parkedKinds = GO_CRAZY_SUPPORT_KINDS;
+      const parkedKinds = ["HELICOPTER", "JET", "TRUCK", "DRONE", "TOWER"];
       const parkedTemplates = {};
       const parkedActors = {};
       Promise.allSettled(parkedKinds.map((kind) => tryLoadVehicleModel(dracoDecoderPath, PARKED_UNIT_MODELS[kind] || []))).then((results) => {
@@ -767,15 +743,13 @@ export default function SuperTuxKartPlayablePreview() {
           if (res.status === "fulfilled" && res.value) {
             parkedTemplates[kind] = res.value;
             const park = cloneModel(res.value);
-            fitVehicleModel(park, { targetLength: 5.4, lift: 0.24, yaw: 0 });
-            addPrecisionHelpers(park, scene, { color: 0x76ffea, size: 0.9 });
+            fitVehicleModel(park, { targetLength: 5.4, lift: 0.05, yaw: 0 });
             const a = (i / parkedKinds.length) * TAU + 0.18;
             const edge = pointOnTrack(a, selectedTrack, i % 2 === 0 ? 9.5 : -9.5);
             park.position.copy(edge).add(new THREE.Vector3(0, 0.2, 0));
             park.rotation.y = tangentYaw(a, selectedTrack) + (i % 2 === 0 ? 0.5 : -0.5);
             scene.add(park);
             parkedActors[kind] = park;
-            supportAnimationStates.push(createSupportAnimationState(kind, park, i));
           }
         });
       });
@@ -785,8 +759,8 @@ export default function SuperTuxKartPlayablePreview() {
         const model = weaponTemplates[weapon];
         if (model) {
           const pickup = cloneModel(model);
-          const tune = GO_CRAZY_WEAPON_TUNING[weapon] || GO_CRAZY_WEAPON_TUNING.FIREARM;
-          fitVehicleModel(pickup, { targetLength: tune.targetLength || 1.2, lift: tune.lift || 0.03, yaw: tune.yaw || 0 });
+          const sizeByWeapon = { FIREARM: 1.25, RIFLE: 1.45, MISSILE: 1.6, DRONE: 1.35, HELICOPTER: 1.5, JET: 1.55 };
+          fitVehicleModel(pickup, { targetLength: sizeByWeapon[weapon] || 1.2, lift: 0.03, yaw: weapon === "RIFLE" ? Math.PI * 0.5 : 0 });
           return pickup;
         }
         if (weapon === "MISSILE") return new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.3, 14), makeMat(0xff7b00, 0.35));
@@ -811,10 +785,10 @@ export default function SuperTuxKartPlayablePreview() {
             weaponPickup.add(mini);
           }
         }
-        attachPickupBubble(weaponPickup, weapon);
-        const ring = createWeaponVisibilityRing(scene, weaponPickup, GO_CRAZY_WEAPON_TUNING[weapon]?.ringColor || 0xffffff);
-        configurePickupBase(weaponPickup, p, 0.88, weapon, i);
-        weaponPickup.userData.visibilityRing = ring;
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 12), new THREE.MeshStandardMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.28, roughness: 0.2, metalness: 0.05 }));
+        weaponPickup.add(bubble);
+        weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
+        weaponPickup.userData = { weapon, taken: false, slotIndex: i };
         scene.add(weaponPickup);
         return weaponPickup;
       });
@@ -829,10 +803,8 @@ export default function SuperTuxKartPlayablePreview() {
             if (pickup && !pickup.userData.taken) {
               scene.remove(pickup);
               const upgraded = makeWeaponPickupMesh(weapon);
-              attachPickupBubble(upgraded, weapon);
-              const ring = createWeaponVisibilityRing(scene, upgraded, GO_CRAZY_WEAPON_TUNING[weapon]?.ringColor || 0xffffff);
               upgraded.position.copy(pickup.position);
-              upgraded.userData = { ...pickup.userData, baseY: pickup.userData.baseY ?? pickup.position.y, visibilityRing: ring };
+              upgraded.userData = { ...pickup.userData };
               scene.add(upgraded);
               pickups[pickups.indexOf(pickup)] = upgraded;
             }
@@ -853,7 +825,6 @@ export default function SuperTuxKartPlayablePreview() {
 
       const activeProjectiles = [];
       const activeAirStrikes = [];
-      const supportAnimationStates = [];
 
       function spawnProjectile(from, to, color = 0xffaa00, speed = 42, damage = 20) {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), makeMat(color, 0.25, 0.2));
@@ -870,7 +841,7 @@ export default function SuperTuxKartPlayablePreview() {
         fitVehicleModel(craft, { targetLength: 5.4, lift: 0.05, yaw: 0 });
         craft.position.copy(launchPos);
         scene.add(craft);
-        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone(), phase: Math.random() * TAU });
+        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0, stage: "takeoff", home: launchPos.clone() });
       }
 
       const raycaster = new THREE.Raycaster();
@@ -951,7 +922,6 @@ export default function SuperTuxKartPlayablePreview() {
         }
         crashTextT = Math.max(0, crashTextT - dt);
         updateCamera(dt);
-        supportAnimationStates.forEach((state) => tickSupportAnimationState(state, now, dt));
         karts.forEach((kart) => {
           const h = kart.group.userData.humanModel;
           if (!h) return;
@@ -965,8 +935,8 @@ export default function SuperTuxKartPlayablePreview() {
             return;
           }
           pickup.visible = true;
-          updatePickupVisuals(pickup, now, dt);
-          updateWeaponVisibilityRing(pickup.userData.visibilityRing, now, dt);
+          pickup.rotation.y += dt * 1.6;
+          pickup.position.y = 0.62 + Math.sin(now * 0.004 + pickup.position.x) * 0.05;
           if (pickup.position.distanceTo(player.pos) < 1.6) {
             pickup.userData.taken = true;
             pickup.visible = false;
@@ -977,7 +947,7 @@ export default function SuperTuxKartPlayablePreview() {
               pickup.userData.taken = false;
               pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
               const np = pointOnTrack(pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
-              movePickupToTrackSlot(pickup, pointOnTrack, pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
+              pickup.position.copy(np).add(new THREE.Vector3(0, 0.62, 0));
             }, 2200);
           }
         });
@@ -1031,7 +1001,6 @@ export default function SuperTuxKartPlayablePreview() {
           s.ttl -= dt;
           const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
           const land = s.home.clone();
-          animateAirStrikeCraft(s.craft, s.kind, s.phase, now, dt);
           if (s.stage === "takeoff") {
             s.craft.position.lerp(hover, 1 - Math.exp(-2.8 * dt));
             if (s.craft.position.distanceTo(hover) < 1.5) s.stage = "strike";
@@ -1045,7 +1014,7 @@ export default function SuperTuxKartPlayablePreview() {
             s.fired += 1;
             if (s.fired >= 2) s.stage = "land";
           }
-          if (s.ttl <= 0) { scene.remove(s.craft); disposeObject3D(s.craft); activeAirStrikes.splice(i, 1); }
+          if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
 
         const sorted = [...karts].sort((a, b) => b.progress - a.progress);
@@ -1074,7 +1043,14 @@ export default function SuperTuxKartPlayablePreview() {
         canvas.removeEventListener("click", onTargetClick);
       }
       renderer.dispose();
-      disposeObject3D(scene);
+      scene.traverse((o) => {
+        const mesh = o;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose?.();
+        const mat = mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose?.();
+      });
     };
   }, []);
 
