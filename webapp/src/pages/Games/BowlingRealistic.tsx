@@ -81,7 +81,19 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HDRI_URL = "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr";
+const HDRI_OPTIONS = [
+  { id: "studio_small_09", name: "Studio Small 09", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
+  { id: "studio_small_03", name: "Studio Small 03", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_03_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
+  { id: "photo_studio_01", name: "Photo Studio 01", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_01_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_01.png?height=160" },
+  { id: "brown_photostudio_02", name: "Brown Photostudio 02", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_02.png?height=160" },
+  { id: "empty_warehouse_01", name: "Empty Warehouse 01", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/empty_warehouse_01_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/empty_warehouse_01.png?height=160" },
+  { id: "industrial_workshop_foundry", name: "Industrial Workshop", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/industrial_workshop_foundry_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/industrial_workshop_foundry.png?height=160" },
+  { id: "abandoned_parking", name: "Abandoned Parking", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/abandoned_parking_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/abandoned_parking.png?height=160" },
+  { id: "aerodynamics_workshop", name: "Aerodynamics Workshop", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/aerodynamics_workshop_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/aerodynamics_workshop.png?height=160" },
+  { id: "lebombo", name: "Lebombo", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/lebombo_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/lebombo.png?height=160" },
+  { id: "skidpan", name: "Skidpan", url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/skidpan_1k.hdr", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/skidpan.png?height=160" },
+] as const;
+const DEFAULT_HDRI_ID = "studio_small_09";
 const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
 const OAK = {
   diff: `${OAK_BASE}oak_veneer_01_diff_2k.jpg`,
@@ -938,6 +950,9 @@ export default function MobileBowlingRealistic() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
+  const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
   const scoresMemo = useMemo(() => scores, [scores]);
 
   useEffect(() => {
@@ -963,8 +978,10 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
-    new RGBELoader().setCrossOrigin("anonymous").load(
-      HDRI_URL,
+    const applyHdri = (id: string) => {
+      const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
+      new RGBELoader().setCrossOrigin("anonymous").load(
+      selected.url,
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = envTex;
@@ -973,6 +990,8 @@ export default function MobileBowlingRealistic() {
       undefined,
       () => {}
     );
+    };
+    applyHdri(selectedHdriId);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.28));
     scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x24160b, 0.6));
@@ -1212,7 +1231,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, []);
+  }, [graphicsQuality, selectedHdriId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1238,6 +1257,16 @@ export default function MobileBowlingRealistic() {
           </div>
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
         </div>
+
+        <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 132, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
+        {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
+          <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
+          {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
+          <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
+            {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
+          </div>
+        </div> : null}
 
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
           Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />Arena walls, floor, ceiling, and 3D monitor removed.
