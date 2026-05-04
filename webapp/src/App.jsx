@@ -29,7 +29,6 @@ import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import WeaponKartGame from './pages/Games/WeaponKartGame.jsx';
-import WeaponKartInventory from './pages/Games/WeaponKartInventory.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import LudoBattleRoyal from './pages/Games/LudoBattleRoyal.jsx';
@@ -191,7 +190,6 @@ export default function App() {
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/games/weaponkart" element={<WeaponKartGame />} />
-            <Route path="/games/weaponkart/inventory" element={<WeaponKartInventory />} />
 
             <Route
               path="/games/chessbattleroyal/lobby"

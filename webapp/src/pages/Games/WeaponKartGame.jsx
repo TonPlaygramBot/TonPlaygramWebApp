@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import { useNavigate } from "react-router-dom";
 
 const SAMPLE = "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0";
 const RAW_SAMPLE = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0";
@@ -59,7 +58,6 @@ const TRACK = {
 const UP = new THREE.Vector3(0, 1, 0);
 const TAU = Math.PI * 2;
 const FALLBACK_TEX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l6m9WQAAAABJRU5ErkJggg==";
-const WEAPON_KART_INVENTORY_KEY = "weaponKartInventoryV1";
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const wrap01 = (v) => ((v % 1) + 1) % 1;
@@ -402,9 +400,8 @@ async function loadVehicle(loader, urls, M, type) {
   try {
     const loaded = await loadAny(loader, urls);
     const obj = cloneObject(loaded.scene);
-    normalize(obj, type === "ferrari" ? 2.9 : 2.3);
+    normalize(obj, 2.3);
     obj.rotation.y = Math.PI;
-    obj.position.y += type === "ferrari" ? 0.02 : 0;
     return obj;
   } catch {
     const obj = makeFallbackVehicle(M, type);
@@ -413,36 +410,9 @@ async function loadVehicle(loader, urls, M, type) {
   }
 }
 
-function createSeatedRider(M, tint = 0xe8c7a2) {
-  const rider = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.6, metalness: 0.05 });
-  const cloth = new THREE.MeshStandardMaterial({ color: 0x2c3445, roughness: 0.75, metalness: 0.02 });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skin);
-  head.position.set(0, 0.86, -0.16);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.26, 6, 10), cloth);
-  torso.rotation.x = Math.PI / 2.2;
-  torso.position.set(0, 0.66, -0.06);
-  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.24, 4, 8), cloth);
-  legL.position.set(-0.08, 0.47, 0.13);
-  legL.rotation.x = -Math.PI / 2.35;
-  const legR = legL.clone();
-  legR.position.x = 0.08;
-  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.2, 4, 8), skin);
-  armL.position.set(-0.13, 0.66, 0.03);
-  armL.rotation.x = -Math.PI / 2.2;
-  const armR = armL.clone();
-  armR.position.x = 0.13;
-  rider.add(head, torso, legL, legR, armL, armR);
-  shadows(rider);
-  return rider;
-}
-
 function createVehicleGroup(model, track, routeT, lane, ai, name, radius = 1.35) {
   const root = new THREE.Group();
   root.add(model);
-  const rider = createSeatedRider(mats(), ai ? 0xd5b39f : 0xf2c9ad);
-  rider.position.set(0, 0.02, -0.12);
-  root.add(rider);
   const pos = point(track, routeT, lane);
   root.position.copy(pos);
   root.rotation.y = frame(track, routeT).yaw;
@@ -655,14 +625,11 @@ function updateBubbles(bubbles, player, track, dt, time, inventoryRef, selectedI
 }
 
 export default function WeaponKartGame() {
-  const navigate = useNavigate();
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
   const [hud, setHud] = useState({ status: "Loading...", weapon: "None", ammo: 0, targets: 3, hp: 100, message: "Semi-auto steering active" });
   const [inventoryUi, setInventoryUi] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [showMenu, setShowMenu] = useState(false);
-  const [graphicsMode, setGraphicsMode] = useState("high");
   const inventoryRef = useRef([]);
   const selectedIdRef = useRef(null);
   const touch = useRef({ brake: false });
@@ -693,22 +660,7 @@ export default function WeaponKartGame() {
       selectedIdRef.current = safeSelected;
       setSelectedId(safeSelected);
       setInventoryUi(clone.map((item) => ({ ...item })));
-      try {
-        window.localStorage.setItem(
-          WEAPON_KART_INVENTORY_KEY,
-          JSON.stringify({ items: clone, selectedId: safeSelected, updatedAt: Date.now() })
-        );
-      } catch {}
     };
-    try {
-      const raw = window.localStorage.getItem(WEAPON_KART_INVENTORY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed?.items)) {
-          commitInventory(parsed.items, parsed?.selectedId || null);
-        }
-      }
-    } catch {}
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     renderer.setClearColor(track.sky, 1);
@@ -716,13 +668,6 @@ export default function WeaponKartGame() {
     renderer.shadowMap.enabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
-    const applyGraphics = (mode) => {
-      const dpr = mode === "performance" ? 1 : Math.min(2, window.devicePixelRatio || 1);
-      renderer.setPixelRatio(dpr);
-      renderer.shadowMap.enabled = mode !== "performance";
-      renderer.toneMappingExposure = mode === "performance" ? 0.96 : 1.05;
-    };
-    applyGraphics(graphicsMode);
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(track.sky, 65, track.fogFar);
@@ -928,7 +873,7 @@ export default function WeaponKartGame() {
       canvas.removeEventListener("pointerup", pointerUp);
       canvas.removeEventListener("pointercancel", pointerUp);
     };
-  }, [graphicsMode]);
+  }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#85c7f2", touchAction: "none", userSelect: "none" }}>
@@ -944,29 +889,7 @@ export default function WeaponKartGame() {
             <div style={{ fontSize: 11, opacity: 0.75 }}>Flat red/white tire stacks · semi-auto steering · tap enemy cars to shoot</div>
             {hud.message && <div style={{ marginTop: 3, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.message}</div>}
           </div>
-          <button onClick={() => setShowMenu((v) => !v)} style={{ pointerEvents: "auto", width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,.24)", background: "rgba(0,0,0,.58)", color: "#fff", fontSize: 20, fontWeight: 900 }}>☰</button>
         </div>
-        {showMenu && (
-          <div style={{ pointerEvents: "auto", position: "absolute", top: 62, right: 12, width: 260, background: "rgba(3,8,18,.88)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 14, padding: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 8 }}>Graphics</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              {["high", "performance"].map((mode) => (
-                <button key={mode} onClick={() => setGraphicsMode(mode)} style={{ flex: 1, borderRadius: 10, height: 34, border: graphicsMode === mode ? "2px solid #ffd166" : "1px solid rgba(255,255,255,.25)", background: graphicsMode === mode ? "rgba(255,209,102,.15)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800 }}>{mode}</button>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 8 }}>Inventory (swap in-game)</div>
-            <button onClick={() => navigate("/games/weaponkart/inventory")} style={{ width: "100%", marginBottom: 8, borderRadius: 10, height: 34, border: "1px solid rgba(255,255,255,.25)", background: "rgba(40,120,255,.2)", color: "#fff", fontWeight: 800 }}>Open Inventory Page</button>
-            <div style={{ display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" }}>
-              {inventoryUi.map((item) => (
-                <button key={`menu-${item.id}`} onClick={() => setSelectedId(item.id)} style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 10, border: selectedId === item.id ? "1px solid #ffd166" : "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#fff", padding: "6px 8px" }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,.12)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 900 }}>{item.icon || item.name.slice(0, 2).toUpperCase()}</div>
-                  <div style={{ flex: 1, fontSize: 12, textAlign: "left" }}>{item.name}</div>
-                  <div style={{ fontSize: 11, opacity: 0.9 }}>{item.ammo}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         <button
           onPointerDown={() => (touch.current.brake = true)}
           onPointerUp={() => (touch.current.brake = false)}
