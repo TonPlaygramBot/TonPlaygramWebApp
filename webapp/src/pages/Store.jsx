@@ -1067,9 +1067,12 @@ const formatShortDate = (date) =>
 const storeMeta = {
   tennis: {
     name: 'Tennis',
-    items: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
-    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
-    labels: POOL_ROYALE_OPTION_LABELS,
+    items: [
+      ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
+      ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
+    ],
+    defaults: [...POOL_ROYALE_DEFAULT_LOADOUT, ...LUDO_BATTLE_DEFAULT_LOADOUT.filter((entry) => entry.type === 'humanCharacter')],
+    labels: { ...POOL_ROYALE_OPTION_LABELS, humanCharacter: LUDO_BATTLE_OPTION_LABELS.humanCharacter },
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },

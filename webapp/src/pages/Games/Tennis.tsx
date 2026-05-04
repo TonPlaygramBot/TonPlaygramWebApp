@@ -6,6 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { useLocation } from "react-router-dom";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
+import { HUMAN_CHARACTER_OPTIONS } from "../../config/ludoBattleOptions.js";
 import { getPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
 type PlayerSide = "near" | "far";
@@ -128,6 +129,7 @@ const CFG = {
   hitWindowEnd: 0.72,
   serveContactT: 0.72,
   playerVisualYawFix: Math.PI,
+  serveNearBaselineZ: 6.4,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -217,7 +219,10 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   scene.add(group);
 
   const hideFloor = !!options.hideFloor;
-  const grassTex = createGrassTexture();
+  const grassTex = new THREE.TextureLoader().load("https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_field_01/grass_field_01_diff_1k.jpg");
+  grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+  grassTex.repeat.set(3.2, 6.4);
+  grassTex.colorSpace = THREE.SRGBColorSpace;
   const outerMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.96, metalness: 0 });
   const courtMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.93, metalness: 0, color: new THREE.Color(0x3f9f4f) });
   const serviceMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9, metalness: 0, color: new THREE.Color(0x57b365) });
@@ -508,7 +513,7 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number): HumanRig {
+function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, modelUrl = HUMAN_URL): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
@@ -546,10 +551,20 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
-    HUMAN_URL,
+    modelUrl,
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
+      model.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.material) return;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach((m) => {
+          const mat = m as THREE.MeshStandardMaterial;
+          if ((mat as any).map) (mat as any).map.colorSpace = THREE.SRGBColorSpace;
+          mat.needsUpdate = true;
+        });
+      });
       enableShadow(model);
       rig.model = model;
       rig.bones = findHumanBones(model);
@@ -918,6 +933,7 @@ export default function MobileThreeTennisPrototype() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [hdriChoices, setHdriChoices] = useState<any[]>([]);
   const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
+  const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
@@ -986,8 +1002,11 @@ export default function MobileThreeTennisPrototype() {
     const courtVisual = addCourt(scene, { hideFloor: false });
     const updateBillboards = () => {};
 
-    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f);
-    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff);
+    const nearHuman = HUMAN_CHARACTER_OPTIONS.find((c) => c.id === selectedHumanCharacterId) || HUMAN_CHARACTER_OPTIONS[0];
+    const aiPool = HUMAN_CHARACTER_OPTIONS.filter((c) => c.id !== nearHuman?.id);
+    const aiHuman = (aiPool.length ? aiPool : HUMAN_CHARACTER_OPTIONS)[Math.floor(Math.random() * (aiPool.length ? aiPool.length : HUMAN_CHARACTER_OPTIONS.length))];
+    const nearPlayer = addHuman(scene, "near", new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.04), 0xff7a2f, nearHuman?.modelUrls?.[0] || HUMAN_URL);
+    const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff, aiHuman?.modelUrls?.[0] || HUMAN_URL);
     const ball = createBall();
     scene.add(ball.mesh);
     resetBallForServe(ball, nearPlayer);
@@ -1072,7 +1091,8 @@ export default function MobileThreeTennisPrototype() {
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
       nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, 0.76, CFG.courtL / 2 - 0.42);
+      const minZ = ball.lastHitBy === null ? CFG.serveNearBaselineZ : 0.76;
+      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, minZ, CFG.courtL / 2 - 0.42);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 185) });
     };
 
@@ -1265,7 +1285,11 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId]);
+  }, [selectedHdriId, selectedHumanCharacterId]);
+
+  useEffect(() => {
+    localStorage.setItem("tennisSelectedHumanCharacter", selectedHumanCharacterId);
+  }, [selectedHumanCharacterId]);
 
   useEffect(() => {
     let cancelled = false;
