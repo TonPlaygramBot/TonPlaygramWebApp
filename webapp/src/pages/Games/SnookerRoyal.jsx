@@ -94,11 +94,6 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import {
-  createSnookerHumanRig,
-  updateBilardoHumanPose,
-  chooseHumanEdgePosition
-} from './shared/snookerHumanRig.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -5382,14 +5377,6 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_B = new THREE.Vector3();
-const TMP_VEC3_C = new THREE.Vector3();
-const TMP_VEC3_D = new THREE.Vector3();
-const TMP_VEC3_E = new THREE.Vector3();
-const TMP_VEC3_F = new THREE.Vector3();
-const TMP_VEC3_G = new THREE.Vector3();
-const TMP_VEC3_H = new THREE.Vector3();
-const TMP_VEC3_Y_UP = new THREE.Vector3(0, 1, 0);
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
@@ -20444,38 +20431,40 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      const humanRig = createSnookerHumanRig(table, {
-        loader: new GLTFLoader(),
-        modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-        humanScale: SCALE * 1.18,
-        rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(SCALE),
-        rightForearmOutward: 0.36 * SCALE,
-        rightForearmBack: 0.44 * SCALE,
-        rightForearmDown: 0.48 * SCALE,
-        rightForearmLength: 0.34 * SCALE,
-        rightStrokePull: 0.30 * SCALE,
-        rightStrokePush: 0.24 * SCALE,
-        rightHandShotLift: -0.30 * SCALE,
-        rightElbowShotRise: 0.18 * SCALE,
-        rightElbowShotSide: -0.46 * SCALE,
-        rightElbowShotBack: -0.78 * SCALE,
-        bridgePalmTableLift: 0.006 * SCALE,
-        bridgeHandBackFromBall: 0.235 * SCALE,
-        bridgeHandSide: -0.012 * SCALE,
-        cueLength: cueLen,
-        bridgeDist: 0.24 * SCALE,
-        shootCueGripFromBack: 0.58 * SCALE,
-        idleRightHandY: 0.8 * SCALE,
-        idleRightHandX: 0.31 * SCALE,
-        idleRightHandZ: -0.015 * SCALE,
-        footGroundY: 0.035 * SCALE,
-        kneeBendShot: 0.16 * SCALE,
-        stanceWidth: 0.52 * SCALE,
-        chinToCueHeight: 0.11 * SCALE,
-        tableTopY: CUE_Y - 0.08 * SCALE,
-        edgeMargin: 0.58 * SCALE,
-        desiredShootDistance: 1.06 * SCALE
-      });
+      const humanActor = new THREE.Group();
+      const humanModelRoot = new THREE.Group();
+      humanActor.add(humanModelRoot);
+      humanActor.visible = false;
+      table.add(humanActor);
+      const humanLoader = new GLTFLoader();
+      humanLoader.setCrossOrigin('anonymous');
+      humanLoader.load(
+        'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+        (gltf) => {
+          const model = gltf?.scene;
+          if (!model) return;
+          model.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          });
+          const scaleFactor = SCALE * 1.18;
+          model.scale.setScalar(scaleFactor);
+          model.rotation.set(0, Math.PI, 0);
+          model.position.set(0, 0, 0);
+          model.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.set(-center.x, -box.min.y, -center.z);
+          humanModelRoot.add(model);
+          humanActor.visible = true;
+        },
+        undefined,
+        () => {
+          humanActor.visible = false;
+        }
+      );
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -26012,72 +26001,18 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
-          if (humanRig && cueStick) {
-            const state = shooting ? 'striking' : (sliderInstanceRef.current?.dragging ? 'dragging' : 'idle');
-            TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
-            TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-            const cueTipWorld = TMP_VEC3_A.set(
-              cueStick.position.x + TMP_VEC3_CUE_TIP_OFFSET.x,
-              cueStick.position.y + TMP_VEC3_CUE_TIP_OFFSET.y,
-              cueStick.position.z + TMP_VEC3_CUE_TIP_OFFSET.z
+          if (humanActor.visible && cueStick) {
+            const yaw = cueStick.rotation.y;
+            const forwardX = Math.sin(yaw - Math.PI);
+            const forwardZ = Math.cos(yaw - Math.PI);
+            const sideX = forwardZ;
+            const sideZ = -forwardX;
+            humanActor.position.set(
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              0,
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
             );
-            const cueBackWorld = TMP_VEC3_B.set(
-              cueStick.position.x + TMP_VEC3_CUE_BUTT_OFFSET.x,
-              cueStick.position.y + TMP_VEC3_CUE_BUTT_OFFSET.y,
-              cueStick.position.z + TMP_VEC3_CUE_BUTT_OFFSET.z
-            );
-            const aimForward = TMP_VEC3_C.normalize().copy(cueTipWorld).sub(cueBackWorld);
-            const cueBallWorld = TMP_VEC3_D.set(cue.pos.x, CUE_Y, cue.pos.y);
-            const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
-              tableW: PLAY_W,
-              tableL: PLAY_H,
-              ...humanRig.cfg
-            });
-            const aimSide = TMP_VEC3_E.set(aimForward.z, 0, -aimForward.x).normalize();
-            const bridgeTarget = TMP_VEC3_F.copy(cueBallWorld)
-              .addScaledVector(aimForward, -(humanRig.cfg.bridgeHandBackFromBall ?? 0.235 * SCALE))
-              .addScaledVector(aimSide, humanRig.cfg.bridgeHandSide ?? (-0.012 * SCALE))
-              .setY((humanRig.cfg.tableTopY ?? CUE_Y - 0.08 * SCALE) + (humanRig.cfg.bridgePalmTableLift ?? 0.006 * SCALE));
-            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-            const idleRight = TMP_VEC3_G.copy(rootTarget).add(
-              new THREE.Vector3(
-                humanRig.cfg.idleRightHandX ?? 0.31 * SCALE,
-                humanRig.cfg.idleRightHandY ?? 0.8 * SCALE,
-                humanRig.cfg.idleRightHandZ ?? -0.015 * SCALE
-              ).applyAxisAngle(TMP_VEC3_Y_UP, standingYaw)
-            );
-            const idleLeft = TMP_VEC3_H.copy(rootTarget).add(
-              new THREE.Vector3(-0.18 * SCALE, 1.08 * SCALE, 0.03 * SCALE).applyAxisAngle(TMP_VEC3_Y_UP, standingYaw)
-            );
-            updateBilardoHumanPose(humanRig, dt, {
-              state,
-              rootTarget,
-              aimForward,
-              bridgeTarget,
-              gripTarget: cueBackWorld.clone().addScaledVector(aimForward, humanRig.cfg.shootCueGripFromBack ?? 0.58 * SCALE),
-              idleRight,
-              idleLeft,
-              cueBack: cueBackWorld,
-              cueTip: cueTipWorld,
-              power: powerRef.current ?? 0
-            });
-
-            // Hard-couple cue stick grip to the avatar right-hand socket so the cue is physically
-            // carried by the hand during idle/aim/strike (reference behavior parity).
-            const rightHandBone = humanRig?.bones?.rightHand;
-            if (rightHandBone && humanRig.activeGlb) {
-              const handWorldPos = rightHandBone.getWorldPosition(TMP_VEC3_E);
-              const handWorldQuat = rightHandBone.getWorldQuaternion(new THREE.Quaternion());
-              const handSocketLocal = humanRig.cfg?.rightHandCueSocketLocal ?? new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(SCALE);
-              const handSocketWorldOffset = TMP_VEC3_F.copy(handSocketLocal).applyQuaternion(handWorldQuat);
-
-              // Keep cue orientation from current shot line, but force grip contact on hand socket.
-              const cueDir = TMP_VEC3_G.copy(cueTipWorld).sub(cueBackWorld).normalize();
-              const cueGripFromBack = humanRig.cfg?.shootCueGripFromBack ?? 0.58 * SCALE;
-              const gripWorld = TMP_VEC3_H.copy(cueBackWorld).addScaledVector(cueDir, cueGripFromBack);
-              const gripToSocket = TMP_VEC3_D.copy(handWorldPos).sub(handSocketWorldOffset).sub(gripWorld);
-              cueStick.position.add(gripToSocket);
-            }
+            humanActor.rotation.y = yaw;
           }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
