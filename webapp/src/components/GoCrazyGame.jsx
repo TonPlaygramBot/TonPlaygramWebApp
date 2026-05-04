@@ -59,7 +59,6 @@ const WEAPON_MODEL_CANDIDATES = {
   JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"]
 };
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY"];
-const WEAPON_ICON = { FIREARM: "🔫", RIFLE: "🪖", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", TOWER: "📡" };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -733,11 +732,19 @@ export default function SuperTuxKartPlayablePreview() {
         });
       });
       const parkedKinds = ["HELICOPTER", "JET", "TRUCK", "DRONE", "TOWER"];
-      const parkedTemplates = {};
       Promise.allSettled(parkedKinds.map((kind) => tryLoadVehicleModel(dracoDecoderPath, PARKED_UNIT_MODELS[kind] || []))).then((results) => {
         if (cancelled) return;
-        results.forEach((res, i) => {
-          if (res.status === "fulfilled" && res.value) parkedTemplates[parkedKinds[i]] = res.value;
+        karts.forEach((kart, i) => {
+          const parkedRes = results[i % parkedKinds.length];
+          if (!parkedRes || parkedRes.status !== "fulfilled" || !parkedRes.value) return;
+          const parkedClone = cloneModel(parkedRes.value);
+          fitVehicleModel(parkedClone, { targetLength: 1.8, lift: 0.02, yaw: 0 });
+          const side = i % 2 === 0 ? 1 : -1;
+          const forward = forwardFromYaw(kart.yaw);
+          const right = new THREE.Vector3(forward.z, 0, -forward.x).multiplyScalar(side * 5.2);
+          parkedClone.position.copy(kart.pos.clone().add(right).add(new THREE.Vector3(0, 0.05, 0)));
+          parkedClone.rotation.y = kart.yaw + (side > 0 ? 0.4 : -0.4);
+          scene.add(parkedClone);
         });
       });
       const playerCombat = { activeWeapon: "FIREARM", inventory: new Set(["FIREARM"]), defenses: new Set(), ammo: { FIREARM: 999, RIFLE: 45, MISSILE: 2, DRONE: 1, HELICOPTER: 1, JET: 1 } };
@@ -757,12 +764,11 @@ export default function SuperTuxKartPlayablePreview() {
         if (weapon === "RIFLE") return new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.24), makeMat(0xf2d17a, 0.35));
         return new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.28, 0.24), makeMat(0xffe066, 0.35));
       };
-      const pickupSlots = Array.from({ length: 12 }, (_, i) => (i / 12) * TAU + 0.25);
       const pickups = WEAPON_PICKUPS.map((weapon, i) => {
         const p = pointOnTrack((i / WEAPON_PICKUPS.length) * TAU + 0.36, selectedTrack, i % 2 === 0 ? 0.35 : -0.35);
         const weaponPickup = makeWeaponPickupMesh(weapon);
         weaponPickup.position.copy(p).add(new THREE.Vector3(0, 0.62, 0));
-        weaponPickup.userData = { weapon, taken: false, slotIndex: i };
+        weaponPickup.userData = { weapon, taken: false };
         scene.add(weaponPickup);
         return weaponPickup;
       });
@@ -807,12 +813,12 @@ export default function SuperTuxKartPlayablePreview() {
       }
 
       function callAirSupport(kind, target) {
-        const template = parkedTemplates[kind];
-        const craft = template ? cloneModel(template) : new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 8), makeMat(kind === "JET" ? 0x92c7ff : 0x6fffa6, 0.3, 0.2));
-        fitVehicleModel(craft, { targetLength: 5.4, lift: 0.05, yaw: 0 });
-        craft.position.copy(target.pos).add(new THREE.Vector3(-10, 11, -9));
+        const color = kind === "JET" ? 0x92c7ff : kind === "HELICOPTER" ? 0x6fffa6 : 0xffa14d;
+        const craft = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 8), makeMat(color, 0.3, 0.2));
+        craft.rotation.x = Math.PI / 2;
+        craft.position.copy(target.pos).add(new THREE.Vector3(-6, 9, -6));
         scene.add(craft);
-        activeAirStrikes.push({ kind, craft, target, ttl: 3.2, fired: 0 });
+        activeAirStrikes.push({ kind, craft, target, ttl: 2.2, fired: false });
       }
 
       const raycaster = new THREE.Raycaster();
@@ -900,12 +906,6 @@ export default function SuperTuxKartPlayablePreview() {
         });
         pickups.forEach((pickup) => {
           if (pickup.userData.taken) return;
-          const phase = (now * 0.001 + pickup.userData.slotIndex * 0.87) % 14;
-          if (phase > 4.6) {
-            pickup.visible = false;
-            return;
-          }
-          pickup.visible = true;
           pickup.rotation.y += dt * 1.6;
           pickup.position.y = 0.62 + Math.sin(now * 0.004 + pickup.position.x) * 0.05;
           if (pickup.position.distanceTo(player.pos) < 1.6) {
@@ -914,12 +914,6 @@ export default function SuperTuxKartPlayablePreview() {
             playerCombat.inventory.add(pickup.userData.weapon);
             playerCombat.activeWeapon = pickup.userData.weapon;
             hudRef.current.status = `Picked up ${pickup.userData.weapon}`;
-            setTimeout(() => {
-              pickup.userData.taken = false;
-              pickup.userData.slotIndex = (pickup.userData.slotIndex + 1 + Math.floor(Math.random() * 5)) % pickupSlots.length;
-              const np = pointOnTrack(pickupSlots[pickup.userData.slotIndex], selectedTrack, Math.random() > 0.5 ? 0.8 : -0.8);
-              pickup.position.copy(np).add(new THREE.Vector3(0, 0.62, 0));
-            }, 2200);
           }
         });
         defensePickups.forEach((pickup) => {
@@ -972,9 +966,9 @@ export default function SuperTuxKartPlayablePreview() {
           s.ttl -= dt;
           const hover = s.target.pos.clone().add(new THREE.Vector3(0, 8.5, 0));
           s.craft.position.lerp(hover, 1 - Math.exp(-3 * dt));
-          if (s.fired < 2 && s.ttl < 2.5 - s.fired * 0.3) {
+          if (!s.fired && s.ttl < 1.5) {
+            s.fired = true;
             spawnProjectile(s.craft.position.clone(), s.target.pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xff4433, 45, 36);
-            s.fired += 1;
           }
           if (s.ttl <= 0) { scene.remove(s.craft); s.craft.geometry.dispose(); s.craft.material.dispose(); activeAirStrikes.splice(i, 1); }
         }
@@ -1032,14 +1026,7 @@ export default function SuperTuxKartPlayablePreview() {
             <div style={{ fontSize: 11, opacity: 0.82 }}>{hud.status} · {Math.round(hud.speed * 8)} km/h</div>
             <div style={{ fontSize: 11, opacity: 0.9 }}>Weapon: {hud.weapon} · Ammo: {hud.ammo}</div>
             {hud.crash && <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, color: "#ffd166" }}>{hud.crash}</div>}
-            <div style={{ marginTop: 4, fontSize: 14 }}>{Array.from(new Set(["FIREARM", hud.weapon])).map((w) => <span key={w} style={{ marginRight: 6 }}>{WEAPON_ICON[w] || "🎯"}</span>)}</div>
           </div>
-        </div>
-
-        <div style={{ position: "absolute", left: 12, right: 12, bottom: 20, display: "flex", justifyContent: "center", gap: 8 }}>
-          {Object.entries(WEAPON_ICON).filter(([k]) => ["FIREARM", "RIFLE", "MISSILE", "DRONE", "HELICOPTER", "JET"].includes(k)).map(([k, v]) => (
-            <div key={k} style={{ background: k === hud.weapon ? "rgba(255,214,102,0.25)" : "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999, width: 34, height: 34, display: "grid", placeItems: "center", fontSize: 18 }}>{v}</div>
-          ))}
         </div>
 
         <button onPointerDown={brakeDown} onPointerUp={brakeUp} onPointerCancel={brakeUp} style={{ pointerEvents: "auto", position: "absolute", right: 18, bottom: 22, width: 78, height: 78, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.48)", color: "white", fontSize: 13, fontWeight: 900, boxShadow: "0 12px 30px rgba(0,0,0,0.28)" }}>BRAKE</button>
