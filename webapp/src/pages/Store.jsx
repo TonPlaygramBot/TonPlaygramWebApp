@@ -167,8 +167,6 @@ import {
 } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
-import { BOWLING_DEFAULT_LOADOUT, BOWLING_OPTION_LABELS, BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
-import { addBowlingUnlock, bowlingAccountId, getBowlingInventory, isBowlingOptionUnlocked } from '../utils/bowlingInventory.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
 
 const TYPE_LABELS = {
@@ -1048,10 +1046,6 @@ const USAGE_BY_TYPE = {
   }
 };
 
-const BOWLING_TYPE_LABELS = {
-  environmentHdri: 'HDR Environments'
-};
-
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
 
 const hashString = (value) => {
@@ -1211,14 +1205,6 @@ const storeMeta = {
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
   },
-  bowling: {
-    name: 'Real Bowling',
-    items: BOWLING_STORE_ITEMS,
-    defaults: BOWLING_DEFAULT_LOADOUT,
-    labels: BOWLING_OPTION_LABELS,
-    typeLabels: BOWLING_TYPE_LABELS,
-    accountId: bowlingAccountId('guest')
-  },
   texasholdem: {
     name: "Texas Hold'em",
     items: TEXAS_HOLDEM_STORE_ITEMS,
@@ -1269,9 +1255,6 @@ export default function Store() {
   );
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
-  );
-  const [bowlingOwned, setBowlingOwned] = useState(() =>
-    getBowlingInventory(accountId)
   );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
@@ -1400,7 +1383,6 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-    setBowlingOwned(getBowlingInventory(accountId));
     let cancelled = false;
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
@@ -1719,7 +1701,6 @@ export default function Store() {
           if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
           if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'bowling') return addBowlingUnlock('environmentHdri', optionId, accountId);
           return Promise.resolve();
         })
       );
@@ -1844,11 +1825,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
       })),
-      bowling: BOWLING_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'bowling'
-      })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1903,8 +1879,6 @@ export default function Store() {
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
       tennis: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
-      bowling: (type, optionId) =>
-        isBowlingOptionUnlocked(type, optionId, bowlingOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
     }),
@@ -1955,8 +1929,6 @@ export default function Store() {
         DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snake: (item) =>
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      bowling: (item) =>
-        BOWLING_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
         TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       tennis: (item) =>
@@ -2664,10 +2636,6 @@ export default function Store() {
                 entry.optionId,
                 resolvedAccountId
               )
-            );
-          } else if (slug === 'bowling') {
-            setBowlingOwned(
-              addBowlingUnlock(entry.type, entry.optionId, resolvedAccountId)
             );
           }
         }

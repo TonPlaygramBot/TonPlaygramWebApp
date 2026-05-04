@@ -4,8 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
-import { getBowlingInventory } from "../../utils/bowlingInventory.js";
 
 type PlayerAction = "idle" | "approach" | "throw" | "recover";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
@@ -83,7 +81,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const DEFAULT_HDRI_ID = "studio_small_09";
+const HDRI_URL = "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr";
 const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
 const OAK = {
   diff: `${OAK_BASE}oak_veneer_01_diff_2k.jpg`,
@@ -940,15 +938,7 @@ export default function MobileBowlingRealistic() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedHdriId, setSelectedHdriId] = useState<string>(() => (typeof window !== "undefined" ? window.localStorage.getItem("tonplay.bowling.selectedHdri") || DEFAULT_HDRI_ID : DEFAULT_HDRI_ID));
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [graphicsQuality, setGraphicsQuality] = useState<"high"|"medium"|"low">("high");
   const scoresMemo = useMemo(() => scores, [scores]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem("tonplay.bowling.selectedHdri", selectedHdriId);
-  }, [selectedHdriId]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -973,9 +963,8 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
-    const activeHdri = BOWLING_HDRI_VARIANTS.find((h) => h.id === selectedHdriId) || BOWLING_HDRI_VARIANTS[0];
     new RGBELoader().setCrossOrigin("anonymous").load(
-      activeHdri.url,
+      HDRI_URL,
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = envTex;
@@ -1223,7 +1212,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [selectedHdriId, graphicsQuality, audioEnabled]);
+  }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1249,27 +1238,6 @@ export default function MobileBowlingRealistic() {
           </div>
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
         </div>
-
-
-        <button onClick={() => setMenuOpen((v) => !v)} style={{ pointerEvents: "auto", position: "absolute", top: 120, left: 10, width: 42, height: 42, borderRadius: 12, border: "1px solid rgba(255,255,255,0.28)", background: "rgba(5,8,14,0.82)", color: "#fff", fontSize: 22, fontWeight: 900 }}>☰</button>
-        {menuOpen && (
-          <div style={{ pointerEvents: "auto", position: "absolute", top: 168, left: 10, width: 320, maxHeight: "62vh", overflow: "auto", borderRadius: 14, background: "rgba(5,8,14,0.92)", border: "1px solid rgba(255,255,255,0.2)", padding: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 900, color: "#7fd6ff", marginBottom: 8 }}>GAME OPTIONS</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-              {(["high","medium","low"] as const).map((q) => <button key={q} onClick={() => setGraphicsQuality(q)} style={{ flex: 1, padding: "6px 8px", borderRadius: 10, background: graphicsQuality===q?"#1d4ed8":"#111827", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>{q}</button>)}
-            </div>
-            <button onClick={() => setAudioEnabled((v) => !v)} style={{ width: "100%", marginBottom: 8, padding: "6px 8px", borderRadius: 10, background: "#111827", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>Sound: {audioEnabled ? "On" : "Off"}</button>
-            <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 6 }}>Owned HDRI inventory</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 8 }}>
-              {BOWLING_HDRI_VARIANTS.filter((h) => (getBowlingInventory('guest').environmentHdri || []).includes(h.id)).map((h) => (
-                <button key={h.id} onClick={() => setSelectedHdriId(h.id)} style={{ border: selectedHdriId===h.id?"2px solid #38bdf8":"1px solid rgba(255,255,255,0.2)", borderRadius: 10, overflow: "hidden", background: "#0b1220", color: "white" }}>
-                  <img src={h.thumbnail} alt={h.label} style={{ width: "100%", height: 64, objectFit: "cover" }} />
-                  <div style={{ fontSize: 10, padding: 4 }}>{h.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
           Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />Arena walls, floor, ceiling, and 3D monitor removed.
