@@ -124,7 +124,7 @@ const CFG = {
   gutterHalfW: 2.08,
   playerStartZ: 7.15,
   rackEdgeX: 1.42,
-  rackStopZ: 6.2,
+  rackStopZ: 6.34,
   approachStopZ: 4.95,
   foulZ: 4.55,
   arrowsZ: 0.95,
@@ -138,7 +138,7 @@ const CFG = {
   replayDuration: 3.2,
   recoverDuration: 0.28,
   returnWalkDuration: 1.08,
-  pickDuration: 0.42,
+  pickDuration: 0.52,
   releaseT: 0.56,
 };
 
@@ -454,6 +454,9 @@ function getHeldBallWorldPosition(rig: HumanRig) {
   } else if (rig.action === "recover") {
     const k = clamp01(rig.recoverT);
     local = new THREE.Vector3(0.24, lerp(1.18, 0.96, k), lerp(0.44, 0.18, k));
+  } else if (rig.action === "pickBall" || rig.action === "toRack") {
+    const pickLift = rig.action === "pickBall" ? easeInOut(clamp01(rig.pickT)) : 0;
+    local = new THREE.Vector3(0.3, lerp(0.56, 0.98, pickLift), lerp(0.24, 0.08, pickLift));
   }
   const fallbackWorld = local.applyAxisAngle(UP, rig.yaw).add(rig.pos);
   if (!handAnchor) return fallbackWorld;
@@ -572,6 +575,16 @@ function resetPins(pins: PinState[]) {
     pin.root.visible = true;
     pin.root.position.copy(pin.pos);
     pin.root.rotation.set(0, 0, 0);
+  }
+}
+
+function clearFallenPins(pins: PinState[]) {
+  for (const pin of pins) {
+    const fallen = !pin.standing || pin.tilt >= CFG.pinToppleThreshold || pin.knocked;
+    if (!fallen) continue;
+    pin.root.visible = false;
+    pin.vel.set(0, 0, 0);
+    pin.angularVel = 0;
   }
 }
 
@@ -742,17 +755,20 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       // right-handed form: left leg forward, right leg trail, left arm counter-balance
 
       rig.model.position.y = 0;
-      rig.model.rotation.x = t < 0.55 ? lerp(0, 0.26, t / 0.55) : lerp(0.26, -0.08, (t - 0.55) / 0.45);
-      rig.model.rotation.z = t < 0.45 ? lerp(0, -0.12, t / 0.45) : lerp(-0.12, 0.06, (t - 0.45) / 0.55);
+      rig.model.rotation.x = t < 0.55 ? lerp(0, 0.32, t / 0.55) : lerp(0.32, -0.1, (t - 0.55) / 0.45);
+      rig.model.rotation.z = t < 0.45 ? lerp(0, -0.16, t / 0.45) : lerp(-0.16, 0.08, (t - 0.45) / 0.55);
       rig.model.rotation.y = t < 0.7 ? lerp(0, 0.22, t / 0.7) : lerp(0.22, 0.08, (t - 0.7) / 0.3);
+      // left slide foot forward, right trail leg back (visual posture only).
+      rig.model.position.x = t < CFG.releaseT ? lerp(0, -0.08, t / CFG.releaseT) : lerp(-0.08, -0.02, (t - CFG.releaseT) / (1 - CFG.releaseT));
+      rig.model.position.z = t < CFG.releaseT ? lerp(0, -0.11, t / CFG.releaseT) : lerp(-0.11, -0.03, (t - CFG.releaseT) / (1 - CFG.releaseT));
       const rightHand = findRightHand(rig.model);
       if (rightHand) {
         if (t < CFG.releaseT) {
           const k = easeInOut(t / CFG.releaseT);
-          rightHand.rotation.x = lerp(0.1, -1.45, k);
+          rightHand.rotation.x = lerp(0.18, -1.8, k);
         } else {
           const k = easeOutCubic((t - CFG.releaseT) / (1 - CFG.releaseT));
-          rightHand.rotation.x = lerp(-1.45, 0.58, k);
+          rightHand.rotation.x = lerp(-1.8, 0.72, k);
         }
       }
     }
@@ -773,7 +789,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.returnWalkT = 0.001;
     }
   } else if (rig.action === "toRack") {
-    rig.yaw = -0.78;
+    rig.yaw = -2.55;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
@@ -786,6 +802,12 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
   } else if (rig.action === "pickBall") {
     rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
+    if (rig.model) {
+      const k = easeInOut(rig.pickT);
+      rig.model.position.y = lerp(0, -0.14, 1 - k);
+      rig.model.rotation.x = lerp(0.22, -0.08, k);
+      rig.model.rotation.z = lerp(-0.06, 0.02, k);
+    }
     if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
   } else if (rig.action === "toApproach") {
     rig.yaw = -2.55;
@@ -851,11 +873,13 @@ function collideBallWithPins(ball: BallState, pins: PinState[]) {
     if (dist > minDist || dist < 0.001) continue;
     const n = new THREE.Vector3(dx / dist, 0, dz / dist);
     const speed = Math.hypot(ball.vel.x, ball.vel.z);
-    const impulse = Math.max(1.0, speed * 0.78 * ball.variant.massFactor);
+    const impulse = Math.max(0.9, speed * 0.92 * ball.variant.massFactor);
+    const tangential = ball.hook * clamp(speed / 14, 0.08, 0.62);
     pin.vel.addScaledVector(n, impulse);
-    pin.vel.z += ball.vel.z * 0.18;
-    pin.angularVel += impulse * 1.8;
-    pin.tiltDir.copy(n).normalize();
+    pin.vel.z += ball.vel.z * 0.24;
+    pin.vel.x += tangential;
+    pin.angularVel += impulse * 2.2 + Math.abs(tangential) * 1.8;
+    pin.tiltDir.copy(n).add(new THREE.Vector3(tangential * 0.25, 0, 0)).normalize();
     pin.standing = false;
     pin.knocked = true;
     ball.vel.addScaledVector(n, -0.6);
@@ -875,15 +899,17 @@ function collidePins(pins: PinState[]) {
       const minDist = CFG.pinR * 1.8;
       if (dist > minDist || dist < 0.001) continue;
       const n = new THREE.Vector3(dx / dist, 0, dz / dist);
-      const impulse = 0.45;
+      const rel = a.vel.clone().sub(b.vel);
+      const along = Math.abs(rel.dot(n));
+      const impulse = clamp(0.25 + along * 0.18, 0.2, 0.9);
       a.vel.addScaledVector(n, -impulse);
       b.vel.addScaledVector(n, impulse);
       a.standing = false;
       b.standing = false;
       a.knocked = true;
       b.knocked = true;
-      a.angularVel += 0.7;
-      b.angularVel += 0.7;
+      a.angularVel += 0.42 + impulse * 0.92;
+      b.angularVel += 0.42 + impulse * 0.92;
       a.tiltDir.copy(n).multiplyScalar(-1);
       b.tiltDir.copy(n);
     }
@@ -898,12 +924,12 @@ function updatePins(pins: PinState[], dt: number) {
     const speed = Math.hypot(pin.vel.x, pin.vel.z);
     if (speed > 0.015 || Math.abs(pin.angularVel) > 0.015) moving = true;
     pin.pos.addScaledVector(pin.vel, dt);
-    pin.vel.multiplyScalar(Math.exp(-2.05 * dt));
+    pin.vel.multiplyScalar(Math.exp(-1.65 * dt));
     if (!pin.standing || speed > 0.28) {
       pin.standing = false;
       pin.knocked = true;
-      pin.tilt = clamp(pin.tilt + (pin.angularVel + speed * 1.18) * dt, 0, 1.46);
-      pin.angularVel *= Math.exp(-1.55 * dt);
+      pin.tilt = clamp(pin.tilt + (pin.angularVel + speed * 1.32) * dt, 0, 1.52);
+      pin.angularVel *= Math.exp(-1.28 * dt);
     }
     if (Math.abs(pin.pos.x) > 2.35 || pin.pos.z < CFG.backStopZ - 0.25 || pin.pos.z > CFG.pinDeckZ + 1.15) {
       pin.knocked = true;
@@ -978,7 +1004,8 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
   ball.inGutter = Math.abs(ball.pos.x) > CFG.laneHalfW;
   if (!ball.inGutter && flatSpeed > 0.85 && ball.pos.z < 2.6) {
     const hookPhase = clamp01((2.4 - ball.pos.z) / 8.4);
-    ball.vel.x += ball.hook * hookPhase * dt;
+    const hookGain = lerp(0.7, 1.36, clamp01(flatSpeed / 16));
+    ball.vel.x += ball.hook * hookPhase * hookGain * dt;
   }
   const drag = ball.inGutter ? 1.24 : 0.4;
   ball.vel.multiplyScalar(Math.exp(-drag * dt));
@@ -1213,6 +1240,7 @@ export default function MobileBowlingRealistic() {
     };
 
     const finalizeShot = () => {
+      clearFallenPins(pins);
       const afterStanding = standingPinsCount(pins);
       const knocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
       const playerBefore = localScores[activePlayer];
