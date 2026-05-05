@@ -139,6 +139,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
+  walkRefSpeed: 1.0,
   humanScale: 1.18,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52,
@@ -278,7 +279,7 @@ function normalizeHuman(model, opts = {}) {
 
 function createBilardoHumanRig(scene, opts = {}) {
   const scaledOpts = scaleRigOptions(opts);
-  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, cfg: { ...CFG, ...scaledOpts } };
+  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, vel: new THREE.Vector3(), dir: new THREE.Vector3(0,0,-1), targetDir: new THREE.Vector3(0,0,-1), speed: 0, cfg: { ...CFG, ...scaledOpts } };
   human.root.visible = false;
   human.modelRoot.visible = false;
   human.fallback.visible = true;
@@ -400,12 +401,13 @@ function driveHuman(human, frame) {
 
   if (frame.walkAmount * idle > 0.001) {
     const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
+    const pace = THREE.MathUtils.clamp((human.speed || 0) / (human.cfg?.walkRefSpeed || 1), 0.7, 1.35);
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w * pace;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w * pace;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w * pace;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w * pace;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w * pace;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w * pace;
     if (b.spine) b.spine.rotation.z += c * 0.02 * w;
     if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
   }
@@ -485,8 +487,25 @@ function updateBilardoHumanPose(human, dt, frameData) {
   const cfg = { ...CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
   human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = dampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
   if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
-  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget; dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
-  const moveAmountRaw = human.root.position.distanceTo(rootGoal); human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10)); human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
+  const prevPos = human.root.position.clone();
+  dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
+  const moveDelta = human.root.position.clone().sub(prevPos).setY(0);
+  if (dt > 0) {
+    human.vel.copy(moveDelta).multiplyScalar(1 / dt);
+    human.speed = human.vel.length();
+    if (human.speed > 0.001) human.targetDir.copy(human.vel).normalize();
+  } else {
+    human.speed = 0;
+  }
+  if (state !== 'striking' && human.targetDir.lengthSq() > 0.001) {
+    human.dir.lerp(human.targetDir, 1 - Math.pow(0.001, dt)).normalize();
+    human.yaw = Math.atan2(human.dir.x, human.dir.z);
+  } else {
+    human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  }
+  const moveAmountRaw = human.root.position.distanceTo(rootGoal);
+  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
   const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
   const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
