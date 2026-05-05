@@ -1777,10 +1777,10 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   // Lift opponent cards higher and push them outward (away from table center)
   // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 132.5 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 144.5 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -186.5 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -32.5 * MODEL_SCALE : 0;
+  const sideSeatLift = isSideSeat ? 152.5 * MODEL_SCALE : 0;
+  const topSeatLift = isTopSeat ? 166.5 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -222.5 * MODEL_SCALE : 0;
+  const bottomForwardPull = isBottomHumanSeat ? -52.5 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
       ? (normalizedSeatIndex === 1 ? -0.08 * MODEL_SCALE : 0.08 * MODEL_SCALE)
@@ -1788,7 +1788,7 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
 
   return {
     x: sideSeatLateralPull,
-    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 0.88 * MODEL_SCALE : 1.72 * MODEL_SCALE),
+    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 1.12 * MODEL_SCALE : 1.98 * MODEL_SCALE),
     z: 0.82 * MODEL_SCALE + nonBottomOutwardPush + bottomForwardPull
   };
 }
@@ -2103,22 +2103,35 @@ function runCharacterAction(store, rig, action) {
 
   if (action.type === 'PLAY') {
     const throwPrep = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-58), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-16) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-11) },
-      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-12) },
-      head: { x: THREE.MathUtils.degToRad(-6) }
+      spine: { x: THREE.MathUtils.degToRad(-12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-62), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-15) },
+      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-8) },
+      head: { x: THREE.MathUtils.degToRad(-8) }
+    });
+    const throwPinchPickup = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-14) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
+      rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-10) }
+    });
+    const throwCarry = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(2) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-20) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(24) },
+      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-8) }
     });
     const throwRelease = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(44) },
-      rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-8) }
+      spine: { x: THREE.MathUtils.degToRad(10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(48) },
+      rightHand: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-8) }
     });
     const throwPlace = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(52) },
-      rightHand: { x: THREE.MathUtils.degToRad(14), y: THREE.MathUtils.degToRad(-6) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(36), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(54) },
+      rightHand: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-6) }
     });
 
     const thrown = createThrownCardMesh(cardsColor);
@@ -2151,28 +2164,49 @@ function runCharacterAction(store, rig, action) {
     target.y += 0.08 * MODEL_SCALE;
     target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
 
-    const contactPickupPos = pickupPos.clone().lerp(rightFingerPos, 0.8);
+    const contactPickupPos = pickupPos.clone().lerp(rightFingerPos, 0.9);
+    const carryPos = handPos.clone().lerp(target, 0.42);
+    carryPos.y += 0.05 * MODEL_SCALE;
     thrown.position.copy(contactPickupPos);
     thrown.lookAt(target.clone().setY(handPos.y));
 
     list.push({
       start: now,
-      duration: 180,
+      duration: 170,
       update: (t) => applyRigPoseLerp(rig, throwPrep, t)
     });
     list.push({
-      start: now + 180,
+      start: now + 170,
+      duration: 160,
+      update: (t) => {
+        applyRigPoseLerp(rig, throwPinchPickup, t);
+        const eased = easeInOutCubic(t);
+        thrown.position.lerpVectors(contactPickupPos, rightFingerPos, eased);
+      }
+    });
+    list.push({
+      start: now + 330,
+      duration: 200,
+      update: (t) => {
+        applyRigPoseLerp(rig, throwCarry, t);
+        const eased = easeInOutCubic(t);
+        thrown.position.lerpVectors(rightFingerPos, carryPos, eased);
+        thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.2, eased);
+      }
+    });
+    list.push({
+      start: now + 530,
       duration: 210,
       update: (t) => applyRigPoseLerp(rig, throwRelease, t),
       complete: () => {
         const flightStart = performance.now();
         list.push({
           start: flightStart,
-          duration: 340,
+          duration: 260,
           update: (t) => {
             const eased = easeInOutCubic(t);
-            thrown.position.lerpVectors(contactPickupPos, target, eased);
-            thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.5, eased);
+            thrown.position.lerpVectors(carryPos, target, eased);
+            thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.2, -Math.PI * 0.54, eased);
           },
           complete: () => {
             thrown.userData?.dispose?.();
@@ -2182,13 +2216,13 @@ function runCharacterAction(store, rig, action) {
       }
     });
     list.push({
-      start: now + 390,
-      duration: 150,
+      start: now + 740,
+      duration: 170,
       update: (t) => applyRigPoseLerp(rig, throwPlace, t)
     });
     list.push({
-      start: now + 540,
-      duration: 260,
+      start: now + 910,
+      duration: 280,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
   }

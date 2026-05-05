@@ -1,4 +1,4 @@
-import { CARD_THEMES } from '../utils/cards3d.js';
+import { CARD_THEMES } from '../utils/cardThemes.js';
 import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 import { MURLAN_OUTFIT_THEMES } from './murlanThemes.js';
 import {
