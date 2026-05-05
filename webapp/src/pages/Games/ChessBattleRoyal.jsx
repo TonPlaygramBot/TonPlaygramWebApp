@@ -7824,15 +7824,6 @@ function Chess3D({
     targetPitch: -0.28,
     fixedPosition: null
   });
-  const freeLookViewRef = useRef({
-    active: false,
-    yaw: 0,
-    pitch: 0,
-    targetYaw: 0,
-    targetPitch: 0,
-    lastX: null,
-    lastY: null
-  });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -13071,12 +13062,6 @@ function Chess3D({
         locked3dViewRef.current.activeLook = true;
         return;
       }
-      if (viewModeRef.current === '2d') {
-        const look = freeLookViewRef.current;
-        look.active = true;
-        look.lastX = event.clientX ?? null;
-        look.lastY = event.clientY ?? null;
-      }
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
       if (settingsRef.current.moveMode !== 'drag') return;
@@ -13115,16 +13100,6 @@ function Chess3D({
         }
         return;
       }
-      if (viewModeRef.current === '2d' && freeLookViewRef.current.active) {
-        const look = freeLookViewRef.current;
-        const dx = Number.isFinite(event.movementX) ? event.movementX : (Number.isFinite(look.lastX) ? (event.clientX ?? look.lastX) - look.lastX : 0);
-        const dy = Number.isFinite(event.movementY) ? event.movementY : (Number.isFinite(look.lastY) ? (event.clientY ?? look.lastY) - look.lastY : 0);
-        look.lastX = event.clientX ?? look.lastX;
-        look.lastY = event.clientY ?? look.lastY;
-        look.targetYaw -= dx * 0.003;
-        look.targetPitch = clamp(look.targetPitch - dy * 0.0024, -0.78, 0.68);
-        return;
-      }
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
       if (!dragState.active || !dragState.mesh) return;
@@ -13136,9 +13111,6 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
-      freeLookViewRef.current.active = false;
-      freeLookViewRef.current.lastX = null;
-      freeLookViewRef.current.lastY = null;
       locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
       if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
       if (isReplayingRef.current) return;
@@ -13977,7 +13949,6 @@ function Chess3D({
         });
       }
       const locked3dEnabled = viewModeRef.current === '3d' && locked3dViewRef.current.activeLook;
-      const freeLook2dEnabled = viewModeRef.current === '2d';
       if (locked3dEnabled) {
         const locked = locked3dViewRef.current;
         if (!locked.fixedPosition) {
@@ -13992,20 +13963,6 @@ function Chess3D({
           Math.cos(locked.yaw) * Math.cos(locked.pitch)
         );
         camera.lookAt(camera.position.clone().add(dir.multiplyScalar(8)));
-        controls.enabled = false;
-      } else if (freeLook2dEnabled) {
-        const look = freeLookViewRef.current;
-        look.yaw = THREE.MathUtils.lerp(look.yaw, look.targetYaw, 0.22);
-        look.pitch = THREE.MathUtils.lerp(look.pitch, look.targetPitch, 0.2);
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-        const right = new THREE.Vector3().crossVectors(forward, up).normalize();
-        const lookDir = forward
-          .clone()
-          .applyAxisAngle(WORLD_UP, look.yaw)
-          .applyAxisAngle(right, look.pitch)
-          .normalize();
-        camera.lookAt(camera.position.clone().add(lookDir.multiplyScalar(8)));
         controls.enabled = false;
       } else if (controls && !fpvEnabled) {
         locked3dViewRef.current.fixedPosition = null;
