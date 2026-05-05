@@ -3294,11 +3294,11 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 84;
+const CAMERA_FOV = 72;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-const CAMERA_TARGET_LIFT = 0.038 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.21;
 const CAMERA_TURN_PLAYER_LERP = 0.58;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.6;
@@ -3325,10 +3325,10 @@ const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.26;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.04;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.96;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.9;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -8234,6 +8234,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const resolveDiceHoldContactTarget = (player, fallbackTarget = null) => {
     const dice = diceRef.current;
     if (!dice?.isObject3D) return fallbackTarget ?? null;
+    if (player === 0) {
+      // Keep local/human turn start anchored on the board rail so users see exactly where to tap to roll.
+      return fallbackTarget ?? null;
+    }
     const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
     if (!actorEntry) return fallbackTarget ?? null;
     const helperWorld = new THREE.Vector3();
@@ -8256,42 +8260,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!dice) return;
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
-    const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
 
     if (player === 0 && !immediate) {
-      // Human turn flow: force a two-stage grab so the right hand visibly reaches to the landing dice,
-      // then carries it to hold. This keeps physical contact clear in portrait gameplay framing.
-      const pickupTarget = (() => {
-        const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-        if (!actorEntry) return null;
-        const pickupWorld = new THREE.Vector3();
-        if (!sampleSeatedActionHelper(actorEntry, 'dicePickup', pickupWorld)) return null;
-        const parent = dice.parent;
-        if (parent?.worldToLocal) parent.worldToLocal(pickupWorld);
-        pickupWorld.y -= DICE_SIZE * (SEATED_DICE_HOLD_VERTICAL_NUDGE * 0.78);
-        return pickupWorld;
-      })();
-      const holdTarget = resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
+      // On human turns keep the dice where it landed so the seated actor can bend from the torso,
+      // reach to that exact table spot, and grab it before the next throw.
       stopDiceTransition();
-      beginDiceHoldPose(player, { startMs: performance.now() - 260 });
-      const continueToHold = () =>
-        animateDicePosition(dice, holdTarget, {
-          duration: 300,
-          lift: 0.024,
-          onComplete: () => beginDiceHoldPose(player)
-        });
-      if (pickupTarget?.isVector3) {
-        animateDicePosition(dice, pickupTarget, {
-          duration: 220,
-          lift: 0.018,
-          onComplete: continueToHold
-        });
-      } else {
-        continueToHold();
-      }
+      beginDiceHoldPose(player, { startMs: performance.now() - 220 });
       return;
     }
 
+    const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
     const target = resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
     if (immediate) {
       stopDiceTransition();
@@ -11480,43 +11458,49 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const camera = cameraRef.current;
     const controls = controlsRef.current;
-      if (player === 0) {
-        lockUserTurnSeatViewRef.current = true;
-        cameraLookStateRef.current.pitch = 0;
-        const initialBottomView = initialBottomCameraViewRef.current;
-        if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
-          // Keep exactly the game-start framing for bottom user turns (no dynamic recentering).
-          cameraTurnStateRef.current.baseTurnView = {
-            position: initialBottomView.position.clone(),
-            target: initialBottomView.target.clone()
-          };
-          animateCameraPose(
-            cameraTurnStateRef.current.baseTurnView.target,
-            cameraTurnStateRef.current.baseTurnView.position,
-            duration
-          );
-          return;
-        }
-        const fallbackStartTarget = resolveTurnLookTarget(0);
-        if (fallbackStartTarget?.isVector3 && camera) {
-          const offset = camera.position.clone().sub(controls?.target ?? fallbackStartTarget);
-          const fallbackPosition = fallbackStartTarget.clone().add(offset);
-          cameraTurnStateRef.current.baseTurnView = {
-            position: fallbackPosition,
-            target: fallbackStartTarget.clone()
-          };
-          animateCameraPose(fallbackStartTarget.clone(), fallbackPosition, duration);
-          return;
-        }
-        if (camera && controls) {
-          cameraTurnStateRef.current.baseTurnView = {
-            position: camera.position.clone(),
-            target: controls.target.clone()
-          };
-          animateCameraPose(controls.target.clone(), camera.position.clone(), duration);
-          return;
-        }
+    if (player === 0) {
+      lockUserTurnSeatViewRef.current = true;
+      cameraLookStateRef.current.pitch = 0;
+      const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
+      const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, resolveBottomPlayerGameplayTarget());
+      if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
+        cameraTurnStateRef.current.baseTurnView = {
+          position: facePose.position.clone(),
+          target: facePose.target.clone()
+        };
+        animateCameraPose(facePose.target, facePose.position, duration);
+        return;
       }
+      const initialBottomView = initialBottomCameraViewRef.current;
+      if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
+        const boardLookTarget = boardLookTargetRef.current;
+        const alignedPosition = initialBottomView.position.clone();
+        const alignedTarget = initialBottomView.target.clone();
+        if (boardLookTarget?.isVector3) {
+          alignedPosition.x = boardLookTarget.x;
+          alignedTarget.x = boardLookTarget.x;
+          if (Math.abs(alignedTarget.z - boardLookTarget.z) > CAMERA_PLAYER_CENTER_X_EPSILON) {
+            alignedTarget.z = boardLookTarget.z;
+          }
+        }
+        cameraTurnStateRef.current.baseTurnView = {
+          position: alignedPosition,
+          target: alignedTarget
+        };
+        animateCameraPose(
+          cameraTurnStateRef.current.baseTurnView.target,
+          cameraTurnStateRef.current.baseTurnView.position,
+          duration
+        );
+        return;
+      }
+      if (camera && controls) {
+        cameraTurnStateRef.current.baseTurnView = {
+          position: camera.position.clone(),
+          target: controls.target.clone()
+        };
+      }
+    }
     lockUserTurnSeatViewRef.current = false;
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
