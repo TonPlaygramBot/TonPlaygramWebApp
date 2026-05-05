@@ -363,8 +363,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.58; // Keep the same table/board/chair proportions, but ~22% smaller than current.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.76; // Shrink chess pieces further so the board feels less crowded on phone screens.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.082 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.058 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.11 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -14188,10 +14188,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === 'fpv' ? '2d' : 'fpv'))}
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === 'fpv' ? '2D' : 'FPV'}
+              {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
