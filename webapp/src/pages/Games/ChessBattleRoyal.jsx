@@ -363,8 +363,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Make table/board/chairs visibly smaller while preserving the same proportions.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.76; // Further shrink pieces so they read smaller on portrait screens.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.58; // Keep the same table/board/chair proportions, but ~22% smaller than current.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.11 * MODEL_SCALE; // Pull local chair and character closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.09 * MODEL_SCALE; // Pull opponent chair and character closer to the table too.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.082 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.058 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -454,7 +454,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.98;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = 0;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
@@ -9635,22 +9635,29 @@ function Chess3D({
     const boardLookTarget = new THREE.Vector3(
       tablePlacementOffset.x,
       boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE,
-      tablePlacementOffset.z
+      tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const cameraTheta = ARENA_CAMERA_DEFAULTS.initialTheta;
-    const cameraRadius = clamp(
-      CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.defaultRadiusFactor,
-      CAM.minR,
-      CAM.maxR
+    const isPortrait = host.clientHeight > host.clientWidth;
+    const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
+    const cameraBackOffset =
+      isPortrait ? PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT : PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE;
+    const cameraForwardOffset = isPortrait
+      ? PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT
+      : PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE;
+    const cameraHeightOffset = isPortrait
+      ? PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT
+      : PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE;
+    const cameraRadius = playerChairDistance + cameraBackOffset - cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
+      tableSurfaceY + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
     );
-    const initialSpherical = new THREE.Spherical(cameraRadius, CAMERA_DEFAULT_PHI, cameraTheta);
-    const initialPosition = new THREE.Vector3().setFromSpherical(initialSpherical).add(boardLookTarget);
-    camera.position.copy(initialPosition);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -14181,10 +14188,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              onClick={() => setViewMode((mode) => (mode === 'fpv' ? '2d' : 'fpv'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === 'fpv' ? '2D' : 'FPV'}
             </button>
           </div>
           {configOpen && (
