@@ -10381,6 +10381,146 @@ function Table3D(
     return clone;
   };
 
+  
+  const POOLTOOL_SNOOKER_TABLE_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
+  const externalBaseTemplates = new Map();
+  const externalBasePromises = new Map();
+
+  const ensureExternalBaseTemplate = (templateKey, urls, renderer = null) => {
+    if (externalBaseTemplates.has(templateKey)) return Promise.resolve(externalBaseTemplates.get(templateKey));
+    if (externalBasePromises.has(templateKey)) return externalBasePromises.get(templateKey);
+    const promise = (async () => {
+      const loader = createConfiguredGLTFLoader(renderer);
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const gltf = await loader.loadAsync(url);
+          const scene = gltf?.scene || gltf?.scenes?.[0];
+          if (!scene) throw new Error('Missing scene for external base');
+          externalBaseTemplates.set(templateKey, scene);
+          return scene;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      console.warn('Failed to load external snooker table base; using fallback.', lastError);
+      externalBaseTemplates.set(templateKey, null);
+      return null;
+    })();
+    externalBasePromises.set(templateKey, promise);
+    promise.finally(() => externalBasePromises.delete(templateKey));
+    return promise;
+  };
+
+  const cloneExternalBaseTemplate = (templateKey) => {
+    const template = externalBaseTemplates.get(templateKey);
+    if (!template) return null;
+    const clone = template.clone(true);
+    clone.traverse((child) => {
+      if (!child?.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      const refreshed = materials.map((mat) => sharpenGltfMaterial(mat));
+      child.material = Array.isArray(child.material) ? refreshed : refreshed[0] ?? child.material;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      tagBasePart(child);
+    });
+    tagBasePart(clone);
+    return clone;
+  };
+
+  const createExternalSnookerTableBuilder = () => {
+    const templateKey = 'pooltool-snooker-table';
+    const builder = (ctx) => {
+      const meshes = [];
+      const legMeshes = [];
+      const normalizeOptions = { topInset: ctx.skirtH * 0.03, fill: 1 };
+      const template = cloneExternalBaseTemplate(templateKey);
+      const asyncReady = template
+        ? null
+        : ensureExternalBaseTemplate(templateKey, [POOLTOOL_SNOOKER_TABLE_URL], ctx.renderer);
+      const buildInstance = () => {
+        const base = cloneExternalBaseTemplate(templateKey);
+        if (!base) return;
+        const bounds = new THREE.Box3().setFromObject(base);
+        const size = bounds.getSize(new THREE.Vector3());
+        const targetWidth = ctx.frameOuterX * 2;
+        const targetDepth = ctx.frameOuterZ * 2;
+        const scaleX = size.x > MICRO_EPS ? targetWidth / size.x : 1;
+        const scaleZ = size.z > MICRO_EPS ? targetDepth / size.z : 1;
+        const uniformScale = Math.min(scaleX, scaleZ);
+        if (Number.isFinite(uniformScale) && uniformScale > 0) {
+          base.scale.setScalar(uniformScale);
+        }
+        base.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(base);
+        base.position.set(-scaledBounds.getCenter(new THREE.Vector3()).x, ctx.floorY - scaledBounds.min.y, -scaledBounds.getCenter(new THREE.Vector3()).z);
+        base.updateMatrixWorld(true);
+        meshes.push(base);
+        base.traverse((child) => {
+          if (child?.isMesh) legMeshes.push(child);
+        });
+      };
+      if (template) buildInstance();
+      return { meshes, legMeshes, normalizeOptions, asyncReady };
+    };
+    builder.isPolyhaven = true;
+    return builder;
+  };
+
+  const applyPooltoolTableVisualOverride = () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader
+      .loadAsync(POOLTOOL_SNOOKER_TABLE_URL)
+      .then((gltf) => {
+        const model = gltf?.scene || gltf?.scenes?.[0];
+        if (!model) return;
+
+        const tableBounds = new THREE.Box3().setFromObject(table);
+        const targetSize = tableBounds.getSize(new THREE.Vector3());
+        const targetCenter = tableBounds.getCenter(new THREE.Vector3());
+
+        const modelBounds = new THREE.Box3().setFromObject(model);
+        const modelSize = modelBounds.getSize(new THREE.Vector3());
+        const scaleX = modelSize.x > MICRO_EPS ? targetSize.x / modelSize.x : 1;
+        const scaleZ = modelSize.z > MICRO_EPS ? targetSize.z / modelSize.z : 1;
+        const uniformScale = Math.min(scaleX, scaleZ);
+        if (Number.isFinite(uniformScale) && uniformScale > 0) {
+          model.scale.setScalar(uniformScale);
+        }
+
+        model.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(model);
+        const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
+        model.position.set(
+          targetCenter.x - scaledCenter.x,
+          tableBounds.min.y - scaledBounds.min.y,
+          targetCenter.z - scaledCenter.z
+        );
+        model.updateMatrixWorld(true);
+
+        table.traverse((child) => {
+          if (!child?.isMesh) return;
+          if (child.userData?.__basePart) return;
+          child.visible = false;
+        });
+
+        model.traverse((child) => {
+          if (!child?.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          child.renderOrder = 2;
+        });
+
+        table.add(model);
+        table.userData.visualOverrideModel = model;
+      })
+      .catch((error) => {
+        console.warn('Snooker Royal failed to load Pooltool table override; using procedural table.', error);
+      });
+  };
+
   const createPolyhavenTableBaseBuilder = (
     assetId,
     {
@@ -10457,6 +10597,7 @@ function Table3D(
   };
 
   const baseBuilders = {
+    pooltoolSnooker: createExternalSnookerTableBuilder(),
     classicCylinders: (ctx) => {
       const pocketSafeInsetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE);
       const pocketSafeInsetZ = Math.min(
@@ -10789,6 +10930,7 @@ function Table3D(
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
   parent.add(table);
+  applyPooltoolTableVisualOverride();
 
   const baulkZ = baulkLineZ;
 
