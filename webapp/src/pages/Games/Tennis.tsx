@@ -23,7 +23,7 @@ type BallState = {
   bounceCount: number;
 };
 
-type ShotTechnique = "flat" | "topspin" | "slice";
+type ShotTechnique = "flat" | "topspin" | "slice" | "lob";
 
 type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique; swipeDir?: THREE.Vector2 };
 
@@ -91,6 +91,12 @@ type HumanRig = {
 
 type HudState = { nearScore: number; farScore: number; status: string; power: number };
 
+
+type ServeState = {
+  server: PlayerSide;
+  serveIndex: number;
+};
+
 type ControlState = {
   active: boolean;
   pointerId: number | null;
@@ -112,6 +118,7 @@ const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidd
 const WORLD_SCALE = 1.2;
 
 const CFG = {
+  // Singles court dimensions (meters-like world units scaled).
   worldScale: WORLD_SCALE,
   courtW: 7.45 * WORLD_SCALE,
   doublesW: 8.9 * WORLD_SCALE,
@@ -797,7 +804,30 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
   );
 }
 
-function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, durationMs: number, isServe: boolean) {
+function isDeuceServe(serveIndex: number) {
+  return serveIndex % 2 === 0;
+}
+
+function serveLaneX(side: PlayerSide, serveIndex: number) {
+  const lane = CFG.courtW * 0.24;
+  const deuce = isDeuceServe(serveIndex);
+  if (side === "near") return deuce ? lane : -lane;
+  return deuce ? -lane : lane;
+}
+
+function serviceBoxTargetX(side: PlayerSide, serveIndex: number, aimX: number) {
+  const half = CFG.courtW / 2 - 0.38;
+  const clamped = clamp(aimX, -half, half);
+  const deuce = isDeuceServe(serveIndex);
+  if (side === "near") return deuce ? Math.max(0.18, clamped) : Math.min(-0.18, clamped);
+  return deuce ? Math.min(-0.18, clamped) : Math.max(0.18, clamped);
+}
+
+function serviceBoxTargetZ(side: PlayerSide) {
+  return side === "near" ? -CFG.serviceLineZ + 0.12 : CFG.serviceLineZ - 0.12;
+}
+
+function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, durationMs: number, isServe: boolean, serveState?: ServeState) {
   const dx = endX - startX;
   const dy = endY - startY;
   const dist = Math.hypot(dx, dy);
@@ -810,17 +840,45 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   const aimX = clamp((dx / 120) * (CFG.courtW / 2), -CFG.courtW / 2 + 0.36, CFG.courtW / 2 - 0.36);
   const upward = clamp((-dy + 22) / 210, 0, 1);
   const targetZ = isServe ? lerp(-1.2, -CFG.serviceLineZ + 0.14, upward) : lerp(-1.25, -CFG.courtL / 2 + 0.66, upward);
-  return { target: new THREE.Vector3(aimX, CFG.ballR, targetZ), power, swipeDir: dir };
+  const target = new THREE.Vector3(aimX, CFG.ballR, targetZ);
+  if (isServe && serveState) {
+    target.x = serviceBoxTargetX(serveState.server, serveState.serveIndex, target.x);
+    target.z = serviceBoxTargetZ(serveState.server);
+  }
+  return { target, power, swipeDir: dir };
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((Math.abs(ball.pos.z) - 0.6) / (CFG.courtL / 2 - 0.8));
-  const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
-  const x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-  const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
-  const power = clamp(0.72 + pressure * 0.42 + Math.random() * 0.2, 0.62, 1);
-  const roll = Math.random();
-  const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.66 ? "slice" : roll < 0.22 ? "lob" : "flat";
+  const playerDeep = clamp01((near.pos.z - 2.1) / (CFG.courtL / 2 - 2.1));
+  const playerWide = Math.abs(near.pos.x) / (CFG.courtW / 2);
+  const attackChance = clamp01(0.35 + pressure * 0.5 + playerDeep * 0.4 + playerWide * 0.3);
+  const defendChance = clamp01(0.45 - pressure * 0.25);
+
+  let x = 0;
+  let z = 0;
+  let power = 0.72;
+  let technique: ShotTechnique = "flat";
+
+  if (attackChance > 0.72) {
+    x = near.pos.x > 0 ? -CFG.courtW * 0.42 : CFG.courtW * 0.42;
+    z = lerp(CFG.courtL * 0.2, CFG.courtL / 2 - 0.6, 0.72 + Math.random() * 0.22);
+    power = clamp(0.86 + Math.random() * 0.16, 0.8, 1);
+    technique = Math.random() > 0.5 ? "topspin" : "flat";
+  } else if (defendChance > 0.45 && ball.vel.length() > 9) {
+    x = clamp((Math.random() - 0.5) * 1.6, -CFG.courtW / 2 + 0.5, CFG.courtW / 2 - 0.5);
+    z = CFG.courtL / 2 - 1.1;
+    power = clamp(0.62 + Math.random() * 0.2, 0.58, 0.82);
+    technique = "lob";
+  } else {
+    const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
+    x = clamp(near.pos.x * 0.72 + sideRead + (Math.random() - 0.5) * 0.75, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+    z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
+    power = clamp(0.72 + pressure * 0.42 + Math.random() * 0.2, 0.62, 1);
+    const roll = Math.random();
+    technique = pressure > 0.72 ? "topspin" : roll > 0.66 ? "slice" : roll < 0.22 ? "lob" : "flat";
+  }
+
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
 
@@ -845,6 +903,10 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.x += (Math.random() - 0.5) * 1.6;
     ball.vel.y -= 0.12;
     ball.spin = -1.15 - hit.power * 0.62;
+  } else if (technique === "lob") {
+    ball.vel.y += 1.1 + hit.power * 0.75;
+    ball.vel.z *= 0.9;
+    ball.spin = 0.42 + hit.power * 0.3;
   } else {
     ball.spin = serve ? 0.95 + hit.power * 0.9 : 0.6 + hit.power * 1.25;
   }
@@ -1052,6 +1114,7 @@ export default function MobileThreeTennisPrototype() {
     crowdFx.volume = 0.32;
     let last = performance.now();
     let pointLock = false;
+    const serveState: ServeState = { server: "near", serveIndex: 0 };
     let pointLockT = 0;
     let replayText = "";
     let replayT = 0;
@@ -1071,6 +1134,8 @@ export default function MobileThreeTennisPrototype() {
       replayText = `Replay: ${reasonText} by ${winner === "near" ? "You" : "AI"}`;
       replayT = 1.7;
       void crowdFx.play().catch(() => {});
+      serveState.server = winner;
+      serveState.serveIndex += 1;
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
     };
 
@@ -1114,8 +1179,11 @@ export default function MobileThreeTennisPrototype() {
       control.lastTs = performance.now();
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
-      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-      const minZ = ball.lastHitBy === null ? CFG.serveNearBaselineZ : 0.76;
+      const isServeAim = ball.lastHitBy === null;
+      nearPlayer.target.x = isServeAim
+        ? clamp(serveLaneX("near", serveState.serveIndex) + dx * 0.004, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35)
+        : clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+      const minZ = isServeAim ? CFG.serveNearBaselineZ : 0.76;
       nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, minZ, CFG.courtL / 2 - 0.42);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 185) });
     };
@@ -1128,7 +1196,7 @@ export default function MobileThreeTennisPrototype() {
       control.pointerId = null;
       const isServe = ball.lastHitBy === null;
       const endTs = performance.now();
-      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe);
+      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe, serveState);
       startSwing(nearPlayer, hit, isServe ? "serve" : "forehand");
       setHudSafe({ status: isServe ? "Serve motion" : "Forehand swing", power: 0 });
     };
@@ -1262,7 +1330,7 @@ export default function MobileThreeTennisPrototype() {
           pointLock = false;
           nearPlayer.action = "ready";
           farPlayer.action = "ready";
-          nearPlayer.target.set(0, 0, CFG.courtL / 2 - 1.04);
+          nearPlayer.target.set(serveLaneX("near", serveState.serveIndex), 0, CFG.serveNearBaselineZ);
           farPlayer.target.set(0, 0, -CFG.courtL / 2 + 1.04);
           resetBallForServe(ball, nearPlayer);
           setHudSafe({ status: "Swipe up to serve", power: 0 });
