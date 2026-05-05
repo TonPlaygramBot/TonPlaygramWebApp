@@ -2545,9 +2545,6 @@ const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.168 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
-const HUMAN_HAND_WORLD_ANCHOR_BLEND = 0.9;
-const HUMAN_HAND_WORLD_OUTWARD_PUSH = 0.14 * MODEL_SCALE;
-const HUMAN_HAND_WORLD_LIFT_Y = 0.11 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
@@ -4065,31 +4062,6 @@ export default function MurlanRoyaleArena({ search }) {
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
           (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0);
-        if (isHumanCard && seat?.characterRig?.seatRoot) {
-          const handWorldAnchor = new THREE.Vector3();
-          const leftHandBone = seat.characterRig?.bones?.leftHand;
-          const rightHandBone = seat.characterRig?.bones?.rightHand;
-          if (leftHandBone && rightHandBone) {
-            const leftPos = new THREE.Vector3();
-            const rightPos = new THREE.Vector3();
-            leftHandBone.getWorldPosition(leftPos);
-            rightHandBone.getWorldPosition(rightPos);
-            handWorldAnchor.copy(leftPos).lerp(rightPos, 0.5);
-          } else if (rightHandBone) {
-            rightHandBone.getWorldPosition(handWorldAnchor);
-          } else if (leftHandBone) {
-            leftHandBone.getWorldPosition(handWorldAnchor);
-          } else {
-            seat.characterRig.seatRoot.getWorldPosition(handWorldAnchor);
-          }
-          const anchorLocal = seat.characterRig.seatRoot.worldToLocal(handWorldAnchor.clone());
-          const anchoredTarget = anchorLocal
-            .addScaledVector(forward, HUMAN_HAND_WORLD_OUTWARD_PUSH)
-            .addScaledVector(layoutAxis, lateral)
-            .addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
-          anchoredTarget.y += centerWeight * fanArcLift + HUMAN_HAND_WORLD_LIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
-          target.lerp(anchoredTarget, HUMAN_HAND_WORLD_ANCHOR_BLEND);
-        }
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
