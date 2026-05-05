@@ -6,7 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach";
+type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -94,6 +94,9 @@ const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   name: h.name,
   thumb: h.thumbnailUrl,
   hdriUrl: h.hdriUrl,
+  assetId: h.assetId,
+  assetUrls: h.assetUrls,
+  preferredResolutions: h.preferredResolutions,
 }));
 const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
 const PORTRAIT_AIM_ASSIST = 0.62;
@@ -120,6 +123,8 @@ const CFG = {
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
   playerStartZ: 7.15,
+  rackEdgeX: 1.42,
+  rackStopZ: 6.2,
   approachStopZ: 4.95,
   foulZ: 4.55,
   arrowsZ: 0.95,
@@ -130,6 +135,7 @@ const CFG = {
   pinToppleThreshold: 0.58,
   approachDuration: 0.56,
   throwDuration: 0.9,
+  replayDuration: 3.2,
   recoverDuration: 0.28,
   returnWalkDuration: 1.08,
   pickDuration: 0.42,
@@ -141,6 +147,7 @@ const clamp01 = (v: number) => clamp(v, 0, 1);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
+const HDRI_RES_LADDER = ["8k", "4k", "2k", "1k"] as const;
 
 function makeEmptyPlayers(): ScorePlayer[] {
   const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
@@ -711,6 +718,7 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.walkCycle = 0;
   rig.approachFrom.copy(rig.pos);
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
+  rig.yaw = Math.PI;
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
@@ -737,6 +745,16 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.model.rotation.x = t < 0.55 ? lerp(0, 0.26, t / 0.55) : lerp(0.26, -0.08, (t - 0.55) / 0.45);
       rig.model.rotation.z = t < 0.45 ? lerp(0, -0.12, t / 0.45) : lerp(-0.12, 0.06, (t - 0.45) / 0.55);
       rig.model.rotation.y = t < 0.7 ? lerp(0, 0.22, t / 0.7) : lerp(0.22, 0.08, (t - 0.7) / 0.3);
+      const rightHand = findRightHand(rig.model);
+      if (rightHand) {
+        if (t < CFG.releaseT) {
+          const k = easeInOut(t / CFG.releaseT);
+          rightHand.rotation.x = lerp(0.1, -1.45, k);
+        } else {
+          const k = easeOutCubic((t - CFG.releaseT) / (1 - CFG.releaseT));
+          rightHand.rotation.x = lerp(-1.45, 0.58, k);
+        }
+      }
     }
     if (rig.throwT >= 1) {
       rig.action = "recover";
@@ -758,7 +776,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.yaw = -0.78;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
+    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.22;
@@ -773,7 +791,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.yaw = -2.55;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    rig.pos.lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.18;
@@ -786,7 +804,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.model.rotation.x *= 0.82;
     rig.model.rotation.z *= 0.82;
   }
-  if (rig.action === "approach" || rig.action === "throw" || rig.action === "recover" || rig.action === "idle") rig.yaw = 0;
+  if (rig.action === "approach" || rig.action === "throw" || rig.action === "recover") rig.yaw = Math.PI;
+  if (rig.action === "idle") rig.yaw = 0;
   syncHuman(rig);
   if (ball.held) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
@@ -1029,6 +1048,8 @@ export default function MobileBowlingRealistic() {
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
   const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
   const [selectedBallWeight, setSelectedBallWeight] = useState<string>(() => localStorage.getItem("bowling.ballWeight") || "12");
+  const [skipReplays, setSkipReplays] = useState<boolean>(() => localStorage.getItem("bowling.skipReplays") === "1");
+  const [replayActive, setReplayActive] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
 
   useEffect(() => {
@@ -1056,26 +1077,36 @@ export default function MobileBowlingRealistic() {
     let envTex: THREE.Texture | null = null;
     const applyHdri = (id: string) => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
-      const hdriUrl = selected?.hdriUrl;
-      if (!hdriUrl) return;
-      new RGBELoader().setCrossOrigin("anonymous").load(
-      hdriUrl,
-      (hdr) => {
-        envTex = pmrem.fromEquirectangular(hdr).texture;
-        scene.environment = envTex;
-        scene.background = envTex;
-        if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
-        if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
-        if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
-        envTex.mapping = THREE.EquirectangularReflectionMapping;
-        hdr.dispose();
-      },
-      undefined,
-      () => {
-        scene.environment = null;
-        scene.background = new THREE.Color(0x090b11);
-      }
-    );
+      const preferred = Array.isArray(selected?.preferredResolutions) ? selected.preferredResolutions : ["4k", "2k"];
+      const candidates = [
+        ...(Object.values(selected?.assetUrls || {}) as string[]),
+        selected?.hdriUrl,
+        ...HDRI_RES_LADDER.map((r) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${r}/${selected?.assetId || "studio_small_09"}_${r}.hdr`)
+      ].filter(Boolean) as string[];
+      const ordered = [...new Set([...preferred.flatMap((res) => candidates.filter((u) => u.includes(`_${res}.`))), ...candidates])];
+      const tryLoad = (idx: number) => {
+        if (idx >= ordered.length) {
+          scene.environment = null;
+          scene.background = new THREE.Color(0x090b11);
+          return;
+        }
+        new RGBELoader().setCrossOrigin("anonymous").load(
+          ordered[idx],
+          (hdr) => {
+            envTex = pmrem.fromEquirectangular(hdr).texture;
+            scene.environment = envTex;
+            scene.background = envTex;
+            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
+            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
+            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
+            envTex.mapping = THREE.EquirectangularReflectionMapping;
+            hdr.dispose();
+          },
+          undefined,
+          () => tryLoad(idx + 1)
+        );
+      };
+      tryLoad(0);
     };
     applyHdri(selectedHdriId);
 
@@ -1120,6 +1151,7 @@ export default function MobileBowlingRealistic() {
     let pendingIntent: ThrowIntent | null = null;
     let shotResolved = false;
     let nextAction: "samePlayer" | "nextPlayer" | "gameOver" = "samePlayer";
+    let replayTimer = 0;
 
     const currentFrameRoll = () => {
       const p = localScores[activePlayer];
@@ -1187,8 +1219,10 @@ export default function MobileBowlingRealistic() {
       const result = addRollToPlayer(playerBefore, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
       let compliment = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10) { status = `${playerBefore.name} STRIKE!`; compliment = RESULT_COMPLIMENTS.strike[Math.floor(Math.random()*RESULT_COMPLIMENTS.strike.length)] + " " + STRIKE_DANCE_LINES[Math.floor(Math.random()*STRIKE_DANCE_LINES.length)]; }
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10) { status = `${playerBefore.name} SPARE!`; compliment = RESULT_COMPLIMENTS.spare[Math.floor(Math.random()*RESULT_COMPLIMENTS.spare.length)]; }
+      const strike = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10;
+      const spare = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10;
+      if (strike) { status = `${playerBefore.name} STRIKE!`; compliment = RESULT_COMPLIMENTS.strike[Math.floor(Math.random()*RESULT_COMPLIMENTS.strike.length)] + " " + STRIKE_DANCE_LINES[Math.floor(Math.random()*STRIKE_DANCE_LINES.length)]; }
+      if (spare) { status = `${playerBefore.name} SPARE!`; compliment = RESULT_COMPLIMENTS.spare[Math.floor(Math.random()*RESULT_COMPLIMENTS.spare.length)]; }
       const allDone = localScores.every((p) => playerFinished(p));
       if (allDone) nextAction = "gameOver";
       else if (result.frameEnded) {
@@ -1199,6 +1233,10 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({ ...prev, status, compliment }));
       shotResolved = true;
       waitingForBallReturn = true;
+      if (!skipReplays && (strike || spare)) {
+        replayTimer = CFG.replayDuration;
+        setReplayActive(true);
+      }
       if (ball.returnState === "idle") startBallReturn(ball);
     };
 
@@ -1218,7 +1256,7 @@ export default function MobileBowlingRealistic() {
 
     const onPointerDown = (e: PointerEvent) => {
       if (nextAction === "gameOver") return;
-      if (control.active || ball.rolling || waitingForBallReturn) return;
+      if (control.active || ball.rolling || waitingForBallReturn || replayActive) return;
       if (player.action === "approach" || player.action === "throw" || player.action === "recover") return;
       canvas.setPointerCapture(e.pointerId);
       control.active = true;
@@ -1273,6 +1311,10 @@ export default function MobileBowlingRealistic() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
+      if (replayTimer > 0) {
+        replayTimer = Math.max(0, replayTimer - dt);
+        if (replayTimer <= 0) setReplayActive(false);
+      }
       updateHuman(player, ball, dt, true);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
@@ -1324,7 +1366,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId, selectedBallWeight]);
+  }, [graphicsQuality, selectedHdriId, selectedBallWeight, replayActive, skipReplays]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1365,7 +1407,12 @@ export default function MobileBowlingRealistic() {
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
             {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
           </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,marginTop:10,fontSize:12}}>
+            <input type="checkbox" checked={skipReplays} onChange={(e)=>{setSkipReplays(e.target.checked); localStorage.setItem("bowling.skipReplays", e.target.checked ? "1":"0");}} />
+            Skip strike/spare replays
+          </label>
         </div> : null}
+        {replayActive ? <button onClick={()=>setReplayActive(false)} style={{ position:"absolute", top: 132, right: 8, padding:"8px 10px", borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(190,20,20,0.75)", color:"#fff", fontWeight:900, pointerEvents:"auto" }}>Skip replay</button> : null}
 
       </div>
     </div>
