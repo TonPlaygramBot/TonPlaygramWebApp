@@ -49,7 +49,13 @@ type HumanRig = {
   fallback: THREE.Group;
   shadow: THREE.Mesh;
   model: THREE.Object3D | null;
+  mixer: THREE.AnimationMixer | null;
+  actions: Partial<Record<"idle" | "walk" | "run", THREE.AnimationAction>>;
+  currentAnim: "idle" | "walk" | "run";
   pos: THREE.Vector3;
+  dir: THREE.Vector3;
+  targetDir: THREE.Vector3;
+  speed: number;
   yaw: number;
   action: PlayerAction;
   approachT: number;
@@ -89,7 +95,7 @@ type PinState = {
   knocked: boolean;
 };
 
-const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const HUMAN_URL = "https://threejs.org/examples/models/gltf/Soldier.glb";
 const HUMAN_INITIAL_SCALE = 1.46;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
@@ -378,7 +384,13 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     fallback,
     shadow,
     model: null,
+    mixer: null,
+    actions: {},
+    currentAnim: "idle",
     pos: start.clone(),
+    dir: new THREE.Vector3(0, 0, -1),
+    targetDir: new THREE.Vector3(0, 0, -1),
+    speed: 0,
     yaw: 0,
     action: "idle",
     approachT: 0,
@@ -400,6 +412,19 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
       lockHumanToLaneGround(model);
       enableShadow(model);
       rig.model = model;
+      rig.mixer = new THREE.AnimationMixer(model);
+      const clips = new Map(gltf.animations.map((clip) => [clip.name.toLowerCase(), clip]));
+      const aliases: Record<"idle" | "walk" | "run", string[]> = { idle: ["idle"], walk: ["walk", "walking"], run: ["run", "running"] };
+      (Object.keys(aliases) as Array<"idle" | "walk" | "run">).forEach((name) => {
+        const clip = aliases[name].map((key) => clips.get(key)).find(Boolean);
+        if (!clip || !rig.mixer) return;
+        const action = rig.mixer.clipAction(clip);
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.setEffectiveWeight(name === "idle" ? 1 : 0);
+        action.play();
+        rig.actions[name] = action;
+      });
       rig.fallback.visible = false;
       rig.modelRoot.add(model);
     },
@@ -421,8 +446,23 @@ function lockHumanToLaneGround(model: THREE.Object3D) {
 
 function syncHuman(rig: HumanRig) {
   rig.modelRoot.position.copy(rig.pos);
-  rig.modelRoot.rotation.y = rig.yaw;
+  if (rig.targetDir.lengthSq() > 0.0001) {
+    rig.dir.lerp(rig.targetDir, 0.18).normalize();
+  }
+  rig.modelRoot.rotation.y = Math.atan2(rig.dir.x, rig.dir.z);
   rig.shadow.position.set(rig.pos.x, CFG.laneY + 0.01, rig.pos.z);
+}
+
+function setRigAction(rig: HumanRig, next: "idle" | "walk" | "run") {
+  if (rig.currentAnim === next || !rig.actions[next]) return;
+  const prev = rig.actions[rig.currentAnim];
+  const action = rig.actions[next];
+  if (prev && action) {
+    action.enabled = true;
+    action.reset().setEffectiveWeight(1).play();
+    prev.crossFadeTo(action, 0.16, false);
+  }
+  rig.currentAnim = next;
 }
 
 
@@ -746,6 +786,9 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
     rig.pos.lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
+    rig.speed = rig.approachFrom.distanceTo(rig.approachTo) / Math.max(CFG.approachDuration, 0.001);
+    rig.targetDir.copy(rig.approachTo).sub(rig.approachFrom).setY(0).normalize();
+    setRigAction(rig, "walk");
     if (rig.model) {
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.046;
       rig.model.rotation.x = 0.035;
@@ -756,6 +799,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.throwT = 0.001;
     }
   } else if (rig.action === "throw") {
+    rig.speed = 0;
+    setRigAction(rig, "idle");
     rig.throwT += dt / CFG.throwDuration;
     if (rig.model) {
       const t = clamp01(rig.throwT);
@@ -785,6 +830,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.throwT = 0;
     }
   } else if (rig.action === "recover") {
+    rig.speed = 0;
+    setRigAction(rig, "idle");
     rig.recoverT += dt / CFG.recoverDuration;
     if (rig.model) {
       rig.model.rotation.x = lerp(-0.05, 0, clamp01(rig.recoverT));
@@ -800,6 +847,9 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
+    rig.speed = rig.approachTo.distanceTo(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ)) / Math.max(CFG.returnWalkDuration, 0.001);
+    rig.targetDir.set(CFG.rackEdgeX - rig.approachTo.x, 0, CFG.rackStopZ - rig.approachTo.z).normalize();
+    setRigAction(rig, "walk");
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.22;
@@ -808,6 +858,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     }
     if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
   } else if (rig.action === "pickBall") {
+    rig.speed = 0;
+    setRigAction(rig, "idle");
     rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
     if (rig.model) {
       const k = easeInOut(rig.pickT);
@@ -821,6 +873,9 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     rig.pos.lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    rig.speed = new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ).distanceTo(new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ)) / Math.max(CFG.returnWalkDuration, 0.001);
+    rig.targetDir.set(-CFG.rackEdgeX, 0, CFG.playerStartZ - CFG.rackStopZ).normalize();
+    setRigAction(rig, "walk");
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.18;
@@ -829,12 +884,17 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     }
     if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
+    rig.speed = 0;
+    setRigAction(rig, "idle");
     rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
     rig.model.rotation.z *= 0.82;
   }
   if (rig.action === "approach" || rig.action === "throw" || rig.action === "recover") rig.yaw = Math.PI;
   if (rig.action === "idle") rig.yaw = 0;
+  if (rig.actions.walk) rig.actions.walk.timeScale = THREE.MathUtils.clamp(rig.speed / 1.4, 0.72, 1.28);
+  if (rig.actions.run) rig.actions.run.timeScale = THREE.MathUtils.clamp(rig.speed / 2.0, 0.72, 1.25);
+  rig.mixer?.update(dt);
   syncHuman(rig);
   if (ball.held) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
