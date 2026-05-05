@@ -363,8 +363,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.68; // Further shrink pieces for a cleaner portrait view and more breathing room.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.42; // Make board/table footprint smaller on portrait screens.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.9; // Make chess pieces visually bigger while board footprint is smaller.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE; // Pull local chair/human closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.11 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.24 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -9759,9 +9759,15 @@ function Chess3D({
 
     const cameraMemory = { last3d: null };
 
+    const canUseZoom = () => {
+      const state = onlineRef.current?.status;
+      return state !== 'started' && state !== 'in-progress';
+    };
+
     const setViewModeInternal = (mode) => {
       if (!controls) return;
       const requestedMode = mode;
+      const allowZoom = canUseZoom();
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
@@ -9788,7 +9794,7 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = true;
+        controls.enableZoom = allowZoom;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
@@ -9806,7 +9812,7 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = true;
         controls.enablePan = false;
-        controls.enableZoom = true;
+        controls.enableZoom = allowZoom;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
