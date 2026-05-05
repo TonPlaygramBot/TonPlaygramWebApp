@@ -94,11 +94,6 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import {
-  createBilardoHumanRig,
-  chooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -20436,17 +20431,40 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      const humanRig = createBilardoHumanRig(table, {
-        loader: new GLTFLoader(),
-        modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-        scale: SCALE,
-        humanScale: SCALE * 1.18,
-        humanVisualYawFix: Math.PI,
-        tableTopY: CUE_Y,
-        tableW: PLAY_W,
-        tableL: PLAY_H,
-        footGroundY: 0
-      });
+      const humanActor = new THREE.Group();
+      const humanModelRoot = new THREE.Group();
+      humanActor.add(humanModelRoot);
+      humanActor.visible = false;
+      table.add(humanActor);
+      const humanLoader = new GLTFLoader();
+      humanLoader.setCrossOrigin('anonymous');
+      humanLoader.load(
+        'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+        (gltf) => {
+          const model = gltf?.scene;
+          if (!model) return;
+          model.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          });
+          const scaleFactor = SCALE * 1.18;
+          model.scale.setScalar(scaleFactor);
+          model.rotation.set(0, Math.PI, 0);
+          model.position.set(0, 0, 0);
+          model.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.set(-center.x, -box.min.y, -center.z);
+          humanModelRoot.add(model);
+          humanActor.visible = true;
+        },
+        undefined,
+        () => {
+          humanActor.visible = false;
+        }
+      );
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -25983,28 +26001,18 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
-          if (humanRig?.root && cueStick && cue?.active) {
-            const cueBallWorld = new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y);
-            const aimForward = new THREE.Vector3(-aimDirRef.current.x, 0, -aimDirRef.current.y).normalize();
-            const rootTarget = chooseBilardoHumanEdgePosition(cueBallWorld, aimForward, { tableW: PLAY_W, tableL: PLAY_H, edgeMargin: SCALE * 0.58, desiredShootDistance: SCALE * 1.06 });
-            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const bridgeTarget = cueBallWorld.clone().addScaledVector(aimForward, -0.235 * SCALE).addScaledVector(side, -0.012 * SCALE).setY(CUE_Y + 0.006 * SCALE);
-            const cueTip = cueStick.localToWorld(cueTipLocal.clone());
-            const cueBack = cueStick.localToWorld(cueButtLocal.clone());
+          if (humanActor.visible && cueStick) {
             const yaw = cueStick.rotation.y;
-            const idleRight = rootTarget.clone().add(new THREE.Vector3(0.31 * SCALE, 0.8 * SCALE, -0.015 * SCALE).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
-            const idleLeft = rootTarget.clone().add(new THREE.Vector3(-0.18 * SCALE, 1.08 * SCALE, 0.03 * SCALE).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
-            updateBilardoHumanPose(humanRig, dt, {
-              state: shooting ? 'striking' : sliderInstanceRef.current?.dragging ? 'dragging' : 'idle',
-              rootTarget,
-              aimForward,
-              bridgeTarget,
-              idleRight,
-              idleLeft,
-              cueBack,
-              cueTip,
-              power: powerRef.current || 0
-            });
+            const forwardX = Math.sin(yaw - Math.PI);
+            const forwardZ = Math.cos(yaw - Math.PI);
+            const sideX = forwardZ;
+            const sideZ = -forwardX;
+            humanActor.position.set(
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              0,
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
+            );
+            humanActor.rotation.y = yaw;
           }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
