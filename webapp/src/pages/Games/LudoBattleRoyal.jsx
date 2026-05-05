@@ -3243,10 +3243,10 @@ const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
-// Lift first-person camera anchor higher so portrait view sits above eye-line and sees more table.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.108 * MODEL_SCALE;
-// Move anchor further toward gameplay so the camera feels closer/inward to the table on portrait phones.
-const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.122 * MODEL_SCALE;
+// Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
+const SEATED_HELPER_FACE_CAMERA_UP = 0.082 * MODEL_SCALE;
+// Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.098 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -6003,9 +6003,9 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       toGameplay.copy(target).sub(headWorld);
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
-        // Keep first-person camera closer toward gameplay while staying outside the head mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, 0.145 * MODEL_SCALE);
-        position.y += 0.046 * MODEL_SCALE;
+        // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
+        position.copy(headWorld).addScaledVector(toGameplay, 0.12 * MODEL_SCALE);
+        position.y += 0.03 * MODEL_SCALE;
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {
