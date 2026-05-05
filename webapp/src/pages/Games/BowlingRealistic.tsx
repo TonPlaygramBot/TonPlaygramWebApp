@@ -51,6 +51,8 @@ type HumanRig = {
   model: THREE.Object3D | null;
   pos: THREE.Vector3;
   yaw: number;
+  targetYaw: number;
+  yawVelocity: number;
   action: PlayerAction;
   approachT: number;
   throwT: number;
@@ -380,6 +382,8 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     model: null,
     pos: start.clone(),
     yaw: 0,
+    targetYaw: 0,
+    yawVelocity: 0,
     action: "idle",
     approachT: 0,
     throwT: 0,
@@ -423,6 +427,17 @@ function syncHuman(rig: HumanRig) {
   rig.modelRoot.position.copy(rig.pos);
   rig.modelRoot.rotation.y = rig.yaw;
   rig.shadow.position.set(rig.pos.x, CFG.laneY + 0.01, rig.pos.z);
+}
+
+function smoothFacing(rig: HumanRig, nextPos: THREE.Vector3, dt: number) {
+  const move = nextPos.clone().sub(rig.pos);
+  if (move.lengthSq() > 0.0005) rig.targetYaw = Math.atan2(move.x, move.z);
+  let delta = rig.targetYaw - rig.yaw;
+  while (delta > Math.PI) delta -= Math.PI * 2;
+  while (delta < -Math.PI) delta += Math.PI * 2;
+  const yawStep = delta * (1 - Math.pow(0.0008, dt));
+  rig.yaw += yawStep;
+  rig.yawVelocity = yawStep / Math.max(0.0001, dt);
 }
 
 
@@ -739,17 +754,21 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.approachFrom.copy(rig.pos);
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
   rig.yaw = Math.PI;
+  rig.targetYaw = Math.PI;
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
   if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
-    rig.pos.lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
+    const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
+    smoothFacing(rig, nextPos, dt);
+    rig.pos.copy(nextPos);
     if (rig.model) {
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.046;
       rig.model.rotation.x = 0.035;
-      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.02;
+      const turnLean = clamp(rig.yawVelocity * 0.0032, -0.12, 0.12);
+      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.02 - turnLean;
     }
     if (rig.approachT >= 1) {
       rig.action = "throw";
@@ -796,14 +815,16 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.returnWalkT = 0.001;
     }
   } else if (rig.action === "toRack") {
-    rig.yaw = -2.55;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
+    const nextPos = new THREE.Vector3().lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
+    smoothFacing(rig, nextPos, dt);
+    rig.pos.copy(nextPos);
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
+      const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
       rig.model.rotation.y = swing * 0.22;
-      rig.model.rotation.z = swing * 0.08;
+      rig.model.rotation.z = swing * 0.08 - turnLean;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
     if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
@@ -817,14 +838,16 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     }
     if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
   } else if (rig.action === "toApproach") {
-    rig.yaw = -2.55;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    rig.pos.lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    const nextPos = new THREE.Vector3().lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    smoothFacing(rig, nextPos, dt);
+    rig.pos.copy(nextPos);
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
+      const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
       rig.model.rotation.y = swing * 0.18;
-      rig.model.rotation.z = -swing * 0.06;
+      rig.model.rotation.z = -swing * 0.06 - turnLean;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
     if (rig.returnWalkT >= 1) rig.action = "idle";
@@ -833,8 +856,16 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.model.rotation.x *= 0.82;
     rig.model.rotation.z *= 0.82;
   }
-  if (rig.action === "approach" || rig.action === "throw" || rig.action === "recover") rig.yaw = Math.PI;
-  if (rig.action === "idle") rig.yaw = 0;
+  if (rig.action === "throw" || rig.action === "recover") {
+    rig.targetYaw = Math.PI;
+    rig.yaw = lerp(rig.yaw, Math.PI, 1 - Math.pow(0.0008, dt));
+    rig.yawVelocity = 0;
+  }
+  if (rig.action === "idle") {
+    rig.targetYaw = 0;
+    rig.yaw = lerp(rig.yaw, 0, 1 - Math.pow(0.0008, dt));
+    rig.yawVelocity = 0;
+  }
   syncHuman(rig);
   if (ball.held) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
