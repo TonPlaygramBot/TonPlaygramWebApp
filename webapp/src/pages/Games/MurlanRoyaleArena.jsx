@@ -1809,23 +1809,9 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
   const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
 
-  const heldCards = createCharacterCards({
-    handLift: characterTheme.handLift ?? 0.94,
-    handCardsInput: player?.hand ?? [],
-    cardTheme,
-    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
-    cardTextureSize
-  });
-
-  heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
-  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
-
-  instance.add(heldCards);
+  const heldCards = null;
   const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
   const heldCardsPose = computeHeldCardsPose({ player, resolvedSeatIndex });
-  heldCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
-  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.2);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1930,39 +1916,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   return rig;
 }
 
-function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
-  if (!rig) return;
-  const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
-  const currentCount = rig.heldCards?.children?.length ?? 0;
-  const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
-  const cardsSignature = safeCards.map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
-  const cardsChanged = rig.heldCards?.userData?.cardsSignature !== cardsSignature;
-  if (currentCount === Math.max(safeCards.length, 2) && !colorChanged && !cardsChanged) return;
-
-  const parent = rig.heldCards?.parent || null;
-  rig.heldCards?.userData?.dispose?.();
-  if (parent) parent.remove(rig.heldCards);
-
-  const nextCards = createCharacterCards({
-    handLift: 0.94,
-    handCardsInput: safeCards,
-    cardTheme,
-    playerColor,
-    cardTextureSize
-  });
-  nextCards.userData.playerColor = playerColor;
-  nextCards.userData.cardsSignature = cardsSignature;
-
-  rig.instance.add(nextCards);
-  const heldCardsPose = rig.heldCardsPose || computeHeldCardsPose({
-    player: { isHuman: Boolean(rig.isBottomHumanSeat) },
-    resolvedSeatIndex: rig.seatIndex ?? 0
-  });
-  nextCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
-  nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  nextCards.scale.setScalar(1.3);
-
-  rig.heldCards = nextCards;
+function refreshRigHeldCards() {
+  // Intentionally disabled: character-attached procedural mini cards were removed.
 }
 
 function lerpBoneToPose(bone, from, to, t) {
@@ -2592,6 +2547,8 @@ const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT_PORTION = 0.32;
 const AI_CARD_OUTWARD = 0.26 * MODEL_SCALE;
+const PLAYER_HAND_PUSH_OUTWARD = CARD_H;
+const PLAYER_HAND_LIFT_UP = CARD_H;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
@@ -4028,7 +3985,8 @@ export default function MurlanRoyaleArena({ search }) {
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
         const lateral = humanLineOffset;
-        const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
+        const radialBase = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
+        const radial = radialBase + PLAYER_HAND_PUSH_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard
           ? HUMAN_HAND_FAN_DIRECTION
@@ -4061,7 +4019,8 @@ export default function MurlanRoyaleArena({ search }) {
           (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0);
+          (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0) +
+          PLAYER_HAND_LIFT_UP;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
