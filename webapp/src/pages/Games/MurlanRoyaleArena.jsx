@@ -1793,46 +1793,6 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
   };
 }
 
-
-function alignHeldCardsToHands(rig, cardsGroup = null) {
-  if (!rig?.instance) return;
-  const heldCards = cardsGroup || rig.heldCards;
-  if (!heldCards) return;
-
-  const leftHandWorld = new THREE.Vector3();
-  const rightHandWorld = new THREE.Vector3();
-  const hasLeftHand = Boolean(rig.bones?.leftHand);
-  const hasRightHand = Boolean(rig.bones?.rightHand);
-
-  if (hasLeftHand) rig.bones.leftHand.getWorldPosition(leftHandWorld);
-  if (hasRightHand) rig.bones.rightHand.getWorldPosition(rightHandWorld);
-
-  const avgHandWorld = new THREE.Vector3();
-  if (hasLeftHand && hasRightHand) {
-    avgHandWorld.addVectors(leftHandWorld, rightHandWorld).multiplyScalar(0.5);
-  } else if (hasRightHand) {
-    avgHandWorld.copy(rightHandWorld);
-  } else if (hasLeftHand) {
-    avgHandWorld.copy(leftHandWorld);
-  } else {
-    const fallback = rig.heldCardsPose || computeHeldCardsPose({
-      player: { isHuman: Boolean(rig.isBottomHumanSeat) },
-      resolvedSeatIndex: rig.seatIndex ?? 0
-    });
-    heldCards.position.set(fallback.x, fallback.y, fallback.z);
-    return;
-  }
-
-  const localHandCenter = rig.instance.worldToLocal(avgHandWorld.clone());
-  const outwardDirection = (rig.seatConfig?.forward || new THREE.Vector3(0, 0, -1)).clone().normalize();
-  const outwardDistance = (rig.isBottomHumanSeat ? 0.06 : 0.12) * MODEL_SCALE;
-  const liftDistance = (rig.isBottomHumanSeat ? 0.055 : 0.075) * MODEL_SCALE;
-
-  localHandCenter.add(outwardDirection.multiplyScalar(outwardDistance));
-  localHandCenter.y += liftDistance;
-  heldCards.position.copy(localHandCenter);
-}
-
 function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
@@ -1950,8 +1910,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightCalf: captureBoneRotation(rightCalf)
   };
 
-  alignHeldCardsToHands(rig, heldCards);
-
   if (HUMAN_CARD_HAND_DEBUG_HELPERS) {
     const handHelper = new THREE.Mesh(
       new THREE.SphereGeometry(0.018 * MODEL_SCALE, 10, 10),
@@ -2005,7 +1963,6 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.scale.setScalar(1.3);
 
   rig.heldCards = nextCards;
-  alignHeldCardsToHands(rig, nextCards);
 }
 
 function lerpBoneToPose(bone, from, to, t) {
