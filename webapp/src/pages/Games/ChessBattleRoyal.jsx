@@ -364,7 +364,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.68; // Further shrink pieces for a cleaner portrait view and more breathing room.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82; // Enlarge pieces so they stay readable after shrinking the board footprint.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -372,7 +372,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.88;
+const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.78;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE; // Pull local chair/human closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.11 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.18 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -13158,14 +13158,19 @@ function Chess3D({
 
     const onWheel = (event) => {
       if (!camera || !boardLookTarget) return;
-      if (viewModeRef.current !== '3d' || !locked3dViewRef.current.activeLook) return;
+      const isMatchedSession = onlineRef.current.enabled && ['matched', 'in-game'].includes(onlineStatus);
+      if (isMatchedSession || viewModeRef.current === 'fpv') return;
       event.preventDefault();
+      const minRadius = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
+      const maxRadius = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       const direction = camera.position.clone().sub(boardLookTarget).normalize();
       const currentRadius = camera.position.distanceTo(boardLookTarget);
       const delta = event.deltaY * CAMERA_WHEEL_FACTOR;
-      const nextRadius = clamp(currentRadius + delta, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+      const nextRadius = clamp(currentRadius + delta, minRadius, maxRadius);
       camera.position.copy(boardLookTarget).addScaledVector(direction, nextRadius);
-      locked3dViewRef.current.fixedPosition = camera.position.clone();
+      if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
+        locked3dViewRef.current.fixedPosition = camera.position.clone();
+      }
       controls?.update();
       syncSkyboxToCamera();
     };
