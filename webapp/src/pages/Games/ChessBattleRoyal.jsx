@@ -456,8 +456,11 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.012; // keep camera very close and centered in front of the face.
-const FPV_FACE_UP_OFFSET = -0.003; // tiny vertical lift to avoid clipping while staying face-level.
+const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
+const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
+const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
+const FPV_LOOK_TARGET_UP_OFFSET = 0.09; // keep gaze a touch above board center so opponent character remains in frame.
+const FPV_OPPONENT_HEAD_UP_OFFSET = 0.04; // bias look target toward opponent head/upper torso instead of chest.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
@@ -13929,7 +13932,23 @@ function Chess3D({
           .copy(eyeWorld)
           .addScaledVector(eyeForward, FPV_FACE_FORWARD_OFFSET)
           .addScaledVector(eyeUp, FPV_FACE_UP_OFFSET + bobOffset);
-        camera.quaternion.slerp(headQuat, FPV_HEAD_FOLLOW_SMOOTHING);
+        const lookTarget = eyeWorld
+          .clone()
+          .addScaledVector(eyeForward, FPV_LOOK_AHEAD_DISTANCE)
+          .addScaledVector(WORLD_UP, FPV_LOOK_TARGET_UP_OFFSET);
+        const opponentEntry = Array.isArray(seatedActors)
+          ? seatedActors.find((entry) => entry?.playerIndex === 1)
+          : null;
+        const opponentHead = opponentEntry?.rig?.head
+          ? opponentEntry.rig.head.getWorldPosition(new THREE.Vector3())
+          : opponentEntry?.actor?.getWorldPosition?.(new THREE.Vector3()) ?? null;
+        if (opponentHead) {
+          lookTarget.lerp(
+            opponentHead.clone().addScaledVector(WORLD_UP, FPV_OPPONENT_HEAD_UP_OFFSET),
+            0.86
+          );
+        }
+        camera.lookAt(lookTarget);
       }
 
       controls?.update();
