@@ -364,7 +364,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.76; // Shrink chess pieces further so the board feels less crowded on phone screens.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.68; // Further shrink pieces for a cleaner portrait view and more breathing room.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -372,7 +372,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.88;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -9673,9 +9673,9 @@ function Chess3D({
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.enablePan = true;
+    controls.enablePan = false;
     controls.screenSpacePanning = true;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.minDistance = CAMERA_3D_MIN_RADIUS;
     controls.maxDistance = CAMERA_3D_MAX_RADIUS;
     controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9684,6 +9684,25 @@ function Chess3D({
     controls.zoomSpeed = 0.7;
     controls.panSpeed = 0.6;
     controls.target.copy(boardLookTarget);
+    const cameraOffset = camera.position.clone().sub(boardLookTarget);
+    const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
+    const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 32 : 27);
+    const verticalAllowanceUp = THREE.MathUtils.degToRad(isPortrait ? 18 : 14);
+    const verticalAllowanceDown = THREE.MathUtils.degToRad(isPortrait ? 20 : 16);
+    controls.minPolarAngle = clamp(
+      cameraSpherical.phi - verticalAllowanceUp,
+      CAMERA_PULL_FORWARD_MIN,
+      CAM.phiMax
+    );
+    controls.maxPolarAngle = clamp(
+      cameraSpherical.phi + verticalAllowanceDown,
+      CAMERA_PULL_FORWARD_MIN,
+      CAM.phiMax
+    );
+    controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
+    controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
+    controls.minDistance = cameraSpherical.radius;
+    controls.maxDistance = cameraSpherical.radius;
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
@@ -9786,8 +9805,8 @@ function Chess3D({
         camera.updateProjectionMatrix();
         controls.enabled = true;
         controls.enableRotate = true;
-        controls.enablePan = true;
-        controls.enableZoom = true;
+        controls.enablePan = false;
+        controls.enableZoom = false;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
