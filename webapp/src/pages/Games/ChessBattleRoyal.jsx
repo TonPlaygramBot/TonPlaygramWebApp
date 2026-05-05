@@ -116,7 +116,7 @@ const CAPTURE_DRONE_ATTACK_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_DRONE_TRAV
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
 const CAPTURE_PAWN_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_PAWN_TRAVEL_TIME;
-const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.72; // rebalance weapon units closer to human/chess-piece proportions
+const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.48; // rebalance weapon units closer to human/chess-piece proportions
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER * 1.4;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // includes +40% global vehicle upscale via CAPTURE_DRONE_SCALE
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // includes +40% global vehicle upscale via CAPTURE_DRONE_SCALE
@@ -363,7 +363,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.66; // Keep the same table/board/chair proportions, but ~22% smaller than current.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.58; // Keep the same table/board/chair proportions, but ~22% smaller than current.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.045 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.01 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.082 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.058 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -455,9 +455,10 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.62; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.02; // keep camera very close and centered in front of the face.
-const FPV_FACE_UP_OFFSET = 0.0; // tiny vertical lift to avoid clipping while staying face-level.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const FPV_FACE_FORWARD_OFFSET = -0.018; // keep camera slightly behind the eyes so the board reads forward instead of top-down.
+const FPV_FACE_UP_OFFSET = -0.01; // seat the camera exactly at eye line with a tiny downward settle to avoid looking over the board.
+const FPV_BOARD_LOOK_BLEND = 0.88; // bias view direction toward the board while still allowing look-around yaw/pitch input.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
@@ -9729,7 +9730,7 @@ function Chess3D({
 
     const setViewModeInternal = (mode) => {
       if (!controls) return;
-      const requestedMode = mode === 'fpv' ? '3d' : mode;
+      const requestedMode = mode;
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
@@ -9740,7 +9741,17 @@ function Chess3D({
       const initialRadius = currentRadius;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
-      if (requestedMode === '2d') {
+      if (requestedMode === 'fpv') {
+        cameraMemory.last3d = current;
+        controls.enabled = false;
+        controls.enableRotate = false;
+        controls.enablePan = false;
+        controls.enableZoom = false;
+        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+        controls.maxPolarAngle = CAM.phiMax;
+        controls.minDistance = CAMERA_3D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+      } else if (requestedMode === '2d') {
         cameraMemory.last3d = current;
         controls.target.copy(boardLookTarget);
         controls.enabled = true;
@@ -9809,11 +9820,13 @@ function Chess3D({
       if (viewModeRef.current === '2d') {
         controls.target.copy(boardLookTarget);
       }
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
-      const dir = camera.position.clone().sub(boardLookTarget).normalize();
-      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-      controls.update();
+      if (viewModeRef.current !== 'fpv') {
+        const currentRadius = camera.position.distanceTo(boardLookTarget);
+        const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
+        const dir = camera.position.clone().sub(boardLookTarget).normalize();
+        camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+        controls.update();
+      }
     };
     fitRef.current = fit;
     fit();
@@ -13841,7 +13854,7 @@ function Chess3D({
               handTarget.lerpVectors(liftedFrom, blendedGrip, gripT);
               if (gripT >= 0.82) handTarget.copy(holdWorld);
               action.mesh.position.copy(handTarget);
-              if (!action.gripOffset && gripT >= 0.9) {
+              if (!action.gripOffset && gripT >= 0.84) {
                 action.gripOffset = action.mesh.position.clone().sub(holdWorld);
               }
             } else if (u < carryPhaseEnd) {
@@ -13852,20 +13865,19 @@ function Chess3D({
               const gripContact = holdWorld.clone().add(gripOffset);
               const carryTarget = gripContact.clone().lerp(liftedTo, carryT);
               carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
-              if (carryT <= 0.62) {
-                handTarget.copy(holdWorld);
-                action.mesh.position.copy(holdWorld);
-              } else {
-                handTarget.copy(carryTarget);
-                action.mesh.position.copy(carryTarget);
-              }
+              handTarget.copy(carryTarget);
+              const contactLockT = clamp01((carryT - 0.12) / 0.88);
+              const strictContact = holdWorld.clone().lerp(carryTarget, contactLockT);
+              action.mesh.position.copy(strictContact);
             } else {
               const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
               const easedDropT = smoothEase(dropT);
               const landing = liveTo.clone();
               landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
               handTarget.lerpVectors(liftedTo, landing, easedDropT);
-              action.mesh.position.copy(handTarget);
+              const gripOffset = action.gripOffset || new THREE.Vector3();
+              const releaseContact = holdWorld.clone().add(gripOffset).lerp(handTarget, easedDropT);
+              action.mesh.position.copy(releaseContact);
             }
             applyRightArmContactIK(entry.rig, handTarget, SEATED_HUMAN_CONTACT_IK_STRENGTH);
             if (action.handHelper) action.handHelper.position.copy(holdWorld);
@@ -13903,21 +13915,28 @@ function Chess3D({
       if (fpvEnabled && localActorEntry?.actor && localActorEntry?.rig?.head) {
         fpState.yaw = THREE.MathUtils.lerp(fpState.yaw, fpState.targetYaw, 0.18);
         fpState.pitch = THREE.MathUtils.lerp(fpState.pitch, fpState.targetPitch, 0.2);
-        localActorEntry.actor.rotation.y = SEATED_HUMAN_FACING_Y + fpState.yaw;
-        addBoneRot(localActorEntry.rig, localActorEntry.rig.head, fpState.pitch * 0.85, 0, 0);
+        localActorEntry.actor.rotation.y = SEATED_HUMAN_FACING_Y;
+        addBoneRot(localActorEntry.rig, localActorEntry.rig.head, fpState.pitch * 0.75, fpState.yaw * 0.65, 0);
         fpState.bobTime += dt * (2.2 + Math.abs(fpState.targetYaw - fpState.yaw) * 6);
         const bobOffset = Math.sin(fpState.bobTime * 7.2) * FPV_BOB_AMPLITUDE;
         const rig = localActorEntry.rig;
         const eyeWorld = averageBoneWorldPosition([rig.leftEye, rig.rightEye])
           ?? rig.head.getWorldPosition(new THREE.Vector3());
         const headQuat = rig.head.getWorldQuaternion(new THREE.Quaternion());
-        const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
-        const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat);
+        const baseBoardLookDir = boardLookTarget.clone().sub(eyeWorld).normalize();
+        const boardQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), baseBoardLookDir);
+        const lookOffsetQuat = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(fpState.pitch * 0.6, fpState.yaw * 0.78, 0, 'YXZ')
+        );
+        const finalEyeQuat = boardQuat.clone().multiply(lookOffsetQuat);
+        const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(finalEyeQuat);
+        const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(finalEyeQuat);
         camera.position
           .copy(eyeWorld)
           .addScaledVector(eyeForward, FPV_FACE_FORWARD_OFFSET)
           .addScaledVector(eyeUp, FPV_FACE_UP_OFFSET + bobOffset);
-        camera.quaternion.slerp(headQuat, FPV_HEAD_FOLLOW_SMOOTHING);
+        const blendedQuat = headQuat.slerp(finalEyeQuat, FPV_BOARD_LOOK_BLEND);
+        camera.quaternion.slerp(blendedQuat, FPV_HEAD_FOLLOW_SMOOTHING);
       }
 
       controls?.update();
@@ -14157,10 +14176,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              onClick={() => setViewMode((mode) => (mode === 'fpv' ? '2d' : 'fpv'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === 'fpv' ? '2D' : 'FPV'}
             </button>
           </div>
           {configOpen && (
