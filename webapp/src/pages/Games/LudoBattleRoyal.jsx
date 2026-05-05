@@ -6004,16 +6004,16 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
         // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, 0.12 * MODEL_SCALE);
-        position.y += 0.03 * MODEL_SCALE;
+        position.copy(headWorld).addScaledVector(toGameplay, 0.155 * MODEL_SCALE);
+        position.y += 0.055 * MODEL_SCALE;
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {
     target.copy(headWorld);
     target.z += 0.285 * MODEL_SCALE;
     position.copy(headWorld);
-    position.z += 0.11 * MODEL_SCALE;
-    position.y += 0.03 * MODEL_SCALE;
+    position.z += 0.135 * MODEL_SCALE;
+    position.y += 0.055 * MODEL_SCALE;
   } else {
     target.copy(position).add(new THREE.Vector3(0, -0.004, 0.2 * MODEL_SCALE));
   }
