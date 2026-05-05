@@ -70,6 +70,7 @@ import Tennis from './pages/Games/Tennis.tsx';
 import TableTennis from './pages/Games/TableTennis.tsx';
 import TennisLobby from './pages/Games/TennisLobby.jsx';
 import BowlingRealistic from './pages/Games/BowlingRealistic.tsx';
+import FreeKickArena from './pages/Games/FreeKickArena.tsx';
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
 import Layout from './components/Layout.jsx';
@@ -188,6 +189,11 @@ export default function App() {
             />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
+
+            <Route
+              path="/games/freekickarena"
+              element={<FreeKickArena />}
+            />
 
             <Route
               path="/games/chessbattleroyal/lobby"

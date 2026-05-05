@@ -109,6 +109,15 @@ const gamesCatalog = [
     image: '/assets/icons/Backgammonroyallogo.png',
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
+
+  {
+    name: 'Free Kick Arena',
+    route: '/games/freekickarena/lobby',
+    slug: 'freekickarena',
+    image: '/assets/icons/Goal%20rush%20logo.png',
+    description: 'Portrait-friendly 3D free kicks with swipe curve, VAR checks, and replay cams.'
+  },
+
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
