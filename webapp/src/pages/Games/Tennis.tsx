@@ -90,6 +90,15 @@ type HumanRig = {
 };
 
 type HudState = { nearScore: number; farScore: number; status: string; power: number };
+type ReplayFrame = {
+  nearPos: THREE.Vector3;
+  nearYaw: number;
+  farPos: THREE.Vector3;
+  farYaw: number;
+  ballPos: THREE.Vector3;
+  camPos: THREE.Vector3;
+  camTarget: THREE.Vector3;
+};
 
 type ControlState = {
   active: boolean;
@@ -109,7 +118,7 @@ const Y_AXIS = UP;
 
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
-const WORLD_SCALE = 1.2;
+const WORLD_SCALE = 1.32;
 
 const CFG = {
   worldScale: WORLD_SCALE,
@@ -118,13 +127,13 @@ const CFG = {
   courtL: 19.8 * WORLD_SCALE,
   serviceLineZ: 3.65 * WORLD_SCALE,
   netH: 0.78 * WORLD_SCALE,
-  ballR: 0.1 * WORLD_SCALE,
+  ballR: 0.112 * WORLD_SCALE,
   gravity: 9.8,
   airDrag: 0.078,
   bounceRestitution: 0.74,
   groundFriction: 0.86,
   minBallSpeed: 0.12 * WORLD_SCALE,
-  playerHeight: 2.2 * WORLD_SCALE,
+  playerHeight: 2.36 * WORLD_SCALE,
   playerSpeed: 7.1 * WORLD_SCALE,
   aiSpeed: 11.6 * WORLD_SCALE,
   reach: 1.45 * WORLD_SCALE,
@@ -824,7 +833,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
   const speedScale = CFG.worldScale * 1.22;
-  const baseSpeed = (serve ? 20.8 + power * 11.6 : 15.2 + power * 9.2) * speedScale;
+  const baseSpeed = (serve ? 19.6 + power * 10.8 : 14.1 + power * 8.4) * speedScale;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
   return new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -990,11 +999,13 @@ export default function MobileThreeTennisPrototype() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [replayActive, setReplayActive] = useState(false);
   const [hdriChoices, setHdriChoices] = useState<any[]>([]);
   const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
   const hudRef = useRef(hud);
+  const skipReplayRef = useRef<() => void>(() => {});
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3(), startTs: 0, lastTs: 0 });
 
   useEffect(() => { hudRef.current = hud; }, [hud]);
@@ -1018,7 +1029,8 @@ export default function MobileThreeTennisPrototype() {
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
     const cameraTarget = new THREE.Vector3(0, 0.95 * CFG.worldScale, -1.45 * CFG.worldScale);
-    const cameraOffset = new THREE.Vector3(0, 4.95 * CFG.worldScale, 7.7 * CFG.worldScale);
+    const cameraOffset = new THREE.Vector3(0, 5.25, 8.15);
+    const serveCamOffset = new THREE.Vector3(0, 6.55, 10.95);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -1095,6 +1107,11 @@ export default function MobileThreeTennisPrototype() {
     let pointLockT = 0;
     let replayText = "";
     let replayT = 0;
+    let replayPlaybackT = 0;
+    const replayFrames: ReplayFrame[] = [];
+    let queuedReplayFrames: ReplayFrame[] = [];
+    const replayDuration = 2.4;
+    let skipReplayRequested = false;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
 
@@ -1112,6 +1129,16 @@ export default function MobileThreeTennisPrototype() {
       currentServeSide = serviceSideFromPoints(next.nearScore, next.farScore);
       replayText = `Replay: ${reasonText} by ${winner === "near" ? "You" : "AI"}`;
       replayT = 1.7;
+      queuedReplayFrames = replayFrames.slice(-150).map((f) => ({
+        nearPos: f.nearPos.clone(),
+        nearYaw: f.nearYaw,
+        farPos: f.farPos.clone(),
+        farYaw: f.farYaw,
+        ballPos: f.ballPos.clone(),
+        camPos: f.camPos.clone(),
+        camTarget: f.camTarget.clone(),
+      }));
+      replayPlaybackT = (reason === "serviceFault" || reason === "out" || reason === "net") && queuedReplayFrames.length > 30 ? replayDuration : 0;
       void crowdFx.play().catch(() => {});
       setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
     };
@@ -1123,8 +1150,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45 * CFG.worldScale, 8.55 * CFG.worldScale);
-      else cameraOffset.set(0, 4.95 * CFG.worldScale, 7.7 * CFG.worldScale);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 5.85, 8.95);
+      else cameraOffset.set(0, 5.25, 8.15);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1330,6 +1357,29 @@ export default function MobileThreeTennisPrototype() {
         replayT -= dt;
         if (replayT > 0.05) setHudSafe({ status: replayText });
       }
+      if (skipReplayRequested) {
+        replayPlaybackT = 0;
+        skipReplayRequested = false;
+      }
+      if (replayPlaybackT > 0 && queuedReplayFrames.length > 0) {
+        replayPlaybackT -= dt;
+        const progress = clamp01(1 - replayPlaybackT / replayDuration);
+        const frame = queuedReplayFrames[Math.min(queuedReplayFrames.length - 1, Math.floor(progress * (queuedReplayFrames.length - 1)))];
+        nearPlayer.root.position.copy(frame.nearPos);
+        nearPlayer.yaw = frame.nearYaw;
+        farPlayer.root.position.copy(frame.farPos);
+        farPlayer.yaw = frame.farYaw;
+        ball.pos.copy(frame.ballPos);
+        ball.mesh.position.copy(frame.ballPos);
+        camera.position.copy(frame.camPos);
+        cameraTarget.copy(frame.camTarget);
+        setReplayActive(true);
+        camera.lookAt(cameraTarget);
+        renderer.render(scene, camera);
+        return;
+      } else if (replayActive) {
+        setReplayActive(false);
+      }
 
       if (pointLock) {
         pointLockT -= dt;
@@ -1371,7 +1421,7 @@ export default function MobileThreeTennisPrototype() {
 
       const preServe = ball.lastHitBy === null;
       if (preServe) {
-        const serveCamOffset = new THREE.Vector3(nearPlayer.target.x * 0.08, 6.25 * CFG.worldScale, 10.4 * CFG.worldScale);
+        serveCamOffset.x = nearPlayer.target.x * 0.08;
         cameraPosTarget.copy(nearPlayer.target).add(serveCamOffset);
         cameraTarget.x += (nearPlayer.target.x * 0.2 - cameraTarget.x) * (1 - Math.exp(-5.2 * dt));
         cameraTarget.z += ((-CFG.courtL * 0.24) - cameraTarget.z) * (1 - Math.exp(-5.1 * dt));
@@ -1381,14 +1431,26 @@ export default function MobileThreeTennisPrototype() {
         cameraTarget.z += ((nearPlayer.target.z - 6.9 * CFG.worldScale) - cameraTarget.z) * (1 - Math.exp(-4.3 * dt));
       }
       camera.position.lerp(cameraPosTarget, 1 - Math.exp(-5.5 * dt));
+      replayFrames.push({
+        nearPos: nearPlayer.root.position.clone(),
+        nearYaw: nearPlayer.yaw,
+        farPos: farPlayer.root.position.clone(),
+        farYaw: farPlayer.yaw,
+        ballPos: ball.pos.clone(),
+        camPos: camera.position.clone(),
+        camTarget: cameraTarget.clone(),
+      });
+      if (replayFrames.length > 180) replayFrames.shift();
       updateBillboards(now * 0.001);
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
 
     animate();
+    skipReplayRef.current = () => { skipReplayRequested = true; };
 
     return () => {
+      skipReplayRef.current = () => {};
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", onPointerDown);
@@ -1408,7 +1470,7 @@ export default function MobileThreeTennisPrototype() {
         }
       });
     };
-  }, [selectedHdriId, selectedHumanCharacterId]);
+  }, [selectedHdriId, selectedHumanCharacterId, replayActive]);
 
   useEffect(() => {
     localStorage.setItem("tennisSelectedHumanCharacter", selectedHumanCharacterId);
@@ -1452,6 +1514,7 @@ export default function MobileThreeTennisPrototype() {
 
         {menuOpen && (
           <div style={{ position: "absolute", right: 10, top: 108, width: 210, maxHeight: 300, overflow: "auto", background: "rgba(8,16,24,0.94)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 12, padding: 8 }}>
+            <button type="button" onClick={() => skipReplayRef.current()} style={{ width: "100%", marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,.22)", background: "rgba(239,68,68,0.22)", padding: 8, color: "#fff", fontWeight: 700 }}>Skip replay</button>
             <div style={{ color: "#fff", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Owned HDRI</div>
             {hdriChoices.map((opt) => (
               <button key={opt.id} type="button" onClick={() => { setSelectedHdriId(opt.id); localStorage.setItem("tennisSelectedHdri", opt.id); }} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", marginBottom: 6, borderRadius: 10, border: selectedHdriId === opt.id ? "1px solid #7dd3fc" : "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,0.08)", padding: 6, color: "#fff" }}>
@@ -1460,6 +1523,9 @@ export default function MobileThreeTennisPrototype() {
               </button>
             ))}
           </div>
+        )}
+        {replayActive && (
+          <button type="button" onClick={() => skipReplayRef.current()} style={{ pointerEvents: "auto", position: "absolute", right: 14, bottom: 120, borderRadius: 999, border: "1px solid rgba(255,255,255,.35)", background: "rgba(0,0,0,.62)", color: "#fff", padding: "8px 14px", fontWeight: 700 }}>⏭ Skip</button>
         )}
   
       </div>
