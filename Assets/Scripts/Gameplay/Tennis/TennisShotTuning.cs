@@ -6,7 +6,7 @@ namespace TonPlaygram.Gameplay.Tennis
     public class TennisShotTuning : MonoBehaviour
     {
         [Header("Power")]
-        [Min(1f)] public float baseShotPower = 16f;
+        [Min(1f)] public float baseShotPower = 14.5f;
         [Range(0f, 2f)] public float topspin = 0.35f;
         [Range(0f, 2f)] public float sidespin = 0.2f;
         [Range(0f, 2f)] public float curvePower = 0.5f;
