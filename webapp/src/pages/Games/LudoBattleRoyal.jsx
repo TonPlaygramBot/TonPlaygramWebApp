@@ -3154,7 +3154,7 @@ const AI_CHAIR_RADIUS =
 // Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
 const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
 // Keep bottom/local-player seat aligned with the same table distance used by the other chairs.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.26 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -3164,9 +3164,9 @@ const clampPlayerCount = (value) =>
     DEFAULT_PLAYER_COUNT
   );
 const CUSTOM_CHAIR_ANGLES = [
-  THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(0),
+  THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
 const AI_ROLL_DELAY_MS = 2000;
@@ -4655,7 +4655,7 @@ const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.32;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.8;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4668,7 +4668,7 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
-const CAMERA_3D_HEIGHT_BOOST = 0.22 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.062 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
