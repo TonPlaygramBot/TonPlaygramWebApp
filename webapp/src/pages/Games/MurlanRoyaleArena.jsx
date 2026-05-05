@@ -2543,8 +2543,11 @@ const AI_HAND_BOTTOM_SHIFT_Y = 0.064 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
-const HUMAN_HAND_UP_SHIFT_Y = 0.168 * MODEL_SCALE;
+const HUMAN_HAND_UP_SHIFT_Y = 0.196 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
+const HUMAN_HAND_WORLD_ANCHOR_BLEND = 0.82;
+const HUMAN_HAND_WORLD_OUTWARD_SHIFT = 0.24 * MODEL_SCALE;
+const HUMAN_HAND_WORLD_UP_SHIFT = 0.11 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
@@ -4062,6 +4065,21 @@ export default function MurlanRoyaleArena({ search }) {
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
           (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0);
+
+        if (isHumanCard) {
+          const rig = three.characterRigs?.get?.(idx);
+          const leftHandPos = new THREE.Vector3();
+          const rightHandPos = new THREE.Vector3();
+          if (rig?.bones?.leftHand && rig?.bones?.rightHand && rig?.seatRoot) {
+            rig.bones.leftHand.getWorldPosition(leftHandPos);
+            rig.bones.rightHand.getWorldPosition(rightHandPos);
+            const handsMid = leftHandPos.add(rightHandPos).multiplyScalar(0.5);
+            rig.seatRoot.worldToLocal(handsMid);
+            handsMid.addScaledVector(forward, HUMAN_HAND_WORLD_OUTWARD_SHIFT);
+            handsMid.y += HUMAN_HAND_WORLD_UP_SHIFT;
+            target.lerp(handsMid, HUMAN_HAND_WORLD_ANCHOR_BLEND);
+          }
+        }
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
