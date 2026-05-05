@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
+import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
+import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
 type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
@@ -88,7 +90,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 1.32;
+const HUMAN_INITIAL_SCALE = 1.46;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -99,6 +101,8 @@ const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   preferredResolutions: h.preferredResolutions,
 }));
 const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
+const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "tableFinish");
+const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "chromeColor");
 const PORTRAIT_AIM_ASSIST = 0.62;
 const BALL_VARIANTS: BallVariant[] = [
   { label: "10", radius: 0.165, massFactor: 0.92, colors:["#93c5fd","#2563eb","#0b1b4a"] },
@@ -588,7 +592,7 @@ function clearFallenPins(pins: PinState[]) {
   }
 }
 
-function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
+function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tableFinishId: string, chromeColorId: string) {
   const group = new THREE.Group();
   scene.add(group);
   let laneMat: THREE.Material;
@@ -604,6 +608,9 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
   const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xcfd7e2, roughness: 0.11, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
+  if (chromeColorId === 'gold') metalMat.color.set('#d4af37');
+  if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
+  if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
   // The bowling game objects below are kept exactly as the playable lane setup.
@@ -1074,10 +1081,21 @@ export default function MobileBowlingRealistic() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
   const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
+  const [ownedPoolInventory, setOwnedPoolInventory] = useState<any>(() => getCachedPoolRoyalInventory());
+  const [selectedTableFinish, setSelectedTableFinish] = useState<string>(() => localStorage.getItem("bowling.tableFinish") || POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]);
+  const [selectedChromeColor, setSelectedChromeColor] = useState<string>(() => localStorage.getItem("bowling.chromeColor") || POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor[0]);
   const [selectedBallWeight, setSelectedBallWeight] = useState<string>(() => localStorage.getItem("bowling.ballWeight") || "12");
   const [skipReplays, setSkipReplays] = useState<boolean>(() => localStorage.getItem("bowling.skipReplays") === "1");
   const [replayActive, setReplayActive] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
+
+
+  useEffect(() => {
+    const refresh = () => setOwnedPoolInventory(getCachedPoolRoyalInventory());
+    refresh();
+    window.addEventListener("poolRoyalInventoryUpdate", refresh as EventListener);
+    return () => window.removeEventListener("poolRoyalInventoryUpdate", refresh as EventListener);
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -1162,7 +1180,7 @@ export default function MobileBowlingRealistic() {
     }
 
     const texLoader = new THREE.TextureLoader();
-    createEnvironment(scene, texLoader);
+    createEnvironment(scene, texLoader, selectedTableFinish, selectedChromeColor);
     const pins = createPins(scene);
     const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), 0xff7a2f);
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
@@ -1394,7 +1412,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId, selectedBallWeight, replayActive, skipReplays]);
+  }, [graphicsQuality, selectedHdriId, selectedBallWeight, selectedTableFinish, selectedChromeColor, replayActive, skipReplays]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1433,7 +1451,15 @@ export default function MobileBowlingRealistic() {
           </div>
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
-            {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
+            {HDRI_OPTIONS.filter((h)=> (ownedPoolInventory?.environmentHdri||[]).includes(h.id)).map((h)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>Owned</div></button>)}
+          </div>
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Table finish inventory</div>
+          <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
+            {TABLE_FINISH_ITEMS.filter((item)=> (ownedPoolInventory?.tableFinish||[]).includes(item.optionId)).map((item)=><button key={item.id} onClick={()=>{setSelectedTableFinish(item.optionId); localStorage.setItem("bowling.tableFinish",item.optionId);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedTableFinish===item.optionId?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><div style={{fontSize:11,fontWeight:700}}>{item.name}</div></button>)}
+          </div>
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Chrome plates</div>
+          <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
+            {CHROME_ITEMS.filter((item)=> (ownedPoolInventory?.chromeColor||[]).includes(item.optionId)).map((item)=><button key={item.id} onClick={()=>{setSelectedChromeColor(item.optionId); localStorage.setItem("bowling.chromeColor",item.optionId);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedChromeColor===item.optionId?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><div style={{fontSize:11,fontWeight:700}}>{POOL_ROYALE_OPTION_LABELS.chromeColor[item.optionId] || item.name}</div></button>)}
           </div>
           <label style={{display:"flex",alignItems:"center",gap:8,marginTop:10,fontSize:12}}>
             <input type="checkbox" checked={skipReplays} onChange={(e)=>{setSkipReplays(e.target.checked); localStorage.setItem("bowling.skipReplays", e.target.checked ? "1":"0");}} />
