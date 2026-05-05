@@ -1,5 +1,3 @@
-import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-
 const POLYHAVEN_BASE = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k';
 const THUMB_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs';
 
@@ -16,7 +14,7 @@ const HDRIS = [
   ['aerodynamics_workshop','Aerodynamics Workshop']
 ];
 
-const BASE_BOWLING_HDRI_VARIANTS = HDRIS.map(([id, label], index) => ({
+export const BOWLING_HDRI_VARIANTS = Object.freeze(HDRIS.map(([id, label], index) => ({
   id,
   name: label,
   description: 'Poly Haven HDRI adapted for long-lane bowling lighting.',
@@ -25,18 +23,7 @@ const BASE_BOWLING_HDRI_VARIANTS = HDRIS.map(([id, label], index) => ({
   thumbnailUrl: `${THUMB_BASE}/${id}.png?height=240`,
   priceCoins: index === 0 ? 0 : 450,
   rarity: index === 0 ? 'common' : 'rare'
-}));
-const poolHdris = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-  id: variant.id,
-  name: variant.label,
-  description: `Pool Royal shared HDRI: ${variant.description}`,
-  sourceUrl: variant.url,
-  hdriUrl: variant.url,
-  thumbnailUrl: variant.thumbnail,
-  priceCoins: 600,
-  rarity: 'epic'
-}));
-export const BOWLING_HDRI_VARIANTS = Object.freeze([...BASE_BOWLING_HDRI_VARIANTS, ...poolHdris]);
+})));
 
 export const BOWLING_OPTION_LABELS = Object.freeze({ environmentHdri: 'Bowling HDRI Environment' });
 
