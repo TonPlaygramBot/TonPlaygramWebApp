@@ -233,8 +233,9 @@ const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/contr
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
 const TABLE_SET_SCALE=0.85; // table + board + chairs are scaled 15% smaller while preserving layout
+const BOTTOM_PLAYER_NUDGE_IN=0.48; // moves the near (bottom-screen) seat/human closer to the table center
 const PIECE_SIZE_MULTIPLIER=1.25; // chess pieces are scaled 25% larger than their original size
-const BOARD_GROWTH=1.0;
+const BOARD_GROWTH=0.84; // shrink board footprint while keeping piece meshes unchanged
 const PIECE_SPACING_SCALE=1.0;
 const BOARD_Y_OFFSET=0.04;
 const TABLE_SET_Y_ROTATION=Math.PI;
@@ -324,8 +325,10 @@ function boot(){
     const mount=document.getElementById('mount');
     renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.setSize(mount.clientWidth||innerWidth, mount.clientHeight||innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.85; renderer.shadowMap.enabled=true; mount.appendChild(renderer.domElement);
     scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0f16);
-    camera=new THREE.PerspectiveCamera(45,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),0.1,2000); camera.position.set(-10,12,-18); baseCameraPos=camera.position.clone();
-    controls=new mod.OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.06; controls.minDistance=4; controls.maxDistance=60; controls.target.set(0,2.1,0); controls.update(); controls.enablePan=false;
+    camera=new THREE.PerspectiveCamera(45,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),0.1,2000); camera.position.set(-7.6,9.4,-13.8); baseCameraPos=camera.position.clone();
+    controls=new mod.OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.06; controls.minDistance=3.2; controls.maxDistance=60; controls.target.set(0,1.7,0); controls.enablePan=false; controls.enableRotate=true; controls.enableZoom=true;
+    controls.touches={ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    controls.update();
     const amb=new THREE.AmbientLight(0xffffff,.35); scene.add(amb);
     const key=new THREE.DirectionalLight(0xffffff,1.1); key.position.set(12,16,10); key.castShadow=true; scene.add(key);
     const fill=new THREE.DirectionalLight(0xffffff,.7); fill.position.set(-10,8,4); scene.add(fill);
@@ -351,6 +354,20 @@ function onModel(gltf){
   modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
   const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
   const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE*TABLE_SET_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02+BOARD_Y_OFFSET; modelRoot.rotation.y=TABLE_SET_Y_ROTATION; scene.add(modelRoot);
+  // Pull the bottom-screen chair/human cluster closer to the table center for tighter portrait framing.
+  const bottomSeatNudge = new THREE.Vector3(0,0,BOTTOM_PLAYER_NUDGE_IN);
+  let bestNode=null, bestScore=Infinity;
+  modelRoot.traverse(node=>{
+    const n=(node?.name||'').toLowerCase();
+    if(!(n.includes('chair')||n.includes('seat')||n.includes('human')||n.includes('character')||n.includes('avatar')||n.includes('player'))) return;
+    const w=node.getWorldPosition(new THREE.Vector3());
+    const score=Math.abs(w.x)+(w.z<0?0.001:9);
+    if(score<bestScore){ bestScore=score; bestNode=node; }
+  });
+  if(bestNode){
+    const localNudge=bestNode.parent.worldToLocal(bestNode.getWorldPosition(new THREE.Vector3()).add(bottomSeatNudge));
+    bestNode.position.copy(localNudge);
+  }
   const boards=[]; modelRoot.traverse(node=>{ const n=(node.name||'').toLowerCase(); if(/board|chessboard/.test(n)) boards.push(node); });
   boards.forEach(node=>{ node.scale.x*=BOARD_GROWTH; node.scale.z*=BOARD_GROWTH; });
   const bb2=new THREE.Box3().setFromObject(modelRoot); boardY=(bb2.min.y+bb2.max.y)/2;
