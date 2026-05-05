@@ -20,8 +20,11 @@ module.exports = {
       }
     ]
   },
+
+  transformIgnorePatterns: ['/node_modules/(?!three/examples/jsm|three/addons)'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^node:test$': '<rootDir>/test/jestNodeTestShim.js'
+    '^node:test$': '<rootDir>/test/jestNodeTestShim.js',
+    '^@letele/playing-cards$': '<rootDir>/test/mocks/playingCardsMock.js'
   }
 };
