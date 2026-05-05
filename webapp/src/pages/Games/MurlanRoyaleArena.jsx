@@ -1779,7 +1779,7 @@ function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
   // so they sit closer to the avatar/chest area in portrait framing.
   const sideSeatLift = isSideSeat ? 132.5 * MODEL_SCALE : 0;
   const topSeatLift = isTopSeat ? 144.5 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -153.5 * MODEL_SCALE : 0;
+  const nonBottomOutwardPush = !isBottomHumanSeat ? -186.5 * MODEL_SCALE : 0;
   const bottomForwardPull = isBottomHumanSeat ? -32.5 * MODEL_SCALE : 0;
   const sideSeatLateralPull =
     isSideSeat
