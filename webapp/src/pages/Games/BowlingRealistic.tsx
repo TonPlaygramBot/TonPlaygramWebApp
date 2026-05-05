@@ -88,10 +88,11 @@ type PinState = {
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const HUMAN_INITIAL_SCALE = 1.32;
+const FALLBACK_HDRI_URL = "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr";
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
-  slug: h.hdriUrl.split('/').pop()?.replace(/_(1k|2k|4k)\.hdr$/, '') || h.id,
+  hdriUrl: h.hdriUrl || FALLBACK_HDRI_URL,
   thumb: h.thumbnailUrl,
 })) as const;
 const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
@@ -402,9 +403,9 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
   return rig;
 }
 
-function getHdriUrl(slug: string, quality: keyof typeof HDRI_QUALITY_SIZE) {
+function getHdriUrl(baseUrl: string, quality: keyof typeof HDRI_QUALITY_SIZE) {
   const size = HDRI_QUALITY_SIZE[quality];
-  return `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${size}/${slug}_${size}.hdr`;
+  return baseUrl.replace(/_(1k|2k|4k)\.hdr$/, `_${size}.hdr`);
 }
 
 function lockHumanToLaneGround(model: THREE.Object3D) {
@@ -1054,7 +1055,7 @@ export default function MobileBowlingRealistic() {
     let envTex: THREE.Texture | null = null;
     const applyHdri = (id: string, quality: "performance"|"balanced"|"ultra") => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
-      const hdriUrl = getHdriUrl(selected.slug, quality);
+      const hdriUrl = getHdriUrl(selected?.hdriUrl || FALLBACK_HDRI_URL, quality);
       new RGBELoader().setCrossOrigin("anonymous").load(
       hdriUrl,
       (hdr) => {
