@@ -1,6 +1,6 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
-import { CARD_THEMES } from '../utils/cards3d.js';
+import { CARD_THEMES } from '../utils/cardThemes.js';
 import { polyHavenThumb } from './storeThumbnails.js';
 import {
   BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS,

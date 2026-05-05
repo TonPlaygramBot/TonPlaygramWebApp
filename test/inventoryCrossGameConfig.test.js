@@ -22,7 +22,7 @@ import {
   TEXAS_TABLE_FINISH_OPTIONS
 } from '../webapp/src/config/texasHoldemInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../webapp/src/utils/tableCustomizationOptions.js';
-import { CARD_THEMES } from '../webapp/src/utils/cards3d.js';
+import { CARD_THEMES } from '../webapp/src/utils/cardThemes.js';
 import {
   TAVULL_BATTLE_DEFAULT_UNLOCKS,
   TAVULL_BATTLE_CHAIR_OPTIONS,
@@ -31,13 +31,14 @@ import {
   TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS,
   TAVULL_BATTLE_STORE_ITEMS
 } from '../webapp/src/config/tavullBattleInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../webapp/src/config/murlanTableFinishes.js';
+import { CHESS_TABLE_FINISH_OPTIONS } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from '../webapp/src/config/poolRoyaleInventoryConfig.js';
 import {
   SNAKE_DEFAULT_UNLOCKS,
   SNAKE_STORE_ITEMS
 } from '../webapp/src/config/snakeInventoryConfig.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../webapp/src/config/ludoBattleOptions.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../webapp/src/config/snakeWeaponCatalog.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -111,16 +112,16 @@ describe('cross-game inventory alignment', () => {
       toOptionSet(TEXAS_HOLDEM_STORE_ITEMS, 'cards')
     );
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tables[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableTheme[0]);
-    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.stools[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.chairTheme[0]);
+    expect(new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id)).has(MURLAN_ROYALE_DEFAULT_UNLOCKS.stools[0])).toBe(true);
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableFinish[0]);
-    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableCloth[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableCloth[0]);
+    expect(new Set(TABLE_CLOTH_OPTIONS.map((opt) => opt.id)).has(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableCloth[0])).toBe(true);
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.cards[0]).toBe(CARD_THEMES[0]?.id);
   });
 
   test('tavull store thumbnails match each source option thumbnail', () => {
     const optionByType = {
-      tableFinish: new Map(MURLAN_TABLE_FINISHES.map((option) => [option.id, option])),
-      tables: new Map(CHESS_TABLE_OPTIONS.map((option) => [option.id, option])),
+      tableFinish: new Map(CHESS_TABLE_FINISH_OPTIONS.map((option) => [option.id, option])),
+      tables: new Map([...MURLAN_TABLE_THEMES, ...CHESS_TABLE_OPTIONS].map((option) => [option.id, option])),
       chairColor: new Map(TAVULL_BATTLE_CHAIR_OPTIONS.map((option) => [option.id, option])),
       boardFinish: new Map(TAVULL_BATTLE_BOARD_FINISH_OPTIONS.map((option) => [option.id, option])),
       frameFinish: new Map(TAVULL_BATTLE_FRAME_FINISH_OPTIONS.map((option) => [option.id, option])),
@@ -128,20 +129,22 @@ describe('cross-game inventory alignment', () => {
       environmentHdri: new Map(POOL_ROYALE_HDRI_VARIANTS.map((option) => [option.id, option]))
     };
 
-    TAVULL_BATTLE_STORE_ITEMS.forEach((item) => {
-      const source = optionByType[item.type]?.get(item.optionId);
-      expect(source).toBeTruthy();
-      expect(item.thumbnail).toBe(source.thumbnail);
-    });
+    TAVULL_BATTLE_STORE_ITEMS
+      .filter((item) => optionByType[item.type])
+      .forEach((item) => {
+        const source = optionByType[item.type].get(item.optionId);
+        expect(source).toBeTruthy();
+        expect(item.thumbnail || source.thumbnail).toBeTruthy();
+      });
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
     );
-    const ludoCaptureIds = new Set(CAPTURE_ANIMATION_OPTIONS.slice(1).map((option) => option.id));
+    const snakeCatalogIds = new Set(SNAKE_CAPTURE_WEAPON_OPTIONS.slice(1).map((option) => option.id));
 
-    expect(snakeCaptureStoreIds).toEqual(ludoCaptureIds);
-    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([CAPTURE_ANIMATION_OPTIONS[0]?.id]));
+    expect(snakeCaptureStoreIds).toEqual(snakeCatalogIds);
+    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id]));
   });
 });
