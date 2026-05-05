@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover";
+type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -51,6 +51,8 @@ type HumanRig = {
   approachT: number;
   throwT: number;
   recoverT: number;
+  returnWalkT: number;
+  pickT: number;
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
@@ -81,7 +83,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 0.92;
+const HUMAN_INITIAL_SCALE = 1.18;
 const HDRI_OPTIONS = [
   { id: "studio_small_09", name: "Studio Small 09", slug: "studio_small_09", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
   { id: "studio_small_03", name: "Studio Small 03", slug: "studio_small_03", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
@@ -111,7 +113,7 @@ const OAK = {
 const UP = new THREE.Vector3(0, 1, 0);
 
 const CFG = {
-  laneY: 0.08,
+  laneY: 0,
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
   playerStartZ: 7.15,
@@ -126,6 +128,8 @@ const CFG = {
   approachDuration: 0.56,
   throwDuration: 0.9,
   recoverDuration: 0.28,
+  returnWalkDuration: 1.08,
+  pickDuration: 0.42,
   releaseT: 0.56,
 };
 
@@ -366,6 +370,8 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     approachT: 0,
     throwT: 0,
     recoverT: 0,
+    returnWalkT: 0,
+    pickT: 0,
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
@@ -563,7 +569,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   }
 
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.34, metalness: 0.74 });
+  const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xd9e2ef, roughness: 0.16, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.05 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
@@ -694,7 +700,7 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
 }
 
-function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
+function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
   if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
@@ -729,8 +735,22 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
     }
     if (rig.recoverT >= 1) {
       rig.recoverT = 0;
-      rig.action = "idle";
+      rig.action = "toRack";
+      rig.returnWalkT = 0.001;
     }
+  } else if (rig.action === "toRack") {
+    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
+    rig.walkCycle += dt * 12.8;
+    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
+    if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
+  } else if (rig.action === "pickBall") {
+    rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
+    if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
+  } else if (rig.action === "toApproach") {
+    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
+    rig.walkCycle += dt * 12.8;
+    rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
@@ -1211,7 +1231,7 @@ export default function MobileBowlingRealistic() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
-      updateHuman(player, ball, dt);
+      updateHuman(player, ball, dt, true);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
@@ -1220,6 +1240,10 @@ export default function MobileBowlingRealistic() {
       }
       updateBall(ball, pins, dt);
       const pinsMoving = updatePins(pins, dt);
+      const mechanismBusy = ball.returnState !== "idle" || ball.rolling || pinsMoving;
+      if ((player.action === "pickBall" || player.action === "toApproach") && mechanismBusy) {
+        player.action = "pickBall";
+      }
       if (pinsMoving) pinsWereMoving = true;
       if (!shotResolved && !ball.rolling && pinsWereMoving && !pinsMoving) {
         settleTimer += dt;
@@ -1295,14 +1319,6 @@ export default function MobileBowlingRealistic() {
           </div>
         </div> : null}
 
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
-          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />HDRI skybox is visible and swipe direction maps directly to aim.
-        </div>
-
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(139,215,255,0.9)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.8)", fontSize: 11, fontWeight: 950, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
       </div>
     </div>
   );
