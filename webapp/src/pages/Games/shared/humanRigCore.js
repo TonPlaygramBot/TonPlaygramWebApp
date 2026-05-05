@@ -85,30 +85,10 @@ export function createHumanRig(scene, opts = {}) {
 
 function driveHuman(human, frame) { if (!human.activeGlb || !human.model) return; const cfg = human.cfg; human.modelRoot.visible=true; human.modelRoot.position.copy(frame.rootWorld); human.modelRoot.rotation.y=human.yaw; human.modelRoot.updateMatrixWorld(true); human.restQuats.forEach((q,b)=>b.quaternion.copy(q));
   const b = human.bones; const ik = easeInOut(clamp01(frame.t)); const idle=1-ik; const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize(); const standingCueDir = cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
-  const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
-  if (ik >= 0.025) {
-    rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, -0.045 * ik);
-    twistBone(b.hips, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, -0.2 * ik);
-    twistBone(b.spine, frame.forward, -0.04 * ik);
-    rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, -0.32 * ik);
-    twistBone(b.chest, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, -0.12 * ik);
-    setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
-    human.modelRoot.updateMatrixWorld(true);
-  }
   const rightGrip = frame.rightHandWorld.clone(); const rightIdleElbow = rightGrip.clone().addScaledVector(UP,0.04+0.14*ik).addScaledVector(frame.side,-0.2).addScaledVector(frame.forward,-0.03*idle); const rightElbow=frame.rightElbow.clone().lerp(rightIdleElbow,idle*0.5); const pole = frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.32).addScaledVector(frame.forward,-0.55).normalize(); aimTwoBone(b.rightUpperArm,b.rightLowerArm,rightElbow,rightGrip,pole,0.9+0.1*ik,1.0);
   const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP,-0.55).addScaledVector(frame.forward,0.16).normalize(); const standingHandUp = UP.clone().multiplyScalar(-1).addScaledVector(frame.side,-0.64).addScaledVector(frame.forward,0.2).normalize(); const handForward = ik>=0.025 ? standingCueDir : cueDir; const roll = ik>=0.025 ? cfg.rightHandRollIdle : cfg.rightHandRollIdle + 0.02*frame.stroke; setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForward, roll, 1.0); poseFingers(human.rightFingers,'grip',0.95);
   if (ik < 0.025) { poseFingers(human.leftFingers,'idle',1); return; }
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik);
-  aimTwoBone(b.leftUpperArm,b.leftLowerArm,leftElbow,leftHand,frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.1).normalize(),0.98*ik,1.0*ik);
-  twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
-  twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
+  const leftHand = frame.leftHandWorld.clone(); const leftElbow = frame.leftElbow.clone(); aimTwoBone(b.leftUpperArm,b.leftLowerArm,leftElbow,leftHand,frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.1).normalize(),0.98*ik,1.0*ik);
   const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward,-0.52).normalize(); const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward,-0.28).addScaledVector(frame.side,-0.16).normalize(); setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68*ik, 1.0*ik); poseFingers(human.leftFingers,'bridge',ik);
 }
 
