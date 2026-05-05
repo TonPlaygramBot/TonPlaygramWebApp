@@ -12,6 +12,7 @@ type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 type HudState = {
   power: number;
   status: string;
+  compliment: string;
   activePlayer: number;
   p1: number;
   p2: number;
@@ -110,6 +111,9 @@ const OAK = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+const STRIKE_DANCE_LINES = ["Perfect strike!", "Unstoppable!", "Ten down, wow!", "Pure power!"];
+const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket hit!","That was elite timing."], spare:["Great spare conversion!","Clutch second ball!"], open:["Nice try—adjust and fire again.","Good pace, keep rhythm."] } as const;
 
 const CFG = {
   laneY: 0,
@@ -727,6 +731,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.throwT += dt / CFG.throwDuration;
     if (rig.model) {
       const t = clamp01(rig.throwT);
+      // right-handed form: left leg forward, right leg trail, left arm counter-balance
+
       rig.model.position.y = 0;
       rig.model.rotation.x = t < 0.55 ? lerp(0, 0.26, t / 0.55) : lerp(0.26, -0.08, (t - 0.55) / 0.45);
       rig.model.rotation.z = t < 0.45 ? lerp(0, -0.12, t / 0.45) : lerp(-0.12, 0.06, (t - 0.45) / 0.55);
@@ -749,11 +755,12 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.returnWalkT = 0.001;
     }
   } else if (rig.action === "toRack") {
+    rig.yaw = -0.78;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
-    rig.walkCycle += dt * 12.8;
+    rig.walkCycle += dt * 9.2;
     rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
     if (rig.model) {
-      const swing = Math.sin(rig.walkCycle) * 0.12;
+      const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.22;
       rig.model.rotation.z = swing * 0.08;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
@@ -763,11 +770,12 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
     if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
   } else if (rig.action === "toApproach") {
+    rig.yaw = -2.55;
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
-    rig.walkCycle += dt * 12.8;
+    rig.walkCycle += dt * 9.2;
     rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
     if (rig.model) {
-      const swing = Math.sin(rig.walkCycle) * 0.12;
+      const swing = Math.sin(rig.walkCycle) * 0.18;
       rig.model.rotation.y = swing * 0.18;
       rig.model.rotation.z = -swing * 0.06;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
@@ -778,7 +786,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.model.rotation.x *= 0.82;
     rig.model.rotation.z *= 0.82;
   }
-  rig.yaw = 0;
+  if (rig.action === "approach" || rig.action === "throw" || rig.action === "recover" || rig.action === "idle") rig.yaw = 0;
   syncHuman(rig);
   if (ball.held) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
@@ -1015,7 +1023,7 @@ function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) {
 export default function MobileBowlingRealistic() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
+  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
@@ -1057,7 +1065,9 @@ export default function MobileBowlingRealistic() {
         scene.environment = envTex;
         scene.background = envTex;
         if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
-        if ("backgroundIntensity" in scene) scene.backgroundIntensity = 1;
+        if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
+        if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
+        envTex.mapping = THREE.EquirectangularReflectionMapping;
         hdr.dispose();
       },
       undefined,
@@ -1176,8 +1186,9 @@ export default function MobileBowlingRealistic() {
       const playerBefore = localScores[activePlayer];
       const result = addRollToPlayer(playerBefore, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10) status = `${playerBefore.name} STRIKE!`;
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10) status = `${playerBefore.name} SPARE!`;
+      let compliment = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
+      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10) { status = `${playerBefore.name} STRIKE!`; compliment = RESULT_COMPLIMENTS.strike[Math.floor(Math.random()*RESULT_COMPLIMENTS.strike.length)] + " " + STRIKE_DANCE_LINES[Math.floor(Math.random()*STRIKE_DANCE_LINES.length)]; }
+      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10) { status = `${playerBefore.name} SPARE!`; compliment = RESULT_COMPLIMENTS.spare[Math.floor(Math.random()*RESULT_COMPLIMENTS.spare.length)]; }
       const allDone = localScores.every((p) => playerFinished(p));
       if (allDone) nextAction = "gameOver";
       else if (result.frameEnded) {
@@ -1185,7 +1196,7 @@ export default function MobileBowlingRealistic() {
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
       syncReactScores();
-      setHud((prev) => ({ ...prev, status }));
+      setHud((prev) => ({ ...prev, status, compliment }));
       shotResolved = true;
       waitingForBallReturn = true;
       if (ball.returnState === "idle") startBallReturn(ball);
@@ -1338,6 +1349,7 @@ export default function MobileBowlingRealistic() {
             ))}
           </div>
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
+          {hud.compliment ? <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 800, color: "#86efac" }}>{hud.compliment}</div> : null}
         </div>
 
         <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 132, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
