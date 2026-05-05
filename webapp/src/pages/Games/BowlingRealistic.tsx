@@ -6,7 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "dance";
+type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -62,7 +62,6 @@ type HumanRig = {
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
 
 type BallState = {
-  gripGuides?: THREE.Object3D;
   mesh: THREE.Mesh;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
@@ -130,7 +129,6 @@ const CFG = {
   recoverDuration: 0.28,
   returnWalkDuration: 1.08,
   pickDuration: 0.42,
-  danceDuration: 1.8,
   releaseT: 0.56,
 };
 
@@ -502,33 +500,12 @@ function makeBallMaterial(colors: [string, string, string]) {
   });
 }
 
-function attachGripGuides(ballMesh: THREE.Mesh, radius: number) {
-  const g = new THREE.Group();
-  const guideMat = new THREE.MeshBasicMaterial({ color: 0x89d6ff, transparent: true, opacity: 0.55 });
-  const holeRadius = radius * 0.11;
-  const depth = radius * 0.22;
-  const points = [
-    new THREE.Vector3(-radius * 0.14, radius * 0.22, radius * 0.72),
-    new THREE.Vector3(radius * 0.02, radius * 0.2, radius * 0.78),
-    new THREE.Vector3(-radius * 0.23, radius * 0.11, radius * 0.65),
-  ];
-  points.forEach((p) => {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(holeRadius, holeRadius, depth, 18), guideMat);
-    c.rotation.x = Math.PI / 2;
-    c.position.copy(p);
-    g.add(c);
-  });
-  ballMesh.add(g);
-  return g;
-}
-
 function createActiveBall(variant: BallVariant) {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(variant.radius, 80, 64), makeBallMaterial(variant.colors));
   enableShadow(mesh);
   const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ);
   mesh.position.copy(pos);
-  const gripGuides = attachGripGuides(mesh, variant.radius);
-  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant, gripGuides } as BallState;
+  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant } as BallState;
 }
 
 function createPinMesh() {
@@ -732,24 +709,15 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
 }
 
-function applyNaturalWalkPose(rig: HumanRig, dt: number, sway = 0.1) {
-  if (!rig.model) return;
-  const phase = rig.walkCycle;
-  const stride = Math.sin(phase);
-  const counter = Math.sin(phase + Math.PI);
-  rig.model.position.y = 0.012 + Math.abs(stride) * 0.04;
-  rig.model.rotation.x = 0.04 + Math.abs(stride) * 0.02;
-  rig.model.rotation.y = stride * sway * 0.35;
-  rig.model.rotation.z = counter * sway * 0.08;
-}
-
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
   if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
     rig.pos.lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
     if (rig.model) {
-      applyNaturalWalkPose(rig, dt, 0.11);
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.046;
+      rig.model.rotation.x = 0.035;
+      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.02;
     }
     if (rig.approachT >= 1) {
       rig.action = "throw";
@@ -785,7 +753,10 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.walkCycle += dt * 12.8;
     rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
     if (rig.model) {
-      applyNaturalWalkPose(rig, dt, 0.14);
+      const swing = Math.sin(rig.walkCycle) * 0.12;
+      rig.model.rotation.y = swing * 0.22;
+      rig.model.rotation.z = swing * 0.08;
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
     if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
   } else if (rig.action === "pickBall") {
@@ -796,27 +767,18 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.walkCycle += dt * 12.8;
     rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
     if (rig.model) {
-      applyNaturalWalkPose(rig, dt, 0.12);
+      const swing = Math.sin(rig.walkCycle) * 0.12;
+      rig.model.rotation.y = swing * 0.18;
+      rig.model.rotation.z = -swing * 0.06;
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
     if (rig.returnWalkT >= 1) rig.action = "idle";
-  } else if (rig.action === "dance") {
-    rig.recoverT = clamp01(rig.recoverT + dt / CFG.danceDuration);
-    if (rig.model) {
-      const t = rig.recoverT;
-      rig.model.position.y = Math.abs(Math.sin(t * Math.PI * 8)) * 0.06;
-      rig.model.rotation.y = Math.sin(t * Math.PI * 6) * 0.35;
-      rig.model.rotation.z = Math.sin(t * Math.PI * 10) * 0.12;
-    }
-    if (rig.recoverT >= 1) { rig.recoverT = 0; rig.action = "toRack"; rig.returnWalkT = 0.001; }
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
     rig.model.rotation.z *= 0.82;
   }
-  if (rig.action === "toRack") rig.yaw = -Math.PI * 0.42;
-  else if (rig.action === "pickBall") rig.yaw = -Math.PI * 0.5;
-  else if (rig.action === "toApproach") rig.yaw = Math.PI;
-  else rig.yaw = 0;
+  rig.yaw = 0;
   syncHuman(rig);
   if (ball.held) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
@@ -1092,10 +1054,6 @@ export default function MobileBowlingRealistic() {
       hdriUrl,
       (hdr) => {
         envTex = pmrem.fromEquirectangular(hdr).texture;
-        envTex.mapping = THREE.EquirectangularReflectionMapping;
-        envTex.wrapS = THREE.ClampToEdgeWrapping;
-        envTex.wrapT = THREE.ClampToEdgeWrapping;
-        envTex.needsUpdate = true;
         scene.environment = envTex;
         scene.background = envTex;
         if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
@@ -1212,23 +1170,14 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : `${playerName} swipe up to bowl` }));
     };
 
-    const compliments = {
-      strike:["Perfect strike!","Huge pocket hit!","Pro release!"],
-      spare:["Great spare cover!","Strong recovery!","Clean pickup!"],
-      high:["Nice control!","Great speed and line!","Solid shot!"],
-      low:["Keep your line.","Good try—adjust aim.","Next shot will land better."]
-    };
-    const pick = (arr:string[]) => arr[Math.floor(Math.random()*arr.length)];
-
     const finalizeShot = () => {
       const afterStanding = standingPinsCount(pins);
       const knocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
       const playerBefore = localScores[activePlayer];
       const result = addRollToPlayer(playerBefore, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
-      let popup = knocked >= 7 ? pick(compliments.high) : pick(compliments.low);
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10) { status = `${playerBefore.name} STRIKE!`; popup = pick(compliments.strike); player.action = "dance"; player.recoverT = 0; }
-      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10) { status = `${playerBefore.name} SPARE!`; popup = pick(compliments.spare); }
+      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10) status = `${playerBefore.name} STRIKE!`;
+      if (result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10) status = `${playerBefore.name} SPARE!`;
       const allDone = localScores.every((p) => playerFinished(p));
       if (allDone) nextAction = "gameOver";
       else if (result.frameEnded) {
@@ -1236,7 +1185,7 @@ export default function MobileBowlingRealistic() {
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
       syncReactScores();
-      setHud((prev) => ({ ...prev, status: `${status} • ${popup}` }));
+      setHud((prev) => ({ ...prev, status }));
       shotResolved = true;
       waitingForBallReturn = true;
       if (ball.returnState === "idle") startBallReturn(ball);
@@ -1335,7 +1284,6 @@ export default function MobileBowlingRealistic() {
         const finished = updateBallReturn(ball, dt);
         if (finished && waitingForBallReturn) prepareNextTurnAfterReturn();
       }
-      if (ball.gripGuides) ball.gripGuides.visible = ball.held;
       ballShadow.visible = ball.mesh.visible;
       ballShadow.position.set(ball.pos.x, CFG.laneY + 0.01, ball.pos.z);
       ballShadow.scale.setScalar(ball.held ? 0.72 : ball.inGutter ? 0.9 : 1.04);
