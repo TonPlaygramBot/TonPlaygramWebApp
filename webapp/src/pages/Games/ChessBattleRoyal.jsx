@@ -435,8 +435,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(24); // high diagonal angle close to 2D while still showing depth toward the opponent.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.9; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(20); // high diagonal angle close to 2D while still showing depth toward the opponent.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -450,14 +450,14 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.38;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.58;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.44;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.72;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.96;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.92;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 2.08; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -13117,7 +13117,7 @@ function Chess3D({
         const locked = locked3dViewRef.current;
         if (locked.activeLook) {
           locked.targetYaw -= (event.movementX || 0) * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - (event.movementY || 0) * 0.002, -0.72, 0.12);
+          locked.targetPitch = clamp(locked.targetPitch - (event.movementY || 0) * 0.002, -0.86, 0.2);
         }
         return;
       }
