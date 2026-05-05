@@ -310,7 +310,10 @@ const FIELD_THUMBNAILS = Object.freeze({
   'bust-marble': polyHavenThumb('marble_bust_01'),
   'bust-onyx': polyHavenThumb('marble_bust_01'),
   'clearcoat-ruby': khronosThumb('ClearCoatCarPaint'),
-  'clearcoat-azure': khronosThumb('ClearCoatCarPaint')
+  'clearcoat-azure': khronosThumb('ClearCoatCarPaint'),
+  'bowling-pink-fusion': swatchThumbnail(['#ffa3bf', '#cf245d', '#4f0822']),
+  'bowling-cyan-storm': swatchThumbnail(['#9ee7ff', '#2d88ff', '#0d1d50']),
+  'bowling-amber-flare': swatchThumbnail(['#ffe59b', '#f57e09', '#5a2c00'])
 });
 
 const AIR_HOCKEY_TABLE_FINISHES = Object.freeze([
@@ -424,6 +427,46 @@ const createKhronosGltfUrls = (assetId) =>
     `https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/${assetId}/glTF-Binary/${assetId}.glb`
   ]);
 
+
+const BOWLING_BALL_FIELD_VARIANTS = Object.freeze([
+  Object.freeze({
+    id: 'bowling-pink-fusion',
+    name: 'Bowling Pink Fusion',
+    swatches: ['#ffa3bf', '#cf245d', '#4f0822'],
+    generatedTexture: 'bowlingBall',
+    repeat: 1,
+    lineColor: '#ffe4ee',
+    roughness: 0.14,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04,
+    description: 'Uses the same pink bowling ball texture palette as Bowling Realistic.'
+  }),
+  Object.freeze({
+    id: 'bowling-cyan-storm',
+    name: 'Bowling Cyan Storm',
+    swatches: ['#9ee7ff', '#2d88ff', '#0d1d50'],
+    generatedTexture: 'bowlingBall',
+    repeat: 1,
+    lineColor: '#d9f6ff',
+    roughness: 0.14,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04,
+    description: 'Uses the same cyan bowling ball texture palette as Bowling Realistic.'
+  }),
+  Object.freeze({
+    id: 'bowling-amber-flare',
+    name: 'Bowling Amber Flare',
+    swatches: ['#ffe59b', '#f57e09', '#5a2c00'],
+    generatedTexture: 'bowlingBall',
+    repeat: 1,
+    lineColor: '#fff0c7',
+    roughness: 0.14,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04,
+    description: 'Uses the same amber bowling ball texture palette as Bowling Realistic.'
+  })
+]);
+
 const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
   Object.freeze({
     id: 'bust-marble',
@@ -497,7 +540,7 @@ const AIR_HOCKEY_CUSHION_CLOTH_OPTIONS = Object.freeze(
 );
 
 export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
-  field: AIR_HOCKEY_MARBLE_FIELDS,
+  field: Object.freeze([...AIR_HOCKEY_MARBLE_FIELDS, ...BOWLING_BALL_FIELD_VARIANTS]),
   cushionCloth: AIR_HOCKEY_CUSHION_CLOTH_OPTIONS,
   table: AIR_HOCKEY_TABLE_FINISHES,
   tableBase: AIR_HOCKEY_TABLE_BASES,
