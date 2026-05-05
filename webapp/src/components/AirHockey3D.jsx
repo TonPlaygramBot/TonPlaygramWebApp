@@ -467,7 +467,52 @@ const loadGltfMaterialSet = (fieldOption) => {
   return promise;
 };
 
+
+const createBowlingBallPaletteTexture = (colors = []) => {
+  if (!Array.isArray(colors) || colors.length < 3 || typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const gradient = ctx.createRadialGradient(320, 260, 30, 512, 512, 560);
+  gradient.addColorStop(0, colors[0]);
+  gradient.addColorStop(0.44, colors[1]);
+  gradient.addColorStop(1, colors[2]);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 0.13;
+  for (let i = 0; i < 110; i += 1) {
+    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : colors[1];
+    ctx.beginPath();
+    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 14 + Math.random() * 70, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 0.18;
+  for (let i = 0; i < 38; i += 1) {
+    ctx.strokeStyle = i % 2 ? colors[0] : 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 8 + Math.random() * 18;
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+    for (let j = 0; j < 5; j += 1) {
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  return texture;
+};
+
 const loadFieldSurface = async (fieldOption) => {
+  if (fieldOption?.generatedTexture === 'bowlingBall') {
+    const map = createBowlingBallPaletteTexture(fieldOption?.swatches || []);
+    return map ? { textures: { map, normal: null, roughness: null, metalness: null, emissive: null } } : null;
+  }
   if (Array.isArray(fieldOption?.gltfUrls) && fieldOption.gltfUrls.length) {
     return loadGltfMaterialSet(fieldOption);
   }
