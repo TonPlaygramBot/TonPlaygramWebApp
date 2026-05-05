@@ -433,7 +433,7 @@ const FALLBACK_SEAT_POSITIONS = [
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
-const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 0.82; // move forced 3D animation camera slightly closer during capture
+const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(24); // high diagonal angle close to 2D while still showing depth toward the opponent.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.9; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
@@ -9701,8 +9701,8 @@ function Chess3D({
     );
     controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
     controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
-    controls.minDistance = cameraSpherical.radius;
-    controls.maxDistance = cameraSpherical.radius;
+    controls.minDistance = CAMERA_3D_MIN_RADIUS;
+    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
@@ -9806,7 +9806,7 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = true;
         controls.enablePan = false;
-        controls.enableZoom = false;
+        controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
@@ -13156,6 +13156,21 @@ function Chess3D({
       sel = null;
     };
 
+    const onWheel = (event) => {
+      if (!camera || !boardLookTarget) return;
+      if (viewModeRef.current !== '3d' || !locked3dViewRef.current.activeLook) return;
+      event.preventDefault();
+      const direction = camera.position.clone().sub(boardLookTarget).normalize();
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const delta = event.deltaY * CAMERA_WHEEL_FACTOR;
+      const nextRadius = clamp(currentRadius + delta, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+      camera.position.copy(boardLookTarget).addScaledVector(direction, nextRadius);
+      locked3dViewRef.current.fixedPosition = camera.position.clone();
+      controls?.update();
+      syncSkyboxToCamera();
+    };
+
+
     function aiMove() {
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) {
@@ -13233,6 +13248,7 @@ function Chess3D({
     renderer.domElement.addEventListener('touchend', onClick);
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('pointerup', onPointerUp);
 
     // Loop
@@ -14076,6 +14092,7 @@ function Chess3D({
         renderer.domElement.removeEventListener('click', onClick);
         renderer.domElement.removeEventListener('touchend', onClick);
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+        renderer.domElement.removeEventListener('wheel', onWheel);
         renderer.domElement.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
       }
