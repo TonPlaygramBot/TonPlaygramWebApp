@@ -7,7 +7,9 @@ namespace TonPlaygram.Gameplay.Tennis
         [SerializeField] private TennisShotTuning shotTuning;
         [SerializeField] private Rigidbody ballBody;
         [SerializeField] private Transform hitTarget;
-        [SerializeField, Min(0.1f)] private float reactionTime = 0.18f;
+        [SerializeField, Min(0.01f)] private float reactionTime = 0.1f;
+        [SerializeField, Min(0f)] private float anticipationTime = 0.14f;
+        [SerializeField, Min(0.01f)] private float minReactionTime = 0.05f;
         [SerializeField, Min(0.1f)] private float minShotPower01 = 0.55f;
         [SerializeField, Min(0.1f)] private float maxShotPower01 = 1f;
 
@@ -18,9 +20,13 @@ namespace TonPlaygram.Gameplay.Tennis
             if (shotTuning == null || ballBody == null || hitTarget == null) return;
             if (Time.time < _nextHitTime) return;
 
-            if (ballBody.position.z > transform.position.z)
+            bool ballComingToAi = ballBody.velocity.z > 0f;
+            float predictedBallZ = ballBody.position.z + (ballBody.velocity.z * anticipationTime);
+            if (ballComingToAi && predictedBallZ > transform.position.z)
             {
-                _nextHitTime = Time.time + reactionTime;
+                float speed = ballBody.velocity.magnitude;
+                float adaptiveReaction = Mathf.Max(minReactionTime, reactionTime - (speed * 0.003f));
+                _nextHitTime = Time.time + adaptiveReaction;
                 ShootAdaptive();
             }
         }
