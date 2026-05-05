@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach";
+type PlayerAction = "idle" | "approach" | "throw" | "recover";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -24,7 +24,6 @@ type ThrowIntent = {
   targetX: number;
   hook: number;
   speed: number;
-  revRate: number;
 };
 
 type ControlState = {
@@ -52,14 +51,10 @@ type HumanRig = {
   approachT: number;
   throwT: number;
   recoverT: number;
-  returnWalkT: number;
-  pickT: number;
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
 };
-
-type BallSpec = { name: string; radius: number; mass: number; color: [string,string,string]; number: number };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -71,8 +66,6 @@ type BallState = {
   hook: number;
   returnState: BallReturnState;
   returnT: number;
-  mass: number;
-  radius: number;
 };
 
 type PinState = {
@@ -88,7 +81,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 1.34;
+const HUMAN_INITIAL_SCALE = 0.92;
 const HDRI_OPTIONS = [
   { id: "studio_small_09", name: "Studio Small 09", slug: "studio_small_09", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
   { id: "studio_small_03", name: "Studio Small 03", slug: "studio_small_03", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
@@ -117,14 +110,8 @@ const OAK = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-const BALL_SPECS: BallSpec[] = [
-  { name: "Light 12lb", radius: 0.172, mass: 5.44, color: ["#86e2ff","#2f7cff","#112150"], number: 12 },
-  { name: "Pro 14lb", radius: 0.18, mass: 6.35, color: ["#ffc5a0","#ea5f00","#4a1c00"], number: 14 },
-  { name: "Heavy 16lb", radius: 0.188, mass: 7.26, color: ["#ffb8cc","#c92058","#4f0a24"], number: 16 },
-];
-
 const CFG = {
-  laneY: 0,
+  laneY: 0.08,
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
   playerStartZ: 7.15,
@@ -139,8 +126,6 @@ const CFG = {
   approachDuration: 0.56,
   throwDuration: 0.9,
   recoverDuration: 0.28,
-  returnWalkDuration: 1.35,
-  pickDuration: 0.52,
   releaseT: 0.56,
 };
 
@@ -381,8 +366,6 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     approachT: 0,
     throwT: 0,
     recoverT: 0,
-    returnWalkT: 0,
-    pickT: 0,
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
@@ -490,11 +473,9 @@ function makeBallTexture(colors: [string, string, string]) {
   return tex;
 }
 
-function makeBallMaterial(colors: [string, string, string], number: number) {
-  const tex = makeBallTexture(colors);
-  addBallNumber(tex, number);
+function makeBallMaterial(colors: [string, string, string]) {
   return new THREE.MeshPhysicalMaterial({
-    map: tex,
+    map: makeBallTexture(colors),
     roughness: 0.08,
     metalness: 0.01,
     clearcoat: 1,
@@ -504,12 +485,12 @@ function makeBallMaterial(colors: [string, string, string], number: number) {
   });
 }
 
-function createActiveBall(spec: BallSpec) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(spec.radius, 80, 64), makeBallMaterial(spec.color, spec.number));
+function createActiveBall() {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 80, 64), makeBallMaterial(["#9ee7ff", "#2d88ff", "#0d1d50"]));
   enableShadow(mesh);
   const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ);
   mesh.position.copy(pos);
-  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, mass: spec.mass, radius: spec.radius } as BallState;
+  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0 } as BallState;
 }
 
 function createPinMesh() {
@@ -582,7 +563,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   }
 
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
-  const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xd9e2ef, roughness: 0.16, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.34, metalness: 0.74 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
@@ -700,8 +681,7 @@ function computeIntent(hostWidth: number, hostHeight: number, startX: number, st
   const power = vertical;
   const speed = lerp(6.2, 16.4, easeOutCubic(power));
   const hook = dragX * lerp(0.08, 0.68, power);
-  const revRate = lerp(8, 22, power) + Math.abs(dragX) * 6;
-  return { power, releaseX, targetX, hook, speed, revRate };
+  return { power, releaseX, targetX, hook, speed };
 }
 
 function startApproach(rig: HumanRig, intent: ThrowIntent) {
@@ -714,7 +694,7 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
 }
 
-function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
+function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
   if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
@@ -749,22 +729,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     }
     if (rig.recoverT >= 1) {
       rig.recoverT = 0;
-      rig.action = "toRack";
-      rig.returnWalkT = 0.001;
+      rig.action = "idle";
     }
-  } else if (rig.action === "toRack") {
-    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
-    rig.walkCycle += dt * 12.8;
-    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
-    if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
-  } else if (rig.action === "pickBall") {
-    rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
-    if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
-  } else if (rig.action === "toApproach") {
-    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
-    rig.walkCycle += dt * 12.8;
-    rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
-    if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
@@ -779,8 +745,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
 }
 
 function releaseBall(ball: BallState, intent: ThrowIntent) {
-  const releasePos = new THREE.Vector3(intent.releaseX, CFG.laneY + ball.radius + 0.02, CFG.foulZ - 0.16);
-  const target = new THREE.Vector3(intent.targetX, CFG.laneY + ball.radius + 0.02, CFG.pinDeckZ + 0.4);
+  const releasePos = new THREE.Vector3(intent.releaseX, CFG.laneY + CFG.ballR + 0.02, CFG.foulZ - 0.16);
+  const target = new THREE.Vector3(intent.targetX, CFG.laneY + CFG.ballR + 0.02, CFG.pinDeckZ + 0.4);
   const dir = target.clone().sub(releasePos).normalize();
   ball.held = false;
   ball.rolling = true;
@@ -816,7 +782,7 @@ function collideBallWithPins(ball: BallState, pins: PinState[]) {
     if (dist > minDist || dist < 0.001) continue;
     const n = new THREE.Vector3(dx / dist, 0, dz / dist);
     const speed = Math.hypot(ball.vel.x, ball.vel.z);
-    const impulse = Math.max(0.8, (speed * ball.mass / 6.2) * 0.78);
+    const impulse = Math.max(1.0, speed * 0.78);
     pin.vel.addScaledVector(n, impulse);
     pin.vel.z += ball.vel.z * 0.18;
     pin.angularVel += impulse * 1.8;
@@ -943,9 +909,7 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
   ball.inGutter = Math.abs(ball.pos.x) > CFG.laneHalfW;
   if (!ball.inGutter && flatSpeed > 0.85 && ball.pos.z < 2.6) {
     const hookPhase = clamp01((2.4 - ball.pos.z) / 8.4);
-    const swerve = ball.hook * hookPhase * dt;
-    const oilTransition = clamp01((CFG.arrowsZ - ball.pos.z + 2.2) / 6.5);
-    ball.vel.x += swerve * lerp(0.3, 1.8, oilTransition);
+    ball.vel.x += ball.hook * hookPhase * dt;
   }
   const drag = ball.inGutter ? 1.24 : 0.4;
   ball.vel.multiplyScalar(Math.exp(-drag * dt));
@@ -954,12 +918,12 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
     ball.pos.x = clamp(ball.pos.x, -CFG.gutterHalfW, CFG.gutterHalfW);
     ball.vel.x *= -0.22;
   }
-  ball.pos.y = CFG.laneY + ball.radius + (ball.inGutter ? -0.08 : 0.02);
+  ball.pos.y = CFG.laneY + CFG.ballR + (ball.inGutter ? -0.08 : 0.02);
   ball.mesh.position.copy(ball.pos);
   const speed = Math.hypot(ball.vel.x, ball.vel.z);
   if (speed > 0.02) {
     const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x).normalize();
-    if (rollAxis.lengthSq() > 0.001) ball.mesh.rotateOnWorldAxis(rollAxis, (speed / ball.radius) * dt);
+    if (rollAxis.lengthSq() > 0.001) ball.mesh.rotateOnWorldAxis(rollAxis, (speed / CFG.ballR) * dt);
   }
   collideBallWithPins(ball, pins);
   if (ball.pos.z <= CFG.backStopZ + 0.45 || speed < 0.12) startBallReturn(ball);
@@ -975,10 +939,7 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
     lead.normalize();
     desired = ball.pos.clone().addScaledVector(lead, -4.85).add(new THREE.Vector3(0, 2.45, 0.82));
     look = ball.pos.clone().addScaledVector(lead, 2.15).add(new THREE.Vector3(0, 0.34, 0));
-  } else if (player.action === "pickBall") {
-    desired = player.pos.clone().add(new THREE.Vector3(0, 2.9, 5.25));
-    look = player.pos.clone().add(new THREE.Vector3(0, 1.1, -0.6));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover" || player.action === "toRack" || player.action === "toApproach") {
+  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover") {
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.55, 3.72));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.85, -1.7));
   } else {
@@ -1012,7 +973,6 @@ export default function MobileBowlingRealistic() {
   const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [ballSpecIndex, setBallSpecIndex] = useState(1);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
   const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
   const scoresMemo = useMemo(() => scores, [scores]);
@@ -1087,7 +1047,7 @@ export default function MobileBowlingRealistic() {
     createEnvironment(scene, texLoader);
     const pins = createPins(scene);
     const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), 0xff7a2f);
-    const ball = createActiveBall(BALL_SPECS[ballSpecIndex]);
+    const ball = createActiveBall();
     scene.add(ball.mesh);
 
     let localScores = makeEmptyPlayers();
@@ -1251,7 +1211,7 @@ export default function MobileBowlingRealistic() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
-      updateHuman(player, ball, dt, true);
+      updateHuman(player, ball, dt);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
@@ -1260,10 +1220,6 @@ export default function MobileBowlingRealistic() {
       }
       updateBall(ball, pins, dt);
       const pinsMoving = updatePins(pins, dt);
-      const mechanismBusy = ball.returnState !== "idle" || ball.rolling || pinsMoving;
-      if ((player.action === "pickBall" || player.action === "toApproach") && mechanismBusy) {
-        player.action = "pickBall";
-      }
       if (pinsMoving) pinsWereMoving = true;
       if (!shotResolved && !ball.rolling && pinsWereMoving && !pinsMoving) {
         settleTimer += dt;
@@ -1302,7 +1258,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId, ballSpecIndex]);
+  }, [graphicsQuality, selectedHdriId]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1333,16 +1289,20 @@ export default function MobileBowlingRealistic() {
         {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
           <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
           {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
-          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Ball weight</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-            {BALL_SPECS.map((b,i)=><button key={b.name} onClick={()=>setBallSpecIndex(i)} style={{padding:"6px 8px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: ballSpecIndex===i?"#7fd6ff":"rgba(255,255,255,0.08)", color:ballSpecIndex===i?"#001018":"#fff"}}>{b.name}</button>)}
-          </div>
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
             {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
           </div>
         </div> : null}
 
+        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
+          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />HDRI skybox is visible and swipe direction maps directly to aim.
+        </div>
+
+        <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(139,215,255,0.9)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.8)", fontSize: 11, fontWeight: 950, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
+        </div>
       </div>
     </div>
   );
