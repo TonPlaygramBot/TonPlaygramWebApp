@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover";
+type PlayerAction = "idle" | "approach" | "throw" | "recover" | "walkToRack" | "pickup" | "walkToLine";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -81,7 +81,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 0.92;
+const HUMAN_INITIAL_SCALE = 1.18;
 const HDRI_OPTIONS = [
   { id: "studio_small_09", name: "Studio Small 09", slug: "studio_small_09", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
   { id: "studio_small_03", name: "Studio Small 03", slug: "studio_small_03", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
@@ -126,6 +126,8 @@ const CFG = {
   approachDuration: 0.56,
   throwDuration: 0.9,
   recoverDuration: 0.28,
+  walkRackDuration: 1.05,
+  pickupDuration: 0.52,
   releaseT: 0.56,
 };
 
@@ -562,8 +564,8 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
     woodMat = makeFallbackWoodMaterial();
   }
 
-  const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.34, metalness: 0.74 });
+  const gutterMat = new THREE.MeshStandardMaterial({ color: 0x1f2b3a, roughness: 0.24, metalness: 0.45 });
+  const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xb9c4d1, roughness: 0.16, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.04 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
@@ -571,11 +573,11 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
-  approach.position.set(0, CFG.laneY - 0.005, 7.35);
+  approach.position.set(0, CFG.laneY - 0.02, 7.35);
   group.add(approach);
   const lane = new THREE.Mesh(new THREE.PlaneGeometry(CFG.laneHalfW * 2, 18.72, 80, 320), laneMat);
   lane.rotation.x = -Math.PI / 2;
-  lane.position.set(0, CFG.laneY, -4.2);
+  lane.position.set(0, CFG.laneY - 0.02, -4.2);
   lane.receiveShadow = true;
   group.add(lane);
   const oil = new THREE.Mesh(
@@ -586,7 +588,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   oil.position.set(0, CFG.laneY + 0.002, -2.7);
   group.add(oil);
   const deck = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.5, 0.13, 2.52), woodMat);
-  deck.position.set(0, CFG.laneY + 0.02, CFG.pinDeckZ - 0.75);
+  deck.position.set(0, CFG.laneY, CFG.pinDeckZ - 0.75);
   group.add(deck);
   const gutterL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.14, 19.1), gutterMat);
   gutterL.position.set(-1.94, CFG.laneY, -4.2);
@@ -729,7 +731,38 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
     }
     if (rig.recoverT >= 1) {
       rig.recoverT = 0;
-      rig.action = "idle";
+      rig.action = "walkToRack";
+      rig.approachT = 0;
+      rig.approachFrom.copy(rig.pos);
+      rig.approachTo.set(1.82, CFG.laneY, 6.18);
+    }
+  } else if (rig.action === "walkToRack" || rig.action === "walkToLine") {
+    const duration = CFG.walkRackDuration;
+    rig.approachT = clamp01(rig.approachT + dt / duration);
+    rig.walkCycle += dt * 12.5;
+    rig.pos.lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
+    if (rig.model) {
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.04;
+      rig.model.rotation.x = 0.025;
+      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.015;
+    }
+    if (rig.approachT >= 1) {
+      if (rig.action === "walkToRack") {
+        rig.action = "pickup";
+        rig.recoverT = 0;
+      } else rig.action = "idle";
+    }
+  } else if (rig.action === "pickup") {
+    rig.recoverT = clamp01(rig.recoverT + dt / CFG.pickupDuration);
+    if (rig.model) {
+      rig.model.rotation.x = lerp(0, 0.32, Math.sin(rig.recoverT * Math.PI));
+      rig.model.rotation.z = 0;
+    }
+    if (rig.recoverT >= 1) {
+      rig.action = "walkToLine";
+      rig.approachT = 0;
+      rig.approachFrom.copy(rig.pos);
+      rig.approachTo.set(0, CFG.laneY, CFG.playerStartZ);
     }
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
@@ -1295,14 +1328,7 @@ export default function MobileBowlingRealistic() {
           </div>
         </div> : null}
 
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
-          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />HDRI skybox is visible and swipe direction maps directly to aim.
-        </div>
-
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(139,215,255,0.9)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.8)", fontSize: 11, fontWeight: 950, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
+        
       </div>
     </div>
   );
