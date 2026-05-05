@@ -70,7 +70,59 @@ const twistBone = (bone, axis, amount) => bone && Math.abs(amount) > 1e-5 && set
 const aimTwoBone = (u,l,e,h,p,us=0.96,ls=0.98) => { for(let i=0;i<4;i+=1){ rotateBoneToward(u,e,us,p); rotateBoneToward(l,h,ls,p);} };
 function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
 function cueSocketOffsetWorld(side, up, forward, roll, socketLocal) { const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); return socketLocal.clone().applyQuaternion(q); }
-function poseFingers(fingers, mode, weight) { const w = clamp01(weight); fingers.forEach((f) => { if (mode === 'idle') { f.rotation.x += 0.018 * w; return; } f.rotation.x += (mode === 'grip' ? 0.5 : 0.2) * w; }); }
+function poseFingers(fingers, mode, weight) {
+  const w = clamp01(weight);
+  fingers.forEach((finger, i) => {
+    const n = cleanName(finger.name);
+    const thumb = n.includes('thumb');
+    const index = n.includes('index');
+    const middle = n.includes('middle');
+    const ring = n.includes('ring');
+    const pinky = n.includes('pinky') || n.includes('little');
+    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal'));
+    const mid = n.includes('2') || n.includes('intermediate');
+    const tip = n.includes('3') || n.includes('distal');
+    if (mode === 'idle') {
+      finger.rotation.x += 0.018 * w;
+      finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1);
+      return;
+    }
+    if (mode === 'grip') {
+      if (thumb) {
+        finger.rotation.x += 0.48 * w;
+        finger.rotation.y += -0.82 * w;
+        finger.rotation.z += 0.54 * w;
+        return;
+      }
+      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68)
+        : middle ? (base ? 0.76 : mid ? 1.02 : 0.76)
+        : ring ? (base ? 0.72 : mid ? 0.92 : 0.7)
+        : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62)
+        : 0;
+      finger.rotation.x += curl * w;
+      finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w;
+      finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w;
+      return;
+    }
+    if (thumb) {
+      finger.rotation.x += -0.18 * w;
+      finger.rotation.y += 0.95 * w;
+      finger.rotation.z += -0.95 * w;
+    } else if (index) {
+      finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w;
+      finger.rotation.y += -0.46 * w;
+      finger.rotation.z += -0.42 * w;
+    } else if (middle) {
+      finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w;
+      finger.rotation.y += -0.12 * w;
+      finger.rotation.z += -0.14 * w;
+    } else if (ring || pinky) {
+      finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : tip ? (ring ? 0.12 : 0.1) : 0.1) * w;
+      finger.rotation.y += (ring ? 0.18 : 0.34) * w;
+      finger.rotation.z += (ring ? 0.28 : 0.46) * w;
+    }
+  });
+}
 
 export function createHumanRig(scene, opts = {}) {
   const cfg = { ...BASE_CFG, ...opts };
@@ -88,7 +140,7 @@ function driveHuman(human, frame) { if (!human.activeGlb || !human.model) return
   const rightGrip = frame.rightHandWorld.clone(); const rightIdleElbow = rightGrip.clone().addScaledVector(UP,0.04+0.14*ik).addScaledVector(frame.side,-0.2).addScaledVector(frame.forward,-0.03*idle); const rightElbow=frame.rightElbow.clone().lerp(rightIdleElbow,idle*0.5); const pole = frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.32).addScaledVector(frame.forward,-0.55).normalize(); aimTwoBone(b.rightUpperArm,b.rightLowerArm,rightElbow,rightGrip,pole,0.9+0.1*ik,1.0);
   const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP,-0.55).addScaledVector(frame.forward,0.16).normalize(); const standingHandUp = UP.clone().multiplyScalar(-1).addScaledVector(frame.side,-0.64).addScaledVector(frame.forward,0.2).normalize(); const handForward = ik>=0.025 ? standingCueDir : cueDir; const roll = ik>=0.025 ? cfg.rightHandRollIdle : cfg.rightHandRollIdle + 0.02*frame.stroke; setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForward, roll, 1.0); poseFingers(human.rightFingers,'grip',0.95);
   if (ik < 0.025) { poseFingers(human.leftFingers,'idle',1); return; }
-  const leftHand = frame.leftHandWorld.clone(); const leftElbow = frame.leftElbow.clone(); aimTwoBone(b.leftUpperArm,b.leftLowerArm,leftElbow,leftHand,frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.1).normalize(),0.98*ik,1.0*ik);
+  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik); const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik); aimTwoBone(b.leftUpperArm,b.leftLowerArm,leftElbow,leftHand,frame.side.clone().multiplyScalar(-1).addScaledVector(UP,0.1).normalize(),0.98*ik,1.0*ik);
   const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward,-0.52).normalize(); const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward,-0.28).addScaledVector(frame.side,-0.16).normalize(); setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68*ik, 1.0*ik); poseFingers(human.leftFingers,'bridge',ik);
 }
 
