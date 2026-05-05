@@ -9687,12 +9687,15 @@ function Chess3D({
     controls.update();
     controlsRef.current = controls;
 
+    const initialForward = boardLookTarget
+      ? boardLookTarget.clone().sub(camera.position).normalize()
+      : new THREE.Vector3(0, -0.15, -1).normalize();
     const freeLookState = {
       activePointerId: null,
       lastX: 0,
       lastY: 0,
-      yaw: 0,
-      pitch: -0.22,
+      yaw: Math.atan2(initialForward.x, initialForward.z),
+      pitch: Math.asin(clamp(initialForward.y, -0.999, 0.999)),
       minPitch: -1.2,
       maxPitch: 0.28,
       minFov: 28,
