@@ -1,12 +1,38 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import GoalRush3DUpgrade from '../../components/GoalRush3DUpgrade';
+import GoalRush3D from '../../components/GoalRush3D.jsx';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
 import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
 
 export default function GoalRush() {
   useTelegramBackButton();
   const { search } = useLocation();
+  const params = new URLSearchParams(search);
   useOnlineRoomSync(search, 'Goal Rush Player');
-
-  return <GoalRush3DUpgrade />;
+  const target = Number(params.get('target')) || 11;
+  const playType = params.get('type') || 'regular';
+  const playerFlagParam = params.get('flag');
+  const aiFlagParam = params.get('aiFlag');
+  const accountId = params.get('accountId') || undefined;
+  const aiFlag = aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
+  const player = {
+    name: params.get('name') || 'You',
+    avatar: params.get('avatar') ||
+      (playerFlagParam && FLAG_EMOJIS.includes(playerFlagParam) ? playerFlagParam : '') ||
+      '/assets/icons/profile.svg'
+  };
+  const randomAiFlag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  const chosenAiFlag = aiFlag || randomAiFlag;
+  const ai = { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
+  return (
+    <GoalRush3D
+      player={player}
+      ai={ai}
+      target={target}
+      playType={playType}
+      accountId={accountId}
+      variant="goalrush"
+    />
+  );
 }
