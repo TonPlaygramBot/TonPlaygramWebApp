@@ -318,7 +318,6 @@ const CUE_STYLE_THUMBNAILS = Object.freeze({
 });
 
 const BASE_VARIANT_THUMBNAILS = Object.freeze({
-  pooltoolSnooker: polyHavenThumb('wooden_table_02'),
   classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
   openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
   coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
@@ -334,12 +333,6 @@ export const SNOOKER_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 );
 
 export const SNOOKER_ROYALE_BASE_VARIANTS = Object.freeze([
-  {
-    id: 'pooltoolSnooker',
-    name: 'Pooltool Snooker Table',
-    description: 'Snooker table GLB from the Pooltool open-source set, scaled to match the existing gameplay footprint and height.',
-    swatches: ['#356a3a', '#6b3f2a']
-  },
   {
     id: 'classicCylinders',
     name: 'Classic Cylinders',
