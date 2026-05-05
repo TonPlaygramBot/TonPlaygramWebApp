@@ -9686,6 +9686,69 @@ function Chess3D({
     controls.target.copy(boardLookTarget);
     controls.update();
     controlsRef.current = controls;
+
+    const freeLookState = {
+      activePointerId: null,
+      lastX: 0,
+      lastY: 0,
+      yaw: 0,
+      pitch: -0.22,
+      minPitch: -1.2,
+      maxPitch: 0.28,
+      minFov: 28,
+      maxFov: 66,
+      sensitivity: 0.0048
+    };
+
+    const applyFreeLook = () => {
+      if (!camera || !boardLookTarget) return;
+      const forward = new THREE.Vector3(
+        Math.cos(freeLookState.pitch) * Math.sin(freeLookState.yaw),
+        Math.sin(freeLookState.pitch),
+        Math.cos(freeLookState.pitch) * Math.cos(freeLookState.yaw)
+      );
+      camera.lookAt(camera.position.clone().add(forward));
+      controls.target.copy(camera.position.clone().add(forward.multiplyScalar(6.5)));
+      controls.update();
+    };
+
+    const onFreeLookPointerDown = (event) => {
+      if (viewModeRef.current !== '3d' || controls.enabled === false) return;
+      freeLookState.activePointerId = event.pointerId;
+      freeLookState.lastX = event.clientX;
+      freeLookState.lastY = event.clientY;
+      renderer.domElement.style.cursor = 'grabbing';
+    };
+
+    const onFreeLookPointerMove = (event) => {
+      if (viewModeRef.current !== '3d') return;
+      if (freeLookState.activePointerId == null || event.pointerId !== freeLookState.activePointerId) return;
+      const dx = event.clientX - freeLookState.lastX;
+      const dy = event.clientY - freeLookState.lastY;
+      freeLookState.lastX = event.clientX;
+      freeLookState.lastY = event.clientY;
+      freeLookState.yaw -= dx * freeLookState.sensitivity;
+      freeLookState.pitch = clamp(
+        freeLookState.pitch - dy * freeLookState.sensitivity,
+        freeLookState.minPitch,
+        freeLookState.maxPitch
+      );
+      applyFreeLook();
+    };
+
+    const onFreeLookPointerUp = (event) => {
+      if (event.pointerId === freeLookState.activePointerId) {
+        freeLookState.activePointerId = null;
+        renderer.domElement.style.cursor = 'grab';
+      }
+    };
+
+    const onFreeLookWheel = (event) => {
+      if (viewModeRef.current !== '3d') return;
+      event.preventDefault();
+      camera.fov = clamp(camera.fov + event.deltaY * 0.02, freeLookState.minFov, freeLookState.maxFov);
+      camera.updateProjectionMatrix();
+    };
     syncSkyboxToCamera = () => {
       if (!camera || !boardLookTarget) return;
       const skybox = envSkyboxRef.current;
@@ -9785,9 +9848,9 @@ function Chess3D({
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = true;
-        controls.enablePan = true;
-        controls.enableZoom = true;
+        controls.enableRotate = false;
+        controls.enablePan = false;
+        controls.enableZoom = false;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
@@ -13214,6 +13277,11 @@ function Chess3D({
     renderer.domElement.addEventListener('touchend', onClick);
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerdown', onFreeLookPointerDown);
+    renderer.domElement.addEventListener('pointermove', onFreeLookPointerMove);
+    renderer.domElement.addEventListener('pointerup', onFreeLookPointerUp);
+    renderer.domElement.addEventListener('pointercancel', onFreeLookPointerUp);
+    renderer.domElement.addEventListener('wheel', onFreeLookWheel, { passive: false });
     window.addEventListener('pointerup', onPointerUp);
 
     // Loop
@@ -14058,6 +14126,11 @@ function Chess3D({
         renderer.domElement.removeEventListener('touchend', onClick);
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
         renderer.domElement.removeEventListener('pointermove', onPointerMove);
+        renderer.domElement.removeEventListener('pointerdown', onFreeLookPointerDown);
+        renderer.domElement.removeEventListener('pointermove', onFreeLookPointerMove);
+        renderer.domElement.removeEventListener('pointerup', onFreeLookPointerUp);
+        renderer.domElement.removeEventListener('pointercancel', onFreeLookPointerUp);
+        renderer.domElement.removeEventListener('wheel', onFreeLookWheel);
         window.removeEventListener('pointerup', onPointerUp);
       }
       cameraViewRef.current = null;
