@@ -146,6 +146,8 @@ const userSchema = new mongoose.Schema({
   // Persist Snooker Royal unlocks server-side for cross-device sync
   snookerRoyalInventory: { type: Object, default: undefined },
 
+  // Persist Air Hockey unlocks server-side for cross-device sync
+  airHockeyInventory: { type: Object, default: undefined },
 
 });
 

@@ -9,6 +9,7 @@ import {
 } from '../utils/memoryUserStore.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
+import { AIR_HOCKEY_DEFAULT_UNLOCKS } from '../../webapp/src/config/airHockeyInventoryConfig.js';
 
 const router = Router();
 
@@ -17,7 +18,8 @@ export const BUNDLES = {};
 
 const STORE_INVENTORY_TARGETS = {
   poolroyale: 'pool',
-  snookerroyale: 'snooker'
+  snookerroyale: 'snooker',
+  airhockey: 'airHockey'
 };
 
 function copyDefaults(defaults = {}) {
@@ -40,9 +42,11 @@ function normalizeInventory(rawInventory, defaults) {
 export function applyStoreItemDelivery(user, items = []) {
   const poolInventory = normalizeInventory(user.poolRoyalInventory, POOL_ROYALE_DEFAULT_UNLOCKS);
   const snookerInventory = normalizeInventory(user.snookerRoyalInventory, SNOOKER_ROYALE_DEFAULT_UNLOCKS);
+  const airHockeyInventory = normalizeInventory(user.airHockeyInventory, AIR_HOCKEY_DEFAULT_UNLOCKS);
   const delivery = {
     pool: [],
     snooker: [],
+    airHockey: [],
     unsupported: []
   };
 
@@ -62,20 +66,31 @@ export function applyStoreItemDelivery(user, items = []) {
       return;
     }
 
-    const current = new Set(snookerInventory[item.type] || []);
+    if (target === 'snooker') {
+      const current = new Set(snookerInventory[item.type] || []);
+      const sizeBefore = current.size;
+      current.add(item.optionId);
+      snookerInventory[item.type] = [...current];
+      if (current.size !== sizeBefore) delivery.snooker.push(item);
+      return;
+    }
+
+    const current = new Set(airHockeyInventory[item.type] || []);
     const sizeBefore = current.size;
     current.add(item.optionId);
-    snookerInventory[item.type] = [...current];
-    if (current.size !== sizeBefore) delivery.snooker.push(item);
+    airHockeyInventory[item.type] = [...current];
+    if (current.size !== sizeBefore) delivery.airHockey.push(item);
   });
 
   user.poolRoyalInventory = poolInventory;
   user.snookerRoyalInventory = snookerInventory;
+  user.airHockeyInventory = airHockeyInventory;
 
   return {
     ...delivery,
     poolInventory,
-    snookerInventory
+    snookerInventory,
+    airHockeyInventory
   };
 }
 
@@ -180,6 +195,7 @@ async function handleTpcPurchase(req, res) {
     delivery: {
       pool: delivery.pool.length,
       snooker: delivery.snooker.length,
+      airHockey: delivery.airHockey.length,
       unsupported: delivery.unsupported.length
     }
   });
