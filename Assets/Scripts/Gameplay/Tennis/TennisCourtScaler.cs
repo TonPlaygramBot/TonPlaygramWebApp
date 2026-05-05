@@ -11,8 +11,8 @@ namespace TonPlaygram.Gameplay.Tennis
         [SerializeField] private Transform netRoot;
         [SerializeField] private Camera targetCamera;
         [SerializeField] private Transform framingPivot;
-        [SerializeField, Min(0.1f)] private float worldScaleMultiplier = 1.35f;
-        [SerializeField, Min(1f)] private float framingDistanceScale = 1.35f;
+        [SerializeField, Min(0.1f)] private float worldScaleMultiplier = 1.5f;
+        [SerializeField, Min(1f)] private float framingDistanceScale = 1.5f;
 
         private bool _initialized;
         private Vector3 _initialCourtScale;
