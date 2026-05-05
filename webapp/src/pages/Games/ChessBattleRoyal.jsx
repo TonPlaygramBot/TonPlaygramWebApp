@@ -363,7 +363,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.49; // Shrink the full board/table footprint a bit more for portrait visibility while keeping piece readability.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82; // Enlarge pieces so they stay readable after shrinking the board footprint.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.28 * MODEL_SCALE; // Pull local chair/human closer to the table for a tighter bottom-seat framing.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.24 * MODEL_SCALE; // Pull opponent chair/human closer so both seats stay proportionally near the table.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.18 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -450,10 +450,10 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.34;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.14;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.76;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.64;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.98;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
@@ -9675,7 +9675,7 @@ function Chess3D({
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.screenSpacePanning = true;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.minDistance = CAMERA_3D_MIN_RADIUS;
     controls.maxDistance = CAMERA_3D_MAX_RADIUS;
     controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9686,8 +9686,9 @@ function Chess3D({
     controls.target.copy(boardLookTarget);
     const cameraOffset = camera.position.clone().sub(boardLookTarget);
     const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-    const verticalAllowanceUp = THREE.MathUtils.degToRad(isPortrait ? 26 : 20);
-    const verticalAllowanceDown = THREE.MathUtils.degToRad(isPortrait ? 30 : 24);
+    const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 32 : 27);
+    const verticalAllowanceUp = THREE.MathUtils.degToRad(isPortrait ? 18 : 14);
+    const verticalAllowanceDown = THREE.MathUtils.degToRad(isPortrait ? 20 : 16);
     controls.minPolarAngle = clamp(
       cameraSpherical.phi - verticalAllowanceUp,
       CAMERA_PULL_FORWARD_MIN,
@@ -9698,8 +9699,8 @@ function Chess3D({
       CAMERA_PULL_FORWARD_MIN,
       CAM.phiMax
     );
-    controls.minAzimuthAngle = -Infinity;
-    controls.maxAzimuthAngle = Infinity;
+    controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
+    controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
     controls.minDistance = CAMERA_3D_MIN_RADIUS;
     controls.maxDistance = CAMERA_3D_MAX_RADIUS;
     controls.update();
@@ -9776,7 +9777,7 @@ function Chess3D({
         controls.enabled = false;
         controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = true;
+        controls.enableZoom = false;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
