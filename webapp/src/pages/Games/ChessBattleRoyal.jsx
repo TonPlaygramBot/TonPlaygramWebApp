@@ -364,7 +364,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.88; // Enlarge pieces so they remain clearly readable after shrinking the board footprint.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.68; // Further shrink pieces for a cleaner portrait view and more breathing room.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -372,7 +372,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.78;
+const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.88;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull local chair/human closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.18 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.11 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -7539,7 +7539,6 @@ function Chess3D({
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('3d');
-  const zoomLockedForMatchRef = useRef(false);
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
   const cameraTweenRef = useRef(0);
@@ -8017,11 +8016,6 @@ function Chess3D({
     viewModeRef.current = viewMode;
     cameraViewRef.current?.setMode(viewMode);
   }, [viewMode]);
-
-  useEffect(() => {
-    zoomLockedForMatchRef.current = ['matched', 'starting', 'in-game'].includes(onlineStatus);
-    cameraViewRef.current?.setMode(viewModeRef.current);
-  }, [onlineStatus]);
 
   useEffect(() => {
     setMoveMode('click');
@@ -9794,7 +9788,7 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = !zoomLockedForMatchRef.current;
+        controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
@@ -9812,7 +9806,7 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = true;
         controls.enablePan = false;
-        controls.enableZoom = !zoomLockedForMatchRef.current;
+        controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
