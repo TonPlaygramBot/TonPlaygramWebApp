@@ -456,11 +456,9 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.022; // keep camera slightly in front of the eyes to avoid face clipping.
-const FPV_FACE_UP_OFFSET = 0.01; // keep camera at eye line instead of lower forehead/chest level.
-const FPV_HEAD_FOLLOW_SMOOTHING = 0.56;
-const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 7.2; // look down the board journey toward the opponent side.
-const FPV_LOOK_TARGET_LERP = 0.22;
+const FPV_FACE_FORWARD_OFFSET = 0.012; // keep camera very close and centered in front of the face.
+const FPV_FACE_UP_OFFSET = -0.003; // tiny vertical lift to avoid clipping while staying face-level.
+const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
@@ -13925,29 +13923,12 @@ function Chess3D({
         const eyeWorld = averageBoneWorldPosition([rig.leftEye, rig.rightEye])
           ?? rig.head.getWorldPosition(new THREE.Vector3());
         const headQuat = rig.head.getWorldQuaternion(new THREE.Quaternion());
-        const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat).normalize();
-        const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
-        const horizonForward = eyeForward.clone();
-        horizonForward.y *= 0.3;
-        if (horizonForward.lengthSq() < 1e-6) horizonForward.copy(eyeForward);
-        horizonForward.normalize();
+        const eyeForward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
+        const eyeUp = new THREE.Vector3(0, 1, 0).applyQuaternion(headQuat);
         camera.position
           .copy(eyeWorld)
           .addScaledVector(eyeForward, FPV_FACE_FORWARD_OFFSET)
           .addScaledVector(eyeUp, FPV_FACE_UP_OFFSET + bobOffset);
-
-        const opponentEntry = Array.isArray(seatedActors)
-          ? seatedActors.find((entry) => entry?.playerIndex === 1)
-          : null;
-        const opponentLookTarget = opponentEntry?.rig?.head
-          ? opponentEntry.rig.head.getWorldPosition(new THREE.Vector3())
-          : null;
-        const lookTarget = opponentLookTarget
-          ?? eyeWorld.clone().addScaledVector(horizonForward, FPV_LOOK_AHEAD_DISTANCE);
-        lookTarget.y = THREE.MathUtils.lerp(camera.position.y, lookTarget.y, 0.34);
-        const lookMatrix = new THREE.Matrix4().lookAt(camera.position, lookTarget, WORLD_UP);
-        const lookQuat = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
-        camera.quaternion.slerp(lookQuat, FPV_LOOK_TARGET_LERP);
         camera.quaternion.slerp(headQuat, FPV_HEAD_FOLLOW_SMOOTHING);
       }
 
