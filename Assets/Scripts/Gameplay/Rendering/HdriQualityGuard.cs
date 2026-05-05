@@ -22,10 +22,6 @@ namespace Aiming.Gameplay.Rendering
         [SerializeField] private Cubemap mobileHdri4K;
 
         [SerializeField] private Material[] skyboxTargets;
-        [SerializeField] private bool enforceOriginalMapping = true;
-        [SerializeField] private string hdriMainTextureProperty = "_Tex";
-        [SerializeField] private string hdriMappingProperty = "_Mapping";
-
 
         public void ApplyHdriProfile(int targetRefreshRate)
         {
@@ -41,7 +37,7 @@ namespace Aiming.Gameplay.Rendering
             for (int i = 0; i < skyboxTargets.Length; i++)
             {
                 Material target = skyboxTargets[i];
-                if (target == null || !target.HasProperty(hdriMainTextureProperty))
+                if (target == null || !target.HasProperty("_Tex"))
                 {
                     continue;
                 }
@@ -49,12 +45,7 @@ namespace Aiming.Gameplay.Rendering
                 Cubemap selectedHdri = profile.primaryHdri != null ? profile.primaryHdri : profile.fallbackHdri;
                 if (selectedHdri != null)
                 {
-                    target.SetTexture(hdriMainTextureProperty, selectedHdri);
-                }
-
-                if (enforceOriginalMapping && target.HasProperty(hdriMappingProperty))
-                {
-                    target.SetInt(hdriMappingProperty, 0);
+                    target.SetTexture("_Tex", selectedHdri);
                 }
 
                 target.SetInt("_HdriResolution", profile.primaryResolution);
