@@ -363,8 +363,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.5; // Keep the same table/board/chair proportions, but ~22% smaller than current.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.78; // Shrink tokens by 15% while preserving the existing style proportions.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.58; // Keep the same table/board/chair proportions, but ~22% smaller than current.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -406,9 +406,9 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.12 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.1 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
-const CHAIR_TABLE_PUSHBACK = -0.01 * MODEL_SCALE;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.082 * MODEL_SCALE; // Keep local chair close so legs visually approach the table edge.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.058 * MODEL_SCALE; // Keep opponent chair close too, with only a small gap.
+const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
 const CHAIR_TABLE_SHAPE_BIAS = 0.18 * MODEL_SCALE;
@@ -456,10 +456,10 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.94;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 1.84; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.0015; // keep camera very close and centered in front of the face.
-const FPV_FACE_UP_OFFSET = 0; // tiny vertical lift to avoid clipping while staying face-level.
-const FPV_HEAD_FOLLOW_SMOOTHING = 1;
-const FPV_BOB_AMPLITUDE = 0;
+const FPV_FACE_FORWARD_OFFSET = 0.012; // keep camera very close and centered in front of the face.
+const FPV_FACE_UP_OFFSET = -0.003; // tiny vertical lift to avoid clipping while staying face-level.
+const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
+const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
@@ -2634,12 +2634,12 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   diamondEdge: 0.024
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
-const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.06 * MODEL_SCALE;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 13.8; // keep side parking weapons realistic beside seated humans
+const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
-const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 0.9; // keep truck close to true-size relative to helicopter shell
+const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
