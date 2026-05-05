@@ -4,8 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { BOWLING_HDRI_VARIANTS, BOWLING_STORE_ITEMS } from "../../config/bowlingInventoryConfig.js";
-import { POOL_ROYALE_OPTION_LABELS } from "../../config/poolRoyaleInventoryConfig.js";
+import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
 
 type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
@@ -89,8 +88,7 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 1.46;
-const OPEN_SOURCE_PIN_GTLF_URL = "https://market-assets.fra1.cdn.digitaloceanspaces.com/market-assets/models/bowling-pin/model.gltf";
+const HUMAN_INITIAL_SCALE = 1.32;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -150,8 +148,6 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ["8k", "4k", "2k", "1k"] as const;
-const TABLE_FINISH_ITEMS = BOWLING_STORE_ITEMS.filter((item) => item.type === "tableFinish");
-const CHROME_ITEMS = BOWLING_STORE_ITEMS.filter((item) => item.type === "chromeColor");
 
 function makeEmptyPlayers(): ScorePlayer[] {
   const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
@@ -549,22 +545,7 @@ function createPinMesh() {
   return root;
 }
 
-async function loadOpenSourcePinModel(loader: GLTFLoader) {
-  const gltf = await loader.loadAsync(OPEN_SOURCE_PIN_GTLF_URL);
-  const source = enableShadow(gltf.scene || gltf.scenes?.[0] || new THREE.Group());
-  const box = new THREE.Box3().setFromObject(source);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const sourceH = Math.max(0.001, size.y);
-  const scale = 0.74 / sourceH;
-  const root = new THREE.Group();
-  source.scale.setScalar(scale);
-  source.position.y = -box.min.y * scale;
-  root.add(source);
-  return root;
-}
-
-function createPins(scene: THREE.Scene, pinTemplate?: THREE.Group) {
+function createPins(scene: THREE.Scene) {
   const pins: PinState[] = [];
   const positions = [
     [0, 0],
@@ -573,7 +554,7 @@ function createPins(scene: THREE.Scene, pinTemplate?: THREE.Group) {
     [-0.96, -1.68], [-0.32, -1.68], [0.32, -1.68], [0.96, -1.68],
   ];
   for (const [x, dz] of positions) {
-    const root = pinTemplate ? (pinTemplate.clone(true) as THREE.Group) : createPinMesh();
+    const root = createPinMesh();
     const start = new THREE.Vector3(x, CFG.laneY + 0.09, CFG.pinDeckZ + dz);
     root.position.copy(start);
     scene.add(root);
@@ -607,7 +588,7 @@ function clearFallenPins(pins: PinState[]) {
   }
 }
 
-function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, selectedTableFinishId: string, selectedChromeId: string) {
+function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   const group = new THREE.Group();
   scene.add(group);
   let laneMat: THREE.Material;
@@ -621,8 +602,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, sele
   }
 
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
-  const chromeIsGold = selectedChromeId === "gold";
-  const metalMat = new THREE.MeshPhysicalMaterial({ color: chromeIsGold ? 0xe7c25f : 0xcfd7e2, roughness: 0.11, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
+  const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xcfd7e2, roughness: 0.11, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
@@ -644,11 +624,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, sele
   oil.rotation.x = -Math.PI / 2;
   oil.position.set(0, CFG.laneY + 0.002, -2.7);
   group.add(oil);
-  const isLtFinish = selectedTableFinishId.startsWith("carbonFiber");
-  const deckMat = isLtFinish
-    ? new THREE.MeshPhysicalMaterial({ color: 0x23272f, roughness: 0.42, metalness: 0.2, clearcoat: 0.4 })
-    : woodMat;
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.5, 0.13, 2.52), deckMat);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.5, 0.13, 2.52), woodMat);
   deck.position.set(0, CFG.laneY + 0.02, CFG.pinDeckZ - 0.75);
   group.add(deck);
   const gutterL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.14, 19.1), gutterMat);
@@ -693,7 +669,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, sele
       group.add(leg);
     }
   }
-  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.4, 1.55), deckMat);
+  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.4, 1.55), woodMat);
   returnBase.position.set(1.67, 0.2, 5.92);
   group.add(returnBase);
   const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.84, 28, 1, false, 0, Math.PI), metalMat);
@@ -1098,8 +1074,6 @@ export default function MobileBowlingRealistic() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
   const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
-  const [selectedTableFinishId, setSelectedTableFinishId] = useState<string>(() => localStorage.getItem("bowling.tableFinish") || TABLE_FINISH_ITEMS[0]?.optionId || "peelingPaintWeathered");
-  const [selectedChromeId, setSelectedChromeId] = useState<string>(() => localStorage.getItem("bowling.chromeColor") || CHROME_ITEMS[0]?.optionId || "gold");
   const [selectedBallWeight, setSelectedBallWeight] = useState<string>(() => localStorage.getItem("bowling.ballWeight") || "12");
   const [skipReplays, setSkipReplays] = useState<boolean>(() => localStorage.getItem("bowling.skipReplays") === "1");
   const [replayActive, setReplayActive] = useState(false);
@@ -1109,8 +1083,6 @@ export default function MobileBowlingRealistic() {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
-    const gltfLoader = new GLTFLoader();
-    let cancelled = false;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.setClearColor(0x090b11, 1);
@@ -1190,8 +1162,8 @@ export default function MobileBowlingRealistic() {
     }
 
     const texLoader = new THREE.TextureLoader();
-    createEnvironment(scene, texLoader, selectedTableFinishId, selectedChromeId);
-    let pins: PinState[] = [];
+    createEnvironment(scene, texLoader);
+    const pins = createPins(scene);
     const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), 0xff7a2f);
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
     const ball = createActiveBall(ballVariant);
@@ -1400,19 +1372,9 @@ export default function MobileBowlingRealistic() {
       updateCamera(camera, ball, player, dt);
       renderer.render(scene, camera);
     }
-    const boot = async () => {
-      let pinTemplate: THREE.Group | undefined;
-      try {
-        pinTemplate = await loadOpenSourcePinModel(gltfLoader);
-      } catch {}
-      if (cancelled) return;
-      pins = createPins(scene, pinTemplate);
-      animate();
-    };
-    void boot();
+    animate();
 
     return () => {
-      cancelled = true;
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", onPointerDown);
@@ -1432,7 +1394,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId, selectedBallWeight, selectedTableFinishId, selectedChromeId, replayActive, skipReplays]);
+  }, [graphicsQuality, selectedHdriId, selectedBallWeight, replayActive, skipReplays]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1472,14 +1434,6 @@ export default function MobileBowlingRealistic() {
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
             {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
-          </div>
-          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Table finish inventory</div>
-          <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
-            {TABLE_FINISH_ITEMS.map((item)=><button key={item.optionId} onClick={()=>{setSelectedTableFinishId(item.optionId); localStorage.setItem("bowling.tableFinish",item.optionId);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedTableFinishId===item.optionId?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={item.thumbnail} alt={item.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{POOL_ROYALE_OPTION_LABELS.tableFinish[item.optionId] || item.name}</div></button>)}
-          </div>
-          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Chrome plate inventory</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {CHROME_ITEMS.map((item)=><button key={item.optionId} onClick={()=>{setSelectedChromeId(item.optionId); localStorage.setItem("bowling.chromeColor",item.optionId);}} style={{padding:"6px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background:selectedChromeId===item.optionId?"#7fd6ff":"rgba(255,255,255,0.08)", color:selectedChromeId===item.optionId?"#001018":"#fff", fontWeight:800}}>{POOL_ROYALE_OPTION_LABELS.chromeColor[item.optionId] || item.name}</button>)}
           </div>
           <label style={{display:"flex",alignItems:"center",gap:8,marginTop:10,fontSize:12}}>
             <input type="checkbox" checked={skipReplays} onChange={(e)=>{setSkipReplays(e.target.checked); localStorage.setItem("bowling.skipReplays", e.target.checked ? "1":"0");}} />
