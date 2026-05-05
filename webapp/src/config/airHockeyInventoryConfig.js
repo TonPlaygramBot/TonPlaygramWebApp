@@ -592,12 +592,12 @@ export const AIR_HOCKEY_OPTION_LABELS = Object.freeze(
 );
 
 export const AIR_HOCKEY_STORE_ITEMS = [
-  ...AIR_HOCKEY_MARBLE_FIELDS.map((field, idx) => ({
+  ...AIR_HOCKEY_CUSTOMIZATION.field.map((field, idx) => ({
     id: `field-${field.id}`,
     type: 'field',
     optionId: field.id,
     name: `${field.name} Surface`,
-    price: 520 + idx * 20,
+    price: field.price ?? 520 + idx * 20,
     description: field.description,
     swatches: field.swatches,
     thumbnail: FIELD_THUMBNAILS[field.id] || swatchThumbnail(field.swatches)
