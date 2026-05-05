@@ -25298,23 +25298,23 @@ const shotPowerRef = useRef(0);
               .setY(TABLE_Y + TABLE.THICK + 0.009);
             const bridgeCuePoint = bridgeTarget
               .clone()
-              .addScaledVector(aimForward, 0.01)
+              .addScaledVector(aimForward, 0.014)
               .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
-            const cueTip = cueWorld
+            const cueTipShoot = cueWorld
               .clone()
               .addScaledVector(aimForward, -cueBallGap)
               .setY(bridgeTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
-            const cueBack = bridgeCuePoint
+            const cueBackShoot = bridgeCuePoint
               .clone()
               .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024, 0));
-            const cueShootDir = cueTip.clone().sub(cueBack).normalize();
-            const gripTarget = cueBack
+            const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
+            const shootGripTarget = cueBackShoot
               .clone()
               .addScaledVector(cueShootDir, 0.58);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
-                cueBack: cueBack.clone(),
+                cueBack: cueBackShoot.clone(),
                 bridgeTarget: bridgeTarget.clone(),
                 aimForward: aimForward.clone(),
                 side: side.clone()
@@ -25323,10 +25323,18 @@ const shotPowerRef = useRef(0);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
               .clone()
-              .add(new THREE.Vector3(0.24, 1.1, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+              .add(new THREE.Vector3(0.31, 0.8, -0.015).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             const idleLeft = walkRoot
               .clone()
               .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
+              .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
+              .normalize();
+            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24);
+            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, HUMAN_CUE_LENGTH - 0.24);
+            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
+            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
+            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
             const isFiniteVec3 = (v) =>
               Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
             if (
