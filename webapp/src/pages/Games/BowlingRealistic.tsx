@@ -4,8 +4,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { BOWLING_HDRI_VARIANTS, BOWLING_STORE_ITEMS } from "../../config/bowlingInventoryConfig.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover";
+type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -51,10 +52,14 @@ type HumanRig = {
   approachT: number;
   throwT: number;
   recoverT: number;
+  returnWalkT: number;
+  pickT: number;
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
 };
+
+type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -66,6 +71,7 @@ type BallState = {
   hook: number;
   returnState: BallReturnState;
   returnT: number;
+  variant: BallVariant;
 };
 
 type PinState = {
@@ -81,26 +87,26 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-const HUMAN_INITIAL_SCALE = 0.92;
-const HDRI_OPTIONS = [
-  { id: "studio_small_09", name: "Studio Small 09", slug: "studio_small_09", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?height=160" },
-  { id: "studio_small_03", name: "Studio Small 03", slug: "studio_small_03", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?height=160" },
-  { id: "photo_studio_01", name: "Photo Studio 01", slug: "photo_studio_01", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_01.png?height=160" },
-  { id: "brown_photostudio_02", name: "Brown Photostudio 02", slug: "brown_photostudio_02", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_02.png?height=160" },
-  { id: "empty_warehouse_01", name: "Empty Warehouse 01", slug: "empty_warehouse_01", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/empty_warehouse_01.png?height=160" },
-  { id: "industrial_workshop_foundry", name: "Industrial Workshop", slug: "industrial_workshop_foundry", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/industrial_workshop_foundry.png?height=160" },
-  { id: "abandoned_parking", name: "Abandoned Parking", slug: "abandoned_parking", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/abandoned_parking.png?height=160" },
-  { id: "aerodynamics_workshop", name: "Aerodynamics Workshop", slug: "aerodynamics_workshop", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/aerodynamics_workshop.png?height=160" },
-  { id: "lebombo", name: "Lebombo", slug: "lebombo", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/lebombo.png?height=160" },
-  { id: "skidpan", name: "Skidpan", slug: "skidpan", thumb: "https://cdn.polyhaven.com/asset_img/thumbs/skidpan.png?height=160" },
-] as const;
-const DEFAULT_HDRI_ID = "studio_small_09";
+const HUMAN_INITIAL_SCALE = 1.32;
+const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
+  id: h.id,
+  name: h.name,
+  slug: h.hdriUrl.split('/').pop()?.replace(/_(1k|2k|4k)\.hdr$/, '') || h.id,
+  thumb: h.thumbnailUrl,
+})) as const;
+const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
 const HDRI_QUALITY_SIZE = {
   performance: "1k",
   balanced: "2k",
   ultra: "4k",
 } as const;
 const PORTRAIT_AIM_ASSIST = 0.62;
+const BALL_VARIANTS: BallVariant[] = [
+  { label: "10", radius: 0.165, massFactor: 0.92, colors:["#93c5fd","#2563eb","#0b1b4a"] },
+  { label: "12", radius: 0.176, massFactor: 1.0, colors:["#fda4af","#e11d48","#4a0416"] },
+  { label: "14", radius: 0.188, massFactor: 1.08, colors:["#fde68a","#f59e0b","#4a2900"] },
+  { label: "16", radius: 0.2, massFactor: 1.16, colors:["#a7f3d0","#059669","#032d22"] },
+];
 const OAK_BASE = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/";
 const OAK = {
   diff: `${OAK_BASE}oak_veneer_01_diff_2k.jpg`,
@@ -111,7 +117,7 @@ const OAK = {
 const UP = new THREE.Vector3(0, 1, 0);
 
 const CFG = {
-  laneY: 0.08,
+  laneY: 0,
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
   playerStartZ: 7.15,
@@ -126,6 +132,8 @@ const CFG = {
   approachDuration: 0.56,
   throwDuration: 0.9,
   recoverDuration: 0.28,
+  returnWalkDuration: 1.08,
+  pickDuration: 0.42,
   releaseT: 0.56,
 };
 
@@ -290,7 +298,7 @@ function makeFallbackWoodMaterial() {
 }
 
 function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
-  model.rotation.set(0, Math.PI, 0);
+  model.rotation.set(0, 0, 0);
   model.position.set(0, 0, 0);
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
@@ -366,6 +374,8 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     approachT: 0,
     throwT: 0,
     recoverT: 0,
+    returnWalkT: 0,
+    pickT: 0,
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
@@ -410,8 +420,21 @@ function syncHuman(rig: HumanRig) {
   rig.shadow.position.set(rig.pos.x, CFG.laneY + 0.01, rig.pos.z);
 }
 
+
+function findRightHand(modelRoot: THREE.Object3D | null) {
+  if (!modelRoot) return null;
+  let hand: THREE.Object3D | null = null;
+  modelRoot.traverse((obj) => {
+    const n = obj.name.toLowerCase();
+    if (!hand && (n.includes('righthand') || n.includes('hand_r') || n.includes('right_hand'))) hand = obj;
+  });
+  return hand;
+}
+
 function getHeldBallWorldPosition(rig: HumanRig) {
-  let local = new THREE.Vector3(0.34, 0.94, 0.16);
+  const handNode = findRightHand(rig.model);
+  const handAnchor = handNode ? handNode.getWorldPosition(new THREE.Vector3()) : null;
+  let local = new THREE.Vector3(0.31, 0.92, 0.08);
   if (rig.action === "approach") {
     const s = Math.sin(rig.walkCycle);
     local = new THREE.Vector3(0.36, 0.82 + Math.abs(s) * 0.05, 0.14 + s * 0.09);
@@ -431,7 +454,9 @@ function getHeldBallWorldPosition(rig: HumanRig) {
     const k = clamp01(rig.recoverT);
     local = new THREE.Vector3(0.24, lerp(1.18, 0.96, k), lerp(0.44, 0.18, k));
   }
-  return local.applyAxisAngle(UP, rig.yaw).add(rig.pos);
+  const fallbackWorld = local.applyAxisAngle(UP, rig.yaw).add(rig.pos);
+  if (!handAnchor) return fallbackWorld;
+  return handAnchor.add(new THREE.Vector3(0.02, -0.03, 0.015).applyAxisAngle(UP, rig.yaw));
 }
 
 function makeBallTexture(colors: [string, string, string]) {
@@ -485,12 +510,12 @@ function makeBallMaterial(colors: [string, string, string]) {
   });
 }
 
-function createActiveBall() {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 80, 64), makeBallMaterial(["#9ee7ff", "#2d88ff", "#0d1d50"]));
+function createActiveBall(variant: BallVariant) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(variant.radius, 80, 64), makeBallMaterial(variant.colors));
   enableShadow(mesh);
   const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ);
   mesh.position.copy(pos);
-  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0 } as BallState;
+  return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant } as BallState;
 }
 
 function createPinMesh() {
@@ -563,7 +588,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader) {
   }
 
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x262f3a, roughness: 0.38, metalness: 0.2 });
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.34, metalness: 0.74 });
+  const metalMat = new THREE.MeshPhysicalMaterial({ color: 0xcfd7e2, roughness: 0.11, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.84 });
 
   // Arena removed: no walls, no ceiling, and no extra room floor.
@@ -694,7 +719,7 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
   rig.approachTo.set(clamp(intent.releaseX * 0.34, -0.4, 0.4), CFG.laneY, CFG.approachStopZ);
 }
 
-function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
+function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
   if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
@@ -713,8 +738,9 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
     if (rig.model) {
       const t = clamp01(rig.throwT);
       rig.model.position.y = 0;
-      rig.model.rotation.x = t < 0.55 ? lerp(0, 0.18, t / 0.55) : lerp(0.18, -0.05, (t - 0.55) / 0.45);
-      rig.model.rotation.z = t < 0.45 ? lerp(0, -0.04, t / 0.45) : lerp(-0.04, 0.02, (t - 0.45) / 0.55);
+      rig.model.rotation.x = t < 0.55 ? lerp(0, 0.26, t / 0.55) : lerp(0.26, -0.08, (t - 0.55) / 0.45);
+      rig.model.rotation.z = t < 0.45 ? lerp(0, -0.12, t / 0.45) : lerp(-0.12, 0.06, (t - 0.45) / 0.55);
+      rig.model.rotation.y = t < 0.7 ? lerp(0, 0.22, t / 0.7) : lerp(0.22, 0.08, (t - 0.7) / 0.3);
     }
     if (rig.throwT >= 1) {
       rig.action = "recover";
@@ -729,8 +755,34 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
     }
     if (rig.recoverT >= 1) {
       rig.recoverT = 0;
-      rig.action = "idle";
+      rig.action = "toRack";
+      rig.returnWalkT = 0.001;
     }
+  } else if (rig.action === "toRack") {
+    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
+    rig.walkCycle += dt * 12.8;
+    rig.pos.lerpVectors(rig.approachTo, new THREE.Vector3(1.55, CFG.laneY, 6.1), easeInOut(rig.returnWalkT));
+    if (rig.model) {
+      const swing = Math.sin(rig.walkCycle) * 0.12;
+      rig.model.rotation.y = swing * 0.22;
+      rig.model.rotation.z = swing * 0.08;
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
+    }
+    if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
+  } else if (rig.action === "pickBall") {
+    rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
+    if (rig.pickT >= 1 && canStartReturnCycle) { rig.action = "toApproach"; rig.returnWalkT = 0.001; }
+  } else if (rig.action === "toApproach") {
+    rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
+    rig.walkCycle += dt * 12.8;
+    rig.pos.lerpVectors(new THREE.Vector3(1.55, CFG.laneY, 6.1), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    if (rig.model) {
+      const swing = Math.sin(rig.walkCycle) * 0.12;
+      rig.model.rotation.y = swing * 0.18;
+      rig.model.rotation.z = -swing * 0.06;
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
+    }
+    if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
@@ -745,8 +797,8 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number) {
 }
 
 function releaseBall(ball: BallState, intent: ThrowIntent) {
-  const releasePos = new THREE.Vector3(intent.releaseX, CFG.laneY + CFG.ballR + 0.02, CFG.foulZ - 0.16);
-  const target = new THREE.Vector3(intent.targetX, CFG.laneY + CFG.ballR + 0.02, CFG.pinDeckZ + 0.4);
+  const releasePos = new THREE.Vector3(intent.releaseX, CFG.laneY + ball.variant.radius + 0.02, CFG.foulZ - 0.16);
+  const target = new THREE.Vector3(intent.targetX, CFG.laneY + ball.variant.radius + 0.02, CFG.pinDeckZ + 0.4);
   const dir = target.clone().sub(releasePos).normalize();
   ball.held = false;
   ball.rolling = true;
@@ -782,7 +834,7 @@ function collideBallWithPins(ball: BallState, pins: PinState[]) {
     if (dist > minDist || dist < 0.001) continue;
     const n = new THREE.Vector3(dx / dist, 0, dz / dist);
     const speed = Math.hypot(ball.vel.x, ball.vel.z);
-    const impulse = Math.max(1.0, speed * 0.78);
+    const impulse = Math.max(1.0, speed * 0.78 * ball.variant.massFactor);
     pin.vel.addScaledVector(n, impulse);
     pin.vel.z += ball.vel.z * 0.18;
     pin.angularVel += impulse * 1.8;
@@ -918,12 +970,12 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
     ball.pos.x = clamp(ball.pos.x, -CFG.gutterHalfW, CFG.gutterHalfW);
     ball.vel.x *= -0.22;
   }
-  ball.pos.y = CFG.laneY + CFG.ballR + (ball.inGutter ? -0.08 : 0.02);
+  ball.pos.y = CFG.laneY + ball.variant.radius + (ball.inGutter ? -0.08 : 0.02);
   ball.mesh.position.copy(ball.pos);
   const speed = Math.hypot(ball.vel.x, ball.vel.z);
   if (speed > 0.02) {
     const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x).normalize();
-    if (rollAxis.lengthSq() > 0.001) ball.mesh.rotateOnWorldAxis(rollAxis, (speed / CFG.ballR) * dt);
+    if (rollAxis.lengthSq() > 0.001) ball.mesh.rotateOnWorldAxis(rollAxis, (speed / ball.variant.radius) * dt);
   }
   collideBallWithPins(ball, pins);
   if (ball.pos.z <= CFG.backStopZ + 0.45 || speed < 0.12) startBallReturn(ball);
@@ -939,7 +991,10 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
     lead.normalize();
     desired = ball.pos.clone().addScaledVector(lead, -4.85).add(new THREE.Vector3(0, 2.45, 0.82));
     look = ball.pos.clone().addScaledVector(lead, 2.15).add(new THREE.Vector3(0, 0.34, 0));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover") {
+  } else if (player.action === "pickBall") {
+    desired = player.pos.clone().add(new THREE.Vector3(0, 2.7, 5.6));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.96, -0.8));
+  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover" || player.action === "toRack" || player.action === "toApproach") {
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.55, 3.72));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.85, -1.7));
   } else {
@@ -975,6 +1030,7 @@ export default function MobileBowlingRealistic() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
   const [selectedHdriId, setSelectedHdriId] = useState<string>(() => localStorage.getItem("bowling.hdri") || DEFAULT_HDRI_ID);
+  const [selectedBallWeight, setSelectedBallWeight] = useState<string>(() => localStorage.getItem("bowling.ballWeight") || "12");
   const scoresMemo = useMemo(() => scores, [scores]);
 
   useEffect(() => {
@@ -1047,7 +1103,8 @@ export default function MobileBowlingRealistic() {
     createEnvironment(scene, texLoader);
     const pins = createPins(scene);
     const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), 0xff7a2f);
-    const ball = createActiveBall();
+    const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
+    const ball = createActiveBall(ballVariant);
     scene.add(ball.mesh);
 
     let localScores = makeEmptyPlayers();
@@ -1211,7 +1268,7 @@ export default function MobileBowlingRealistic() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
-      updateHuman(player, ball, dt);
+      updateHuman(player, ball, dt, true);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
@@ -1220,6 +1277,10 @@ export default function MobileBowlingRealistic() {
       }
       updateBall(ball, pins, dt);
       const pinsMoving = updatePins(pins, dt);
+      const mechanismBusy = ball.returnState !== "idle" || ball.rolling || pinsMoving;
+      if ((player.action === "pickBall" || player.action === "toApproach") && mechanismBusy) {
+        player.action = "pickBall";
+      }
       if (pinsMoving) pinsWereMoving = true;
       if (!shotResolved && !ball.rolling && pinsWereMoving && !pinsMoving) {
         settleTimer += dt;
@@ -1258,7 +1319,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId]);
+  }, [graphicsQuality, selectedHdriId, selectedBallWeight]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1289,20 +1350,17 @@ export default function MobileBowlingRealistic() {
         {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
           <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
           {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
+
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Ball weight</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+            {BALL_VARIANTS.map((v)=> <button key={v.label} onClick={()=>{setSelectedBallWeight(v.label); localStorage.setItem("bowling.ballWeight",v.label);}} style={{padding:"6px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background:selectedBallWeight===v.label?"#7fd6ff":"rgba(255,255,255,0.08)", color:selectedBallWeight===v.label?"#001018":"#fff", fontWeight:800}}>{v.label} lb</button>)}
+          </div>
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
             {HDRI_OPTIONS.map((h,idx)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>{idx===0?"Default owned":"Store item"}</div></button>)}
           </div>
         </div> : null}
 
-        <div style={{ position: "absolute", left: 10, bottom: 18, color: "white", background: "rgba(5,8,14,0.54)", border: "1px solid rgba(255,255,255,0.14)", padding: "10px 11px", borderRadius: 16, fontSize: 12, lineHeight: 1.38, maxWidth: 265, boxShadow: "0 14px 30px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)" }}>
-          Swipe visually upward to bowl.<br />Slide left or right to aim on the lane.<br />HDRI skybox is visible and swipe direction maps directly to aim.
-        </div>
-
-        <div style={{ position: "absolute", right: 12, bottom: 24, width: 52, height: 166, borderRadius: 999, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.26)", overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.24)", backdropFilter: "blur(8px)" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.round(hud.power * 100)}%`, background: "rgba(139,215,255,0.9)", transition: hud.power === 0 ? "height 150ms ease-out" : "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(0,0,0,0.8)", fontSize: 11, fontWeight: 950, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>POWER</div>
-        </div>
       </div>
     </div>
   );
