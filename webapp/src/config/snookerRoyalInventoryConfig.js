@@ -1,6 +1,4 @@
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from './snookerRoyalClothPresets.js';
-import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
-import { POOL_ROYALE_STORE_ITEMS } from './poolRoyaleInventoryConfig.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const SNOOKER_ROYALE_HDRI_PLACEMENTS = Object.freeze({
@@ -390,19 +388,6 @@ export const SNOOKER_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableBase: SNOOKER_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
 
-
-const SHARED_SNOOKER_ROYALE_CLOTH_VARIANTS = Object.freeze(
-  Array.from(
-    new Map(
-      [...SNOOKER_ROYALE_CLOTH_VARIANTS, ...POOL_ROYALE_CLOTH_VARIANTS].map((variant) => [variant.id, variant])
-    ).values()
-  )
-);
-
-const SHARED_POOL_TABLE_FINISH_ITEMS = Object.freeze(
-  POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'tableFinish')
-);
-
 export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
   environmentHdri: Object.freeze(
     SNOOKER_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
@@ -410,12 +395,13 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
       return acc;
     }, {})
   ),
-  tableFinish: Object.freeze(
-    SHARED_POOL_TABLE_FINISH_ITEMS.reduce((acc, item) => {
-      acc[item.optionId] = item.name.replace(/ Finish$/, '');
-      return acc;
-    }, {})
-  ),
+  tableFinish: Object.freeze({
+    peelingPaintWeathered: 'Wood Peeling Paint Weathered',
+    oakVeneer01: 'Oak Veneer 01',
+    woodTable001: 'Wood Table 001',
+    darkWood: 'Dark Wood',
+    rosewoodVeneer01: 'Rosewood Veneer 01'
+  }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
     gold: 'Gold'
@@ -426,7 +412,7 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
     gold: 'Gold'
   }),
   clothColor: Object.freeze(
-    SHARED_SNOOKER_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
+    SNOOKER_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
       acc[variant.id] = variant.name;
       return acc;
     }, {})
@@ -502,13 +488,6 @@ export const SNOOKER_ROYALE_STORE_ITEMS = [
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
   },
-  ...SHARED_POOL_TABLE_FINISH_ITEMS.filter(
-    (item) => !['peelingPaintWeathered', 'oakVeneer01', 'woodTable001', 'darkWood', 'rosewoodVeneer01'].includes(item.optionId)
-  ).map((item) => ({
-    ...item,
-    id: `snooker-${item.id}`,
-    description: item.description || 'Pool Royale table finish shared with Snooker Royal.'
-  })),
   {
     id: 'chrome-chrome',
     type: 'chromeColor',
@@ -536,7 +515,7 @@ export const SNOOKER_ROYALE_STORE_ITEMS = [
     description: 'Chrome-lined diamond markers that match fascia shine.',
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
-  ...SHARED_SNOOKER_ROYALE_CLOTH_VARIANTS.map((variant) => ({
+  ...SNOOKER_ROYALE_CLOTH_VARIANTS.map((variant) => ({
     id: `cloth-${variant.id}`,
     type: 'clothColor',
     optionId: variant.id,
