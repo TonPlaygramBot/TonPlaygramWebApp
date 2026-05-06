@@ -1251,7 +1251,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep pocket-adjacent rounded cuts exactly as before
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.18; // round the native wooden rail outline so the default rail silhouette follows the Showood pocket-jaw style
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -1284,7 +1284,7 @@ const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner round
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.008; // keep middle rail rounded cuts just a bit tighter while still matching the chrome arc
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1744,14 +1744,14 @@ const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch mo
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thinner while keeping the outside profile intact
+const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.69; // pull corner jaws inward a tiny bit while preserving the playable mouth
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
+const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1778,7 +1778,7 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
@@ -2375,20 +2375,20 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.58; // push the shooter farther outward so the avatar stays behind the cue butt on portrait screens
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.58; // move the shooter clearly to the cue-butt side so camera no longer sits behind the head
-const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
+const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
+const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_SHOOT_BLEND_THRESHOLD = 0.84; // enter shooting pose as soon as the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.065; // lock camera nearer to eye line while keeping the cue shaft visible in portrait
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 1.15; // keep the eye camera on the rear/butt half of the cue instead of drifting toward the tip
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235; // push bridge hand slightly farther back from the cue ball so the body stays on the butt side
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
-const HUMAN_BRIDGE_CUE_LIFT = 0.026; // match Bilardo Shqip cue elevation above bridge hand
+const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
@@ -4133,6 +4133,49 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     envMapIntensity: 0.72
   }
 ]);
+
+const DEFAULT_CHROME_PLATE_STYLE_ID =
+  POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle?.[0] ?? 'showood-rounded';
+const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'showood-rounded',
+    label: 'Showood Rounded',
+    description: 'Rounded showroom pocket plates shared by Showood and Royal Original tables.',
+    swatches: ['#f6d56f', '#d6d8dc'],
+    showGeneratedOnExternal: false,
+    preserveExternalTrim: true,
+    cornerWidthScale: 1.1,
+    cornerHeightScale: 1.08,
+    cornerRadiusScale: 1.9,
+    cornerCutScale: 1.12,
+    sideWidthScale: 1.05,
+    sideHeightScale: 0.86,
+    sideRadiusScale: 3.4,
+    sideCutScale: 1.12
+  },
+  {
+    id: 'royal-classic',
+    label: 'Royal Classic',
+    description: 'Default Pool Royale fascia plates, available as an overlay on the Showood table.',
+    swatches: ['#d6d8dc', '#d4af37'],
+    showGeneratedOnExternal: true,
+    preserveExternalTrim: false,
+    cornerWidthScale: 1,
+    cornerHeightScale: 1,
+    cornerRadiusScale: 1,
+    cornerCutScale: 1,
+    sideWidthScale: 1,
+    sideHeightScale: 1,
+    sideRadiusScale: 1,
+    sideCutScale: 1
+  }
+]);
+const CHROME_PLATE_STYLE_BY_ID = Object.freeze(
+  CHROME_PLATE_STYLE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
@@ -6609,8 +6652,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0178; // move cue camera closer for a tighter portrait aiming view
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
+const CUE_VIEW_RADIUS_RATIO = 0.0112; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -8963,6 +9006,10 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
+  const chromePlateStyle =
+    CHROME_PLATE_STYLE_BY_ID[resolvedTableOptions?.chromePlateStyle?.id] ??
+    CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
+    CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
@@ -9839,6 +9886,7 @@ export function Table3D(
     net.castShadow = false;
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
+    net.userData.externalTableKeepVisible = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -9854,6 +9902,7 @@ export function Table3D(
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
     ring.receiveShadow = true;
+    ring.userData.externalTableKeepVisible = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -9887,6 +9936,7 @@ export function Table3D(
       guide.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
       guide.castShadow = true;
       guide.receiveShadow = true;
+      guide.userData.externalTableKeepVisible = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -9950,6 +10000,7 @@ export function Table3D(
       strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapForward);
       strap.castShadow = true;
       strap.receiveShadow = true;
+      strap.userData.externalTableKeepVisible = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -10151,21 +10202,24 @@ export function Table3D(
   const chromeSideOuterFlushTrim = TABLE.THICK * CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
+    (chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
       chromeCornerEdgeTrim -
-      chromeOuterFlushTrim * 2
+      chromeOuterFlushTrim * 2) *
+      (chromePlateStyle.cornerWidthScale ?? 1)
   );
   const chromeCornerFieldExtension =
     POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
+    (chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
       chromeCornerEdgeTrim +
       chromeCornerFieldExtension -
-      chromeOuterFlushTrim * 2
+      chromeOuterFlushTrim * 2) *
+      (chromePlateStyle.cornerHeightScale ?? 1)
   );
   const chromePlateRadius = Math.min(
-    outerCornerRadius * 0.95,
+    Math.max(outerCornerRadius * 0.95, Math.min(chromePlateWidth, chromePlateHeight) * 0.18) *
+      (chromePlateStyle.cornerRadiusScale ?? 1),
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
@@ -10195,7 +10249,8 @@ export function Table3D(
   );
   sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE
+    sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE *
+      (chromePlateStyle.sideWidthScale ?? 1)
   );
   const sideChromeOuterExtension =
     TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
@@ -10212,13 +10267,15 @@ export function Table3D(
   const sideChromePlateHeight = Math.min(
     Math.max(
       MICRO_EPS,
-      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2
+      (chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2) *
+        (chromePlateStyle.sideHeightScale ?? 1)
     ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
+    chromePlateRadius * 0.3 * (chromePlateStyle.sideRadiusScale ?? 1),
+    Math.min(sideChromePlateWidth, sideChromePlateHeight) *
+      Math.max(CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE, 0.12)
   );
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -10440,9 +10497,9 @@ export function Table3D(
   };
 
   const scaleChromeCornerPocketCut = (mp) =>
-    scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE);
+    scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE * (chromePlateStyle.cornerCutScale ?? 1));
   const scaleChromeSidePocketCut = (mp) =>
-    scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE);
+    scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE * (chromePlateStyle.sideCutScale ?? 1));
   const translatePocketCutMP = (mp, sx, sz, offset) => {
     if (!Array.isArray(mp) || !mp.length) {
       return mp;
@@ -12546,8 +12603,27 @@ function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   texture.needsUpdate = true;
 }
 
-function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo) {
+function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
   if (!material || !finishInfo) return material;
+  const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
+    ? tableModel.usePoolRoyaleFinishRoles
+    : null;
+  const preserveRoles = Array.isArray(tableModel?.preserveOriginalSurfaceRoles)
+    ? tableModel.preserveOriginalSurfaceRoles
+    : [];
+  const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
+  if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
+    const originalMat = material.clone ? material.clone() : material;
+    preparePoolRoyaleExternalTexture(originalMat.map, true);
+    preparePoolRoyaleExternalTexture(originalMat.emissiveMap, true);
+    preparePoolRoyaleExternalTexture(originalMat.aoMap, false);
+    preparePoolRoyaleExternalTexture(originalMat.normalMap, false);
+    preparePoolRoyaleExternalTexture(originalMat.roughnessMap, false);
+    preparePoolRoyaleExternalTexture(originalMat.metalnessMap, false);
+    preparePoolRoyaleExternalTexture(originalMat.bumpMap, false);
+    originalMat.needsUpdate = true;
+    return originalMat;
+  }
   const mat = material.clone ? material.clone() : material;
   const materials = finishInfo.materials || {};
   const finish = TABLE_FINISHES[finishInfo.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -12626,7 +12702,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
-        return applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo);
+        return applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
       }
       const mat = material.clone ? material.clone() : material;
       preparePoolRoyaleExternalTexture(mat.map, true);
@@ -12767,7 +12843,8 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     const fullSize = fullBox.getSize(new THREE.Vector3());
     const exactYScale =
       tableModel?.matchNativeHeight && targetHeight
-        ? Math.max(MICRO_EPS, targetHeight / Math.max(MICRO_EPS, fullSize.y))
+        ? Math.max(MICRO_EPS, targetHeight / Math.max(MICRO_EPS, fullSize.y)) *
+          (tableModel?.fitHeightScale ?? 1)
         : Math.sqrt(exactXScale * exactZScale);
     model.scale.set(
       model.scale.x * exactXScale * fitScaleMultiplier,
@@ -13505,14 +13582,33 @@ function mountPoolRoyaleExternalTableModel({
     : generatedVisualBounds.getSize(new THREE.Vector3());
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
+      if (
+        !visible &&
+        (object.userData?.externalTableKeepVisible ||
+          (object.userData?.isChromePlate && chromePlateStyle.showGeneratedOnExternal))
+      ) {
+        object.visible = true;
+        return;
+      }
       object.visible = visible;
     });
   };
-  const externalTable =
+  const externalTableModelForMount =
     resolvedTableOptions?.tableModel?.kind === 'gltf'
+      ? {
+          ...resolvedTableOptions.tableModel,
+          preserveOriginalSurfaceRoles: chromePlateStyle.preserveExternalTrim
+            ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
+            : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
+                (role) => role !== 'trim'
+              )
+        }
+      : null;
+  const externalTable =
+    externalTableModelForMount?.kind === 'gltf'
       ? mountPoolRoyaleExternalTableModel({
           table,
-          tableModel: resolvedTableOptions.tableModel,
+          tableModel: externalTableModelForMount,
           renderer,
           dims: {
             targetWidth: generatedVisualBounds.isEmpty() ? TABLE.W : generatedVisualSize.x,
@@ -14422,6 +14518,14 @@ function PoolRoyaleGame({
       DEFAULT_CHROME_COLOR_ID
     );
   });
+  const [chromePlateStyleId, setChromePlateStyleId] = useState(() => {
+    return resolveStoredSelection(
+      'chromePlateStyle',
+      'poolChromePlateStyle',
+      (id) => CHROME_PLATE_STYLE_OPTIONS.some((opt) => opt.id === id),
+      DEFAULT_CHROME_PLATE_STYLE_ID
+    );
+  });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
@@ -14533,6 +14637,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableChromePlateStyles = useMemo(
+    () =>
+      CHROME_PLATE_STYLE_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('chromePlateStyle', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableRailMarkerColors = useMemo(
     () =>
       RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
@@ -14574,6 +14685,14 @@ function PoolRoyaleGame({
       availableChromeOptions[0] ??
       CHROME_COLOR_OPTIONS[0],
     [availableChromeOptions, chromeColorId]
+  );
+  const activeChromePlateStyle = useMemo(
+    () =>
+      availableChromePlateStyles.find((opt) => opt.id === chromePlateStyleId) ??
+      availableChromePlateStyles[0] ??
+      CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
+      CHROME_PLATE_STYLE_OPTIONS[0],
+    [availableChromePlateStyles, chromePlateStyleId]
   );
   const activeClothOption = useMemo(
     () =>
@@ -14653,6 +14772,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('chromeColor', chromeColorId, poolInventory)) {
       setChromeColorId(DEFAULT_CHROME_COLOR_ID);
     }
+    if (!isPoolOptionUnlocked('chromePlateStyle', chromePlateStyleId, poolInventory)) {
+      setChromePlateStyleId(DEFAULT_CHROME_PLATE_STYLE_ID);
+    }
     if (!isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)) {
       setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
     }
@@ -14664,6 +14786,7 @@ function PoolRoyaleGame({
     }
   }, [
     chromeColorId,
+    chromePlateStyleId,
     clothColorId,
     environmentHdriId,
     pocketLinerId,
@@ -16084,6 +16207,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem('poolChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolChromePlateStyle', chromePlateStyleId);
+    }
+  }, [chromePlateStyleId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -24812,7 +24940,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -24867,7 +24995,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -25504,8 +25632,8 @@ const shotPowerRef = useRef(0);
             rotLambda: HUMAN_ROT_LAMBDA,
             strikeTime: 0.11,
             holdTime: 0.05,
-            stanceWidth: 0.52,
-            bridgePalmTableLift: 0.006,
+            stanceWidth: 0.58,
+            bridgePalmTableLift: 0.004,
             chinToCueHeight: 0.11,
             cueArmElbowRise: 0.18,
             tableTopY: TABLE_Y + TABLE.THICK,
@@ -25515,20 +25643,24 @@ const shotPowerRef = useRef(0);
             bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
             cueLength: HUMAN_CUE_LENGTH,
             bridgeDist: HUMAN_BRIDGE_DIST,
-            shootCueGripFromBack: 0.58,
-            rightHandShotExtraBack: 0.18,
-            rightHandShotLift: -0.30,
+            shootCueGripFromBack: 0.42,
+            rightHandShotExtraBack: 0.26,
+            rightHandShotLift: -0.36,
             rightHandForwardClamp: -0.08,
-            rightHandOutward: 0.14,
+            rightHandOutward: 0.1,
+            rightForearmOutward: 0.26,
+            rightForearmBack: 0.62,
+            rightForearmDown: 0.54,
+            rightForearmLength: 0.28,
             idleRightHandX: 0.31,
             idleRightHandY: 0.8,
             idleRightHandZ: -0.015,
             rightHandRollIdle: -2.2,
             rightHandRollShoot: -2.05,
             rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
-            rightElbowShotRise: 0.18,
-            rightElbowShotSide: -0.46,
-            rightElbowShotBack: -0.78,
+            rightElbowShotRise: 0.34,
+            rightElbowShotSide: -0.38,
+            rightElbowShotBack: -0.96,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
@@ -25728,7 +25860,7 @@ const shotPowerRef = useRef(0);
             const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
             const shootGripTarget = cueBackShoot
               .clone()
-              .addScaledVector(cueShootDir, 0.58);
+              .addScaledVector(cueShootDir, 0.42);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
@@ -35679,6 +35811,45 @@ const shotPowerRef = useRef(0);
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plate Shape
+                </h3>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {availableChromePlateStyles.map((option) => {
+                    const active = option.id === chromePlateStyleId;
+                    const swatchA = option.swatches?.[0] ?? '#d6d8dc';
+                    const swatchB = option.swatches?.[1] ?? '#d4af37';
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromePlateStyleId(option.id)}
+                        aria-pressed={active}
+                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex flex-col gap-0.5">
+                          <span>{option.label}</span>
+                          <span className="text-[9px] font-medium normal-case tracking-normal opacity-75">
+                            {option.description}
+                          </span>
+                        </span>
+                        <span
+                          className="h-6 w-10 rounded-lg border border-white/30"
+                          aria-hidden="true"
+                          style={{
+                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                          }}
+                        />
                       </button>
                     );
                   })}
