@@ -1788,7 +1788,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.0; // keep collision arcs on the exact visual pocket-jaw/chrome-plate outline
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -2380,10 +2380,10 @@ const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.84; // enter shooting pose as soon as the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.02; // fine-tune the chest/neck cue camera without dropping below the avatar collar
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 1.15; // keep the cue camera mounted at the avatar chest/neck instead of sliding toward the bridge
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = BALL_R * 0.16; // right-hand shoulder bias so the stick stays in the player hand
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
@@ -5860,6 +5860,20 @@ function enhanceChromeMaterial(material) {
     material.specularIntensity = Math.max(1.02, material.specularIntensity ?? 1.02);
   }
   material.needsUpdate = true;
+}
+
+
+function applyPoolRoyaleChromeOptionToMaterial(material, chromeOption = null) {
+  if (!material || !chromeOption) return;
+  if (material.color && Number.isFinite(chromeOption.color)) {
+    material.color.setHex(chromeOption.color);
+  }
+  ['metalness', 'roughness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
+    if (typeof chromeOption[key] === 'number' && key in material) {
+      material[key] = chromeOption[key];
+    }
+  });
+  enhanceChromeMaterial(material);
 }
 
 function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = {}) {
@@ -9498,6 +9512,7 @@ export function Table3D(
     woodTextureId: finishParts.woodTextureId,
     clothTextureKey,
     clothTextureSource,
+    chromeOption: resolvedFinish?.chromeOption ?? null,
     woodRepeatScale
   };
   registerClothTextureConsumer(clothTextureKey, finishInfo);
@@ -12677,8 +12692,16 @@ function getPoolRoyaleExternalUvSpan(mesh) {
   };
 }
 
-function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
+function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role, tableModel = null) {
   if (!mesh || !material || (role !== 'cloth' && role !== 'cushion')) return;
+  if (tableModel?.normalizeExternalClothTextureScale === false) {
+    material.userData = {
+      ...(material.userData || {}),
+      preserveOriginalUvMapping: false,
+      poolRoyaleProceduralClothScale: true
+    };
+    return;
+  }
   const uvSpan = getPoolRoyaleExternalUvSpan(mesh);
   if (!uvSpan) return;
   ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
@@ -12751,7 +12774,11 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
     mat.side = THREE.DoubleSide;
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
-    enhanceChromeMaterial(mat);
+    if (tableModel?.externalTrimUsesChromeColor) {
+      applyPoolRoyaleChromeOptionToMaterial(mat, finishInfo.chromeOption);
+    } else {
+      enhanceChromeMaterial(mat);
+    }
   } else if (role === 'pocket') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
   } else {
@@ -12800,7 +12827,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
-        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
+        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role, tableModel);
         return nextMaterial;
       }
       const mat = material.clone ? material.clone() : material;
@@ -13007,6 +13034,149 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   };
 }
 
+
+function convexHullPoolRoyalePoints(points) {
+  if (!Array.isArray(points) || points.length < 3) return [];
+  const sorted = points
+    .filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y))
+    .sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  const unique = [];
+  sorted.forEach((point) => {
+    const prev = unique[unique.length - 1];
+    if (!prev || Math.abs(prev.x - point.x) > 1e-5 || Math.abs(prev.y - point.y) > 1e-5) {
+      unique.push(point.clone ? point.clone() : new THREE.Vector2(point.x, point.y));
+    }
+  });
+  if (unique.length < 3) return unique;
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [];
+  unique.forEach((point) => {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
+      lower.pop();
+    }
+    lower.push(point);
+  });
+  const upper = [];
+  for (let i = unique.length - 1; i >= 0; i -= 1) {
+    const point = unique[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
+      upper.pop();
+    }
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function extractPoolRoyaleExternalCushionSegments(table, model, tableModel = null) {
+  if (!table || !model || tableModel?.derivePhysicsFromExternalCushions !== true) return null;
+  table.updateMatrixWorld(true);
+  model.updateMatrixWorld(true);
+  const worldToTable = new THREE.Matrix4().copy(table.matrixWorld).invert();
+  const center = new THREE.Vector2(0, 0);
+  const segments = [];
+  const obstructionBoxes = [];
+  const addSegment = (start, end, type, normal = null) => {
+    if (!start || !end) return;
+    const dir = end.clone().sub(start);
+    if (dir.lengthSq() < 1e-6) return;
+    const midpoint = start.clone().add(end).multiplyScalar(0.5);
+    let resolvedNormal = normal;
+    if (!resolvedNormal) {
+      resolvedNormal = new THREE.Vector2(-dir.y, dir.x);
+      if (resolvedNormal.lengthSq() > 1e-8) resolvedNormal.normalize();
+      if (resolvedNormal.dot(center.clone().sub(midpoint)) < 0) resolvedNormal.multiplyScalar(-1);
+    }
+    segments.push({ start: start.clone(), end: end.clone(), type, normal: resolvedNormal.clone() });
+  };
+
+  model.traverse((child) => {
+    if (!child?.isMesh || !child.geometry) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    if (classifyPoolRoyaleExternalTableSurface(child, material) !== 'cushion') return;
+    const box = new THREE.Box3().setFromObject(child);
+    if (!box.isEmpty()) {
+      box.expandByScalar(CUE_OBSTRUCTION_POINT_RADIUS + CUE_CUSHION_HELPER_EXTRA_CLEARANCE);
+      obstructionBoxes.push(box);
+    }
+    const attr = child.geometry.attributes?.position;
+    if (!attr?.count) return;
+    const points = [];
+    const local = new THREE.Vector3();
+    const tableLocal = new THREE.Vector3();
+    for (let i = 0; i < attr.count; i += 1) {
+      local.fromBufferAttribute(attr, i);
+      tableLocal.copy(local).applyMatrix4(child.matrixWorld).applyMatrix4(worldToTable);
+      points.push(new THREE.Vector2(tableLocal.x, tableLocal.z));
+    }
+    const hull = convexHullPoolRoyalePoints(points);
+    if (hull.length < 3) return;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    hull.forEach((point) => {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y);
+      maxY = Math.max(maxY, point.y);
+    });
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
+    const horizontal = spanX >= spanY;
+    const innerAxisDistance = hull.reduce((best, point, index) => {
+      const next = hull[(index + 1) % hull.length];
+      const mid = point.clone().add(next).multiplyScalar(0.5);
+      const dist = horizontal ? Math.abs(mid.y) : Math.abs(mid.x);
+      return Math.min(best, dist);
+    }, Infinity);
+    const tolerance = Math.max(BALL_R * 1.35, (horizontal ? spanY : spanX) * 1.28);
+    for (let i = 0; i < hull.length; i += 1) {
+      const start = hull[i];
+      const end = hull[(i + 1) % hull.length];
+      const dir = end.clone().sub(start);
+      if (dir.lengthSq() < 1e-6) continue;
+      const mid = start.clone().add(end).multiplyScalar(0.5);
+      const axisDistance = horizontal ? Math.abs(mid.y) : Math.abs(mid.x);
+      if (axisDistance > innerAxisDistance + tolerance) continue;
+      const axisAligned = horizontal
+        ? Math.abs(dir.x) >= Math.abs(dir.y) * 3.5
+        : Math.abs(dir.y) >= Math.abs(dir.x) * 3.5;
+      addSegment(start, end, axisAligned ? 'rail' : 'cut');
+    }
+  });
+
+  if (!segments.length) return null;
+  const jawEntries = Array.isArray(table.userData.pocketJaws) ? table.userData.pocketJaws : [];
+  jawEntries.forEach((jaw) => {
+    if (!(jaw?.center instanceof THREE.Vector2)) return;
+    if (!Number.isFinite(jaw?.outerRadius) || !Number.isFinite(jaw?.jawAngle)) return;
+    const steps = Math.max(24, Math.ceil((jaw.jawAngle / Math.PI) * 72));
+    const radius = Math.max(MICRO_EPS, jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE);
+    const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
+    const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
+    let prev = null;
+    for (let i = 0; i <= steps; i += 1) {
+      const theta = startAngle + (endAngle - startAngle) * (i / steps);
+      const point = new THREE.Vector2(
+        jaw.center.x + Math.cos(theta) * radius,
+        jaw.center.y + Math.sin(theta) * radius
+      );
+      if (prev) {
+        const normal = prev.clone().add(point).multiplyScalar(0.5).sub(jaw.center);
+        if (normal.lengthSq() > 1e-8) normal.normalize();
+        addSegment(prev, point, 'jaw', normal);
+      }
+      prev = point;
+    }
+  });
+  CUSHION_SEGMENTS = segments;
+  table.userData.cushionSegments = segments;
+  table.userData.cueObstructionBoxes = obstructionBoxes;
+  return segments;
+}
+
 function mountPoolRoyaleExternalTableModel({
   table,
   tableModel,
@@ -13033,6 +13203,10 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      const externalSegments = extractPoolRoyaleExternalCushionSegments(table, model, tableModel);
+      if (externalSegments?.length) {
+        table.userData.externalCushionSegments = externalSegments;
+      }
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -16273,6 +16447,7 @@ function PoolRoyaleGame({
         clothSelection.detail ?? baseFinish?.clothDetail ?? null,
       clothTextureKey,
       clothTextureSource,
+      chromeOption: chromeSelection,
       colors: {
         ...baseFinish.colors,
         cloth: clothSelection.color,
@@ -21510,7 +21685,8 @@ const shotPowerRef = useRef(0);
           if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
-          const eyePos = cuePose.cueBack
+          const eyeAnchor = cuePose.cameraAnchor || cuePose.neckWorld || cuePose.chestWorld || cuePose.cueBack;
+          const eyePos = eyeAnchor
             .clone()
             .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
             .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
@@ -26010,15 +26186,24 @@ const shotPowerRef = useRef(0);
             const shootGripTarget = cueBackShoot
               .clone()
               .addScaledVector(cueShootDir, 0.42);
+            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             if (isHumanShooter && state === 'dragging') {
+              const neckCameraAnchor = walkRoot
+                .clone()
+                .add(new THREE.Vector3(0, 1.47, -0.08).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+              const chestCameraAnchor = walkRoot
+                .clone()
+                .add(new THREE.Vector3(0, 1.34, -0.06).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
                 bridgeTarget: bridgeTarget.clone(),
+                cameraAnchor: chestCameraAnchor.clone().lerp(neckCameraAnchor, 0.72),
+                chestWorld: chestCameraAnchor,
+                neckWorld: neckCameraAnchor,
                 aimForward: aimForward.clone(),
                 side: side.clone()
               };
             }
-            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
               .clone()
               .add(new THREE.Vector3(0.31, 0.8, -0.015).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
@@ -26160,6 +26345,18 @@ const shotPowerRef = useRef(0);
 
           const leftHandWorld = idleLeftHandTarget.clone().lerp(bridgeHandTarget, t);
           const rightHandWorld = idleRightHandTarget.clone().lerp(gripHandTarget, t);
+
+          if (isHumanShooter && humanShotState === 'dragging') {
+            activeHumanCueViewRef.current = {
+              cueBack: cueBackShoot.clone(),
+              bridgeTarget: bridgeHandTarget.clone(),
+              cameraAnchor: chestCenterWorld.clone().lerp(neckWorld, 0.72),
+              chestWorld: chestCenterWorld.clone(),
+              neckWorld: neckWorld.clone(),
+              aimForward: aimForward.clone(),
+              side: side.clone()
+            };
+          }
 
           if (anim.model && !anim.pelvis) {
             const idle = 1 - t;
