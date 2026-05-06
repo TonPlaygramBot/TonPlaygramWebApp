@@ -45,6 +45,7 @@ type Actor = {
   diveDir: number;
   diveHeight: number;
   saveTargetX: number;
+  saveTargetZ: number;
   saveTargetY: number;
   wallIndex: number;
   loaded: boolean;
@@ -78,6 +79,8 @@ type SwipeState = {
   endX: number;
   endY: number;
   mode?: "shot" | "camera";
+  viewportW?: number;
+  viewportH?: number;
 };
 
 type NetRig = {
@@ -115,11 +118,11 @@ const HUMAN_URL = "https://threejs.org/examples/models/gltf/Soldier.glb";
 const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.modelUrls?.[0] ?? theme.url).filter(Boolean);
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
 const CAMERA_YAW_STEP = 0.22;
-const CAMERA_YAW_LIMIT = 0.7;
+const CAMERA_YAW_LIMIT = 0.86;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
-const SPECTATOR_SCALE = 0.38;
-const SPECTATOR_FALLBACK_SCALE = 0.42;
+const SPECTATOR_SCALE = 0.5;
+const SPECTATOR_FALLBACK_SCALE = 0.56;
 const SPECTATOR_SEAT_Y = 0.17;
 const SPECTATOR_SEAT_Z = 0.14;
 const GOAL_RUSH_SOUNDS = {
@@ -149,7 +152,8 @@ const PLAYER_H = 1.82;
 const GROUND_Y = 0;
 const DT_MAX = 1 / 30;
 const GOAL_LINE_Z = -HALF_H / 2;
-const RUNUP_BACK_STEPS = 2.2;
+const RUNUP_BACK_STEPS = 2.35;
+const KICK_STRIKE_TIME = 0.72;
 const TMP = new THREE.Vector3();
 const QTMP = new THREE.Quaternion();
 const SEATED_CHARACTER_TEMPLATE_CACHE = new Map<string, Promise<THREE.Object3D>>();
@@ -419,6 +423,7 @@ function createActor(scene: THREE.Scene, loader: GLTFLoader, kind: ActorKind, po
     diveDir: 0,
     diveHeight: 1.15,
     saveTargetX: 0,
+    saveTargetZ: GOAL_LINE_Z + 0.12,
     saveTargetY: 1.15,
     wallIndex: index,
     loaded: false,
@@ -508,7 +513,7 @@ function updateActorBase(actor: Actor, dt: number) {
 function applyKickerPose(kicker: Actor) {
   if (kicker.kickTime <= 0) return;
 
-  const t = 1 - kicker.kickTime / 0.72;
+  const t = 1 - kicker.kickTime / KICK_STRIKE_TIME;
   const plant = THREE.MathUtils.smoothstep(t, 0.18, 0.38);
   const backswing = Math.sin(THREE.MathUtils.clamp((t - 0.16) / 0.26, 0, 1) * Math.PI) * 0.72;
   const strike = Math.sin(THREE.MathUtils.clamp((t - 0.38) / 0.26, 0, 1) * Math.PI) * 2.45;
@@ -544,20 +549,51 @@ function applyWallPose(actor: Actor) {
 
 function applyKeeperPose(keeper: Actor) {
   if (keeper.diveTime <= 0) {
-    if (keeper.bones.leftArm) keeper.bones.leftArm.rotation.z += -0.18;
-    if (keeper.bones.rightArm) keeper.bones.rightArm.rotation.z += 0.18;
+    // Set posture: knees soft, chest forward, palms ready in front of the shirt.
+    if (keeper.bones.spine) keeper.bones.spine.rotation.x += 0.13;
+    if (keeper.bones.leftUpLeg) keeper.bones.leftUpLeg.rotation.x += -0.18;
+    if (keeper.bones.rightUpLeg) keeper.bones.rightUpLeg.rotation.x += -0.18;
+    if (keeper.bones.leftLeg) keeper.bones.leftLeg.rotation.x += 0.24;
+    if (keeper.bones.rightLeg) keeper.bones.rightLeg.rotation.x += 0.24;
+    if (keeper.bones.leftArm) {
+      keeper.bones.leftArm.rotation.x += -0.72;
+      keeper.bones.leftArm.rotation.z += -0.34;
+    }
+    if (keeper.bones.rightArm) {
+      keeper.bones.rightArm.rotation.x += -0.72;
+      keeper.bones.rightArm.rotation.z += 0.34;
+    }
     return;
   }
   const t = 1 - keeper.diveTime / 0.9;
-  const dive = THREE.MathUtils.smoothstep(t, 0.02, 0.64);
-  const recover = THREE.MathUtils.smoothstep(t, 0.84, 1);
-  const a = dive * (1 - recover);
-  keeper.root.rotation.z = -keeper.diveDir * 1.32 * a;
-  keeper.root.rotation.x = -0.34 * a;
-  keeper.root.position.x += keeper.diveDir * 2.55 * a;
-  keeper.root.position.y += keeper.diveHeight * 0.54 * Math.sin(t * Math.PI) * (1 - recover);
-  if (keeper.bones.leftArm) keeper.bones.leftArm.rotation.z += -keeper.diveDir * 1.65 * a;
-  if (keeper.bones.rightArm) keeper.bones.rightArm.rotation.z += -keeper.diveDir * 1.65 * a;
+  const pushOff = THREE.MathUtils.smoothstep(t, 0.02, 0.24);
+  const flight = THREE.MathUtils.smoothstep(t, 0.18, 0.68);
+  const recover = THREE.MathUtils.smoothstep(t, 0.82, 1);
+  const a = flight * (1 - recover);
+  const side = keeper.diveDir || (keeper.saveTargetX < 0 ? -1 : 1);
+  const heightBlend = THREE.MathUtils.clamp((keeper.saveTargetY - 0.45) / (GOAL_H - 0.2), 0, 1);
+  keeper.root.rotation.z = -side * THREE.MathUtils.lerp(1.05, 1.48, heightBlend) * a;
+  keeper.root.rotation.x = -THREE.MathUtils.lerp(0.18, 0.44, heightBlend) * a;
+  keeper.root.position.x += side * THREE.MathUtils.lerp(1.55, 2.85, heightBlend) * a;
+  keeper.root.position.z += -0.24 * pushOff * (1 - recover);
+  keeper.root.position.y += keeper.diveHeight * THREE.MathUtils.lerp(0.2, 0.62, heightBlend) * Math.sin(t * Math.PI) * (1 - recover);
+  if (keeper.bones.spine) keeper.bones.spine.rotation.x += 0.08 - 0.22 * a;
+  if (keeper.bones.leftUpLeg) keeper.bones.leftUpLeg.rotation.x += side > 0 ? -0.44 * pushOff : 0.24 * a;
+  if (keeper.bones.rightUpLeg) keeper.bones.rightUpLeg.rotation.x += side < 0 ? -0.44 * pushOff : 0.24 * a;
+  if (keeper.bones.leftLeg) keeper.bones.leftLeg.rotation.x += side > 0 ? 0.7 * pushOff : -0.22 * a;
+  if (keeper.bones.rightLeg) keeper.bones.rightLeg.rotation.x += side < 0 ? 0.7 * pushOff : -0.22 * a;
+  const reachX = -side * THREE.MathUtils.lerp(1.1, 1.55, heightBlend) * a;
+  const reachZ = -side * 0.38 * a;
+  if (keeper.bones.leftArm) {
+    keeper.bones.leftArm.rotation.x += -1.12 - heightBlend * 0.65;
+    keeper.bones.leftArm.rotation.y += reachZ;
+    keeper.bones.leftArm.rotation.z += reachX - 0.18;
+  }
+  if (keeper.bones.rightArm) {
+    keeper.bones.rightArm.rotation.x += -1.12 - heightBlend * 0.65;
+    keeper.bones.rightArm.rotation.y += reachZ;
+    keeper.bones.rightArm.rotation.z += reachX + 0.18;
+  }
 }
 
 function createSeatedFallbackSpectator(color: number) {
@@ -588,7 +624,9 @@ function createSeatedFallbackSpectator(color: number) {
   leftCalf.rotation.x = THREE.MathUtils.degToRad(8);
   rightCalf.rotation.x = THREE.MathUtils.degToRad(8);
   const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.4, 6, 10), sleeve);
+  leftArm.name = "leftCheerArm";
   const rightArm = leftArm.clone();
+  rightArm.name = "rightCheerArm";
   leftArm.position.set(-0.22, 0.72, 0.02);
   rightArm.position.set(0.22, 0.72, 0.02);
   leftArm.rotation.set(THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-8));
@@ -654,17 +692,54 @@ function attachMurlanSeatedSpectator(chair: THREE.Group, loader: GLTFLoader, cha
 
 function applySeatedSpectatorPose(spectator: SeatedSpectator, cheerTime = 0) {
   const cheer = cheerTime > 0;
-  const phase = performance.now() * 0.006 + spectator.wallIndex * 0.73;
-  const wave = Math.sin(phase) * (cheer ? 0.08 : 0.02);
-  spectator.root.position.y = SPECTATOR_SEAT_Y + Math.abs(wave) * 0.015;
-  spectator.fallback.position.y = SPECTATOR_SEAT_Y + Math.abs(wave) * 0.015;
+  const phase = performance.now() * 0.008 + spectator.wallIndex * 0.73;
+  const wave = Math.sin(phase);
+  const standUp = cheer ? THREE.MathUtils.smoothstep(cheerTime, 0.34, 0.95) * THREE.MathUtils.smoothstep(3.0 - cheerTime, 0.12, 0.5) : 0;
+  const bounce = Math.abs(wave) * (cheer ? 0.035 : 0.012);
+  spectator.root.position.y = SPECTATOR_SEAT_Y + standUp * 0.52 + bounce;
+  spectator.root.position.z = SPECTATOR_SEAT_Z - standUp * 0.16;
+  spectator.root.rotation.x = (1 - standUp) * 0.04;
+  spectator.fallback.position.y = SPECTATOR_SEAT_Y + standUp * 0.52 + bounce;
+  spectator.fallback.position.z = SPECTATOR_SEAT_Z - standUp * 0.16;
+  spectator.fallback.scale.y = 1 + standUp * 0.18;
 
   const leftUpperArm = spectator.bones.leftUpperArm;
   const rightUpperArm = spectator.bones.rightUpperArm;
+  const leftForeArm = spectator.bones.leftForeArm;
+  const rightForeArm = spectator.bones.rightForeArm;
+  const leftThigh = spectator.bones.leftThigh;
+  const rightThigh = spectator.bones.rightThigh;
+  const leftCalf = spectator.bones.leftCalf;
+  const rightCalf = spectator.bones.rightCalf;
   const leftBase = spectator.base.leftUpperArm;
   const rightBase = spectator.base.rightUpperArm;
-  if (leftUpperArm && leftBase) leftUpperArm.rotation.z = leftBase.z - Math.abs(wave) * 0.45;
-  if (rightUpperArm && rightBase) rightUpperArm.rotation.z = rightBase.z + Math.abs(wave) * 0.45;
+  if (leftUpperArm && leftBase) {
+    leftUpperArm.rotation.x = THREE.MathUtils.lerp(leftBase.x, -2.75 + wave * 0.14, standUp);
+    leftUpperArm.rotation.z = THREE.MathUtils.lerp(leftBase.z - Math.abs(wave) * 0.18, -0.32 + wave * 0.16, standUp);
+  }
+  if (rightUpperArm && rightBase) {
+    rightUpperArm.rotation.x = THREE.MathUtils.lerp(rightBase.x, -2.75 - wave * 0.14, standUp);
+    rightUpperArm.rotation.z = THREE.MathUtils.lerp(rightBase.z + Math.abs(wave) * 0.18, 0.32 + wave * 0.16, standUp);
+  }
+  if (leftForeArm && spectator.base.leftForeArm) leftForeArm.rotation.x = THREE.MathUtils.lerp(spectator.base.leftForeArm.x, -0.3 + wave * 0.22, standUp);
+  if (rightForeArm && spectator.base.rightForeArm) rightForeArm.rotation.x = THREE.MathUtils.lerp(spectator.base.rightForeArm.x, -0.3 - wave * 0.22, standUp);
+  if (leftThigh && spectator.base.leftThigh) leftThigh.rotation.x = THREE.MathUtils.lerp(spectator.base.leftThigh.x, -0.18, standUp);
+  if (rightThigh && spectator.base.rightThigh) rightThigh.rotation.x = THREE.MathUtils.lerp(spectator.base.rightThigh.x, -0.18, standUp);
+  if (leftCalf && spectator.base.leftCalf) leftCalf.rotation.x = THREE.MathUtils.lerp(spectator.base.leftCalf.x, 0.12, standUp);
+  if (rightCalf && spectator.base.rightCalf) rightCalf.rotation.x = THREE.MathUtils.lerp(spectator.base.rightCalf.x, 0.12, standUp);
+
+  spectator.fallback.children.forEach((child) => {
+    if (child.name === "leftCheerArm") child.rotation.set(
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(-53), -2.55 + wave * 0.18, standUp),
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(-6), -0.08, standUp),
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(-8), -0.18, standUp),
+    );
+    if (child.name === "rightCheerArm") child.rotation.set(
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(-57), -2.55 - wave * 0.18, standUp),
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(6), 0.08, standUp),
+      THREE.MathUtils.lerp(THREE.MathUtils.degToRad(8), 0.18, standUp),
+    );
+  });
 }
 
 
@@ -986,15 +1061,17 @@ function shotPoint(start: THREE.Vector3, target: THREE.Vector3, curve: number, l
 function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) {
   const dx = swipe.endX - swipe.startX;
   const dy = swipe.startY - swipe.endY;
-  const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2);
-  const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3);
+  const screenScale = THREE.MathUtils.clamp((swipe.viewportW ?? 390) / 390, 0.82, 1.35);
+  const heightScale = THREE.MathUtils.clamp((swipe.viewportH ?? 780) / 780, 0.82, 1.35);
+  const targetX = THREE.MathUtils.clamp(dx / (46 * screenScale), -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2);
+  const targetY = THREE.MathUtils.clamp(0.42 + dy / (106 * heightScale), 0.22, GOAL_H + 1.3);
   const onFrame = Math.abs(targetX) > GOAL_W / 2 - 0.34 || targetY > GOAL_H - 0.08;
   const inMouth = Math.abs(targetX) <= GOAL_W / 2 - BALL_R * 1.4 && targetY >= BALL_R && targetY <= GOAL_H - BALL_R * 0.3;
   const targetDepth = inMouth && !onFrame ? GOAL_LINE_Z - GOAL_D + 0.32 : GOAL_LINE_Z - 0.12;
   const target = new THREE.Vector3(targetX, targetY, targetDepth);
-  const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0);
-  const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4);
-  const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72);
+  const curve = THREE.MathUtils.clamp(dx / (82 * screenScale), -4.6, 4.6);
+  const lift = THREE.MathUtils.clamp(dy / (86 * heightScale), 0.35, GOAL_H + 2.4);
+  const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / (142 * screenScale), 0.48, 1.72);
   const distance = ballPos.distanceTo(target);
   const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34);
   return { target, curve, lift, power, duration };
@@ -1003,6 +1080,7 @@ function setAimCurve(line: THREE.Line, ballPos: THREE.Vector3, swipe: SwipeState
 function hideAimLine(line: THREE.Line) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; for (let i = 0; i < attr.count; i++) attr.setXYZ(i, 99, 99, 99); attr.needsUpdate = true; }
 function freeKickPosition(spot: KickSpot) { if (spot === "left") return new THREE.Vector3(-4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "right") return new THREE.Vector3(4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "near16") return new THREE.Vector3(0.7, BALL_R, GOAL_LINE_Z + 18.8); return new THREE.Vector3(0, BALL_R, GOAL_LINE_Z + 23.0); }
 function wallCountForSpot(spot: KickSpot) { if (spot === "left" || spot === "right") return 3; if (spot === "near16") return 5; return 4; }
+function randomKickSpot(previous?: KickSpot): KickSpot { const spots: KickSpot[] = ["left", "center", "right", "near16"]; const pool = previous ? spots.filter((s) => s !== previous) : spots; return pool[Math.floor(Math.random() * pool.length)] ?? "center"; }
 function wallCenterForBall(ballPos: THREE.Vector3) { const goalCenter = new THREE.Vector3(0, 0, GOAL_LINE_Z); const toGoal = goalCenter.sub(ballPos).setY(0).normalize(); return ballPos.clone().addScaledVector(toGoal, WALL_DISTANCE).setY(0); }
 function placeWall(wall: Actor[], spot: KickSpot, ballPos: THREE.Vector3) { const count = wallCountForSpot(spot); const center = wallCenterForBall(ballPos); const toBall = ballPos.clone().sub(center).setY(0).normalize(); const side = new THREE.Vector3(toBall.z, 0, -toBall.x).normalize(); wall.forEach((actor, i) => { actor.root.visible = i < count; const offset = i - (count - 1) / 2; actor.pos.copy(center).addScaledVector(side, offset * 0.62).setY(0); actor.dir.copy(ballPos.clone().sub(actor.pos).setY(0).normalize()); actor.vel.set(0, 0, 0); actor.speed = 0; actor.jumpTime = 0; }); }
 function resetShot(ball: BallState, kicker: Actor, keeper: Actor, wall: Actor[], spot: KickSpot) {
@@ -1042,6 +1120,7 @@ function resetShot(ball: BallState, kicker: Actor, keeper: Actor, wall: Actor[],
   keeper.diveDir = 0;
   keeper.diveHeight = 1.15;
   keeper.saveTargetX = 0;
+  keeper.saveTargetZ = GOAL_LINE_Z + 0.12;
   keeper.saveTargetY = 1.15;
 
   placeWall(wall, spot, ballPos);
@@ -1063,12 +1142,13 @@ function predictShotResult(ballPos: THREE.Vector3, swipe: SwipeState) {
 }
 
 function beginRunup(kicker: Actor, wall: Actor[], keeper: Actor, ball: BallState, swipe: SwipeState) {
-  kicker.kickTime = 0.72;
-  wall.forEach((w) => (w.jumpTime = 0.42));
+  kicker.kickTime = 0;
+  wall.forEach((w) => (w.jumpTime = 0));
 
   const { goalLine } = predictShotResult(ball.object.position, swipe);
   keeper.saveTargetX = THREE.MathUtils.clamp(goalLine.x, -GOAL_W / 2 + 0.28, GOAL_W / 2 - 0.28);
   keeper.saveTargetY = THREE.MathUtils.clamp(goalLine.y, 0.35, GOAL_H + 0.15);
+  keeper.saveTargetZ = THREE.MathUtils.clamp(goalLine.z + 0.28, GOAL_LINE_Z - 0.18, GOAL_LINE_Z + 0.5);
 
   const targetSide = keeper.saveTargetX < -0.28 ? -1 : keeper.saveTargetX > 0.28 ? 1 : 0;
   const quality = Math.random();
@@ -1171,24 +1251,38 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   }
 
   const reaction = Math.max(0, 1 - keeper.diveDelay * 5.2);
-  const targetStep = THREE.MathUtils.clamp(keeper.saveTargetX * 0.42 + keeper.diveDir * 0.65, -1.55, 1.55);
-  keeper.pos.x = THREE.MathUtils.lerp(keeper.pos.x, targetStep, 0.12 * reaction + 0.035);
+  const targetStep = THREE.MathUtils.clamp(keeper.saveTargetX * 0.55 + keeper.diveDir * 0.72, -2.25, 2.25);
+  keeper.pos.x = THREE.MathUtils.lerp(keeper.pos.x, targetStep, 0.16 * reaction + 0.045);
+  keeper.pos.z = THREE.MathUtils.lerp(keeper.pos.z, keeper.saveTargetZ, 0.075 * reaction + 0.025);
 
-  const nearGoal = ball.object.position.z < GOAL_LINE_Z + 1.85 && ball.object.position.z > GOAL_LINE_Z - 0.75;
+  const nearGoal = ball.object.position.z < GOAL_LINE_Z + 2.35 && ball.object.position.z > GOAL_LINE_Z - 0.95;
   if (!nearGoal) return false;
 
-  const bodyCenter = keeper.pos.clone().add(new THREE.Vector3(0, 1.05, 0));
-  const gloveCenter = keeper.pos.clone().add(new THREE.Vector3(keeper.diveDir * 1.48, keeper.diveHeight, 0));
-  const highGlove = keeper.pos.clone().add(new THREE.Vector3(keeper.diveDir * 1.92, keeper.diveHeight + 0.22, 0));
-  const bodyReach = 0.64;
-  const gloveReach = keeper.diveDir === 0 ? 1.08 : 1.5;
+  const side = keeper.diveDir || (ball.object.position.x < keeper.pos.x ? -1 : 1);
+  const heightBlend = THREE.MathUtils.clamp((keeper.saveTargetY - 0.45) / (GOAL_H - 0.2), 0, 1);
+  const bodyCenter = keeper.pos.clone().add(new THREE.Vector3(0, 1.02, 0.03));
+  const lowGlove = keeper.pos.clone().add(new THREE.Vector3(side * 1.0, Math.max(0.42, keeper.diveHeight - 0.28), -0.05));
+  const leadHand = keeper.pos.clone().add(new THREE.Vector3(side * THREE.MathUtils.lerp(1.25, 2.25, heightBlend), keeper.diveHeight + heightBlend * 0.38, -0.1));
+  const topHand = leadHand.clone().add(new THREE.Vector3(-side * 0.22, 0.16, 0.03));
+  const trailingHand = leadHand.clone().add(new THREE.Vector3(-side * 0.44, -0.08, 0.05));
+  const bodyReach = 0.58;
+  const lowReach = 0.48;
+  const handReach = keeper.diveDir === 0 ? 0.78 : THREE.MathUtils.lerp(0.72, 0.92, heightBlend);
+  const handCorridor = segmentDistanceToBall(trailingHand, topHand, ball.object.position);
 
-  if (bodyCenter.distanceTo(ball.object.position) < bodyReach || gloveCenter.distanceTo(ball.object.position) < gloveReach || segmentDistanceToBall(gloveCenter, highGlove, ball.object.position) < BALL_R + 0.32) {
-    const push = ball.object.position.clone().sub(gloveCenter).setY(0).normalize();
-    if (push.lengthSq() < 0.001) push.set(keeper.diveDir || (ball.object.position.x < 0 ? -1 : 1), 0, 0.25).normalize();
-    ball.vel.set(push.x * 5.2, Math.max(1.4, ball.vel.y * 0.2 + 1.8), Math.max(1.2, Math.abs(ball.vel.z) * 0.28));
-    ball.object.position.addScaledVector(push, BALL_R * 1.2);
-    ball.shotAge = ball.shotDuration + 0.01;
+  if (bodyCenter.distanceTo(ball.object.position) < bodyReach || lowGlove.distanceTo(ball.object.position) < lowReach || leadHand.distanceTo(ball.object.position) < handReach || handCorridor < BALL_R + 0.34) {
+    const catchable = ball.vel.length() < 22 || leadHand.distanceTo(ball.object.position) < handReach * 0.72 || bodyCenter.distanceTo(ball.object.position) < bodyReach * 0.85;
+    if (catchable) {
+      ball.object.position.copy(leadHand.lerp(ball.object.position, 0.18));
+      ball.vel.set(0, 0, 0);
+      ball.flying = false;
+    } else {
+      const push = ball.object.position.clone().sub(leadHand).setY(0).normalize();
+      if (push.lengthSq() < 0.001) push.set(side, 0, 0.25).normalize();
+      ball.vel.set(push.x * 6.3, Math.max(1.2, ball.vel.y * 0.16 + 1.5), Math.max(1.4, Math.abs(ball.vel.z) * 0.24));
+      ball.object.position.addScaledVector(push, BALL_R * 1.4);
+      ball.shotAge = ball.shotDuration + 0.01;
+    }
     return true;
   }
   return false;
@@ -1308,22 +1402,28 @@ export default function FreeKickGame() {
     const kicker = createActor(scene, loader, "kicker", new THREE.Vector3(0, 0, 6), 0, actorKitColor(0), actorModelUrl(0));
     const keeper = createActor(scene, loader, "keeper", new THREE.Vector3(0, 0, GOAL_LINE_Z + 0.36), 0, actorKitColor(1), actorModelUrl(1));
     const wall = Array.from({ length: 5 }, (_, i) => createActor(scene, loader, "wall", new THREE.Vector3(0, 0, 0), i, actorKitColor(i + 2), actorModelUrl(i + 2)));
-    let spot: KickSpot = "center"; let state: ShotState = "aim"; let resultTimer = 0; let varTimer = 0; let replayIndex = 0; let replayClock = 0; let pendingDecision: Decision = "NO GOAL"; let shotBlocked = false; let shotSaved = false; let shotFinalized = false; let netTriggered = false; let cameraYaw = 0; const replayFrames: ReplayFrame[] = []; let score = { goals: 0, saves: 0 }; resetShot(ball, kicker, keeper, wall, spot);
+    let spot: KickSpot = "center"; let state: ShotState = "aim"; let resultTimer = 0; let varTimer = 0; let replayIndex = 0; let replayClock = 0; let pendingDecision: Decision = "NO GOAL"; let shotBlocked = false; let shotSaved = false; let shotFinalized = false; let netTriggered = false; let cameraYaw = 0; const replayFrames: ReplayFrame[] = []; let score = { goals: 0, saves: 0 }; spot = randomKickSpot(); resetShot(ball, kicker, keeper, wall, spot);
     placeCameraForNextShot(camera, kicker, cameraYaw);
     const resize = () => { const w = Math.max(1, host.clientWidth); const h = Math.max(1, host.clientHeight); renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     resize(); window.addEventListener("resize", resize);
     const onDown = (e: PointerEvent) => {
       audio.start();
       const rect = host.getBoundingClientRect();
-      const cameraZone = state !== "aim" || e.clientY - rect.top < rect.height * 0.42;
-      swipeRef.current = { active: true, startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY, mode: cameraZone ? "camera" : "shot" };
+      const cameraZone = state !== "aim" || e.clientY - rect.top < rect.height * 0.34;
+      swipeRef.current = { active: true, startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY, mode: cameraZone ? "camera" : "shot", viewportW: rect.width, viewportH: rect.height };
       if (!cameraZone && state === "aim") setAimCurve(aimLine, ball.object.position, swipeRef.current);
     };
     const onMove = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
+      const totalDx = e.clientX - swipeRef.current.startX;
+      const totalDy = e.clientY - swipeRef.current.startY;
+      if (swipeRef.current.mode === "shot" && state === "aim" && Math.abs(totalDx) > 28 && Math.abs(totalDx) > Math.abs(totalDy) * 1.35) {
+        swipeRef.current.mode = "camera";
+        hideAimLine(aimLine);
+      }
       if (swipeRef.current.mode === "camera") {
         const dx = e.clientX - swipeRef.current.endX;
-        cameraYaw = THREE.MathUtils.clamp(cameraYaw + dx / 260, -CAMERA_YAW_LIMIT, CAMERA_YAW_LIMIT);
+        cameraYaw = THREE.MathUtils.clamp(cameraYaw + dx / 420, -CAMERA_YAW_LIMIT, CAMERA_YAW_LIMIT);
         swipeRef.current.endX = e.clientX;
         swipeRef.current.endY = e.clientY;
         return;
@@ -1362,8 +1462,20 @@ export default function FreeKickGame() {
       if (state === "runup") {
         const strikeSpot = ball.object.position.clone().add(new THREE.Vector3(-0.24, -BALL_R, 0.42)).setY(0);
         TMP.copy(strikeSpot).sub(kicker.pos).setY(0);
-        if (TMP.length() > 0.055) { kicker.dir.copy(TMP.clone().normalize()); kicker.vel.copy(kicker.dir).multiplyScalar(4.05); kicker.pos.addScaledVector(kicker.vel, dt); kicker.speed = kicker.vel.length(); } else { kicker.speed = 0; }
-        if (kicker.kickTime < 0.34 && !ball.flying) { replayFrames.length = 0; recordReplayFrame(new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25)); shootBall(ball, swipeRef.current); audio.kick(); state = "flight"; setHud((h) => ({ ...h, state: "Right-foot strike · recording replay" })); }
+        if (TMP.length() > 0.055 && kicker.kickTime <= 0) {
+          kicker.dir.copy(TMP.clone().normalize());
+          kicker.vel.copy(kicker.dir).multiplyScalar(4.05);
+          kicker.pos.addScaledVector(kicker.vel, dt);
+          kicker.speed = kicker.vel.length();
+        } else {
+          kicker.speed = 0;
+          kicker.dir.copy(ball.object.position.clone().sub(kicker.pos).setY(0).normalize());
+          if (kicker.kickTime <= 0) {
+            kicker.kickTime = KICK_STRIKE_TIME;
+            wall.forEach((w) => (w.jumpTime = 0.42));
+          }
+        }
+        if (kicker.kickTime > 0 && kicker.kickTime < 0.34 && !ball.flying) { replayFrames.length = 0; recordReplayFrame(new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25)); shootBall(ball, swipeRef.current); audio.kick(); state = "flight"; setHud((h) => ({ ...h, state: "Right-foot strike · recording replay" })); }
       } else { kicker.speed = 0; }
       updateBall(ball, dt); updateNetShake(netRig, dt);
       if (state === "flight") {
@@ -1420,7 +1532,7 @@ export default function FreeKickGame() {
         }
         if (replayIndex >= replayFrames.length - 1 || replayFrames.length === 0) { state = "result"; resultTimer = pendingDecision === "GOAL" ? 2.65 : 1.05; if (pendingDecision === "GOAL") { audio.goal(); triggerCrowdCheer(stadium); kicker.celebrateTime = 2.45; score.goals += 1; setHud((h) => ({ ...h, goals: score.goals, state: "VAR: GOAL confirmed" })); } else { score.saves += 1; setHud((h) => ({ ...h, saves: score.saves, state: `VAR: ${pendingDecision}` })); } }
       }
-      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, state: "Swipe to aim and shoot" })); } }
+      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; spot = randomKickSpot(spot); resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, spot, state: `Random free kick ${spot} · swipe to aim` })); } }
       if (state !== "replay") {
         updateActorBase(kicker, dt); applyKickerPose(kicker); applyGoalDancePose(kicker); updateActorBase(keeper, dt); applyKeeperPose(keeper);
         wall.forEach((w) => { updateActorBase(w, dt); applyWallPose(w); if (w.jumpTime > 0) w.jumpTime = Math.max(0, w.jumpTime - dt); });
@@ -1441,11 +1553,6 @@ export default function FreeKickGame() {
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); canvas.removeEventListener("pointerdown", onDown); canvas.removeEventListener("pointermove", onMove); canvas.removeEventListener("pointerup", onUp); canvas.removeEventListener("pointercancel", onUp); audio.dispose(); renderer.dispose(); };
   }, []);
 
-  const setSpot = (spot: KickSpot) => {
-    (window as any).__setFreeKickSpot?.(spot);
-  };
-
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "#07110b", overflow: "hidden", touchAction: "none", userSelect: "none" }}>
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
@@ -1456,26 +1563,9 @@ export default function FreeKickGame() {
         <div style={{ fontSize: 11, maxWidth: 220, textAlign: "right", lineHeight: 1.25 }}>{hud.state}</div>
       </div>
 
-      <div style={{ position: "fixed", left: 12, bottom: 14, right: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, pointerEvents: "auto" }}>
-        <button onClick={() => setSpot("left")} style={buttonStyle}>Left<br />3 wall</button>
-        <button onClick={() => setSpot("center")} style={buttonStyle}>Center<br />4 wall</button>
-        <button onClick={() => setSpot("right")} style={buttonStyle}>Right<br />3 wall</button>
-        <button onClick={() => setSpot("near16")} style={buttonStyle}>Near 16<br />5 wall</button>
-      </div>
       <div style={{ position: "fixed", left: 14, top: 54, color: "white", fontFamily: "system-ui,sans-serif", fontSize: 11, lineHeight: 1.3, maxWidth: 300, pointerEvents: "none", textShadow: "0 2px 8px #000" }}>
-        Natural shoulder movement, slower replay from the strike, and dynamic replay camera.
+        Swipe up from the lower field to shoot. Drag sideways or use the upper screen for precise camera control.
       </div>
     </div>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  minHeight: 48,
-  border: "1px solid rgba(255,255,255,0.28)",
-  borderRadius: 14,
-  color: "white",
-  background: "rgba(15,23,42,0.86)",
-  fontWeight: 900,
-  fontSize: 11,
-  boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
-};
