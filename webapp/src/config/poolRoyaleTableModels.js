@@ -28,13 +28,11 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
-    // Keep the wooden rail and pocket-jaw stack at the same tall height as
-    // the procedural table so the Showood layout does not get flattened.
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: ['trim'],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
+    preserveOriginalSurfaceRoles: [],
     hideSurfaceRoles: []
   }
 ]);
