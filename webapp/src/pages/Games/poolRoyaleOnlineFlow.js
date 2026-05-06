@@ -176,6 +176,7 @@ export async function runPoolRoyaleOnlineFlow({
   playType,
   mode,
   tableSize,
+  tableModel,
   avatar,
   deps = {},
   state,
@@ -221,6 +222,8 @@ export async function runPoolRoyaleOnlineFlow({
       : undefined;
   const normalizedTableSize =
     typeof tableSize === 'string' && tableSize.trim() ? tableSize.trim() : undefined;
+  const normalizedTableModel =
+    typeof tableModel === 'string' && tableModel.trim() ? tableModel.trim() : undefined;
 
   const telegramId = getTelegramIdFn?.();
 
@@ -445,6 +448,7 @@ export async function runPoolRoyaleOnlineFlow({
         variant,
         ballSet,
         tableSize: normalizedTableSize,
+        tableModel: normalizedTableModel,
         playType,
         playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
         avatar
