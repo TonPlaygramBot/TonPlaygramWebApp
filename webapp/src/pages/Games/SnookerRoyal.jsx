@@ -18,7 +18,6 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   resolveSnookerGlbFitTransform,
-  preservesOpenSourceSnookerTableOriginalSurface,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
@@ -10623,13 +10622,17 @@ function Table3D(
     table.userData.pocketJawSegments = [];
   };
 
-  const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
-    if (preservesOpenSourceSnookerTableOriginalSurface(role)) {
-      if (originalMaterial) {
-        originalMaterial.needsUpdate = true;
-      }
-      return originalMaterial;
+  const resolveOpenSourceClothUvBounds = () => {
+    const bounds = new THREE.Box3();
+    expandBoxByObjectLocalBounds(bounds, cloth);
+    if (bounds.isEmpty()) {
+      bounds.min.set(-PLAY_W / 2, clothPlaneLocal - MICRO_EPS, -PLAY_H / 2);
+      bounds.max.set(PLAY_W / 2, clothPlaneLocal + MICRO_EPS, PLAY_H / 2);
     }
+    return bounds;
+  };
+
+  const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
     const materials = finishInfo?.materials || {};
     const sourceByRole = {
       cloth: finishInfo?.clothMat,
@@ -10752,11 +10755,7 @@ function Table3D(
       const resolvedMaterials = materials.map((material, index) =>
         cloneFinishMaterialForOpenSource(roles[index], material)
       );
-      const preservesOriginalSurfaceMaterial = roles.some((role) =>
-        preservesOpenSourceSnookerTableOriginalSurface(role)
-      );
       node.userData.openSourceMaterialRole = roles.includes('cloth') ? 'cloth' : roles[0] || 'frame';
-      node.userData.openSourcePreservesOriginalSurfaceMaterial = preservesOriginalSurfaceMaterial;
       node.material = Array.isArray(node.material) ? resolvedMaterials : resolvedMaterials[0] ?? node.material;
     });
   };
@@ -10793,6 +10792,34 @@ function Table3D(
       usesProceduralTableBase: true
     };
     return removedMeshes.length;
+  };
+
+  const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
+    const targetSize = targetBounds.getSize(new THREE.Vector3());
+    if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
+    const localPoint = new THREE.Vector3();
+    const worldPoint = new THREE.Vector3();
+    root.updateMatrixWorld(true);
+    table.updateMatrixWorld(true);
+    root.traverse((node) => {
+      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cloth') return;
+      const geometry = node.geometry;
+      const position = geometry?.attributes?.position;
+      if (!geometry || !position) return;
+      let uv = geometry.attributes.uv;
+      if (!uv || uv.count !== position.count) {
+        uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
+        geometry.setAttribute('uv', uv);
+      }
+      for (let i = 0; i < position.count; i += 1) {
+        localPoint.fromBufferAttribute(position, i);
+        node.localToWorld(worldPoint.copy(localPoint));
+        table.worldToLocal(worldPoint);
+        uv.setXY(i, worldPoint.x, worldPoint.z);
+      }
+      uv.needsUpdate = true;
+      geometry.computeBoundingBox();
+    });
   };
 
   const applyOpenSourceCushionPhysicsFromModel = (model) => {
@@ -10856,6 +10883,7 @@ function Table3D(
 
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
+    const clothUvBounds = resolveOpenSourceClothUvBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
@@ -10897,6 +10925,7 @@ function Table3D(
 
         applyDefaultTableFinishToOpenSourceModel(model);
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
+        remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
@@ -10913,9 +10942,8 @@ function Table3D(
           removedOriginalBaseMeshCount,
           usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
-          clothUvMappedToDefaultPlayfield: false,
-          clothUvUsesProceduralWorldScale: false,
-          preservesOriginalGlbClothAndCushionMaterials: true
+          clothUvMappedToDefaultPlayfield: true,
+          clothUvUsesProceduralWorldScale: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;

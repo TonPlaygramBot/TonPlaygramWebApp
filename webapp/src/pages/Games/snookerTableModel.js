@@ -2,10 +2,6 @@ export const TABLE_MODEL_CLASSIC = 'classic';
 export const TABLE_MODEL_OPENSOURCE = 'opensource';
 export const TABLE_MODEL_OPENSOURCE_GLB_URL =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
-export const TABLE_MODEL_OPENSOURCE_ORIGINAL_SURFACE_ROLES = Object.freeze([
-  'cloth',
-  'cushion'
-]);
 
 
 const MIN_GLB_FIT_SIZE = 0.0001;
@@ -41,8 +37,4 @@ export function applySnookerTableModelParam(params, tableModel) {
 
 export function usesProceduralSnookerTableRailDecor(tableModel) {
   return resolveSnookerTableModel(tableModel) === TABLE_MODEL_CLASSIC;
-}
-
-export function preservesOpenSourceSnookerTableOriginalSurface(role) {
-  return TABLE_MODEL_OPENSOURCE_ORIGINAL_SURFACE_ROLES.includes(String(role || '').toLowerCase());
 }
