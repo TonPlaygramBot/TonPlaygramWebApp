@@ -1,4 +1,8 @@
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from './snookerRoyalClothPresets.js';
+import {
+  POOL_ROYALE_OPTION_LABELS,
+  POOL_ROYALE_STORE_ITEMS
+} from './poolRoyaleInventoryConfig.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const SNOOKER_ROYALE_HDRI_PLACEMENTS = Object.freeze({
@@ -290,13 +294,17 @@ export const SNOOKER_ROYALE_HDRI_VARIANTS = Object.freeze(
   }))
 );
 
-const TABLE_FINISH_THUMBNAILS = Object.freeze({
-  peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
-  oakVeneer01: polyHavenThumb('oak_veneer_01'),
-  woodTable001: polyHavenThumb('wood_table_001'),
-  darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
-});
+
+const SNOOKER_ROYALE_SHARED_TABLE_FINISH_ITEMS = Object.freeze(
+  POOL_ROYALE_STORE_ITEMS.filter((item) => item?.type === 'tableFinish').map((item) => ({
+    ...item,
+    id: `shared-${item.id}`,
+    name: item.name?.includes('Finish') ? item.name : `${item.name} Finish`,
+    description:
+      item.description ||
+      'Shared table finish from the default Pool Royale table library.'
+  }))
+);
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
   'plastic-black': swatchThumbnail(['#0b0d10', '#1f2937', '#4b5563']),
@@ -378,10 +386,10 @@ export const SNOOKER_ROYALE_BASE_VARIANTS = Object.freeze([
 export const SNOOKER_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const SNOOKER_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
-  tableFinish: ['peelingPaintWeathered'],
+  tableFinish: Object.keys(POOL_ROYALE_OPTION_LABELS.tableFinish || {}),
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
-  clothColor: [SNOOKER_ROYALE_CLOTH_VARIANTS[0].id],
+  clothColor: SNOOKER_ROYALE_CLOTH_VARIANTS.map((variant) => variant.id),
   cueStyle: ['birch-frost'],
   pocketLiner: ['plastic-black'],
   environmentHdri: [SNOOKER_ROYALE_DEFAULT_HDRI_ID],
@@ -396,11 +404,7 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   tableFinish: Object.freeze({
-    peelingPaintWeathered: 'Wood Peeling Paint Weathered',
-    oakVeneer01: 'Oak Veneer 01',
-    woodTable001: 'Wood Table 001',
-    darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    ...POOL_ROYALE_OPTION_LABELS.tableFinish
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -443,51 +447,7 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
 });
 
 export const SNOOKER_ROYALE_STORE_ITEMS = [
-  {
-    id: 'finish-peelingPaintWeathered',
-    type: 'tableFinish',
-    optionId: 'peelingPaintWeathered',
-    name: 'Wood Peeling Paint Weathered Finish',
-    price: 980,
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.peelingPaintWeathered
-  },
-  {
-    id: 'finish-oakVeneer01',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01',
-    name: 'Oak Veneer 01 Finish',
-    price: 990,
-    description: 'Warm oak veneer rails with smooth satin polish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01
-  },
-  {
-    id: 'finish-woodTable001',
-    type: 'tableFinish',
-    optionId: 'woodTable001',
-    name: 'Wood Table 001 Finish',
-    price: 1000,
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.woodTable001
-  },
-  {
-    id: 'finish-darkWood',
-    type: 'tableFinish',
-    optionId: 'darkWood',
-    name: 'Dark Wood Finish',
-    price: 1010,
-    description: 'Deep espresso rails with strong grain contrast.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.darkWood
-  },
-  {
-    id: 'finish-rosewoodVeneer01',
-    type: 'tableFinish',
-    optionId: 'rosewoodVeneer01',
-    name: 'Rosewood Veneer 01 Finish',
-    price: 1020,
-    description: 'Rosewood veneer rails with rich, reddish undertones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
-  },
+  ...SNOOKER_ROYALE_SHARED_TABLE_FINISH_ITEMS,
   {
     id: 'chrome-chrome',
     type: 'chromeColor',

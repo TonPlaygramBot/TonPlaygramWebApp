@@ -5,14 +5,22 @@ import {
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
-  TABLE_MODEL_OPENSOURCE_GLB_URL
+  TABLE_MODEL_OPENSOURCE_GLB_URL,
+  TABLE_MODEL_DEFAULT,
+  TABLE_MODEL_PROCEDURAL_FALLBACK
 } from '../webapp/src/pages/Games/snookerTableModel.js';
 
 describe('snooker table model selection', () => {
-  test('resolveSnookerTableModel defaults to classic', () => {
-    assert.equal(resolveSnookerTableModel(null), TABLE_MODEL_CLASSIC);
-    assert.equal(resolveSnookerTableModel(''), TABLE_MODEL_CLASSIC);
-    assert.equal(resolveSnookerTableModel('invalid'), TABLE_MODEL_CLASSIC);
+  test('resolveSnookerTableModel defaults to the GLB table', () => {
+    assert.equal(TABLE_MODEL_DEFAULT, TABLE_MODEL_OPENSOURCE);
+    assert.equal(TABLE_MODEL_PROCEDURAL_FALLBACK, TABLE_MODEL_CLASSIC);
+    assert.equal(resolveSnookerTableModel(null), TABLE_MODEL_OPENSOURCE);
+    assert.equal(resolveSnookerTableModel(''), TABLE_MODEL_OPENSOURCE);
+    assert.equal(resolveSnookerTableModel('invalid'), TABLE_MODEL_OPENSOURCE);
+  });
+
+  test('resolveSnookerTableModel keeps classic available as procedural fallback', () => {
+    assert.equal(resolveSnookerTableModel('classic'), TABLE_MODEL_CLASSIC);
   });
 
   test('resolveSnookerTableModel accepts opensource value case-insensitively', () => {
@@ -26,7 +34,7 @@ describe('snooker table model selection', () => {
     assert.equal(params.get('tableModel'), TABLE_MODEL_OPENSOURCE);
 
     applySnookerTableModelParam(params, 'unknown');
-    assert.equal(params.get('tableModel'), TABLE_MODEL_CLASSIC);
+    assert.equal(params.get('tableModel'), TABLE_MODEL_OPENSOURCE);
   });
 
   test('resolveSnookerGlbFitTransform maps GLB bounds exactly onto the procedural table', () => {

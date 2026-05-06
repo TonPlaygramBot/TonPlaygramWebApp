@@ -1,4 +1,5 @@
 import { polyHavenThumb } from './storeThumbnails.js';
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
 const normalizeHex = (value) => {
   const asString = typeof value === 'number' ? value.toString(16).padStart(6, '0') : String(value || '').replace('#', '');
@@ -183,6 +184,17 @@ const createVariantsForMaterial = (material) => {
   ];
 };
 
-export const SNOOKER_ROYALE_CLOTH_VARIANTS = Object.freeze(
-  MATERIAL_SERIES.flatMap((material) => createVariantsForMaterial(material))
+const SNOOKER_NATIVE_CLOTH_VARIANTS = MATERIAL_SERIES.flatMap((material) =>
+  createVariantsForMaterial(material)
 );
+
+export const SNOOKER_ROYALE_CLOTH_VARIANTS = Object.freeze([
+  ...SNOOKER_NATIVE_CLOTH_VARIANTS,
+  ...POOL_ROYALE_CLOTH_VARIANTS.map((variant) => ({
+    ...variant,
+    sharedWithDefaultTable: true,
+    description:
+      variant.description ||
+      'Shared cloth preset from the default Pool Royale table library.'
+  }))
+]);
