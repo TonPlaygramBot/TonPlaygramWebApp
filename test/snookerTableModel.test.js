@@ -3,16 +3,17 @@ import {
   applySnookerTableModelParam,
   resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
+  usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from '../webapp/src/pages/Games/snookerTableModel.js';
 
 describe('snooker table model selection', () => {
-  test('resolveSnookerTableModel defaults to classic', () => {
-    assert.equal(resolveSnookerTableModel(null), TABLE_MODEL_CLASSIC);
-    assert.equal(resolveSnookerTableModel(''), TABLE_MODEL_CLASSIC);
-    assert.equal(resolveSnookerTableModel('invalid'), TABLE_MODEL_CLASSIC);
+  test('resolveSnookerTableModel defaults to the open-source GLB table', () => {
+    assert.equal(resolveSnookerTableModel(null), TABLE_MODEL_OPENSOURCE);
+    assert.equal(resolveSnookerTableModel(''), TABLE_MODEL_OPENSOURCE);
+    assert.equal(resolveSnookerTableModel('invalid'), TABLE_MODEL_OPENSOURCE);
   });
 
   test('resolveSnookerTableModel accepts opensource value case-insensitively', () => {
@@ -26,7 +27,7 @@ describe('snooker table model selection', () => {
     assert.equal(params.get('tableModel'), TABLE_MODEL_OPENSOURCE);
 
     applySnookerTableModelParam(params, 'unknown');
-    assert.equal(params.get('tableModel'), TABLE_MODEL_CLASSIC);
+    assert.equal(params.get('tableModel'), TABLE_MODEL_OPENSOURCE);
   });
 
   test('resolveSnookerGlbFitTransform maps GLB bounds exactly onto the procedural table', () => {
@@ -43,6 +44,12 @@ describe('snooker table model selection', () => {
       { x: 12, y: 1, z: 20 }
     );
     assert.deepEqual(transform.scale, { x: 6, y: 1, z: 4 });
+  });
+
+  test('uses procedural rail decor only for the classic table model', () => {
+    assert.equal(usesProceduralSnookerTableRailDecor('classic'), true);
+    assert.equal(usesProceduralSnookerTableRailDecor('opensource'), false);
+    assert.equal(usesProceduralSnookerTableRailDecor('unknown'), false);
   });
 
   test('uses the Pooltool snooker_generic GLB source', () => {

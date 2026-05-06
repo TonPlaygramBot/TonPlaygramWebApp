@@ -19,6 +19,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import {
   resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
+  usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
@@ -7003,6 +7004,9 @@ function Table3D(
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
   const resolvedTableVisualModel = resolveSnookerTableModel(tableVisualModel);
+  const keepProceduralRailDecor = usesProceduralSnookerTableRailDecor(
+    resolvedTableVisualModel
+  );
   applyTablePhysicsSpec(tableSizeMeta);
 
   const table = new THREE.Group();
@@ -10580,6 +10584,31 @@ function Table3D(
     });
   };
 
+  const removeOpenSourceProceduralRailDecor = () => {
+    if (keepProceduralRailDecor) return;
+    const parts = finishInfo?.parts || finishParts || {};
+    const meshesToRemove = new Set([
+      ...(parts.frameMeshes || []),
+      ...(parts.railMeshes || []),
+      ...(parts.trimMeshes || []),
+      ...(parts.pocketJawMeshes || []),
+      ...(parts.pocketRimMeshes || []),
+      ...(parts.gapFillMeshes || []),
+      ...(parts.underlayMeshes || []),
+      ...(parts.clothEdgeMeshes || [])
+    ].filter(Boolean));
+
+    meshesToRemove.forEach((mesh) => {
+      if (!mesh || mesh.userData?.isOpenSourceVisual || isOpenSourceHardwareKeepMesh(mesh)) {
+        return;
+      }
+      mesh.visible = false;
+      mesh.parent?.remove?.(mesh);
+    });
+
+    table.userData.pocketJawSegments = [];
+  };
+
   const resolveOpenSourceClothUvBounds = () => {
     const bounds = new THREE.Box3();
     expandBoxByObjectLocalBounds(bounds, cloth);
@@ -10785,13 +10814,18 @@ function Table3D(
     });
 
     if (segments.length >= 4) {
-      const jaws = Array.isArray(table.userData?.cushionSegments)
-        ? table.userData.cushionSegments.filter((segment) => segment?.type === 'jaw')
-        : [];
+      const jaws =
+        keepProceduralRailDecor && Array.isArray(table.userData?.cushionSegments)
+          ? table.userData.cushionSegments.filter((segment) => segment?.type === 'jaw')
+          : [];
       const nextSegments = [...segments, ...jaws];
       table.userData.cushionSegments = nextSegments;
       CUSHION_SEGMENTS = nextSegments;
-      table.userData.openSourcePhysics = { source: 'glb-cushion-bounds', segmentCount: segments.length };
+      table.userData.openSourcePhysics = {
+        source: 'glb-cushion-bounds',
+        segmentCount: segments.length,
+        proceduralJawSegmentCount: jaws.length
+      };
       return true;
     }
     table.userData.openSourcePhysics = { source: 'procedural-fallback', segmentCount: 0 };
@@ -10844,6 +10878,7 @@ function Table3D(
         applyDefaultTableFinishToOpenSourceModel(model);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
+        removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false);
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
@@ -10853,6 +10888,7 @@ function Table3D(
           fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
+          removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
           preservesOriginalTableBase: true,
           usesGlbCushionShapes: true,
           clothUvMappedToDefaultPlayfield: true,
