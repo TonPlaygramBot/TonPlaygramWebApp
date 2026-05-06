@@ -12903,11 +12903,20 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, footprintSize.z));
     const targetHeight = dims.targetHeight ?? dims.nativeVisualHeight;
     const fullSize = fullBox.getSize(new THREE.Vector3());
-    const exactYScale =
-      tableModel?.matchNativeHeight && targetHeight
-        ? Math.max(MICRO_EPS, targetHeight / Math.max(MICRO_EPS, fullSize.y)) *
-          (tableModel?.fitHeightScale ?? 1)
-        : Math.sqrt(exactXScale * exactZScale);
+    const upperComponentHeight = Math.max(MICRO_EPS, footprintSize.y);
+    const targetUpperComponentHeight = Number.isFinite(dims.targetUpperComponentHeight)
+      ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+      : null;
+    const heightMatchSource =
+      tableModel?.matchNativeUpperComponentHeight && targetUpperComponentHeight
+        ? { target: targetUpperComponentHeight, source: upperComponentHeight }
+        : tableModel?.matchNativeHeight && targetHeight
+          ? { target: targetHeight, source: fullSize.y }
+          : null;
+    const exactYScale = heightMatchSource
+      ? Math.max(MICRO_EPS, heightMatchSource.target / Math.max(MICRO_EPS, heightMatchSource.source)) *
+        (tableModel?.fitHeightScale ?? 1)
+      : Math.sqrt(exactXScale * exactZScale);
     model.scale.set(
       model.scale.x * exactXScale * fitScaleMultiplier,
       model.scale.y * exactYScale * fitScaleMultiplier,
@@ -13646,6 +13655,18 @@ function mountPoolRoyaleExternalTableModel({
   const generatedVisualSize = generatedVisualBounds.isEmpty()
     ? new THREE.Vector3(TABLE.W, TABLE.THICK, TABLE.H)
     : generatedVisualBounds.getSize(new THREE.Vector3());
+  const generatedUpperComponentObjects = [
+    ...finishParts.railMeshes,
+    ...finishParts.pocketJawMeshes,
+    ...finishParts.pocketRimMeshes,
+    ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : [])
+  ].filter(Boolean);
+  const generatedUpperComponentBounds = expandPoolRoyaleBoundsByObjects(
+    generatedUpperComponentObjects.length ? generatedUpperComponentObjects : generatedStructuralObjects
+  );
+  const generatedUpperComponentSize = generatedUpperComponentBounds.isEmpty()
+    ? new THREE.Vector3(TABLE.W, TABLE.THICK, TABLE.H)
+    : generatedUpperComponentBounds.getSize(new THREE.Vector3());
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       if (
@@ -13681,7 +13702,12 @@ function mountPoolRoyaleExternalTableModel({
             targetWidth: generatedVisualBounds.isEmpty() ? TABLE.W : generatedVisualSize.x,
             targetLength: generatedVisualBounds.isEmpty() ? TABLE.H : generatedVisualSize.z,
             targetHeight: generatedVisualBounds.isEmpty() ? TABLE.THICK + LEG_ROOM_HEIGHT : generatedVisualSize.y,
-            targetTopLocal: generatedVisualBounds.isEmpty() ? cushionTopLocal : generatedVisualBounds.max.y,
+            targetUpperComponentHeight: generatedUpperComponentBounds.isEmpty()
+              ? RAIL_HEIGHT
+              : generatedUpperComponentSize.y,
+            targetTopLocal: generatedUpperComponentBounds.isEmpty()
+              ? (generatedVisualBounds.isEmpty() ? cushionTopLocal : generatedVisualBounds.max.y)
+              : generatedUpperComponentBounds.max.y,
             cushionTopLocal
           },
           finishInfo,
