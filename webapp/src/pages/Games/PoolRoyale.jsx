@@ -12520,29 +12520,121 @@ export function Table3D(
 const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
-function preparePoolRoyaleExternalTableMaterials(root) {
+function classifyPoolRoyaleExternalTableSurface(child, material) {
+  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
+  if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
+  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
+  if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
+  return 'wood';
+}
+
+function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
+  if (!texture) return null;
+  const clone = texture.clone ? texture.clone() : texture;
+  if (isColor) clone.colorSpace = THREE.SRGBColorSpace;
+  clone.anisotropy = resolveTextureAnisotropy(12);
+  clone.needsUpdate = true;
+  return clone;
+}
+
+function preparePoolRoyaleExternalTexture(texture, isColor = false) {
+  if (!texture) return;
+  if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = resolveTextureAnisotropy(12);
+  texture.needsUpdate = true;
+}
+
+function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo) {
+  if (!material || !finishInfo) return material;
+  const mat = material.clone ? material.clone() : material;
+  const materials = finishInfo.materials || {};
+  const finish = TABLE_FINISHES[finishInfo.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+
+  const copyMaterialLook = (source) => {
+    if (!source) return;
+    if (source.color && mat.color) mat.color.copy(source.color);
+    [
+      'roughness',
+      'metalness',
+      'clearcoat',
+      'clearcoatRoughness',
+      'sheen',
+      'sheenRoughness',
+      'reflectivity',
+      'envMapIntensity',
+      'bumpScale'
+    ].forEach((key) => {
+      if (typeof source[key] === 'number' && key in mat) mat[key] = source[key];
+    });
+    mat.map = clonePoolRoyaleMaterialTexture(source.map, { isColor: true });
+    mat.normalMap = clonePoolRoyaleMaterialTexture(source.normalMap);
+    mat.roughnessMap = clonePoolRoyaleMaterialTexture(source.roughnessMap);
+    mat.aoMap = clonePoolRoyaleMaterialTexture(source.aoMap);
+    mat.metalnessMap = clonePoolRoyaleMaterialTexture(source.metalnessMap);
+    mat.bumpMap = clonePoolRoyaleMaterialTexture(source.bumpMap);
+  };
+
+  if (role === 'cloth' || role === 'cushion') {
+    copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    mat.side = THREE.DoubleSide;
+  } else if (role === 'trim') {
+    copyMaterialLook(materials.trim);
+    enhanceChromeMaterial(mat);
+  } else if (role === 'pocket') {
+    copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
+  } else {
+    const surface =
+      role === 'wood'
+        ? finishInfo.parts?.woodSurfaces?.rail || finishInfo.parts?.woodSurfaces?.frame
+        : finishInfo.parts?.woodSurfaces?.frame;
+    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    if (mat.color) {
+      mat.userData = mat.userData || {};
+      mat.userData.baseTintHex = mat.color.getHex();
+    }
+    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo.woodRepeatScale });
+    applyTableFinishDulling(mat);
+    applyTableWoodVisibilityTuning(mat);
+    if (finish?.surfaceStyle === 'matte') {
+      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+      else applyMonoMattePlasticSurface(mat);
+    }
+    applyFinishWoodTint(mat, finish);
+  }
+
+  preparePoolRoyaleExternalTexture(mat.map, true);
+  preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
+  preparePoolRoyaleExternalTexture(mat.aoMap, false);
+  preparePoolRoyaleExternalTexture(mat.normalMap, false);
+  preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.bumpMap, false);
+  mat.needsUpdate = true;
+  return mat;
+}
+
+function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
     child.frustumCulled = false;
 
-    const prepareTexture = (texture, isColor = false) => {
-      if (!texture) return;
-      if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = resolveTextureAnisotropy(12);
-      texture.needsUpdate = true;
-    };
-
     const prepareMaterial = (material) => {
       if (!material) return material;
+      const role = classifyPoolRoyaleExternalTableSurface(child, material);
+      if (tableModel?.usePoolRoyaleFinish && finishInfo) {
+        return applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo);
+      }
       const mat = material.clone ? material.clone() : material;
-      prepareTexture(mat.map, true);
-      prepareTexture(mat.emissiveMap, true);
-      prepareTexture(mat.aoMap, false);
-      prepareTexture(mat.normalMap, false);
-      prepareTexture(mat.roughnessMap, false);
-      prepareTexture(mat.metalnessMap, false);
+      preparePoolRoyaleExternalTexture(mat.map, true);
+      preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
+      preparePoolRoyaleExternalTexture(mat.aoMap, false);
+      preparePoolRoyaleExternalTexture(mat.normalMap, false);
+      preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
+      preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
       mat.needsUpdate = true;
       return mat;
     };
@@ -12555,9 +12647,9 @@ function preparePoolRoyaleExternalTableMaterials(root) {
   });
 }
 
-function clonePoolRoyaleExternalTableTemplate(template) {
+function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
-  preparePoolRoyaleExternalTableMaterials(clone);
+  preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
   return clone;
 }
 
@@ -12612,12 +12704,23 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const modelLength = Math.max(MICRO_EPS, Math.max(size.x, size.z));
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
-  const baseFitScale =
-    tableModel?.fitStrategy === 'contain'
-      ? Math.min(widthScale, lengthScale)
-      : Math.max(widthScale, lengthScale);
-  const fitScale = baseFitScale * (tableModel?.fitScale ?? 1);
-  model.scale.multiplyScalar(fitScale);
+  const fitScaleMultiplier = tableModel?.fitScale ?? 1;
+  if (tableModel?.fitStrategy === 'exact') {
+    const exactXScale = Math.max(MICRO_EPS, dims.targetWidth / Math.max(MICRO_EPS, size.x));
+    const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, size.z));
+    const exactYScale = Math.sqrt(exactXScale * exactZScale);
+    model.scale.set(
+      model.scale.x * exactXScale * fitScaleMultiplier,
+      model.scale.y * exactYScale * fitScaleMultiplier,
+      model.scale.z * exactZScale * fitScaleMultiplier
+    );
+  } else {
+    const baseFitScale =
+      tableModel?.fitStrategy === 'contain'
+        ? Math.min(widthScale, lengthScale)
+        : Math.max(widthScale, lengthScale);
+    model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
+  }
   model.updateMatrixWorld(true);
 
   box = new THREE.Box3().setFromObject(model);
@@ -12643,6 +12746,7 @@ function mountPoolRoyaleExternalTableModel({
   tableModel,
   renderer,
   dims,
+  finishInfo,
   setGeneratedVisualsVisible
 }) {
   if (!table || !tableModel?.assetUrl) return null;
@@ -12659,7 +12763,7 @@ function mountPoolRoyaleExternalTableModel({
   loadPoolRoyaleExternalTableTemplate(tableModel, renderer)
     .then((template) => {
       if (disposed || !template) return;
-      const model = clonePoolRoyaleExternalTableTemplate(template);
+      const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
@@ -13347,10 +13451,11 @@ function mountPoolRoyaleExternalTableModel({
           tableModel: resolvedTableOptions.tableModel,
           renderer,
           dims: {
-            targetWidth: Math.max(TABLE.W, generatedVisualSize.x),
-            targetLength: Math.max(TABLE.H, generatedVisualSize.z),
+            targetWidth: generatedVisualBounds.isEmpty() ? TABLE.W : generatedVisualSize.x,
+            targetLength: generatedVisualBounds.isEmpty() ? TABLE.H : generatedVisualSize.z,
             cushionTopLocal
           },
+          finishInfo,
           setGeneratedVisualsVisible
         })
       : null;
