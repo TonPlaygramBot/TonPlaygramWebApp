@@ -406,12 +406,11 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.28 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.38 * MODEL_SCALE; // Pull local bottom chair/human closer to the table.
 const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.24 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
-const CHAIR_TABLE_SHAPE_BIAS = 0.18 * MODEL_SCALE;
 const CHAIR_HUMAN_LEG_GAP = 0.02 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
@@ -445,7 +444,7 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.95;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.12;
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
@@ -481,18 +480,31 @@ const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
-function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
-  const fallbackRadius = tableInfo?.radius ?? TABLE_RADIUS;
-  const directionalRadius = Number.isFinite(tableInfo?.getOuterRadius?.(direction))
-    ? tableInfo.getOuterRadius(direction)
-    : fallbackRadius;
-  const shapedRadius = Math.max(fallbackRadius * 0.72, directionalRadius + CHAIR_TABLE_SHAPE_BIAS);
+function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
+  const seatDepth = Number.isFinite(layoutArgs[1]) ? layoutArgs[1] : SEAT_DEPTH;
+  const tableRadius = Number.isFinite(tableInfo?.radius) ? tableInfo.radius : TABLE_RADIUS;
   const clearance = clamp(
     CHAIR_CLEARANCE + seatDepth * 0.1 + CHAIR_HUMAN_LEG_GAP,
     CHAIR_TABLE_GAP_MIN,
     CHAIR_TABLE_GAP_MAX
   );
-  return shapedRadius + seatDepth / 2 + clearance + CHAIR_TABLE_PUSHBACK;
+  return tableRadius + seatDepth / 2 + clearance + CHAIR_TABLE_PUSHBACK;
+}
+
+function positionChessBattleChairRing(chairs = [], tableInfo = null) {
+  const playerChairDistance =
+    resolveChairDistanceForDirection(tableInfo, new THREE.Vector2(0, 1), SEAT_DEPTH) +
+    PLAYER_CHAIR_EXTRA_CLEARANCE;
+  const opponentChairDistance =
+    resolveChairDistanceForDirection(tableInfo, new THREE.Vector2(0, -1), SEAT_DEPTH) +
+    OPPONENT_CHAIR_EXTRA_CLEARANCE;
+  if (chairs[0]?.group) {
+    chairs[0].group.position.z = playerChairDistance;
+  }
+  if (chairs[1]?.group) {
+    chairs[1].group.position.z = -opponentChairDistance;
+  }
+  return { playerChairDistance, opponentChairDistance };
 }
 
 function averageBoneWorldPosition(bones = []) {
@@ -1529,17 +1541,9 @@ function fitTableModelToArena(model) {
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
   model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
-  const recenteredBox = new THREE.Box3().setFromObject(model);
-  const radius = Math.max(
-    Math.abs(recenteredBox.max.x),
-    Math.abs(recenteredBox.min.x),
-    Math.abs(recenteredBox.max.z),
-    Math.abs(recenteredBox.min.z),
-    targetRadius
-  );
   return {
     surfaceY: targetHeight,
-    radius
+    radius: targetRadius
   };
 }
 
@@ -7822,7 +7826,9 @@ function Chess3D({
     pitch: -0.28,
     targetYaw: 0,
     targetPitch: -0.28,
-    fixedPosition: null
+    fixedPosition: null,
+    lastPointerX: null,
+    lastPointerY: null
   });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -8817,6 +8823,7 @@ function Chess3D({
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
+        positionChessBattleChairRing(arena.chairs || [], nextTable);
         (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
         // Preserve original room layout when table/chair options change so gameplay framing stays stable.
         const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
@@ -9464,12 +9471,9 @@ function Chess3D({
       };
     }
 
-    const playerChairDistance =
-      resolveChairDistanceForDirection(tableInfo, new THREE.Vector2(0, 1), SEAT_DEPTH) +
-      PLAYER_CHAIR_EXTRA_CLEARANCE;
-    const opponentChairDistance =
-      resolveChairDistanceForDirection(tableInfo, new THREE.Vector2(0, -1), SEAT_DEPTH) +
-      OPPONENT_CHAIR_EXTRA_CLEARANCE;
+    const chairDistances = positionChessBattleChairRing([], tableInfo);
+    const playerChairDistance = chairDistances.playerChairDistance;
+    const opponentChairDistance = chairDistances.opponentChairDistance;
 
     const chairs = [];
     const chairA = makeChair(0);
@@ -13081,6 +13085,8 @@ function Chess3D({
       }
       if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
         locked3dViewRef.current.activeLook = true;
+        locked3dViewRef.current.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
+        locked3dViewRef.current.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
         return;
       }
       if (isReplayingRef.current) return;
@@ -13116,8 +13122,22 @@ function Chess3D({
       if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
         const locked = locked3dViewRef.current;
         if (locked.activeLook) {
-          locked.targetYaw -= (event.movementX || 0) * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - (event.movementY || 0) * 0.002, -0.86, 0.2);
+          const clientX = event.clientX ?? event.touches?.[0]?.clientX ?? locked.lastPointerX;
+          const clientY = event.clientY ?? event.touches?.[0]?.clientY ?? locked.lastPointerY;
+          const movementX = Number.isFinite(event.movementX) && event.movementX !== 0
+            ? event.movementX
+            : Number.isFinite(clientX) && Number.isFinite(locked.lastPointerX)
+              ? clientX - locked.lastPointerX
+              : 0;
+          const movementY = Number.isFinite(event.movementY) && event.movementY !== 0
+            ? event.movementY
+            : Number.isFinite(clientY) && Number.isFinite(locked.lastPointerY)
+              ? clientY - locked.lastPointerY
+              : 0;
+          locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
+          locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
+          locked.targetYaw -= movementX * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
         }
         return;
       }
@@ -13133,6 +13153,8 @@ function Chess3D({
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
       locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
+      locked3dViewRef.current.lastPointerX = null;
+      locked3dViewRef.current.lastPointerY = null;
       if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
