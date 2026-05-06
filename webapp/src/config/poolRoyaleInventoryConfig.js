@@ -719,6 +719,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold'],
+  chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
@@ -759,6 +760,10 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   chromeColor: Object.freeze({
     chrome: 'Chrome',
     gold: 'Gold'
+  }),
+  chromePlateStyle: Object.freeze({
+    'royal-classic': 'Royal Classic Plates',
+    'showood-rounded': 'Showood Rounded Plates'
   }),
   railMarkerColor: Object.freeze({
     chrome: 'Chrome',
@@ -987,6 +992,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   {
+    id: 'chromeStyle-showoodRounded',
+    type: 'chromePlateStyle',
+    optionId: 'showood-rounded',
+    name: 'Showood Rounded Chrome Plates',
+    price: 420,
+    description: 'Rounded showroom-style chrome plates that can be used on both Royal Original and Showood tables.',
+    thumbnail: swatchThumbnail(['#f6d56f', '#d6d8dc', '#2f2418'])
+  },
+  {
     id: 'railMarkers-pearl',
     type: 'railMarkerColor',
     optionId: 'pearl',
@@ -1184,6 +1198,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: 'Wood Peeling Paint Weathered Finish'
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
+  { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
     type: 'clothColor',
