@@ -4,24 +4,6 @@ const BASE_TABLE_COMPACT_SCALE = 1.44;
 const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
-  '7ft': {
-    id: '7ft',
-    label: '7 ft',
-    playfield: Object.freeze({ widthMm: 1981, heightMm: 991 }), // 78" × 39"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 139.7,
-      side: 146.05
-    }),
-    cushionCutAngleDeg: 32,
-    sideCushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    scaleOverrides: Object.freeze({
-      scale: 1.28,
-      mobileScale: 1.38,
-      compactScale: 1.22
-    })
-  },
   '9ft': {
     id: '9ft',
     label: '9 ft (Tournament)',
