@@ -7448,7 +7448,19 @@ let sidePocketShift = 0;
 let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
+let externalPocketCentersOverride = null;
+const setExternalPocketCentersOverride = (centers = null) => {
+  externalPocketCentersOverride = Array.isArray(centers) && centers.length >= 4
+    ? centers.map((center) => center.clone())
+    : null;
+  cachedPocketCenters = null;
+  cachedSidePocketCenters = null;
+  cachedPocketShift = null;
+};
 const pocketCenters = () => {
+  if (externalPocketCentersOverride) {
+    return externalPocketCentersOverride.map((center) => center.clone());
+  }
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -7466,6 +7478,9 @@ const pocketCenters = () => {
   return cachedPocketCenters;
 };
 const getSidePocketCenters = () => {
+  if (externalPocketCentersOverride) {
+    return externalPocketCentersOverride.slice(4).map((center) => center.clone());
+  }
   if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
     pocketCenters();
   }
@@ -9034,6 +9049,7 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
+  setExternalPocketCentersOverride(null);
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
@@ -12951,6 +12967,131 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   };
 }
 
+function resolvePoolRoyaleExternalClothBounds(model) {
+  const clothBox = new THREE.Box3();
+  const fallbackBox = new THREE.Box3();
+  model?.traverse?.((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (role !== 'cloth') return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    fallbackBox.union(childBox);
+    const label = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    if (/slate|bed|playfield|playing[_\s-]*surface|cloth|felt|baize/.test(label)) {
+      clothBox.union(childBox);
+    }
+  });
+  const resolved = !clothBox.isEmpty() ? clothBox : fallbackBox;
+  return resolved.isEmpty() ? null : resolved;
+}
+
+function makePoolRoyaleMappedRailSegment(start, end, normal, type = 'rail') {
+  return {
+    start,
+    end,
+    normal: normal.clone().normalize(),
+    type
+  };
+}
+
+function buildPoolRoyaleExternalLayoutMapping(model, tableModel = null) {
+  if (!model || tableModel?.derivePhysicsFromOriginalLayout !== true) return null;
+  model.updateMatrixWorld(true);
+  const clothBox = resolvePoolRoyaleExternalClothBounds(model);
+  if (!clothBox) return null;
+
+  const minX = clothBox.min.x;
+  const maxX = clothBox.max.x;
+  const minZ = clothBox.min.z;
+  const maxZ = clothBox.max.z;
+  const width = maxX - minX;
+  const length = maxZ - minZ;
+  if (width <= MICRO_EPS || length <= MICRO_EPS) return null;
+
+  const mapNativePocket = (center) => new THREE.Vector2(
+    THREE.MathUtils.mapLinear(center.x, -PLAY_W / 2, PLAY_W / 2, minX, maxX),
+    THREE.MathUtils.mapLinear(center.y, -PLAY_H / 2, PLAY_H / 2, minZ, maxZ)
+  );
+  const centers = [
+    cornerPocketCenter(-1, -1),
+    cornerPocketCenter(1, -1),
+    cornerPocketCenter(-1, 1),
+    cornerPocketCenter(1, 1),
+    new THREE.Vector2(-PLAY_W / 2 - sidePocketShift, 0),
+    new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0)
+  ].map(mapNativePocket);
+
+  const cornerGap = Math.max(POCKET_VIS_R * 1.18, Math.min(width, length) * 0.06);
+  const sideGap = Math.max(SIDE_POCKET_RADIUS * 1.1, length * 0.055);
+  const segments = [
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(minX + cornerGap, minZ),
+      new THREE.Vector2(maxX - cornerGap, minZ),
+      new THREE.Vector2(0, 1)
+    ),
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(minX + cornerGap, maxZ),
+      new THREE.Vector2(maxX - cornerGap, maxZ),
+      new THREE.Vector2(0, -1)
+    ),
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(minX, minZ + cornerGap),
+      new THREE.Vector2(minX, -sideGap),
+      new THREE.Vector2(1, 0)
+    ),
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(minX, sideGap),
+      new THREE.Vector2(minX, maxZ - cornerGap),
+      new THREE.Vector2(1, 0)
+    ),
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(maxX, minZ + cornerGap),
+      new THREE.Vector2(maxX, -sideGap),
+      new THREE.Vector2(-1, 0)
+    ),
+    makePoolRoyaleMappedRailSegment(
+      new THREE.Vector2(maxX, sideGap),
+      new THREE.Vector2(maxX, maxZ - cornerGap),
+      new THREE.Vector2(-1, 0)
+    )
+  ].filter((segment) => segment.start.distanceToSquared(segment.end) > MICRO_EPS * MICRO_EPS);
+
+  return {
+    clothBounds: clothBox.clone(),
+    centers,
+    segments,
+    railLimitX: Math.max(BALL_R, width / 2 - BALL_R - RAIL_LIMIT_PADDING),
+    railLimitY: Math.max(BALL_R, length / 2 - BALL_R - RAIL_LIMIT_PADDING)
+  };
+}
+
+function applyPoolRoyaleExternalLayoutMapping(table, model, tableModel = null) {
+  const mapping = buildPoolRoyaleExternalLayoutMapping(model, tableModel);
+  if (!mapping) return false;
+  setExternalPocketCentersOverride(mapping.centers);
+  CUSHION_SEGMENTS = mapping.segments;
+  RAIL_LIMIT_X = mapping.railLimitX;
+  RAIL_LIMIT_Y = mapping.railLimitY;
+  if (Array.isArray(table?.userData?.pockets)) {
+    table.userData.pockets.forEach((marker, index) => {
+      const center = mapping.centers[index];
+      if (!marker || !center) return;
+      marker.position.x = center.x;
+      marker.position.z = center.y;
+    });
+  }
+  table.userData.externalTableLayoutMapping = {
+    source: tableModel?.id || 'external-table',
+    physics: 'derived from fitted GLB cloth bounds with generated cushion/pocket collision segments',
+    clothBounds: mapping.clothBounds,
+    pocketCenters: mapping.centers.map((center) => center.clone()),
+    segmentCount: mapping.segments.length
+  };
+  return true;
+}
+
 function mountPoolRoyaleExternalTableModel({
   table,
   tableModel,
@@ -12977,6 +13118,7 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      applyPoolRoyaleExternalLayoutMapping(table, model, tableModel);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
