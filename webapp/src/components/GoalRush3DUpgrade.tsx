@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { MURLAN_CHARACTER_THEMES } from "../config/murlanCharacterThemes.js";
 
@@ -85,18 +86,19 @@ const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.model
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
 const SPECTATOR_ROWS_FILLED = 4;
 const SPECTATORS_PER_ROW_TARGET = 12;
-const SPECTATOR_SCALE = 0.095;
-const SPECTATOR_FALLBACK_SCALE = 0.105;
-const SPECTATOR_SEAT_Y = 0.03;
-const SPECTATOR_SEAT_Z = 0.03;
+const SPECTATOR_SCALE = 0.128;
+const SPECTATOR_FALLBACK_SCALE = 0.14;
+const SPECTATOR_SEAT_Y = 0.028;
+const SPECTATOR_SEAT_Z = -0.006;
 const SEATED_CHARACTER_TEMPLATE_CACHE = new Map<string, Promise<THREE.Object3D>>();
 
 const FIELD_W = 3.15;
 const FIELD_H = 4.65;
+const SIDE_BARRIER_INSET = 0.125;
 const GOAL_W = 0.9;
 const GOAL_H = 0.52;
 const GOAL_D = 0.42;
-const PLAYER_RADIUS = 0.12;
+const PLAYER_RADIUS = 0.098;
 const BALL_RADIUS = 0.078;
 const WALK_SPEED = 0.95;
 const SPRINT_SPEED = 1.65;
@@ -110,6 +112,44 @@ const QTMP = new THREE.Quaternion();
 
 function mat(color: number, roughness = 0.78, metalness = 0.02) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+const MEADOW_HDRI = {
+  assetId: "evening_meadow",
+  page: "https://polyhaven.com/a/evening_meadow",
+  url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/evening_meadow_2k.hdr",
+};
+
+function applyPolyHavenEnvironment(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+  const loader = new RGBELoader();
+  loader.setCrossOrigin("anonymous");
+  loader.load(
+    MEADOW_HDRI.url,
+    (texture) => {
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      const envMap = pmrem.fromEquirectangular(texture).texture;
+      envMap.name = `${MEADOW_HDRI.assetId}-polyhaven-env`;
+      scene.environment = envMap;
+      scene.background = texture;
+      if ("backgroundIntensity" in scene) scene.backgroundIntensity = 0.82;
+      if ("environmentIntensity" in scene) scene.environmentIntensity = 1.18;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.04;
+      pmrem.dispose();
+    },
+    undefined,
+    () => {
+      scene.background = new THREE.Color(0x07110b);
+    }
+  );
+  return () => {
+    const background = scene.background as THREE.Texture | THREE.Color | null;
+    const environment = scene.environment;
+    if (background && "isTexture" in background && background.isTexture) background.dispose();
+    environment?.dispose?.();
+  };
 }
 
 function shadow<T extends THREE.Object3D>(o: T) {
@@ -347,13 +387,13 @@ function makeChair(color: number) {
   const chair = new THREE.Group();
   const shell = mat(color, 0.74, 0.03);
   const metal = mat(0x94a3b8, 0.44, 0.18);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.018, 0.13), shell);
-  seat.position.set(0, 0.035, 0.02);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.11, 0.018), shell);
-  back.position.set(0, 0.095, -0.045);
-  back.rotation.x = THREE.MathUtils.degToRad(-8);
-  [-0.055, 0.055].forEach((x) => [-0.035, 0.07].forEach((z) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.08, 8), metal);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.022, 0.16), shell);
+  seat.position.set(0, 0.038, 0.012);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.022), shell);
+  back.position.set(0, 0.112, 0.088);
+  back.rotation.x = THREE.MathUtils.degToRad(8);
+  [-0.068, 0.068].forEach((x) => [-0.055, 0.08].forEach((z) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.088, 8), metal);
     leg.position.set(x, -0.005, z);
     chair.add(shadow(leg));
   }));
@@ -448,14 +488,14 @@ function clampPlayerPosition(p: THREE.Vector3) {
 function makeFallback(team: Team) {
   const g = new THREE.Group();
   const color = team === "blue" ? 0x1d69ff : 0xd92f2f;
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.35, 8, 14), mat(color));
-  body.position.y = 0.55;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 18, 12), mat(0xf1d6bd));
-  head.position.y = 0.83;
-  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.32, 6, 10), mat(0x202020));
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.082, 0.29, 8, 14), mat(color));
+  body.position.y = 0.46;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.058, 18, 12), mat(0xf1d6bd));
+  head.position.y = 0.69;
+  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.025, 0.265, 6, 10), mat(0x202020));
   const legR = legL.clone();
-  legL.position.set(-0.045, 0.22, 0);
-  legR.position.set(0.045, 0.22, 0);
+  legL.position.set(-0.037, 0.185, 0);
+  legR.position.set(0.037, 0.185, 0);
   g.add(shadow(body), shadow(head), shadow(legL), shadow(legR));
   return g;
 }
@@ -503,7 +543,7 @@ function createPlayer(scene: THREE.Scene, loader: GLTFLoader, team: Team, start:
     HUMAN_URL,
     (gltf) => {
       const model = gltf.scene;
-      normalizeAnimatedHuman(model, 0.92);
+      normalizeAnimatedHuman(model, 0.76);
       tintPlayer(model, team);
       shadow(model);
       root.add(model);
@@ -897,12 +937,12 @@ function makePitch(scene: THREE.Scene) {
   const wallMat = mat(0x0e3f22, 0.82, 0.02);
   const north = new THREE.Mesh(new THREE.BoxGeometry(FIELD_W + 0.32, 0.1, 0.08), wallMat);
   const south = north.clone();
-  const east = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, FIELD_H + 0.32), wallMat);
+  const east = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.13, FIELD_H + 0.02), wallMat);
   const west = east.clone();
   north.position.set(0, 0.05, -h - 0.16);
   south.position.set(0, 0.05, h + 0.16);
-  east.position.set(w + 0.16, 0.05, 0);
-  west.position.set(-w - 0.16, 0.05, 0);
+  east.position.set(w + 0.045, 0.065, 0);
+  west.position.set(-w - 0.045, 0.065, 0);
   scene.add(shadow(north), shadow(south), shadow(east), shadow(west));
 
   const fn = makeFencePanel(FIELD_W + 0.32, 0.82);
@@ -911,8 +951,8 @@ function makePitch(scene: THREE.Scene) {
   const fw = makeFencePanel(FIELD_H + 0.32, 0.82);
   fn.position.set(0, 0.1, -h - 0.2);
   fs.position.set(0, 0.1, h + 0.2);
-  fe.position.set(w + 0.2, 0.1, 0);
-  fw.position.set(-w - 0.2, 0.1, 0);
+  fe.position.set(w + 0.082, 0.1, 0);
+  fw.position.set(-w - 0.082, 0.1, 0);
   fe.rotation.y = Math.PI / 2;
   fw.rotation.y = Math.PI / 2;
   scene.add(fn, fs, fe, fw);
@@ -931,6 +971,12 @@ function makePitch(scene: THREE.Scene) {
   billboard(scene, "BALL SPIN", 1.05, -h - 0.215, 0, 0x0f172a);
   billboard(scene, "SAG NETS", -0.45, h + 0.215, Math.PI, 0x166534);
   billboard(scene, "MOBILE 1V1", 0.55, h + 0.215, Math.PI, 0x7c2d12);
+  [-1, 1].forEach((side) => {
+    const rot = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    billboard(scene, "SIDE LINE", side * (w + 0.052), -1.32, rot, 0x0f766e);
+    billboard(scene, "KEEP BALL IN", side * (w + 0.052), 0, rot, 0x14532d);
+    billboard(scene, "PLAY FAST", side * (w + 0.052), 1.32, rot, 0x1d4ed8);
+  });
 }
 
 function makeGoalRushStadium(scene: THREE.Scene, loader: GLTFLoader): StadiumRig {
@@ -1078,7 +1124,7 @@ function tryKickAtFoot(p: Player, ball: BallState, fallbackPower: number) {
   const foot = getFootWorld(p, p.kickFoot);
   TMP.copy(ball.object.position).sub(foot);
   TMP.y = 0;
-  if (TMP.length() > BALL_RADIUS + 0.2) return false;
+  if (TMP.length() > BALL_RADIUS + 0.38) return false;
   const goalDir = p.team === "blue" ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(0, 0, 1);
   const strikeDir = (shotDir && shotDir.lengthSq() > 0.001 ? shotDir : p.dir.clone().multiplyScalar(0.72).add(goalDir.multiplyScalar(0.62))).normalize();
   const power = Math.max(fallbackPower, p.queuedShotPower || 0);
@@ -1148,7 +1194,7 @@ function updateBall(ball: BallState, dt: number) {
 
 function clampBall(ball: BallState) {
   const p = ball.object.position;
-  const xLimit = FIELD_W / 2 - BALL_RADIUS - 0.012;
+  const xLimit = FIELD_W / 2 - BALL_RADIUS - SIDE_BARRIER_INSET;
   const zLimit = FIELD_H / 2 + GOAL_D - BALL_RADIUS;
   const goalMouth = Math.abs(p.x) < GOAL_W / 2;
   const before = p.clone();
@@ -1227,6 +1273,7 @@ export default function GoalRush3DUpgrade() {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x07110b, 4.4, 10.5);
+    const disposeEnvironment = applyPolyHavenEnvironment(scene, renderer);
 
     const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 40);
     camera.position.set(0, 3.2, 3.65);
@@ -1297,7 +1344,7 @@ export default function GoalRush3DUpgrade() {
       if (shot && blue.fallTime <= 0 && blue.kickTime <= 0 && replayCooldown <= 0) {
         pendingShot.current = null;
         TMP.set(ball.object.position.x - blue.pos.x, 0, ball.object.position.z - blue.pos.z);
-        if (TMP.length() < 0.5) {
+        if (TMP.length() < 0.74) {
           const strikeDir = camRight.clone().multiplyScalar(shot.dir.x).addScaledVector(camForward, shot.dir.z).normalize();
           blue.targetDir.copy(strikeDir);
           blue.kickFoot = chooseKickFoot(blue, ball, strikeDir);
@@ -1429,6 +1476,7 @@ export default function GoalRush3DUpgrade() {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
       controls.dispose();
+      disposeEnvironment();
       renderer.dispose();
     };
   }, []);
