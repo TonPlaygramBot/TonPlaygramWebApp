@@ -12618,12 +12618,19 @@ const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
 function classifyPoolRoyaleExternalTableSurface(child, material) {
-  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
+  // must win over material names for physics mapping and finish assignment.
+  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
+  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
 
@@ -12639,8 +12646,44 @@ function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
 function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   if (!texture) return;
   if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = resolveTextureAnisotropy(12);
   texture.needsUpdate = true;
+}
+
+function syncPoolRoyaleExternalClothTextureRepeat(material, sourceClothMat) {
+  if (!material || !sourceClothMat) return;
+  const baseRepeat =
+    sourceClothMat.userData?.baseRepeat ??
+    sourceClothMat.map?.repeat?.x ??
+    1;
+  const repeatRatio =
+    sourceClothMat.userData?.repeatRatio ??
+    (sourceClothMat.map?.repeat?.x
+      ? sourceClothMat.map.repeat.y / sourceClothMat.map.repeat.x
+      : 1);
+  const fallbackRepeat = new THREE.Vector2(baseRepeat, baseRepeat * repeatRatio);
+  ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
+    const texture = material[prop];
+    if (!texture) return;
+    const sourceTexture = sourceClothMat[prop];
+    const sourceRepeat = sourceTexture?.repeat?.isVector2
+      ? sourceTexture.repeat
+      : fallbackRepeat;
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.copy(sourceRepeat);
+    texture.offset.copy(sourceTexture?.offset?.isVector2 ? sourceTexture.offset : new THREE.Vector2(0, 0));
+    texture.center.copy(sourceTexture?.center?.isVector2 ? sourceTexture.center : new THREE.Vector2(0.5, 0.5));
+    texture.rotation = typeof sourceTexture?.rotation === 'number' ? sourceTexture.rotation : 0;
+    texture.needsUpdate = true;
+  });
+  material.userData = {
+    ...(material.userData || {}),
+    externalClothRepeat: {
+      baseRepeat,
+      repeatRatio
+    }
+  };
 }
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
@@ -12694,6 +12737,9 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
 
   if (role === 'cloth' || role === 'cushion') {
     copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    if (role === 'cloth') {
+      syncPoolRoyaleExternalClothTextureRepeat(mat, finishInfo.clothMat);
+    }
     mat.side = THREE.DoubleSide;
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
@@ -12876,6 +12922,7 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
 
   return { fullBox, footprintBox };
 }
+
 
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
