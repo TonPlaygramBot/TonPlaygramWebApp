@@ -30,10 +30,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
-    matchProceduralClothPattern: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: ['trim'],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
+    preserveOriginalSurfaceRoles: [],
     hideSurfaceRoles: []
   }
 ]);
