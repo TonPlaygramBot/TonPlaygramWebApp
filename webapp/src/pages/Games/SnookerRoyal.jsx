@@ -20,8 +20,7 @@ import {
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
-  TABLE_MODEL_OPENSOURCE_GLB_URL,
-  TABLE_MODEL_OPENSOURCE_FALLBACK_GLB_URL
+  TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -10952,126 +10951,6 @@ function Table3D(
   };
 }
 
-
-function classifySnookerExternalTableSurface(child, material) {
-  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
-  if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
-  if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
-  return 'wood';
-}
-
-function cloneSnookerExternalMaterialTexture(texture, { isColor = false } = {}) {
-  if (!texture) return null;
-  const clone = texture.clone ? texture.clone() : texture;
-  if (isColor) clone.colorSpace = THREE.SRGBColorSpace;
-  clone.anisotropy = resolveTextureAnisotropy(12);
-  clone.needsUpdate = true;
-  return clone;
-}
-
-function prepareSnookerExternalTexture(texture, isColor = false) {
-  if (!texture) return;
-  if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = resolveTextureAnisotropy(12);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-}
-
-function copySnookerMaterialLook(target, source) {
-  if (!target || !source) return;
-  if (source.color && target.color) target.color.copy(source.color);
-  if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
-  [
-    'roughness',
-    'metalness',
-    'clearcoat',
-    'clearcoatRoughness',
-    'sheen',
-    'sheenRoughness',
-    'reflectivity',
-    'envMapIntensity',
-    'emissiveIntensity',
-    'bumpScale'
-  ].forEach((key) => {
-    if (typeof source[key] === 'number' && key in target) target[key] = source[key];
-  });
-  target.map = cloneSnookerExternalMaterialTexture(source.map, { isColor: true });
-  target.emissiveMap = cloneSnookerExternalMaterialTexture(source.emissiveMap, { isColor: true });
-  target.normalMap = cloneSnookerExternalMaterialTexture(source.normalMap);
-  target.roughnessMap = cloneSnookerExternalMaterialTexture(source.roughnessMap);
-  target.aoMap = cloneSnookerExternalMaterialTexture(source.aoMap);
-  target.metalnessMap = cloneSnookerExternalMaterialTexture(source.metalnessMap);
-  target.bumpMap = cloneSnookerExternalMaterialTexture(source.bumpMap);
-}
-
-function applySnookerFinishToExternalMaterial(material, role, finishInfo) {
-  if (!material || !finishInfo) return material;
-  const mat = material.clone ? material.clone() : material;
-  const materials = finishInfo.materials || {};
-  if (role === 'cloth' || role === 'cushion') {
-    copySnookerMaterialLook(mat, role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
-    mat.side = THREE.DoubleSide;
-  } else if (role === 'trim') {
-    copySnookerMaterialLook(mat, materials.trim);
-    enhanceChromeMaterial(mat);
-  } else if (role === 'pocket') {
-    copySnookerMaterialLook(mat, materials.pocketJaw ?? materials.pocketRim);
-  } else {
-    const surface =
-      finishInfo.parts?.woodSurfaces?.rail ||
-      finishInfo.parts?.woodSurfaces?.frame ||
-      { woodRepeatScale: finishInfo.woodRepeatScale };
-    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
-    if (mat.color) {
-      mat.userData = mat.userData || {};
-      mat.userData.baseTintHex = mat.color.getHex();
-    }
-    applyWoodTextureToMaterial(mat, surface);
-    applyTableFinishDulling(mat);
-    applyTableWoodVisibilityTuning(mat);
-  }
-  prepareSnookerExternalTexture(mat.map, true);
-  prepareSnookerExternalTexture(mat.emissiveMap, true);
-  prepareSnookerExternalTexture(mat.aoMap, false);
-  prepareSnookerExternalTexture(mat.normalMap, false);
-  prepareSnookerExternalTexture(mat.roughnessMap, false);
-  prepareSnookerExternalTexture(mat.metalnessMap, false);
-  prepareSnookerExternalTexture(mat.bumpMap, false);
-  mat.needsUpdate = true;
-  return mat;
-}
-
-function applySnookerFinishToExternalTable(root, finishInfo) {
-  if (!root || !finishInfo) return;
-  root.traverse((child) => {
-    if (!child?.isMesh) return;
-    child.castShadow = true;
-    child.receiveShadow = true;
-    child.frustumCulled = false;
-    const applyMaterial = (material) => {
-      const role = classifySnookerExternalTableSurface(child, material);
-      return applySnookerFinishToExternalMaterial(material, role, finishInfo);
-    };
-    child.material = Array.isArray(child.material)
-      ? child.material.map(applyMaterial)
-      : applyMaterial(child.material);
-  });
-}
-
-function setGeneratedSnookerTableVisualsVisible(tableGroup, proceduralMeshes, visible) {
-  if (!tableGroup || !proceduralMeshes) return;
-  tableGroup.traverse((node) => {
-    if (node?.isMesh && proceduralMeshes.has(node.uuid)) {
-      node.visible = visible;
-    }
-  });
-}
-
 function applyTableFinishToTable(table, finish) {
   if (!table || !finish) return;
   const finishInfo = table.userData?.finish;
@@ -11416,9 +11295,6 @@ function applyTableFinishToTable(table, finish) {
     accent: accentConfig
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
-  if (table.userData?.openSourceVisual) {
-    applySnookerFinishToExternalTable(table.userData.openSourceVisual, finishInfo);
-  }
 }
 
 // --------------------------------------------------
@@ -19968,13 +19844,10 @@ const powerRef = useRef(hud.power);
         tableGroup.updateMatrixWorld(true);
         const targetBox = new THREE.Box3().setFromObject(tableGroup);
         const targetSize = targetBox.getSize(new THREE.Vector3());
-        const targetCenter = targetBox.getCenter(new THREE.Vector3());
         const proceduralMeshes = new Set();
         tableGroup.traverse((node) => {
           if (node?.isMesh) proceduralMeshes.add(node.uuid);
         });
-        setGeneratedSnookerTableVisualsVisible(tableGroup, proceduralMeshes, false);
-
         const loader = new GLTFLoader();
         loader.setCrossOrigin('anonymous');
         const draco = new DRACOLoader();
@@ -19986,79 +19859,84 @@ const powerRef = useRef(hud.power);
           try {
             ktx2.detectSupport(rendererRef.current);
           } catch (error) {
-            console.warn('Snooker Royal Showood table KTX2 support detection failed', error);
+            console.warn('Snooker Royal table KTX2 support detection failed', error);
           }
         }
         loader.setKTX2Loader(ktx2);
         loader.setMeshoptDecoder(MeshoptDecoder);
-
-        const fitShowoodVisualToNativeMapping = (visual) => {
-          visual.position.set(0, 0, 0);
-          visual.rotation.set(0, 0, 0);
-          visual.scale.setScalar(1);
-          visual.updateMatrixWorld(true);
-
-          let sourceBox = new THREE.Box3().setFromObject(visual);
-          let sourceSize = sourceBox.getSize(new THREE.Vector3());
-          if (sourceSize.x > sourceSize.z && targetSize.z > targetSize.x) {
-            visual.rotation.y = Math.PI / 2;
-            visual.updateMatrixWorld(true);
-            sourceBox = new THREE.Box3().setFromObject(visual);
-            sourceSize = sourceBox.getSize(new THREE.Vector3());
-          }
-
-          const scaleX = targetSize.x / Math.max(sourceSize.x, MICRO_EPS);
-          const scaleZ = targetSize.z / Math.max(sourceSize.z, MICRO_EPS);
-          const scaleY = Math.sqrt(Math.max(MICRO_EPS, scaleX * scaleZ));
-          visual.scale.set(scaleX, scaleY, scaleZ);
-          visual.updateMatrixWorld(true);
-
-          const scaledBox = new THREE.Box3().setFromObject(visual);
-          const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-          visual.position.set(
-            targetCenter.x - scaledCenter.x,
-            targetBox.min.y - scaledBox.min.y,
-            targetCenter.z - scaledCenter.z
-          );
-          visual.updateMatrixWorld(true);
-          visual.userData = {
-            ...(visual.userData || {}),
-            snookerRoyalExternalTable: true,
-            tableModelId: TABLE_MODEL_OPENSOURCE,
-            fittedToPlayfield: {
-              width: targetSize.x,
-              length: targetSize.z,
-              physics: 'Snooker Royal native pockets, cushions, and ball mapping'
-            }
-          };
+        const tuneOriginalPooltoolTextures = (root) => {
+          root.traverse((node) => {
+            if (!node?.isMesh) return;
+            node.castShadow = true;
+            node.receiveShadow = true;
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+              if (!material) return;
+              ['map', 'emissiveMap'].forEach((key) => {
+                if (material[key]) {
+                  material[key].colorSpace = THREE.SRGBColorSpace;
+                }
+              });
+              [
+                'map',
+                'emissiveMap',
+                'aoMap',
+                'normalMap',
+                'roughnessMap',
+                'metalnessMap'
+              ].forEach((key) => {
+                const texture = material[key];
+                if (!texture) return;
+                texture.flipY = false;
+                texture.generateMipmaps = true;
+                texture.minFilter = THREE.LinearMipmapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.anisotropy = 8;
+                texture.needsUpdate = true;
+              });
+              material.needsUpdate = true;
+            });
+          });
         };
-
-        (async () => {
-          let lastError = null;
-          const urls = [
-            TABLE_MODEL_OPENSOURCE_GLB_URL,
-            TABLE_MODEL_OPENSOURCE_FALLBACK_GLB_URL
-          ].filter(Boolean);
-          for (const url of urls) {
-            try {
-              // eslint-disable-next-line no-await-in-loop
-              const gltf = await loader.loadAsync(url);
-              const visual = gltf?.scene || gltf?.scenes?.[0];
-              if (!visual) throw new Error('Missing Showood table scene');
-              fitShowoodVisualToNativeMapping(visual);
-              applySnookerFinishToExternalTable(visual, tableGroup.userData?.finish);
-              visual.name = 'pooltool-showood-seven-foot-table';
-              tableGroup.add(visual);
-              tableGroup.userData.openSourceVisual = visual;
-              tableGroup.userData.openSourceVisualUrl = url;
-              return;
-            } catch (error) {
-              lastError = error;
-            }
+        loader.load(
+          TABLE_MODEL_OPENSOURCE_GLB_URL,
+          (gltf) => {
+            const visual = gltf?.scene;
+            if (!visual) return;
+            visual.updateMatrixWorld(true);
+            const sourceBox = new THREE.Box3().setFromObject(visual);
+            const sourceSize = sourceBox.getSize(new THREE.Vector3());
+            const scaleXZ = Math.min(
+              targetSize.x / Math.max(sourceSize.x, 0.0001),
+              targetSize.z / Math.max(sourceSize.z, 0.0001)
+            );
+            const scaleY = targetSize.y / Math.max(sourceSize.y, 0.0001);
+            visual.scale.set(scaleXZ, scaleY, scaleXZ);
+            visual.updateMatrixWorld(true);
+            const scaledBox = new THREE.Box3().setFromObject(visual);
+            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+            const targetCenter = targetBox.getCenter(new THREE.Vector3());
+            visual.position.set(
+              targetCenter.x - scaledCenter.x,
+              targetBox.min.y - scaledBox.min.y,
+              targetCenter.z - scaledCenter.z
+            );
+            tuneOriginalPooltoolTextures(visual);
+            visual.name = 'pooltool-snooker-generic-table';
+            tableGroup.traverse((node) => {
+              if (node?.isMesh && proceduralMeshes.has(node.uuid)) {
+                node.visible = false;
+              }
+            });
+            tableGroup.add(visual);
+            tableGroup.userData.openSourceVisual = visual;
+            tableGroup.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
+          },
+          undefined,
+          (error) => {
+            console.warn('Failed to load Pooltool snooker_generic table model', error);
           }
-          console.warn('Failed to load Pooltool Showood table model', lastError);
-          setGeneratedSnookerTableVisualsVisible(tableGroup, proceduralMeshes, true);
-        })();
+        );
       };
       attachOpenSourceTableModel(table);
       attachOpenSourceTableModel(secondaryTableEntry?.group);
