@@ -10577,9 +10577,22 @@ function Table3D(
     return meshes;
   };
 
-  const setProceduralTableMeshesVisible = (visible) => {
+  const setProceduralTableMeshesVisible = (visible, { keepProceduralBase = false } = {}) => {
+    const parts = finishInfo?.parts || finishParts || {};
+    const proceduralBaseMeshes = new Set([
+      ...(parts.legMeshes || []),
+      ...(parts.baseMeshes || [])
+    ].filter(Boolean));
     collectProceduralTableVisualMeshes().forEach((mesh) => {
       if (!mesh || mesh.userData?.isOpenSourceVisual) return;
+      const isProceduralBase =
+        proceduralBaseMeshes.has(mesh) ||
+        mesh.userData?.__basePart ||
+        mesh.userData?.isSnookerProceduralBase;
+      if (keepProceduralBase && isProceduralBase) {
+        mesh.visible = true;
+        return;
+      }
       mesh.visible = visible || isOpenSourceHardwareKeepMesh(mesh);
     });
   };
@@ -10721,7 +10734,9 @@ function Table3D(
       if (nodeBox.isEmpty()) return;
       const centerY = nodeBox.getCenter(new THREE.Vector3()).y;
       const label = `${node.name || ''} ${node.material?.name || ''}`.toLowerCase();
-      if (centerY >= upperCutoff || /cloth|felt|slate|bed|rail|cushion|frame|table/.test(label)) {
+      const isOriginalBaseLike = /leg|stand|base|foot|pedestal|support/.test(label);
+      if (isOriginalBaseLike) return;
+      if (centerY >= upperCutoff || /cloth|felt|slate|bed|rail|cushion|frame/.test(label)) {
         upperBounds.union(nodeBox);
       }
     });
@@ -10743,6 +10758,40 @@ function Table3D(
       node.userData.openSourceMaterialRole = roles.includes('cloth') ? 'cloth' : roles[0] || 'frame';
       node.material = Array.isArray(node.material) ? resolvedMaterials : resolvedMaterials[0] ?? node.material;
     });
+  };
+
+  const removeOpenSourceOriginalTableBase = (model, upperBounds) => {
+    if (!model) return 0;
+    model.updateMatrixWorld(true);
+    const upperMinY = upperBounds && !upperBounds.isEmpty?.() ? upperBounds.min.y : null;
+    const removedMeshes = [];
+    model.traverse((node) => {
+      if (!node?.isMesh) return;
+      const role = node.userData?.openSourceMaterialRole;
+      const label = `${node.name || ''} ${node.material?.name || ''}`.toLowerCase();
+      const nodeBox = new THREE.Box3().setFromObject(node);
+      const belowUpperTable =
+        Number.isFinite(upperMinY) && !nodeBox.isEmpty() && nodeBox.max.y < upperMinY + MICRO_EPS;
+      const isOriginalBaseMesh =
+        role === 'leg' ||
+        /leg|stand|base|foot|pedestal|support/.test(label) ||
+        (role === 'frame' && belowUpperTable);
+      if (!isOriginalBaseMesh) return;
+      node.visible = false;
+      node.castShadow = false;
+      node.receiveShadow = false;
+      node.userData = {
+        ...(node.userData || {}),
+        isOpenSourceOriginalBaseRemoved: true
+      };
+      removedMeshes.push(node);
+    });
+    model.userData = {
+      ...(model.userData || {}),
+      removedOriginalBaseMeshCount: removedMeshes.length,
+      usesProceduralTableBase: true
+    };
+    return removedMeshes.length;
   };
 
   const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
@@ -10838,7 +10887,6 @@ function Table3D(
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
-    const targetHeight = Math.max(targetTopY - FLOOR_Y, targetSize.y, MICRO_EPS);
     const loader = createConfiguredGLTFLoader(renderer);
     loader
       .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
@@ -10852,13 +10900,13 @@ function Table3D(
         const fullSourceSize = fullSourceBounds.getSize(new THREE.Vector3());
         const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
         const fit = resolveSnookerGlbFitTransform(
-          { x: sourceFitSize.x, y: fullSourceSize.y, z: sourceFitSize.z },
-          { x: targetSize.x, y: targetHeight, z: targetSize.z }
+          { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
+          { x: targetSize.x, y: targetSize.y, z: targetSize.z }
         );
-        const originalBaseScale = Math.min(fit.scale.x, fit.scale.z);
-        if (Number.isFinite(originalBaseScale) && originalBaseScale > MICRO_EPS) {
-          fit.scale.y = originalBaseScale;
-          fit.preserveOriginalBaseScale = true;
+        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
+        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
+          fit.scale.y = upperTableScale;
+          fit.preservesOriginalUpperTableProportions = true;
         }
         model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
 
@@ -10876,10 +10924,11 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
+        const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
-        setProceduralTableMeshesVisible(false);
+        setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
@@ -10889,7 +10938,9 @@ function Table3D(
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
-          preservesOriginalTableBase: true,
+          preservesOriginalTableBase: false,
+          removedOriginalBaseMeshCount,
+          usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
           clothUvMappedToDefaultPlayfield: true,
           clothUvUsesProceduralWorldScale: true
