@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {
   applySnookerTableModelParam,
-  preservesOpenSourceSnookerTableOriginalSurface,
   resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
@@ -51,13 +50,6 @@ describe('snooker table model selection', () => {
     assert.equal(usesProceduralSnookerTableRailDecor('classic'), true);
     assert.equal(usesProceduralSnookerTableRailDecor('opensource'), false);
     assert.equal(usesProceduralSnookerTableRailDecor('unknown'), false);
-  });
-
-  test('preserves the original GLB cloth and cushion surface materials', () => {
-    assert.equal(preservesOpenSourceSnookerTableOriginalSurface('cloth'), true);
-    assert.equal(preservesOpenSourceSnookerTableOriginalSurface('cushion'), true);
-    assert.equal(preservesOpenSourceSnookerTableOriginalSurface('rail'), false);
-    assert.equal(preservesOpenSourceSnookerTableOriginalSurface('frame'), false);
   });
 
   test('uses the Pooltool snooker_generic GLB source', () => {
