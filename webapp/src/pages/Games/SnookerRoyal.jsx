@@ -17,6 +17,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
+  resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
@@ -6996,10 +6997,12 @@ function Table3D(
   tableSpecMeta = null,
   railMarkerStyle = null,
   baseVariant = null,
-  renderer = null
+  renderer = null,
+  tableVisualModel = TABLE_MODEL_CLASSIC
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
+  const resolvedTableVisualModel = resolveSnookerTableModel(tableVisualModel);
   applyTablePhysicsSpec(tableSizeMeta);
 
   const table = new THREE.Group();
@@ -10527,6 +10530,129 @@ function Table3D(
       });
   };
 
+  const setProceduralTableMeshesVisible = (visible) => {
+    table.traverse((child) => {
+      if (!child?.isMesh) return;
+      if (child.userData?.isOpenSourceVisual) return;
+      child.visible = visible;
+    });
+  };
+
+  const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
+    const materials = finishInfo?.materials || {};
+    const sourceByRole = {
+      cloth: finishInfo?.clothMat,
+      cushion: finishInfo?.cushionMat,
+      rail: materials.rail || materials.frame,
+      frame: materials.frame || materials.rail,
+      leg: materials.leg || materials.frame || materials.rail,
+      trim: materials.trim || materials.pocketRim,
+      pocket: materials.pocketJaw || materials.pocketRim,
+      pocketRim: materials.pocketRim || materials.trim
+    };
+    const source = sourceByRole[role] || materials.frame || finishInfo?.clothMat || originalMaterial;
+    const clone = source?.clone ? source.clone() : originalMaterial;
+    if (!clone) return originalMaterial;
+    if (originalMaterial) {
+      clone.name = `${originalMaterial.name || role || 'snooker-glb'}-${finishInfo?.id || 'default'}`;
+      clone.side = originalMaterial.side ?? clone.side;
+      clone.transparent = originalMaterial.transparent || clone.transparent;
+      clone.opacity = originalMaterial.opacity ?? clone.opacity;
+      clone.alphaTest = originalMaterial.alphaTest ?? clone.alphaTest;
+    }
+    ['map', 'emissiveMap'].forEach((key) => {
+      if (clone[key]) clone[key].colorSpace = THREE.SRGBColorSpace;
+    });
+    ['map', 'emissiveMap', 'aoMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap'].forEach((key) => {
+      const texture = clone[key];
+      if (!texture) return;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
+      texture.needsUpdate = true;
+    });
+    clone.needsUpdate = true;
+    return clone;
+  };
+
+  const resolveOpenSourceMaterialRole = (node, material) => {
+    const label = `${node?.name || ''} ${material?.name || ''}`.toLowerCase();
+    if (/cloth|felt|baize|slate|bed|surface|playfield/.test(label)) return 'cloth';
+    if (/cushion|rubber/.test(label)) return 'cushion';
+    if (/pocket|net|leather|liner|bag/.test(label)) return 'pocket';
+    if (/rim|chrome|metal|brass|gold|trim|plate|screw|bolt/.test(label)) return 'trim';
+    if (/leg|stand|base|foot/.test(label)) return 'leg';
+    if (/rail|wood|frame|body|cabinet|table/.test(label)) return /rail/.test(label) ? 'rail' : 'frame';
+    const color = material?.color;
+    if (color && color.g > color.r * 1.15 && color.g > color.b * 1.15) return 'cloth';
+    if (material?.metalness > 0.45) return 'trim';
+    return 'frame';
+  };
+
+  const applyDefaultTableFinishToOpenSourceModel = (root) => {
+    root.traverse((node) => {
+      if (!node?.isMesh) return;
+      node.castShadow = true;
+      node.receiveShadow = true;
+      node.renderOrder = 2;
+      node.userData = { ...(node.userData || {}), isOpenSourceVisual: true };
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      const resolvedMaterials = materials.map((material) => {
+        const role = resolveOpenSourceMaterialRole(node, material);
+        return cloneFinishMaterialForOpenSource(role, material);
+      });
+      node.material = Array.isArray(node.material) ? resolvedMaterials : resolvedMaterials[0] ?? node.material;
+    });
+  };
+
+  const applyOpenSourceTableVisualOverride = () => {
+    setProceduralTableMeshesVisible(false);
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader
+      .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
+      .then((gltf) => {
+        const model = gltf?.scene || gltf?.scenes?.[0];
+        if (!model) return;
+
+        const tableBounds = new THREE.Box3().setFromObject(table);
+        const targetSize = tableBounds.getSize(new THREE.Vector3());
+        const targetCenter = tableBounds.getCenter(new THREE.Vector3());
+
+        model.updateMatrixWorld(true);
+        const modelBounds = new THREE.Box3().setFromObject(model);
+        const modelSize = modelBounds.getSize(new THREE.Vector3());
+        const fit = resolveSnookerGlbFitTransform(modelSize, targetSize);
+        model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
+
+        model.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(model);
+        const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
+        model.position.set(
+          targetCenter.x - scaledCenter.x,
+          tableBounds.min.y - scaledBounds.min.y,
+          targetCenter.z - scaledCenter.z
+        );
+        model.updateMatrixWorld(true);
+
+        applyDefaultTableFinishToOpenSourceModel(model);
+        model.name = 'pooltool-snooker-generic-table';
+        model.userData = {
+          ...(model.userData || {}),
+          isOpenSourceVisual: true,
+          sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
+          fitToProceduralMapping: true
+        };
+        table.add(model);
+        table.userData.openSourceVisual = model;
+        table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
+        table.userData.openSourceVisualFit = fit;
+      })
+      .catch((error) => {
+        console.warn('Failed to load Pooltool snooker_generic table model', error);
+      });
+  };
+
   const createPolyhavenTableBaseBuilder = (
     assetId,
     {
@@ -10936,7 +11062,11 @@ function Table3D(
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
   parent.add(table);
-  applyPooltoolTableVisualOverride();
+  if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
+    applyOpenSourceTableVisualOverride();
+  } else {
+    applyPooltoolTableVisualOverride();
+  }
 
   const baulkZ = baulkLineZ;
 
@@ -19809,7 +19939,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        tableModel
       );
       const SPOTS = spotPositions(baulkZ);
       snookerSpotsRef.current = SPOTS;
@@ -19828,7 +19959,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        tableModel
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -19839,107 +19971,6 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
-      const attachOpenSourceTableModel = (tableGroup) => {
-        if (tableModel !== TABLE_MODEL_OPENSOURCE || !tableGroup) return;
-        tableGroup.updateMatrixWorld(true);
-        const targetBox = new THREE.Box3().setFromObject(tableGroup);
-        const targetSize = targetBox.getSize(new THREE.Vector3());
-        const proceduralMeshes = new Set();
-        tableGroup.traverse((node) => {
-          if (node?.isMesh) proceduralMeshes.add(node.uuid);
-        });
-        const loader = new GLTFLoader();
-        loader.setCrossOrigin('anonymous');
-        const draco = new DRACOLoader();
-        draco.setDecoderPath(DRACO_DECODER_PATH);
-        loader.setDRACOLoader(draco);
-        const ktx2 = new KTX2Loader();
-        ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-        if (rendererRef.current) {
-          try {
-            ktx2.detectSupport(rendererRef.current);
-          } catch (error) {
-            console.warn('Snooker Royal table KTX2 support detection failed', error);
-          }
-        }
-        loader.setKTX2Loader(ktx2);
-        loader.setMeshoptDecoder(MeshoptDecoder);
-        const tuneOriginalPooltoolTextures = (root) => {
-          root.traverse((node) => {
-            if (!node?.isMesh) return;
-            node.castShadow = true;
-            node.receiveShadow = true;
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach((material) => {
-              if (!material) return;
-              ['map', 'emissiveMap'].forEach((key) => {
-                if (material[key]) {
-                  material[key].colorSpace = THREE.SRGBColorSpace;
-                }
-              });
-              [
-                'map',
-                'emissiveMap',
-                'aoMap',
-                'normalMap',
-                'roughnessMap',
-                'metalnessMap'
-              ].forEach((key) => {
-                const texture = material[key];
-                if (!texture) return;
-                texture.flipY = false;
-                texture.generateMipmaps = true;
-                texture.minFilter = THREE.LinearMipmapLinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.anisotropy = 8;
-                texture.needsUpdate = true;
-              });
-              material.needsUpdate = true;
-            });
-          });
-        };
-        loader.load(
-          TABLE_MODEL_OPENSOURCE_GLB_URL,
-          (gltf) => {
-            const visual = gltf?.scene;
-            if (!visual) return;
-            visual.updateMatrixWorld(true);
-            const sourceBox = new THREE.Box3().setFromObject(visual);
-            const sourceSize = sourceBox.getSize(new THREE.Vector3());
-            const scaleXZ = Math.min(
-              targetSize.x / Math.max(sourceSize.x, 0.0001),
-              targetSize.z / Math.max(sourceSize.z, 0.0001)
-            );
-            const scaleY = targetSize.y / Math.max(sourceSize.y, 0.0001);
-            visual.scale.set(scaleXZ, scaleY, scaleXZ);
-            visual.updateMatrixWorld(true);
-            const scaledBox = new THREE.Box3().setFromObject(visual);
-            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-            const targetCenter = targetBox.getCenter(new THREE.Vector3());
-            visual.position.set(
-              targetCenter.x - scaledCenter.x,
-              targetBox.min.y - scaledBox.min.y,
-              targetCenter.z - scaledCenter.z
-            );
-            tuneOriginalPooltoolTextures(visual);
-            visual.name = 'pooltool-snooker-generic-table';
-            tableGroup.traverse((node) => {
-              if (node?.isMesh && proceduralMeshes.has(node.uuid)) {
-                node.visible = false;
-              }
-            });
-            tableGroup.add(visual);
-            tableGroup.userData.openSourceVisual = visual;
-            tableGroup.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
-          },
-          undefined,
-          (error) => {
-            console.warn('Failed to load Pooltool snooker_generic table model', error);
-          }
-        );
-      };
-      attachOpenSourceTableModel(table);
-      attachOpenSourceTableModel(secondaryTableEntry?.group);
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -20131,7 +20162,8 @@ const powerRef = useRef(hud.power);
           tableSizeMeta,
           railMarkerStyleRef.current,
           activeTableBase,
-          rendererRef.current
+          rendererRef.current,
+          tableModel
         );
         const tableGroup = entry?.group;
         if (!tableGroup) return null;
