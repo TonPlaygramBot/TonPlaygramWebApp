@@ -16,6 +16,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import OpenSourceSnookerTable from './OpenSourceSnookerTable.jsx';
+import { normalizeSnookerTableModel, SNOOKER_TABLE_MODEL_OPENSOURCE } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11310,7 +11312,6 @@ function SnookerRoyalGame({
   opponentAvatar
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -28415,8 +28416,17 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const tableModel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return normalizeSnookerTableModel(params.get('tableModel'));
+  }, [location.search]);
+
+  if (tableModel === SNOOKER_TABLE_MODEL_OPENSOURCE) {
+    return <OpenSourceSnookerTable />;
+  }
+
+  const navigate = useNavigate();
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
