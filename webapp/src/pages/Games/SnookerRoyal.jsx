@@ -16,6 +16,11 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import {
+  resolveSnookerTableModel,
+  TABLE_MODEL_OPENSOURCE,
+  TABLE_MODEL_OPENSOURCE_GLB_URL
+} from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11310,7 +11315,6 @@ function SnookerRoyalGame({
   opponentAvatar
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -19833,6 +19837,92 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
+      const attachOpenSourceTableModel = (tableGroup) => {
+        if (tableModel !== TABLE_MODEL_OPENSOURCE || !tableGroup) return;
+        tableGroup.updateMatrixWorld(true);
+        const targetBox = new THREE.Box3().setFromObject(tableGroup);
+        const targetSize = targetBox.getSize(new THREE.Vector3());
+        const proceduralMeshes = new Set();
+        tableGroup.traverse((node) => {
+          if (node?.isMesh) proceduralMeshes.add(node.uuid);
+        });
+        const loader = createConfiguredGLTFLoader(rendererRef.current);
+        const tuneOriginalPooltoolTextures = (root) => {
+          root.traverse((node) => {
+            if (!node?.isMesh) return;
+            node.castShadow = true;
+            node.receiveShadow = true;
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+              if (!material) return;
+              ['map', 'emissiveMap'].forEach((key) => {
+                if (material[key]) {
+                  material[key].colorSpace = THREE.SRGBColorSpace;
+                }
+              });
+              [
+                'map',
+                'emissiveMap',
+                'aoMap',
+                'normalMap',
+                'roughnessMap',
+                'metalnessMap'
+              ].forEach((key) => {
+                const texture = material[key];
+                if (!texture) return;
+                texture.flipY = false;
+                texture.generateMipmaps = true;
+                texture.minFilter = THREE.LinearMipmapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.anisotropy = 8;
+                texture.needsUpdate = true;
+              });
+              material.needsUpdate = true;
+            });
+          });
+        };
+        loader.load(
+          TABLE_MODEL_OPENSOURCE_GLB_URL,
+          (gltf) => {
+            const visual = gltf?.scene;
+            if (!visual) return;
+            visual.updateMatrixWorld(true);
+            const sourceBox = new THREE.Box3().setFromObject(visual);
+            const sourceSize = sourceBox.getSize(new THREE.Vector3());
+            const scaleXZ = Math.min(
+              targetSize.x / Math.max(sourceSize.x, 0.0001),
+              targetSize.z / Math.max(sourceSize.z, 0.0001)
+            );
+            const scaleY = targetSize.y / Math.max(sourceSize.y, 0.0001);
+            visual.scale.set(scaleXZ, scaleY, scaleXZ);
+            visual.updateMatrixWorld(true);
+            const scaledBox = new THREE.Box3().setFromObject(visual);
+            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+            const targetCenter = targetBox.getCenter(new THREE.Vector3());
+            visual.position.set(
+              targetCenter.x - scaledCenter.x,
+              targetBox.min.y - scaledBox.min.y,
+              targetCenter.z - scaledCenter.z
+            );
+            tuneOriginalPooltoolTextures(visual);
+            visual.name = 'pooltool-snooker-generic-table';
+            tableGroup.traverse((node) => {
+              if (node?.isMesh && proceduralMeshes.has(node.uuid)) {
+                node.visible = false;
+              }
+            });
+            tableGroup.add(visual);
+            tableGroup.userData.openSourceVisual = visual;
+            tableGroup.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
+          },
+          undefined,
+          (error) => {
+            console.warn('Failed to load Pooltool snooker_generic table model', error);
+          }
+        );
+      };
+      attachOpenSourceTableModel(table);
+      attachOpenSourceTableModel(secondaryTableEntry?.group);
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -28415,8 +28505,13 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const tableModel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return resolveSnookerTableModel(params.get('tableModel'));
+  }, [location.search]);
+
+  const navigate = useNavigate();
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
