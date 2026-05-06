@@ -12618,12 +12618,19 @@ const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
 function classifyPoolRoyaleExternalTableSurface(child, material) {
-  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
+  // must win over material names for physics mapping and finish assignment.
+  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
+  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
 
@@ -12639,6 +12646,7 @@ function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
 function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   if (!texture) return;
   if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = resolveTextureAnisotropy(12);
   texture.needsUpdate = true;
 }
@@ -12877,6 +12885,144 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function poolRoyaleWorldBoxToTableLocal(box, table) {
+  const localBox = new THREE.Box3();
+  if (!box || box.isEmpty() || !table) return localBox;
+  const corner = new THREE.Vector3();
+  for (const x of [box.min.x, box.max.x]) {
+    for (const y of [box.min.y, box.max.y]) {
+      for (const z of [box.min.z, box.max.z]) {
+        corner.set(x, y, z);
+        localBox.expandByPoint(table.worldToLocal(corner.clone()));
+      }
+    }
+  }
+  return localBox;
+}
+
+function collectPoolRoyaleExternalRoleBounds(table, model) {
+  const roleBounds = new Map();
+  if (!table || !model) return roleBounds;
+  model.updateMatrixWorld?.(true);
+  table.updateMatrixWorld?.(true);
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const worldBox = new THREE.Box3().setFromObject(child);
+    if (worldBox.isEmpty()) return;
+    const localBox = poolRoyaleWorldBoxToTableLocal(worldBox, table);
+    if (localBox.isEmpty()) return;
+    const entry = roleBounds.get(role) || { box: new THREE.Box3(), boxes: [] };
+    entry.box.union(localBox);
+    entry.boxes.push({ box: localBox, name: child.name || '', role });
+    roleBounds.set(role, entry);
+  });
+  return roleBounds;
+}
+
+function inferShowoodPocketCentersFromExternalBounds(table, roleBounds) {
+  const existingMarkers = Array.isArray(table?.userData?.pockets)
+    ? table.userData.pockets
+    : [];
+  if (!existingMarkers.length) return null;
+  const pocketBounds = roleBounds?.get('pocket')?.box;
+  if (!pocketBounds || pocketBounds.isEmpty()) return null;
+  const existingCenters = existingMarkers.map(
+    (marker) => new THREE.Vector2(marker.position.x, marker.position.z)
+  );
+  const maxPocketX = Math.max(Math.abs(pocketBounds.min.x), Math.abs(pocketBounds.max.x));
+  const maxPocketZ = Math.max(Math.abs(pocketBounds.min.z), Math.abs(pocketBounds.max.z));
+  const currentHalfX = Math.max(...existingCenters.map((center) => Math.abs(center.x)));
+  const currentHalfZ = Math.max(...existingCenters.map((center) => Math.abs(center.y)));
+  const halfX = Number.isFinite(maxPocketX) && maxPocketX > BALL_R
+    ? THREE.MathUtils.clamp(maxPocketX - BALL_R * 0.35, currentHalfX * 0.92, currentHalfX * 1.08)
+    : currentHalfX;
+  const halfZ = Number.isFinite(maxPocketZ) && maxPocketZ > BALL_R
+    ? THREE.MathUtils.clamp(maxPocketZ - BALL_R * 0.35, currentHalfZ * 0.92, currentHalfZ * 1.08)
+    : currentHalfZ;
+  return existingCenters.map((center, index) => {
+    if (index >= 4) {
+      return new THREE.Vector2(Math.sign(center.x || 1) * halfX, 0);
+    }
+    return new THREE.Vector2(
+      Math.sign(center.x || 1) * halfX,
+      Math.sign(center.y || 1) * halfZ
+    );
+  });
+}
+
+function buildShowoodExternalCushionSegments(pocketCentersForMapping) {
+  if (!Array.isArray(pocketCentersForMapping) || pocketCentersForMapping.length < 4) {
+    return null;
+  }
+  const halfX = Math.max(...pocketCentersForMapping.map((center) => Math.abs(center.x)));
+  const halfZ = Math.max(...pocketCentersForMapping.map((center) => Math.abs(center.y)));
+  if (!Number.isFinite(halfX) || !Number.isFinite(halfZ) || halfX <= BALL_R || halfZ <= BALL_R) {
+    return null;
+  }
+  const railX = Math.max(BALL_R, halfX - Math.max(CAPTURE_R, SIDE_CAPTURE_R) * 0.62);
+  const railZ = Math.max(BALL_R, halfZ - Math.max(CAPTURE_R, SIDE_CAPTURE_R) * 0.62);
+  const cornerGapX = Math.max(CAPTURE_R * 0.92, BALL_R * 2.4);
+  const cornerGapZ = Math.max(CAPTURE_R * 0.92, BALL_R * 2.4);
+  const sideGap = Math.max(SIDE_CAPTURE_R * 1.05, BALL_R * 2.6);
+  const segments = [];
+  const add = (start, end, type = 'rail') => {
+    const dir = end.clone().sub(start);
+    if (dir.lengthSq() < 1e-6) return;
+    const normal = new THREE.Vector2(-dir.y, dir.x).normalize();
+    const midpoint = start.clone().add(end).multiplyScalar(0.5);
+    if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
+    segments.push({ start, end, type, normal });
+  };
+  // Long cushions split around the side pockets, matching the Showood visual mouths.
+  for (const zSign of [-1, 1]) {
+    const z = zSign * railZ;
+    add(new THREE.Vector2(-railX + cornerGapX, z), new THREE.Vector2(-sideGap, z), 'rail');
+    add(new THREE.Vector2(sideGap, z), new THREE.Vector2(railX - cornerGapX, z), 'rail');
+    add(new THREE.Vector2(-railX, zSign * (railZ - cornerGapZ)), new THREE.Vector2(-railX + cornerGapX, z), 'cut');
+    add(new THREE.Vector2(railX, zSign * (railZ - cornerGapZ)), new THREE.Vector2(railX - cornerGapX, z), 'cut');
+    add(new THREE.Vector2(-sideGap, z), new THREE.Vector2(0, zSign * (railZ + BALL_R * 0.42)), 'cut');
+    add(new THREE.Vector2(sideGap, z), new THREE.Vector2(0, zSign * (railZ + BALL_R * 0.42)), 'cut');
+  }
+  // Short cushions.
+  for (const xSign of [-1, 1]) {
+    const x = xSign * railX;
+    add(new THREE.Vector2(x, -railZ + cornerGapZ), new THREE.Vector2(x, railZ - cornerGapZ), 'rail');
+    add(new THREE.Vector2(xSign * (railX - cornerGapX), -railZ), new THREE.Vector2(x, -railZ + cornerGapZ), 'cut');
+    add(new THREE.Vector2(xSign * (railX - cornerGapX), railZ), new THREE.Vector2(x, railZ - cornerGapZ), 'cut');
+  }
+  return segments;
+}
+
+function applyPoolRoyaleExternalTablePhysicsMapping(table, model, tableModel = null) {
+  if (!table || !model || tableModel?.physicsMapping !== 'showood-visual') return false;
+  const roleBounds = collectPoolRoyaleExternalRoleBounds(table, model);
+  const pocketCentersForMapping = inferShowoodPocketCentersFromExternalBounds(table, roleBounds);
+  const segments = buildShowoodExternalCushionSegments(pocketCentersForMapping);
+  if (!pocketCentersForMapping || !segments?.length) {
+    table.userData.externalTablePhysicsMapping = 'native-fallback';
+    return false;
+  }
+  const halfX = Math.max(...pocketCentersForMapping.map((center) => Math.abs(center.x)));
+  const halfZ = Math.max(...pocketCentersForMapping.map((center) => Math.abs(center.y)));
+  const markers = Array.isArray(table.userData.pockets) ? table.userData.pockets : [];
+  pocketCentersForMapping.forEach((center, index) => {
+    const marker = markers[index];
+    if (!marker) return;
+    marker.position.x = center.x;
+    marker.position.z = center.y;
+    marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+  });
+  CUSHION_SEGMENTS = segments;
+  table.userData.cushionSegments = segments;
+  RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, Math.max(0, halfX - BALL_R - RAIL_LIMIT_PADDING));
+  RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, Math.max(0, halfZ - BALL_R - RAIL_LIMIT_PADDING));
+  table.userData.externalTablePhysicsMapping = 'showood-visual';
+  table.userData.externalTablePocketCenters = pocketCentersForMapping;
+  return true;
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -12977,6 +13123,7 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      applyPoolRoyaleExternalTablePhysicsMapping(table, model, tableModel);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {

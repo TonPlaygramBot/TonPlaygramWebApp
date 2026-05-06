@@ -28,11 +28,12 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
-    matchNativeUpperComponentHeight: true,
+    matchNativeUpperComponentHeight: false,
+    physicsMapping: 'showood-visual',
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
-    preserveOriginalSurfaceRoles: [],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
+    preserveOriginalSurfaceRoles: ['trim'],
     hideSurfaceRoles: []
   }
 ]);
