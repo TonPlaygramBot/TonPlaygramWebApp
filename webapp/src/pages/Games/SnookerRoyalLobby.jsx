@@ -16,7 +16,9 @@ import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import {
   applySnookerTableModelParam,
-  resolveSnookerTableModel
+  resolveSnookerTableModel,
+  TABLE_MODEL_CLASSIC,
+  TABLE_MODEL_OPENSOURCE
 } from './snookerTableModel.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'snookerRoyalPlayerFlag';
@@ -43,7 +45,10 @@ export default function SnookerRoyalLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
-  const tableModel = resolveSnookerTableModel();
+  const initialTableModel = (() => {
+    return resolveSnookerTableModel(searchParams.get('tableModel'));
+  })();
+  const [tableModel, setTableModel] = useState(initialTableModel);
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -436,6 +441,38 @@ export default function SnookerRoyalLobby() {
           </p>
         </div>
 
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Choose Table</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Layout</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: TABLE_MODEL_OPENSOURCE, label: 'New Snooker Table', desc: 'Default GLB table with procedural fallback' },
+              { id: TABLE_MODEL_CLASSIC, label: 'Procedural Table', desc: 'Original generated fallback table' }
+            ].map(({ id, label, desc }) => {
+              const active = tableModel === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTableModel(id)}
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/60 text-center">
+            You can switch between the existing table and the new snooker model before match start.
+          </p>
+        </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
