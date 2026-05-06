@@ -12876,9 +12876,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.position.x -= footprintCenter.x;
   model.position.z -= footprintCenter.z;
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
-  const playfieldVisualLift = tableModel?.playfieldVisualLift ?? 0;
-  model.position.y +=
-    targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0) - playfieldVisualLift;
+  model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
   model.userData = {
     ...(model.userData || {}),
