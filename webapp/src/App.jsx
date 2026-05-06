@@ -61,6 +61,7 @@ const TavullBattleRoyal = React.lazy(
 const TavullBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
 );
+const RunMan = React.lazy(() => import('./pages/Games/RunMan.tsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
@@ -167,6 +168,24 @@ export default function App() {
             />
             <Route path="/games" element={<Games />} />
             <Route path="/games/transactions" element={<GameTransactions />} />
+            <Route
+              path="/games/runman"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="p-4 text-center">Loading RunMan…</div>
+                  }
+                >
+                  <GameLiveAvatarOverlay gameSlug="runman">
+                    <RunMan />
+                  </GameLiveAvatarOverlay>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/games/runman/lobby"
+              element={<Navigate to="/games/runman" replace />}
+            />
             <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route
               path="/games/snake"

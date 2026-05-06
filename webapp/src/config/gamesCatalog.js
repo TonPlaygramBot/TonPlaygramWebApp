@@ -1,5 +1,13 @@
 const gamesCatalog = [
 
+  {
+    name: 'RunMan',
+    route: '/games/runman',
+    slug: 'runman',
+    image: '/assets/icons/runman.svg',
+    description: 'Neon 3D maze runner where two soldiers collect diamonds, grab weapons, and dodge robots.'
+  },
+
 
   {
     name: 'Real Bowling',
