@@ -21033,7 +21033,8 @@ const powerRef = useRef(hud.power);
         loader: humanLoader,
         modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
         unit: humanUnitScale,
-        humanScale: 1.26 * humanUnitScale,
+        humanScale: 1.52 * humanUnitScale,
+        shootBendDirection: -1,
         tableTopY: humanTableTopY,
         groundY: humanGroundY,
         tableW: PLAY_W,
@@ -21058,7 +21059,7 @@ const powerRef = useRef(hud.power);
         rightForearmDown: 0.48 * humanUnitScale,
         rightForearmLength: 0.34 * humanUnitScale,
         rightStrokePull: 0.30 * humanUnitScale,
-        rightStrokePush: 0.24 * humanUnitScale,
+        rightStrokePush: 0.08 * humanUnitScale,
         rightHandShotLift: -0.30 * humanUnitScale,
         shootCueGripFromBack: 0.58 * humanUnitScale,
         idleRightHandY: 0.8 * humanUnitScale,
@@ -22653,7 +22654,6 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const pullbackDuration = 0;
           const strikeDuration = 110;
           const holdDuration = 45;
@@ -22664,19 +22664,8 @@ const powerRef = useRef(hud.power);
             BALL_R * 0.3
           );
           const impactPos = buildCuePosition(-impactPush);
-          // Match the reference cue-stick behavior for spin:
-          // topspin adds a tiny forward follow-through after contact,
-          // while backspin keeps a clean stop at impact.
-          const topspinFactor = THREE.MathUtils.clamp(
-            Math.max(0, appliedSpin?.y ?? 0) * powerStrength,
-            0,
-            1
-          );
-          const followExtra = THREE.MathUtils.clamp(
-            topspinFactor * BALL_R * 0.32,
-            0,
-            BALL_R * 0.34
-          );
+          // Stop the visible cue at contact so it never chases the cue ball.
+          const followExtra = 0;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
             TMP_VEC3_FOLLOW_DIR.normalize();
@@ -26631,7 +26620,10 @@ const powerRef = useRef(hud.power);
                 ? 'striking'
                 : 'idle';
             const activePower = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
-            const cueBallWorld = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+            const strokeAnchor = cueStickAnchorRef.current;
+            const cueBallWorld = humanState === 'striking' && strokeAnchor
+              ? new THREE.Vector3(strokeAnchor.x, BALL_CENTER_Y, strokeAnchor.z)
+              : new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             const aimForward = new THREE.Vector3(aimDir.x, 0, aimDir.y);
             if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
             else aimForward.normalize();
