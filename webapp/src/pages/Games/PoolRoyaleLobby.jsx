@@ -657,7 +657,7 @@ export default function PoolRoyaleLobby() {
                     <p className="lobby-option-label">{option.label}</p>
                     <p className="lobby-option-subtitle">
                       {option.kind === 'gltf'
-                        ? `${option.tableSizeId} · Pool Royale finishes`
+                        ? `${option.tableSizeId} · original textures`
                         : 'Current table'}
                     </p>
                   </div>
@@ -666,7 +666,7 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            The Showood GLB replaces the in-game table visually while Pool Royale keeps the exact Royal Original playfield, pockets, cushions, ball physics, and selected table-finish textures.
+            New GLB tables replace the in-game table visually while Pool Royale keeps the matched playfield, pockets, cushions, and ball physics.
           </p>
         </div>
 
