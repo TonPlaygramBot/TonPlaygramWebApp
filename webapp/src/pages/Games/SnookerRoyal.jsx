@@ -16,6 +16,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { resolveSnookerTableModel, TABLE_MODEL_OPENSOURCE } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11310,7 +11311,6 @@ function SnookerRoyalGame({
   opponentAvatar
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -19833,6 +19833,58 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
+      const attachOpenSourceTableModel = (tableGroup) => {
+        if (tableModel !== TABLE_MODEL_OPENSOURCE || !tableGroup) return;
+        const loader = new GLTFLoader();
+        const draco = new DRACOLoader();
+        draco.setDecoderPath(DRACO_DECODER_PATH);
+        loader.setDRACOLoader(draco);
+        const ktx2 = new KTX2Loader();
+        ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
+        if (rendererRef.current) ktx2.detectSupport(rendererRef.current);
+        loader.setKTX2Loader(ktx2);
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        const tableModelUrl =
+          'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_table.glb';
+        loader.load(
+          tableModelUrl,
+          (gltf) => {
+            const visual = gltf?.scene;
+            if (!visual) return;
+            const surfaceWidth = Math.max(PLAY_W, 0.0001);
+            const surfaceHeight = Math.max(PLAY_H, 0.0001);
+            visual.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(visual);
+            const size = box.getSize(new THREE.Vector3());
+            const scaleX = surfaceWidth / Math.max(size.x, 0.0001);
+            const scaleZ = surfaceHeight / Math.max(size.z, 0.0001);
+            const scale = Math.min(scaleX, scaleZ) * 1.08;
+            visual.scale.setScalar(scale);
+            visual.updateMatrixWorld(true);
+            const scaledBox = new THREE.Box3().setFromObject(visual);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            const cushionTop = Number.isFinite(tableGroup?.userData?.cushionTopLocal)
+              ? tableGroup.userData.cushionTopLocal
+              : TABLE.THICK;
+            const topY = scaledBox.max.y;
+            visual.position.set(-center.x, cushionTop - topY, -center.z);
+            visual.traverse((node) => {
+              if (!node?.isMesh) return;
+              node.castShadow = true;
+              node.receiveShadow = true;
+            });
+            visual.name = 'open-source-snooker-table';
+            tableGroup.add(visual);
+            tableGroup.userData.openSourceVisual = visual;
+          },
+          undefined,
+          (error) => {
+            console.warn('Failed to load open-source snooker table model', error);
+          }
+        );
+      };
+      attachOpenSourceTableModel(table);
+      attachOpenSourceTableModel(secondaryTableEntry?.group);
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -28415,8 +28467,13 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const tableModel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return resolveSnookerTableModel(params.get('tableModel'));
+  }, [location.search]);
+
+  const navigate = useNavigate();
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
