@@ -2375,14 +2375,14 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.58; // push the shooter farther outward so the avatar stays behind the cue butt on portrait screens
-const HUMAN_DESIRED_SHOOT_DISTANCE = 1.58; // move the shooter clearly to the cue-butt side so camera no longer sits behind the head
+const HUMAN_EDGE_MARGIN = 1.7; // push the shooter farther outward so the avatar stays behind the cue butt on portrait screens
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.72; // move the shooter clearly to the cue-butt side so camera no longer sits behind the head
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.72; // enter shooting pose earlier when the cue camera starts getting lowered
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.065; // lock camera nearer to eye line while keeping the cue shaft visible in portrait
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 1.15; // keep the eye camera on the rear/butt half of the cue instead of drifting toward the tip
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 0.86; // keep the eye camera farther back on the cue butt instead of drifting toward the tip
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
@@ -6482,7 +6482,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.32; // pull the standing camera closer to the table while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -12576,6 +12576,20 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo) {
     mat.bumpMap = clonePoolRoyaleMaterialTexture(source.bumpMap);
   };
 
+  const rolePolicy = tableModel?.materialRolePolicy?.[role] || 'poolRoyale';
+  if (rolePolicy === 'original') {
+    const original = mat.clone ? mat.clone() : mat;
+    preparePoolRoyaleExternalTexture(original.map, true);
+    preparePoolRoyaleExternalTexture(original.emissiveMap, true);
+    preparePoolRoyaleExternalTexture(original.aoMap, false);
+    preparePoolRoyaleExternalTexture(original.normalMap, false);
+    preparePoolRoyaleExternalTexture(original.roughnessMap, false);
+    preparePoolRoyaleExternalTexture(original.metalnessMap, false);
+    preparePoolRoyaleExternalTexture(original.bumpMap, false);
+    original.needsUpdate = true;
+    return original;
+  }
+
   if (role === 'cloth' || role === 'cushion') {
     copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
     mat.side = THREE.DoubleSide;
@@ -12771,7 +12785,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
         : Math.sqrt(exactXScale * exactZScale);
     model.scale.set(
       model.scale.x * exactXScale * fitScaleMultiplier,
-      model.scale.y * exactYScale * fitScaleMultiplier,
+      model.scale.y * exactYScale * fitScaleMultiplier * (tableModel?.heightScale ?? 1),
       model.scale.z * exactZScale * fitScaleMultiplier
     );
   } else {
@@ -13503,8 +13517,20 @@ function mountPoolRoyaleExternalTableModel({
   const generatedVisualSize = generatedVisualBounds.isEmpty()
     ? new THREE.Vector3(TABLE.W, TABLE.THICK, TABLE.H)
     : generatedVisualBounds.getSize(new THREE.Vector3());
+  const nativePocketHardware = new Set([
+    ...finishParts.pocketNetMeshes,
+    ...finishParts.pocketBaseMeshes
+  ]);
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
+      if (
+        !visible &&
+        resolvedTableOptions?.tableModel?.keepNativePocketHardware &&
+        nativePocketHardware.has(object)
+      ) {
+        object.visible = true;
+        return;
+      }
       object.visible = visible;
     });
   };
@@ -25515,7 +25541,7 @@ const shotPowerRef = useRef(0);
             bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
             cueLength: HUMAN_CUE_LENGTH,
             bridgeDist: HUMAN_BRIDGE_DIST,
-            shootCueGripFromBack: 0.58,
+            shootCueGripFromBack: 0.46,
             rightHandShotExtraBack: 0.18,
             rightHandShotLift: -0.30,
             rightHandForwardClamp: -0.08,
@@ -25528,7 +25554,7 @@ const shotPowerRef = useRef(0);
             rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
             rightElbowShotRise: 0.18,
             rightElbowShotSide: -0.46,
-            rightElbowShotBack: -0.78,
+            rightElbowShotBack: -0.92,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
@@ -25728,7 +25754,7 @@ const shotPowerRef = useRef(0);
             const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
             const shootGripTarget = cueBackShoot
               .clone()
-              .addScaledVector(cueShootDir, 0.58);
+              .addScaledVector(cueShootDir, 0.46);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),

@@ -15,21 +15,22 @@ const BASE_CFG = {
   bridgeCueLift: 0.018,
   bridgeHandBackFromBall: 0.235,
   bridgeHandSide: -0.012,
-  chinToCueHeight: 0.11,
+  bridgeFingerSpread: 0.038,
+  chinToCueHeight: 0.09,
   footGroundY: 0.035,
   footLockStrength: 1.0,
   kneeBendShot: 0.16,
-  rightElbowShotRise: 0.18,
-  rightElbowShotSide: -0.46,
-  rightElbowShotBack: -0.78,
-  rightForearmOutward: 0.36,
-  rightForearmBack: 0.44,
-  rightForearmDown: 0.48,
-  rightForearmLength: 0.34,
+  rightElbowShotRise: 0.28,
+  rightElbowShotSide: -0.48,
+  rightElbowShotBack: -0.92,
+  rightForearmOutward: 0.30,
+  rightForearmBack: 0.54,
+  rightForearmDown: 0.42,
+  rightForearmLength: 0.26,
   rightStrokePull: 0.30,
   rightStrokePush: 0.24,
   rightHandShotLift: -0.30,
-  shootCueGripFromBack: 0.58,
+  shootCueGripFromBack: 0.46,
   idleRightHandY: 0.8,
   idleRightHandX: 0.31,
   idleRightHandZ: -0.015,
@@ -40,7 +41,7 @@ const BASE_CFG = {
   rightHandDownPose: 0.42,
   rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
   edgeMargin: 0.58,
-  desiredShootDistance: 1.06,
+  desiredShootDistance: 1.2,
   strikeTime: 0.12,
   holdTime: 0.05,
   tableTopY: 0.84
@@ -95,11 +96,11 @@ function driveHuman(human, frame) { if (!human.activeGlb || !human.model) return
 export function updateHumanPose(human, dt, frameData){ if(!human||!frameData) return; const cfg=human.cfg; const state=frameData.state||'idle'; human.poseT=dampScalar(human.poseT,state==='idle'?0:1,cfg.poseLambda,dt); human.breathT+=dt*(state==='idle'?1.05:0.5); if(state==='striking'){ if(human.strikeClock===0){ human.strikeRoot.copy(human.root.position.lengthSq()>0.001?human.root.position:frameData.rootTarget); human.strikeYaw=human.yaw;} human.strikeClock+=dt;} else human.strikeClock=0;
  const rootGoal=state==='striking'?human.strikeRoot:frameData.rootTarget; dampVector(human.root.position,rootGoal,state==='striking'?12:cfg.moveLambda,dt); const moveAmountRaw=human.root.position.distanceTo(rootGoal); human.walkT+=dt*(2+Math.min(7,moveAmountRaw*10)); human.yaw=dampScalar(human.yaw,state==='striking'?human.strikeYaw:yawFromForward(frameData.aimForward),cfg.rotLambda,dt);
  const t=easeInOut(human.poseT), idle=1-t; const walk=Math.sin(human.walkT*6.2)*Math.min(1,moveAmountRaw*12); const forward = new THREE.Vector3(0,0,-1).applyAxisAngle(Y_AXIS,human.yaw).normalize(); const side = new THREE.Vector3(forward.z,0,-forward.x).normalize(); const local = (v)=>v.clone().applyAxisAngle(Y_AXIS,human.yaw).add(human.root.position);
- const torso = local(new THREE.Vector3(0, lerp(1.3,1.14,t), lerp(0.02,-0.16,t))); const chest=local(new THREE.Vector3(0,lerp(1.52,1.24,t),lerp(0.02,-0.42,t))); const neck=local(new THREE.Vector3(0,lerp(1.68,1.28,t),lerp(0.02,-0.61,t))); const head=local(new THREE.Vector3(0,lerp(1.84,1.37,t),lerp(0.04,-0.72,t))); const leftShoulder=local(new THREE.Vector3(-0.23,lerp(1.58,1.36,t),lerp(0,-0.46,t))); const rightShoulder=local(new THREE.Vector3(0.23,lerp(1.58,1.36,t),lerp(0,-0.34,t)));
+ const torso = local(new THREE.Vector3(0, lerp(1.3,1.08,t), lerp(0.02,-0.22,t))); const chest=local(new THREE.Vector3(0,lerp(1.52,1.16,t),lerp(0.02,-0.5,t))); const neck=local(new THREE.Vector3(0,lerp(1.68,1.2,t),lerp(0.02,-0.7,t))); const head=local(new THREE.Vector3(0,lerp(1.84,1.28,t),lerp(0.04,-0.82,t))); const leftShoulder=local(new THREE.Vector3(-0.23,lerp(1.58,1.3,t),lerp(0,-0.56,t))); const rightShoulder=local(new THREE.Vector3(0.23,lerp(1.58,1.31,t),lerp(0,-0.44,t)));
  const leftHip=local(new THREE.Vector3(-0.13,0.92,0.02)); const rightHip=local(new THREE.Vector3(0.13,0.92,0.02)); const leftFoot=local(new THREE.Vector3(-0.13,cfg.footGroundY,0.03+walk*0.018).lerp(new THREE.Vector3(-cfg.stanceWidth*0.42,cfg.footGroundY,-0.34),t)); const rightFoot=local(new THREE.Vector3(0.13,cfg.footGroundY,-0.03-walk*0.018).lerp(new THREE.Vector3(cfg.stanceWidth*0.5,cfg.footGroundY,0.34),t));
- const bridgePalm = frameData.bridgeTarget.clone().addScaledVector(forward,-0.006*t).addScaledVector(side,-0.012*t).setY(cfg.tableTopY+cfg.bridgePalmTableLift); const leftHand = frameData.idleLeft.clone().lerp(bridgePalm,t); const cueDir = frameData.cueTip.clone().sub(frameData.cueBack).normalize(); const handIk=easeInOut(clamp01(t)); const idleGripSide=side.clone().multiplyScalar(-1).addScaledVector(UP,-0.55).addScaledVector(forward,0.16).normalize(); const idleGripUp=UP.clone().multiplyScalar(-1).addScaledVector(side,-0.64).addScaledVector(forward,0.2).normalize(); const liveGripSide=side.clone().multiplyScalar(-1).addScaledVector(UP,lerp(-0.55,-0.62,handIk)).addScaledVector(side,0.5*handIk).addScaledVector(forward,lerp(0.16,-0.08,handIk)).normalize(); const liveGripUp=UP.clone().multiplyScalar(lerp(-1.0,0.12,handIk)).addScaledVector(side,lerp(-0.64,-0.04,handIk)).addScaledVector(forward,lerp(0.2,-0.48,handIk)).normalize();
+ const bridgePalm = frameData.bridgeTarget.clone().addScaledVector(forward,-0.016*t).addScaledVector(side,cfg.bridgeHandSide*t).setY(cfg.tableTopY+cfg.bridgePalmTableLift); const leftHand = frameData.idleLeft.clone().lerp(bridgePalm,t); const cueDir = frameData.cueTip.clone().sub(frameData.cueBack).normalize(); const handIk=easeInOut(clamp01(t)); const idleGripSide=side.clone().multiplyScalar(-1).addScaledVector(UP,-0.55).addScaledVector(forward,0.16).normalize(); const idleGripUp=UP.clone().multiplyScalar(-1).addScaledVector(side,-0.64).addScaledVector(forward,0.2).normalize(); const liveGripSide=side.clone().multiplyScalar(-1).addScaledVector(UP,lerp(-0.55,-0.58,handIk)).addScaledVector(side,0.38*handIk).addScaledVector(forward,lerp(0.16,-0.16,handIk)).normalize(); const liveGripUp=UP.clone().multiplyScalar(lerp(-1.0,0.08,handIk)).addScaledVector(side,lerp(-0.64,-0.02,handIk)).addScaledVector(forward,lerp(0.2,-0.56,handIk)).normalize();
  const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04,cfg.rightElbowShotRise,t)).addScaledVector(side,lerp(-0.18,cfg.rightElbowShotSide,t)).addScaledVector(forward,lerp(-0.04,cfg.rightElbowShotBack,t)); const pullBack = state==='dragging' ? -cfg.rightStrokePull*easeOutCubic(frameData.power||0) : 0; const push = state==='striking' ? cfg.rightStrokePush*Math.sin(clamp01(human.strikeClock/(cfg.strikeTime+cfg.holdTime))*Math.PI):0; const forearmBase = lockedRightElbow.clone().addScaledVector(side,cfg.rightForearmOutward*t).addScaledVector(UP,-cfg.rightForearmDown*t).addScaledVector(UP,cfg.rightHandShotLift*t).addScaledVector(forward,-cfg.rightForearmBack*t).addScaledVector(cueDir,cfg.rightForearmLength); const liveGripPoint = forearmBase.clone().addScaledVector(cueDir,pullBack+push); const idleWrist=frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide,idleGripUp,cueDir,cfg.rightHandRollIdle,cfg.rightHandCueSocketLocal)); const liveWrist=liveGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide,liveGripUp,cueDir,lerp(cfg.rightHandRollIdle,cfg.rightHandRollShoot-cfg.rightHandDownPose,handIk),cfg.rightHandCueSocketLocal));
- const rightHand = idleWrist.clone().lerp(liveWrist,t); const leftElbow = leftShoulder.clone().lerp(leftHand,0.62); const leftKnee = leftHip.clone().lerp(leftFoot,0.53).addScaledVector(UP,lerp(0.2,cfg.kneeBendShot,t)); const rightKnee = rightHip.clone().lerp(rightFoot,0.52).addScaledVector(UP,lerp(0.2,cfg.kneeBendShot*0.88,t));
+ const rightHand = idleWrist.clone().lerp(liveWrist,t); const leftElbow = leftShoulder.clone().lerp(leftHand,0.64).addScaledVector(side,-cfg.bridgeFingerSpread*t).addScaledVector(forward,0.06*t); const leftKnee = leftHip.clone().lerp(leftFoot,0.53).addScaledVector(UP,lerp(0.2,cfg.kneeBendShot,t)); const rightKnee = rightHip.clone().lerp(rightFoot,0.52).addScaledVector(UP,lerp(0.2,cfg.kneeBendShot*0.88,t));
  human.root.visible=true; driveHuman(human,{t,stroke:pullBack+push,forward,side,up:UP,rootWorld:human.root.position.clone(),torsoCenterWorld:torso,chestCenterWorld:chest,neckWorld:neck,headCenterWorld:head,leftElbow,rightElbow:lockedRightElbow,leftHandWorld:leftHand,rightHandWorld:rightHand,leftKnee,rightKnee,leftFootWorld:leftFoot,rightFootWorld:rightFoot,cueBackWorld:frameData.cueBack,cueTipWorld:frameData.cueTip});
 }
 
