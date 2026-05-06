@@ -157,8 +157,8 @@ const CAMERA_YAW_LIMIT = 0.7;
 const CAMERA_HEIGHT_LIMIT = 0.72;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
-const SPECTATOR_SCALE = 0.66;
-const SPECTATOR_FALLBACK_SCALE = 0.74;
+const SPECTATOR_SCALE = 0.5;
+const SPECTATOR_FALLBACK_SCALE = 0.56;
 const SPECTATOR_SEAT_Y = 0.17;
 const SPECTATOR_SEAT_Z = 0.14;
 const GOAL_RUSH_SOUNDS = {
@@ -189,13 +189,6 @@ const GROUND_Y = 0;
 const DT_MAX = 1 / 30;
 const GOAL_LINE_Z = -HALF_H / 2;
 const RUNUP_BACK_STEPS = 2.35;
-const KEEPER_SAVE_CHANCE = 0.56;
-const KEEPER_WRONG_READ_CHANCE = 0.26;
-const KEEPER_LATERAL_RESPONSE = 0.12;
-const KEEPER_BODY_REACH = 0.52;
-const KEEPER_GLOVE_REACH = 1.05;
-const KEEPER_SECOND_GLOVE_REACH = 0.76;
-const KEEPER_HIGH_GLOVE_REACH = BALL_R + 0.24;
 const TMP = new THREE.Vector3();
 const QTMP = new THREE.Quaternion();
 const SEATED_CHARACTER_TEMPLATE_CACHE = new Map<
@@ -788,13 +781,7 @@ function updateActorBase(actor: Actor, dt: number) {
   if (actor.dir.lengthSq() > 0.001)
     actor.root.rotation.y = Math.atan2(actor.dir.x, actor.dir.z);
   const wanted: AnimName =
-    actor.kind === 'kicker' && actor.kickTime > 0
-      ? 'Idle'
-      : actor.speed > 2.45
-        ? 'Run'
-        : actor.speed > 0.08
-          ? 'Walk'
-          : 'Idle';
+    actor.speed > 2.45 ? 'Run' : actor.speed > 0.08 ? 'Walk' : 'Idle';
   setAction(actor, wanted);
   if (actor.actions.Walk)
     actor.actions.Walk.timeScale = THREE.MathUtils.clamp(
@@ -811,62 +798,39 @@ function updateActorBase(actor: Actor, dt: number) {
   actor.mixer?.update(dt);
 }
 
-function groundActorToPitch(actor: Actor) {
-  if (!actor.root.visible) return;
-  actor.root.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(actor.root);
-  if (bounds.isEmpty()) return;
-  const correction = GROUND_Y - bounds.min.y;
-  if (Number.isFinite(correction) && Math.abs(correction) > 0.001)
-    actor.root.position.y += correction;
-}
-
 function applyKickerPose(kicker: Actor) {
   if (kicker.kickTime <= 0) return;
 
   const t = 1 - kicker.kickTime / 0.72;
-  const plant = THREE.MathUtils.smoothstep(t, 0.12, 0.32);
+  const plant = THREE.MathUtils.smoothstep(t, 0.18, 0.38);
   const backswing =
-    Math.sin(THREE.MathUtils.clamp((t - 0.12) / 0.28, 0, 1) * Math.PI) * 0.62;
+    Math.sin(THREE.MathUtils.clamp((t - 0.16) / 0.26, 0, 1) * Math.PI) * 0.72;
   const strike =
-    Math.sin(THREE.MathUtils.clamp((t - 0.36) / 0.28, 0, 1) * Math.PI) * 2.18;
+    Math.sin(THREE.MathUtils.clamp((t - 0.38) / 0.26, 0, 1) * Math.PI) * 2.45;
   const follow =
-    Math.sin(THREE.MathUtils.clamp((t - 0.58) / 0.4, 0, 1) * Math.PI) * 0.72;
+    Math.sin(THREE.MathUtils.clamp((t - 0.6) / 0.4, 0, 1) * Math.PI) * 0.9;
   const chestBalance = Math.sin(
     THREE.MathUtils.clamp((t - 0.2) / 0.55, 0, 1) * Math.PI
   );
 
-  const plantUpLeg = kicker.bones.leftUpLeg;
-  const plantLowLeg = kicker.bones.leftLeg;
-  const plantFoot = kicker.bones.leftFoot;
-  const shootUpLeg = kicker.bones.rightUpLeg;
-  const shootLowLeg = kicker.bones.rightLeg;
-  const shootFoot = kicker.bones.rightFoot;
+  const upLeg = kicker.bones.rightUpLeg;
+  const lowLeg = kicker.bones.rightLeg;
+  const foot = kicker.bones.rightFoot;
 
-  // Keep the shooter visually grounded: no body hop, the left leg stays planted,
-  // and only the right kicking leg/foot lift forward through contact.
-  kicker.root.position.y = GROUND_Y;
-  if (kicker.bones.hips) {
-    kicker.bones.hips.rotation.x += -0.025 * strike + 0.035 * plant;
-    kicker.bones.hips.rotation.z += -0.035 * chestBalance;
-  }
+  if (kicker.bones.hips) kicker.bones.hips.rotation.x += -0.045 * strike;
   if (kicker.bones.spine) {
-    kicker.bones.spine.rotation.x += -0.025 * strike + 0.025 * chestBalance;
-    kicker.bones.spine.rotation.y += 0.045 * chestBalance;
-    kicker.bones.spine.rotation.z += 0.025 * chestBalance;
+    kicker.bones.spine.rotation.x += -0.035 * strike + 0.02 * chestBalance;
+    kicker.bones.spine.rotation.y += 0.055 * chestBalance;
   }
   if (kicker.bones.leftArm)
-    kicker.bones.leftArm.rotation.z += -0.2 * chestBalance - 0.08 * plant;
+    kicker.bones.leftArm.rotation.z += -0.22 * chestBalance;
   if (kicker.bones.rightArm)
-    kicker.bones.rightArm.rotation.z += 0.18 * chestBalance + 0.06 * plant;
-  if (plantUpLeg) plantUpLeg.rotation.x += 0.08 * plant;
-  if (plantLowLeg) plantLowLeg.rotation.x += -0.035 * plant;
-  if (plantFoot) plantFoot.rotation.x += 0.04 * plant;
-  if (shootUpLeg) shootUpLeg.rotation.x += -backswing + strike + follow;
-  if (shootLowLeg) shootLowLeg.rotation.x += backswing * 0.5 - strike * 0.78;
-  if (shootFoot) shootFoot.rotation.x += -strike * 0.68 - follow * 0.22;
-
-  groundActorToPitch(kicker);
+    kicker.bones.rightArm.rotation.z += 0.2 * chestBalance;
+  if (kicker.bones.leftUpLeg) kicker.bones.leftUpLeg.rotation.x += 0.18 * plant;
+  if (kicker.bones.leftLeg) kicker.bones.leftLeg.rotation.x += -0.08 * plant;
+  if (upLeg) upLeg.rotation.x += -backswing + strike + follow;
+  if (lowLeg) lowLeg.rotation.x += backswing * 0.65 - strike * 0.88;
+  if (foot) foot.rotation.x += -strike * 0.75 - follow * 0.25;
 }
 
 function applyWallPose(actor: Actor) {
@@ -1934,21 +1898,11 @@ function beginRunup(
   const targetSide =
     keeper.saveTargetX < -0.28 ? -1 : keeper.saveTargetX > 0.28 ? 1 : 0;
   const quality = Math.random();
-  const forcedError = quality > KEEPER_SAVE_CHANCE;
-  const wrongRead = quality < KEEPER_WRONG_READ_CHANCE;
-  keeper.diveDir = forcedError
-    ? 0
-    : wrongRead
-      ? -targetSide || (Math.random() > 0.5 ? 1 : -1)
-      : targetSide;
-  keeper.diveHeight = forcedError
-    ? 1.05
-    : keeper.saveTargetY < 0.8
-      ? 0.56
-      : keeper.saveTargetY > 1.7
-        ? 1.58
-        : 1.08;
-  keeper.diveDelay = forcedError ? 0.24 : quality > 0.42 ? 0.12 : 0.18;
+  keeper.diveDir =
+    quality < 0.08 ? -targetSide || (Math.random() > 0.5 ? 1 : -1) : targetSide;
+  keeper.diveHeight =
+    keeper.saveTargetY < 0.8 ? 0.62 : keeper.saveTargetY > 1.7 ? 1.78 : 1.18;
+  keeper.diveDelay = quality > 0.7 ? 0.035 : quality > 0.25 ? 0.085 : 0.135;
   keeper.diveTime = 0;
 }
 
@@ -2074,16 +2028,16 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
     if (keeper.diveDelay <= 0) keeper.diveTime = 0.95;
   }
 
-  const reaction = Math.max(0, 1 - keeper.diveDelay * 4.1);
+  const reaction = Math.max(0, 1 - keeper.diveDelay * 5.2);
   const targetStep = THREE.MathUtils.clamp(
-    keeper.saveTargetX * 0.42 + keeper.diveDir * 0.62,
-    -1.42,
-    1.42
+    keeper.saveTargetX * 0.5 + keeper.diveDir * 0.82,
+    -1.82,
+    1.82
   );
   keeper.pos.x = THREE.MathUtils.lerp(
     keeper.pos.x,
     targetStep,
-    KEEPER_LATERAL_RESPONSE * reaction + 0.035
+    0.18 * reaction + 0.055
   );
 
   const nearGoal =
@@ -2096,29 +2050,28 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   const bodyCenter = keeper.pos.clone().add(new THREE.Vector3(0, 1.05, 0));
   const gloveCenter = keeper.pos
     .clone()
-    .add(new THREE.Vector3(side * 1.34, keeper.diveHeight, -0.04));
+    .add(new THREE.Vector3(side * 1.62, keeper.diveHeight, -0.04));
   const secondGlove = keeper.pos
     .clone()
     .add(
       new THREE.Vector3(
-        side * 0.98,
-        THREE.MathUtils.lerp(0.72, keeper.diveHeight + 0.14, 0.62),
+        side * 1.18,
+        THREE.MathUtils.lerp(0.78, keeper.diveHeight + 0.2, 0.65),
         -0.02
       )
     );
   const highGlove = keeper.pos
     .clone()
-    .add(new THREE.Vector3(side * 1.66, keeper.diveHeight + 0.18, -0.04));
-  const bodyReach = KEEPER_BODY_REACH;
-  const gloveReach =
-    keeper.diveDir === 0 ? KEEPER_GLOVE_REACH * 0.58 : KEEPER_GLOVE_REACH;
+    .add(new THREE.Vector3(side * 2.08, keeper.diveHeight + 0.28, -0.04));
+  const bodyReach = 0.66;
+  const gloveReach = keeper.diveDir === 0 ? 1.1 : 1.62;
 
   if (
     bodyCenter.distanceTo(ball.object.position) < bodyReach ||
     gloveCenter.distanceTo(ball.object.position) < gloveReach ||
-    secondGlove.distanceTo(ball.object.position) < KEEPER_SECOND_GLOVE_REACH ||
+    secondGlove.distanceTo(ball.object.position) < 1.08 ||
     segmentDistanceToBall(gloveCenter, highGlove, ball.object.position) <
-      KEEPER_HIGH_GLOVE_REACH
+      BALL_R + 0.42
   ) {
     const push = ball.object.position
       .clone()
