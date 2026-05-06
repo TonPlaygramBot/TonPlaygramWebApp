@@ -448,8 +448,8 @@ export default function SnookerRoyalLobby() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { id: TABLE_MODEL_OPENSOURCE, label: 'New Snooker Table', desc: 'Default GLB table with procedural fallback' },
-              { id: TABLE_MODEL_CLASSIC, label: 'Procedural Table', desc: 'Original generated fallback table' }
+              { id: TABLE_MODEL_CLASSIC, label: 'Classic Table', desc: 'Current playable table' },
+              { id: TABLE_MODEL_OPENSOURCE, label: 'New Snooker Table', desc: 'Open-source GLTF table model' }
             ].map(({ id, label, desc }) => {
               const active = tableModel === id;
               return (

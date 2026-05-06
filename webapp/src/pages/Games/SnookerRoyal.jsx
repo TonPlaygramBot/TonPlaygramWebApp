@@ -10550,16 +10550,6 @@ function Table3D(
     });
   };
 
-  const resolveOpenSourceClothUvBounds = () => {
-    const bounds = new THREE.Box3();
-    expandBoxByObjectLocalBounds(bounds, cloth);
-    if (bounds.isEmpty()) {
-      bounds.min.set(-PLAY_W / 2, clothPlaneLocal - MICRO_EPS, -PLAY_H / 2);
-      bounds.max.set(PLAY_W / 2, clothPlaneLocal + MICRO_EPS, PLAY_H / 2);
-    }
-    return bounds;
-  };
-
   const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
     const materials = finishInfo?.materials || {};
     const sourceByRole = {
@@ -10686,7 +10676,7 @@ function Table3D(
     });
   };
 
-  const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
+  const remapOpenSourceClothTextureCoordinates = (root, targetBounds) => {
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
     const localPoint = new THREE.Vector3();
@@ -10718,67 +10708,13 @@ function Table3D(
     });
   };
 
-  const applyOpenSourceCushionPhysicsFromModel = (model) => {
-    const segments = [];
-    const addSegment = (start, end, type = 'glb-cushion') => {
-      if (!start || !end || start.distanceToSquared(end) < 1e-6) return;
-      const dir = end.clone().sub(start);
-      const normal = new THREE.Vector2(-dir.y, dir.x).normalize();
-      const midpoint = start.clone().add(end).multiplyScalar(0.5);
-      if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
-      segments.push({ start, end, type, normal });
-    };
-
-    model.updateMatrixWorld(true);
-    table.updateMatrixWorld(true);
-    model.traverse((node) => {
-      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cushion') return;
-      const worldBox = new THREE.Box3().setFromObject(node);
-      if (worldBox.isEmpty()) return;
-      const corners = [
-        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.min.z),
-        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.max.z),
-        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.min.z),
-        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.max.z),
-        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.min.z),
-        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.max.z),
-        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.min.z),
-        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.max.z)
-      ];
-      const localBox = new THREE.Box3();
-      corners.forEach((corner) => localBox.expandByPoint(table.worldToLocal(corner.clone())));
-      const size = localBox.getSize(new THREE.Vector3());
-      const center = localBox.getCenter(new THREE.Vector3());
-      if (size.x >= size.z) {
-        const innerZ = center.z >= 0 ? localBox.min.z : localBox.max.z;
-        addSegment(new THREE.Vector2(localBox.min.x, innerZ), new THREE.Vector2(localBox.max.x, innerZ));
-      } else {
-        const innerX = center.x >= 0 ? localBox.min.x : localBox.max.x;
-        addSegment(new THREE.Vector2(innerX, localBox.min.z), new THREE.Vector2(innerX, localBox.max.z));
-      }
-    });
-
-    if (segments.length >= 4) {
-      const jaws = Array.isArray(table.userData?.cushionSegments)
-        ? table.userData.cushionSegments.filter((segment) => segment?.type === 'jaw')
-        : [];
-      const nextSegments = [...segments, ...jaws];
-      table.userData.cushionSegments = nextSegments;
-      CUSHION_SEGMENTS = nextSegments;
-      table.userData.openSourcePhysics = { source: 'glb-cushion-bounds', segmentCount: segments.length };
-      return true;
-    }
-    table.userData.openSourcePhysics = { source: 'procedural-fallback', segmentCount: 0 };
-    return false;
-  };
-
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
-    const clothUvBounds = resolveOpenSourceClothUvBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
     const targetHeight = Math.max(targetTopY - FLOOR_Y, targetSize.y, MICRO_EPS);
+    setProceduralTableMeshesVisible(false);
     const loader = createConfiguredGLTFLoader(renderer);
     loader
       .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
@@ -10816,9 +10752,7 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
-        remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
-        applyOpenSourceCushionPhysicsFromModel(model);
-        setProceduralTableMeshesVisible(false);
+        remapOpenSourceClothTextureCoordinates(model, targetBounds);
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
@@ -10826,10 +10760,8 @@ function Table3D(
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
           fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
-          preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           preservesOriginalTableBase: true,
-          usesGlbCushionShapes: true,
-          clothUvMappedToDefaultPlayfield: true
+          usesGlbCushionShapes: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
@@ -10837,8 +10769,7 @@ function Table3D(
         table.userData.openSourceVisualTargetBounds = targetBounds;
       })
       .catch((error) => {
-        setProceduralTableMeshesVisible(true);
-        console.warn('Failed to load Pooltool snooker_generic table model; using procedural snooker table fallback', error);
+        console.warn('Failed to load Pooltool snooker_generic table model', error);
       });
   };
 
@@ -11253,6 +11184,8 @@ function Table3D(
   parent.add(table);
   if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
     applyOpenSourceTableVisualOverride();
+  } else {
+    applyPooltoolTableVisualOverride();
   }
 
   const baulkZ = baulkLineZ;
@@ -26476,9 +26409,9 @@ const powerRef = useRef(hud.power);
             const sideX = forwardZ;
             const sideZ = -forwardX;
             humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * 2.35) - sideX * (SCALE * 0.35),
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
               0,
-              cueStick.position.z - forwardZ * (SCALE * 2.35) - sideZ * (SCALE * 0.35)
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
             );
             humanActor.rotation.y = yaw;
           }
