@@ -2694,6 +2694,16 @@ const createStandardWoodFinish = ({
   }
 });
 
+const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
+  wood_peeling_paint_weathered: 0.8,
+  oak_veneer_01: 1.8,
+  wood_table_001: 1.5,
+  dark_wood: 2,
+  rosewood_veneer_01: 2.4
+});
+const LT_TABLE_WOOD_TEXTURE_ID = 'rosewood_veneer_01';
+const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01;
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2702,7 +2712,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0xa89f95,
     trim: 0xd6d0c7,
     woodTextureId: 'wood_peeling_paint_weathered',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.wood_peeling_paint_weathered
   }),
   oakVeneer01: createStandardWoodFinish({
     id: 'oakVeneer01',
@@ -2711,7 +2721,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0xb9854e,
     trim: 0xe0bb7a,
     woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.oak_veneer_01
   }),
   woodTable001: createStandardWoodFinish({
     id: 'woodTable001',
@@ -2720,7 +2730,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x8f6243,
     trim: 0xc89a64,
     woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.wood_table_001
   }),
   darkWood: createStandardWoodFinish({
     id: 'darkWood',
@@ -2729,7 +2739,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x2f241f,
     trim: 0x6a5a52,
     woodTextureId: 'dark_wood',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.dark_wood
   }),
   rosewoodVeneer01: createStandardWoodFinish({
     id: 'rosewoodVeneer01',
@@ -2738,7 +2748,142 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x5b2f26,
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01
+  }),
+  carbonFiberChalk: createStandardWoodFinish({
+    id: 'carbonFiberChalk',
+    label: 'LT Black',
+    rail: 0x2a313d,
+    base: 0x2a313d,
+    trim: 0x2a313d,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkGrey: createStandardWoodFinish({
+    id: 'carbonFiberChalkGrey',
+    label: 'LT Grey',
+    rail: 0xc8d0da,
+    base: 0xc8d0da,
+    trim: 0xc8d0da,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkBeige: createStandardWoodFinish({
+    id: 'carbonFiberChalkBeige',
+    label: 'LT Dark Grey',
+    rail: 0x727d8b,
+    base: 0x727d8b,
+    trim: 0x727d8b,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkDarkBlue: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBlue',
+    label: 'LT Burgundy',
+    rail: 0xc17276,
+    base: 0xc17276,
+    trim: 0xc17276,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkWhite: createStandardWoodFinish({
+    id: 'carbonFiberChalkWhite',
+    label: 'LT Milk Cream',
+    rail: 0xf8eedf,
+    base: 0xf8eedf,
+    trim: 0xf8eedf,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkDarkGreen: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkGreen',
+    label: 'LT Dark Green',
+    rail: 0x548460,
+    base: 0x548460,
+    trim: 0x548460,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkDarkYellow: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkYellow',
+    label: 'LT Dark Yellow',
+    rail: 0xd1a652,
+    base: 0xd1a652,
+    trim: 0xd1a652,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkDarkBrown: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBrown',
+    label: 'LT Dark Brown',
+    rail: 0x956b4f,
+    base: 0x956b4f,
+    trim: 0x956b4f,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberChalkDarkRed: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkRed',
+    label: 'LT Dark Red',
+    rail: 0xaa5151,
+    base: 0xaa5151,
+    trim: 0xaa5151,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorOlive: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorOlive',
+    label: 'LT Olive Alligator',
+    rail: 0x556b3f,
+    base: 0x556b3f,
+    trim: 0x556b3f,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorSwamp: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorSwamp',
+    label: 'LT Swamp Alligator',
+    rail: 0x3f5a3c,
+    base: 0x3f5a3c,
+    trim: 0x3f5a3c,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorClay: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorClay',
+    label: 'LT Clay Alligator',
+    rail: 0x6f5b45,
+    base: 0x6f5b45,
+    trim: 0x6f5b45,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorSand: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorSand',
+    label: 'LT Sand Alligator',
+    rail: 0x8a7b5e,
+    base: 0x8a7b5e,
+    trim: 0x8a7b5e,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorMoss: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorMoss',
+    label: 'LT Moss Alligator',
+    rail: 0x4f6048,
+    base: 0x4f6048,
+    trim: 0x4f6048,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
+  }),
+  carbonFiberAlligatorNight: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorNight',
+    label: 'LT Night Alligator',
+    rail: 0x2f3c32,
+    base: 0x2f3c32,
+    trim: 0x2f3c32,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE
   })
 });
 
@@ -2748,7 +2893,22 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.carbonFiberChalk,
+    TABLE_FINISHES.carbonFiberChalkGrey,
+    TABLE_FINISHES.carbonFiberChalkBeige,
+    TABLE_FINISHES.carbonFiberChalkDarkBlue,
+    TABLE_FINISHES.carbonFiberChalkWhite,
+    TABLE_FINISHES.carbonFiberChalkDarkGreen,
+    TABLE_FINISHES.carbonFiberChalkDarkYellow,
+    TABLE_FINISHES.carbonFiberChalkDarkBrown,
+    TABLE_FINISHES.carbonFiberChalkDarkRed,
+    TABLE_FINISHES.carbonFiberAlligatorOlive,
+    TABLE_FINISHES.carbonFiberAlligatorSwamp,
+    TABLE_FINISHES.carbonFiberAlligatorClay,
+    TABLE_FINISHES.carbonFiberAlligatorSand,
+    TABLE_FINISHES.carbonFiberAlligatorMoss,
+    TABLE_FINISHES.carbonFiberAlligatorNight
   ].filter(Boolean)
 );
 
@@ -10488,58 +10648,6 @@ function Table3D(
     return builder;
   };
 
-  const applyPooltoolTableVisualOverride = () => {
-    const loader = createConfiguredGLTFLoader(renderer);
-    loader
-      .loadAsync(POOLTOOL_SNOOKER_TABLE_URL)
-      .then((gltf) => {
-        const model = gltf?.scene || gltf?.scenes?.[0];
-        if (!model) return;
-
-        const tableBounds = new THREE.Box3().setFromObject(table);
-        const targetSize = tableBounds.getSize(new THREE.Vector3());
-        const targetCenter = tableBounds.getCenter(new THREE.Vector3());
-
-        const modelBounds = new THREE.Box3().setFromObject(model);
-        const modelSize = modelBounds.getSize(new THREE.Vector3());
-        const scaleX = modelSize.x > MICRO_EPS ? targetSize.x / modelSize.x : 1;
-        const scaleZ = modelSize.z > MICRO_EPS ? targetSize.z / modelSize.z : 1;
-        const uniformScale = Math.min(scaleX, scaleZ);
-        if (Number.isFinite(uniformScale) && uniformScale > 0) {
-          model.scale.setScalar(uniformScale);
-        }
-
-        model.updateMatrixWorld(true);
-        const scaledBounds = new THREE.Box3().setFromObject(model);
-        const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
-        model.position.set(
-          targetCenter.x - scaledCenter.x,
-          tableBounds.min.y - scaledBounds.min.y,
-          targetCenter.z - scaledCenter.z
-        );
-        model.updateMatrixWorld(true);
-
-        table.traverse((child) => {
-          if (!child?.isMesh) return;
-          if (child.userData?.__basePart) return;
-          child.visible = false;
-        });
-
-        model.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-          child.renderOrder = 2;
-        });
-
-        table.add(model);
-        table.userData.visualOverrideModel = model;
-      })
-      .catch((error) => {
-        console.warn('Snooker Royal failed to load Pooltool table override; using procedural table.', error);
-      });
-  };
-
   const isOpenSourceHardwareKeepMesh = (mesh) => Boolean(mesh?.userData?.isPocketDropHardware);
 
   const setProceduralTableMeshesVisible = (visible) => {
@@ -10708,6 +10816,35 @@ function Table3D(
     });
   };
 
+
+  const resolveOpenSourceGameplayMapping = (model, targetBounds) => {
+    const mapping = {
+      source: 'pooltool-snooker-generic-glb',
+      hasEmbeddedPhysics: false,
+      usesProceduralFallbackPhysics: true,
+      clothBounds: null,
+      cushionBounds: [],
+      pocketBounds: [],
+      targetBounds: targetBounds?.clone?.() ?? null
+    };
+    if (!model) return mapping;
+    model.updateMatrixWorld(true);
+    model.traverse((node) => {
+      if (!node?.isMesh) return;
+      const role = node.userData?.openSourceMaterialRole || resolveOpenSourceMaterialRole(node, node.material);
+      const box = new THREE.Box3().setFromObject(node);
+      if (box.isEmpty()) return;
+      if (role === 'cloth') {
+        mapping.clothBounds = mapping.clothBounds ? mapping.clothBounds.union(box) : box.clone();
+      } else if (role === 'cushion') {
+        mapping.cushionBounds.push(box.clone());
+      } else if (role === 'pocket') {
+        mapping.pocketBounds.push(box.clone());
+      }
+    });
+    return mapping;
+  };
+
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
@@ -10720,7 +10857,11 @@ function Table3D(
       .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
       .then((gltf) => {
         const model = gltf?.scene || gltf?.scenes?.[0];
-        if (!model) return;
+        if (!model) {
+          setProceduralTableMeshesVisible(true);
+          table.userData.openSourceVisualLoadFailed = true;
+          return;
+        }
 
         model.updateMatrixWorld(true);
         const fullSourceBounds = new THREE.Box3().setFromObject(model);
@@ -10753,6 +10894,7 @@ function Table3D(
 
         applyDefaultTableFinishToOpenSourceModel(model);
         remapOpenSourceClothTextureCoordinates(model, targetBounds);
+        const sourceGameplayMapping = resolveOpenSourceGameplayMapping(model, targetBounds);
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
@@ -10761,15 +10903,19 @@ function Table3D(
           fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
           preservesOriginalTableBase: true,
-          usesGlbCushionShapes: true
+          usesGlbCushionShapes: true,
+          sourceGameplayMapping
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
         table.userData.openSourceVisualFit = fit;
         table.userData.openSourceVisualTargetBounds = targetBounds;
+        table.userData.openSourceGameplayMapping = sourceGameplayMapping;
       })
       .catch((error) => {
-        console.warn('Failed to load Pooltool snooker_generic table model', error);
+        setProceduralTableMeshesVisible(true);
+        table.userData.openSourceVisualLoadFailed = true;
+        console.warn('Failed to load Pooltool snooker_generic table model; restored procedural fallback table.', error);
       });
   };
 
@@ -11185,7 +11331,7 @@ function Table3D(
   if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
     applyOpenSourceTableVisualOverride();
   } else {
-    applyPooltoolTableVisualOverride();
+    table.userData.visualModel = 'proceduralFallback';
   }
 
   const baulkZ = baulkLineZ;
@@ -11529,6 +11675,8 @@ function applyTableFinishToTable(table, finish) {
     }
     mat.needsUpdate = true;
   });
+
+
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
@@ -11545,6 +11693,38 @@ function applyTableFinishToTable(table, finish) {
     accent: accentConfig
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
+  const openSourceVisual = table.userData?.openSourceVisual;
+  if (openSourceVisual) {
+    openSourceVisual.traverse((node) => {
+      if (!node?.isMesh || !node.userData?.isOpenSourceVisual) return;
+      const role = node.userData.openSourceMaterialRole || 'frame';
+      const sourceByRole = {
+        cloth: finishInfo.clothMat,
+        cushion: finishInfo.cushionMat,
+        rail: finishInfo.materials.rail || finishInfo.materials.frame,
+        frame: finishInfo.materials.frame || finishInfo.materials.rail,
+        leg: finishInfo.materials.leg || finishInfo.materials.frame || finishInfo.materials.rail,
+        trim: finishInfo.materials.trim || finishInfo.materials.pocketRim,
+        pocket: finishInfo.materials.pocketJaw || finishInfo.materials.pocketRim,
+        pocketRim: finishInfo.materials.pocketRim || finishInfo.materials.trim
+      };
+      const sourceMaterial = sourceByRole[role] || sourceByRole.frame;
+      if (!sourceMaterial?.clone) return;
+      const currentMaterials = Array.isArray(node.material) ? node.material : [node.material];
+      const nextMaterials = currentMaterials.map((current) => {
+        const next = sourceMaterial.clone();
+        next.name = `${current?.name || role || 'snooker-glb'}-${resolvedFinish.id}`;
+        next.side = current?.side ?? next.side;
+        next.transparent = current?.transparent || next.transparent;
+        next.opacity = current?.opacity ?? next.opacity;
+        next.alphaTest = current?.alphaTest ?? next.alphaTest;
+        next.needsUpdate = true;
+        return next;
+      });
+      node.material = Array.isArray(node.material) ? nextMaterials : nextMaterials[0] ?? node.material;
+    });
+  }
+
 }
 
 // --------------------------------------------------
@@ -26408,10 +26588,16 @@ const powerRef = useRef(hud.power);
             const forwardZ = Math.cos(yaw - Math.PI);
             const sideX = forwardZ;
             const sideZ = -forwardX;
+            // Anchor the player to the cue butt instead of the cue group center so, on portrait
+            // mobile, the hands/body stay close to the bottom end of the cue at the table edge.
+            const actorBackOffset = SCALE * 1.05;
+            const actorSideOffset = SCALE * 0.28;
+            const buttX = Number.isFinite(TMP_VEC3_BUTT.x) ? TMP_VEC3_BUTT.x : cueStick.position.x;
+            const buttZ = Number.isFinite(TMP_VEC3_BUTT.z) ? TMP_VEC3_BUTT.z : cueStick.position.z;
             humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              buttX - forwardX * actorBackOffset - sideX * actorSideOffset,
               0,
-              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
+              buttZ - forwardZ * actorBackOffset - sideZ * actorSideOffset
             );
             humanActor.rotation.y = yaw;
           }
