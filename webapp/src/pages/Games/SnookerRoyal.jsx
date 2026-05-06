@@ -24,11 +24,6 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
-import {
-  createSnookerHumanRig,
-  chooseHumanEdgePosition,
-  updateBilardoHumanPose
-} from './shared/snookerHumanRig.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -10602,31 +10597,6 @@ function Table3D(
     });
   };
 
-  const removeOpenSourceProceduralClothAndCushions = () => {
-    if (keepProceduralRailDecor) return;
-    const roots = [
-      cloth,
-      table.userData?.markings?.group,
-      ...(table.userData?.cushions || [])
-    ].filter(Boolean);
-    roots.forEach((root) => {
-      root.traverse?.((child) => {
-        if (child?.isMesh && !child.userData?.isOpenSourceVisual) {
-          child.visible = false;
-          child.castShadow = false;
-          child.receiveShadow = false;
-        }
-      });
-      if (root?.isMesh && !root.userData?.isOpenSourceVisual) {
-        root.visible = false;
-        root.castShadow = false;
-        root.receiveShadow = false;
-      }
-      root.parent?.remove?.(root);
-    });
-    table.userData.proceduralClothAndCushionsRemovedForOpenSourceGlb = true;
-  };
-
   const removeOpenSourceProceduralRailDecor = () => {
     if (keepProceduralRailDecor) return;
     const parts = finishInfo?.parts || finishParts || {};
@@ -10957,7 +10927,6 @@ function Table3D(
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
-        removeOpenSourceProceduralClothAndCushions();
         removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
         model.name = 'pooltool-snooker-generic-table';
@@ -21044,42 +21013,40 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
+      const humanActor = new THREE.Group();
+      const humanModelRoot = new THREE.Group();
+      humanActor.add(humanModelRoot);
+      humanActor.visible = false;
+      table.add(humanActor);
       const humanLoader = new GLTFLoader();
       humanLoader.setCrossOrigin('anonymous');
-      const humanActor = createSnookerHumanRig(table, {
-        loader: humanLoader,
-        modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-        unit: SCALE,
-        humanScale: SCALE * 1.26,
-        tableTopY: CUE_Y,
-        footGroundY: 0.035 * SCALE,
-        bridgePalmTableLift: 0.006 * SCALE,
-        bridgeCueLift: 0.018 * SCALE,
-        bridgeHandBackFromBall: 0.235 * SCALE,
-        bridgeHandSide: -0.012 * SCALE,
-        chinToCueHeight: 0.11 * SCALE,
-        stanceWidth: 0.52 * SCALE,
-        edgeMargin: 0.68 * SCALE,
-        desiredShootDistance: 1.25 * SCALE,
-        kneeBendShot: 0.16 * SCALE,
-        rightElbowShotRise: 0.18 * SCALE,
-        rightElbowShotSide: -0.46 * SCALE,
-        rightElbowShotBack: -0.78 * SCALE,
-        rightForearmOutward: 0.36 * SCALE,
-        rightForearmBack: 0.44 * SCALE,
-        rightForearmDown: 0.48 * SCALE,
-        rightForearmLength: 0.34 * SCALE,
-        rightStrokePull: 0.30 * SCALE,
-        rightStrokePush: 0.24 * SCALE,
-        rightHandShotLift: -0.30 * SCALE,
-        shootCueGripFromBack: 0.58 * SCALE,
-        idleRightHandY: 0.8 * SCALE,
-        idleRightHandX: 0.31 * SCALE,
-        idleRightHandZ: -0.015 * SCALE,
-        idleCueGripFromBack: 0.24 * SCALE,
-        idleCueDir: new THREE.Vector3(0.055, 0.965, -0.13),
-        rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(SCALE)
-      });
+      humanLoader.load(
+        'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+        (gltf) => {
+          const model = gltf?.scene;
+          if (!model) return;
+          model.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          });
+          const scaleFactor = SCALE * 1.18;
+          model.scale.setScalar(scaleFactor);
+          model.rotation.set(0, Math.PI, 0);
+          model.position.set(0, 0, 0);
+          model.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.set(-center.x, -box.min.y, -center.z);
+          humanModelRoot.add(model);
+          humanActor.visible = true;
+        },
+        undefined,
+        () => {
+          humanActor.visible = false;
+        }
+      );
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -26616,57 +26583,18 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
-          if (humanActor && cueStick) {
-            TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
-            TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-            const cueTipPose = cueStick.position.clone().add(TMP_VEC3_CUE_TIP_OFFSET);
-            const cueBackPose = cueStick.position.clone().add(TMP_VEC3_CUE_BUTT_OFFSET);
-            const shotDir = cueTipPose.clone().sub(cueBackPose);
-            shotDir.y = 0;
-            if (shotDir.lengthSq() < 1e-8) {
-              const aimFallback = aimDirRef.current;
-              shotDir.set(aimFallback.x || 0, 0, aimFallback.y || 1);
-            }
-            shotDir.normalize();
-            const sideDir = new THREE.Vector3(shotDir.z, 0, -shotDir.x).normalize();
-            const cueBallWorld = cue?.pos
-              ? new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y)
-              : cueTipPose.clone().addScaledVector(shotDir, CUE_TIP_GAP);
-            const humanRootTarget = chooseHumanEdgePosition(cueBallWorld, shotDir, {
-              tableW: PLAY_W,
-              tableL: PLAY_H,
-              edgeMargin: 0.68 * SCALE,
-              desiredShootDistance: 1.25 * SCALE
-            });
-            const bridgeTarget = cueBallWorld
-              .clone()
-              .addScaledVector(shotDir, -0.235 * SCALE)
-              .addScaledVector(sideDir, -0.012 * SCALE)
-              .setY(CUE_Y);
-            const standingYaw = Math.atan2(-shotDir.x, -shotDir.z);
-            const humanUpAxis = new THREE.Vector3(0, 1, 0);
-            const idleRight = humanRootTarget
-              .clone()
-              .add(new THREE.Vector3(0.31 * SCALE, 0.8 * SCALE, -0.015 * SCALE).applyAxisAngle(humanUpAxis, standingYaw));
-            const idleLeft = humanRootTarget
-              .clone()
-              .add(new THREE.Vector3(-0.18 * SCALE, 1.08 * SCALE, 0.03 * SCALE).applyAxisAngle(humanUpAxis, standingYaw));
-            const humanState = shooting || cueAnimating
-              ? 'striking'
-              : sliderInstanceRef.current?.dragging
-                ? 'dragging'
-                : 'idle';
-            updateBilardoHumanPose(humanActor, deltaSeconds, {
-              state: humanState,
-              rootTarget: humanRootTarget,
-              aimForward: shotDir,
-              bridgeTarget,
-              idleRight,
-              idleLeft,
-              cueBack: cueBackPose,
-              cueTip: cueTipPose,
-              power: THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
-            });
+          if (humanActor.visible && cueStick) {
+            const yaw = cueStick.rotation.y;
+            const forwardX = Math.sin(yaw - Math.PI);
+            const forwardZ = Math.cos(yaw - Math.PI);
+            const sideX = forwardZ;
+            const sideZ = -forwardX;
+            humanActor.position.set(
+              cueStick.position.x - forwardX * (SCALE * 2.35) - sideX * (SCALE * 0.35),
+              0,
+              cueStick.position.z - forwardZ * (SCALE * 2.35) - sideZ * (SCALE * 0.35)
+            );
+            humanActor.rotation.y = yaw;
           }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
