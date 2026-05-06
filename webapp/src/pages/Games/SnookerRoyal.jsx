@@ -24,6 +24,11 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
+import {
+  createSnookerHumanRig,
+  chooseHumanEdgePosition as chooseSnookerHumanEdgePosition,
+  updateBilardoHumanPose as updateSnookerHumanPose
+} from './shared/snookerHumanRig.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -10601,6 +10606,8 @@ function Table3D(
     if (keepProceduralRailDecor) return;
     const parts = finishInfo?.parts || finishParts || {};
     const meshesToRemove = new Set([
+      cloth,
+      ...(table.userData?.cushions || []),
       ...(parts.frameMeshes || []),
       ...(parts.railMeshes || []),
       ...(parts.trimMeshes || []),
@@ -10620,6 +10627,11 @@ function Table3D(
     });
 
     table.userData.pocketJawSegments = [];
+    table.userData.proceduralOpenSourceExtrasRemoved = {
+      cloth: true,
+      cushions: table.userData?.cushions?.length || 0,
+      railDecor: true
+    };
   };
 
   const resolveOpenSourceClothUvBounds = () => {
@@ -21013,40 +21025,44 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      const humanActor = new THREE.Group();
-      const humanModelRoot = new THREE.Group();
-      humanActor.add(humanModelRoot);
-      humanActor.visible = false;
-      table.add(humanActor);
       const humanLoader = new GLTFLoader();
-      humanLoader.setCrossOrigin('anonymous');
-      humanLoader.load(
-        'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-        (gltf) => {
-          const model = gltf?.scene;
-          if (!model) return;
-          model.traverse((obj) => {
-            if (!obj?.isMesh) return;
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            obj.frustumCulled = false;
-          });
-          const scaleFactor = SCALE * 1.18;
-          model.scale.setScalar(scaleFactor);
-          model.rotation.set(0, Math.PI, 0);
-          model.position.set(0, 0, 0);
-          model.updateMatrixWorld(true);
-          const box = new THREE.Box3().setFromObject(model);
-          const center = box.getCenter(new THREE.Vector3());
-          model.position.set(-center.x, -box.min.y, -center.z);
-          humanModelRoot.add(model);
-          humanActor.visible = true;
-        },
-        undefined,
-        () => {
-          humanActor.visible = false;
-        }
-      );
+      const humanUnitScale = SCALE;
+      const human = createSnookerHumanRig(table, {
+        loader: humanLoader,
+        modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+        unit: humanUnitScale,
+        humanScale: 1.26 * humanUnitScale,
+        tableTopY: CUE_Y,
+        tableW: PLAY_W,
+        tableL: PLAY_H,
+        edgeMargin: 0.68 * humanUnitScale,
+        desiredShootDistance: 1.25 * humanUnitScale,
+        stanceWidth: 0.52 * humanUnitScale,
+        bridgePalmTableLift: 0.006 * humanUnitScale,
+        bridgeCueLift: 0.018 * humanUnitScale,
+        bridgeHandBackFromBall: 0.235 * humanUnitScale,
+        bridgeHandSide: -0.012 * humanUnitScale,
+        chinToCueHeight: 0.11 * humanUnitScale,
+        footGroundY: 0.035 * humanUnitScale,
+        kneeBendShot: 0.16 * humanUnitScale,
+        rightElbowShotRise: 0.18 * humanUnitScale,
+        rightElbowShotSide: -0.46 * humanUnitScale,
+        rightElbowShotBack: -0.78 * humanUnitScale,
+        rightForearmOutward: 0.36 * humanUnitScale,
+        rightForearmBack: 0.44 * humanUnitScale,
+        rightForearmDown: 0.48 * humanUnitScale,
+        rightForearmLength: 0.34 * humanUnitScale,
+        rightStrokePull: 0.30 * humanUnitScale,
+        rightStrokePush: 0.24 * humanUnitScale,
+        rightHandShotLift: -0.30 * humanUnitScale,
+        shootCueGripFromBack: 0.58 * humanUnitScale,
+        idleRightHandY: 0.8 * humanUnitScale,
+        idleRightHandX: 0.31 * humanUnitScale,
+        idleRightHandZ: -0.015 * humanUnitScale,
+        idleCueGripFromBack: 0.24 * humanUnitScale,
+        rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(humanUnitScale)
+      });
+      let lastHumanPoseTime = performance.now();
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -26583,18 +26599,98 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
-          if (humanActor.visible && cueStick) {
-            const yaw = cueStick.rotation.y;
-            const forwardX = Math.sin(yaw - Math.PI);
-            const forwardZ = Math.cos(yaw - Math.PI);
-            const sideX = forwardZ;
-            const sideZ = -forwardX;
-            humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * 2.35) - sideX * (SCALE * 0.35),
-              0,
-              cueStick.position.z - forwardZ * (SCALE * 2.35) - sideZ * (SCALE * 0.35)
-            );
-            humanActor.rotation.y = yaw;
+          if (human && cue?.active) {
+            const nowHumanPose = performance.now();
+            const humanDt = Math.min(0.033, Math.max(0, (nowHumanPose - lastHumanPoseTime) / 1000));
+            lastHumanPoseTime = nowHumanPose;
+            const humanState = sliderInstanceRef.current?.dragging
+              ? 'dragging'
+              : shooting
+                ? 'striking'
+                : canShowCue && cueStick?.visible
+                  ? 'dragging'
+                  : 'idle';
+            const activePower = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
+            const cueBallWorld = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+            const aimForward = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+            if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
+            else aimForward.normalize();
+            const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            const rootTarget = chooseSnookerHumanEdgePosition(cueBallWorld, aimForward, {
+              tableW: PLAY_W,
+              tableL: PLAY_H,
+              edgeMargin: 0.68 * humanUnitScale,
+              desiredShootDistance: 1.25 * humanUnitScale
+            });
+            const pull = 0.42 * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
+            const practiceStroke = humanState === 'dragging'
+              ? Math.sin(nowHumanPose * 0.012) * 0.035 * humanUnitScale * (0.25 + activePower * 0.75)
+              : 0;
+            const strikeNorm = THREE.MathUtils.clamp((nowHumanPose - shotStartedAt) / 120, 0, 1);
+            let gap = 0.012 * humanUnitScale;
+            if (humanState === 'dragging') gap += pull + practiceStroke;
+            if (humanState === 'striking') {
+              gap = THREE.MathUtils.lerp(
+                0.012 * humanUnitScale + pull,
+                0.0012 * humanUnitScale,
+                1 - Math.pow(1 - strikeNorm, 3)
+              );
+            }
+            const bridgeTarget = cueBallWorld
+              .clone()
+              .addScaledVector(aimForward, -0.235 * humanUnitScale)
+              .addScaledVector(aimSide, -0.012 * humanUnitScale)
+              .setY(CUE_Y + 0.006 * humanUnitScale);
+            const bridgeCuePoint = bridgeTarget
+              .clone()
+              .addScaledVector(aimForward, 0.014 * humanUnitScale)
+              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
+            const cueTipShoot = cueBallWorld
+              .clone()
+              .addScaledVector(aimForward, -(BALL_R + gap));
+            const cueBackShoot = bridgeCuePoint
+              .clone()
+              .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - gap))
+              .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
+            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
+            const idleRight = rootTarget
+              .clone()
+              .add(new THREE.Vector3(0.31, 0.8, -0.015).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const idleLeft = rootTarget
+              .clone()
+              .add(new THREE.Vector3(-0.18, 1.08, 0.03).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
+              .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
+              .normalize();
+            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
+            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
+            const activeCueBack = humanState === 'idle' ? idleCueBack : cueBackShoot;
+            const activeCueTip = humanState === 'idle' ? idleCueTip : cueTipShoot;
+            const cueDirForGrip = activeCueTip.clone().sub(activeCueBack).normalize();
+            if (cueStick) {
+              cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), cueDirForGrip);
+              cueStick.position.copy(activeCueBack).add(activeCueTip).multiplyScalar(0.5);
+              cueStick.visible = true;
+              cueAnimating = true;
+              if (tipGroupRef.current) {
+                tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+              }
+            }
+            const gripTarget = humanState === 'idle'
+              ? idleRight
+              : activeCueBack.clone().addScaledVector(cueDirForGrip, 0.58 * humanUnitScale);
+            updateSnookerHumanPose(human, humanDt, {
+              state: humanState,
+              rootTarget,
+              aimForward,
+              bridgeTarget,
+              gripTarget,
+              idleRight,
+              idleLeft,
+              cueBack: activeCueBack,
+              cueTip: activeCueTip,
+              power: activePower
+            });
           }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
