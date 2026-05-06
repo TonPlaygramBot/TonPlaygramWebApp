@@ -102,8 +102,12 @@ type ReplayFrame = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/Soldier.glb";
-const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.modelUrls?.[0] ?? theme.url).filter(Boolean);
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
+const SOLDIER_FORWARD_YAW = Math.PI;
+const SPECTATOR_SCALE = 0.72;
+const SPECTATOR_SEAT_FILL_RATIO = 0.46;
+const MAX_SEATED_SPECTATORS = 34;
+const NEXT_KICK_RESET_DELAY = 0.38;
 const CAMERA_YAW_STEP = 0.22;
 const CAMERA_YAW_LIMIT = 0.7;
 const GOAL_RUSH_SOUNDS = {
@@ -149,7 +153,7 @@ function shuffledCharacterColors() {
 }
 
 function shuffledCharacterUrls() {
-  const urls = [...new Set(MURLAN_CHARACTER_URLS.length ? MURLAN_CHARACTER_URLS : [HUMAN_URL])];
+  const urls = [HUMAN_URL];
   for (let i = urls.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [urls[i], urls[j]] = [urls[j], urls[i]];
@@ -245,7 +249,7 @@ function findBones(model: THREE.Object3D): Bones {
 }
 
 function normalizeHuman(model: THREE.Object3D, height = PLAYER_H) {
-  model.rotation.y = Math.PI;
+  model.rotation.y = SOLDIER_FORWARD_YAW;
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
@@ -380,6 +384,71 @@ function createActor(scene: THREE.Scene, loader: GLTFLoader, kind: ActorKind, po
   });
 
   return actor;
+}
+
+
+function makeSeatedSpectatorFallback(kitColor: number) {
+  const group = new THREE.Group();
+  const kit = material(kitColor, 0.76, 0.02);
+  const skin = material(0xf1d6bd, 0.68, 0.02);
+  const dark = material(0x111827, 0.72, 0.04);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.44, 8, 12), kit);
+  torso.position.set(0, 0.72, 0.03);
+  torso.rotation.x = -0.14;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 10), skin);
+  head.position.set(0, 1.08, 0.0);
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.34, 6, 8), kit);
+  leftArm.position.set(-0.18, 0.67, 0.08);
+  leftArm.rotation.x = -0.75;
+  const rightArm = leftArm.clone();
+  rightArm.position.x = 0.18;
+  const leftThigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.34, 6, 8), dark);
+  leftThigh.position.set(-0.07, 0.42, 0.16);
+  leftThigh.rotation.x = Math.PI / 2;
+  const rightThigh = leftThigh.clone();
+  rightThigh.position.x = 0.07;
+  const leftShin = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.35, 6, 8), dark);
+  leftShin.position.set(-0.07, 0.2, 0.3);
+  leftShin.rotation.x = 0.1;
+  const rightShin = leftShin.clone();
+  rightShin.position.x = 0.07;
+  group.add(shadow(torso), shadow(head), shadow(leftArm), shadow(rightArm), shadow(leftThigh), shadow(rightThigh), shadow(leftShin), shadow(rightShin));
+  return group;
+}
+
+function createSeatedSpectator(scene: THREE.Scene, pos: THREE.Vector3, dir: THREE.Vector3, index: number, kitColor: number): Actor {
+  const root = new THREE.Group();
+  root.position.copy(pos);
+  root.rotation.y = Math.atan2(dir.x, dir.z);
+  root.scale.setScalar(SPECTATOR_SCALE);
+  const fallback = makeSeatedSpectatorFallback(kitColor);
+  root.add(fallback);
+  scene.add(root);
+  return {
+    kind: "wall",
+    root,
+    model: null,
+    fallback,
+    mixer: null,
+    actions: {},
+    current: "Idle",
+    bones: {},
+    pos: pos.clone(),
+    vel: new THREE.Vector3(),
+    dir: dir.clone(),
+    speed: 0,
+    kickTime: 0,
+    jumpTime: 0,
+    diveTime: 0,
+    diveDelay: 0,
+    diveDir: 0,
+    diveHeight: 1.15,
+    saveTargetX: 0,
+    saveTargetY: 1.15,
+    wallIndex: index,
+    loaded: true,
+    celebrateTime: 0,
+  };
 }
 
 function setAction(actor: Actor, next: AnimName) {
@@ -746,12 +815,12 @@ function makeBillboardsAndStands(scene: THREE.Scene, loader: GLTFLoader): Stadiu
       chair.rotation.y = 0;
       stands.add(chair);
 
-      if (characterIndex < MURLAN_CHARACTER_THEMES.length) {
+      const shouldSeatSpectator = ((row * 29 + col * 17) % 100) < SPECTATOR_SEAT_FILL_RATIO * 100;
+      if (shouldSeatSpectator && characterIndex < MAX_SEATED_SPECTATORS) {
         const kit = MURLAN_CHARACTER_COLORS[characterIndex % MURLAN_CHARACTER_COLORS.length];
-        const spectator = createActor(scene, loader, "wall", new THREE.Vector3(x, y + stands.position.y + 0.04, z + 0.08), characterIndex, kit, MURLAN_CHARACTER_URLS[characterIndex % Math.max(1, MURLAN_CHARACTER_URLS.length)] ?? HUMAN_URL);
-        spectator.dir.set(-x * 0.08, 0, 1).normalize();
-        spectator.wallIndex = characterIndex;
-        spectator.root.scale.setScalar(0.68);
+        const seatWorld = new THREE.Vector3(x, y + 0.08, z + 0.16);
+        const seatDir = new THREE.Vector3(-x * 0.08, 0, 1).normalize();
+        const spectator = createSeatedSpectator(scene, seatWorld, seatDir, characterIndex, kit);
         spectators.push(spectator);
         characterIndex += 1;
       }
@@ -809,7 +878,7 @@ function makeHalfField(scene: THREE.Scene, netRig: NetRig, loader: GLTFLoader): 
 
 function makeAimLine(scene: THREE.Scene) { const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(34 * 3), 3)); const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xfff200, transparent: true, opacity: 0.95 })); scene.add(line); return line; }
 function shotPoint(start: THREE.Vector3, target: THREE.Vector3, curve: number, lift: number, t: number) { const p = start.clone().lerp(target, t); p.x += curve * Math.sin(t * Math.PI); p.y = BALL_R + lift * Math.sin(t * Math.PI) + (target.y - BALL_R) * t; return p; }
-function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) { const dx = swipe.endX - swipe.startX; const dy = swipe.startY - swipe.endY; const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2); const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3); const target = new THREE.Vector3(targetX, targetY, GOAL_LINE_Z - 0.2); const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0); const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4); const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72); const distance = ballPos.distanceTo(target); const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34); return { target, curve, lift, power, duration }; }
+function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) { const dx = swipe.endX - swipe.startX; const dy = swipe.startY - swipe.endY; const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2); const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3); const target = new THREE.Vector3(targetX, targetY, GOAL_LINE_Z - GOAL_D + 0.36); const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0); const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4); const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72); const distance = ballPos.distanceTo(target); const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34); return { target, curve, lift, power, duration }; }
 function setAimCurve(line: THREE.Line, ballPos: THREE.Vector3, swipe: SwipeState) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; const shot = swipeToShot(ballPos, swipe); for (let i = 0; i < attr.count; i++) { const t = i / (attr.count - 1); const p = shotPoint(ballPos, shot.target, shot.curve, shot.lift, t); attr.setXYZ(i, p.x, p.y + 0.08, p.z); } attr.needsUpdate = true; line.geometry.computeBoundingSphere(); }
 function hideAimLine(line: THREE.Line) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; for (let i = 0; i < attr.count; i++) attr.setXYZ(i, 99, 99, 99); attr.needsUpdate = true; }
 function freeKickPosition(spot: KickSpot) { if (spot === "left") return new THREE.Vector3(-4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "right") return new THREE.Vector3(4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "near16") return new THREE.Vector3(0.7, BALL_R, GOAL_LINE_Z + 18.8); return new THREE.Vector3(0, BALL_R, GOAL_LINE_Z + 23.0); }
@@ -1051,7 +1120,7 @@ function reflectFromGoalFrame(ball: BallState) {
 function netCatchCheck(ball: BallState, netRig: NetRig) {
   if (!ball.flying || ball.netCaught || !ball.crossedGoalLine) return false;
   const p = ball.object.position;
-  const inGoalDepth = p.z <= GOAL_LINE_Z - GOAL_D + 0.2;
+  const inGoalDepth = p.z <= GOAL_LINE_Z - GOAL_D + 0.48;
   const stillInsideGoal = Math.abs(p.x) <= GOAL_W / 2 + 0.35 && p.y <= GOAL_H + 0.32;
   if (inGoalDepth && stillInsideGoal) {
     catchBallInNet(ball, netRig);
@@ -1174,7 +1243,7 @@ export default function FreeKickGame() {
           pendingDecision = "BLOCKED";
           audio.save();
           state = "result";
-          resultTimer = 0.6;
+          resultTimer = NEXT_KICK_RESET_DELAY;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "BLOCKED · next free kick" }));
         }
@@ -1185,7 +1254,7 @@ export default function FreeKickGame() {
           ball.flying = false;
           audio.save();
           state = "result";
-          resultTimer = 0.75;
+          resultTimer = NEXT_KICK_RESET_DELAY;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "SAVE · next free kick" }));
         }
@@ -1201,7 +1270,7 @@ export default function FreeKickGame() {
             setHud((h) => ({ ...h, state: "VAR CHECK: ball crossed line" }));
           } else {
             state = "result";
-            resultTimer = 0.7;
+            resultTimer = NEXT_KICK_RESET_DELAY;
             score.saves += 1;
             setHud((h) => ({ ...h, saves: score.saves, state: `${pendingDecision} · next free kick` }));
           }
