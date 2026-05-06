@@ -758,7 +758,9 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
-    gold: 'Gold'
+    gold: 'Gold',
+    'showood-chrome': 'Showood Chrome',
+    'showood-gold': 'Showood Gold'
   }),
   railMarkerColor: Object.freeze({
     chrome: 'Chrome',
@@ -985,6 +987,24 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 360,
     description: 'Polished chrome plates to swap in for the fascia set.',
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
+  },
+  {
+    id: 'chrome-showood-chrome',
+    type: 'chromeColor',
+    optionId: 'showood-chrome',
+    name: 'Showood Chrome Plates',
+    price: 420,
+    description: 'Slim rounded Showood-style chrome plates usable on either table model.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#aeb7c4', '#4b5563'])
+  },
+  {
+    id: 'chrome-showood-gold',
+    type: 'chromeColor',
+    optionId: 'showood-gold',
+    name: 'Showood Gold Plates',
+    price: 460,
+    description: 'Showood-style rounded gold pocket plates for native and Showood tables.',
+    thumbnail: swatchThumbnail(['#fff4c2', '#d4af37', '#6f5016'])
   },
   {
     id: 'railMarkers-pearl',
