@@ -9011,8 +9011,6 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
-  const usesShowoodTableModel = resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
-  const showoodSurfaceLift = usesShowoodTableModel ? TABLE.THICK * 0.18 : 0;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -9050,7 +9048,7 @@ export function Table3D(
   const halfH = PLAY_H / 2;
   const baulkLineZ = -PLAY_H / 2 + BAULK_FROM_BAULK;
   const frameTopY = FRAME_TOP_Y;
-  const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT + showoodSurfaceLift;
+  const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
   const clothSurfaceY = clothPlaneLocal - CLOTH_DROP;
 
   const resolvedFinish =
@@ -11339,19 +11337,6 @@ export function Table3D(
   const addPocketJaw = (config) => {
     const assembly = createPocketJawAssembly(config);
     if (!assembly) return;
-    if (usesExternalTableModel) {
-      assembly.group.userData = {
-        ...(assembly.group.userData || {}),
-        externalTableKeepVisible: true
-      };
-      [assembly.jawMesh, assembly.rimMesh].forEach((mesh) => {
-        if (!mesh) return;
-        mesh.userData = {
-          ...(mesh.userData || {}),
-          externalTableKeepVisible: true
-        };
-      });
-    }
     scalePocketJawUvs(assembly.jawMesh?.geometry);
     pocketJawGroup.add(assembly.group);
     finishParts.pocketJawMeshes.push(assembly.jawMesh);
@@ -12023,7 +12008,6 @@ export function Table3D(
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.11; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const CUSHION_FRONT_FIELD_EXPANSION = BALL_R * 0.5; // grow the exposed triangular faces toward the playfield without touching the rail side
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
-  const cushionVisualLift = showoodSurfaceLift;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
@@ -12213,29 +12197,16 @@ export function Table3D(
     const geo = cushionProfileAdvanced(len, horizontal, resolvedCutAngles);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    if (usesExternalTableModel) {
-      mesh.userData = {
-        ...(mesh.userData || {}),
-        externalTableKeepVisible: true
-      };
-    }
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
     const heightScale = Math.max(0.001, cushionScaleBase / orientationScale);
     mesh.scale.y = heightScale * orientationScale;
     mesh.renderOrder = 2;
     const group = new THREE.Group();
-    if (usesExternalTableModel) {
-      group.userData = {
-        ...(group.userData || {}),
-        externalTableKeepVisible: true
-      };
-    }
     group.add(mesh);
     group.position.set(
       x,
       cushionBaseY +
-        (horizontal ? SHORT_RAIL_CUSHION_VERTICAL_LIFT : LONG_RAIL_CUSHION_VERTICAL_LIFT) +
-        cushionVisualLift,
+        (horizontal ? SHORT_RAIL_CUSHION_VERTICAL_LIFT : LONG_RAIL_CUSHION_VERTICAL_LIFT),
       z
     );
     if (!horizontal) group.rotation.y = Math.PI / 2;
@@ -12273,7 +12244,7 @@ export function Table3D(
       stripe.receiveShadow = false;
       stripe.position.set(
         group.position.x,
-        cushionBaseY + gapStripeHeight / 2 + gapStripeLift + cushionVisualLift,
+        cushionBaseY + gapStripeHeight / 2 + gapStripeLift,
         group.position.z
       );
       if (!horizontal) {
