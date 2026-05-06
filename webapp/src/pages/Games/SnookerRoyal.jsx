@@ -16,7 +16,6 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { resolveSnookerTableModel, TABLE_MODEL_OPENSOURCE } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11311,6 +11310,7 @@ function SnookerRoyalGame({
   opponentAvatar
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -19833,120 +19833,6 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
-      const OPEN_SOURCE_SNOOKER_TABLE_URL =
-        'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
-      const fixOpenSourceTableMaterials = (model) => {
-        model.traverse((node) => {
-          if (!node?.isMesh) return;
-          node.castShadow = true;
-          node.receiveShadow = true;
-          node.frustumCulled = false;
-          const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((material) => {
-            if (!material) return;
-            material.transparent = false;
-            material.depthWrite = true;
-            material.depthTest = true;
-            const standard = material;
-            [standard.map, standard.emissiveMap].forEach((texture) => {
-              if (!texture) return;
-              texture.colorSpace = THREE.SRGBColorSpace;
-              texture.flipY = false;
-              texture.generateMipmaps = true;
-              texture.minFilter = THREE.LinearMipmapLinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
-              texture.needsUpdate = true;
-            });
-            [
-              standard.aoMap,
-              standard.normalMap,
-              standard.roughnessMap,
-              standard.metalnessMap
-            ].forEach((texture) => {
-              if (!texture) return;
-              texture.flipY = false;
-              texture.generateMipmaps = true;
-              texture.minFilter = THREE.LinearMipmapLinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
-              texture.needsUpdate = true;
-            });
-            material.needsUpdate = true;
-          });
-        });
-      };
-      const fitOpenSourceTableToExistingTable = (visual, tableGroup, targetBox) => {
-        visual.position.set(0, 0, 0);
-        visual.rotation.set(0, 0, 0);
-        visual.scale.set(1, 1, 1);
-        visual.updateMatrixWorld(true);
-        const initialBox = new THREE.Box3().setFromObject(visual);
-        const initialSize = initialBox.getSize(new THREE.Vector3());
-        const targetSize = targetBox.getSize(new THREE.Vector3());
-        const modelLongOnX = initialSize.x >= initialSize.z;
-        const targetLongOnX = targetSize.x >= targetSize.z;
-        if (modelLongOnX !== targetLongOnX) {
-          visual.rotation.y = Math.PI / 2;
-          visual.updateMatrixWorld(true);
-        }
-        const modelBox = new THREE.Box3().setFromObject(visual);
-        const modelSize = modelBox.getSize(new THREE.Vector3());
-        visual.scale.set(
-          targetSize.x / Math.max(modelSize.x, 0.0001),
-          targetSize.y / Math.max(modelSize.y, 0.0001),
-          targetSize.z / Math.max(modelSize.z, 0.0001)
-        );
-        visual.updateMatrixWorld(true);
-        const fittedBox = new THREE.Box3().setFromObject(visual);
-        const fittedCenter = fittedBox.getCenter(new THREE.Vector3());
-        const targetCenter = targetBox.getCenter(new THREE.Vector3());
-        visual.position.add(new THREE.Vector3(
-          targetCenter.x - fittedCenter.x,
-          targetBox.min.y - fittedBox.min.y,
-          targetCenter.z - fittedCenter.z
-        ));
-        visual.name = 'snooker-generic-open-source-table';
-        visual.userData.replacesClassicTableVisual = true;
-        tableGroup.userData.openSourceVisual = visual;
-      };
-      const attachOpenSourceTableModel = (tableGroup) => {
-        if (tableModel !== TABLE_MODEL_OPENSOURCE || !tableGroup) return;
-        const originalChildren = [...tableGroup.children];
-        tableGroup.updateMatrixWorld(true);
-        const targetBox = new THREE.Box3().setFromObject(tableGroup);
-        const toTableLocal = new THREE.Matrix4().copy(tableGroup.matrixWorld).invert();
-        targetBox.applyMatrix4(toTableLocal);
-        if (targetBox.isEmpty()) return;
-        const loader = new GLTFLoader();
-        const draco = new DRACOLoader();
-        draco.setDecoderPath(DRACO_DECODER_PATH);
-        loader.setDRACOLoader(draco);
-        const ktx2 = new KTX2Loader();
-        ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-        if (rendererRef.current) ktx2.detectSupport(rendererRef.current);
-        loader.setKTX2Loader(ktx2);
-        loader.setMeshoptDecoder(MeshoptDecoder);
-        loader.load(
-          OPEN_SOURCE_SNOOKER_TABLE_URL,
-          (gltf) => {
-            const visual = gltf?.scene;
-            if (!visual || !tableGroup.parent) return;
-            originalChildren.forEach((child) => {
-              child.visible = false;
-            });
-            fixOpenSourceTableMaterials(visual);
-            fitOpenSourceTableToExistingTable(visual, tableGroup, targetBox);
-            tableGroup.add(visual);
-          },
-          undefined,
-          (error) => {
-            console.warn('Failed to load open-source snooker_generic table model', error);
-          }
-        );
-      };
-      attachOpenSourceTableModel(table);
-      attachOpenSourceTableModel(secondaryTableEntry?.group);
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -28529,13 +28415,8 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const location = useLocation();
-  const tableModel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolveSnookerTableModel(params.get('tableModel'));
-  }, [location.search]);
-
   const navigate = useNavigate();
+  const location = useLocation();
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
