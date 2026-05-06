@@ -16,6 +16,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { resolveSnookerTableModel, TABLE_MODEL_OPENSOURCE } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -98,6 +99,39 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const POOLTOOL_CONTENTS_API = 'https://api.github.com/repos/ekiefl/pooltool/contents';
+
+async function discoverOpenSourceSnookerTableUrl() {
+  const dirs = ['pooltool/models/table', 'pooltool/models/tables', 'pooltool/models'];
+  const seen = new Set();
+  const found = [];
+  const walk = async (path, depth = 0) => {
+    if (depth > 6 || seen.has(path)) return;
+    seen.add(path);
+    const res = await fetch(`${POOLTOOL_CONTENTS_API}/${path}?ref=main`, {
+      headers: { Accept: 'application/vnd.github+json' }
+    });
+    if (!res.ok) return;
+    const entries = await res.json();
+    for (const entry of Array.isArray(entries) ? entries : [entries]) {
+      if (entry?.type === 'dir') {
+        const lower = String(entry.path || '').toLowerCase();
+        if (/(table|models|pool|snooker|billiard)/.test(lower)) await walk(entry.path, depth + 1);
+      } else if (entry?.type === 'file' && entry?.download_url) {
+        const lower = String(entry.path || '').toLowerCase();
+        if ((lower.endsWith('.glb') || lower.endsWith('.gltf')) && lower.includes('table') && !/(cue|ball|menu|hud)/.test(lower)) {
+          found.push({ path: entry.path, url: entry.download_url });
+        }
+      }
+    }
+  };
+  await Promise.all(dirs.map((dir) => walk(dir)));
+  found.sort((a, b) => {
+    const score = (p) => (p.includes('snooker') ? 10 : 0) + (p.endsWith('.glb') ? 2 : 0);
+    return score(b.path.toLowerCase()) - score(a.path.toLowerCase());
+  });
+  return found[0]?.url || null;
+}
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -11310,7 +11344,6 @@ function SnookerRoyalGame({
   opponentAvatar
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -20342,6 +20375,46 @@ const powerRef = useRef(hud.power);
             : 1.4
       );
 
+      if (useOpenSourceTableModel) {
+        const visualChildCount = table.children.length;
+        const visualLoader = createConfiguredGLTFLoader(renderer);
+        discoverOpenSourceSnookerTableUrl()
+          .then((url) => {
+            if (!url || disposed) return null;
+            return visualLoader.loadAsync(url);
+          })
+          .then((gltf) => {
+            if (!gltf || disposed) return;
+            const model = gltf.scene || gltf.scenes?.[0];
+            if (!model) return;
+            model.updateMatrixWorld(true);
+            const sourceBox = new THREE.Box3().setFromObject(model);
+            const sourceSize = sourceBox.getSize(new THREE.Vector3());
+            const sx = sourceSize.x > 1e-6 ? PLAY_W / sourceSize.x : 1;
+            const sz = sourceSize.z > 1e-6 ? PLAY_H / sourceSize.z : 1;
+            const scale = Math.min(sx, sz);
+            model.scale.setScalar(scale);
+            model.updateMatrixWorld(true);
+            const scaledBox = new THREE.Box3().setFromObject(model);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            model.position.set(-center.x, -scaledBox.min.y, -center.z);
+            model.traverse((obj) => {
+              if (!obj?.isMesh) return;
+              obj.castShadow = false;
+              obj.receiveShadow = true;
+            });
+            for (let i = 0; i < visualChildCount; i += 1) {
+              const child = table.children[i];
+              if (child) child.visible = false;
+            }
+            table.add(model);
+            table.userData.openSourceVisualModel = model;
+          })
+          .catch((error) => {
+            console.warn('Failed to load open-source snooker table model', error);
+          });
+      }
+
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
       const variantConfig = activeVariantRef.current;
@@ -28415,8 +28488,15 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const tableModel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return resolveSnookerTableModel(params.get('tableModel'));
+  }, [location.search]);
+
+  const useOpenSourceTableModel = tableModel === TABLE_MODEL_OPENSOURCE;
+
+  const navigate = useNavigate();
   const variantKey = useMemo(() => {
     return 'snooker';
   }, [location.search]);
