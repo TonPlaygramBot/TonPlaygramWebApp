@@ -28,11 +28,22 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
-    matchNativeUpperComponentHeight: true,
+    matchNativeUpperComponentHeight: false,
     useOriginalLayoutSurfaces: true,
+    useModelPhysicsMapping: true,
+    physicsMapping: Object.freeze({
+      source: 'showood-visual-profile',
+      fallback: 'pool-royale-procedural',
+      cushionSegmentSource: 'generated-showood-jaws',
+      pocketCenterSource: 'pool-royale-native-centers',
+      jawMappingRadiusScale: 1,
+      jawCaptureRadiusScale: 1,
+      railCutInsetScale: 1
+    }),
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
-    preserveOriginalSurfaceRoles: [],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
+    preserveOriginalSurfaceRoles: ['trim'],
+    matchProceduralClothTextureScale: true,
     hideSurfaceRoles: []
   }
 ]);

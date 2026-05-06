@@ -8832,7 +8832,11 @@ function updateCushionSegmentsFromTable(table) {
     const cutTypes = data.cutTypes || {};
     const minTypeScale = cutTypes.min === 'side' ? 0.2 : 1;
     const maxTypeScale = cutTypes.max === 'side' ? 0.2 : 1;
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
+    const physicsMapping = table.userData?.tableModelPhysicsMapping || null;
+    const railCutInsetScale = Number.isFinite(physicsMapping?.railCutInsetScale)
+      ? Math.max(0, physicsMapping.railCutInsetScale)
+      : 1;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12 * railCutInsetScale;
     const minInset = Math.min(minCut, cutInsetBase * minTypeScale);
     const maxInset = Math.min(maxCut, cutInsetBase * maxTypeScale);
     const cutAngles = data.cutAngles || {};
@@ -8879,10 +8883,14 @@ function updateCushionSegmentsFromTable(table) {
     if (!(jaw?.center instanceof THREE.Vector2)) return;
     if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
     if (!Number.isFinite(jaw?.jawAngle) || jaw.jawAngle <= MICRO_EPS) return;
-    const mappingOuterRadius = Math.max(
-      MICRO_EPS,
-      jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
-    );
+    const physicsMapping = table.userData?.tableModelPhysicsMapping || null;
+    const jawMappingRadiusScale = Number.isFinite(physicsMapping?.jawMappingRadiusScale)
+      ? Math.max(MICRO_EPS, physicsMapping.jawMappingRadiusScale)
+      : POCKET_JAW_MAPPING_RADIUS_SCALE;
+    const jawCaptureRadiusScale = Number.isFinite(physicsMapping?.jawCaptureRadiusScale)
+      ? Math.max(MICRO_EPS, physicsMapping.jawCaptureRadiusScale)
+      : 1;
+    const mappingOuterRadius = Math.max(MICRO_EPS, jaw.outerRadius * jawMappingRadiusScale);
     const steps = Math.max(16, Math.ceil((jaw.jawAngle / Math.PI) * 48));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
@@ -8906,7 +8914,9 @@ function updateCushionSegmentsFromTable(table) {
           type: 'jaw',
           normal,
           center: jaw.center.clone(),
-          captureRadius: jaw.captureRadius
+          captureRadius: Number.isFinite(jaw.captureRadius)
+            ? jaw.captureRadius * jawCaptureRadiusScale
+            : jaw.captureRadius
         });
       }
       prev = point;
@@ -12731,6 +12741,62 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   return mat;
 }
 
+function applyPoolRoyaleProceduralTextureRepeat(material, baseRepeat, repeatRatio = 1) {
+  if (!material || !Number.isFinite(baseRepeat) || baseRepeat <= 0) return;
+  const repeatY = baseRepeat * (Number.isFinite(repeatRatio) && repeatRatio > 0 ? repeatRatio : 1);
+  ['map', 'normalMap', 'bumpMap', 'roughnessMap', 'aoMap'].forEach((slot) => {
+    const texture = material[slot];
+    if (!texture?.repeat) return;
+    texture.repeat.set(baseRepeat, repeatY);
+    texture.needsUpdate = true;
+  });
+  if (Number.isFinite(material.userData?.bumpScale)) {
+    material.bumpScale = material.userData.bumpScale;
+  }
+  material.needsUpdate = true;
+}
+
+function applyPoolRoyaleExternalClothTextureScale(root, tableModel = null, finishInfo = null, dims = null) {
+  if (!root || !tableModel?.matchProceduralClothTextureScale || !finishInfo?.clothMat) return 0;
+  const baseRepeat = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothMat.map?.repeat?.x;
+  const repeatRatio =
+    finishInfo.clothMat.userData?.repeatRatio ??
+    (finishInfo.clothMat.map?.repeat?.x
+      ? finishInfo.clothMat.map.repeat.y / finishInfo.clothMat.map.repeat.x
+      : 1);
+  if (!Number.isFinite(baseRepeat) || baseRepeat <= 0) return 0;
+  const targetWidth = Math.max(MICRO_EPS, dims?.targetClothWidth ?? dims?.targetWidth ?? PLAY_W);
+  const targetLength = Math.max(MICRO_EPS, dims?.targetClothLength ?? dims?.targetLength ?? PLAY_H);
+  let updated = 0;
+  root.updateMatrixWorld?.(true);
+  root.traverse?.((child) => {
+    if (!child?.isMesh) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const childBox = new THREE.Box3().setFromObject(child);
+    const childSize = childBox.getSize(new THREE.Vector3());
+    const childWidth = Math.max(MICRO_EPS, Math.min(childSize.x, childSize.z));
+    const childLength = Math.max(MICRO_EPS, Math.max(childSize.x, childSize.z));
+    materials.forEach((material) => {
+      if (!material) return;
+      const role = classifyPoolRoyaleExternalTableSurface(child, material);
+      if (role !== 'cloth') return;
+      const worldScale = Math.sqrt(
+        Math.max(MICRO_EPS, childWidth / targetWidth) *
+          Math.max(MICRO_EPS, childLength / targetLength)
+      );
+      applyPoolRoyaleProceduralTextureRepeat(material, baseRepeat * worldScale, repeatRatio);
+      material.userData = {
+        ...(material.userData || {}),
+        poolRoyaleProceduralClothRepeat: baseRepeat,
+        poolRoyaleProceduralClothRepeatRatio: repeatRatio,
+        poolRoyaleExternalClothWorldScale: worldScale
+      };
+      updated += 1;
+    });
+  });
+  return updated;
+}
+
 function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
@@ -12975,6 +13041,7 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      applyPoolRoyaleExternalClothTextureScale(model, tableModel, finishInfo, dims);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -13626,6 +13693,11 @@ function mountPoolRoyaleExternalTableModel({
     mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
   });
 
+  table.userData.tableModelPhysicsMapping = resolvedTableOptions?.tableModel?.useModelPhysicsMapping
+    ? resolvedTableOptions.tableModel.physicsMapping || null
+    : null;
+  table.userData.tableModelPhysicsMappingSource = table.userData.tableModelPhysicsMapping?.source || null;
+
   alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
@@ -13705,6 +13777,8 @@ function mountPoolRoyaleExternalTableModel({
             targetUpperComponentHeight: generatedUpperComponentBounds.isEmpty()
               ? RAIL_HEIGHT
               : generatedUpperComponentSize.y,
+            targetClothWidth: halfWext * 2,
+            targetClothLength: halfHext * 2,
             targetTopLocal: generatedUpperComponentBounds.isEmpty()
               ? (generatedVisualBounds.isEmpty() ? cushionTopLocal : generatedVisualBounds.max.y)
               : generatedUpperComponentBounds.max.y,
