@@ -12608,27 +12608,16 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     size = box.getSize(new THREE.Vector3());
   }
 
-  const exactScale = tableModel?.fitScale ?? 1;
-  const widthScale = dims.targetWidth / Math.max(MICRO_EPS, size.x);
-  const lengthScale = dims.targetLength / Math.max(MICRO_EPS, size.z);
-  if (tableModel?.fitStrategy === 'exact') {
-    model.scale.set(
-      widthScale * exactScale,
-      Math.min(widthScale, lengthScale) * exactScale,
-      lengthScale * exactScale
-    );
-  } else {
-    const modelWidth = Math.max(MICRO_EPS, Math.min(size.x, size.z));
-    const modelLength = Math.max(MICRO_EPS, Math.max(size.x, size.z));
-    const uniformWidthScale = dims.targetWidth / modelWidth;
-    const uniformLengthScale = dims.targetLength / modelLength;
-    const baseFitScale =
-      tableModel?.fitStrategy === 'contain'
-        ? Math.min(uniformWidthScale, uniformLengthScale)
-        : Math.max(uniformWidthScale, uniformLengthScale);
-    const fitScale = baseFitScale * exactScale;
-    model.scale.multiplyScalar(fitScale);
-  }
+  const modelWidth = Math.max(MICRO_EPS, Math.min(size.x, size.z));
+  const modelLength = Math.max(MICRO_EPS, Math.max(size.x, size.z));
+  const widthScale = dims.targetWidth / modelWidth;
+  const lengthScale = dims.targetLength / modelLength;
+  const baseFitScale =
+    tableModel?.fitStrategy === 'contain'
+      ? Math.min(widthScale, lengthScale)
+      : Math.max(widthScale, lengthScale);
+  const fitScale = baseFitScale * (tableModel?.fitScale ?? 1);
+  model.scale.multiplyScalar(fitScale);
   model.updateMatrixWorld(true);
 
   box = new THREE.Box3().setFromObject(model);
@@ -12647,89 +12636,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
       physics: 'Pool Royale playfield, pockets, cushions, and ball simulation'
     }
   };
-}
-
-
-function cloneExternalTableTexture(texture) {
-  if (!texture) return null;
-  const next = texture.clone();
-  next.image = texture.image;
-  next.wrapS = THREE.RepeatWrapping;
-  next.wrapT = THREE.RepeatWrapping;
-  next.repeat.set(1, 1);
-  next.offset.set(0, 0);
-  next.center.set(0.5, 0.5);
-  next.rotation = 0;
-  next.anisotropy = resolveTextureAnisotropy(12);
-  next.needsUpdate = true;
-  return next;
-}
-
-function clonePoolRoyaleMaterialForExternalTable(sourceMaterial, role, fallbackMaterial = null) {
-  const source = sourceMaterial || fallbackMaterial;
-  if (!source) return null;
-  const material = source.clone ? source.clone() : source;
-  material.name = `pool-royale-showood-${role}-${source.name || 'material'}`;
-  ['map', 'emissiveMap', 'aoMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap'].forEach((key) => {
-    if (source[key]) {
-      material[key] = cloneExternalTableTexture(source[key]);
-    }
-  });
-  if (source.normalScale?.clone) material.normalScale = source.normalScale.clone();
-  material.side = THREE.FrontSide;
-  material.shadowSide = THREE.FrontSide;
-  material.needsUpdate = true;
-  return material;
-}
-
-function classifyPoolRoyaleExternalTableMesh(mesh) {
-  const materialName = Array.isArray(mesh?.material)
-    ? mesh.material.map((mat) => mat?.name || '').join(' ')
-    : mesh?.material?.name || '';
-  const text = `${mesh?.name || ''} ${materialName}`.toLowerCase();
-  if (/pocket|drop|net|hole|leather|liner/.test(text)) return 'pocket';
-  if (/cushion|bumper|rubber|nose|bank/.test(text)) return 'cushion';
-  if (/cloth|felt|baize|slate|bed|playfield|surface/.test(text)) return 'cloth';
-  if (/rail|frame|wood|showood|leg|apron|body|cabinet|side|trim/.test(text)) return 'wood';
-  return 'wood';
-}
-
-function applyPoolRoyaleFinishToExternalTable(table, finishInfo = null) {
-  const externalRoot = table?.userData?.externalTable?.group;
-  const tableModel = table?.userData?.externalTableModel;
-  const info = finishInfo || table?.userData?.finish;
-  if (!externalRoot || !tableModel?.usePoolRoyaleFinishMaterials || !info) return;
-  let hasMeshes = false;
-  externalRoot.traverse((child) => {
-    if (child?.isMesh) hasMeshes = true;
-  });
-  if (!hasMeshes) return;
-
-  const woodSource = info.parts?.woodSurfaces?.rail ? info.parts.railMeshes?.[0]?.material : null;
-  const materials = {
-    cloth: clonePoolRoyaleMaterialForExternalTable(info.clothMat, 'cloth'),
-    cushion: clonePoolRoyaleMaterialForExternalTable(info.cushionMat || info.clothMat, 'cushion'),
-    wood: clonePoolRoyaleMaterialForExternalTable(woodSource || info.parts?.railMeshes?.[0]?.material, 'wood'),
-    pocket: null
-  };
-  const assignedMaterials = new Set(Object.values(materials).filter(Boolean));
-
-  externalRoot.traverse((child) => {
-    if (!child?.isMesh) return;
-    const role = classifyPoolRoyaleExternalTableMesh(child);
-    if (role === 'pocket') return;
-    const material = materials[role] || materials.wood || materials.cloth;
-    if (!material) return;
-    const previous = child.material;
-    child.material = material;
-    child.castShadow = true;
-    child.receiveShadow = true;
-    child.frustumCulled = false;
-    if (previous && !assignedMaterials.has(previous)) {
-      if (Array.isArray(previous)) previous.forEach((mat) => mat?.dispose?.());
-      else previous.dispose?.();
-    }
-  });
 }
 
 function mountPoolRoyaleExternalTableModel({
@@ -12757,7 +12663,6 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
-      applyPoolRoyaleFinishToExternalTable(table);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -13435,7 +13340,6 @@ function mountPoolRoyaleExternalTableModel({
       object.visible = visible;
     });
   };
-  table.userData.externalTableModel = resolvedTableOptions?.tableModel || null;
   const externalTable =
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? mountPoolRoyaleExternalTableModel({
@@ -13451,7 +13355,6 @@ function mountPoolRoyaleExternalTableModel({
         })
       : null;
   table.userData.externalTable = externalTable;
-  applyPoolRoyaleFinishToExternalTable(table, finishInfo);
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -13875,7 +13778,6 @@ function applyTableFinishToTable(table, finish) {
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
-  applyPoolRoyaleFinishToExternalTable(table, finishInfo);
 
   finishInfo.id = resolvedFinish.id;
   finishInfo.palette = resolvedFinish.colors;
