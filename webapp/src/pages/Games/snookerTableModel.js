@@ -34,3 +34,7 @@ export function applySnookerTableModelParam(params, tableModel) {
   params.set('tableModel', resolved);
   return resolved;
 }
+
+export function usesProceduralSnookerTableRailDecor(tableModel) {
+  return resolveSnookerTableModel(tableModel) === TABLE_MODEL_CLASSIC;
+}
