@@ -10622,23 +10622,21 @@ function Table3D(
     table.userData.pocketJawSegments = [];
   };
 
-  const OPEN_SOURCE_ORIGINAL_SURFACE_ROLES = new Set(['cloth', 'cushion']);
+  const resolveOpenSourceClothUvBounds = () => {
+    const bounds = new THREE.Box3();
+    expandBoxByObjectLocalBounds(bounds, cloth);
+    if (bounds.isEmpty()) {
+      bounds.min.set(-PLAY_W / 2, clothPlaneLocal - MICRO_EPS, -PLAY_H / 2);
+      bounds.max.set(PLAY_W / 2, clothPlaneLocal + MICRO_EPS, PLAY_H / 2);
+    }
+    return bounds;
+  };
 
   const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
-    if (OPEN_SOURCE_ORIGINAL_SURFACE_ROLES.has(role) && originalMaterial) {
-      const originalSurface = sharpenGltfMaterial(originalMaterial);
-      originalSurface.name = `${originalMaterial.name || role || 'snooker-glb'}-original-glb`;
-      originalSurface.userData = {
-        ...(originalSurface.userData || {}),
-        preservesOriginalGlbSnookerSurface: true,
-        openSourceSurfaceRole: role
-      };
-      originalSurface.needsUpdate = true;
-      return originalSurface;
-    }
-
     const materials = finishInfo?.materials || {};
     const sourceByRole = {
+      cloth: finishInfo?.clothMat,
+      cushion: finishInfo?.cushionMat,
       rail: materials.rail || materials.frame,
       frame: materials.frame || materials.rail,
       leg: materials.leg || materials.frame || materials.rail,
@@ -10796,6 +10794,34 @@ function Table3D(
     return removedMeshes.length;
   };
 
+  const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
+    const targetSize = targetBounds.getSize(new THREE.Vector3());
+    if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
+    const localPoint = new THREE.Vector3();
+    const worldPoint = new THREE.Vector3();
+    root.updateMatrixWorld(true);
+    table.updateMatrixWorld(true);
+    root.traverse((node) => {
+      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cloth') return;
+      const geometry = node.geometry;
+      const position = geometry?.attributes?.position;
+      if (!geometry || !position) return;
+      let uv = geometry.attributes.uv;
+      if (!uv || uv.count !== position.count) {
+        uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
+        geometry.setAttribute('uv', uv);
+      }
+      for (let i = 0; i < position.count; i += 1) {
+        localPoint.fromBufferAttribute(position, i);
+        node.localToWorld(worldPoint.copy(localPoint));
+        table.worldToLocal(worldPoint);
+        uv.setXY(i, worldPoint.x, worldPoint.z);
+      }
+      uv.needsUpdate = true;
+      geometry.computeBoundingBox();
+    });
+  };
+
   const applyOpenSourceCushionPhysicsFromModel = (model) => {
     const segments = [];
     const addSegment = (start, end, type = 'glb-cushion') => {
@@ -10857,6 +10883,7 @@ function Table3D(
 
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
+    const clothUvBounds = resolveOpenSourceClothUvBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
@@ -10898,6 +10925,7 @@ function Table3D(
 
         applyDefaultTableFinishToOpenSourceModel(model);
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
+        remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
@@ -10914,10 +10942,8 @@ function Table3D(
           removedOriginalBaseMeshCount,
           usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
-          hidesProceduralClothAndCushions: true,
-          preservesOriginalGlbClothAndCushions: true,
-          clothUvMappedToDefaultPlayfield: false,
-          clothUvUsesProceduralWorldScale: false
+          clothUvMappedToDefaultPlayfield: true,
+          clothUvUsesProceduralWorldScale: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
