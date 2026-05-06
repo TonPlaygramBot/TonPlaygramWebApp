@@ -26,8 +26,7 @@ export function resolveSnookerGlbFitTransform(sourceSize = {}, targetSize = {}) 
 
 export function resolveSnookerTableModel(value) {
   const requested = String(value || '').toLowerCase();
-  if (requested === TABLE_MODEL_CLASSIC) return TABLE_MODEL_CLASSIC;
-  return TABLE_MODEL_OPENSOURCE;
+  return requested === TABLE_MODEL_OPENSOURCE ? TABLE_MODEL_OPENSOURCE : TABLE_MODEL_CLASSIC;
 }
 
 export function applySnookerTableModelParam(params, tableModel) {
