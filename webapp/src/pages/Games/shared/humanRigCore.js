@@ -48,7 +48,8 @@ const BASE_CFG = {
   tableTopY: 0.84,
   groundY: 0,
   perimeterWalk: false,
-  perimeterWalkSpeed: 4.0
+  perimeterWalkSpeed: 4.0,
+  shootBendDirection: 1
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -529,15 +530,17 @@ export function updateHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = (frameData.power || 0) * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * cfg.unit);
+  const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
+  const shotBendZ = (value) => value * bendDirection;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * cfg.unit * bendDirection);
   rootWorld.y = cfg.groundY;
 
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * cfg.unit + breath, (lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * cfg.unit + breath, (lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * cfg.unit + breath, (lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3(0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3(0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
