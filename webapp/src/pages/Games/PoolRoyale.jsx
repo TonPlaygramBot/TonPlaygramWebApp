@@ -5387,26 +5387,13 @@ function updateClothTexturesForFinish (
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
-  if (isPolyHavenTexture) {
-    ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
-      const tex = finishInfo.clothMat?.[prop];
-      if (!tex) return;
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
-      tex.repeat.set(1, 1);
-      tex.offset.set(0, 0);
-      tex.rotation = 0;
-      tex.center.set(0, 0);
-      tex.needsUpdate = true;
-    });
-  }
   if (finishInfo.clothMat.userData) {
     finishInfo.clothMat.userData.polyRepeatScale = textureScale;
     finishInfo.clothMat.userData.baseRepeat = baseRepeatValue;
     finishInfo.clothMat.userData.baseRepeatRaw = baseRepeatRaw;
-    finishInfo.clothMat.userData.nearRepeat = isPolyHavenTexture ? 1 : baseRepeatValue * 1.12;
-    finishInfo.clothMat.userData.farRepeat = isPolyHavenTexture ? 1 : baseRepeatValue * 0.44;
-    finishInfo.clothMat.userData.preserveOriginalUvMapping = Boolean(isPolyHavenTexture);
+    finishInfo.clothMat.userData.nearRepeat = baseRepeatValue * 1.12;
+    finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
+    finishInfo.clothMat.userData.preserveOriginalUvMapping = false;
   }
   if (finishInfo.cushionMat) {
     replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
@@ -9280,10 +9267,7 @@ export function Table3D(
   const clothPatternUpscale = isPolyHavenCloth
     ? 1
     : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
-  const patternOverride =
-    clothMapSource === 'polyhaven'
-      ? null
-      : resolveClothPatternOverride(clothTextureKey);
+  const patternOverride = resolveClothPatternOverride(clothTextureKey);
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // keep Pool Royale cloth texel density aligned with Snooker Royal
   let baseRepeat =
@@ -9298,7 +9282,7 @@ export function Table3D(
     patternOverride?.repeatRatioScale && patternOverride.repeatRatioScale > 0
       ? patternOverride.repeatRatioScale
       : 1;
-  const repeatRatio = 1 * repeatRatioScale;
+  const repeatRatio = 3.45 * repeatRatioScale;
   const polyRepeatScale =
     clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const baseRepeatApplied = baseRepeat * polyRepeatScale;
@@ -9309,25 +9293,19 @@ export function Table3D(
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
-    if (!isPolyHavenCloth) {
-      clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    }
+    clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.map.needsUpdate = true;
   }
   if (clothNormal) {
     clothMat.normalMap = clothNormal;
-    if (!isPolyHavenCloth) {
-      clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    }
+    clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.normalScale = clothNormalScale.clone();
     clothMat.normalMap.needsUpdate = true;
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap = null;
   } else if (clothBump) {
     clothMat.bumpMap = clothBump;
-    if (!isPolyHavenCloth) {
-      clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    }
+    clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
@@ -9335,9 +9313,7 @@ export function Table3D(
   }
   if (clothRoughness) {
     clothMat.roughnessMap = clothRoughness;
-    if (!isPolyHavenCloth) {
-      clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    }
+    clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
     clothMat.roughnessMap.needsUpdate = true;
   }
@@ -9347,12 +9323,12 @@ export function Table3D(
     baseRepeat: baseRepeatApplied,
     repeatRatio,
     polyRepeatScale,
-    nearRepeat: isPolyHavenCloth ? 1 : baseRepeatApplied * 1.12,
-    farRepeat: isPolyHavenCloth ? 1 : baseRepeatApplied * 0.44,
+    nearRepeat: baseRepeatApplied * 1.12,
+    farRepeat: baseRepeatApplied * 0.44,
     bumpScale: clothMat.bumpScale,
     baseBumpScale: clothMat.bumpScale,
     quality: CLOTH_QUALITY,
-    preserveOriginalUvMapping: Boolean(isPolyHavenCloth)
+    preserveOriginalUvMapping: false
   };
 
   const cushionMat = clothMat.clone();
