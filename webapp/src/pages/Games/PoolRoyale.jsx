@@ -8646,7 +8646,30 @@ function calcTarget(cue, dir, balls) {
   return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
 }
 
+
+function getPoolRoyaleBallParent(parent) {
+  if (!parent?.userData) return parent;
+  const lift = parent.userData.playfieldVisualLift ?? 0;
+  if (!Number.isFinite(lift) || Math.abs(lift) <= MICRO_EPS) return parent;
+  if (!parent.userData.playfieldBallRoot) {
+    const root = new THREE.Group();
+    root.name = 'pool-royale-lifted-ball-root';
+    root.position.y = lift;
+    root.userData = {
+      ...(root.userData || {}),
+      poolRoyaleLiftedPlayfieldBalls: true,
+      playfieldVisualLift: lift
+    };
+    parent.add(root);
+    parent.userData.playfieldBallRoot = root;
+  } else if (Math.abs((parent.userData.playfieldBallRoot.position.y ?? 0) - lift) > MICRO_EPS) {
+    parent.userData.playfieldBallRoot.position.y = lift;
+  }
+  return parent.userData.playfieldBallRoot;
+}
+
 function Guret(parent, id, color, x, y, options = {}) {
+  const ballParent = getPoolRoyaleBallParent(parent);
   const pattern = options.pattern || (id === 'cue' ? 'cue' : 'solid');
   const number = options.number ?? null;
   const material = getBilliardBallMaterial({
@@ -8675,8 +8698,8 @@ function Guret(parent, id, color, x, y, options = {}) {
     node.userData = node.userData || {};
     node.userData.ballId = id;
   });
-  parent.add(mesh);
-  if (shadow) parent.add(shadow);
+  ballParent.add(mesh);
+  if (shadow) ballParent.add(shadow);
   return {
     id,
     color,
@@ -9011,6 +9034,10 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
+  const externalPlayfieldVisualLift =
+    usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.playfieldVisualLift)
+      ? Math.max(0, resolvedTableOptions.tableModel.playfieldVisualLift)
+      : 0;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -9020,6 +9047,7 @@ export function Table3D(
   table.userData = table.userData || {};
   table.userData.cushions = [];
   table.userData.pocketJaws = [];
+  table.userData.playfieldVisualLift = externalPlayfieldVisualLift;
   table.userData.componentPreset = tableSizeMeta?.componentPreset || 'pool';
 
   const finishParts = {
@@ -12797,6 +12825,25 @@ function expandPoolRoyaleUpperMeshBounds(targetBox, mesh, minWorldY) {
   return expanded;
 }
 
+
+function applyPoolRoyaleExternalPlayfieldVisualLift(table, lift = 0) {
+  if (!table || !Number.isFinite(lift) || Math.abs(lift) <= MICRO_EPS) return 0;
+  const liftedRoots = [];
+  table.traverse((object) => {
+    if (!object || object === table || !object.userData?.externalTableKeepVisible) return;
+    let ancestor = object.parent;
+    while (ancestor && ancestor !== table) {
+      if (ancestor.userData?.externalTableKeepVisible) return;
+      ancestor = ancestor.parent;
+    }
+    if (object.userData.poolRoyaleExternalPlayfieldLiftApplied) return;
+    object.position.y += lift;
+    object.userData.poolRoyaleExternalPlayfieldLiftApplied = lift;
+    liftedRoots.push(object);
+  });
+  return liftedRoots.length;
+}
+
 function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   const fullBox = new THREE.Box3().setFromObject(model);
   const fullSize = fullBox.getSize(new THREE.Vector3());
@@ -13369,6 +13416,10 @@ function mountPoolRoyaleExternalTableModel({
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
   };
+
+  if (externalPlayfieldVisualLift > 0) {
+    applyPoolRoyaleExternalPlayfieldVisualLift(table, externalPlayfieldVisualLift);
+  }
 
   applyBaseVariant(baseVariant || DEFAULT_TABLE_BASE_ID);
 
