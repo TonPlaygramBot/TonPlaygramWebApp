@@ -1251,7 +1251,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.18; // round the native wooden rail outline so the default rail silhouette follows the Showood pocket-jaw style
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.34; // round the native wooden rail outline so the default rail silhouette follows the Showood pocket-jaw style
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -1752,7 +1752,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.132; // lift all six jaws with the Showood-height cushion/cloth stack so mouths stay flush
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1779,8 +1779,8 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle-pocket jaws on the exact same vertical plane as the corner Showood jaws
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // keep middle-pocket jaw centers aligned to the shared Showood/Royal pocket layout
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
@@ -1920,7 +1920,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.22; // lift the cloth surface so the Showood and procedural Royal playfield sit on the same visible plane
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -2053,7 +2053,7 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.156; // lift the cushion base a tiny bit more so the cushion top reads slightly higher
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.214; // lift the cushion base higher so the Showood and Royal cushion lips meet the raised cloth/field
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -10090,7 +10090,7 @@ export function Table3D(
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.142; // trim the side-rail cushion ends near corner pockets just a tiny bit more; middle-pocket trims stay unchanged
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.048; // lift all six cushions higher to match the Showood table surface in portrait view
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -12790,6 +12790,28 @@ function expandPoolRoyaleUpperMeshBounds(targetBox, mesh, minWorldY) {
   return expanded;
 }
 
+function applyPoolRoyaleExternalSurfaceRoleOffsets(model, tableModel = null) {
+  const offsets = tableModel?.surfaceRoleVerticalOffsets;
+  if (!model || !offsets || typeof offsets !== 'object') return;
+  const parentScale = new THREE.Vector3();
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const offset = Number(offsets[role]);
+    if (!Number.isFinite(offset) || Math.abs(offset) <= MICRO_EPS) return;
+    child.parent?.getWorldScale?.(parentScale);
+    const localScaleY = Math.max(MICRO_EPS, Math.abs(parentScale.y || 1));
+    child.position.y += offset / localScaleY;
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleSurfaceRole: role,
+      poolRoyaleSurfaceVerticalOffset: offset
+    };
+  });
+  model.updateMatrixWorld(true);
+}
+
 function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   const fullBox = new THREE.Box3().setFromObject(model);
   const fullSize = fullBox.getSize(new THREE.Vector3());
@@ -12871,6 +12893,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
+  applyPoolRoyaleExternalSurfaceRoleOffsets(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
