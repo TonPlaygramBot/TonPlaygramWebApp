@@ -33,6 +33,11 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import {
+  DEFAULT_POOL_ROYALE_TABLE_MODEL_ID,
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  resolvePoolRoyaleTableModel
+} from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
@@ -13119,6 +13124,142 @@ export function Table3D(
     }
   }
 
+  const attachExternalTableModel = () => {
+    const tableModel = resolvedTableOptions?.tableModel;
+    if (!tableModel?.gltfUrl) return;
+
+    const proceduralVisuals = [];
+    table.traverse((child) => {
+      if (child?.isMesh || child?.isLine || child?.isSprite) {
+        proceduralVisuals.push(child);
+      }
+    });
+
+    const modelRoot = new THREE.Group();
+    modelRoot.name = `pooltool-table-${tableModel.id}`;
+    modelRoot.visible = false;
+    modelRoot.userData = {
+      ...(modelRoot.userData || {}),
+      externalPoolTableModel: tableModel.id
+    };
+    table.add(modelRoot);
+
+    const fixTexture = (texture, isColor = false) => {
+      if (!texture) return;
+      if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = resolveTextureAnisotropy(16);
+      texture.needsUpdate = true;
+    };
+
+    const prepareOriginalMaterial = (material) => {
+      if (!material) return material;
+      const prepared = material.clone ? material.clone() : material;
+      fixTexture(prepared.map, true);
+      fixTexture(prepared.emissiveMap, true);
+      fixTexture(prepared.aoMap);
+      fixTexture(prepared.normalMap);
+      fixTexture(prepared.roughnessMap);
+      fixTexture(prepared.metalnessMap);
+      prepared.depthTest = true;
+      prepared.depthWrite = prepared.transparent ? prepared.depthWrite : true;
+      prepared.needsUpdate = true;
+      return prepared;
+    };
+
+    const prepareOriginalTextureModel = (model) => {
+      model.traverse((child) => {
+        if (!child?.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.frustumCulled = false;
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map(prepareOriginalMaterial);
+        } else {
+          child.material = prepareOriginalMaterial(child.material);
+        }
+      });
+    };
+
+    const fitModelToTablePhysics = (model) => {
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      model.scale.setScalar(1);
+      model.updateMatrixWorld(true);
+
+      let bounds = new THREE.Box3().setFromObject(model);
+      let size = bounds.getSize(new THREE.Vector3());
+      if (size.x > size.z) {
+        model.rotation.y = Math.PI / 2;
+        model.updateMatrixWorld(true);
+        bounds = new THREE.Box3().setFromObject(model);
+        size = bounds.getSize(new THREE.Vector3());
+      }
+
+      const targetWidth = Math.max(MICRO_EPS, frameOuterX * 2);
+      const targetDepth = Math.max(MICRO_EPS, frameOuterZ * 2);
+      const scaleX = size.x > MICRO_EPS ? targetWidth / size.x : 1;
+      const scaleZ = size.z > MICRO_EPS ? targetDepth / size.z : 1;
+      const scaleY = Math.max(MICRO_EPS, Math.min(scaleX, scaleZ));
+      model.scale.set(scaleX, scaleY, scaleZ);
+      model.updateMatrixWorld(true);
+
+      const fittedBounds = new THREE.Box3().setFromObject(model);
+      const fittedCenter = fittedBounds.getCenter(new THREE.Vector3());
+      const targetTopY = railsTopY + TABLE.THICK * 0.02;
+      model.position.add(
+        new THREE.Vector3(
+          -fittedCenter.x,
+          targetTopY - fittedBounds.max.y,
+          -fittedCenter.z
+        )
+      );
+      model.updateMatrixWorld(true);
+    };
+
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader.load(
+      tableModel.gltfUrl,
+      (gltf) => {
+        const model = gltf?.scene || gltf?.scenes?.[0];
+        if (!model) {
+          table.remove(modelRoot);
+          console.warn('Pool Royale external table model missing scene', {
+            tableModel: tableModel.id,
+            url: tableModel.gltfUrl
+          });
+          return;
+        }
+        prepareOriginalTextureModel(model);
+        fitModelToTablePhysics(model);
+        proceduralVisuals.forEach((object) => {
+          object.visible = false;
+        });
+        modelRoot.add(model);
+        modelRoot.visible = true;
+        table.userData.externalTableModel = {
+          id: tableModel.id,
+          source: tableModel.gltfUrl,
+          physicsTableSize: tableSizeMeta?.id || null
+        };
+      },
+      undefined,
+      (error) => {
+        table.remove(modelRoot);
+        console.warn('Pool Royale external table model failed to load', {
+          tableModel: tableModel.id,
+          url: tableModel.gltfUrl,
+          error
+        });
+      }
+    );
+  };
+
+  attachExternalTableModel();
+
   pocketMeshes.forEach((mesh) => {
     const lift = mesh?.userData?.verticalLift || 0;
     mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
@@ -13580,6 +13721,7 @@ function PoolRoyaleGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
+  tableModelKey = DEFAULT_POOL_ROYALE_TABLE_MODEL_ID,
   playType = 'regular',
   mode = 'ai',
   accountId,
@@ -13707,6 +13849,10 @@ function PoolRoyaleGame({
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
+  );
+  const activeTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelKey),
+    [tableModelKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
@@ -15511,6 +15657,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     tableSizeRef.current = responsiveTableSize;
   }, [responsiveTableSize]);
+  const tableModelRef = useRef(activeTableModel);
+  useEffect(() => {
+    tableModelRef.current = activeTableModel;
+  }, [activeTableModel]);
   const applyWorldScaleRef = useRef(() => {});
   useEffect(() => {
     applyWorldScaleRef.current?.();
@@ -24415,7 +24565,8 @@ const shotPowerRef = useRef(0);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { tableModel: tableModelRef.current }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -24469,7 +24620,8 @@ const shotPowerRef = useRef(0);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { tableModel: tableModelRef.current }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -36612,11 +36764,25 @@ export default function PoolRoyale() {
     const normalized = normalizeBallSetKey(requested);
     return normalized || null;
   }, [location.search]);
+  const tableModelKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('tableModel');
+    if (requested) {
+      return resolvePoolRoyaleTableModel(requested).id;
+    }
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      ).id;
+    } catch {}
+    return DEFAULT_POOL_ROYALE_TABLE_MODEL_ID;
+  }, [location.search]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
-    return resolveTableSize(requested).id;
-  }, [location.search]);
+    const selectedTableModel = resolvePoolRoyaleTableModel(tableModelKey);
+    return resolveTableSize(requested || selectedTableModel.tableSizeId).id;
+  }, [location.search, tableModelKey]);
   const mode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('mode');
@@ -36731,6 +36897,7 @@ export default function PoolRoyale() {
         variantKey={variantKey}
         ballSetKey={ballSetKey}
         tableSizeKey={tableSizeKey}
+        tableModelKey={tableModelKey}
         playType={playType}
         mode={mode}
         accountId={accountId}
