@@ -2044,6 +2044,38 @@ export default function AirHockey3D({
       };
     };
 
+    const gestureRef = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+      startTs: 0
+    };
+
+    const applySwipeImpulse = (deltaX, deltaY, durationMs) => {
+      const dist = Math.hypot(deltaX, deltaY);
+      if (dist < 14 || durationMs > 600) return;
+      const normalizedX = deltaX / Math.max(dist, 1);
+      const normalizedZ = deltaY / Math.max(dist, 1);
+      const swipePower = clamp(dist / 220, 0.25, 1.35);
+      const speedBoost = clamp(1 / Math.max(durationMs / 180, 0.4), 0.7, 1.8);
+      const combinedPower = swipePower * speedBoost;
+      // "Nearest leg" behavior: left swipe side biases left-foot kick, right side biases right-foot kick.
+      const isLeftLegKick = gestureRef.startX < renderer.domElement.getBoundingClientRect().left + renderer.domElement.getBoundingClientRect().width * 0.5;
+      const lateralLegBias = isLeftLegKick ? -1 : 1;
+      const tackleProfiles = [
+        { x: 0.55, z: -1.05 }, // poke tackle
+        { x: 0.92, z: -0.86 }, // side tackle
+        { x: 0.35, z: -1.24 } // power tackle
+      ];
+      const selectedTackle = tackleProfiles[Math.floor(Math.random() * tackleProfiles.length)];
+      S.vel.x += (normalizedX * selectedTackle.x + lateralLegBias * 0.22) * HIT_FORCE * combinedPower;
+      S.vel.z += normalizedZ * selectedTackle.z * HIT_FORCE * combinedPower;
+      lastTouchRef.current = 'player';
+      playHit();
+    };
+
     const onMove = (e) => {
       primeAudio();
       const t = e.touches ? e.touches[0] : e;
@@ -2053,14 +2085,40 @@ export default function AirHockey3D({
       if (!isLowerHalfTouch(t.clientY)) return;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
+      gestureRef.lastX = t.clientX;
+      gestureRef.lastY = t.clientY;
     };
 
-    renderer.domElement.addEventListener('touchstart', onMove, {
+    const onTouchStart = (e) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+      gestureRef.active = true;
+      gestureRef.startX = t.clientX;
+      gestureRef.startY = t.clientY;
+      gestureRef.lastX = t.clientX;
+      gestureRef.lastY = t.clientY;
+      gestureRef.startTs = performance.now();
+      onMove(e);
+    };
+
+    const onTouchEnd = () => {
+      if (!gestureRef.active) return;
+      gestureRef.active = false;
+      applySwipeImpulse(
+        gestureRef.lastX - gestureRef.startX,
+        gestureRef.lastY - gestureRef.startY,
+        performance.now() - gestureRef.startTs
+      );
+    };
+
+    renderer.domElement.addEventListener('touchstart', onTouchStart, {
       passive: false
     });
     renderer.domElement.addEventListener('touchmove', onMove, {
       passive: false
     });
+    renderer.domElement.addEventListener('touchend', onTouchEnd);
+    renderer.domElement.addEventListener('touchcancel', onTouchEnd);
     renderer.domElement.addEventListener('mousemove', onMove);
 
     const SPEED_BOOST = 1.25;
@@ -2163,6 +2221,7 @@ export default function AirHockey3D({
       frameAccumulatorRef.current = Math.max(0, frameAccumulatorRef.current - targetInterval);
       lastFrameTimeRef.current = timestamp;
 
+      const prevPuckZ = puck.position.z;
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
       S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
@@ -2198,19 +2257,21 @@ export default function AirHockey3D({
       }
 
       const goalHalf = PLAYFIELD.goalW / 2;
-      const atTop = puck.position.z < -PLAYFIELD.h / 2 + PUCK_RADIUS;
-      const atBot = puck.position.z > PLAYFIELD.h / 2 - PUCK_RADIUS;
-      if (atTop || atBot) {
+      const topGoalLineZ = -PLAYFIELD.h / 2 + PUCK_RADIUS;
+      const bottomGoalLineZ = PLAYFIELD.h / 2 - PUCK_RADIUS;
+      const crossedTop = prevPuckZ >= topGoalLineZ && puck.position.z < topGoalLineZ;
+      const crossedBottom = prevPuckZ <= bottomGoalLineZ && puck.position.z > bottomGoalLineZ;
+      if (crossedTop || crossedBottom) {
         if (Math.abs(puck.position.x) <= goalHalf) {
-          const playerScored = atTop;
+          const playerScored = crossedTop;
           const ended = recordGoal(playerScored);
           playGoal();
           S.vel.set(0, 0, 0);
           clearTimeout(restartTimeoutRef.current);
           if (!ended) {
-            reset(!atBot, false);
+            reset(crossedTop, false);
             restartTimeoutRef.current = setTimeout(() => {
-              servePuck(!atBot);
+              servePuck(crossedTop);
             }, GOAL_RESET_DELAY);
           }
         } else {
@@ -2243,8 +2304,10 @@ export default function AirHockey3D({
     return () => {
       cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('touchstart', onMove);
+      renderer.domElement.removeEventListener('touchstart', onTouchStart);
       renderer.domElement.removeEventListener('touchmove', onMove);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd);
+      renderer.domElement.removeEventListener('touchcancel', onTouchEnd);
       renderer.domElement.removeEventListener('mousemove', onMove);
       rendererRef.current = null;
       lastFrameTimeRef.current = 0;
