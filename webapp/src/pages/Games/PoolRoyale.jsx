@@ -2381,6 +2381,9 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.84; // enter shooting pose as soon as the 
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
+const HUMAN_CHEST_CAMERA_HEIGHT_OFFSET = 0.018; // keep the cue camera anchored on the shooter's upper chest/near-neck line
+const HUMAN_CHEST_CAMERA_FORWARD_OFFSET = BALL_R * 0.42; // sit just ahead of the chest without floating past the bridge hand
+const HUMAN_CHEST_CAMERA_SIDE_OFFSET = -BALL_R * 0.08; // slight right-eye offset while remaining attached to the torso
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
@@ -4143,7 +4146,7 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     description: 'Rounded showroom pocket plates shared by Showood and Royal Original tables.',
     swatches: ['#f6d56f', '#d6d8dc'],
     showGeneratedOnExternal: false,
-    preserveExternalTrim: true,
+    preserveExternalTrim: false,
     cornerWidthScale: 1.1,
     cornerHeightScale: 1.08,
     cornerRadiusScale: 1.9,
@@ -12624,12 +12627,12 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  if (/diamond|gold|brass|bronze|metal|chrome|sight|marker|plate|trim|cap|inlay|ornament|screw|bolt/.test(childName)) return 'trim';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
-  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
+  if (/metal|chrome|gold|brass|bronze|diamond|sight|marker|plate|trim|cap|inlay|ornament|screw|bolt/.test(label)) return 'trim';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
   if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
@@ -12868,6 +12871,123 @@ function expandPoolRoyaleBoundsByObjects(objects) {
   return box;
 }
 
+function buildPoolRoyaleConvexHull2D(points) {
+  const unique = [];
+  const seen = new Set();
+  points.forEach((point) => {
+    if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return;
+    const key = `${point.x.toFixed(5)}:${point.y.toFixed(5)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(point.clone());
+  });
+  if (unique.length < 3) return unique;
+  unique.sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  const cross = (origin, a, b) =>
+    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+  const lower = [];
+  unique.forEach((point) => {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
+      lower.pop();
+    }
+    lower.push(point);
+  });
+  const upper = [];
+  for (let i = unique.length - 1; i >= 0; i -= 1) {
+    const point = unique[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
+      upper.pop();
+    }
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function extractPoolRoyaleExternalCushionSegments(table, externalModel) {
+  if (!table || !externalModel) return [];
+  table.updateMatrixWorld?.(true);
+  externalModel.updateMatrixWorld?.(true);
+  const segments = [];
+  const tableCenter = new THREE.Vector2(0, 0);
+  const worldVertex = new THREE.Vector3();
+  const localVertex = new THREE.Vector3();
+  const maxSegmentX = PLAY_W / 2 + SIDE_RAIL_INNER_THICKNESS * 2.2;
+  const maxSegmentY = PLAY_H / 2 + SIDE_RAIL_INNER_THICKNESS * 2.2;
+
+  externalModel.traverse((child) => {
+    if (!child?.isMesh || !child.geometry?.attributes?.position) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const isCushionMesh = materials.some(
+      (material) => classifyPoolRoyaleExternalTableSurface(child, material) === 'cushion'
+    );
+    if (!isCushionMesh) return;
+
+    const position = child.geometry.attributes.position;
+    const projected = [];
+    for (let i = 0; i < position.count; i += 1) {
+      worldVertex.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
+      localVertex.copy(worldVertex);
+      table.worldToLocal(localVertex);
+      if (!Number.isFinite(localVertex.x) || !Number.isFinite(localVertex.z)) continue;
+      projected.push(new THREE.Vector2(localVertex.x, localVertex.z));
+    }
+
+    const hull = buildPoolRoyaleConvexHull2D(projected);
+    if (hull.length < 2) return;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    hull.forEach((point) => {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y);
+      maxY = Math.max(maxY, point.y);
+    });
+    const center = new THREE.Vector2((minX + maxX) / 2, (minY + maxY) / 2);
+    const horizontal = Math.abs(maxX - minX) >= Math.abs(maxY - minY);
+    const inwardAxis = horizontal
+      ? new THREE.Vector2(0, -Math.sign(center.y || 1))
+      : new THREE.Vector2(-Math.sign(center.x || 1), 0);
+
+    for (let i = 0; i < hull.length; i += 1) {
+      const start = hull[i];
+      const end = hull[(i + 1) % hull.length];
+      const edge = end.clone().sub(start);
+      const length = edge.length();
+      if (length < BALL_R * 0.18) continue;
+      const midpoint = start.clone().add(end).multiplyScalar(0.5);
+      if (Math.abs(midpoint.x) > maxSegmentX || Math.abs(midpoint.y) > maxSegmentY) continue;
+      const toCenter = tableCenter.clone().sub(midpoint);
+      if (toCenter.lengthSq() <= 1e-8) continue;
+      toCenter.normalize();
+      const edgeNormal = new THREE.Vector2(-edge.y, edge.x).normalize();
+      if (edgeNormal.dot(toCenter) < 0) edgeNormal.multiplyScalar(-1);
+      if (edgeNormal.dot(inwardAxis) < 0.18 && edgeNormal.dot(toCenter) < 0.42) continue;
+      const type = edgeNormal.dot(inwardAxis) > 0.86 ? 'rail' : 'cut';
+      segments.push({
+        start: start.clone(),
+        end: end.clone(),
+        type,
+        normal: edgeNormal.clone(),
+        source: 'showood-physical-cushion'
+      });
+    }
+  });
+
+  return segments;
+}
+
+function applyPoolRoyaleExternalCushionPhysics(table, externalModel) {
+  const externalSegments = extractPoolRoyaleExternalCushionSegments(table, externalModel);
+  if (externalSegments.length < 12) return false;
+  CUSHION_SEGMENTS = externalSegments;
+  table.userData.externalCushionSegments = externalSegments;
+  return true;
+}
+
 
 function expandPoolRoyaleUpperMeshBounds(targetBox, mesh, minWorldY) {
   const position = mesh?.geometry?.attributes?.position;
@@ -13033,6 +13153,9 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      if (tableModel.useOriginalLayoutSurfaces) {
+        applyPoolRoyaleExternalCushionPhysics(table, model);
+      }
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -21510,11 +21633,19 @@ const shotPowerRef = useRef(0);
           if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
-          const eyePos = cuePose.cueBack
-            .clone()
-            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
+          const chestAnchor = cuePose.chestWorld && cuePose.neckWorld
+            ? cuePose.chestWorld.clone().lerp(cuePose.neckWorld, 0.72)
+            : null;
+          const eyePos = chestAnchor
+            ? chestAnchor
+                .addScaledVector(cuePose.aimForward, HUMAN_CHEST_CAMERA_FORWARD_OFFSET)
+                .addScaledVector(cuePose.side, HUMAN_CHEST_CAMERA_SIDE_OFFSET)
+                .addScaledVector(WORLD_UP, HUMAN_CHEST_CAMERA_HEIGHT_OFFSET)
+            : cuePose.cueBack
+                .clone()
+                .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
+                .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
+                .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
           return {
             blend: THREE.MathUtils.clamp(
               (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
@@ -26010,15 +26141,21 @@ const shotPowerRef = useRef(0);
             const shootGripTarget = cueBackShoot
               .clone()
               .addScaledVector(cueShootDir, 0.42);
+            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
                 bridgeTarget: bridgeTarget.clone(),
                 aimForward: aimForward.clone(),
-                side: side.clone()
+                side: side.clone(),
+                chestWorld: walkRoot
+                  .clone()
+                  .add(new THREE.Vector3(0, 1.22, -0.42).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)),
+                neckWorld: walkRoot
+                  .clone()
+                  .add(new THREE.Vector3(0, 1.25, -0.61).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw))
               };
             }
-            const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
               .clone()
               .add(new THREE.Vector3(0.31, 0.8, -0.015).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
