@@ -70,6 +70,7 @@ import {
   SNOOKER_ROYALE_OPTION_LABELS
 } from '../../config/snookerRoyalInventoryConfig.js';
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from '../../config/snookerRoyalClothPresets.js';
+import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   getCachedSnookerRoyalInventory,
@@ -105,6 +106,8 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const HUMAN_CUE_DISTANCE_SCALE = 2.35;
+const HUMAN_CUE_SIDE_OFFSET_SCALE = 0.35;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -2623,7 +2626,11 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale
+  woodRepeatScale,
+  disableWoodPattern = false,
+  surfaceStyle = 'standard',
+  useBrandCarbonTexture = false,
+  preserveFinishTintOnWood = false
 }) => ({
   id,
   label,
@@ -2635,7 +2642,12 @@ const createStandardWoodFinish = ({
   }),
   woodTextureId,
   woodRepeatScale,
+  disableWoodPattern,
+  surfaceStyle,
+  useBrandCarbonTexture,
+  preserveFinishTintOnWood,
   createMaterials: () => {
+    const useMatteSurface = surfaceStyle === 'matte';
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
     const trimColor =
@@ -2644,33 +2656,33 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: 0.1,
-      roughness: 0.52,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.34,
-      sheen: 0.16,
-      sheenRoughness: 0.52,
-      reflectivity: 0.26,
-      envMapIntensity: 0.52
+      metalness: useMatteSurface ? 0.01 : 0.1,
+      roughness: useMatteSurface ? 0.9 : 0.52,
+      clearcoat: useMatteSurface ? 0 : 0.28,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.34,
+      sheen: useMatteSurface ? 0.04 : 0.16,
+      sheenRoughness: useMatteSurface ? 0.95 : 0.52,
+      reflectivity: useMatteSurface ? 0.02 : 0.26,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.52
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: 0.12,
-      roughness: 0.48,
-      clearcoat: 0.32,
-      clearcoatRoughness: 0.32,
-      sheen: 0.2,
-      sheenRoughness: 0.52,
-      reflectivity: 0.28,
-      envMapIntensity: 0.56
+      metalness: useMatteSurface ? 0.01 : 0.12,
+      roughness: useMatteSurface ? 0.92 : 0.48,
+      clearcoat: useMatteSurface ? 0 : 0.32,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.32,
+      sheen: useMatteSurface ? 0.04 : 0.2,
+      sheenRoughness: useMatteSurface ? 0.95 : 0.52,
+      reflectivity: useMatteSurface ? 0.02 : 0.28,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.56
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
-      metalness: 0.18,
-      roughness: 0.44,
-      clearcoat: 0.34,
-      clearcoatRoughness: 0.3,
-      envMapIntensity: 0.6
+      metalness: useMatteSurface ? 0.01 : 0.18,
+      roughness: useMatteSurface ? 0.9 : 0.44,
+      clearcoat: useMatteSurface ? 0 : 0.34,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.3,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.6
     });
     const materials = {
       frame,
@@ -2679,6 +2691,11 @@ const createStandardWoodFinish = ({
       trim: trimMat,
       accent: null
     };
+    [frame, railMat, trimMat].forEach((material) => {
+      if (!material?.color) return;
+      material.userData = material.userData || {};
+      material.userData.baseTintHex = material.color.getHex();
+    });
     if (accent != null) {
       materials.accent = new THREE.MeshPhysicalMaterial({
         color: accent,
@@ -2693,6 +2710,16 @@ const createStandardWoodFinish = ({
     return { ...materials, ...createPocketMaterials() };
   }
 });
+
+const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
+  wood_peeling_paint_weathered: 0.8,
+  oak_veneer_01: 1.8,
+  wood_table_001: 1.5,
+  dark_wood: 2,
+  rosewood_veneer_01: 2.4
+});
+const LT_TABLE_WOOD_TEXTURE_ID = 'rosewood_veneer_01';
+const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01;
 
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
@@ -2739,18 +2766,277 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  carbonFiberChalk: createStandardWoodFinish({
+    id: 'carbonFiberChalk',
+    label: 'LT Black',
+    rail: 0x2a313d,
+    base: 0x2a313d,
+    trim: 0x2a313d,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkGrey: createStandardWoodFinish({
+    id: 'carbonFiberChalkGrey',
+    label: 'LT Grey',
+    rail: 0xc8d0da,
+    base: 0xc8d0da,
+    trim: 0xc8d0da,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkBeige: createStandardWoodFinish({
+    id: 'carbonFiberChalkBeige',
+    label: 'LT Dark Grey',
+    rail: 0x727d8b,
+    base: 0x727d8b,
+    trim: 0x727d8b,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkBlue: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBlue',
+    label: 'LT Burgundy',
+    rail: 0xc17276,
+    base: 0xc17276,
+    trim: 0xc17276,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkWhite: createStandardWoodFinish({
+    id: 'carbonFiberChalkWhite',
+    label: 'LT Milk Cream',
+    rail: 0xf8eedf,
+    base: 0xf8eedf,
+    trim: 0xf8eedf,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkGreen: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkGreen',
+    label: 'LT Dark Green',
+    rail: 0x548460,
+    base: 0x548460,
+    trim: 0x548460,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkYellow: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkYellow',
+    label: 'LT Dark Yellow',
+    rail: 0xd1a652,
+    base: 0xd1a652,
+    trim: 0xd1a652,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkBrown: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBrown',
+    label: 'LT Dark Brown',
+    rail: 0x956b4f,
+    base: 0x956b4f,
+    trim: 0x956b4f,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkRed: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkRed',
+    label: 'LT Dark Red',
+    rail: 0xaa5151,
+    base: 0xaa5151,
+    trim: 0xaa5151,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalk: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalk',
+    label: 'LT Black Snake',
+    rail: 0x242b36,
+    base: 0x242b36,
+    trim: 0x242b36,
+    woodTextureId: 'plastic_monoblock_lt_black_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalkGrey: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalkGrey',
+    label: 'LT Grey Snake',
+    rail: 0xb3bcc8,
+    base: 0xb3bcc8,
+    trim: 0xb3bcc8,
+    woodTextureId: 'plastic_monoblock_lt_grey_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalkBeige: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalkBeige',
+    label: 'LT Dark Grey Snake',
+    rail: 0x687381,
+    base: 0x687381,
+    trim: 0x687381,
+    woodTextureId: 'plastic_monoblock_lt_dark_grey_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalkDarkBlue: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalkDarkBlue',
+    label: 'LT Burgundy Snake',
+    rail: 0xa95b60,
+    base: 0xa95b60,
+    trim: 0xa95b60,
+    woodTextureId: 'plastic_monoblock_lt_burgundy_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalkWhite: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalkWhite',
+    label: 'LT Milk Cream Snake',
+    rail: 0xf6ead7,
+    base: 0xf6ead7,
+    trim: 0xf6ead7,
+    woodTextureId: 'plastic_monoblock_lt_milk_cream_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberSnakeChalkDarkGreen: createStandardWoodFinish({
+    id: 'carbonFiberSnakeChalkDarkGreen',
+    label: 'LT Dark Green Snake',
+    rail: 0x4b7958,
+    base: 0x4b7958,
+    trim: 0x4b7958,
+    woodTextureId: 'plastic_monoblock_lt_dark_green_snake',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorOlive: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorOlive',
+    label: 'LT Olive Alligator',
+    rail: 0x556b3f,
+    base: 0x556b3f,
+    trim: 0x556b3f,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorSwamp: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorSwamp',
+    label: 'LT Swamp Alligator',
+    rail: 0x3f5a3c,
+    base: 0x3f5a3c,
+    trim: 0x3f5a3c,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorClay: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorClay',
+    label: 'LT Clay Alligator',
+    rail: 0x6f5b45,
+    base: 0x6f5b45,
+    trim: 0x6f5b45,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorSand: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorSand',
+    label: 'LT Sand Alligator',
+    rail: 0x8a7b5e,
+    base: 0x8a7b5e,
+    trim: 0x8a7b5e,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorMoss: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorMoss',
+    label: 'LT Moss Alligator',
+    rail: 0x4f6048,
+    base: 0x4f6048,
+    trim: 0x4f6048,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberAlligatorNight: createStandardWoodFinish({
+    id: 'carbonFiberAlligatorNight',
+    label: 'LT Night Alligator',
+    rail: 0x2f3c32,
+    base: 0x2f3c32,
+    trim: 0x2f3c32,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
+    useBrandCarbonTexture: false
   })
 });
 
-const TABLE_FINISH_OPTIONS = Object.freeze(
-  [
-    TABLE_FINISHES.peelingPaintWeathered,
-    TABLE_FINISHES.oakVeneer01,
-    TABLE_FINISHES.woodTable001,
-    TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
-  ].filter(Boolean)
-);
+const TABLE_FINISH_OPTIONS = Object.freeze(Object.values(TABLE_FINISHES).filter(Boolean));
 
 const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
 const CUE_FINISH_PALETTE = Object.freeze(
@@ -2815,8 +3101,16 @@ const makeClothDetail = (overrides = {}) => ({
 });
 
 // Cloth library powered by curated presets defined in snookerRoyalClothPresets.
+const SHARED_SNOOKER_CLOTH_VARIANTS = Object.freeze(
+  Array.from(
+    new Map(
+      [...SNOOKER_ROYALE_CLOTH_VARIANTS, ...POOL_ROYALE_CLOTH_VARIANTS].map((variant) => [variant.id, variant])
+    ).values()
+  )
+);
+
 const CLOTH_LIBRARY = Object.freeze(
-  SNOOKER_ROYALE_CLOTH_VARIANTS.map((variant) =>
+  SHARED_SNOOKER_CLOTH_VARIANTS.map((variant) =>
     Object.freeze({
       id: variant.id,
       label: variant.name,
@@ -10676,6 +10970,26 @@ function Table3D(
     });
   };
 
+
+  const refreshOpenSourceVisualFinish = (root = table.userData?.openSourceVisual) => {
+    if (!root) return;
+    root.traverse((node) => {
+      if (!node?.isMesh || !node.userData?.isOpenSourceVisual) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      const roles = materials.map(
+        (material) => node.userData?.openSourceMaterialRole || resolveOpenSourceMaterialRole(node, material)
+      );
+      const resolvedMaterials = materials.map((material, index) =>
+        cloneFinishMaterialForOpenSource(roles[index], material)
+      );
+      node.material = Array.isArray(node.material)
+        ? resolvedMaterials
+        : resolvedMaterials[0] ?? node.material;
+      node.userData.openSourceMaterialRole = roles.includes('cloth') ? 'cloth' : roles[0] || 'frame';
+    });
+  };
+  table.userData.refreshOpenSourceVisualFinish = refreshOpenSourceVisualFinish;
+
   const remapOpenSourceClothTextureCoordinates = (root, targetBounds) => {
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
@@ -10706,6 +11020,81 @@ function Table3D(
       uv.needsUpdate = true;
       geometry.computeBoundingBox();
     });
+  };
+
+
+  const resolveOpenSourceClothMappingBounds = () => {
+    const clothBox = new THREE.Box3();
+    expandBoxByObjectLocalBounds(clothBox, cloth);
+    return clothBox.isEmpty() ? resolveOpenSourceTargetBounds() : clothBox;
+  };
+
+  const registerOpenSourceCushionMappingFromVisual = (root) => {
+    if (!root) return false;
+    table.updateMatrixWorld(true);
+    root.updateMatrixWorld(true);
+    const preferred = [];
+    const fallback = [];
+    root.traverse((node) => {
+      if (!node?.isMesh) return;
+      const label = `${node.name || ''} ${node.material?.name || ''}`.toLowerCase();
+      const role = node.userData?.openSourceMaterialRole || resolveOpenSourceMaterialRole(node, node.material);
+      const isCushion = /cushion|rubber|bumper/.test(label) || role === 'cushion';
+      const isRail = /rail/.test(label) || role === 'rail';
+      if (!isCushion && !isRail) return;
+      const worldBox = new THREE.Box3().setFromObject(node);
+      if (worldBox.isEmpty()) return;
+      const min = table.worldToLocal(worldBox.min.clone());
+      const max = table.worldToLocal(worldBox.max.clone());
+      const box = new THREE.Box3(
+        new THREE.Vector3(Math.min(min.x, max.x), Math.min(min.y, max.y), Math.min(min.z, max.z)),
+        new THREE.Vector3(Math.max(min.x, max.x), Math.max(min.y, max.y), Math.max(min.z, max.z))
+      );
+      const size = box.getSize(new THREE.Vector3());
+      if (size.x < BALL_DIAMETER || size.z < BALL_DIAMETER) return;
+      (isCushion ? preferred : fallback).push({ box, size });
+    });
+    const candidates = preferred.length ? preferred : fallback;
+    if (!candidates.length) return false;
+    const addDerivedCushion = (source, horizontal, side) => {
+      const proxy = new THREE.Group();
+      proxy.userData = {
+        horizontal,
+        side,
+        cutEnds: { min: 0, max: 0 },
+        source: 'glb-original-mapping'
+      };
+      const center = source.box.getCenter(new THREE.Vector3());
+      const size = source.box.getSize(new THREE.Vector3());
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.max(size.x, MICRO_EPS), Math.max(size.y, MICRO_EPS), Math.max(size.z, MICRO_EPS)),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      mesh.visible = false;
+      proxy.add(mesh);
+      proxy.position.copy(center);
+      table.add(proxy);
+      proxy.updateMatrixWorld(true);
+      table.userData.cushions.push(proxy);
+    };
+    const selected = [];
+    const sorted = candidates.slice().sort((a, b) => Math.max(b.size.x, b.size.z) - Math.max(a.size.x, a.size.z));
+    for (const candidate of sorted) {
+      if (selected.length >= 6) break;
+      const horizontal = candidate.size.x >= candidate.size.z;
+      const center = candidate.box.getCenter(new THREE.Vector3());
+      const side = horizontal ? Math.sign(center.z || 1) : Math.sign(center.x || 1);
+      const duplicate = selected.some((entry) => entry.horizontal === horizontal && entry.side === side && Math.abs((horizontal ? entry.center.z - center.z : entry.center.x - center.x)) < BALL_R);
+      if (duplicate) continue;
+      selected.push({ ...candidate, horizontal, side, center });
+    }
+    if (selected.length < 4) return false;
+    table.userData.cushions = [];
+    selected.forEach((entry) => addDerivedCushion(entry, entry.horizontal, entry.side));
+    updateRailLimitsFromTable(table);
+    updateCushionSegmentsFromTable(table);
+    table.userData.usesOpenSourceCushionMapping = true;
+    return true;
   };
 
   const applyOpenSourceTableVisualOverride = () => {
@@ -10752,7 +11141,8 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
-        remapOpenSourceClothTextureCoordinates(model, targetBounds);
+        remapOpenSourceClothTextureCoordinates(model, resolveOpenSourceClothMappingBounds());
+        registerOpenSourceCushionMappingFromVisual(model);
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
@@ -10769,7 +11159,9 @@ function Table3D(
         table.userData.openSourceVisualTargetBounds = targetBounds;
       })
       .catch((error) => {
-        console.warn('Failed to load Pooltool snooker_generic table model', error);
+        setProceduralTableMeshesVisible(true);
+        table.userData.openSourceVisualFailed = true;
+        console.warn('Failed to load Pooltool snooker_generic table model; using procedural fallback table.', error);
       });
   };
 
@@ -11533,6 +11925,10 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
 
+  if (typeof table.userData?.refreshOpenSourceVisualFinish === 'function') {
+    table.userData.refreshOpenSourceVisualFinish();
+  }
+
   finishInfo.id = resolvedFinish.id;
   finishInfo.palette = resolvedFinish.colors;
   finishInfo.materials = {
@@ -11554,7 +11950,7 @@ function SnookerRoyalGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
-  tableModel = TABLE_MODEL_CLASSIC,
+  tableModel = TABLE_MODEL_OPENSOURCE,
   playType = 'regular',
   mode = 'ai',
   trainingMode = 'solo',
@@ -11816,7 +12212,7 @@ function SnookerRoyalGame({
     }
     const clothId = selectReward(
       'clothColor',
-      SNOOKER_ROYALE_CLOTH_VARIANTS.map((variant) => variant.id)
+      SHARED_SNOOKER_CLOTH_VARIANTS.map((variant) => variant.id)
     );
     if (clothId) {
       try {
@@ -26409,9 +26805,9 @@ const powerRef = useRef(hud.power);
             const sideX = forwardZ;
             const sideZ = -forwardX;
             humanActor.position.set(
-              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
+              cueStick.position.x - forwardX * (SCALE * HUMAN_CUE_DISTANCE_SCALE) - sideX * (SCALE * HUMAN_CUE_SIDE_OFFSET_SCALE),
               0,
-              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
+              cueStick.position.z - forwardZ * (SCALE * HUMAN_CUE_DISTANCE_SCALE) - sideZ * (SCALE * HUMAN_CUE_SIDE_OFFSET_SCALE)
             );
             humanActor.rotation.y = yaw;
           }
