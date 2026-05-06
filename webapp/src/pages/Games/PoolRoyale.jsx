@@ -12561,83 +12561,6 @@ function clonePoolRoyaleExternalTableTemplate(template) {
   return clone;
 }
 
-function cloneTextureForExternalTableUv(texture, { isColor = false } = {}) {
-  if (!texture) return null;
-  const cloned = texture.clone();
-  if (isColor) cloned.colorSpace = THREE.SRGBColorSpace;
-  cloned.wrapS = THREE.RepeatWrapping;
-  cloned.wrapT = THREE.RepeatWrapping;
-  cloned.repeat.set(1, 1);
-  cloned.offset.set(0, 0);
-  cloned.center.set(0, 0);
-  cloned.rotation = 0;
-  cloned.anisotropy = resolveTextureAnisotropy(12);
-  cloned.needsUpdate = true;
-  return cloned;
-}
-
-function cloneMaterialForExternalTableUv(sourceMaterial, role = 'frame') {
-  if (!sourceMaterial) return null;
-  const mat = sourceMaterial.clone ? sourceMaterial.clone() : sourceMaterial;
-  mat.map = cloneTextureForExternalTableUv(sourceMaterial.map, { isColor: true });
-  mat.emissiveMap = cloneTextureForExternalTableUv(sourceMaterial.emissiveMap, { isColor: true });
-  mat.aoMap = cloneTextureForExternalTableUv(sourceMaterial.aoMap);
-  mat.normalMap = cloneTextureForExternalTableUv(sourceMaterial.normalMap);
-  mat.bumpMap = cloneTextureForExternalTableUv(sourceMaterial.bumpMap);
-  mat.roughnessMap = cloneTextureForExternalTableUv(sourceMaterial.roughnessMap);
-  mat.metalnessMap = cloneTextureForExternalTableUv(sourceMaterial.metalnessMap);
-  mat.side = THREE.DoubleSide;
-  mat.userData = {
-    ...(mat.userData || {}),
-    poolRoyaleExternalMaterialRole: role,
-    preserveOriginalUvMapping: true
-  };
-  mat.needsUpdate = true;
-  return mat;
-}
-
-function classifyExternalTableSurface(child) {
-  const key = `${child?.name || ''} ${child?.material?.name || ''}`.toLowerCase();
-  if (/cloth|felt|bed|slate|playfield|tabletop/.test(key)) return 'cloth';
-  if (/cushion|rubber|bumper/.test(key)) return 'cushion';
-  if (/pocket|leather|liner|net|basket/.test(key)) return 'pocket';
-  if (/chrome|metal|trim|cap|sight|diamond/.test(key)) return 'trim';
-  if (/leg|stand|base|foot|pedestal/.test(key)) return 'frame';
-  if (/rail|wood|frame|cabinet|apron|body/.test(key)) return 'rail';
-  return null;
-}
-
-function applyPoolRoyaleActiveFinishToExternalTable(model, finishInfo) {
-  if (!model || !finishInfo?.materials) return;
-  const materialByRole = {
-    cloth: cloneMaterialForExternalTableUv(finishInfo.clothMat, 'cloth'),
-    cushion: cloneMaterialForExternalTableUv(finishInfo.cushionMat, 'cushion'),
-    rail: cloneMaterialForExternalTableUv(finishInfo.materials.rail, 'rail'),
-    frame: cloneMaterialForExternalTableUv(finishInfo.materials.frame, 'frame'),
-    trim: cloneMaterialForExternalTableUv(finishInfo.materials.trim, 'trim'),
-    pocket: cloneMaterialForExternalTableUv(
-      finishInfo.materials.pocketJaw || finishInfo.materials.pocketRim,
-      'pocket'
-    )
-  };
-  const fallback = materialByRole.rail || materialByRole.frame;
-  model.traverse((child) => {
-    if (!child?.isMesh) return;
-    const role = classifyExternalTableSurface(child) || 'rail';
-    const nextMaterial = materialByRole[role] || fallback;
-    if (!nextMaterial) return;
-    child.material = nextMaterial.clone ? nextMaterial.clone() : nextMaterial;
-    child.castShadow = true;
-    child.receiveShadow = true;
-    child.frustumCulled = false;
-    child.userData = {
-      ...(child.userData || {}),
-      poolRoyaleExternalSurfaceRole: role,
-      poolRoyaleUsesActiveTableFinish: true
-    };
-  });
-}
-
 async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
   if (!tableModel?.assetUrl) return null;
   if (poolRoyaleExternalTableTemplates.has(tableModel.id)) {
@@ -12689,24 +12612,12 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const modelLength = Math.max(MICRO_EPS, Math.max(size.x, size.z));
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
-  const userFitScale = tableModel?.fitScale ?? 1;
-  if (tableModel?.fitStrategy === 'exact') {
-    const axisXScale = (dims.targetWidth / Math.max(MICRO_EPS, size.x)) * userFitScale;
-    const axisZScale = (dims.targetLength / Math.max(MICRO_EPS, size.z)) * userFitScale;
-    const axisYScale = Math.min(axisXScale, axisZScale);
-    model.scale.set(
-      model.scale.x * axisXScale,
-      model.scale.y * axisYScale,
-      model.scale.z * axisZScale
-    );
-  } else {
-    const baseFitScale =
-      tableModel?.fitStrategy === 'contain'
-        ? Math.min(widthScale, lengthScale)
-        : Math.max(widthScale, lengthScale);
-    const fitScale = baseFitScale * userFitScale;
-    model.scale.multiplyScalar(fitScale);
-  }
+  const baseFitScale =
+    tableModel?.fitStrategy === 'contain'
+      ? Math.min(widthScale, lengthScale)
+      : Math.max(widthScale, lengthScale);
+  const fitScale = baseFitScale * (tableModel?.fitScale ?? 1);
+  model.scale.multiplyScalar(fitScale);
   model.updateMatrixWorld(true);
 
   box = new THREE.Box3().setFromObject(model);
@@ -12722,7 +12633,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     fittedToPlayfield: {
       width: dims.targetWidth,
       length: dims.targetLength,
-      strategy: tableModel?.fitStrategy || 'cover',
       physics: 'Pool Royale playfield, pockets, cushions, and ball simulation'
     }
   };
@@ -12733,7 +12643,6 @@ function mountPoolRoyaleExternalTableModel({
   tableModel,
   renderer,
   dims,
-  finishInfo,
   setGeneratedVisualsVisible
 }) {
   if (!table || !tableModel?.assetUrl) return null;
@@ -12751,9 +12660,6 @@ function mountPoolRoyaleExternalTableModel({
     .then((template) => {
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template);
-      if (tableModel?.materialSource === 'poolRoyaleActiveFinish') {
-        applyPoolRoyaleActiveFinishToExternalTable(model, finishInfo);
-      }
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
@@ -13445,7 +13351,6 @@ function mountPoolRoyaleExternalTableModel({
             targetLength: Math.max(TABLE.H, generatedVisualSize.z),
             cushionTopLocal
           },
-          finishInfo,
           setGeneratedVisualsVisible
         })
       : null;
