@@ -32,11 +32,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
-    hideSurfaceRoles: ['cloth'],
-    surfaceRoleVerticalOffsets: {
-      cloth: 0.06,
-      cushion: 0.06
-    }
+    hideSurfaceRoles: ['cloth']
   }
 ]);
 
