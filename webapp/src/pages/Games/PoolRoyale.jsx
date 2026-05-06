@@ -1920,7 +1920,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.218; // raise the visible cloth surface so Showood and procedural tables sit flush with the shared field
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -2053,8 +2053,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.156; // lift the cushion base a tiny bit more so the cushion top reads slightly higher
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch less so they sit higher than before
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.205; // lift the cushion base higher so the Showood/native shared cushion lip sits proud of the field
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.004; // trim the cushion tops less so the shared Royal/Showood profile reads higher
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -13567,6 +13567,41 @@ function mountPoolRoyaleExternalTableModel({
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
   table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'royal-original';
+
+  const nativeSurfaceRoles = usesExternalTableModel &&
+    Array.isArray(resolvedTableOptions?.tableModel?.keepNativeSurfaceRoles)
+      ? new Set(resolvedTableOptions.tableModel.keepNativeSurfaceRoles)
+      : null;
+  const markExternalTableKeepVisible = (object) => {
+    if (!object) return;
+    object.userData = {
+      ...(object.userData || {}),
+      externalTableKeepVisible: true
+    };
+    object.traverse?.((child) => {
+      child.userData = {
+        ...(child.userData || {}),
+        externalTableKeepVisible: true
+      };
+    });
+  };
+  if (nativeSurfaceRoles?.has('cloth')) {
+    markExternalTableKeepVisible(cloth);
+    markExternalTableKeepVisible(markingsGroup);
+  }
+  if (nativeSurfaceRoles?.has('cushion')) {
+    table.userData.cushions.forEach(markExternalTableKeepVisible);
+    finishParts.gapFillMeshes.forEach(markExternalTableKeepVisible);
+  }
+  if (nativeSurfaceRoles?.has('jaws')) {
+    finishParts.pocketJawMeshes.forEach(markExternalTableKeepVisible);
+    finishParts.pocketRimMeshes.forEach(markExternalTableKeepVisible);
+  }
+  if (nativeSurfaceRoles?.has('pocket')) {
+    pocketMeshes.forEach(markExternalTableKeepVisible);
+    finishParts.pocketNetMeshes.forEach(markExternalTableKeepVisible);
+    finishParts.pocketBaseMeshes.forEach(markExternalTableKeepVisible);
+  }
 
   const generatedVisualObjects = [];
   const generatedStructuralObjects = [];

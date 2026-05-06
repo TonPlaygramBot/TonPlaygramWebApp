@@ -32,7 +32,11 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
-    hideSurfaceRoles: ['cloth']
+    // The Showood body supplies the wood frame while native Pool Royale surfaces
+    // stay visible on top so the field, cushion jaws, and pocket mouths match
+    // the procedural Royal table exactly.
+    keepNativeSurfaceRoles: ['cloth', 'cushion', 'jaws', 'pocket'],
+    hideSurfaceRoles: ['cloth', 'cushion', 'pocket']
   }
 ]);
 
