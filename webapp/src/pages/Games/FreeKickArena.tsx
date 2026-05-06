@@ -106,6 +106,10 @@ const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.model
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
 const CAMERA_YAW_STEP = 0.22;
 const CAMERA_YAW_LIMIT = 0.7;
+const SPECTATOR_ROWS_FILLED = 5;
+const SPECTATORS_PER_ROW_TARGET = 18;
+const SPECTATOR_SCALE = 0.66;
+const SPECTATOR_FOOT_TO_SEAT_DROP = 0.22;
 const GOAL_RUSH_SOUNDS = {
   crowd: "/assets/sounds/football-crowd-3-69245.mp3",
   whistle: "/assets/sounds/metal-whistle-6121.mp3",
@@ -245,7 +249,10 @@ function findBones(model: THREE.Object3D): Bones {
 }
 
 function normalizeHuman(model: THREE.Object3D, height = PLAYER_H) {
-  model.rotation.y = Math.PI;
+  // Match every playable and crowd human to the same Soldier.glb forward orientation.
+  // Some imported human meshes have different bind-pose facings, so keep the mesh but
+  // normalize its root transform before applying the shared free-kick behaviour poses.
+  model.rotation.set(0, Math.PI, 0);
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
@@ -280,16 +287,27 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number) {
   const group = new THREE.Group();
   const kit = kind === "keeper" ? 0x111111 : kitColor ?? (kind === "kicker" ? 0x1d69ff : 0xfacc15);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.72, 8, 14), material(kit));
+  torso.name = "torso";
   torso.position.y = 1.05;
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.02), material(kind === "wall" ? 0x174ea6 : 0xffffff));
+  stripe.name = "stripe";
   stripe.position.set(0, 1.25, -0.16);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 12), material(0xf1d6bd));
+  head.name = "head";
   head.position.y = 1.62;
   const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.64, 6, 10), material(0x202020));
+  leftLeg.name = "leftLeg";
   const rightLeg = leftLeg.clone();
+  rightLeg.name = "rightLeg";
   leftLeg.position.set(-0.09, 0.42, 0);
   rightLeg.position.set(0.09, 0.42, 0);
-  group.add(shadow(torso), shadow(stripe), shadow(head), shadow(leftLeg), shadow(rightLeg));
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.52, 6, 10), material(0xdddddd));
+  leftArm.name = "leftArm";
+  const rightArm = leftArm.clone();
+  rightArm.name = "rightArm";
+  leftArm.position.set(-0.25, 1.05, 0.01);
+  rightArm.position.set(0.25, 1.05, 0.01);
+  group.add(shadow(torso), shadow(stripe), shadow(head), shadow(leftLeg), shadow(rightLeg), shadow(leftArm), shadow(rightArm));
   return group;
 }
 
@@ -462,36 +480,62 @@ function applyKeeperPose(keeper: Actor) {
   if (keeper.bones.rightArm) keeper.bones.rightArm.rotation.z += -keeper.diveDir * 1.65 * a;
 }
 
-function applySeatedSpectatorPose(actor: Actor, cheerTime = 0) {
+function applySeatedSpectatorPose(actor: Actor, cheerTime = 0, dt = 1 / 60) {
   const cheer = cheerTime > 0;
   const phase = performance.now() * 0.006 + actor.wallIndex * 0.73;
   const wave = Math.sin(phase) * (cheer ? 0.55 : 0.08);
   const standPhase = cheer ? Math.sin(THREE.MathUtils.clamp(cheerTime / 3.0, 0, 1) * Math.PI) : 0;
-  const standLift = standPhase * 0.46;
+  const standLift = standPhase * 0.34;
+
   actor.root.position.copy(actor.pos).add(new THREE.Vector3(0, standLift, 0));
   actor.root.rotation.x = 0;
   actor.root.rotation.z = 0;
   if (actor.dir.lengthSq() > 0.001) actor.root.rotation.y = Math.atan2(actor.dir.x, actor.dir.z);
   setAction(actor, "Idle");
-  actor.mixer?.update(1 / 60);
-  if (actor.bones.hips) actor.bones.hips.rotation.x += cheer ? -0.03 * wave : -0.18;
+  actor.mixer?.update(dt);
+
+  // Seated spectators should keep the same normalized Soldier orientation as players,
+  // then bend at hips/knees so they visibly rest on the plastic seats instead of
+  // standing through or floating above the chair rows.
+  if (actor.bones.hips) {
+    actor.bones.hips.rotation.x += cheer ? -0.08 * wave : -0.34;
+  }
   if (actor.bones.spine) {
-    actor.bones.spine.rotation.x += cheer ? 0.08 + wave * 0.05 : 0.28;
+    actor.bones.spine.rotation.x += cheer ? 0.1 + wave * 0.05 : 0.22;
     actor.bones.spine.rotation.z += cheer ? wave * 0.08 : 0;
   }
-  const thigh = cheer ? -0.16 : -1.18;
-  const shin = cheer ? 0.22 : 1.34;
+  const thigh = cheer ? -0.28 : -1.42;
+  const shin = cheer ? 0.42 : 1.58;
   if (actor.bones.leftUpLeg) actor.bones.leftUpLeg.rotation.x += thigh;
   if (actor.bones.rightUpLeg) actor.bones.rightUpLeg.rotation.x += thigh;
   if (actor.bones.leftLeg) actor.bones.leftLeg.rotation.x += shin;
   if (actor.bones.rightLeg) actor.bones.rightLeg.rotation.x += shin;
+  if (actor.bones.leftFoot) actor.bones.leftFoot.rotation.x += -0.22;
+  if (actor.bones.rightFoot) actor.bones.rightFoot.rotation.x += -0.22;
   if (actor.bones.leftArm) {
-    actor.bones.leftArm.rotation.x += cheer ? -2.05 + wave * 0.18 : -0.52;
-    actor.bones.leftArm.rotation.z += cheer ? -0.78 + wave * 0.32 : -0.18;
+    actor.bones.leftArm.rotation.x += cheer ? -2.05 + wave * 0.18 : -0.62;
+    actor.bones.leftArm.rotation.z += cheer ? -0.78 + wave * 0.32 : -0.12;
   }
   if (actor.bones.rightArm) {
-    actor.bones.rightArm.rotation.x += cheer ? -2.05 - wave * 0.18 : -0.52;
-    actor.bones.rightArm.rotation.z += cheer ? 0.78 + wave * 0.32 : 0.18;
+    actor.bones.rightArm.rotation.x += cheer ? -2.05 - wave * 0.18 : -0.62;
+    actor.bones.rightArm.rotation.z += cheer ? 0.78 + wave * 0.32 : 0.12;
+  }
+
+  if (actor.fallback.visible) {
+    const torso = actor.fallback.getObjectByName("torso");
+    const stripe = actor.fallback.getObjectByName("stripe");
+    const head = actor.fallback.getObjectByName("head");
+    const leftLeg = actor.fallback.getObjectByName("leftLeg");
+    const rightLeg = actor.fallback.getObjectByName("rightLeg");
+    const leftArm = actor.fallback.getObjectByName("leftArm");
+    const rightArm = actor.fallback.getObjectByName("rightArm");
+    if (torso) { torso.position.set(0, 0.92, -0.02); torso.rotation.x = cheer ? -0.04 * wave : -0.16; }
+    if (stripe) { stripe.position.set(0, 1.1, -0.18); stripe.rotation.x = cheer ? -0.04 * wave : -0.16; }
+    if (head) head.position.set(0, 1.38 + (cheer ? Math.abs(wave) * 0.03 : 0), -0.07);
+    if (leftLeg) { leftLeg.position.set(-0.1, 0.48, 0.18); leftLeg.rotation.x = Math.PI / 2.7; }
+    if (rightLeg) { rightLeg.position.set(0.1, 0.48, 0.18); rightLeg.rotation.x = Math.PI / 2.7; }
+    if (leftArm) { leftArm.position.set(-0.24, 0.98, 0.02); leftArm.rotation.z = cheer ? -0.72 + wave * 0.2 : -0.28; leftArm.rotation.x = cheer ? -0.8 : -0.12; }
+    if (rightArm) { rightArm.position.set(0.24, 0.98, 0.02); rightArm.rotation.z = cheer ? 0.72 + wave * 0.2 : 0.28; rightArm.rotation.x = cheer ? -0.8 : -0.12; }
   }
 }
 
@@ -530,7 +574,7 @@ function triggerCrowdCheer(stadium: StadiumRig) {
 
 function updateStadiumCrowd(stadium: StadiumRig, dt: number) {
   if (stadium.cheerTime > 0) stadium.cheerTime = Math.max(0, stadium.cheerTime - dt);
-  stadium.spectators.forEach((spectator) => applySeatedSpectatorPose(spectator, stadium.cheerTime));
+  stadium.spectators.forEach((spectator) => applySeatedSpectatorPose(spectator, stadium.cheerTime, dt));
 }
 
 function createSoccerBallTexture() {
@@ -736,24 +780,38 @@ function makeBillboardsAndStands(scene: THREE.Scene, loader: GLTFLoader): Stadiu
   const spectators: Actor[] = [];
   let characterIndex = 0;
   for (let row = 0; row < rows; row++) {
+    let rowSpectators = 0;
     for (let col = 0; col < 26; col++) {
       const x = (col - 12.5) * 0.78;
       if (stairXs.some((aisleX) => Math.abs(x - aisleX) < 0.58)) continue;
-      const z = stands.position.z - row * rowDepth + 0.04;
+      const localZ = -row * rowDepth + 0.04;
+      const z = stands.position.z + localZ;
       const y = 0.38 + row * rowRise;
       const chair = makeChair(chairColors[(row + col) % chairColors.length]);
-      chair.position.set(x, y, -row * rowDepth + 0.04);
+      chair.position.set(x, y, localZ);
       chair.rotation.y = 0;
       stands.add(chair);
 
-      if (characterIndex < MURLAN_CHARACTER_THEMES.length) {
+      const shouldSeatHuman = row < SPECTATOR_ROWS_FILLED && rowSpectators < SPECTATORS_PER_ROW_TARGET;
+      if (shouldSeatHuman) {
         const kit = MURLAN_CHARACTER_COLORS[characterIndex % MURLAN_CHARACTER_COLORS.length];
-        const spectator = createActor(scene, loader, "wall", new THREE.Vector3(x, y + stands.position.y + 0.04, z + 0.08), characterIndex, kit, MURLAN_CHARACTER_URLS[characterIndex % Math.max(1, MURLAN_CHARACTER_URLS.length)] ?? HUMAN_URL);
+        const urlPoolSize = Math.max(1, MURLAN_CHARACTER_URLS.length);
+        const modelUrl = MURLAN_CHARACTER_URLS[characterIndex % urlPoolSize] ?? HUMAN_URL;
+        const spectator = createActor(
+          scene,
+          loader,
+          "wall",
+          new THREE.Vector3(x, y + stands.position.y - SPECTATOR_FOOT_TO_SEAT_DROP, z + 0.02),
+          characterIndex,
+          kit,
+          modelUrl
+        );
         spectator.dir.set(-x * 0.08, 0, 1).normalize();
         spectator.wallIndex = characterIndex;
-        spectator.root.scale.setScalar(0.68);
+        spectator.root.scale.setScalar(SPECTATOR_SCALE);
         spectators.push(spectator);
         characterIndex += 1;
+        rowSpectators += 1;
       }
     }
   }
@@ -809,7 +867,22 @@ function makeHalfField(scene: THREE.Scene, netRig: NetRig, loader: GLTFLoader): 
 
 function makeAimLine(scene: THREE.Scene) { const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(34 * 3), 3)); const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xfff200, transparent: true, opacity: 0.95 })); scene.add(line); return line; }
 function shotPoint(start: THREE.Vector3, target: THREE.Vector3, curve: number, lift: number, t: number) { const p = start.clone().lerp(target, t); p.x += curve * Math.sin(t * Math.PI); p.y = BALL_R + lift * Math.sin(t * Math.PI) + (target.y - BALL_R) * t; return p; }
-function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) { const dx = swipe.endX - swipe.startX; const dy = swipe.startY - swipe.endY; const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2); const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3); const target = new THREE.Vector3(targetX, targetY, GOAL_LINE_Z - 0.2); const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0); const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4); const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72); const distance = ballPos.distanceTo(target); const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34); return { target, curve, lift, power, duration }; }
+function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) {
+  const dx = swipe.endX - swipe.startX;
+  const dy = swipe.startY - swipe.endY;
+  const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2);
+  const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3);
+  const onFrame = Math.abs(targetX) > GOAL_W / 2 - 0.34 || targetY > GOAL_H - 0.08;
+  const inMouth = Math.abs(targetX) <= GOAL_W / 2 - BALL_R * 1.4 && targetY >= BALL_R && targetY <= GOAL_H - BALL_R * 0.3;
+  const targetDepth = inMouth && !onFrame ? GOAL_LINE_Z - GOAL_D + 0.32 : GOAL_LINE_Z - 0.12;
+  const target = new THREE.Vector3(targetX, targetY, targetDepth);
+  const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0);
+  const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4);
+  const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72);
+  const distance = ballPos.distanceTo(target);
+  const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34);
+  return { target, curve, lift, power, duration };
+}
 function setAimCurve(line: THREE.Line, ballPos: THREE.Vector3, swipe: SwipeState) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; const shot = swipeToShot(ballPos, swipe); for (let i = 0; i < attr.count; i++) { const t = i / (attr.count - 1); const p = shotPoint(ballPos, shot.target, shot.curve, shot.lift, t); attr.setXYZ(i, p.x, p.y + 0.08, p.z); } attr.needsUpdate = true; line.geometry.computeBoundingSphere(); }
 function hideAimLine(line: THREE.Line) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; for (let i = 0; i < attr.count; i++) attr.setXYZ(i, 99, 99, 99); attr.needsUpdate = true; }
 function freeKickPosition(spot: KickSpot) { if (spot === "left") return new THREE.Vector3(-4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "right") return new THREE.Vector3(4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "near16") return new THREE.Vector3(0.7, BALL_R, GOAL_LINE_Z + 18.8); return new THREE.Vector3(0, BALL_R, GOAL_LINE_Z + 23.0); }
@@ -1076,6 +1149,15 @@ function catchBallInNet(ball: BallState, netRig: NetRig) {
   triggerNetShake(netRig, ball.object.position.clone());
 }
 
+function placeCameraForNextShot(camera: THREE.PerspectiveCamera, kicker: Actor, cameraYaw = 0) {
+  const lookPoint = new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25);
+  const behindOffset = new THREE.Vector3(kicker.pos.x * 0.45, 0, kicker.pos.z + 2.85)
+    .sub(new THREE.Vector3(lookPoint.x, 0, lookPoint.z))
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+  camera.position.set(lookPoint.x + behindOffset.x, 1.22, lookPoint.z + behindOffset.z);
+  camera.lookAt(lookPoint);
+}
+
 export default function FreeKickGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1111,6 +1193,7 @@ export default function FreeKickGame() {
     const keeper = createActor(scene, loader, "keeper", new THREE.Vector3(0, 0, GOAL_LINE_Z + 0.36), 0, actorKitColor(1), actorModelUrl(1));
     const wall = Array.from({ length: 5 }, (_, i) => createActor(scene, loader, "wall", new THREE.Vector3(0, 0, 0), i, actorKitColor(i + 2), actorModelUrl(i + 2)));
     let spot: KickSpot = "center"; let state: ShotState = "aim"; let resultTimer = 0; let varTimer = 0; let replayIndex = 0; let replayClock = 0; let pendingDecision: Decision = "NO GOAL"; let shotBlocked = false; let shotSaved = false; let shotFinalized = false; let netTriggered = false; let cameraYaw = 0; const replayFrames: ReplayFrame[] = []; let score = { goals: 0, saves: 0 }; resetShot(ball, kicker, keeper, wall, spot);
+    placeCameraForNextShot(camera, kicker, cameraYaw);
     const resize = () => { const w = Math.max(1, host.clientWidth); const h = Math.max(1, host.clientHeight); renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     resize(); window.addEventListener("resize", resize);
     const onDown = (e: PointerEvent) => {
@@ -1174,7 +1257,7 @@ export default function FreeKickGame() {
           pendingDecision = "BLOCKED";
           audio.save();
           state = "result";
-          resultTimer = 0.6;
+          resultTimer = 0.38;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "BLOCKED · next free kick" }));
         }
@@ -1185,7 +1268,7 @@ export default function FreeKickGame() {
           ball.flying = false;
           audio.save();
           state = "result";
-          resultTimer = 0.75;
+          resultTimer = 0.42;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "SAVE · next free kick" }));
         }
@@ -1201,7 +1284,7 @@ export default function FreeKickGame() {
             setHud((h) => ({ ...h, state: "VAR CHECK: ball crossed line" }));
           } else {
             state = "result";
-            resultTimer = 0.7;
+            resultTimer = 0.45;
             score.saves += 1;
             setHud((h) => ({ ...h, saves: score.saves, state: `${pendingDecision} · next free kick` }));
           }
@@ -1221,7 +1304,7 @@ export default function FreeKickGame() {
         }
         if (replayIndex >= replayFrames.length - 1 || replayFrames.length === 0) { state = "result"; resultTimer = pendingDecision === "GOAL" ? 2.65 : 1.05; if (pendingDecision === "GOAL") { audio.goal(); triggerCrowdCheer(stadium); kicker.celebrateTime = 2.45; score.goals += 1; setHud((h) => ({ ...h, goals: score.goals, state: "VAR: GOAL confirmed" })); } else { score.saves += 1; setHud((h) => ({ ...h, saves: score.saves, state: `VAR: ${pendingDecision}` })); } }
       }
-      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); setHud((h) => ({ ...h, state: "Swipe to aim and shoot" })); } }
+      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, state: "Swipe to aim and shoot" })); } }
       if (state !== "replay") {
         updateActorBase(kicker, dt); applyKickerPose(kicker); applyGoalDancePose(kicker); updateActorBase(keeper, dt); applyKeeperPose(keeper);
         wall.forEach((w) => { updateActorBase(w, dt); applyWallPose(w); if (w.jumpTime > 0) w.jumpTime = Math.max(0, w.jumpTime - dt); });
@@ -1238,7 +1321,7 @@ export default function FreeKickGame() {
       renderer.render(scene, camera);
     };
     loop();
-    (window as any).__setFreeKickSpot = (next: KickSpot) => { audio.whistle(); spot = next; state = "aim"; hideAimLine(aimLine); replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); setHud((h) => ({ ...h, spot, state: `Free kick ${next}: wall ${wallCountForSpot(next)} at 9.15m` })); };
+    (window as any).__setFreeKickSpot = (next: KickSpot) => { audio.whistle(); spot = next; state = "aim"; hideAimLine(aimLine); replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, spot, state: `Free kick ${next}: wall ${wallCountForSpot(next)} at 9.15m` })); };
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); canvas.removeEventListener("pointerdown", onDown); canvas.removeEventListener("pointermove", onMove); canvas.removeEventListener("pointerup", onUp); canvas.removeEventListener("pointercancel", onUp); audio.dispose(); renderer.dispose(); };
   }, []);
 
