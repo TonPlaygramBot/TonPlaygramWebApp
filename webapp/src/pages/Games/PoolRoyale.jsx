@@ -9034,8 +9034,12 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
+  const externalTableUsesOriginalLayout =
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
-    usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.playfieldVisualLift)
+    usesExternalTableModel &&
+    !externalTableUsesOriginalLayout &&
+    Number.isFinite(resolvedTableOptions?.tableModel?.playfieldVisualLift)
       ? Math.max(0, resolvedTableOptions.tableModel.playfieldVisualLift)
       : 0;
   const resolveTablePocketCenters = () => {
@@ -13646,6 +13650,7 @@ function mountPoolRoyaleExternalTableModel({
     generatedVisualObjects.forEach((object) => {
       if (
         !visible &&
+        !externalTableModelForMount?.useOriginalLayoutSurfaces &&
         (object.userData?.externalTableKeepVisible ||
           (object.userData?.isChromePlate && chromePlateStyle.showGeneratedOnExternal))
       ) {
