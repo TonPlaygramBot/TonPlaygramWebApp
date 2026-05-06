@@ -33,6 +33,10 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import {
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  resolvePoolRoyaleTableModel
+} from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
@@ -8959,6 +8963,7 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
+  const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -12510,6 +12515,179 @@ export function Table3D(
     return loader;
   };
 
+
+
+const poolRoyaleExternalTableTemplates = new Map();
+const poolRoyaleExternalTablePromises = new Map();
+
+function preparePoolRoyaleExternalTableMaterials(root) {
+  root?.traverse?.((child) => {
+    if (!child?.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    child.frustumCulled = false;
+
+    const prepareTexture = (texture, isColor = false) => {
+      if (!texture) return;
+      if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = resolveTextureAnisotropy(12);
+      texture.needsUpdate = true;
+    };
+
+    const prepareMaterial = (material) => {
+      if (!material) return material;
+      const mat = material.clone ? material.clone() : material;
+      prepareTexture(mat.map, true);
+      prepareTexture(mat.emissiveMap, true);
+      prepareTexture(mat.aoMap, false);
+      prepareTexture(mat.normalMap, false);
+      prepareTexture(mat.roughnessMap, false);
+      prepareTexture(mat.metalnessMap, false);
+      mat.needsUpdate = true;
+      return mat;
+    };
+
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map(prepareMaterial);
+    } else if (child.material) {
+      child.material = prepareMaterial(child.material);
+    }
+  });
+}
+
+function clonePoolRoyaleExternalTableTemplate(template) {
+  const clone = template.clone(true);
+  preparePoolRoyaleExternalTableMaterials(clone);
+  return clone;
+}
+
+async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
+  if (!tableModel?.assetUrl) return null;
+  if (poolRoyaleExternalTableTemplates.has(tableModel.id)) {
+    return poolRoyaleExternalTableTemplates.get(tableModel.id);
+  }
+  if (poolRoyaleExternalTablePromises.has(tableModel.id)) {
+    return poolRoyaleExternalTablePromises.get(tableModel.id);
+  }
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    let lastError = null;
+    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (!scene) throw new Error(`Missing GLTF scene for ${tableModel.id}`);
+        poolRoyaleExternalTableTemplates.set(tableModel.id, scene);
+        return scene;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Failed to load Pool Royale table model: ${tableModel.id}`);
+  })();
+  poolRoyaleExternalTablePromises.set(tableModel.id, promise);
+  promise.catch(() => poolRoyaleExternalTablePromises.delete(tableModel.id));
+  return promise;
+}
+
+function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
+  if (!model || !dims) return;
+  model.position.set(0, 0, 0);
+  model.rotation.set(0, 0, 0);
+  model.scale.setScalar(1);
+  model.updateMatrixWorld(true);
+
+  let box = new THREE.Box3().setFromObject(model);
+  let size = box.getSize(new THREE.Vector3());
+  if (size.x > size.z && dims.targetLength > dims.targetWidth) {
+    model.rotation.y = Math.PI / 2;
+    model.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(model);
+    size = box.getSize(new THREE.Vector3());
+  }
+
+  const modelWidth = Math.max(MICRO_EPS, Math.min(size.x, size.z));
+  const modelLength = Math.max(MICRO_EPS, Math.max(size.x, size.z));
+  const widthScale = dims.targetWidth / modelWidth;
+  const lengthScale = dims.targetLength / modelLength;
+  const baseFitScale =
+    tableModel?.fitStrategy === 'contain'
+      ? Math.min(widthScale, lengthScale)
+      : Math.max(widthScale, lengthScale);
+  const fitScale = baseFitScale * (tableModel?.fitScale ?? 1);
+  model.scale.multiplyScalar(fitScale);
+  model.updateMatrixWorld(true);
+
+  box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y += dims.cushionTopLocal - box.max.y + (tableModel?.verticalOffset ?? 0);
+  model.updateMatrixWorld(true);
+  model.userData = {
+    ...(model.userData || {}),
+    poolRoyaleExternalTable: true,
+    tableModelId: tableModel?.id,
+    fittedToPlayfield: {
+      width: dims.targetWidth,
+      length: dims.targetLength,
+      physics: 'Pool Royale playfield, pockets, cushions, and ball simulation'
+    }
+  };
+}
+
+function mountPoolRoyaleExternalTableModel({
+  table,
+  tableModel,
+  renderer,
+  dims,
+  setGeneratedVisualsVisible
+}) {
+  if (!table || !tableModel?.assetUrl) return null;
+  const externalRoot = new THREE.Group();
+  externalRoot.name = `pool-royale-external-table-${tableModel.id}`;
+  externalRoot.userData = {
+    ...(externalRoot.userData || {}),
+    poolRoyaleExternalTableRoot: true,
+    tableModelId: tableModel.id
+  };
+  table.add(externalRoot);
+  let disposed = false;
+
+  loadPoolRoyaleExternalTableTemplate(tableModel, renderer)
+    .then((template) => {
+      if (disposed || !template) return;
+      const model = clonePoolRoyaleExternalTableTemplate(template);
+      fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      externalRoot.clear();
+      externalRoot.add(model);
+      setGeneratedVisualsVisible?.(false);
+    })
+    .catch((error) => {
+      console.warn('Pool Royale external table failed to load; keeping native table', {
+        tableModelId: tableModel.id,
+        error
+      });
+      if (!disposed) setGeneratedVisualsVisible?.(true);
+    });
+
+  return {
+    group: externalRoot,
+    dispose: () => {
+      disposed = true;
+      if (externalRoot.parent) externalRoot.parent.remove(externalRoot);
+      externalRoot.traverse((child) => {
+        if (!child?.isMesh) return;
+        child.geometry?.dispose?.();
+        const material = child.material;
+        if (Array.isArray(material)) material.forEach((mat) => mat?.dispose?.());
+        else material?.dispose?.();
+      });
+    }
+  };
+}
   const buildPolyhavenModelUrls = (assetId) => {
     if (!assetId) return [];
     const normalizedId = `${assetId}`.trim();
@@ -12904,6 +13082,12 @@ export function Table3D(
   };
 
   const applyBaseVariant = (variant) => {
+    if (usesExternalTableModel) {
+      clearBaseMeshes();
+      finishParts.baseVariantId = 'externalModelOwnBase';
+      table.userData.baseVariantId = 'externalModelOwnBase';
+      return;
+    }
     const variantId = resolveBaseVariantId(variant);
     const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
     clearBaseMeshes();
@@ -13135,6 +13319,42 @@ export function Table3D(
   table.userData.cushionLipClearance = clothPlaneWorld;
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
+  table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'royal-original';
+
+  const generatedVisualObjects = [];
+  table.traverse((child) => {
+    if (child !== table && (child.isMesh || child.isLine || child.isSprite)) {
+      generatedVisualObjects.push(child);
+    }
+  });
+  const generatedVisualBounds = new THREE.Box3();
+  generatedVisualObjects.forEach((object) => {
+    object.updateMatrixWorld(true);
+    generatedVisualBounds.expandByObject(object);
+  });
+  const generatedVisualSize = generatedVisualBounds.isEmpty()
+    ? new THREE.Vector3(TABLE.W, TABLE.THICK, TABLE.H)
+    : generatedVisualBounds.getSize(new THREE.Vector3());
+  const setGeneratedVisualsVisible = (visible) => {
+    generatedVisualObjects.forEach((object) => {
+      object.visible = visible;
+    });
+  };
+  const externalTable =
+    resolvedTableOptions?.tableModel?.kind === 'gltf'
+      ? mountPoolRoyaleExternalTableModel({
+          table,
+          tableModel: resolvedTableOptions.tableModel,
+          renderer,
+          dims: {
+            targetWidth: Math.max(TABLE.W, generatedVisualSize.x),
+            targetLength: Math.max(TABLE.H, generatedVisualSize.z),
+            cushionTopLocal
+          },
+          setGeneratedVisualsVisible
+        })
+      : null;
+  table.userData.externalTable = externalTable;
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -13580,6 +13800,7 @@ function PoolRoyaleGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
+  tableModelKey,
   playType = 'regular',
   mode = 'ai',
   accountId,
@@ -13707,6 +13928,10 @@ function PoolRoyaleGame({
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
+  );
+  const activeTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelKey),
+    [tableModelKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
@@ -24415,7 +24640,8 @@ const shotPowerRef = useRef(0);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { tableModel: activeTableModel }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -24469,7 +24695,8 @@ const shotPowerRef = useRef(0);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { tableModel: activeTableModel }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -36617,6 +36844,17 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
+  const tableModelKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('tableModel');
+    if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      ).id;
+    } catch {}
+    return resolvePoolRoyaleTableModel().id;
+  }, [location.search]);
   const mode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('mode');
@@ -36731,6 +36969,7 @@ export default function PoolRoyale() {
         variantKey={variantKey}
         ballSetKey={ballSetKey}
         tableSizeKey={tableSizeKey}
+        tableModelKey={tableModelKey}
         playType={playType}
         mode={mode}
         accountId={accountId}
