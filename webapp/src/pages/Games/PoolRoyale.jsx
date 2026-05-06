@@ -1251,7 +1251,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.18; // round the native wooden rail outline so the default rail silhouette follows the Showood pocket-jaw style
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -1279,12 +1279,12 @@ const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outs
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1920,7 +1920,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.2; // raise the cloth surface so Showood overlays sit flush with the physics field
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -2053,8 +2053,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.156; // lift the cushion base a tiny bit more so the cushion top reads slightly higher
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch less so they sit higher than before
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher so native and Showood cushions sit on the same raised field plane
+const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -10084,13 +10084,13 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // keep cushions closer to center to avoid overlap with rails
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.016; // push short-rail cushions farther outward so they sit flush against the short rails without visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.064; // push long side-rail cushions a tiny bit farther outward toward the rail edge
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.24; // keep native cushion noses closer to the Showood corner-jaw reach
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.42; // let native long cushions reach the Showood-style corner jaws
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.02; // keep side cushion ends nearly flush with the Showood pocket-jaw layout
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.142; // trim the side-rail cushion ends near corner pockets just a tiny bit more; middle-pocket trims stay unchanged
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.045; // lift all six cushions higher so Showood and Royal profiles share the same visual top line
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -12201,6 +12201,10 @@ export function Table3D(
     const heightScale = Math.max(0.001, cushionScaleBase / orientationScale);
     mesh.scale.y = heightScale * orientationScale;
     mesh.renderOrder = 2;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      externalTableKeepVisible: true
+    };
     const group = new THREE.Group();
     group.add(mesh);
     group.position.set(
@@ -12259,7 +12263,10 @@ export function Table3D(
       finishParts.gapFillMeshes.push(stripe);
     }
 
-    group.userData = group.userData || {};
+    group.userData = {
+      ...(group.userData || {}),
+      externalTableKeepVisible: true
+    };
     group.userData.mesh = mesh;
     group.userData.horizontal = horizontal;
     group.userData.side = side;
