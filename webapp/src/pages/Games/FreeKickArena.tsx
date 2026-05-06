@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { MURLAN_CHARACTER_THEMES } from "../../config/murlanCharacterThemes.js";
 
 type AnimName = "Idle" | "Walk" | "Run";
@@ -85,8 +86,17 @@ type NetRig = {
   impact: THREE.Vector3;
 };
 
+type SeatedSpectator = {
+  root: THREE.Group;
+  fallback: THREE.Group;
+  instance: THREE.Object3D | null;
+  bones: Partial<Record<"hips" | "spine" | "head" | "leftUpperArm" | "leftForeArm" | "leftHand" | "rightUpperArm" | "rightForeArm" | "rightHand" | "leftThigh" | "leftCalf" | "rightThigh" | "rightCalf", THREE.Bone>>;
+  base: Partial<Record<"hips" | "spine" | "head" | "leftUpperArm" | "leftForeArm" | "leftHand" | "rightUpperArm" | "rightForeArm" | "rightHand" | "leftThigh" | "leftCalf" | "rightThigh" | "rightCalf", THREE.Euler>>;
+  wallIndex: number;
+};
+
 type StadiumRig = {
-  spectators: Actor[];
+  spectators: SeatedSpectator[];
   cheerTime: number;
 };
 
@@ -106,6 +116,12 @@ const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.model
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
 const CAMERA_YAW_STEP = 0.22;
 const CAMERA_YAW_LIMIT = 0.7;
+const SPECTATOR_ROWS_FILLED = 5;
+const SPECTATORS_PER_ROW_TARGET = 18;
+const SPECTATOR_SCALE = 0.38;
+const SPECTATOR_FALLBACK_SCALE = 0.42;
+const SPECTATOR_SEAT_Y = 0.17;
+const SPECTATOR_SEAT_Z = 0.14;
 const GOAL_RUSH_SOUNDS = {
   crowd: "/assets/sounds/football-crowd-3-69245.mp3",
   whistle: "/assets/sounds/metal-whistle-6121.mp3",
@@ -136,6 +152,7 @@ const GOAL_LINE_Z = -HALF_H / 2;
 const RUNUP_BACK_STEPS = 2.2;
 const TMP = new THREE.Vector3();
 const QTMP = new THREE.Quaternion();
+const SEATED_CHARACTER_TEMPLATE_CACHE = new Map<string, Promise<THREE.Object3D>>();
 
 
 function shuffledCharacterColors() {
@@ -244,8 +261,78 @@ function findBones(model: THREE.Object3D): Bones {
   return bones;
 }
 
+function normalizeCharacterPivot(characterRoot: THREE.Object3D) {
+  const bounds = new THREE.Box3().setFromObject(characterRoot);
+  if (bounds.isEmpty()) return;
+  characterRoot.position.y -= bounds.min.y;
+}
+
+function findBoneByHints(root: THREE.Object3D, hints: string[] = []) {
+  let matched: THREE.Bone | null = null;
+  root.traverse((obj) => {
+    const bone = obj as THREE.Bone;
+    if (matched || !bone.isBone) return;
+    const name = String(bone.name || "").toLowerCase();
+    if (name && hints.some((hint) => name.includes(hint))) matched = bone;
+  });
+  return matched;
+}
+
+function captureBoneRotation(bone: THREE.Bone | null | undefined) {
+  return bone ? bone.rotation.clone() : new THREE.Euler();
+}
+
+function applyRotationOffset(bone: THREE.Bone | null | undefined, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function applyMurlanSeatedPose(instance: THREE.Object3D) {
+  const bones = {
+    hips: findBoneByHints(instance, ["hips", "pelvis", "pelvisjoint", "hip_joint"]),
+    spine: findBoneByHints(instance, ["spine", "chest", "torso"]),
+    head: findBoneByHints(instance, ["head", "neck", "headjoint", "head_joint"]),
+    rightUpperArm: findBoneByHints(instance, ["rightarm", "arm.r", "r_upperarm", "rightshoulder", "armjointr", "arm_joint_r_1", "arm_joint_r", "shoulderr"]),
+    rightForeArm: findBoneByHints(instance, ["rightforearm", "r_forearm", "rightlowerarm", "forearmr", "elbowr", "arm_joint_r_2", "arm_joint_r_3"]),
+    rightHand: findBoneByHints(instance, ["righthand", "hand.r", "r_hand", "handjointr", "hand_joint_r"]),
+    leftUpperArm: findBoneByHints(instance, ["leftarm", "arm.l", "l_upperarm", "leftshoulder", "armjointl", "arm_joint_l_1", "arm_joint_l", "shoulderl"]),
+    leftForeArm: findBoneByHints(instance, ["leftforearm", "l_forearm", "leftlowerarm", "forearml", "elbowl", "arm_joint_l_2", "arm_joint_l_3"]),
+    leftHand: findBoneByHints(instance, ["lefthand", "hand.l", "l_hand", "handjointl", "hand_joint_l"]),
+    leftThigh: findBoneByHints(instance, ["leftupleg", "leftthigh", "l_thigh", "legjointl1", "leg_joint_l_1", "leg_joint_l"]),
+    leftCalf: findBoneByHints(instance, ["leftleg", "leftcalf", "l_calf", "legjointl2", "leg_joint_l_2", "leg_joint_l_3"]),
+    rightThigh: findBoneByHints(instance, ["rightupleg", "rightthigh", "r_thigh", "legjointr1", "leg_joint_r_1", "leg_joint_r"]),
+    rightCalf: findBoneByHints(instance, ["rightleg", "rightcalf", "r_calf", "legjointr2", "leg_joint_r_2", "leg_joint_r_3"]),
+  };
+
+  // Exact Murlan Royale seated base pose values so the Free Kick Arena crowd sits
+  // the same way as the Murlan table characters.
+  applyRotationOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  applyRotationOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  applyRotationOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
+  applyRotationOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(bones.leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  applyRotationOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  applyRotationOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  applyRotationOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+
+  return {
+    bones,
+    base: Object.fromEntries(Object.entries(bones).map(([key, bone]) => [key, captureBoneRotation(bone)])),
+  };
+}
+
 function normalizeHuman(model: THREE.Object3D, height = PLAYER_H) {
-  model.rotation.y = Math.PI;
+  // Match every playable and crowd human to the same Soldier.glb forward orientation.
+  // Some imported human meshes have different bind-pose facings, so keep the mesh but
+  // normalize its root transform before applying the shared free-kick behaviour poses.
+  model.rotation.set(0, Math.PI, 0);
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
@@ -280,16 +367,27 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number) {
   const group = new THREE.Group();
   const kit = kind === "keeper" ? 0x111111 : kitColor ?? (kind === "kicker" ? 0x1d69ff : 0xfacc15);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.72, 8, 14), material(kit));
+  torso.name = "torso";
   torso.position.y = 1.05;
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.02), material(kind === "wall" ? 0x174ea6 : 0xffffff));
+  stripe.name = "stripe";
   stripe.position.set(0, 1.25, -0.16);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 12), material(0xf1d6bd));
+  head.name = "head";
   head.position.y = 1.62;
   const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.64, 6, 10), material(0x202020));
+  leftLeg.name = "leftLeg";
   const rightLeg = leftLeg.clone();
+  rightLeg.name = "rightLeg";
   leftLeg.position.set(-0.09, 0.42, 0);
   rightLeg.position.set(0.09, 0.42, 0);
-  group.add(shadow(torso), shadow(stripe), shadow(head), shadow(leftLeg), shadow(rightLeg));
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.52, 6, 10), material(0xdddddd));
+  leftArm.name = "leftArm";
+  const rightArm = leftArm.clone();
+  rightArm.name = "rightArm";
+  leftArm.position.set(-0.25, 1.05, 0.01);
+  rightArm.position.set(0.25, 1.05, 0.01);
+  group.add(shadow(torso), shadow(stripe), shadow(head), shadow(leftLeg), shadow(rightLeg), shadow(leftArm), shadow(rightArm));
   return group;
 }
 
@@ -462,38 +560,113 @@ function applyKeeperPose(keeper: Actor) {
   if (keeper.bones.rightArm) keeper.bones.rightArm.rotation.z += -keeper.diveDir * 1.65 * a;
 }
 
-function applySeatedSpectatorPose(actor: Actor, cheerTime = 0) {
-  const cheer = cheerTime > 0;
-  const phase = performance.now() * 0.006 + actor.wallIndex * 0.73;
-  const wave = Math.sin(phase) * (cheer ? 0.55 : 0.08);
-  const standPhase = cheer ? Math.sin(THREE.MathUtils.clamp(cheerTime / 3.0, 0, 1) * Math.PI) : 0;
-  const standLift = standPhase * 0.46;
-  actor.root.position.copy(actor.pos).add(new THREE.Vector3(0, standLift, 0));
-  actor.root.rotation.x = 0;
-  actor.root.rotation.z = 0;
-  if (actor.dir.lengthSq() > 0.001) actor.root.rotation.y = Math.atan2(actor.dir.x, actor.dir.z);
-  setAction(actor, "Idle");
-  actor.mixer?.update(1 / 60);
-  if (actor.bones.hips) actor.bones.hips.rotation.x += cheer ? -0.03 * wave : -0.18;
-  if (actor.bones.spine) {
-    actor.bones.spine.rotation.x += cheer ? 0.08 + wave * 0.05 : 0.28;
-    actor.bones.spine.rotation.z += cheer ? wave * 0.08 : 0;
-  }
-  const thigh = cheer ? -0.16 : -1.18;
-  const shin = cheer ? 0.22 : 1.34;
-  if (actor.bones.leftUpLeg) actor.bones.leftUpLeg.rotation.x += thigh;
-  if (actor.bones.rightUpLeg) actor.bones.rightUpLeg.rotation.x += thigh;
-  if (actor.bones.leftLeg) actor.bones.leftLeg.rotation.x += shin;
-  if (actor.bones.rightLeg) actor.bones.rightLeg.rotation.x += shin;
-  if (actor.bones.leftArm) {
-    actor.bones.leftArm.rotation.x += cheer ? -2.05 + wave * 0.18 : -0.52;
-    actor.bones.leftArm.rotation.z += cheer ? -0.78 + wave * 0.32 : -0.18;
-  }
-  if (actor.bones.rightArm) {
-    actor.bones.rightArm.rotation.x += cheer ? -2.05 - wave * 0.18 : -0.52;
-    actor.bones.rightArm.rotation.z += cheer ? 0.78 + wave * 0.32 : 0.18;
-  }
+function createSeatedFallbackSpectator(color: number) {
+  const group = new THREE.Group();
+  group.name = "murlan-seated-fallback";
+  group.scale.setScalar(SPECTATOR_FALLBACK_SCALE);
+  group.position.set(0, SPECTATOR_SEAT_Y, SPECTATOR_SEAT_Z);
+
+  const shirt = material(color, 0.72, 0.02);
+  const skin = material(0xf1d6bd, 0.7, 0.02);
+  const dark = material(0x171717, 0.68, 0.03);
+  const sleeve = material(0xe5e7eb, 0.68, 0.02);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.54, 8, 12), shirt);
+  torso.position.set(0, 0.78, -0.05);
+  torso.rotation.x = THREE.MathUtils.degToRad(-9);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 12), skin);
+  head.position.set(0, 1.22, -0.1);
+  const leftThigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 6, 10), dark);
+  const rightThigh = leftThigh.clone();
+  leftThigh.position.set(-0.085, 0.45, 0.14);
+  rightThigh.position.set(0.085, 0.45, 0.14);
+  leftThigh.rotation.x = THREE.MathUtils.degToRad(88);
+  rightThigh.rotation.x = THREE.MathUtils.degToRad(88);
+  const leftCalf = new THREE.Mesh(new THREE.CapsuleGeometry(0.052, 0.46, 6, 10), dark);
+  const rightCalf = leftCalf.clone();
+  leftCalf.position.set(-0.085, 0.22, 0.34);
+  rightCalf.position.set(0.085, 0.22, 0.34);
+  leftCalf.rotation.x = THREE.MathUtils.degToRad(8);
+  rightCalf.rotation.x = THREE.MathUtils.degToRad(8);
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.4, 6, 10), sleeve);
+  const rightArm = leftArm.clone();
+  leftArm.position.set(-0.22, 0.72, 0.02);
+  rightArm.position.set(0.22, 0.72, 0.02);
+  leftArm.rotation.set(THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-8));
+  rightArm.rotation.set(THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(8));
+  group.add(shadow(torso), shadow(head), shadow(leftThigh), shadow(rightThigh), shadow(leftCalf), shadow(rightCalf), shadow(leftArm), shadow(rightArm));
+  return group;
 }
+
+function loadSeatedCharacterTemplate(loader: GLTFLoader, modelUrl: string) {
+  const cached = SEATED_CHARACTER_TEMPLATE_CACHE.get(modelUrl);
+  if (cached) return cached;
+  loader.setCrossOrigin("anonymous");
+  const promise = new Promise<THREE.Object3D>((resolve, reject) => {
+    loader.load(modelUrl, (gltf) => resolve(gltf.scene), undefined, reject);
+  });
+  SEATED_CHARACTER_TEMPLATE_CACHE.set(modelUrl, promise);
+  return promise;
+}
+
+function attachMurlanSeatedSpectator(chair: THREE.Group, loader: GLTFLoader, characterTheme: any, index: number, kitColor: number): SeatedSpectator {
+  const root = new THREE.Group();
+  root.name = `murlan-seated-spectator-${index}`;
+  root.position.set(0, SPECTATOR_SEAT_Y, SPECTATOR_SEAT_Z);
+  root.scale.setScalar((characterTheme?.scale ?? 1) * SPECTATOR_SCALE);
+  root.rotation.set(characterTheme?.seatPitch ?? 0, characterTheme?.seatYaw ?? 0, 0);
+
+  const fallback = createSeatedFallbackSpectator(kitColor);
+  const spectator: SeatedSpectator = { root, fallback, instance: null, bones: {}, base: {}, wallIndex: index };
+  chair.add(root, fallback);
+
+  const modelUrl = characterTheme?.modelUrls?.[0] ?? characterTheme?.url ?? HUMAN_URL;
+  loadSeatedCharacterTemplate(loader, modelUrl)
+    .then((template) => {
+      const instance = cloneSkeleton(template);
+      instance.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = false;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach((raw) => {
+          const matRef = raw as THREE.MeshStandardMaterial;
+          if (matRef?.map) matRef.map.colorSpace = THREE.SRGBColorSpace;
+          if (matRef) matRef.needsUpdate = true;
+        });
+      });
+      normalizeCharacterPivot(instance);
+      instance.position.y -= 0.09 * 0.75;
+      const rig = applyMurlanSeatedPose(instance);
+      spectator.instance = instance;
+      spectator.bones = rig.bones;
+      spectator.base = rig.base;
+      root.add(instance);
+      fallback.visible = false;
+    })
+    .catch(() => {
+      fallback.visible = true;
+    });
+
+  return spectator;
+}
+
+function applySeatedSpectatorPose(spectator: SeatedSpectator, cheerTime = 0) {
+  const cheer = cheerTime > 0;
+  const phase = performance.now() * 0.006 + spectator.wallIndex * 0.73;
+  const wave = Math.sin(phase) * (cheer ? 0.08 : 0.02);
+  spectator.root.position.y = SPECTATOR_SEAT_Y + Math.abs(wave) * 0.015;
+  spectator.fallback.position.y = SPECTATOR_SEAT_Y + Math.abs(wave) * 0.015;
+
+  const leftUpperArm = spectator.bones.leftUpperArm;
+  const rightUpperArm = spectator.bones.rightUpperArm;
+  const leftBase = spectator.base.leftUpperArm;
+  const rightBase = spectator.base.rightUpperArm;
+  if (leftUpperArm && leftBase) leftUpperArm.rotation.z = leftBase.z - Math.abs(wave) * 0.45;
+  if (rightUpperArm && rightBase) rightUpperArm.rotation.z = rightBase.z + Math.abs(wave) * 0.45;
+}
+
 
 function applyGoalDancePose(kicker: Actor) {
   if (kicker.celebrateTime <= 0) return;
@@ -733,27 +906,28 @@ function makeBillboardsAndStands(scene: THREE.Scene, loader: GLTFLoader): Stadiu
   });
 
   const chairColors = [0x1d4ed8, 0xffffff];
-  const spectators: Actor[] = [];
+  const spectators: SeatedSpectator[] = [];
   let characterIndex = 0;
   for (let row = 0; row < rows; row++) {
+    let rowSpectators = 0;
     for (let col = 0; col < 26; col++) {
       const x = (col - 12.5) * 0.78;
       if (stairXs.some((aisleX) => Math.abs(x - aisleX) < 0.58)) continue;
-      const z = stands.position.z - row * rowDepth + 0.04;
+      const localZ = -row * rowDepth + 0.04;
+      const z = stands.position.z + localZ;
       const y = 0.38 + row * rowRise;
       const chair = makeChair(chairColors[(row + col) % chairColors.length]);
-      chair.position.set(x, y, -row * rowDepth + 0.04);
+      chair.position.set(x, y, localZ);
       chair.rotation.y = 0;
       stands.add(chair);
 
-      if (characterIndex < MURLAN_CHARACTER_THEMES.length) {
+      const shouldSeatHuman = row < SPECTATOR_ROWS_FILLED && rowSpectators < SPECTATORS_PER_ROW_TARGET;
+      if (shouldSeatHuman) {
         const kit = MURLAN_CHARACTER_COLORS[characterIndex % MURLAN_CHARACTER_COLORS.length];
-        const spectator = createActor(scene, loader, "wall", new THREE.Vector3(x, y + stands.position.y + 0.04, z + 0.08), characterIndex, kit, MURLAN_CHARACTER_URLS[characterIndex % Math.max(1, MURLAN_CHARACTER_URLS.length)] ?? HUMAN_URL);
-        spectator.dir.set(-x * 0.08, 0, 1).normalize();
-        spectator.wallIndex = characterIndex;
-        spectator.root.scale.setScalar(0.68);
-        spectators.push(spectator);
+        const characterTheme = MURLAN_CHARACTER_THEMES[characterIndex % Math.max(1, MURLAN_CHARACTER_THEMES.length)] ?? { url: HUMAN_URL, scale: 1 };
+        spectators.push(attachMurlanSeatedSpectator(chair, loader, characterTheme, characterIndex, kit));
         characterIndex += 1;
+        rowSpectators += 1;
       }
     }
   }
@@ -809,7 +983,22 @@ function makeHalfField(scene: THREE.Scene, netRig: NetRig, loader: GLTFLoader): 
 
 function makeAimLine(scene: THREE.Scene) { const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(34 * 3), 3)); const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xfff200, transparent: true, opacity: 0.95 })); scene.add(line); return line; }
 function shotPoint(start: THREE.Vector3, target: THREE.Vector3, curve: number, lift: number, t: number) { const p = start.clone().lerp(target, t); p.x += curve * Math.sin(t * Math.PI); p.y = BALL_R + lift * Math.sin(t * Math.PI) + (target.y - BALL_R) * t; return p; }
-function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) { const dx = swipe.endX - swipe.startX; const dy = swipe.startY - swipe.endY; const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2); const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3); const target = new THREE.Vector3(targetX, targetY, GOAL_LINE_Z - 0.2); const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0); const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4); const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72); const distance = ballPos.distanceTo(target); const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34); return { target, curve, lift, power, duration }; }
+function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) {
+  const dx = swipe.endX - swipe.startX;
+  const dy = swipe.startY - swipe.endY;
+  const targetX = THREE.MathUtils.clamp(dx / 34, -GOAL_W / 2 + 0.2, GOAL_W / 2 - 0.2);
+  const targetY = THREE.MathUtils.clamp(0.45 + dy / 82, 0.22, GOAL_H + 1.3);
+  const onFrame = Math.abs(targetX) > GOAL_W / 2 - 0.34 || targetY > GOAL_H - 0.08;
+  const inMouth = Math.abs(targetX) <= GOAL_W / 2 - BALL_R * 1.4 && targetY >= BALL_R && targetY <= GOAL_H - BALL_R * 0.3;
+  const targetDepth = inMouth && !onFrame ? GOAL_LINE_Z - GOAL_D + 0.32 : GOAL_LINE_Z - 0.12;
+  const target = new THREE.Vector3(targetX, targetY, targetDepth);
+  const curve = THREE.MathUtils.clamp(dx / 58, -6.0, 6.0);
+  const lift = THREE.MathUtils.clamp(dy / 65, 0.35, GOAL_H + 2.4);
+  const power = THREE.MathUtils.clamp(Math.hypot(dx, dy) / 123, 0.48, 1.72);
+  const distance = ballPos.distanceTo(target);
+  const duration = THREE.MathUtils.clamp(distance / (18.7 + power * 10.4), 0.72, 1.34);
+  return { target, curve, lift, power, duration };
+}
 function setAimCurve(line: THREE.Line, ballPos: THREE.Vector3, swipe: SwipeState) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; const shot = swipeToShot(ballPos, swipe); for (let i = 0; i < attr.count; i++) { const t = i / (attr.count - 1); const p = shotPoint(ballPos, shot.target, shot.curve, shot.lift, t); attr.setXYZ(i, p.x, p.y + 0.08, p.z); } attr.needsUpdate = true; line.geometry.computeBoundingSphere(); }
 function hideAimLine(line: THREE.Line) { const attr = (line.geometry as THREE.BufferGeometry).getAttribute("position") as THREE.BufferAttribute; for (let i = 0; i < attr.count; i++) attr.setXYZ(i, 99, 99, 99); attr.needsUpdate = true; }
 function freeKickPosition(spot: KickSpot) { if (spot === "left") return new THREE.Vector3(-4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "right") return new THREE.Vector3(4.6, BALL_R, GOAL_LINE_Z + 24.5); if (spot === "near16") return new THREE.Vector3(0.7, BALL_R, GOAL_LINE_Z + 18.8); return new THREE.Vector3(0, BALL_R, GOAL_LINE_Z + 23.0); }
@@ -1076,6 +1265,15 @@ function catchBallInNet(ball: BallState, netRig: NetRig) {
   triggerNetShake(netRig, ball.object.position.clone());
 }
 
+function placeCameraForNextShot(camera: THREE.PerspectiveCamera, kicker: Actor, cameraYaw = 0) {
+  const lookPoint = new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25);
+  const behindOffset = new THREE.Vector3(kicker.pos.x * 0.45, 0, kicker.pos.z + 2.85)
+    .sub(new THREE.Vector3(lookPoint.x, 0, lookPoint.z))
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+  camera.position.set(lookPoint.x + behindOffset.x, 1.22, lookPoint.z + behindOffset.z);
+  camera.lookAt(lookPoint);
+}
+
 export default function FreeKickGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1111,6 +1309,7 @@ export default function FreeKickGame() {
     const keeper = createActor(scene, loader, "keeper", new THREE.Vector3(0, 0, GOAL_LINE_Z + 0.36), 0, actorKitColor(1), actorModelUrl(1));
     const wall = Array.from({ length: 5 }, (_, i) => createActor(scene, loader, "wall", new THREE.Vector3(0, 0, 0), i, actorKitColor(i + 2), actorModelUrl(i + 2)));
     let spot: KickSpot = "center"; let state: ShotState = "aim"; let resultTimer = 0; let varTimer = 0; let replayIndex = 0; let replayClock = 0; let pendingDecision: Decision = "NO GOAL"; let shotBlocked = false; let shotSaved = false; let shotFinalized = false; let netTriggered = false; let cameraYaw = 0; const replayFrames: ReplayFrame[] = []; let score = { goals: 0, saves: 0 }; resetShot(ball, kicker, keeper, wall, spot);
+    placeCameraForNextShot(camera, kicker, cameraYaw);
     const resize = () => { const w = Math.max(1, host.clientWidth); const h = Math.max(1, host.clientHeight); renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     resize(); window.addEventListener("resize", resize);
     const onDown = (e: PointerEvent) => {
@@ -1174,7 +1373,7 @@ export default function FreeKickGame() {
           pendingDecision = "BLOCKED";
           audio.save();
           state = "result";
-          resultTimer = 0.6;
+          resultTimer = 0.38;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "BLOCKED · next free kick" }));
         }
@@ -1185,7 +1384,7 @@ export default function FreeKickGame() {
           ball.flying = false;
           audio.save();
           state = "result";
-          resultTimer = 0.75;
+          resultTimer = 0.42;
           score.saves += 1;
           setHud((h) => ({ ...h, saves: score.saves, state: "SAVE · next free kick" }));
         }
@@ -1201,7 +1400,7 @@ export default function FreeKickGame() {
             setHud((h) => ({ ...h, state: "VAR CHECK: ball crossed line" }));
           } else {
             state = "result";
-            resultTimer = 0.7;
+            resultTimer = 0.45;
             score.saves += 1;
             setHud((h) => ({ ...h, saves: score.saves, state: `${pendingDecision} · next free kick` }));
           }
@@ -1221,7 +1420,7 @@ export default function FreeKickGame() {
         }
         if (replayIndex >= replayFrames.length - 1 || replayFrames.length === 0) { state = "result"; resultTimer = pendingDecision === "GOAL" ? 2.65 : 1.05; if (pendingDecision === "GOAL") { audio.goal(); triggerCrowdCheer(stadium); kicker.celebrateTime = 2.45; score.goals += 1; setHud((h) => ({ ...h, goals: score.goals, state: "VAR: GOAL confirmed" })); } else { score.saves += 1; setHud((h) => ({ ...h, saves: score.saves, state: `VAR: ${pendingDecision}` })); } }
       }
-      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); setHud((h) => ({ ...h, state: "Swipe to aim and shoot" })); } }
+      if (state === "result") { resultTimer -= dt; if (resultTimer <= 0) { state = "aim"; shotBlocked = false; shotSaved = false; shotFinalized = false; netTriggered = false; replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, state: "Swipe to aim and shoot" })); } }
       if (state !== "replay") {
         updateActorBase(kicker, dt); applyKickerPose(kicker); applyGoalDancePose(kicker); updateActorBase(keeper, dt); applyKeeperPose(keeper);
         wall.forEach((w) => { updateActorBase(w, dt); applyWallPose(w); if (w.jumpTime > 0) w.jumpTime = Math.max(0, w.jumpTime - dt); });
@@ -1238,7 +1437,7 @@ export default function FreeKickGame() {
       renderer.render(scene, camera);
     };
     loop();
-    (window as any).__setFreeKickSpot = (next: KickSpot) => { audio.whistle(); spot = next; state = "aim"; hideAimLine(aimLine); replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); setHud((h) => ({ ...h, spot, state: `Free kick ${next}: wall ${wallCountForSpot(next)} at 9.15m` })); };
+    (window as any).__setFreeKickSpot = (next: KickSpot) => { audio.whistle(); spot = next; state = "aim"; hideAimLine(aimLine); replayFrames.length = 0; resetShot(ball, kicker, keeper, wall, spot); placeCameraForNextShot(camera, kicker, cameraYaw); setHud((h) => ({ ...h, spot, state: `Free kick ${next}: wall ${wallCountForSpot(next)} at 9.15m` })); };
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); canvas.removeEventListener("pointerdown", onDown); canvas.removeEventListener("pointermove", onMove); canvas.removeEventListener("pointerup", onUp); canvas.removeEventListener("pointercancel", onUp); audio.dispose(); renderer.dispose(); };
   }, []);
 
