@@ -18,8 +18,7 @@ import {
   applySnookerTableModelParam,
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
-  TABLE_MODEL_OPENSOURCE,
-  TABLE_MODEL_SHOWOOD
+  TABLE_MODEL_OPENSOURCE
 } from './snookerTableModel.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'snookerRoyalPlayerFlag';
@@ -447,11 +446,10 @@ export default function SnookerRoyalLobby() {
             <h3 className="font-semibold text-white">Choose Table</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Layout</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
               { id: TABLE_MODEL_CLASSIC, label: 'Classic Table', desc: 'Current playable table' },
-              { id: TABLE_MODEL_OPENSOURCE, label: 'New Snooker Table', desc: 'Open-source GLTF table model' },
-              { id: TABLE_MODEL_SHOWOOD, label: 'Showood Table', desc: 'Exact-fit GLB with selected textures' }
+              { id: TABLE_MODEL_OPENSOURCE, label: 'New Snooker Table', desc: 'Open-source GLTF table model' }
             ].map(({ id, label, desc }) => {
               const active = tableModel === id;
               return (
