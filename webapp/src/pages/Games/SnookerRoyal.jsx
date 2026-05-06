@@ -10580,7 +10580,7 @@ function Table3D(
   const setProceduralTableMeshesVisible = (visible) => {
     collectProceduralTableVisualMeshes().forEach((mesh) => {
       if (!mesh || mesh.userData?.isOpenSourceVisual) return;
-      mesh.visible = visible || isOpenSourceHardwareKeepMesh(mesh);
+      mesh.visible = visible || isOpenSourceHardwareKeepMesh(mesh) || Boolean(mesh.userData?.__basePart);
     });
   };
 
@@ -10745,6 +10745,55 @@ function Table3D(
     });
   };
 
+  const hideOpenSourceOriginalTableBase = (root) => {
+    if (!root) return 0;
+    root.updateMatrixWorld(true);
+    const rootBounds = new THREE.Box3().setFromObject(root);
+    if (rootBounds.isEmpty()) return 0;
+    const rootSize = rootBounds.getSize(new THREE.Vector3());
+    const lowerBaseCutoff = rootBounds.min.y + rootSize.y * 0.45;
+    const topSurfaceRoles = new Set(['cloth', 'cushion', 'pocket', 'trim', 'rail']);
+    let hiddenCount = 0;
+
+    root.traverse((node) => {
+      if (!node?.isMesh) return;
+      const role = node.userData?.openSourceMaterialRole || 'frame';
+      const nodeLabel = `${node.name || ''}`.toLowerCase();
+      const materialLabel = (Array.isArray(node.material) ? node.material : [node.material])
+        .map((material) => material?.name || '')
+        .join(' ')
+        .toLowerCase();
+      const label = `${nodeLabel} ${materialLabel}`;
+      const nodeBounds = new THREE.Box3().setFromObject(node);
+      if (nodeBounds.isEmpty()) return;
+      const centerY = nodeBounds.getCenter(new THREE.Vector3()).y;
+      const namedBasePart = /\b(leg|stand|foot|feet|plinth|pedestal|support|trestle)\b/.test(label)
+        || /\bbase\b/.test(nodeLabel);
+      const lowerCabinetPart =
+        !topSurfaceRoles.has(role) &&
+        centerY < lowerBaseCutoff &&
+        /\b(frame|body|cabinet|table|wood|panel|side|apron|base)\b/.test(label);
+
+      if (role === 'leg' || namedBasePart || lowerCabinetPart) {
+        node.visible = false;
+        node.castShadow = false;
+        node.userData = {
+          ...(node.userData || {}),
+          isOpenSourceOriginalBase: true,
+          replacedByProceduralBase: true
+        };
+        hiddenCount += 1;
+      }
+    });
+
+    root.userData = {
+      ...(root.userData || {}),
+      hiddenOriginalBaseMeshCount: hiddenCount,
+      usesProceduralTableBase: true
+    };
+    return hiddenCount;
+  };
+
   const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
@@ -10876,6 +10925,7 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
+        const hiddenOriginalBaseMeshCount = hideOpenSourceOriginalTableBase(model);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
@@ -10889,7 +10939,9 @@ function Table3D(
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
-          preservesOriginalTableBase: true,
+          preservesOriginalTableBase: false,
+          usesProceduralTableBase: true,
+          hiddenOriginalBaseMeshCount,
           usesGlbCushionShapes: true,
           clothUvMappedToDefaultPlayfield: true,
           clothUvUsesProceduralWorldScale: true
