@@ -12618,12 +12618,19 @@ const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
 function classifyPoolRoyaleExternalTableSurface(child, material) {
-  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
+  // must win over material names for physics mapping and finish assignment.
+  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
+  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
 
@@ -12639,6 +12646,7 @@ function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
 function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   if (!texture) return;
   if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = resolveTextureAnisotropy(12);
   texture.needsUpdate = true;
 }
@@ -12877,6 +12885,55 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function applyPoolRoyaleProceduralClothUvsToExternalTable(model, tableModel = null) {
+  if (!model || tableModel?.matchProceduralClothPattern === false) return 0;
+  const clothMeshes = [];
+  model.updateMatrixWorld?.(true);
+  model.traverse((child) => {
+    if (!child?.isMesh || !child.geometry?.attributes?.position) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    if (classifyPoolRoyaleExternalTableSurface(child, material) !== 'cloth') return;
+    clothMeshes.push(child);
+  });
+  if (!clothMeshes.length) return 0;
+
+  const clothWorldBox = new THREE.Box3();
+  clothMeshes.forEach((mesh) => {
+    mesh.updateMatrixWorld?.(true);
+    clothWorldBox.expandByObject(mesh);
+  });
+  if (clothWorldBox.isEmpty()) return 0;
+
+  const clothWorldSize = clothWorldBox.getSize(new THREE.Vector3());
+  const width = Math.max(MICRO_EPS, clothWorldSize.x);
+  const length = Math.max(MICRO_EPS, clothWorldSize.z);
+  const worldVertex = new THREE.Vector3();
+  let updated = 0;
+
+  clothMeshes.forEach((mesh) => {
+    const sourceGeometry = mesh.geometry;
+    const geometry = sourceGeometry.clone ? sourceGeometry.clone() : sourceGeometry;
+    const position = geometry.attributes?.position;
+    if (!position) return;
+    const uv = new Float32Array(position.count * 2);
+    for (let i = 0; i < position.count; i += 1) {
+      worldVertex.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+      uv[i * 2] = (worldVertex.x - clothWorldBox.min.x) / width;
+      uv[i * 2 + 1] = (worldVertex.z - clothWorldBox.min.z) / length;
+    }
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geometry.attributes.uv.needsUpdate = true;
+    mesh.geometry = geometry;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      poolRoyaleProceduralClothUvs: true
+    };
+    updated += 1;
+  });
+
+  return updated;
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -12975,6 +13032,7 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      applyPoolRoyaleProceduralClothUvsToExternalTable(model, tableModel);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
