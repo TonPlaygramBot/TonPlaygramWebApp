@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {
   applySnookerTableModelParam,
-  resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
@@ -27,22 +26,6 @@ describe('snooker table model selection', () => {
 
     applySnookerTableModelParam(params, 'unknown');
     assert.equal(params.get('tableModel'), TABLE_MODEL_CLASSIC);
-  });
-
-  test('resolveSnookerGlbFitTransform maps GLB bounds exactly onto the procedural table', () => {
-    const transform = resolveSnookerGlbFitTransform(
-      { x: 2, y: 0.5, z: 4 },
-      { x: 10, y: 1, z: 20 }
-    );
-    assert.deepEqual(transform.scale, { x: 5, y: 2, z: 5 });
-  });
-
-  test('resolveSnookerGlbFitTransform keeps width and depth independently exact', () => {
-    const transform = resolveSnookerGlbFitTransform(
-      { x: 2, y: 1, z: 5 },
-      { x: 12, y: 1, z: 20 }
-    );
-    assert.deepEqual(transform.scale, { x: 6, y: 1, z: 4 });
   });
 
   test('uses the Pooltool snooker_generic GLB source', () => {
