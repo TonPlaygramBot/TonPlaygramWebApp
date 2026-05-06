@@ -6998,7 +6998,7 @@ function Table3D(
   railMarkerStyle = null,
   baseVariant = null,
   renderer = null,
-  tableVisualModel = TABLE_MODEL_OPENSOURCE
+  tableVisualModel = TABLE_MODEL_CLASSIC
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -10642,12 +10642,6 @@ function Table3D(
     return targetBox;
   };
 
-  const resolveOpenSourceClothTextureBounds = () => {
-    const clothBox = new THREE.Box3();
-    expandBoxByObjectLocalBounds(clothBox, cloth);
-    return clothBox.isEmpty() ? resolveOpenSourceTargetBounds() : clothBox;
-  };
-
   const resolveOpenSourceUpperBounds = (model, fullBounds) => {
     const sourceSize = fullBounds.getSize(new THREE.Vector3());
     const upperCutoff = fullBounds.min.y + sourceSize.y * 0.45;
@@ -10677,7 +10671,6 @@ function Table3D(
       const resolvedMaterials = materials.map((material, index) =>
         cloneFinishMaterialForOpenSource(roles[index], material)
       );
-      node.userData.openSourceMaterialRoles = roles;
       node.userData.openSourceMaterialRole = roles.includes('cloth') ? 'cloth' : roles[0] || 'frame';
       node.material = Array.isArray(node.material) ? resolvedMaterials : resolvedMaterials[0] ?? node.material;
     });
@@ -10721,6 +10714,7 @@ function Table3D(
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
     const targetHeight = Math.max(targetTopY - FLOOR_Y, targetSize.y, MICRO_EPS);
+    setProceduralTableMeshesVisible(false);
     const loader = createConfiguredGLTFLoader(renderer);
     loader
       .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
@@ -10758,9 +10752,7 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
-        setProceduralTableMeshesVisible(false);
-        const clothTextureBounds = resolveOpenSourceClothTextureBounds();
-        remapOpenSourceClothTextureCoordinates(model, clothTextureBounds);
+        remapOpenSourceClothTextureCoordinates(model, targetBounds);
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
@@ -10769,19 +10761,15 @@ function Table3D(
           fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
           preservesOriginalTableBase: true,
-          usesGlbCushionShapes: true,
-          physicsSource: 'procedural-fallback-derived-from-glb-fit'
+          usesGlbCushionShapes: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
         table.userData.openSourceVisualFit = fit;
         table.userData.openSourceVisualTargetBounds = targetBounds;
-        table.userData.openSourceVisualClothTextureBounds = clothTextureBounds;
       })
       .catch((error) => {
-        console.warn('Failed to load Pooltool snooker_generic table model; restoring procedural fallback.', error);
-        setProceduralTableMeshesVisible(true);
-        table.userData.openSourceVisualLoadFailed = true;
+        console.warn('Failed to load Pooltool snooker_generic table model', error);
       });
   };
 
@@ -11196,6 +11184,8 @@ function Table3D(
   parent.add(table);
   if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
     applyOpenSourceTableVisualOverride();
+  } else {
+    applyPooltoolTableVisualOverride();
   }
 
   const baulkZ = baulkLineZ;
@@ -11555,41 +11545,6 @@ function applyTableFinishToTable(table, finish) {
     accent: accentConfig
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
-
-  const openSourceVisual = table.userData?.openSourceVisual;
-  if (openSourceVisual) {
-    const roleMaterials = {
-      cloth: finishInfo.clothMat,
-      cushion: finishInfo.cushionMat,
-      rail: railMat,
-      frame: frameMat,
-      leg: legMat,
-      trim: trimMat,
-      pocket: pocketJawMat,
-      pocketRim: pocketRimMat
-    };
-    openSourceVisual.traverse((node) => {
-      if (!node?.isMesh) return;
-      const roles = Array.isArray(node.userData?.openSourceMaterialRoles)
-        ? node.userData.openSourceMaterialRoles
-        : [node.userData?.openSourceMaterialRole || 'frame'];
-      const currentMaterials = Array.isArray(node.material) ? node.material : [node.material];
-      const nextMaterials = currentMaterials.map((material, index) => {
-        const role = roles[index] || roles[0] || 'frame';
-        const source = roleMaterials[role] || roleMaterials.frame || material;
-        const next = source?.clone ? source.clone() : source || material;
-        if (material && next) {
-          next.side = material.side ?? next.side;
-          next.transparent = material.transparent || next.transparent;
-          next.opacity = material.opacity ?? next.opacity;
-          next.alphaTest = material.alphaTest ?? next.alphaTest;
-        }
-        if (next) next.needsUpdate = true;
-        return next || material;
-      });
-      node.material = Array.isArray(node.material) ? nextMaterials : nextMaterials[0] ?? node.material;
-    });
-  }
 }
 
 // --------------------------------------------------
@@ -11599,7 +11554,7 @@ function SnookerRoyalGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
-  tableModel = TABLE_MODEL_OPENSOURCE,
+  tableModel = TABLE_MODEL_CLASSIC,
   playType = 'regular',
   mode = 'ai',
   trainingMode = 'solo',
@@ -26453,13 +26408,10 @@ const powerRef = useRef(hud.power);
             const forwardZ = Math.cos(yaw - Math.PI);
             const sideX = forwardZ;
             const sideZ = -forwardX;
-            const buttAnchor = TMP_VEC3_BUTT.lengthSq() > MICRO_EPS
-              ? TMP_VEC3_BUTT
-              : cueStick.position;
             humanActor.position.set(
-              buttAnchor.x - forwardX * (SCALE * 1.45) - sideX * (SCALE * 0.38),
+              cueStick.position.x - forwardX * (SCALE * 3.6) - sideX * (SCALE * 0.7),
               0,
-              buttAnchor.z - forwardZ * (SCALE * 1.45) - sideZ * (SCALE * 0.38)
+              cueStick.position.z - forwardZ * (SCALE * 3.6) - sideZ * (SCALE * 0.7)
             );
             humanActor.rotation.y = yaw;
           }
