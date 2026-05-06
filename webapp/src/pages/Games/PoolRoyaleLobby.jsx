@@ -32,29 +32,6 @@ import {
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
-const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
-const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
-
-const TABLE_STYLE_OPTIONS = [
-  {
-    id: 'classic',
-    label: 'Classic Royal',
-    finishId: 'peelingPaintWeathered',
-    baseId: 'classicCylinders'
-  },
-  {
-    id: 'modern',
-    label: 'Modern Arena',
-    finishId: 'noirWalnutGloss',
-    baseId: 'openPortal'
-  },
-  {
-    id: 'pro',
-    label: 'Pro Tournament',
-    finishId: 'mahoganyMatte',
-    baseId: 'classicCylinders'
-  }
-];
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -93,15 +70,6 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const [tableStyleId, setTableStyleId] = useState(() => {
-    try {
-      const stored = window.localStorage?.getItem('poolRoyaleLobbyTableStyle');
-      if (TABLE_STYLE_OPTIONS.some((option) => option.id === stored)) {
-        return stored;
-      }
-    } catch {}
-    return 'classic';
-  });
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const defaultTableSize = resolveTableSize().id;
@@ -296,24 +264,6 @@ export default function PoolRoyaleLobby() {
 
     let tgId;
     let accountId;
-    const selectedTableStyle =
-      TABLE_STYLE_OPTIONS.find((option) => option.id === tableStyleId) ||
-      TABLE_STYLE_OPTIONS[0];
-    try {
-      window.localStorage?.setItem('poolRoyaleLobbyTableStyle', selectedTableStyle.id);
-      if (selectedTableStyle.finishId) {
-        window.localStorage?.setItem(
-          TABLE_FINISH_STORAGE_KEY,
-          selectedTableStyle.finishId
-        );
-      }
-      if (selectedTableStyle.baseId) {
-        window.localStorage?.setItem(
-          TABLE_BASE_STORAGE_KEY,
-          selectedTableStyle.baseId
-        );
-      }
-    } catch {}
     try {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
@@ -634,42 +584,6 @@ export default function PoolRoyaleLobby() {
           </div>
           <p className="mt-3 text-xs text-white/60">
             Your lobby choices persist into the match intro.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Table Style</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Arena
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {TABLE_STYLE_OPTIONS.map((option) => {
-              const active = tableStyleId === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setTableStyleId(option.id)}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  }`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-fuchsia-400/20 via-amber-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner text-2xl">🟩</div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{option.label}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-white/60">
-            Selected table style is applied when the match starts.
           </p>
         </div>
 
