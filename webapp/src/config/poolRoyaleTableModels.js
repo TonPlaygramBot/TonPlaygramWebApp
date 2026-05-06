@@ -32,7 +32,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
-    hideSurfaceRoles: ['cloth']
+    // Showood supplies the cabinet/legs, while Pool Royale renders the lifted native
+    // playfield, cushions, and jaws so those surfaces share one exact gameplay layout.
+    hideSurfaceRoles: ['cloth', 'cushion', 'pocket']
   }
 ]);
 
