@@ -12618,113 +12618,13 @@ const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
 function classifyPoolRoyaleExternalTableSurface(child, material) {
-  const childName = `${child?.name || ''}`.toLowerCase();
-  const materialName = `${material?.name || ''}`.toLowerCase();
-  const label = `${childName} ${materialName}`;
-  // Showood shares the cloth material on cushion meshes, so mesh names must
-  // win over material names to keep rail/cushion layout and finish roles stable.
-  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
-  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
-  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
+  const label = `${child?.name || ''} ${material?.name || ''}`.toLowerCase();
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
+  if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(label)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood/.test(label)) return 'wood';
   return 'wood';
-}
-
-const POOL_ROYALE_EXTERNAL_CLOTH_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'bumpMap'
-]);
-
-function resolvePoolRoyaleGeometryUvSpan(geometry) {
-  const uv = geometry?.attributes?.uv;
-  if (!uv?.count) return null;
-  let minU = Infinity;
-  let maxU = -Infinity;
-  let minV = Infinity;
-  let maxV = -Infinity;
-  for (let i = 0; i < uv.count; i += 1) {
-    const u = uv.getX(i);
-    const v = uv.getY(i);
-    if (!Number.isFinite(u) || !Number.isFinite(v)) continue;
-    minU = Math.min(minU, u);
-    maxU = Math.max(maxU, u);
-    minV = Math.min(minV, v);
-    maxV = Math.max(maxV, v);
-  }
-  const uSpan = maxU - minU;
-  const vSpan = maxV - minV;
-  if (!Number.isFinite(uSpan) || !Number.isFinite(vSpan) || uSpan <= MICRO_EPS || vSpan <= MICRO_EPS) {
-    return null;
-  }
-  return { u: uSpan, v: vSpan };
-}
-
-function syncPoolRoyaleExternalClothTextureScale(material, sourceMaterial, mesh) {
-  if (!material || !sourceMaterial?.map || !mesh?.geometry) return;
-  const uvSpan = resolvePoolRoyaleGeometryUvSpan(mesh.geometry);
-  if (!uvSpan) return;
-  mesh.updateMatrixWorld?.(true);
-  const box = new THREE.Box3().setFromObject(mesh);
-  if (box.isEmpty()) return;
-  const size = box.getSize(new THREE.Vector3());
-  const worldU = Math.max(MICRO_EPS, size.x);
-  const worldV = Math.max(MICRO_EPS, size.z);
-  const sourceRepeat = sourceMaterial.map.repeat?.isVector2
-    ? sourceMaterial.map.repeat
-    : new THREE.Vector2(1, 1);
-  const targetRepeat = new THREE.Vector2(
-    sourceRepeat.x * (worldU / uvSpan.u),
-    sourceRepeat.y * (worldV / uvSpan.v)
-  );
-  POOL_ROYALE_EXTERNAL_CLOTH_TEXTURE_PROPS.forEach((prop) => {
-    const texture = material[prop];
-    if (!texture) return;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.copy(targetRepeat);
-    if (sourceMaterial[prop]?.offset?.isVector2) {
-      texture.offset.copy(sourceMaterial[prop].offset);
-    }
-    if (sourceMaterial[prop]?.center?.isVector2) {
-      texture.center.copy(sourceMaterial[prop].center);
-    }
-    texture.rotation = typeof sourceMaterial[prop]?.rotation === 'number'
-      ? sourceMaterial[prop].rotation
-      : texture.rotation;
-    texture.needsUpdate = true;
-  });
-  material.userData = {
-    ...(material.userData || {}),
-    poolRoyaleExternalClothRepeat: {
-      x: targetRepeat.x,
-      y: targetRepeat.y,
-      uvU: uvSpan.u,
-      uvV: uvSpan.v,
-      worldU,
-      worldV
-    }
-  };
-  material.needsUpdate = true;
-}
-
-function syncPoolRoyaleExternalTableClothTextureScales(root, finishInfo) {
-  if (!root || !finishInfo?.clothMat) return;
-  root.updateMatrixWorld?.(true);
-  root.traverse?.((child) => {
-    if (!child?.isMesh) return;
-    const sampleMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
-    if (classifyPoolRoyaleExternalTableSurface(child, sampleMaterial) !== 'cloth') return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    materials.forEach((material) => {
-      if (material) syncPoolRoyaleExternalClothTextureScale(material, finishInfo.clothMat, child);
-    });
-  });
 }
 
 function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
@@ -12793,8 +12693,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   };
 
   if (role === 'cloth' || role === 'cushion') {
-    const sourceClothMaterial = role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat;
-    copyMaterialLook(sourceClothMaterial);
+    copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
     mat.side = THREE.DoubleSide;
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
@@ -13076,7 +12975,6 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      syncPoolRoyaleExternalTableClothTextureScales(model, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
