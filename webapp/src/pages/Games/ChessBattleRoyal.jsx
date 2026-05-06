@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.34 * MODEL_SCALE; // Pull local bottom chair/human closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.3 * MODEL_SCALE; // Keep opponent chair/human at the same inward spacing.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.28 * MODEL_SCALE; // Pull local chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.24 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -445,7 +445,7 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.95;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.22; // Seat avatars farther inward so torsos sit closer to the shared table edge.
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.12;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
@@ -482,12 +482,11 @@ const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
-  void direction;
   const fallbackRadius = tableInfo?.radius ?? TABLE_RADIUS;
-  // Keep every table/chair setup on the same radial layout as Coffee Table 01.
-  // Shape-specific directional radii made chairs drift between table skins, so the
-  // shared normalized table radius is the single source of truth for spacing.
-  const shapedRadius = fallbackRadius + CHAIR_TABLE_SHAPE_BIAS;
+  const directionalRadius = Number.isFinite(tableInfo?.getOuterRadius?.(direction))
+    ? tableInfo.getOuterRadius(direction)
+    : fallbackRadius;
+  const shapedRadius = Math.max(fallbackRadius * 0.72, directionalRadius + CHAIR_TABLE_SHAPE_BIAS);
   const clearance = clamp(
     CHAIR_CLEARANCE + seatDepth * 0.1 + CHAIR_HUMAN_LEG_GAP,
     CHAIR_TABLE_GAP_MIN,
@@ -1510,42 +1509,38 @@ function disposeObjectResources(object) {
   });
 }
 
-function fitObjectToSharedTableFootprint(
-  object,
-  targetHeight = TABLE_MODEL_TARGET_HEIGHT,
-  targetDiameter = TABLE_MODEL_TARGET_DIAMETER,
-  { fitHeight = true } = {}
-) {
-  if (!object) return { surfaceY: targetHeight, radius: targetDiameter / 2, scaleY: 1, scaleXZ: 1 };
-  object.updateWorldMatrix?.(true, true);
-  const box = new THREE.Box3().setFromObject(object);
+function fitTableModelToArena(model) {
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
-  const scaleY = fitHeight && size.y > 0 ? targetHeight / size.y : 1;
+  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetRadius = targetDiameter / 2;
+  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
   if (scaleY !== 1 || scaleXZ !== 1) {
-    object.scale.set(
-      object.scale.x * scaleXZ,
-      object.scale.y * scaleY,
-      object.scale.z * scaleXZ
+    model.scale.set(
+      model.scale.x * scaleXZ,
+      model.scale.y * scaleY,
+      model.scale.z * scaleXZ
     );
-    object.updateWorldMatrix?.(true, true);
   }
-  const scaledBox = new THREE.Box3().setFromObject(object);
+  const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
-  object.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
-  object.updateWorldMatrix?.(true, true);
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+  const recenteredBox = new THREE.Box3().setFromObject(model);
+  const radius = Math.max(
+    Math.abs(recenteredBox.max.x),
+    Math.abs(recenteredBox.min.x),
+    Math.abs(recenteredBox.max.z),
+    Math.abs(recenteredBox.min.z),
+    targetRadius
+  );
   return {
     surfaceY: targetHeight,
-    radius: targetDiameter / 2,
-    scaleY,
-    scaleXZ
+    radius
   };
-}
-
-function fitTableModelToArena(model) {
-  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_MODEL_TARGET_DIAMETER / 2 };
-  return fitObjectToSharedTableFootprint(model);
 }
 
 async function loadPolyhavenModel(assetId, renderer = null) {
@@ -3007,14 +3002,7 @@ async function buildTableFromTheme(theme, options = {}) {
       textureCache,
       fallbackTexture
     });
-    const fitted = fitObjectToSharedTableFootprint(fallback.group, TABLE_MODEL_TARGET_HEIGHT, TABLE_MODEL_TARGET_DIAMETER, {
-      fitHeight: false
-    });
-    tableInfo = {
-      ...fallback,
-      radius: fitted.radius,
-      themeId: selectedTheme?.id || fallback.shapeId
-    };
+    tableInfo = { ...fallback, themeId: selectedTheme?.id || fallback.shapeId };
   }
 
   return tableInfo;
@@ -7830,9 +7818,6 @@ function Chess3D({
   });
   const locked3dViewRef = useRef({
     activeLook: false,
-    isDragging: false,
-    lastPointerX: null,
-    lastPointerY: null,
     yaw: 0,
     pitch: -0.28,
     targetYaw: 0,
@@ -13095,10 +13080,7 @@ function Chess3D({
         return;
       }
       if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
-        const locked = locked3dViewRef.current;
-        locked.isDragging = true;
-        locked.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
-        locked.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
+        locked3dViewRef.current.activeLook = true;
         return;
       }
       if (isReplayingRef.current) return;
@@ -13133,21 +13115,9 @@ function Chess3D({
       }
       if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
         const locked = locked3dViewRef.current;
-        const cx = event.clientX ?? event.touches?.[0]?.clientX ?? locked.lastPointerX;
-        const cy = event.clientY ?? event.touches?.[0]?.clientY ?? locked.lastPointerY;
-        const fallbackDx = Number.isFinite(cx) && Number.isFinite(locked.lastPointerX)
-          ? cx - locked.lastPointerX
-          : 0;
-        const fallbackDy = Number.isFinite(cy) && Number.isFinite(locked.lastPointerY)
-          ? cy - locked.lastPointerY
-          : 0;
-        if (Number.isFinite(cx)) locked.lastPointerX = cx;
-        if (Number.isFinite(cy)) locked.lastPointerY = cy;
-        if (locked.isDragging) {
-          const dx = event.movementX || fallbackDx;
-          const dy = event.movementY || fallbackDy;
-          locked.targetYaw -= dx * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - dy * 0.002, -0.86, 0.35);
+        if (locked.activeLook) {
+          locked.targetYaw -= (event.movementX || 0) * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - (event.movementY || 0) * 0.002, -0.86, 0.2);
         }
         return;
       }
@@ -13162,9 +13132,7 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
-      locked3dViewRef.current.isDragging = false;
-      locked3dViewRef.current.lastPointerX = null;
-      locked3dViewRef.current.lastPointerY = null;
+      locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
       if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
