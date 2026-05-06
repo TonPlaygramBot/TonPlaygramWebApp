@@ -82,6 +82,8 @@ type BallState = {
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/Soldier.glb";
 const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map((theme) => theme.modelUrls?.[0] ?? theme.url).filter(Boolean);
+const PLAYER_CHARACTER_URLS = Array.from(new Set([...MURLAN_CHARACTER_URLS, HUMAN_URL]));
+const PLAYER_VISUAL_HEIGHT = 0.72;
 const MURLAN_CHARACTER_COLORS = [0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2];
 const SPECTATOR_ROWS_FILLED = 4;
 const SPECTATORS_PER_ROW_TARGET = 12;
@@ -155,7 +157,7 @@ function saveBind(model: THREE.Object3D) {
   return bind;
 }
 
-function normalizeAnimatedHuman(model: THREE.Object3D, height = 0.92) {
+function normalizeAnimatedHuman(model: THREE.Object3D, height = PLAYER_VISUAL_HEIGHT) {
   model.rotation.set(0, Math.PI, 0);
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
@@ -460,7 +462,13 @@ function makeFallback(team: Team) {
   return g;
 }
 
-function createPlayer(scene: THREE.Scene, loader: GLTFLoader, team: Team, start: THREE.Vector3, onLoaded: () => void): Player {
+function pickPlayerCharacterUrl(exclude?: string) {
+  const urls = PLAYER_CHARACTER_URLS.length ? PLAYER_CHARACTER_URLS : [HUMAN_URL];
+  const pool = exclude && urls.length > 1 ? urls.filter((url) => url !== exclude) : urls;
+  return pool[Math.floor(Math.random() * pool.length)] ?? HUMAN_URL;
+}
+
+function createPlayer(scene: THREE.Scene, loader: GLTFLoader, team: Team, start: THREE.Vector3, onLoaded: () => void, modelUrl = HUMAN_URL): Player {
   const root = new THREE.Group();
   root.position.copy(start).setY(GROUND_Y);
   scene.add(root);
@@ -500,10 +508,10 @@ function createPlayer(scene: THREE.Scene, loader: GLTFLoader, team: Team, start:
   };
 
   loader.setCrossOrigin("anonymous").load(
-    HUMAN_URL,
+    modelUrl,
     (gltf) => {
       const model = gltf.scene;
-      normalizeAnimatedHuman(model, 0.92);
+      normalizeAnimatedHuman(model, PLAYER_VISUAL_HEIGHT);
       tintPlayer(model, team);
       shadow(model);
       root.add(model);
@@ -926,89 +934,19 @@ function makePitch(scene: THREE.Scene) {
 
   flag(scene, -w, -h); flag(scene, w, -h); flag(scene, -w, h); flag(scene, w, h);
   lamp(scene, -w - 0.34, -h - 0.34); lamp(scene, w + 0.34, -h - 0.34); lamp(scene, -w - 0.34, h + 0.34); lamp(scene, w + 0.34, h + 0.34);
-  billboard(scene, "REAL WALK", -0.75, -h - 0.215, 0, 0x1d69ff);
-  billboard(scene, "TACKLE", 0.2, -h - 0.215, 0, 0xd92f2f);
-  billboard(scene, "BALL SPIN", 1.05, -h - 0.215, 0, 0x0f172a);
-  billboard(scene, "SAG NETS", -0.45, h + 0.215, Math.PI, 0x166534);
-  billboard(scene, "MOBILE 1V1", 0.55, h + 0.215, Math.PI, 0x7c2d12);
+  billboard(scene, "REAL WALK", -w - 0.24, -0.95, Math.PI / 2, 0x1d69ff);
+  billboard(scene, "TACKLE", w + 0.24, -0.95, -Math.PI / 2, 0xd92f2f);
+  billboard(scene, "BALL SPIN", -w - 0.24, 0.95, Math.PI / 2, 0x0f172a);
+  billboard(scene, "MOBILE 1V1", w + 0.24, 0.95, -Math.PI / 2, 0x7c2d12);
+  billboard(scene, "SAG NETS", -w - 0.66, -h - 0.24, Math.PI / 4, 0x166534);
+  billboard(scene, "FREE KICK", w + 0.66, h + 0.24, -Math.PI * 3 / 4, 0x7c2d12);
 }
 
-function makeGoalRushStadium(scene: THREE.Scene, loader: GLTFLoader): StadiumRig {
-  const spectators: SeatedSpectator[] = [];
-  const concrete = mat(0x64748b, 0.86, 0.04);
-  const riserMat = mat(0x475569, 0.8, 0.04);
-  const aisleMat = mat(0xf8fafc, 0.72, 0.01);
-  const railMat = mat(0xdbe4ec, 0.42, 0.18);
-  const chairColors = [0x1d4ed8, 0xffffff];
-  const rows = 5;
-  const rowDepth = 0.22;
-  const rowRise = 0.11;
-  const sides = [
-    { name: "north", pos: new THREE.Vector3(0, 0, -FIELD_H / 2 - 0.72), rot: 0, width: FIELD_W + 1.1 },
-    { name: "south", pos: new THREE.Vector3(0, 0, FIELD_H / 2 + 0.72), rot: Math.PI, width: FIELD_W + 1.1 },
-    { name: "east", pos: new THREE.Vector3(FIELD_W / 2 + 0.72, 0, 0), rot: Math.PI / 2, width: FIELD_H + 0.8 },
-    { name: "west", pos: new THREE.Vector3(-FIELD_W / 2 - 0.72, 0, 0), rot: -Math.PI / 2, width: FIELD_H + 0.8 },
-  ];
-  let characterIndex = 0;
-  sides.forEach((side) => {
-    const stands = new THREE.Group();
-    stands.name = `goal-rush-${side.name}-free-kick-stands`;
-    stands.position.copy(side.pos);
-    stands.rotation.y = side.rot;
-    const cols = Math.max(8, Math.floor(side.width / 0.22));
-    const aisleCols = [Math.floor(cols * 0.28), Math.floor(cols * 0.72)];
-    for (let row = 0; row < rows; row++) {
-      const z = -row * rowDepth;
-      const y = 0.14 + row * rowRise;
-      const tread = new THREE.Mesh(new THREE.BoxGeometry(side.width, 0.06, rowDepth), concrete);
-      tread.position.set(0, y, z);
-      const riser = new THREE.Mesh(new THREE.BoxGeometry(side.width, rowRise, 0.035), riserMat);
-      riser.position.set(0, y - 0.015, z + rowDepth * 0.46);
-      stands.add(shadow(tread), shadow(riser));
-    }
-    for (let col = 0; col < cols; col++) {
-      if (aisleCols.some((aisle) => Math.abs(col - aisle) <= 1)) continue;
-      const x = (col - (cols - 1) / 2) * (side.width / cols);
-      let rowSpectators = 0;
-      for (let row = 0; row < rows; row++) {
-        const chair = makeChair(chairColors[(row + col) % chairColors.length]);
-        chair.position.set(x, 0.18 + row * rowRise, -row * rowDepth + 0.02);
-        stands.add(chair);
-        const shouldSeatHuman = row < SPECTATOR_ROWS_FILLED && rowSpectators < SPECTATORS_PER_ROW_TARGET && (col + row) % 2 === 0;
-        if (shouldSeatHuman) {
-          const kit = MURLAN_CHARACTER_COLORS[characterIndex % MURLAN_CHARACTER_COLORS.length];
-          const url = MURLAN_CHARACTER_URLS[characterIndex % Math.max(1, MURLAN_CHARACTER_URLS.length)] ?? HUMAN_URL;
-          spectators.push(attachMurlanSeatedSpectator(chair, loader, url, characterIndex, kit));
-          characterIndex += 1;
-          rowSpectators += 1;
-        }
-      }
-    }
-    aisleCols.forEach((aisle) => {
-      const x = (aisle - (cols - 1) / 2) * (side.width / cols);
-      for (let row = 0; row < rows; row++) {
-        const stair = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.045, rowDepth * 0.76), aisleMat);
-        stair.position.set(x, 0.22 + row * rowRise, -row * rowDepth + 0.02);
-        stands.add(shadow(stair));
-      }
-      [-0.16, 0.16].forEach((offset) => {
-        const rail = makeCylinderBetween(
-          new THREE.Vector3(x + offset, 0.36, rowDepth * 0.28),
-          new THREE.Vector3(x + offset, 0.36 + rows * rowRise, -(rows - 1) * rowDepth + rowDepth * 0.25),
-          0.008,
-          railMat
-        );
-        stands.add(rail);
-      });
-    });
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(side.width + 0.25, rows * rowRise + 0.38, 0.08), riserMat);
-    backWall.position.set(0, 0.5 + rows * rowRise * 0.45, -(rows - 1) * rowDepth - 0.22);
-    const frontRail = new THREE.Mesh(new THREE.BoxGeometry(side.width + 0.18, 0.035, 0.035), railMat);
-    frontRail.position.set(0, 0.42, 0.24);
-    stands.add(shadow(backWall), shadow(frontRail));
-    scene.add(stands);
-  });
-  return { spectators, cheerTime: 0 };
+function makeGoalRushStadium(_scene: THREE.Scene, _loader: GLTFLoader): StadiumRig {
+  // Keep the arena open and readable on portrait phones: no raised stair stands, chairs,
+  // or seated spectators around the pitch. Character GLB/GLTF assets that previously
+  // populated those chairs are reused by the playable human/AI players instead.
+  return { spectators: [], cheerTime: 0 };
 }
 
 function makeBall(scene: THREE.Scene): BallState {
@@ -1252,8 +1190,10 @@ export default function GoalRush3DUpgrade() {
       if (loadedCount >= 2) setHud((h) => ({ ...h, status: "Swipe to shoot, auto left/right foot, Free Kick ball/goals/crowd" }));
     };
 
-    const blue = createPlayer(scene, loader, "blue", new THREE.Vector3(0, GROUND_Y, 1.45), onLoaded);
-    const red = createPlayer(scene, loader, "red", new THREE.Vector3(0, GROUND_Y, -1.45), onLoaded);
+    const blueCharacterUrl = pickPlayerCharacterUrl();
+    const redCharacterUrl = pickPlayerCharacterUrl(blueCharacterUrl);
+    const blue = createPlayer(scene, loader, "blue", new THREE.Vector3(0, GROUND_Y, 1.45), onLoaded, blueCharacterUrl);
+    const red = createPlayer(scene, loader, "red", new THREE.Vector3(0, GROUND_Y, -1.45), onLoaded, redCharacterUrl);
 
     let scoreBlue = 0;
     let scoreRed = 0;
@@ -1297,7 +1237,7 @@ export default function GoalRush3DUpgrade() {
       if (shot && blue.fallTime <= 0 && blue.kickTime <= 0 && replayCooldown <= 0) {
         pendingShot.current = null;
         TMP.set(ball.object.position.x - blue.pos.x, 0, ball.object.position.z - blue.pos.z);
-        if (TMP.length() < 0.5) {
+        if (TMP.length() < 0.68) {
           const strikeDir = camRight.clone().multiplyScalar(shot.dir.x).addScaledVector(camForward, shot.dir.z).normalize();
           blue.targetDir.copy(strikeDir);
           blue.kickFoot = chooseKickFoot(blue, ball, strikeDir);
@@ -1309,7 +1249,7 @@ export default function GoalRush3DUpgrade() {
           blue.kickFired = false;
           setHud((h) => ({ ...h, status: `Swipe shot ${Math.round(shot.screenPower * 100)}% with ${blue.kickFoot} foot` }));
         } else {
-          setHud((h) => ({ ...h, status: "Move closer to the ball, then swipe to shoot." }));
+          setHud((h) => ({ ...h, status: "Move a little closer: shooting range is now wider for easier kicks." }));
         }
       }
 
@@ -1480,15 +1420,15 @@ export default function GoalRush3DUpgrade() {
     const distance = Math.hypot(dx, dy);
     swipe.current.active = false;
     swipe.current.pointerId = null;
-    if (distance < 24) return;
-    const screenPower = THREE.MathUtils.clamp(distance / 210, 0.28, 1.35);
+    if (distance < 12) return;
+    const screenPower = THREE.MathUtils.clamp(distance / 150, 0.42, 1.55);
     const lateral = THREE.MathUtils.clamp(dx / Math.max(1, distance), -0.9, 0.9);
     const forward = THREE.MathUtils.clamp(dy / Math.max(1, distance), -0.35, 1.0);
     const normalizedForward = forward > 0.08 ? forward : 0.24;
     pendingShot.current = {
       dir: new THREE.Vector3(lateral, 0, normalizedForward).normalize(),
-      power: 3.7 + screenPower * 2.45,
-      lift: THREE.MathUtils.clamp(0.18 + Math.max(0, dy) / 520 + screenPower * 0.18, 0.2, 0.86),
+      power: 4.25 + screenPower * 2.75,
+      lift: THREE.MathUtils.clamp(0.16 + Math.max(0, dy) / 620 + screenPower * 0.12, 0.18, 0.72),
       screenPower,
     };
   };
