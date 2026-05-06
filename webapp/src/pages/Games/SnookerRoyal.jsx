@@ -17,6 +17,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
+  resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
@@ -6996,10 +6997,12 @@ function Table3D(
   tableSpecMeta = null,
   railMarkerStyle = null,
   baseVariant = null,
-  renderer = null
+  renderer = null,
+  tableVisualModel = TABLE_MODEL_CLASSIC
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
+  const resolvedTableVisualModel = resolveSnookerTableModel(tableVisualModel);
   applyTablePhysicsSpec(tableSizeMeta);
 
   const table = new THREE.Group();
@@ -7802,6 +7805,8 @@ function Table3D(
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : cornerPocketLift;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+    pocket.name = `${pocketId || 'pocket'}DropLiner`;
+    pocket.userData = { ...(pocket.userData || {}), isPocketDropHardware: true };
     pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
@@ -7810,6 +7815,8 @@ function Table3D(
     table.add(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
+    net.name = `${pocketId || 'pocket'}DropNet`;
+    net.userData = { ...(net.userData || {}), isPocketDropHardware: true };
     net.position.set(
       p.x,
       pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift + POCKET_NET_VERTICAL_LIFT,
@@ -7829,6 +7836,8 @@ function Table3D(
       p.y
     );
     const ring = new THREE.Mesh(pocketRingGeometry, pocketGuideMaterial);
+    ring.name = `${pocketId || 'pocket'}ChromeHolderRing`;
+    ring.userData = { ...(ring.userData || {}), isPocketDropHardware: true };
     ring.position.copy(ringAnchor);
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
@@ -7862,6 +7871,8 @@ function Table3D(
         12
       );
       const guide = new THREE.Mesh(guideGeom, pocketGuideMaterial);
+      guide.name = `${pocketId || 'pocket'}ChromeHolderBar`;
+      guide.userData = { ...(guide.userData || {}), isPocketDropHardware: true };
       guide.position.copy(start.clone().add(end).multiplyScalar(0.5));
       guide.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
       guide.castShadow = true;
@@ -7909,6 +7920,8 @@ function Table3D(
         pocketStrapThickness
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
+      strap.name = `${pocketId || 'pocket'}LeatherDropStrap`;
+      strap.userData = { ...(strap.userData || {}), isPocketDropHardware: true };
       applyPocketLeatherTextureDefaults(strap.material?.map, { isColor: true });
       applyPocketLeatherTextureDefaults(strap.material?.normalMap);
       applyPocketLeatherTextureDefaults(strap.material?.roughnessMap);
@@ -10527,6 +10540,237 @@ function Table3D(
       });
   };
 
+  const isOpenSourceHardwareKeepMesh = (mesh) => Boolean(mesh?.userData?.isPocketDropHardware);
+
+  const setProceduralTableMeshesVisible = (visible) => {
+    table.traverse((child) => {
+      if (!child?.isMesh) return;
+      if (child.userData?.isOpenSourceVisual) return;
+      child.visible = visible || isOpenSourceHardwareKeepMesh(child);
+    });
+  };
+
+  const cloneFinishMaterialForOpenSource = (role, originalMaterial = null) => {
+    const materials = finishInfo?.materials || {};
+    const sourceByRole = {
+      cloth: finishInfo?.clothMat,
+      cushion: finishInfo?.cushionMat,
+      rail: materials.rail || materials.frame,
+      frame: materials.frame || materials.rail,
+      leg: materials.leg || materials.frame || materials.rail,
+      trim: materials.trim || materials.pocketRim,
+      pocket: materials.pocketJaw || materials.pocketRim,
+      pocketRim: materials.pocketRim || materials.trim
+    };
+    const source = sourceByRole[role] || materials.frame || finishInfo?.clothMat || originalMaterial;
+    const clone = source?.clone ? source.clone() : originalMaterial;
+    if (!clone) return originalMaterial;
+    if (originalMaterial) {
+      clone.name = `${originalMaterial.name || role || 'snooker-glb'}-${finishInfo?.id || 'default'}`;
+      clone.side = originalMaterial.side ?? clone.side;
+      clone.transparent = originalMaterial.transparent || clone.transparent;
+      clone.opacity = originalMaterial.opacity ?? clone.opacity;
+      clone.alphaTest = originalMaterial.alphaTest ?? clone.alphaTest;
+    }
+    ['map', 'emissiveMap'].forEach((key) => {
+      if (clone[key]) clone[key].colorSpace = THREE.SRGBColorSpace;
+    });
+    ['map', 'emissiveMap', 'aoMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap'].forEach((key) => {
+      const texture = clone[key];
+      if (!texture) return;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
+      texture.needsUpdate = true;
+    });
+    clone.needsUpdate = true;
+    return clone;
+  };
+
+  const resolveOpenSourceMaterialRole = (node, material) => {
+    const label = `${node?.name || ''} ${material?.name || ''}`.toLowerCase();
+    if (/cloth|felt|baize|slate|bed|surface|playfield/.test(label)) return 'cloth';
+    if (/cushion|rubber/.test(label)) return 'cushion';
+    if (/pocket|net|leather|liner|bag/.test(label)) return 'pocket';
+    if (/rim|chrome|metal|brass|gold|trim|plate|screw|bolt/.test(label)) return 'trim';
+    if (/leg|stand|base|foot/.test(label)) return 'leg';
+    if (/rail|wood|frame|body|cabinet|table/.test(label)) return /rail/.test(label) ? 'rail' : 'frame';
+    const color = material?.color;
+    if (color && color.g > color.r * 1.15 && color.g > color.b * 1.15) return 'cloth';
+    if (material?.metalness > 0.45) return 'trim';
+    return 'frame';
+  };
+
+  const expandBoxByObjectLocalBounds = (box, object) => {
+    if (!object) return box;
+    object.updateMatrixWorld(true);
+    const worldBox = new THREE.Box3().setFromObject(object);
+    if (worldBox.isEmpty()) return box;
+    const corners = [
+      new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.min.z),
+      new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.max.z),
+      new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.min.z),
+      new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.max.z),
+      new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.min.z),
+      new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.max.z),
+      new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.min.z),
+      new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.max.z)
+    ];
+    corners.forEach((corner) => box.expandByPoint(table.worldToLocal(corner)));
+    return box;
+  };
+
+  const resolveOpenSourceTargetBounds = () => {
+    const targetBox = new THREE.Box3();
+    const parts = finishInfo?.parts || {};
+    [
+      cloth,
+      ...(parts.frameMeshes || []),
+      ...(parts.railMeshes || []),
+      ...(parts.trimMeshes || []),
+      ...(parts.gapFillMeshes || []),
+      ...(parts.clothEdgeMeshes || []),
+      ...(parts.pocketJawMeshes || []).filter((mesh) => !isOpenSourceHardwareKeepMesh(mesh)),
+      ...(parts.pocketRimMeshes || []),
+      ...(parts.underlayMeshes || [])
+    ].forEach((mesh) => expandBoxByObjectLocalBounds(targetBox, mesh));
+    if (targetBox.isEmpty()) {
+      expandBoxByObjectLocalBounds(targetBox, table);
+    }
+    return targetBox;
+  };
+
+  const resolveOpenSourceUpperBounds = (model, fullBounds) => {
+    const sourceSize = fullBounds.getSize(new THREE.Vector3());
+    const upperCutoff = fullBounds.min.y + sourceSize.y * 0.45;
+    const upperBounds = new THREE.Box3();
+    model.traverse((node) => {
+      if (!node?.isMesh) return;
+      const nodeBox = new THREE.Box3().setFromObject(node);
+      if (nodeBox.isEmpty()) return;
+      const centerY = nodeBox.getCenter(new THREE.Vector3()).y;
+      const label = `${node.name || ''} ${node.material?.name || ''}`.toLowerCase();
+      if (centerY >= upperCutoff || /cloth|felt|slate|bed|rail|cushion|frame|table/.test(label)) {
+        upperBounds.union(nodeBox);
+      }
+    });
+    return upperBounds.isEmpty() ? fullBounds.clone() : upperBounds;
+  };
+
+  const applyDefaultTableFinishToOpenSourceModel = (root) => {
+    root.traverse((node) => {
+      if (!node?.isMesh) return;
+      node.castShadow = true;
+      node.receiveShadow = true;
+      node.renderOrder = 2;
+      node.userData = { ...(node.userData || {}), isOpenSourceVisual: true };
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      const roles = materials.map((material) => resolveOpenSourceMaterialRole(node, material));
+      const resolvedMaterials = materials.map((material, index) =>
+        cloneFinishMaterialForOpenSource(roles[index], material)
+      );
+      node.userData.openSourceMaterialRole = roles.includes('cloth') ? 'cloth' : roles[0] || 'frame';
+      node.material = Array.isArray(node.material) ? resolvedMaterials : resolvedMaterials[0] ?? node.material;
+    });
+  };
+
+  const resolveOpenSourceClothTextureBounds = () => {
+    const clothBounds = new THREE.Box3();
+    expandBoxByObjectLocalBounds(clothBounds, cloth);
+    return clothBounds.isEmpty() ? resolveOpenSourceTargetBounds() : clothBounds;
+  };
+
+  const remapOpenSourceClothTextureCoordinates = (root, targetBounds) => {
+    const targetSize = targetBounds.getSize(new THREE.Vector3());
+    if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
+    const localPoint = new THREE.Vector3();
+    const worldPoint = new THREE.Vector3();
+    root.updateMatrixWorld(true);
+    table.updateMatrixWorld(true);
+    root.traverse((node) => {
+      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cloth') return;
+      const geometry = node.geometry;
+      const position = geometry?.attributes?.position;
+      if (!geometry || !position) return;
+      let uv = geometry.attributes.uv;
+      if (!uv || uv.count !== position.count) {
+        uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
+        geometry.setAttribute('uv', uv);
+      }
+      for (let i = 0; i < position.count; i += 1) {
+        localPoint.fromBufferAttribute(position, i);
+        node.localToWorld(worldPoint.copy(localPoint));
+        table.worldToLocal(worldPoint);
+        uv.setXY(
+          i,
+          (worldPoint.x - targetBounds.min.x) / targetSize.x,
+          (worldPoint.z - targetBounds.min.z) / targetSize.z
+        );
+      }
+      uv.needsUpdate = true;
+      geometry.computeBoundingBox();
+    });
+  };
+
+  const applyOpenSourceTableVisualOverride = () => {
+    const targetBounds = resolveOpenSourceTargetBounds();
+    const targetSize = targetBounds.getSize(new THREE.Vector3());
+    const targetCenter = targetBounds.getCenter(new THREE.Vector3());
+    const targetTopY = targetBounds.max.y;
+    const targetHeight = Math.max(targetSize.y, MICRO_EPS);
+    const targetClothTextureBounds = resolveOpenSourceClothTextureBounds();
+    setProceduralTableMeshesVisible(false);
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader
+      .loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
+      .then((gltf) => {
+        const model = gltf?.scene || gltf?.scenes?.[0];
+        if (!model) return;
+
+        model.updateMatrixWorld(true);
+        const fullSourceBounds = new THREE.Box3().setFromObject(model);
+        const sourceFitBounds = resolveOpenSourceUpperBounds(model, fullSourceBounds);
+        const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
+        const fit = resolveSnookerGlbFitTransform(
+          { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
+          { x: targetSize.x, y: targetHeight, z: targetSize.z }
+        );
+        model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
+
+        model.updateMatrixWorld(true);
+        const scaledFullBounds = new THREE.Box3().setFromObject(model);
+        const scaledFitBounds = resolveOpenSourceUpperBounds(model, scaledFullBounds);
+        const scaledFitCenter = scaledFitBounds.getCenter(new THREE.Vector3());
+        model.position.set(
+          targetCenter.x - scaledFitCenter.x,
+          targetTopY - scaledFitBounds.max.y,
+          targetCenter.z - scaledFitCenter.z
+        );
+        model.updateMatrixWorld(true);
+        table.add(model);
+        model.updateMatrixWorld(true);
+
+        applyDefaultTableFinishToOpenSourceModel(model);
+        remapOpenSourceClothTextureCoordinates(model, targetClothTextureBounds);
+        model.name = 'pooltool-snooker-generic-table';
+        model.userData = {
+          ...(model.userData || {}),
+          isOpenSourceVisual: true,
+          sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
+          fitToProceduralMapping: true,
+          keepsDefaultPocketDropHardware: true
+        };
+        table.userData.openSourceVisual = model;
+        table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
+        table.userData.openSourceVisualFit = fit;
+        table.userData.openSourceVisualTargetBounds = targetBounds;
+      })
+      .catch((error) => {
+        console.warn('Failed to load Pooltool snooker_generic table model', error);
+      });
+  };
+
   const createPolyhavenTableBaseBuilder = (
     assetId,
     {
@@ -10936,7 +11180,11 @@ function Table3D(
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
   parent.add(table);
-  applyPooltoolTableVisualOverride();
+  if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
+    applyOpenSourceTableVisualOverride();
+  } else {
+    applyPooltoolTableVisualOverride();
+  }
 
   const baulkZ = baulkLineZ;
 
@@ -19809,7 +20057,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        tableModel
       );
       const SPOTS = spotPositions(baulkZ);
       snookerSpotsRef.current = SPOTS;
@@ -19828,7 +20077,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        tableModel
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -19839,107 +20089,6 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
-      const attachOpenSourceTableModel = (tableGroup) => {
-        if (tableModel !== TABLE_MODEL_OPENSOURCE || !tableGroup) return;
-        tableGroup.updateMatrixWorld(true);
-        const targetBox = new THREE.Box3().setFromObject(tableGroup);
-        const targetSize = targetBox.getSize(new THREE.Vector3());
-        const proceduralMeshes = new Set();
-        tableGroup.traverse((node) => {
-          if (node?.isMesh) proceduralMeshes.add(node.uuid);
-        });
-        const loader = new GLTFLoader();
-        loader.setCrossOrigin('anonymous');
-        const draco = new DRACOLoader();
-        draco.setDecoderPath(DRACO_DECODER_PATH);
-        loader.setDRACOLoader(draco);
-        const ktx2 = new KTX2Loader();
-        ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-        if (rendererRef.current) {
-          try {
-            ktx2.detectSupport(rendererRef.current);
-          } catch (error) {
-            console.warn('Snooker Royal table KTX2 support detection failed', error);
-          }
-        }
-        loader.setKTX2Loader(ktx2);
-        loader.setMeshoptDecoder(MeshoptDecoder);
-        const tuneOriginalPooltoolTextures = (root) => {
-          root.traverse((node) => {
-            if (!node?.isMesh) return;
-            node.castShadow = true;
-            node.receiveShadow = true;
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach((material) => {
-              if (!material) return;
-              ['map', 'emissiveMap'].forEach((key) => {
-                if (material[key]) {
-                  material[key].colorSpace = THREE.SRGBColorSpace;
-                }
-              });
-              [
-                'map',
-                'emissiveMap',
-                'aoMap',
-                'normalMap',
-                'roughnessMap',
-                'metalnessMap'
-              ].forEach((key) => {
-                const texture = material[key];
-                if (!texture) return;
-                texture.flipY = false;
-                texture.generateMipmaps = true;
-                texture.minFilter = THREE.LinearMipmapLinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.anisotropy = 8;
-                texture.needsUpdate = true;
-              });
-              material.needsUpdate = true;
-            });
-          });
-        };
-        loader.load(
-          TABLE_MODEL_OPENSOURCE_GLB_URL,
-          (gltf) => {
-            const visual = gltf?.scene;
-            if (!visual) return;
-            visual.updateMatrixWorld(true);
-            const sourceBox = new THREE.Box3().setFromObject(visual);
-            const sourceSize = sourceBox.getSize(new THREE.Vector3());
-            const scaleXZ = Math.min(
-              targetSize.x / Math.max(sourceSize.x, 0.0001),
-              targetSize.z / Math.max(sourceSize.z, 0.0001)
-            );
-            const scaleY = targetSize.y / Math.max(sourceSize.y, 0.0001);
-            visual.scale.set(scaleXZ, scaleY, scaleXZ);
-            visual.updateMatrixWorld(true);
-            const scaledBox = new THREE.Box3().setFromObject(visual);
-            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-            const targetCenter = targetBox.getCenter(new THREE.Vector3());
-            visual.position.set(
-              targetCenter.x - scaledCenter.x,
-              targetBox.min.y - scaledBox.min.y,
-              targetCenter.z - scaledCenter.z
-            );
-            tuneOriginalPooltoolTextures(visual);
-            visual.name = 'pooltool-snooker-generic-table';
-            tableGroup.traverse((node) => {
-              if (node?.isMesh && proceduralMeshes.has(node.uuid)) {
-                node.visible = false;
-              }
-            });
-            tableGroup.add(visual);
-            tableGroup.userData.openSourceVisual = visual;
-            tableGroup.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
-          },
-          undefined,
-          (error) => {
-            console.warn('Failed to load Pooltool snooker_generic table model', error);
-          }
-        );
-      };
-      attachOpenSourceTableModel(table);
-      attachOpenSourceTableModel(secondaryTableEntry?.group);
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -20131,7 +20280,8 @@ const powerRef = useRef(hud.power);
           tableSizeMeta,
           railMarkerStyleRef.current,
           activeTableBase,
-          rendererRef.current
+          rendererRef.current,
+          tableModel
         );
         const tableGroup = entry?.group;
         if (!tableGroup) return null;
