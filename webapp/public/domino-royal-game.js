@@ -7918,8 +7918,11 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
   }
 ]);
 const DOMINO_CHARACTER_PROPORTION_SCALE = 2.0;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.22;
 const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 1.0;
+const DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.3;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.0;
+const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
 const DOMINO_CHARACTER_CACHE = new Map();
 const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
 let dominoCharacterThemeOrder = DOMINO_CHARACTER_THEMES.map((_, index) => index);
@@ -8275,6 +8278,12 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
 
 function refreshDominoRigRack(rig, handTiles = []) {
   if (!rig) return;
+  if (!ENABLE_DOMINO_CHARACTER_HELD_RACKS) {
+    rig.heldRack?.userData?.dispose?.();
+    rig.heldRack?.parent?.remove(rig.heldRack);
+    rig.heldRack = null;
+    return;
+  }
   const signature = (Array.isArray(handTiles) ? handTiles.slice(0, 5) : []).map((tile) => `${tile.a}:${tile.b}`).join('|');
   if (rig.heldRack?.userData?.signature === signature) return;
   const parent = rig.heldRack?.parent || rig.instance;
@@ -8307,8 +8316,11 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   enhanceDominoCharacterMaterials(instance, theme, seatIndex);
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
-  const seatScale = (theme.scale || 1) * DOMINO_CHARACTER_PROPORTION_SCALE;
-  const scaleDelta = Math.max(0, DOMINO_CHARACTER_PROPORTION_SCALE - 1);
+  const isHumanSeat = seatIndex === HUMAN_SEAT_INDEX;
+  const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
+  const seatScale = (theme.scale || 1) * characterScale;
+  const scaleDelta = Math.max(0, characterScale - 1);
   seatRoot.scale.setScalar(seatScale);
   const visibleSeatLift = Number.isFinite(chair?.userData?.dominoCharacterSeatLift)
     ? chair.userData.dominoCharacterSeatLift
@@ -8316,7 +8328,8 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   seatRoot.position.set(
     0,
     visibleSeatLift + (theme.seatOffsetY ?? -0.4) - 0.22 - scaleDelta * 0.08 - DOMINO_CHARACTER_EXTRA_LOWER_OFFSET,
-    (theme.seatOffsetZ ?? 0.52) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET
+    (theme.seatOffsetZ ?? 0.52) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET +
+      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET : 0)
   );
   seatRoot.add(instance);
   const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
