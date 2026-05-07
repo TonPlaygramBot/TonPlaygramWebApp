@@ -173,9 +173,7 @@ export default function App() {
               element={
                 <Suspense
                   fallback={
-                    <div className="p-4 text-center">
-                      Loading The Maze Battle Royal…
-                    </div>
+                    <div className="p-4 text-center">Loading RunMan…</div>
                   }
                 >
                   <GameLiveAvatarOverlay gameSlug="runman">
@@ -210,7 +208,12 @@ export default function App() {
             />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
-            <Route path="/games/freekickarena" element={<FreeKickArena />} />
+
+            <Route
+              path="/games/freekickarena"
+              element={<FreeKickArena />}
+            />
+
             <Route
               path="/games/chessbattleroyal/lobby"
               element={
@@ -239,6 +242,7 @@ export default function App() {
                 </Suspense>
               }
             />
+
             <Route
               path="/games/checkersbattleroyal/lobby"
               element={
@@ -269,6 +273,7 @@ export default function App() {
                 </Suspense>
               }
             />
+
             <Route
               path="/games/fourinrowroyale/lobby"
               element={
@@ -297,6 +302,7 @@ export default function App() {
                 </Suspense>
               }
             />
+
             <Route
               path="/games/tavullbattleroyal/lobby"
               element={
@@ -363,6 +369,7 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
+
             <Route
               path="/games/murlanroyale/lobby"
               element={<MurlanRoyaleLobby />}
@@ -391,7 +398,11 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
-            <Route path="/games/tennis/lobby" element={<TennisLobby />} />
+
+            <Route
+              path="/games/tennis/lobby"
+              element={<TennisLobby />}
+            />
             <Route
               path="/games/tennis"
               element={
@@ -400,6 +411,7 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
+
             <Route
               path="/games/table-tennis"
               element={
@@ -408,6 +420,8 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
+
+
             <Route
               path="/games/bowling"
               element={
@@ -416,11 +430,11 @@ export default function App() {
                 </GameLiveAvatarOverlay>
               }
             />
+
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
-            />{' '}
-            <Route
+            />            <Route
               path="/games/snookerroyale"
               element={
                 <GameLiveAvatarOverlay gameSlug="snookerroyale">
@@ -448,10 +462,7 @@ export default function App() {
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route
-              path="/trending"
-              element={<Navigate to="/messages" replace />}
-            />
+            <Route path="/trending" element={<Navigate to="/messages" replace />} />
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />
