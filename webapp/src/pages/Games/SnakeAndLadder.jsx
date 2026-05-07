@@ -190,7 +190,8 @@ const AI_ROLL_DELAY_MS = 1300;
 const AI_EXTRA_ROLL_DELAY_MS = 850;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
 const DICE_RESULT_HOLD_MS = 2000;
-const DICE_SFX_MIN_INTERVAL_MS = 850;
+const DICE_SFX_MIN_INTERVAL_MS = 560;
+const POOL_ROYALE_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -1862,10 +1863,16 @@ export default function SnakeAndLadder() {
     if (now - lastDiceRollSfxAtRef.current < DICE_SFX_MIN_INTERVAL_MS) return;
     lastDiceRollSfxAtRef.current = now;
     lastDiceRollSfxKeyRef.current = eventKey;
-    playLudoDiceRollSfx({
-      volume: getGameVolume(),
-      muted
-    });
+    try {
+      const audio = new Audio(POOL_ROYALE_DICE_ROLL_SOUND_URL);
+      audio.volume = getGameVolume();
+      void audio.play().catch(() => {});
+    } catch {
+      playLudoDiceRollSfx({
+        volume: getGameVolume(),
+        muted
+      });
+    }
   }, [muted]);
 
   const getPreviousTurn = useCallback(
