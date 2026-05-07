@@ -71,7 +71,6 @@ const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
-const SEATED_HUMAN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
   fighter: 'green_metal_rust',
@@ -3245,9 +3244,9 @@ const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.18 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.116 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
-const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.048 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -5600,173 +5599,6 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
-
-const SEATED_HUMAN_POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
-  denim: {
-    source: 'Poly Haven denim_fabric 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
-    tint: 0x314d86
-  },
-  check: {
-    source: 'Poly Haven gingham_check 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
-    tint: 0x9f3651
-  },
-  hessian: {
-    source: 'Poly Haven hessian_230 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
-    tint: 0xa27445
-  },
-  floral: {
-    source: 'Poly Haven floral_jacquard 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
-    tint: 0x6d3f7f
-  },
-  fleece: {
-    source: 'Poly Haven knitted_fleece 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
-    tint: 0x4b5563
-  },
-  picnic: {
-    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
-    tint: 0xc44f42
-  }
-});
-
-function loadSeatedHumanTexture(textureLoader, url, { isColor = false, repeat = 2.65, maxAnisotropy = 8 } = {}) {
-  if (!textureLoader || !url) return null;
-  const key = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}|${maxAnisotropy}`;
-  if (SEATED_HUMAN_TEXTURE_CACHE.has(key)) return SEATED_HUMAN_TEXTURE_CACHE.get(key);
-  const texture = textureLoader.load(
-    url,
-    (loaded) => {
-      if (isColor) applySRGBColorSpace(loaded);
-      loaded.flipY = false;
-      loaded.wrapS = THREE.RepeatWrapping;
-      loaded.wrapT = THREE.RepeatWrapping;
-      loaded.repeat.set(repeat, repeat);
-      loaded.anisotropy = Math.max(loaded.anisotropy ?? 1, maxAnisotropy);
-      loaded.needsUpdate = true;
-    },
-    undefined,
-    () => SEATED_HUMAN_TEXTURE_CACHE.delete(key)
-  );
-  if (isColor) applySRGBColorSpace(texture);
-  texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
-  texture.needsUpdate = true;
-  SEATED_HUMAN_TEXTURE_CACHE.set(key, texture);
-  return texture;
-}
-
-function isNearlyWhiteHumanMaterial(material) {
-  if (!material?.color) return false;
-  return material.color.r > 0.82 && material.color.g > 0.82 && material.color.b > 0.82;
-}
-
-function classifySeatedHumanSurface(obj, material) {
-  const name = `${obj?.name || ''} ${material?.name || ''}`.toLowerCase();
-  if (/eye|iris|pupil|cornea/.test(name)) return 'eye';
-  if (/hair|brow|beard|mustache|moustache|lash/.test(name)) return 'hair';
-  if (/shoe|boot|sole|sneaker|trainer/.test(name)) return 'shoe';
-  if (/watch|bracelet|ring|chain|necklace|glasses|glass|earring|accessor|belt|buckle|zip|button/.test(name)) return 'accessory';
-  if (/skin|head|face|neck|hand|finger|arm|leg|body/.test(name) && !/shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|outfit|suit/.test(name)) return 'skin';
-  if (/shirt|top|torso|chest|cloth|jacket|hood|dress|skirt|pants|trouser|jean|short|sleeve|uniform|outfit|suit/.test(name)) return 'cloth';
-  if (isNearlyWhiteHumanMaterial(material) && !material?.map) return 'cloth';
-  return 'other';
-}
-
-function enhanceSeatedHumanMaterials(root, humanOption, maxAnisotropy = 8) {
-  if (!root) return;
-  const textureLoader = new THREE.TextureLoader();
-  textureLoader.setCrossOrigin?.('anonymous');
-  const cloth =
-    SEATED_HUMAN_POLYHAVEN_CLOTH_MATERIALS[humanOption?.clothTexture] ||
-    SEATED_HUMAN_POLYHAVEN_CLOTH_MATERIALS.denim;
-  const clothMap = loadSeatedHumanTexture(textureLoader, cloth.color, { isColor: true, maxAnisotropy });
-  const clothNormalMap = loadSeatedHumanTexture(textureLoader, cloth.normal, { maxAnisotropy });
-  const clothRoughnessMap = loadSeatedHumanTexture(textureLoader, cloth.roughness, { maxAnisotropy });
-  const skinColor = new THREE.Color(humanOption?.skinTone ?? 0xd2a07c);
-  const hairColor = new THREE.Color(humanOption?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(humanOption?.eyeColor ?? 0x3f5f75);
-  const shoeColor = new THREE.Color(humanOption?.shoeColor ?? 0x111827);
-  const accessoryColor = new THREE.Color(humanOption?.accessoryColor ?? 0xc9a14a);
-
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const sourceMaterials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
-      if (!sourceMat) return sourceMat;
-      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
-      const surface = classifySeatedHumanSurface(obj, mat);
-      if (surface === 'cloth') {
-        mat.map = clothMap || mat.map;
-        mat.normalMap = clothNormalMap || mat.normalMap;
-        mat.roughnessMap = clothRoughnessMap || mat.roughnessMap;
-        mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-        mat.normalScale = new THREE.Vector2(0.34, 0.34);
-        mat.roughness = 0.88;
-        mat.metalness = 0.02;
-        mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
-      } else if (surface === 'skin') {
-        mat.color = skinColor.clone();
-        mat.roughness = 0.56;
-        mat.metalness = 0;
-      } else if (surface === 'hair') {
-        mat.color = hairColor.clone();
-        mat.roughness = 0.64;
-        mat.metalness = 0.02;
-      } else if (surface === 'eye') {
-        mat.color = eyeColor.clone();
-        mat.roughness = 0.18;
-        mat.metalness = 0;
-        mat.envMapIntensity = 0.9;
-      } else if (surface === 'shoe') {
-        mat.color = shoeColor.clone();
-        mat.roughness = 0.78;
-        mat.metalness = 0.04;
-      } else if (surface === 'accessory') {
-        mat.color = accessoryColor.clone();
-        mat.roughness = 0.34;
-        mat.metalness = 0.52;
-        mat.envMapIntensity = 0.85;
-      } else if (isNearlyWhiteHumanMaterial(mat)) {
-        mat.color = skinColor.clone();
-        mat.roughness = 0.58;
-        mat.metalness = 0;
-      }
-      normalizeMaterialTextures(mat, maxAnisotropy, { preserveGltfTextureMapping: true });
-      mat.needsUpdate = true;
-      return mat;
-    });
-    if (enhancedMaterials.length) {
-      obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
-    }
-  });
-}
-
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -6172,16 +6004,16 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
         // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, 0.245 * MODEL_SCALE);
-        position.y += 0.118 * MODEL_SCALE;
+        position.copy(headWorld).addScaledVector(toGameplay, 0.165 * MODEL_SCALE);
+        position.y += 0.058 * MODEL_SCALE;
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {
     target.copy(headWorld);
     target.z += 0.285 * MODEL_SCALE;
     position.copy(headWorld);
-    position.z += 0.215 * MODEL_SCALE;
-    position.y += 0.118 * MODEL_SCALE;
+    position.z += 0.145 * MODEL_SCALE;
+    position.y += 0.058 * MODEL_SCALE;
   } else {
     target.copy(position).add(new THREE.Vector3(0, -0.004, 0.2 * MODEL_SCALE));
   }
@@ -6629,7 +6461,6 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             });
           }
         });
-        enhanceSeatedHumanMaterials(root, humanOption, activeModelTextureAnisotropy);
         applyModelQualityToObject(root);
         return root;
       })()
