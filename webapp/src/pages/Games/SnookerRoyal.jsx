@@ -21036,7 +21036,7 @@ const powerRef = useRef(hud.power);
         modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
         unit: humanUnitScale,
         humanScale: 1.82 * humanUnitScale,
-        shootBendDirection: -1,
+        shootBendDirection: 1,
         tableTopY: humanTableTopY,
         groundY: humanGroundY,
         tableW: PLAY_W,
