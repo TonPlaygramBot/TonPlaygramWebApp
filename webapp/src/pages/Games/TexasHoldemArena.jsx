@@ -401,7 +401,7 @@ const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
-const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.12, landscape: -CARD_W * 0.78 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.46, landscape: -CARD_W * 0.78 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -657,6 +657,8 @@ const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
 const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
 const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.24;
+const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.14;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
 const texasDominoCharacterTextureCache = new Map();
@@ -1458,10 +1460,12 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     seatRoot.scale.setScalar(seatScale);
     const baseSeatOffsetY = (theme.normalizedSeatOffsetY ?? TEXAS_MURLAN_SEATED_OFFSET_Y) - 0.2;
     const baseSeatOffsetZ = theme.normalizedSeatOffsetZ ?? TEXAS_MURLAN_SEATED_OFFSET_Z;
+    const humanLowerOffset = isHumanSeat ? TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0;
+    const humanTableInwardOffset = isHumanSeat ? TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET : 0;
     seatRoot.position.set(
       0,
-      baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET,
-      baseSeatOffsetZ - 0.03 - TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET
+      baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET - humanLowerOffset,
+      baseSeatOffsetZ - 0.03 - TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET - humanTableInwardOffset
     );
     seatRoot.add(instance);
     seatGroup.group.add(seatRoot);
