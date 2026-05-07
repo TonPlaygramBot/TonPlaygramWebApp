@@ -36,7 +36,7 @@ const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/exampl
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.38;
+const CHAIR_SIZE_SCALE = 1.3;
 const TABLE_RADIUS = 3.05 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
@@ -56,8 +56,8 @@ const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: pull the chair ring inward so players sit closer to the smaller table.
-const CHAIR_GLOBAL_PUSHBACK = 0.34 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.38 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.52 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -93,14 +93,14 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.36;
 // Portrait calibration: keep the bottom player slightly farther back, but closer to the table than before.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.04;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.1;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
 // Keep the shared ground target explicit while moving characters visibly higher on portrait screens.
-const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.66 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.56 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_GROUND_Y = SEATED_HUMAN_FOOT_GROUND_Y + SEATED_HUMAN_VISUAL_UPWARD_LIFT;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
@@ -363,18 +363,18 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.22
 ]);
 // Slightly reduce parked/capture weapon displays so they do not overpower the seated players.
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.55;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.014,
+  'slot-10-ak47-gltf': 0.018,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.03,
+  'slot-18-fps-gun-gltf': 0.038,
   // Enlarge long rifles for clearer sniper identity in portrait view.
-  'slot-16-awp-glb': 3.28,
-  'slot-13-mosin-gltf': 3.28
+  'slot-16-awp-glb': 3,
+  'slot-13-mosin-gltf': 3
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.88;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
@@ -465,7 +465,7 @@ const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = 0.08;
+const CAMERA_EXTRA_LIFT = 0.2;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
@@ -473,7 +473,7 @@ const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
-  heightOffset: 2.72,
+  heightOffset: 3.05,
   targetLift: 0
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -946,184 +946,6 @@ function applyTextureSetToMaterial(material, textureSet, repeat = 1) {
   material.roughnessMap = roughnessMap || null;
   material.normalMap = normalMap || null;
   material.needsUpdate = true;
-}
-
-
-const SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze([
-  Object.freeze({
-    shirt: 'cotton_jersey',
-    pants: 'denim_fabric_04',
-    jacket: 'brown_leather',
-    shoes: 'fabric_leather_01',
-    skin: ['#e2c3a5', '#c99974', '#8f5f42'],
-    hair: '#3b2416',
-    eyes: '#3f6f8f'
-  }),
-  Object.freeze({
-    shirt: 'waffle_pique_cotton',
-    pants: 'denim_fabric_05',
-    jacket: 'poly_wool_herringbone',
-    shoes: 'leather_white',
-    skin: ['#f0c7a8', '#cf946c', '#985d3c'],
-    hair: '#111827',
-    eyes: '#5b7c54'
-  }),
-  Object.freeze({
-    shirt: 'quatrefoil_jacquard_fabric',
-    pants: 'wool_boucle',
-    jacket: 'leather_red_03',
-    shoes: 'fabric_leather_02',
-    skin: ['#b77955', '#8a5139', '#5a3528'],
-    hair: '#1f1712',
-    eyes: '#4b5563'
-  }),
-  Object.freeze({
-    shirt: 'terry_cloth',
-    pants: 'scuba_suede',
-    jacket: 'fabric_leather_02',
-    shoes: 'brown_leather',
-    skin: ['#d5a17f', '#a86f4f', '#70432f'],
-    hair: '#6b3f23',
-    eyes: '#7c5f37'
-  })
-]);
-
-function createDetailedSkinTexture(tone = ['#d8c0a6', '#b48d6b', '#7c4f36']) {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-  const [light, mid, deep] = tone;
-  const grad = ctx.createRadialGradient(size * 0.42, size * 0.32, size * 0.08, size * 0.5, size * 0.5, size * 0.72);
-  grad.addColorStop(0, light);
-  grad.addColorStop(0.58, mid);
-  grad.addColorStop(1, deep);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 760; i += 1) {
-    const x = (i * 137) % size;
-    const y = (i * 197) % size;
-    const r = 0.45 + ((i * 17) % 5) * 0.18;
-    ctx.globalAlpha = 0.03 + (i % 7) * 0.006;
-    ctx.fillStyle = i % 5 === 0 ? 'rgba(92,43,25,0.65)' : 'rgba(255,239,216,0.75)';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 8;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-async function loadSeatedHumanTextureProfile(renderer, seatIndex = 0) {
-  const profile = SEATED_HUMAN_TEXTURE_PROFILES[seatIndex % SEATED_HUMAN_TEXTURE_PROFILES.length];
-  const safeLoad = (assetId) => loadPolyhavenTextureSet(assetId, renderer).catch(() => null);
-  const [shirt, pants, jacket, shoes] = await Promise.all([
-    safeLoad(profile.shirt),
-    safeLoad(profile.pants),
-    safeLoad(profile.jacket),
-    safeLoad(profile.shoes)
-  ]);
-  return {
-    shirt,
-    pants,
-    jacket,
-    shoes,
-    skinTexture: createDetailedSkinTexture(profile.skin),
-    skinTone: profile.skin?.[1] || '#c99974',
-    hairColor: profile.hair || '#2a1a10',
-    eyeColor: profile.eyes || '#3f6f8f'
-  };
-}
-
-function classifySeatedHumanSurface(meshName, materialName) {
-  const label = `${meshName || ''} ${materialName || ''}`.toLowerCase();
-  if (/eye|iris|pupil|cornea/.test(label)) return 'eyes';
-  if (/hair|beard|mustache|moustache|brow/.test(label)) return 'hair';
-  if (/shoe|boot|sneaker|sole|footwear/.test(label)) return 'shoes';
-  if (/jacket|coat|hoodie|vest|blazer|outerwear/.test(label)) return 'jacket';
-  if (/pant|trouser|jean|bottom|short|skirt|legwear/.test(label)) return 'pants';
-  if (/shirt|tshirt|t-shirt|tee|top|torso|sleeve|outfit|cloth|fabric|bodywear/.test(label)) return 'shirt';
-  if (/head|face|skin|neck|ear|hand|arm|leg|body/.test(label)) return 'skin';
-  return 'shirt';
-}
-
-function cloneSeatedHumanMaterials(root) {
-  root?.traverse?.((obj) => {
-    if (!obj?.isMesh || !obj.material) return;
-    obj.material = Array.isArray(obj.material)
-      ? obj.material.map((mat) => mat?.clone?.() ?? mat)
-      : obj.material.clone?.() ?? obj.material;
-  });
-}
-
-function applySeatedHumanMaterialDetail(root, textureProfile, fallbackTextures = {}) {
-  if (!root?.isObject3D || !textureProfile) return;
-  const assignPbrSet = (material, set, fallbackMap = null, repeat = 1.35) => {
-    if (!material) return;
-    if (set) {
-      applyTextureSetToMaterial(material, set, repeat);
-    } else {
-      material.map = fallbackMap || material.map || null;
-      normalizeMaterialTextures(material, 8, { preserveGltfTextureMapping: true });
-    }
-    material.color?.setHex?.(0xffffff);
-    material.needsUpdate = true;
-  };
-
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    obj.frustumCulled = false;
-    const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-    materials.forEach((mat) => {
-      const kind = classifySeatedHumanSurface(obj.name, mat?.name);
-      if (kind === 'eyes') {
-        mat.map = mat.map || null;
-        mat.color?.set?.(textureProfile.eyeColor);
-        mat.roughness = 0.18;
-        mat.metalness = 0.02;
-      } else if (kind === 'hair') {
-        mat.map = mat.map || fallbackTextures.hairTex || null;
-        mat.color?.set?.(textureProfile.hairColor);
-        mat.roughness = 0.72;
-        mat.metalness = 0.02;
-      } else if (kind === 'skin') {
-        mat.map = textureProfile.skinTexture || fallbackTextures.skinTex || mat.map || null;
-        mat.color?.set?.(textureProfile.skinTone);
-        mat.roughness = 0.58;
-        mat.metalness = 0;
-      } else if (kind === 'shoes') {
-        assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null, 1.1);
-        mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
-        mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
-      } else if (kind === 'jacket') {
-        assignPbrSet(mat, textureProfile.jacket, fallbackTextures.clothTex || null, 1.05);
-        mat.roughness = Math.max(mat.roughness ?? 0.5, 0.5);
-        mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.18);
-      } else if (kind === 'pants') {
-        assignPbrSet(mat, textureProfile.pants, fallbackTextures.clothTex || null, 1.45);
-        mat.roughness = Math.max(mat.roughness ?? 0.76, 0.76);
-        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
-      } else {
-        assignPbrSet(mat, textureProfile.shirt, fallbackTextures.clothTex || null, 1.55);
-        mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
-        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
-      }
-      normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
-      if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
-      mat.needsUpdate = true;
-    });
-  });
 }
 
 function createCaptureVehicleTexture(kind = 'fighter') {
@@ -2205,12 +2027,7 @@ async function loadSeatedHumanTemplate(renderer) {
       }
       const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
       const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-      const shoesTex = createSeatedHumanFallbackTexture('#4a3324', '#1f1711');
       const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-      scene.userData = {
-        ...(scene.userData || {}),
-        snakeHumanFallbackTextures: { skinTex, clothTex, shoesTex, hairTex }
-      };
       scene.traverse((obj) => {
         if (!obj?.isMesh) return;
         obj.castShadow = true;
@@ -3183,28 +3000,16 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = [],
-    bouncePoints = [],
-    edgeNormals = []
+    startPositions = []
   }
 ) {
   const start = performance.now();
-  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
-  const spinAxes = diceArray.map((die, index) => {
-    const startPos = startPositions[index] ?? die.position;
-    const endPos = basePositions[index] ?? startPos;
-    const travel = endPos.clone().sub(startPos).setY(0);
-    const rollAxis = travel.lengthSq() > 1e-6
-      ? new THREE.Vector3(travel.z, 0, -travel.x).normalize()
-      : new THREE.Vector3(1, 0, 0);
-    const edge = edgeNormals[index]?.clone?.()?.setY(0);
-    if (edge?.lengthSq?.() > 1e-6) {
-      rollAxis.lerp(new THREE.Vector3(edge.z, 0, -edge.x).normalize(), 0.35).normalize();
-    }
-    return rollAxis;
-  });
-  const sideSpinAxes = diceArray.map(
-    () => new THREE.Vector3(Math.random() - 0.5, 0.28 + Math.random() * 0.28, Math.random() - 0.5).normalize()
+  const spinVectors = diceArray.map(() =>
+    new THREE.Vector3(
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
+    )
   );
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
@@ -3215,33 +3020,21 @@ function createDiceRollAnimation(
     update: (now) => {
       const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
       const eased = easeOutCubic(t);
-      const hop = Math.sin(Math.min(1, t * 2.35) * Math.PI);
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const bouncePoint = bouncePoints[index] ?? startPos.clone().lerp(base, 0.58);
-        const pathSplit = 0.58;
-        const pathT = t < pathSplit
-          ? smootherstep01(t / pathSplit)
-          : smootherstep01((t - pathSplit) / (1 - pathSplit));
-        const position = t < pathSplit
-          ? startPos.clone().lerp(bouncePoint, pathT)
-          : bouncePoint.clone().lerp(base, pathT);
+        const position = startPos.clone().lerp(base, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.34);
-        const bounce = hop * DICE_BOUNCE_HEIGHT * (1 - eased * 0.35);
-        position.y = Math.max(baseY, position.y) + bounce;
+        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
+        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
+        position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
-        const travelDistance = startPos.distanceTo(base);
-        const rollTurns = (travelDistance / Math.max(DICE_SIZE, 0.001)) * (Math.PI * 1.85);
-        const primarySpin = new THREE.Quaternion().setFromAxisAngle(spinAxes[index], rollTurns * eased);
-        const tumbleSpin = new THREE.Quaternion().setFromAxisAngle(
-          sideSpinAxes[index],
-          (Math.PI * (4.5 + index * 0.35)) * (1 - Math.pow(1 - t, 2.2))
-        );
-        die.quaternion.copy(startQuaternions[index]).premultiply(primarySpin).premultiply(tumbleSpin);
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -3961,19 +3754,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     .catch(() => {});
 
   loadSeatedHumanTemplate(renderer)
-    .then(async (humanTemplate) => {
+    .then((humanTemplate) => {
       if (!humanTemplate || disposed) return;
-      const fallbackTextures = humanTemplate.userData?.snakeHumanFallbackTextures || {};
-      const textureProfiles = await Promise.all(
-        chairs.map((_, seatIndex) =>
-          loadSeatedHumanTextureProfile(renderer, seatIndex).catch(() => null)
-        )
-      );
-      if (disposed) return;
       chairs.forEach((chair, seatIndex) => {
         const instance = cloneSkeleton(humanTemplate);
-        cloneSeatedHumanMaterials(instance);
-        applySeatedHumanMaterialDetail(instance, textureProfiles[seatIndex], fallbackTextures);
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
         const baseScale =
