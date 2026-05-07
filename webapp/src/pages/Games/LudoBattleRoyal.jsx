@@ -3226,6 +3226,7 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'carryToken',
   'placeToken'
 ]);
+const SEATED_HUMAN_DICE_CONTACT_MODE_SET = new Set(['reachDice', 'gripDice', 'holdDice']);
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.057 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.112 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.003 * MODEL_SCALE;
@@ -3251,8 +3252,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.142 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.034 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.19 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.072 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -6079,6 +6080,14 @@ function applySeatedHumanPose(
     wristZ = THREE.MathUtils.lerp(wristZ, 0.52, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, 0.28, t);
+  }
+
+  if (SEATED_HUMAN_DICE_CONTACT_MODE_SET.has(mode)) {
+    wristX = THREE.MathUtils.lerp(wristX, -0.82, t);
+    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.12, t);
   }
 
   if (bodyLockedMode && !isDiceReachMode) {
@@ -9953,15 +9962,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-        const gameplayTarget = (() => {
-          const dice = diceRef.current;
-          if (dice?.isObject3D) {
-            const target = new THREE.Vector3();
-            dice.getWorldPosition(target);
-            return target;
-          }
-          return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
-        })();
+        const gameplayTarget = boardLookTargetRef.current?.isVector3
+          ? boardLookTargetRef.current.clone()
+          : null;
         const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
         const hardLockedPosition = liveFacePose?.position?.isVector3
           ? liveFacePose.position
@@ -11635,12 +11638,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
 
   const resolveBottomPlayerGameplayTarget = useCallback(() => {
-    const dice = diceRef.current;
-    if (dice?.isObject3D) {
-      const diceTarget = new THREE.Vector3();
-      dice.getWorldPosition(diceTarget);
-      return diceTarget;
-    }
     return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
   }, []);
 
