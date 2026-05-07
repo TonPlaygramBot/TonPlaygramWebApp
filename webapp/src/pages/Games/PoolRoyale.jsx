@@ -13738,11 +13738,13 @@ function mountPoolRoyaleExternalTableModel({
     : generatedUpperComponentBounds.getSize(new THREE.Vector3());
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
+      const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
       if (
         !visible &&
-        !externalTableModelForMount?.useOriginalLayoutSurfaces &&
-        (object.userData?.externalTableKeepVisible ||
-          (object.userData?.isChromePlate && chromePlateStyle.showGeneratedOnExternal))
+        (
+          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
+        )
       ) {
         object.visible = true;
         return;
@@ -25792,11 +25794,13 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
+            // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
+            // as the portrait camera lowers into the ready-to-shoot view.
             shootBendDirection: -1,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 1.18,
+            shootUpperBodyCounterLean: 0.72,
             plantFeetDuringShot: true,
+            bridgeArmStraightDown: true,
             forceTableFacingAim: true,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
@@ -26018,8 +26022,8 @@ const shotPowerRef = useRef(0);
             }
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -0.145 * humanUnitScale)
-              .addScaledVector(side, -0.012 * humanUnitScale)
+              .addScaledVector(aimForward, -0.105 * humanUnitScale)
+              .addScaledVector(side, -0.038 * humanUnitScale)
               .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
