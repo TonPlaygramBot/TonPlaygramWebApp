@@ -116,6 +116,97 @@ const HUMAN_CARD_HAND_DEBUG_HELPERS =
   typeof window !== 'undefined' &&
   (new URLSearchParams(window.location.search).get('showHandHelpers') === '1' ||
     window.localStorage?.getItem('murlanShowHandHelpers') === '1');
+
+const MURLAN_CHARACTER_TEXTURE_LOADER = new THREE.TextureLoader();
+MURLAN_CHARACTER_TEXTURE_LOADER.setCrossOrigin?.('anonymous');
+const MURLAN_CHARACTER_TEXTURE_CACHE = new Map();
+const MURLAN_CHARACTER_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: 'Poly Haven denim_fabric 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    tint: 0x314d86
+  },
+  check: {
+    source: 'Poly Haven gingham_check 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    tint: 0x9f3651
+  },
+  hessian: {
+    source: 'Poly Haven hessian_230 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    tint: 0xa27445
+  },
+  floral: {
+    source: 'Poly Haven floral_jacquard 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    tint: 0x6d3f7f
+  },
+  fleece: {
+    source: 'Poly Haven knitted_fleece 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    tint: 0x4b5563
+  },
+  picnic: {
+    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    tint: 0xc44f42
+  }
+});
+const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: {
+    upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
+    lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 },
+    accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 }
+  },
+  casinoCheck: {
+    upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
+    lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 },
+    accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 }
+  },
+  linenStreet: {
+    upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 },
+    lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
+    accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 }
+  },
+  jacquardNight: {
+    upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 },
+    lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 },
+    accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 }
+  },
+  softFleece: {
+    upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
+    lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 },
+    accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 }
+  },
+  patternedRed: {
+    upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
+    lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
+    accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 }
+  },
+  mixedDenim: {
+    upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
+    lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
+    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
+  }
+});
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -859,6 +950,156 @@ function normalizeMaterialTextures(material, maxAnisotropy = 1) {
   normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
   normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
   normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+}
+
+
+function getMurlanCharacterAnisotropyCap(renderer = null) {
+  try {
+    return Math.max(1, renderer?.capabilities?.getMaxAnisotropy?.() || 8);
+  } catch {
+    return 8;
+  }
+}
+
+function loadMurlanCharacterTexture(url, { isColor = false, repeat = 3.5, maxAnisotropy = 8 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}|${maxAnisotropy}`;
+  if (MURLAN_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return MURLAN_CHARACTER_TEXTURE_CACHE.get(cacheKey);
+  const normalizeLoaded = (texture) => {
+    if (!texture) return;
+    if (isColor) applySRGBColorSpace(texture);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeat, repeat);
+    normalizePbrTexture(texture, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+    texture.needsUpdate = true;
+  };
+  const texture = MURLAN_CHARACTER_TEXTURE_LOADER.load(
+    url,
+    normalizeLoaded,
+    undefined,
+    () => MURLAN_CHARACTER_TEXTURE_CACHE.delete(cacheKey)
+  );
+  normalizeLoaded(texture);
+  texture.userData = { ...(texture.userData || {}), murlanSharedClothTexture: true };
+  MURLAN_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function isNearlyWhiteCharacterMaterial(mat) {
+  if (!mat?.color) return false;
+  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
+}
+
+function isLowSaturationLightCharacterMaterial(mat) {
+  if (!mat?.color || mat.map) return false;
+  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
+  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyMurlanHumanSurface(obj, mat) {
+  const name = `${obj?.name || ''} ${mat?.name || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'lowerCloth';
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
+  if (isNearlyWhiteCharacterMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
+  return 'other';
+}
+
+function resolveMurlanCharacterClothSlot(theme, slot, seatIndex) {
+  const combo = MURLAN_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || MURLAN_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
+  const material = MURLAN_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || MURLAN_CHARACTER_CLOTH_MATERIALS.denim;
+  const repeatBoost = seatIndex === 0 ? 0.75 : 0;
+  return {
+    ...material,
+    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
+    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
+  };
+}
+
+function applyMurlanCharacterClothMaterial(mat, cloth, maxAnisotropy = 8) {
+  mat.map = loadMurlanCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat, maxAnisotropy });
+  mat.normalMap = loadMurlanCharacterTexture(cloth.normal, { repeat: cloth.repeat, maxAnisotropy });
+  mat.roughnessMap = loadMurlanCharacterTexture(cloth.roughness, { repeat: cloth.repeat, maxAnisotropy });
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, 0.35);
+  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
+}
+
+function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, renderer = null) {
+  const maxAnisotropy = getMurlanCharacterAnisotropyCap(renderer);
+  const clothSlots = {
+    upperCloth: resolveMurlanCharacterClothSlot(theme, 'upper', seatIndex),
+    lowerCloth: resolveMurlanCharacterClothSlot(theme, 'lower', seatIndex),
+    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex)
+  };
+  const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
+
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyMurlanHumanSurface(obj, mat);
+      if (clothSlots[surface]) {
+        applyMurlanCharacterClothMaterial(mat, clothSlots[surface], maxAnisotropy);
+      } else if (surface === 'hair') {
+        mat.map = null;
+        mat.color = hairColor.clone();
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
+      } else if (surface === 'eye') {
+        mat.map = null;
+        mat.color = eyeColor.clone();
+        mat.roughness = 0.18;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+      } else if (surface === 'skin') {
+        if (isLowSaturationLightCharacterMaterial(mat) || isNearlyWhiteCharacterMaterial(mat)) {
+          mat.color = skinColor.clone();
+        } else if (mat.color) {
+          mat.color.lerp(skinColor, 0.24);
+        }
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = 0;
+      } else if (surface === 'shoe') {
+        if (isLowSaturationLightCharacterMaterial(mat)) {
+          mat.color = new THREE.Color(0x111827);
+        }
+        mat.roughness = 0.78;
+        mat.metalness = 0.02;
+      } else if (surface === 'mouth') {
+        if (isNearlyWhiteCharacterMaterial(mat)) {
+          mat.color = new THREE.Color(0xf8fafc);
+        }
+        mat.roughness = 0.32;
+        mat.metalness = 0;
+      } else if (isNearlyWhiteCharacterMaterial(mat)) {
+        mat.color = skinColor.clone();
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      }
+      normalizeMaterialTextures(mat, maxAnisotropy);
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
+  });
 }
 
 function prepareLoadedModel(model, options = {}) {
@@ -2020,10 +2261,9 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     obj.castShadow = true;
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    // Preserve the character's original glTF texture mapping exactly (no UV/wrap/flip remap).
+    // Preserve original glTF UV transforms first, then apply the Domino Royal clothing/face material pass per seat.
     mats.forEach((mat) => {
       if (!mat) return;
-      // Keep original glTF UV transform/wrap/flip mapping exactly as-authored.
       const colorTextures = [mat.map, mat.emissiveMap].filter(Boolean);
       colorTextures.forEach((texture) => {
         applySRGBColorSpace(texture);
@@ -2037,6 +2277,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
       mat.needsUpdate = true;
     });
   });
+  enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();

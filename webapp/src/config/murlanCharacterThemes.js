@@ -18,7 +18,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'royalDenim',
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    skinTone: 0xd9a27d
   },
   {
     id: 'rpm-67d411',
@@ -41,7 +45,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    skinTone: 0xc78f68
   },
   {
     id: 'rpm-67f433',
@@ -64,7 +72,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'linenStreet',
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    skinTone: 0xe0b18d
   },
   {
     id: 'rpm-67e1b5',
@@ -87,7 +99,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'jacquardNight',
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    skinTone: 0xb87957
   },
   {
     id: 'webgl-vietnam-human',
@@ -105,7 +121,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'softFleece',
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    skinTone: 0xd39a72
   },
   {
     id: 'webgl-ai-teacher',
@@ -123,7 +143,11 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'patternedRed',
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    skinTone: 0xc88b64
   },
   {
     id: 'webgl-ai-teacher-1',
@@ -141,6 +165,10 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     normalizedSeatOffsetZ: 0.52,
     seatPitch: 0,
     seatYaw: 0,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'mixedDenim',
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    skinTone: 0xe3b08b
   }
 ]);
