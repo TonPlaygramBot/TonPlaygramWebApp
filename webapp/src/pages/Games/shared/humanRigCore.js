@@ -17,6 +17,150 @@ const REALISTIC_HUMAN_MATERIALS = Object.freeze({
   defaultFabric: 0x8b5a3c
 });
 
+
+const HUMAN_POLYHAVEN_TEXTURES = Object.freeze({
+  // Poly Haven CC0 texture GLTF sets: each clothing role uses its own scanned material,
+  // so shirts, trousers and shoes no longer share one generic avatar material.
+  top: Object.freeze({ asset: 'cotton_jersey', tint: 0xdce6ee, repeat: 4.4, normalScale: 0.55 }),
+  bottom: Object.freeze({ asset: 'denim_fabric', tint: 0xaab7ca, repeat: 5.2, normalScale: 0.72 }),
+  shoes: Object.freeze({ asset: 'brown_leather', tint: 0x8a5f42, repeat: 3.2, normalScale: 0.5 })
+});
+
+const HUMAN_POLYHAVEN_TEXTURE_CACHE = new Map();
+const HUMAN_POLYHAVEN_RESOLUTION = '1k';
+const HUMAN_POLYHAVEN_TEXTURE_BASE = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${HUMAN_POLYHAVEN_RESOLUTION}`;
+let humanTextureLoader = null;
+
+function getHumanTextureLoader() {
+  if (!humanTextureLoader) {
+    humanTextureLoader = new THREE.TextureLoader();
+    humanTextureLoader.setCrossOrigin?.('anonymous');
+  }
+  return humanTextureLoader;
+}
+
+function configureHumanClothTexture(texture, { isColor = false, repeat = 4 } = {}) {
+  if (!texture) return texture;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  texture.anisotropy = 8;
+  if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function polyhavenTextureUrl(asset, suffix) {
+  return `${HUMAN_POLYHAVEN_TEXTURE_BASE}/${asset}/${asset}_${suffix}_${HUMAN_POLYHAVEN_RESOLUTION}.jpg`;
+}
+
+function loadHumanPolyhavenTextureSet(role) {
+  const cfg = HUMAN_POLYHAVEN_TEXTURES[role];
+  if (!cfg) return null;
+  if (HUMAN_POLYHAVEN_TEXTURE_CACHE.has(role)) return HUMAN_POLYHAVEN_TEXTURE_CACHE.get(role);
+  const loader = getHumanTextureLoader();
+  const textureSet = {
+    cfg,
+    map: configureHumanClothTexture(loader.load(polyhavenTextureUrl(cfg.asset, 'diff')), {
+      isColor: true,
+      repeat: cfg.repeat
+    }),
+    normalMap: configureHumanClothTexture(loader.load(polyhavenTextureUrl(cfg.asset, 'nor_gl')), {
+      repeat: cfg.repeat
+    }),
+    roughnessMap: configureHumanClothTexture(loader.load(polyhavenTextureUrl(cfg.asset, 'rough')), {
+      repeat: cfg.repeat
+    })
+  };
+  HUMAN_POLYHAVEN_TEXTURE_CACHE.set(role, textureSet);
+  return textureSet;
+}
+
+function cloneHumanTexture(texture) {
+  if (!texture) return null;
+  const clone = texture.clone();
+  clone.image = texture.image;
+  clone.needsUpdate = true;
+  return clone;
+}
+
+function resolveHumanSurfaceRole(obj, mat) {
+  const key = cleanName(`${obj?.name || ''} ${mat?.name || ''}`);
+  if (key.includes('skin') || key.includes('head') || key.includes('face') || key.includes('hand') || key.includes('arm')) return 'skin';
+  if (key.includes('hair') || key.includes('beard') || key.includes('brow')) return 'hair';
+  if (key.includes('eye')) return 'eyes';
+  if (key.includes('teeth') || key.includes('tooth')) return 'teeth';
+  if (key.includes('shoe') || key.includes('footwear') || key.includes('boot')) return 'shoes';
+  if (key.includes('bottom') || key.includes('pant') || key.includes('trouser') || key.includes('jean') || key.includes('leg')) return 'bottom';
+  if (key.includes('top') || key.includes('shirt') || key.includes('hoodie') || key.includes('jacket') || key.includes('torso') || key.includes('outfit')) return 'top';
+  return 'fabric';
+}
+
+function applyPolyhavenHumanClothingMaterial(obj, mat) {
+  if (!mat || mat.userData?.polyhavenHumanClothApplied) return;
+  const role = resolveHumanSurfaceRole(obj, mat);
+  const textureSet = loadHumanPolyhavenTextureSet(role);
+  if (!textureSet) return;
+  mat.map = cloneHumanTexture(textureSet.map);
+  mat.normalMap = cloneHumanTexture(textureSet.normalMap);
+  mat.roughnessMap = cloneHumanTexture(textureSet.roughnessMap);
+  if (mat.color) mat.color.setHex(textureSet.cfg.tint);
+  if ('roughness' in mat) mat.roughness = 0.82;
+  if ('metalness' in mat) mat.metalness = 0.02;
+  if ('normalScale' in mat) mat.normalScale = new THREE.Vector2(textureSet.cfg.normalScale, textureSet.cfg.normalScale);
+  mat.userData = {
+    ...(mat.userData || {}),
+    polyhavenHumanClothApplied: true,
+    polyhavenSource: textureSet.cfg.asset,
+    polyhavenSourceFormat: 'Poly Haven texture GLTF material maps'
+  };
+}
+
+function createHumanFaceDetails(human) {
+  const head = human?.bones?.head;
+  if (!head || head.userData?.poolRoyaleFaceDetailsApplied) return;
+  const browMat = new THREE.MeshStandardMaterial({
+    color: REALISTIC_HUMAN_MATERIALS.hair,
+    roughness: 0.92,
+    metalness: 0
+  });
+  const eyeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf7fbff,
+    roughness: 0.34,
+    clearcoat: 0.65,
+    clearcoatRoughness: 0.18,
+    metalness: 0
+  });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x17120f, roughness: 0.48 });
+  const browGeom = new THREE.BoxGeometry(0.074, 0.01, 0.012);
+  const eyeGeom = new THREE.SphereGeometry(0.026, 16, 10);
+  const pupilGeom = new THREE.SphereGeometry(0.009, 10, 8);
+  const makeEye = (x) => {
+    const eye = new THREE.Mesh(eyeGeom, eyeMat);
+    eye.name = x < 0 ? 'PoolRoyale_LeftEyeDetail' : 'PoolRoyale_RightEyeDetail';
+    eye.position.set(x, 0.055, -0.082);
+    eye.scale.set(1, 0.64, 0.45);
+    const pupil = new THREE.Mesh(pupilGeom, pupilMat);
+    pupil.name = `${eye.name}_Pupil`;
+    pupil.position.set(0, -0.001, -0.018);
+    pupil.scale.set(0.8, 0.8, 0.42);
+    eye.add(pupil);
+    return eye;
+  };
+  const makeBrow = (x, zRot) => {
+    const brow = new THREE.Mesh(browGeom, browMat);
+    brow.name = x < 0 ? 'PoolRoyale_LeftEyebrowDetail' : 'PoolRoyale_RightEyebrowDetail';
+    brow.position.set(x, 0.092, -0.087);
+    brow.rotation.set(0.08, 0, zRot);
+    return brow;
+  };
+  head.add(makeEye(-0.034), makeEye(0.034), makeBrow(-0.036, 0.16), makeBrow(0.036, -0.16));
+  head.userData = {
+    ...(head.userData || {}),
+    poolRoyaleFaceDetailsApplied: true
+  };
+}
+
 function isMostlyGreyColor(color) {
   if (!color) return true;
   const max = Math.max(color.r, color.g, color.b);
@@ -25,28 +169,14 @@ function isMostlyGreyColor(color) {
 }
 
 function pickHumanMaterialColor(obj, mat) {
-  const key = cleanName(`${obj?.name || ''} ${mat?.name || ''}`);
-  if (key.includes('skin') || key.includes('head') || key.includes('face') || key.includes('hand') || key.includes('arm')) {
-    return REALISTIC_HUMAN_MATERIALS.skin;
-  }
-  if (key.includes('hair') || key.includes('beard') || key.includes('brow')) {
-    return REALISTIC_HUMAN_MATERIALS.hair;
-  }
-  if (key.includes('eye')) {
-    return REALISTIC_HUMAN_MATERIALS.eyes;
-  }
-  if (key.includes('teeth') || key.includes('tooth')) {
-    return REALISTIC_HUMAN_MATERIALS.teeth;
-  }
-  if (key.includes('shoe') || key.includes('footwear') || key.includes('boot')) {
-    return REALISTIC_HUMAN_MATERIALS.shoes;
-  }
-  if (key.includes('bottom') || key.includes('pant') || key.includes('trouser') || key.includes('jean') || key.includes('leg')) {
-    return REALISTIC_HUMAN_MATERIALS.bottom;
-  }
-  if (key.includes('top') || key.includes('shirt') || key.includes('hoodie') || key.includes('jacket') || key.includes('torso') || key.includes('outfit')) {
-    return REALISTIC_HUMAN_MATERIALS.top;
-  }
+  const role = resolveHumanSurfaceRole(obj, mat);
+  if (role === 'skin') return REALISTIC_HUMAN_MATERIALS.skin;
+  if (role === 'hair') return REALISTIC_HUMAN_MATERIALS.hair;
+  if (role === 'eyes') return REALISTIC_HUMAN_MATERIALS.eyes;
+  if (role === 'teeth') return REALISTIC_HUMAN_MATERIALS.teeth;
+  if (role === 'shoes') return REALISTIC_HUMAN_MATERIALS.shoes;
+  if (role === 'bottom') return REALISTIC_HUMAN_MATERIALS.bottom;
+  if (role === 'top') return REALISTIC_HUMAN_MATERIALS.top;
   return REALISTIC_HUMAN_MATERIALS.defaultFabric;
 }
 
@@ -108,7 +238,10 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  shootBendDirection: 1,
+  // Negative bends the cue-side upper body away from the previous over-the-table fold.
+  // Feet remain planted through IK targets while only spine/chest/head targets cross the cue line.
+  shootBendDirection: -1,
+  shootCounterLeanSide: -1,
   forceTableFacingAim: true
 };
 
@@ -343,7 +476,10 @@ export function createHumanRig(scene, opts = {}) {
         obj.castShadow = true;
         obj.receiveShadow = true;
         obj.frustumCulled = false;
-        const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
+        if (Array.isArray(obj.material)) obj.material = mats;
+        else if (mats[0]) obj.material = mats[0];
         mats.forEach((mat) => {
           if (mat.map) {
             mat.map.colorSpace = THREE.SRGBColorSpace;
@@ -351,6 +487,7 @@ export function createHumanRig(scene, opts = {}) {
             mat.map.needsUpdate = true;
           }
           applyRealisticHumanMaterialFallback(obj, mat);
+          applyPolyhavenHumanClothingMaterial(obj, mat);
           mat.depthWrite = true;
           mat.depthTest = true;
           mat.needsUpdate = true;
@@ -362,6 +499,7 @@ export function createHumanRig(scene, opts = {}) {
       [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
         if (bone) human.restQuats.set(bone, bone.quaternion.clone());
       });
+      createHumanFaceDetails(human);
       const b = human.bones;
       human.activeGlb = Boolean(
         b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
@@ -628,16 +766,18 @@ export function updateHumanPose(human, dt, frameData) {
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = (frameData.power || 0) * t;
   const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
+  const counterLeanSide = cfg.shootCounterLeanSide >= 0 ? 1 : -1;
   const shotBendZ = (value) => value * bendDirection;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * cfg.unit * bendDirection);
+  const shotCounterLeanX = (value) => value * counterLeanSide;
+  const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
 
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3(0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.025 * t) * cfg.unit, lerp(1.3, 1.14, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.07 * t + 0.012 * powerLean) * cfg.unit, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.105 * t + 0.016 * powerLean) * cfg.unit, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.12 * t + 0.018 * powerLean) * cfg.unit, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.075 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));

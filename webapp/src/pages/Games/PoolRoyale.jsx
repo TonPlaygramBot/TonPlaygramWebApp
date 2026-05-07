@@ -4633,6 +4633,7 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // tighten Showood GLB cloth to the procedural/Snooker Royal weave scale
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -12664,11 +12665,15 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
     if (!texture?.repeat || texture.userData?.poolRoyaleExternalUvNormalized) return;
     const scaleX = uvSpan.x > 1 + MICRO_EPS ? uvSpan.x : 1;
     const scaleY = uvSpan.y > 1 + MICRO_EPS ? uvSpan.y : 1;
-    texture.repeat.set(texture.repeat.x / scaleX, texture.repeat.y / scaleY);
+    texture.repeat.set(
+      (texture.repeat.x / scaleX) * EXTERNAL_TABLE_CLOTH_REPEAT_SCALE,
+      (texture.repeat.y / scaleY) * EXTERNAL_TABLE_CLOTH_REPEAT_SCALE
+    );
     texture.userData = {
       ...(texture.userData || {}),
       poolRoyaleExternalUvNormalized: true,
-      poolRoyaleExternalUvSpan: { x: uvSpan.x, y: uvSpan.y }
+      poolRoyaleExternalUvSpan: { x: uvSpan.x, y: uvSpan.y },
+      poolRoyaleExternalClothRepeatScale: EXTERNAL_TABLE_CLOTH_REPEAT_SCALE
     };
     texture.needsUpdate = true;
   });
