@@ -5,7 +5,7 @@ const gamesCatalog = [
     slug: 'runman',
     image: '/assets/icons/runman.svg',
     description:
-      'Fast portrait maze battle: fight human runners, break wooden boxes, grab lightweight weapons, and survive.'
+      'Fast portrait FPS maze battle: shoot rivals, break wooden boxes, grab GLTF weapons, and survive.'
   },
 
   {
