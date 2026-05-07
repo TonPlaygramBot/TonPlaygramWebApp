@@ -238,10 +238,13 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  // Negative bends the cue-side upper body away from the previous over-the-table fold.
-  // Feet remain planted through IK targets while only spine/chest/head targets cross the cue line.
+  // The shooting pose bends the upper body away from the cue-side fold while the
+  // IK feet stay planted on the floor. Pool Royale can override the strength,
+  // but the default keeps spine/chest/head targets on the opposite side.
   shootBendDirection: -1,
   shootCounterLeanSide: -1,
+  shootUpperBodyCounterLean: 1,
+  plantFeetDuringShot: true,
   forceTableFacingAim: true
 };
 
@@ -767,8 +770,12 @@ export function updateHumanPose(human, dt, frameData) {
   const powerLean = (frameData.power || 0) * t;
   const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
   const counterLeanSide = cfg.shootCounterLeanSide >= 0 ? 1 : -1;
+  const upperBodyCounterLean = Number.isFinite(cfg.shootUpperBodyCounterLean)
+    ? Math.max(0, cfg.shootUpperBodyCounterLean)
+    : 1;
+  const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
   const shotBendZ = (value) => value * bendDirection;
-  const shotCounterLeanX = (value) => value * counterLeanSide;
+  const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
 
@@ -780,8 +787,27 @@ export function updateHumanPose(human, dt, frameData) {
   const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
-  const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
-  const rightFoot = local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t));
+  const footWalkBlend = plantFeetDuringShot ? idle : 1;
+  const plantedLeftFootLocal = new THREE.Vector3(
+    -cfg.stanceWidth * 0.42,
+    cfg.footGroundY,
+    -0.34 * cfg.unit
+  );
+  const plantedRightFootLocal = new THREE.Vector3(
+    cfg.stanceWidth * 0.5,
+    cfg.footGroundY,
+    0.34 * cfg.unit
+  );
+  const leftFoot = local(new THREE.Vector3(
+    -0.13 * cfg.unit,
+    cfg.footGroundY,
+    0.03 * cfg.unit + walk * 0.018 * cfg.unit * footWalkBlend
+  ).lerp(plantedLeftFootLocal, t));
+  const rightFoot = local(new THREE.Vector3(
+    0.13 * cfg.unit,
+    cfg.footGroundY,
+    -0.03 * cfg.unit - walk * 0.018 * cfg.unit * footWalkBlend
+  ).lerp(plantedRightFootLocal, t));
 
   const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
