@@ -70,7 +70,6 @@ const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
-const SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
@@ -3326,9 +3325,9 @@ const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.46;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.3;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.26;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
@@ -3343,11 +3342,11 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
   forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
-  targetLift: 0.075 * MODEL_SCALE
+  targetLift: 0.06 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
 const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.18;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -5600,194 +5599,6 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
-
-const SEATED_HUMAN_SURFACE_TEXTURE_PROFILES = Object.freeze({
-  'rpm-current': {
-    skin: '#d1a17d',
-    skinSecondary: '#8f6449',
-    hair: '#3a2618',
-    eyes: '#6fa6c8',
-    cloth: 'denim_fabric',
-    clothTint: '#dfe8f8',
-    shoes: 'brown_leather',
-    shoeTint: '#7a4b2c',
-    accessories: 'brown_leather',
-    accessoryTint: '#caa46a'
-  },
-  'rpm-67d411': {
-    skin: '#b77756',
-    skinSecondary: '#6f3f2e',
-    hair: '#15110d',
-    eyes: '#4d8a78',
-    cloth: 'jersey_melange',
-    clothTint: '#d7ecff',
-    shoes: 'brown_leather',
-    shoeTint: '#2f241d',
-    accessories: 'brown_leather',
-    accessoryTint: '#b89155'
-  },
-  'rpm-67f433': {
-    skin: '#e0b68f',
-    skinSecondary: '#a16d4c',
-    hair: '#6a472c',
-    eyes: '#7b9fcb',
-    cloth: 'stretch_poplin',
-    clothTint: '#e2f6df',
-    shoes: 'brown_leather',
-    shoeTint: '#5b3823',
-    accessories: 'brown_leather',
-    accessoryTint: '#d1b36f'
-  },
-  'rpm-67e1b5': {
-    skin: '#8e523b',
-    skinSecondary: '#4c2b21',
-    hair: '#201510',
-    eyes: '#5b6f43',
-    cloth: 'denim_fabric_06',
-    clothTint: '#d7def0',
-    shoes: 'brown_leather',
-    shoeTint: '#1f1714',
-    accessories: 'brown_leather',
-    accessoryTint: '#b98646'
-  },
-  'webgl-vietnam-human': {
-    skin: '#c99169',
-    skinSecondary: '#805137',
-    hair: '#21160f',
-    eyes: '#4b392e',
-    cloth: 'denim_fabric_03',
-    clothTint: '#e5f0ff',
-    shoes: 'brown_leather',
-    shoeTint: '#4e3222',
-    accessories: 'brown_leather',
-    accessoryTint: '#c79a50'
-  },
-  'webgl-ai-teacher': {
-    skin: '#d7aa85',
-    skinSecondary: '#95664a',
-    hair: '#2d2118',
-    eyes: '#5d89b2',
-    cloth: 'jersey_melange',
-    clothTint: '#f0f7ff',
-    shoes: 'brown_leather',
-    shoeTint: '#3d2a1e',
-    accessories: 'brown_leather',
-    accessoryTint: '#c0a16b'
-  },
-  'webgl-ai-teacher-1': {
-    skin: '#a96b4d',
-    skinSecondary: '#653a2b',
-    hair: '#14100c',
-    eyes: '#6a7f9e',
-    cloth: 'stretch_poplin',
-    clothTint: '#e9ffe8',
-    shoes: 'brown_leather',
-    shoeTint: '#2c2119',
-    accessories: 'brown_leather',
-    accessoryTint: '#d1a45e'
-  }
-});
-
-function getSeatedHumanSurfaceProfile(optionId = 'rpm-current') {
-  return SEATED_HUMAN_SURFACE_TEXTURE_PROFILES[optionId] || SEATED_HUMAN_SURFACE_TEXTURE_PROFILES['rpm-current'];
-}
-
-function classifySeatedHumanSurface(meshName = '', materialName = '') {
-  const name = `${meshName} ${materialName}`.toLowerCase();
-  if (/eye|iris|pupil|cornea/.test(name)) return 'eyes';
-  if (/hair|beard|mustache|moustache|brow|lash/.test(name)) return 'hair';
-  if (/shoe|boot|sneaker|footwear|sole/.test(name)) return 'shoes';
-  if (/watch|bracelet|ring|glasses|glass|earring|necklace|chain|belt|buckle|zipper|button|accessor|metal/.test(name)) return 'accessories';
-  if (/skin|head|face|neck|ear|hand|arm|leg|body/.test(name) && !/outfit|shirt|top|bottom|pant|trouser|cloth|jacket|hoodie|sleeve|dress|skirt/.test(name)) return 'skin';
-  if (/outfit|shirt|top|bottom|pant|trouser|cloth|jacket|hoodie|sleeve|dress|skirt|torso|uniform/.test(name)) return 'cloth';
-  return 'cloth';
-}
-
-function tintMaterialColor(material, color, strength = 1) {
-  if (!material?.color || !color) return;
-  const target = new THREE.Color(color);
-  if (strength >= 0.999) {
-    material.color.copy(target);
-  } else {
-    material.color.lerp(target, clamp(strength, 0, 1));
-  }
-}
-
-async function loadSeatedHumanPolyhavenTextureSets(profile, textureLoader, maxAnisotropy = 8) {
-  if (!profile || !textureLoader) return {};
-  const assetIds = Array.from(new Set([profile.cloth, profile.shoes, profile.accessories].filter(Boolean)));
-  const entries = await Promise.all(
-    assetIds.map(async (assetId) => {
-      try {
-        const textureSet = await loadPolyhavenTextureSet(
-          assetId,
-          textureLoader,
-          maxAnisotropy,
-          SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE,
-          ['2k', '1k']
-        );
-        return [assetId, textureSet];
-      } catch (error) {
-        console.warn('Unable to load seated human Poly Haven texture set', assetId, error);
-        return [assetId, null];
-      }
-    })
-  );
-  return Object.fromEntries(entries);
-}
-
-function applySeatedHumanPbrSurfaceMaterial(material, surfaceType, profile, textureSets, fallbacks, maxAnisotropy = 8) {
-  if (!material) return;
-  const textureAssetBySurface = {
-    cloth: profile.cloth,
-    shoes: profile.shoes,
-    accessories: profile.accessories
-  };
-  const textureSet = textureSets?.[textureAssetBySurface[surfaceType]] || null;
-  const fallbackMap =
-    surfaceType === 'skin'
-      ? fallbacks.skin
-      : surfaceType === 'hair'
-        ? fallbacks.hair
-        : surfaceType === 'eyes'
-          ? null
-          : fallbacks.cloth;
-
-  if (surfaceType === 'cloth' || surfaceType === 'shoes' || surfaceType === 'accessories') {
-    // Apply Poly Haven PBR maps onto the mesh's existing UVs without changing UVs/repeat, preserving the GLB/GLTF mapping.
-    if (textureSet?.diffuse) material.map = textureSet.diffuse;
-    else if (!material.map && fallbackMap) material.map = fallbackMap;
-    if (textureSet?.normal) material.normalMap = textureSet.normal;
-    if (textureSet?.roughness) material.roughnessMap = textureSet.roughness;
-    tintMaterialColor(
-      material,
-      surfaceType === 'shoes' ? profile.shoeTint : surfaceType === 'accessories' ? profile.accessoryTint : profile.clothTint,
-      0.34
-    );
-    material.roughness = surfaceType === 'accessories' ? 0.38 : surfaceType === 'shoes' ? 0.62 : 0.74;
-    material.metalness = surfaceType === 'accessories' ? Math.min(material.metalness ?? 0.2, 0.35) : 0.04;
-  } else if (surfaceType === 'skin') {
-    if (!material.map && fallbackMap) material.map = fallbackMap;
-    tintMaterialColor(material, profile.skin, material.map ? 0.42 : 0.92);
-    material.roughness = 0.52;
-    material.metalness = 0;
-  } else if (surfaceType === 'hair') {
-    if (!material.map && fallbackMap) material.map = fallbackMap;
-    tintMaterialColor(material, profile.hair, 0.86);
-    material.roughness = 0.68;
-    material.metalness = 0.02;
-  } else if (surfaceType === 'eyes') {
-    tintMaterialColor(material, profile.eyes, 0.72);
-    material.roughness = 0.08;
-    material.metalness = 0;
-    if ('clearcoat' in material) material.clearcoat = Math.max(material.clearcoat || 0, 0.5);
-    if ('clearcoatRoughness' in material) material.clearcoatRoughness = Math.min(material.clearcoatRoughness || 0.08, 0.08);
-  }
-
-  normalizeMaterialTextures(material, maxAnisotropy, { preserveGltfTextureMapping: true });
-  material.needsUpdate = true;
-}
-
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -6193,16 +6004,16 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
         // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, 0.235 * MODEL_SCALE);
-        position.y += 0.092 * MODEL_SCALE;
+        position.copy(headWorld).addScaledVector(toGameplay, 0.165 * MODEL_SCALE);
+        position.y += 0.058 * MODEL_SCALE;
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {
     target.copy(headWorld);
     target.z += 0.285 * MODEL_SCALE;
     position.copy(headWorld);
-    position.z += 0.2 * MODEL_SCALE;
-    position.y += 0.092 * MODEL_SCALE;
+    position.z += 0.145 * MODEL_SCALE;
+    position.y += 0.058 * MODEL_SCALE;
   } else {
     target.copy(position).add(new THREE.Vector3(0, -0.004, 0.2 * MODEL_SCALE));
   }
@@ -6628,36 +6439,25 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
         if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
         const root = gltf?.scene || gltf?.scenes?.[0];
         if (!root) throw new Error('Missing seated human scene');
-        const surfaceProfile = getSeatedHumanSurfaceProfile(optionId);
-        const humanTextureLoader = new THREE.TextureLoader();
-        humanTextureLoader.setCrossOrigin?.('anonymous');
-        const textureSets = await loadSeatedHumanPolyhavenTextureSets(
-          surfaceProfile,
-          humanTextureLoader,
-          activeModelTextureAnisotropy
-        );
-        const skinTex = createSeatedHumanFallbackTexture(surfaceProfile.skin, surfaceProfile.skinSecondary);
-        const clothTex = createSeatedHumanFallbackTexture(surfaceProfile.clothTint || '#55739a', '#2c3f54');
-        const hairTex = createSeatedHumanFallbackTexture(surfaceProfile.hair, '#17110c');
-        const fallbackTextures = { skin: skinTex, cloth: clothTex, hair: hairTex };
+        const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+        const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+        const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
         root.traverse((obj) => {
           if (obj?.isMesh) {
             obj.castShadow = true;
             obj.receiveShadow = true;
             obj.frustumCulled = false;
-            const meshName = `${obj.name || ''}`;
+            const meshName = `${obj.name || ''}`.toLowerCase();
+            const useSkin = /head|face|neck|ear|hand/.test(meshName);
+            const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+            const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
             const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
             materials.forEach((mat) => {
-              const surfaceType = classifySeatedHumanSurface(meshName, mat?.name || '');
-              applySeatedHumanPbrSurfaceMaterial(
-                mat,
-                surfaceType,
-                surfaceProfile,
-                textureSets,
-                fallbackTextures,
-                activeModelTextureAnisotropy
-              );
+              if (!mat?.map) mat.map = fallbackTex;
+              if (mat?.color?.setHex) mat.color.setHex(0xffffff);
+              normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
               if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+              mat.needsUpdate = true;
             });
           }
         });
