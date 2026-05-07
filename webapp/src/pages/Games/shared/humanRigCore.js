@@ -459,6 +459,9 @@ export function createHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
+    mixer: null,
+    actions: {},
+    currentAction: 'Idle',
     cfg
   };
   human.root.visible = false;
@@ -496,6 +499,24 @@ export function createHumanRig(scene, opts = {}) {
           mat.depthTest = true;
           mat.needsUpdate = true;
         });
+      });
+      human.mixer = new THREE.AnimationMixer(model);
+      const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
+      const aliases = {
+        Idle: ['idle'],
+        Walk: ['walk', 'walking'],
+        Run: ['run', 'running']
+      };
+      Object.entries(aliases).forEach(([name, names]) => {
+        const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
+        if (!clip) return;
+        const action = human.mixer.clipAction(clip);
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
+        action.play();
+        human.actions[name] = action;
       });
       human.bones = buildAvatarBones(model);
       human.leftFingers = collectFingerBones(human.bones.leftHand);
@@ -625,6 +646,36 @@ function poseFingers(fingers, mode, weight) {
   });
 }
 
+function setHumanAction(human, next, blend = 0.18) {
+  if (!human?.actions?.[next] || human.currentAction === next) return;
+  const previous = human.actions[human.currentAction];
+  const nextAction = human.actions[next];
+  if (previous && nextAction) {
+    nextAction.enabled = true;
+    nextAction.reset();
+    nextAction.setEffectiveTimeScale(1);
+    nextAction.setEffectiveWeight(1);
+    previous.crossFadeTo(nextAction, blend, false);
+    nextAction.play();
+  }
+  human.currentAction = next;
+}
+
+function updateGoalRushWalkAnimation(human, dt, frame) {
+  if (!human?.mixer || !human.actions?.Walk) return false;
+  const walkWeight = frame.walkAmount * (1 - easeInOut(clamp01(frame.t)));
+  const next = walkWeight > 0.05 ? 'Walk' : 'Idle';
+  setHumanAction(human, next);
+  const walk = human.actions.Walk;
+  if (walk) {
+    const ref = human.cfg?.perimeterWalkSpeed || human.cfg?.unit || 1;
+    const normalizedSpeed = Math.max(0, Math.min(2, (human.lastMoveAmountRaw || 0) * 60 / Math.max(0.001, ref)));
+    walk.timeScale = THREE.MathUtils.clamp(normalizedSpeed || walkWeight, 0.7, 1.35);
+  }
+  human.mixer.update(dt);
+  return walkWeight > 0.05 && frame.t < 0.025;
+}
+
 function driveHuman(human, frame) {
   if (!human.activeGlb || !human.model) return;
   const cfg = human.cfg;
@@ -632,6 +683,8 @@ function driveHuman(human, frame) {
   human.modelRoot.position.copy(frame.rootWorld);
   human.modelRoot.rotation.y = human.yaw;
   human.modelRoot.updateMatrixWorld(true);
+  const usingGoalRushWalk = updateGoalRushWalkAnimation(human, frame.dt || 0, frame);
+  if (usingGoalRushWalk) return;
   human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
   human.modelRoot.updateMatrixWorld(true);
   const b = human.bones;
@@ -762,6 +815,7 @@ export function updateHumanPose(human, dt, frameData) {
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
+  human.lastMoveAmountRaw = moveAmountRaw;
   const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle;
   const dragStroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + (frameData.power || 0) * 0.75) : 0;
   const strikeFollow = activeState === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
@@ -860,6 +914,7 @@ export function updateHumanPose(human, dt, frameData) {
   human.root.visible = true;
   driveHuman(human, {
     t,
+    dt,
     stroke: forearmStroke / cfg.unit,
     follow: strikeFollow,
     walkAmount,
