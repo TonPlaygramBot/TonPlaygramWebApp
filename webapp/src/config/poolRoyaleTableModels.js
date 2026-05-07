@@ -32,8 +32,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
-    clothTextureRepeatScale: 3.15,
-    cushionTextureRepeatScale: 2.35,
     preserveOriginalSurfaceRoles: [],
     hideSurfaceRoles: []
   }
