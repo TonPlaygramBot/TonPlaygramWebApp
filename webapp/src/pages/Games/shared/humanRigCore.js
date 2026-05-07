@@ -221,67 +221,6 @@ function normalizeHuman(model, cfg) {
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
-
-function isNearlyNeutralMaterial(mat) {
-  if (!mat?.color || mat.map) return false;
-  const { r, g, b } = mat.color;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  return max - min < 0.08;
-}
-
-function classifyHumanMaterial(meshName, matName) {
-  const name = `${meshName || ''} ${matName || ''}`.toLowerCase();
-  if (/(skin|face|head|neck|hand|arm|body)/.test(name) && !/(shirt|top|hood|jacket|pant|trouser|shoe|hair)/.test(name)) {
-    return 'skin';
-  }
-  if (/(hair|beard|brow)/.test(name)) return 'hair';
-  if (/(shoe|sneaker|boot|foot)/.test(name)) return 'shoes';
-  if (/(pant|trouser|jean|leg|bottom)/.test(name)) return 'pants';
-  if (/(shirt|top|hood|jacket|torso|chest|sleeve)/.test(name)) return 'shirt';
-  return 'accent';
-}
-
-function applyRealisticHumanMaterials(model) {
-  const palette = {
-    skin: new THREE.Color(0xd7a47d),
-    hair: new THREE.Color(0x2b1a12),
-    shirt: new THREE.Color(0x155fd3),
-    pants: new THREE.Color(0x202a44),
-    shoes: new THREE.Color(0x141414),
-    accent: new THREE.Color(0xb8c7df)
-  };
-  model.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const sourceMaterials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-    const nextMaterials = sourceMaterials.map((sourceMat) => {
-      if (!sourceMat) return sourceMat;
-      const mat = sourceMat.clone?.() ?? sourceMat;
-      const role = classifyHumanMaterial(obj.name, mat.name);
-      if (isNearlyNeutralMaterial(mat)) {
-        mat.color.copy(palette[role] || palette.accent);
-      }
-      if (role === 'skin') {
-        mat.roughness = Math.min(0.86, Math.max(mat.roughness ?? 0.72, 0.68));
-        mat.metalness = 0;
-      } else if (role === 'shirt') {
-        mat.roughness = Math.min(0.82, Math.max(mat.roughness ?? 0.7, 0.58));
-        mat.metalness = 0;
-      } else if (role === 'pants' || role === 'shoes') {
-        mat.roughness = Math.min(0.78, Math.max(mat.roughness ?? 0.64, 0.54));
-        mat.metalness = role === 'shoes' ? 0.02 : 0;
-      }
-      if (mat.emissive?.isColor) {
-        mat.emissive.copy((palette[role] || palette.accent).clone().multiplyScalar(role === 'skin' ? 0.015 : 0.01));
-        mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, 0.02);
-      }
-      mat.needsUpdate = true;
-      return mat;
-    });
-    obj.material = Array.isArray(obj.material) ? nextMaterials : nextMaterials[0] ?? obj.material;
-  });
-}
-
 export function createHumanRig(scene, opts = {}) {
   const cfg = scaleVectorConfig(opts);
   const human = {
@@ -317,7 +256,6 @@ export function createHumanRig(scene, opts = {}) {
       const model = gltf?.scene;
       if (!model) return;
       normalizeHuman(model, cfg);
-      applyRealisticHumanMaterials(model);
       model.traverse((obj) => {
         if (!obj?.isMesh) return;
         obj.castShadow = true;
