@@ -108,7 +108,8 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  shootBendDirection: 1
+  shootBendDirection: 1,
+  forceTableFacingAim: true
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -122,6 +123,29 @@ const dampVector = (current, target, lambda, dt) =>
   current.lerp(target, 1 - Math.exp(-lambda * dt));
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+
+function resolveTableFacingForward(rawForward, root, frameData, cfg) {
+  const forward = rawForward?.clone?.() ?? new THREE.Vector3(0, 0, -1);
+  forward.y = 0;
+  if (forward.lengthSq() < 1e-8) forward.set(0, 0, -1);
+  forward.normalize();
+
+  if (!cfg.forceTableFacingAim) return forward;
+
+  const cueReference = frameData.bridgeTarget || frameData.cueTip || frameData.cueBack || frameData.gripTarget;
+  if (!cueReference || !root) return forward;
+
+  const rootToTable = cueReference.clone().sub(root);
+  rootToTable.y = 0;
+  if (rootToTable.lengthSq() < 1e-8) return forward;
+  rootToTable.normalize();
+
+  // The avatar must always face from the stance/root toward the table/cue ball.
+  // If caller math ever supplies the opposite cue axis, flip it here so every
+  // downstream torso, bridge hand, grip hand and foot basis bends toward the cloth.
+  return forward.dot(rootToTable) < 0 ? forward.multiplyScalar(-1) : forward;
+}
 
 function scaleVectorConfig(cfg) {
   const next = { ...BASE_CFG, ...cfg };
@@ -525,7 +549,7 @@ function driveHuman(human, frame) {
   aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, pole, 0.9 + 0.1 * ik, 1.0);
   const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
   const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
-  const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
+  const handForwardForOrientation = ik >= 0.025 ? cueDir : standingCueDir;
   setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForwardForOrientation, cfg.rightHandRollIdle, 1.0);
   poseFingers(human.rightFingers, 'grip', 0.95);
   if (ik < 0.025) {
@@ -589,7 +613,8 @@ export function updateHumanPose(human, dt, frameData) {
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
   human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
-  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  const facingForward = resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
+  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(facingForward), cfg.rotLambda, dt);
 
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
