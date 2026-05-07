@@ -100,8 +100,8 @@ const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.28;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
-// This keeps all seating/chair anchors unchanged while moving characters visually higher on screen.
-const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.25 * MODEL_SCALE * STOOL_SCALE;
+// Keep all seating/chair anchors unchanged while moving characters visibly higher on portrait screens.
+const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
