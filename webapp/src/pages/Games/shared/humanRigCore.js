@@ -17,6 +17,7 @@ const BASE_CFG = {
   bridgeCueLift: 0.018,
   bridgeHandBackFromBall: 0.235,
   bridgeHandSide: -0.012,
+  bridgePoseUsesConfiguredSide: false,
   chinToCueHeight: 0.11,
   footGroundY: 0.035,
   footLockStrength: 1.0,
@@ -473,8 +474,20 @@ function driveHuman(human, frame) {
     return;
   }
 
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * cfg.unit * ik).addScaledVector(frame.side, -0.018 * cfg.unit * ik).addScaledVector(UP, -0.018 * cfg.unit * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * cfg.unit * ik).addScaledVector(frame.side, -0.05 * cfg.unit * ik).addScaledVector(UP, -0.01 * cfg.unit * ik);
+  const bridgeIkHandSide = cfg.bridgePoseUsesConfiguredSide
+    ? cfg.bridgeHandSide * 0.8
+    : -0.018 * cfg.unit;
+  const bridgeIkElbowSide = cfg.bridgePoseUsesConfiguredSide
+    ? cfg.bridgeHandSide * 1.15
+    : -0.05 * cfg.unit;
+  const leftHand = frame.leftHandWorld.clone()
+    .addScaledVector(frame.forward, 0.032 * cfg.unit * ik)
+    .addScaledVector(frame.side, bridgeIkHandSide * ik)
+    .addScaledVector(UP, -0.018 * cfg.unit * ik);
+  const leftElbow = frame.leftElbow.clone()
+    .addScaledVector(frame.forward, 0.045 * cfg.unit * ik)
+    .addScaledVector(frame.side, bridgeIkElbowSide * ik)
+    .addScaledVector(UP, -0.01 * cfg.unit * ik);
   aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
   twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
   twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
@@ -546,9 +559,12 @@ export function updateHumanPose(human, dt, frameData) {
   const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
   const rightFoot = local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t));
 
+  const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
+    ? cfg.bridgeHandSide
+    : -0.012 * cfg.unit;
   const bridgePalmTarget = frameData.bridgeTarget.clone()
     .addScaledVector(forward, -0.006 * cfg.unit * t)
-    .addScaledVector(side, -0.012 * cfg.unit * t)
+    .addScaledVector(side, bridgePalmSide * t)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);

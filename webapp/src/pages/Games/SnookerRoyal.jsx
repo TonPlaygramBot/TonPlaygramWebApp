@@ -21029,12 +21029,14 @@ const powerRef = useRef(hud.power);
       const humanUnitScale = SCALE;
       const humanTableTopY = BALL_CENTER_Y - BALL_R;
       const humanGroundY = FLOOR_Y - TABLE_Y;
+      const humanBridgeBackFromBall = 0.18 * humanUnitScale;
+      const humanBridgeSideOffset = 0.045 * humanUnitScale;
       const human = createSnookerHumanRig(table, {
         loader: humanLoader,
         modelUrl: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
         unit: humanUnitScale,
-        humanScale: 1.52 * humanUnitScale,
-        shootBendDirection: -1,
+        humanScale: 1.82 * humanUnitScale,
+        shootBendDirection: 1,
         tableTopY: humanTableTopY,
         groundY: humanGroundY,
         tableW: PLAY_W,
@@ -21044,10 +21046,11 @@ const powerRef = useRef(hud.power);
         edgeMargin: 0.68 * humanUnitScale,
         desiredShootDistance: 1.25 * humanUnitScale,
         stanceWidth: 0.52 * humanUnitScale,
-        bridgePalmTableLift: 0.006 * humanUnitScale,
-        bridgeCueLift: 0.018 * humanUnitScale,
-        bridgeHandBackFromBall: 0.235 * humanUnitScale,
-        bridgeHandSide: -0.012 * humanUnitScale,
+        bridgePalmTableLift: 0.004 * humanUnitScale,
+        bridgeCueLift: 0.014 * humanUnitScale,
+        bridgeHandBackFromBall: humanBridgeBackFromBall,
+        bridgeHandSide: humanBridgeSideOffset,
+        bridgePoseUsesConfiguredSide: true,
         chinToCueHeight: 0.11 * humanUnitScale,
         footGroundY: 0.035 * humanUnitScale,
         kneeBendShot: 0.16 * humanUnitScale,
@@ -26651,13 +26654,13 @@ const powerRef = useRef(hud.power);
             }
             const bridgeTarget = cueBallWorld
               .clone()
-              .addScaledVector(aimForward, -0.235 * humanUnitScale)
-              .addScaledVector(aimSide, -0.012 * humanUnitScale)
-              .setY(humanTableTopY + 0.006 * humanUnitScale);
+              .addScaledVector(aimForward, -humanBridgeBackFromBall)
+              .addScaledVector(aimSide, humanBridgeSideOffset)
+              .setY(humanTableTopY + 0.004 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
-              .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
+              .addScaledVector(aimForward, 0.018 * humanUnitScale)
+              .add(new THREE.Vector3(0, 0.014 * humanUnitScale, 0));
             const cueTipShoot = cueBallWorld
               .clone()
               .addScaledVector(aimForward, -(BALL_R + gap));
