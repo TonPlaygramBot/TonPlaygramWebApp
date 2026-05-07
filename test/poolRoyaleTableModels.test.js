@@ -21,7 +21,6 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.kind, 'gltf');
     assert.equal(showood.useOriginalLayoutSurfaces, true);
     assert.equal(showood.fitScale, 1.035);
-    assert.equal(showood.externalClothRepeatScale, 3.45);
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [

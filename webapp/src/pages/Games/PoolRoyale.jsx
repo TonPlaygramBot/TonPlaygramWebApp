@@ -12655,12 +12655,8 @@ function getPoolRoyaleExternalUvSpan(mesh) {
   };
 }
 
-function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role, tableModel = null) {
+function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   if (!mesh || !material || (role !== 'cloth' && role !== 'cushion')) return;
-  const clothRepeatScale =
-    Number.isFinite(tableModel?.externalClothRepeatScale) && tableModel.externalClothRepeatScale > 0
-      ? tableModel.externalClothRepeatScale
-      : EXTERNAL_TABLE_CLOTH_REPEAT_SCALE;
   if (material.userData?.poolRoyaleMatchProceduralClothRepeat) return;
   const uvSpan = getPoolRoyaleExternalUvSpan(mesh);
   if (!uvSpan) return;
@@ -12670,14 +12666,14 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role, tabl
     const scaleX = uvSpan.x > 1 + MICRO_EPS ? uvSpan.x : 1;
     const scaleY = uvSpan.y > 1 + MICRO_EPS ? uvSpan.y : 1;
     texture.repeat.set(
-      (texture.repeat.x / scaleX) * clothRepeatScale,
-      (texture.repeat.y / scaleY) * clothRepeatScale
+      (texture.repeat.x / scaleX) * EXTERNAL_TABLE_CLOTH_REPEAT_SCALE,
+      (texture.repeat.y / scaleY) * EXTERNAL_TABLE_CLOTH_REPEAT_SCALE
     );
     texture.userData = {
       ...(texture.userData || {}),
       poolRoyaleExternalUvNormalized: true,
       poolRoyaleExternalUvSpan: { x: uvSpan.x, y: uvSpan.y },
-      poolRoyaleExternalClothRepeatScale: clothRepeatScale
+      poolRoyaleExternalClothRepeatScale: EXTERNAL_TABLE_CLOTH_REPEAT_SCALE
     };
     texture.needsUpdate = true;
   });
@@ -12791,7 +12787,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
-        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role, tableModel);
+        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
       const mat = material.clone ? material.clone() : material;
