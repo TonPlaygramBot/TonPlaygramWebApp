@@ -418,6 +418,7 @@ const AI_CHIP_INWARD_SHIFT = CARD_W * -0.2;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
 const CHIP_STACK_VERTICAL_LIFT = CARD_H * 0.06;
+const OPPONENT_CHIP_STACK_SCREEN_UP_LIFT = CARD_H * 0.42;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -447,7 +448,7 @@ const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -1.18;
 const FOLD_PILE_RIGHT_OFFSET = CARD_W * 1.98;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.62;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 2.12;
 const CHIP_BUTTON_GRID_VERTICAL_LIFT = CARD_H * 0.64;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -1359,67 +1360,6 @@ function enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex) {
   });
 }
 
-function buildTexasFallbackDominoCharacterTemplate(theme = TEXAS_DOMINO_CHARACTER_THEMES[0]) {
-  const group = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.skinTone), roughness: 0.55 });
-  const hair = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.hairColor), roughness: 0.68 });
-  const eye = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.eyeColor), roughness: 0.42 });
-  const combo = TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS[theme.clothCombo] || TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
-  const shirt = createTexasDominoClothMaterial(combo.upper, 0x2f5f9f);
-  const pants = createTexasDominoClothMaterial(combo.lower, 0x374151);
-  const makeLimb = (name, radius, length, mat) => {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.92, length, 14), mat);
-    mesh.name = name;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    return mesh;
-  };
-  const hips = new THREE.Group();
-  hips.name = 'hips';
-  group.add(hips);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.38, 6, 14), shirt);
-  torso.name = 'torso';
-  torso.position.y = 0.86;
-  torso.rotation.x = THREE.MathUtils.degToRad(-7);
-  hips.add(torso);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.155, 24, 16), skin);
-  head.name = 'head';
-  head.position.y = 1.28;
-  hips.add(head);
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.162, 24, 8), hair);
-  hairCap.name = 'hair';
-  hairCap.scale.y = 0.48;
-  hairCap.position.set(0, 1.37, -0.015);
-  hips.add(hairCap);
-  [-1, 1].forEach((side) => {
-    const eyeMesh = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), eye);
-    eyeMesh.name = side < 0 ? 'leftEye' : 'rightEye';
-    eyeMesh.position.set(side * 0.055, 1.3, 0.142);
-    hips.add(eyeMesh);
-    const upperArm = makeLimb(side < 0 ? 'leftarm' : 'rightarm', 0.036, 0.32, skin);
-    upperArm.position.set(side * 0.23, 0.94, 0.06);
-    upperArm.rotation.set(THREE.MathUtils.degToRad(73), 0, THREE.MathUtils.degToRad(side * 11));
-    hips.add(upperArm);
-    const foreArm = makeLimb(side < 0 ? 'leftforearm' : 'rightforearm', 0.031, 0.3, skin);
-    foreArm.position.set(side * 0.25, 0.75, 0.23);
-    foreArm.rotation.set(THREE.MathUtils.degToRad(58), 0, THREE.MathUtils.degToRad(side * 4));
-    hips.add(foreArm);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.044, 16, 10), skin);
-    hand.name = side < 0 ? 'lefthand' : 'righthand';
-    hand.position.set(side * 0.26, 0.58, 0.36);
-    hips.add(hand);
-    const thigh = makeLimb(side < 0 ? 'leftthigh' : 'rightthigh', 0.052, 0.44, pants);
-    thigh.position.set(side * 0.09, 0.43, 0.09);
-    thigh.rotation.set(THREE.MathUtils.degToRad(82), 0, THREE.MathUtils.degToRad(side * 4));
-    hips.add(thigh);
-    const calf = makeLimb(side < 0 ? 'leftcalf' : 'rightcalf', 0.044, 0.42, pants);
-    calf.position.set(side * 0.1, 0.2, 0.36);
-    calf.rotation.set(THREE.MathUtils.degToRad(95), 0, THREE.MathUtils.degToRad(side * 2));
-    hips.add(calf);
-  });
-  return group;
-}
-
 async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
   const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
   const cacheKey = `${theme?.id || 'fallback'}:${urls.join('|')}`;
@@ -1439,8 +1379,7 @@ async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
         lastError = error;
       }
     }
-    if (lastError) console.warn('Texas Holdem Domino character model failed, using fallback', theme?.id, lastError);
-    return buildTexasFallbackDominoCharacterTemplate(theme);
+    throw lastError || new Error(`Texas Holdem GLTF character model unavailable for ${theme?.id || 'unknown theme'}`);
   })();
   texasDominoCharacterTemplateCache.set(cacheKey, promise);
   promise.catch(() => texasDominoCharacterTemplateCache.delete(cacheKey));
@@ -1515,16 +1454,14 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     return seatGroup.character;
   };
 
-  const fallback = mountInstance(buildTexasFallbackDominoCharacterTemplate(theme));
-  loadTexasDominoCharacterTemplate(theme, renderer)
-    .then((template) => {
-      if (!seatGroup?.group?.parent || !template) return;
-      mountInstance(cloneSkeleton(template), { replace: true });
-    })
-    .catch((error) => {
-      console.warn('Texas Holdem Domino character model failed after fallback mount', theme?.id, error);
-    });
-  return fallback;
+  try {
+    const template = await loadTexasDominoCharacterTemplate(theme, renderer);
+    if (!seatGroup?.group?.parent || !template) return null;
+    return mountInstance(cloneSkeleton(template));
+  } catch (error) {
+    console.warn('Texas Holdem GLTF seated human model failed', theme?.id, error);
+    return null;
+  }
 }
 
 function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
@@ -2596,7 +2533,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipAnchor.y = railSurfaceY - seatLayerDrop + CHIP_STACK_VERTICAL_LIFT;
+    chipAnchor.y =
+      railSurfaceY -
+      seatLayerDrop +
+      CHIP_STACK_VERTICAL_LIFT +
+      (isHuman ? 0 : OPPONENT_CHIP_STACK_SCREEN_UP_LIFT);
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
@@ -2606,7 +2547,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipRailAnchor.y = railSurfaceY - seatLayerDrop + CHIP_STACK_VERTICAL_LIFT;
+    chipRailAnchor.y =
+      railSurfaceY -
+      seatLayerDrop +
+      CHIP_STACK_VERTICAL_LIFT +
+      (isHuman ? 0 : OPPONENT_CHIP_STACK_SCREEN_UP_LIFT);
     const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
