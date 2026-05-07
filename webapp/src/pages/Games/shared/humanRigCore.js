@@ -121,6 +121,25 @@ const dampScalar = (current, target, lambda, dt) =>
 const dampVector = (current, target, lambda, dt) =>
   current.lerp(target, 1 - Math.exp(-lambda * dt));
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
+const sanitizeHorizontalForward = (forward, fallback = new THREE.Vector3(0, 0, -1)) => {
+  const out = forward?.clone?.() ?? fallback.clone();
+  out.y = 0;
+  if (out.lengthSq() < 1e-8) out.copy(fallback);
+  out.y = 0;
+  return out.lengthSq() < 1e-8 ? new THREE.Vector3(0, 0, -1) : out.normalize();
+};
+const resolveTableFacingForward = (root, aimForward, faceTarget) => {
+  const forward = sanitizeHorizontalForward(aimForward);
+  if (!root || !faceTarget) return forward;
+  const toTable = faceTarget.clone().sub(root);
+  toTable.y = 0;
+  if (toTable.lengthSq() < 1e-8) return forward;
+  toTable.normalize();
+  // A pool stance must always fold from the feet toward the table/cue ball.
+  // If aim data arrives inverted from a camera/control transform, flip it here
+  // so all torso, bridge-hand, cue and foot helpers share the same table-facing frame.
+  return forward.dot(toTable) < 0 ? forward.multiplyScalar(-1) : forward;
+};
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function scaleVectorConfig(cfg) {
@@ -525,7 +544,7 @@ function driveHuman(human, frame) {
   aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, pole, 0.9 + 0.1 * ik, 1.0);
   const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
   const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
-  const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
+  const handForwardForOrientation = ik >= 0.025 ? cueDir : standingCueDir;
   setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForwardForOrientation, cfg.rightHandRollIdle, 1.0);
   poseFingers(human.rightFingers, 'grip', 0.95);
   if (ik < 0.025) {
@@ -588,8 +607,10 @@ export function updateHumanPose(human, dt, frameData) {
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
+  const faceTarget = frameData.faceTarget || frameData.cueBallWorld || frameData.bridgeTarget;
+  const tableForward = resolveTableFacingForward(human.root.position, frameData.aimForward, faceTarget);
   human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
-  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(tableForward), cfg.rotLambda, dt);
 
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
