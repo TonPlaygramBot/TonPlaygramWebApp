@@ -13754,14 +13754,11 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
-          preserveOriginalSurfaceRoles: Array.from(new Set([
-            ...(chromePlateStyle.preserveExternalTrim
-              ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles ?? []
-              : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
-                  (role) => role !== 'trim'
-                ) ?? []),
-            ...(resolvedTableOptions.tableModel.alwaysPreserveOriginalSurfaceRoles ?? [])
-          ]))
+          preserveOriginalSurfaceRoles: chromePlateStyle.preserveExternalTrim
+            ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
+            : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
+                (role) => role !== 'trim'
+              )
         }
       : null;
   const externalTable =
@@ -25795,13 +25792,11 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Keep Pool Royal avatars upright during shots; the player holds the cue
-            // in the same standing pose used at the start instead of bending
-            // into the table-facing shooting stance.
+            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
             shootBendDirection: -1,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 0,
-            plantFeetDuringShot: false,
+            shootUpperBodyCounterLean: 1.18,
+            plantFeetDuringShot: true,
             forceTableFacingAim: true,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
@@ -26061,11 +26056,9 @@ const shotPowerRef = useRef(0);
               .normalize();
             const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
             const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
-            const forceStandingCuePose = true;
-            const cueBack = forceStandingCuePose || state === 'idle' ? idleCueBack : cueBackShoot;
-            const cueTip = forceStandingCuePose || state === 'idle' ? idleCueTip : cueTipShoot;
-            const gripTarget = forceStandingCuePose || state === 'idle' ? idleRight : shootGripTarget;
-            const humanPoseState = forceStandingCuePose ? 'idle' : state;
+            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
+            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
+            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
             const isFiniteVec3 = (v) =>
               Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
             if (
@@ -26081,7 +26074,7 @@ const shotPowerRef = useRef(0);
               return;
             }
             updateBilardoHumanPose(human, dtSeconds, {
-              state: humanPoseState,
+              state,
               rootTarget: walkRoot,
               aimForward,
               bridgeTarget,

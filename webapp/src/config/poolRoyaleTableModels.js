@@ -25,16 +25,15 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     icon: '🟫',
     kind: 'gltf',
     fitScale: 1.035,
-    clothRepeatScale: 4.25,
+    clothRepeatScale: 3.2,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
-    alwaysPreserveOriginalSurfaceRoles: ['trim'],
     hideSurfaceRoles: []
   }
 ]);
