@@ -6,7 +6,6 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
@@ -1141,364 +1140,6 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) 
       });
     }
   });
-}
-
-
-/* ---------- Domino Royal seated humans reused for Texas Hold'em ---------- */
-const TEXAS_DOMINO_HUMAN_TEXTURE_LOADER = new THREE.TextureLoader();
-const TEXAS_DOMINO_HUMAN_TEMPLATE_CACHE = new Map();
-const TEXAS_DOMINO_HUMAN_TEXTURE_CACHE = new Map();
-const texasDominoHumanActions = [];
-
-const TEXAS_DOMINO_CLOTH_MATERIALS = Object.freeze({
-  denim: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
-    tint: 0x314d86
-  },
-  check: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
-    tint: 0x9f3651
-  },
-  hessian: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
-    tint: 0xa27445
-  },
-  floral: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
-    tint: 0x6d3f7f
-  },
-  fleece: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
-    tint: 0x4b5563
-  },
-  picnic: {
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
-    tint: 0xc44f42
-  }
-});
-
-const TEXAS_DOMINO_CLOTH_COMBOS = Object.freeze({
-  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 } },
-  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
-  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 } },
-  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 } },
-  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 } },
-  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 } },
-  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
-});
-
-const TEXAS_DOMINO_HUMAN_THEMES = Object.freeze([
-  { id: 'rpm-current-domino', urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'], clothCombo: 'royalDenim', hairColor: 0x24150f, eyeColor: 0x2f5d7c, skinTone: 0xd9a27d },
-  { id: 'rpm-67d411-domino', urls: ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb', 'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb', 'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'], clothCombo: 'casinoCheck', hairColor: 0x14100c, eyeColor: 0x5a3d2b, skinTone: 0xc78f68 },
-  { id: 'rpm-67f433-domino', urls: ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb', 'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb', 'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'], clothCombo: 'linenStreet', hairColor: 0x4a2f20, eyeColor: 0x39546c, skinTone: 0xe0b18f },
-  { id: 'rpm-67e1b5-domino', urls: ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb', 'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb', 'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'], clothCombo: 'jacquardNight', hairColor: 0x1c1714, eyeColor: 0x6a8a9e, skinTone: 0xb87c5e },
-  { id: 'webgl-vietnam-human-domino', urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'], clothCombo: 'softFleece', hairColor: 0x111111, eyeColor: 0x3b2b20, skinTone: 0xd3a07b },
-  { id: 'webgl-ai-teacher-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'], clothCombo: 'patternedRed', hairColor: 0x2c1b14, eyeColor: 0x4e7b65, skinTone: 0xe3b99b },
-  { id: 'webgl-ai-teacher-1-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'], clothCombo: 'mixedDenim', hairColor: 0x3a2418, eyeColor: 0x6b4f3a, skinTone: 0xc89470 }
-]);
-
-function loadTexasDominoHumanTexture(url, { isColor = false, repeat = 3 } = {}) {
-  if (!url) return null;
-  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}`;
-  if (TEXAS_DOMINO_HUMAN_TEXTURE_CACHE.has(cacheKey)) return TEXAS_DOMINO_HUMAN_TEXTURE_CACHE.get(cacheKey);
-  const texture = TEXAS_DOMINO_HUMAN_TEXTURE_LOADER.load(url);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  normalizePbrTexture(texture, 8);
-  if (isColor) applySRGBColorSpace(texture);
-  texture.userData.texasDominoHumanShared = true;
-  TEXAS_DOMINO_HUMAN_TEXTURE_CACHE.set(cacheKey, texture);
-  return texture;
-}
-
-function getTexasDominoHumanTheme(seatIndex = 0) {
-  return TEXAS_DOMINO_HUMAN_THEMES[seatIndex % TEXAS_DOMINO_HUMAN_THEMES.length] ?? TEXAS_DOMINO_HUMAN_THEMES[0];
-}
-
-function classifyTexasDominoHumanSurface(obj, materialIndex = 0) {
-  const name = `${obj?.name ?? ''} ${obj?.material?.name ?? ''}`.toLowerCase();
-  if (/hair|brow|beard|lash|mustache/.test(name)) return 'hair';
-  if (/eye|iris|pupil|cornea/.test(name)) return 'eye';
-  if (/skin|head|face|hand|arm|leg|body|neck|ear/.test(name)) return 'skin';
-  if (/shoe|boot|sole/.test(name)) return 'shoe';
-  if (/pant|jean|trouser|short|skirt|bottom/.test(name)) return 'lower';
-  if (/shirt|jacket|hood|coat|top|torso|chest|sleeve/.test(name)) return 'upper';
-  return materialIndex % 3 === 0 ? 'upper' : materialIndex % 3 === 1 ? 'lower' : 'accent';
-}
-
-function enhanceTexasDominoHumanMaterials(root, theme, seatIndex = 0) {
-  const combo = TEXAS_DOMINO_CLOTH_COMBOS[theme?.clothCombo] || TEXAS_DOMINO_CLOTH_COMBOS.royalDenim;
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const enhanced = sourceMaterials.map((source, materialIndex) => {
-      const mat = source?.clone?.() ?? new THREE.MeshStandardMaterial();
-      const surface = classifyTexasDominoHumanSurface(obj, materialIndex);
-      if (surface === 'upper' || surface === 'lower' || surface === 'accent') {
-        const cloth = combo[surface] || combo.upper;
-        const textureInfo = TEXAS_DOMINO_CLOTH_MATERIALS[cloth.material] || TEXAS_DOMINO_CLOTH_MATERIALS.denim;
-        mat.color = new THREE.Color(cloth.tint ?? textureInfo.tint);
-        mat.map = loadTexasDominoHumanTexture(textureInfo.color, { isColor: true, repeat: cloth.repeat ?? 3 });
-        mat.normalMap = loadTexasDominoHumanTexture(textureInfo.normal, { repeat: cloth.repeat ?? 3 });
-        mat.roughnessMap = loadTexasDominoHumanTexture(textureInfo.roughness, { repeat: cloth.repeat ?? 3 });
-        mat.roughness = 0.86;
-        mat.metalness = 0.02;
-      } else if (surface === 'skin') {
-        mat.color = new THREE.Color(theme.skinTone ?? 0xd9a27d);
-        mat.roughness = 0.58;
-        mat.metalness = 0;
-      } else if (surface === 'hair') {
-        mat.color = new THREE.Color(theme.hairColor ?? 0x24150f);
-        mat.roughness = 0.72;
-        mat.metalness = 0.01;
-      } else if (surface === 'eye') {
-        mat.color = new THREE.Color(theme.eyeColor ?? 0x2f5d7c);
-        mat.roughness = 0.18;
-        mat.metalness = 0;
-      } else if (surface === 'shoe') {
-        mat.color = new THREE.Color(0x111827);
-        mat.roughness = 0.78;
-        mat.metalness = 0.02;
-      }
-      normalizeMaterialTextures(mat, 8);
-      mat.needsUpdate = true;
-      return mat;
-    });
-    obj.material = Array.isArray(obj.material) ? enhanced : enhanced[0];
-  });
-}
-
-function buildTexasDominoFallbackHumanTemplate() {
-  const group = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xd9a27d, roughness: 0.72 });
-  const upper = new THREE.MeshStandardMaterial({ color: 0x2f5f9f, roughness: 0.82 });
-  const lower = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.84 });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 18), skin);
-  head.position.set(0, 1.42, 0.02);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.34, 8, 18), upper);
-  torso.position.set(0, 1.02, 0.01);
-  torso.rotation.x = THREE.MathUtils.degToRad(-7);
-  const makeLimb = (radius, depth, material) => new THREE.Mesh(new THREE.CapsuleGeometry(radius, depth, 6, 12), material);
-  const leftArm = makeLimb(0.045, 0.46, upper);
-  leftArm.position.set(-0.22, 0.93, 0.18);
-  leftArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(-18));
-  const rightArm = makeLimb(0.045, 0.46, upper);
-  rightArm.position.set(0.22, 0.93, 0.18);
-  rightArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(18));
-  const leftLeg = makeLimb(0.055, 0.56, lower);
-  leftLeg.position.set(-0.1, 0.48, 0.27);
-  leftLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(-4));
-  const rightLeg = makeLimb(0.055, 0.56, lower);
-  rightLeg.position.set(0.1, 0.48, 0.27);
-  rightLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(4));
-  group.add(head, torso, leftArm, rightArm, leftLeg, rightLeg);
-  prepareLoadedModel(group);
-  return group;
-}
-
-async function loadTexasDominoHumanTemplate(seatIndex, renderer = null) {
-  const theme = getTexasDominoHumanTheme(seatIndex);
-  const cacheKey = `${theme.id}:${theme.urls.join('|')}`;
-  if (TEXAS_DOMINO_HUMAN_TEMPLATE_CACHE.has(cacheKey)) return TEXAS_DOMINO_HUMAN_TEMPLATE_CACHE.get(cacheKey);
-  const promise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
-    let lastError = null;
-    for (const url of theme.urls) {
-      try {
-        const gltf = await loader.loadAsync(url);
-        const root = gltf?.scene || gltf?.scenes?.[0];
-        if (root) {
-          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
-          return root;
-        }
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError || new Error(`Unable to load Texas Domino human ${theme.id}`);
-  })().catch((error) => {
-    console.warn('Texas Holdem Domino human load failed; using fallback', theme.id, error);
-    return buildTexasDominoFallbackHumanTemplate();
-  });
-  TEXAS_DOMINO_HUMAN_TEMPLATE_CACHE.set(cacheKey, promise);
-  return promise;
-}
-
-function findTexasDominoHumanBone(root, hints) {
-  let found = null;
-  root?.traverse?.((obj) => {
-    if (found || !obj?.isBone) return;
-    const name = String(obj.name || '').toLowerCase();
-    if (hints.some((hint) => name.includes(hint))) found = obj;
-  });
-  return found;
-}
-
-function addTexasDominoHumanBoneOffset(bone, x = 0, y = 0, z = 0) {
-  if (!bone) return;
-  bone.rotation.x += x;
-  bone.rotation.y += y;
-  bone.rotation.z += z;
-}
-
-function captureTexasDominoHumanPose(bones) {
-  return Object.fromEntries(Object.entries(bones || {}).map(([key, bone]) => [key, bone ? bone.rotation.clone() : null]));
-}
-
-function makeTexasDominoHumanPose(base, offsets = {}) {
-  const pose = { ...base };
-  Object.entries(offsets).forEach(([key, delta]) => {
-    const current = base?.[key];
-    if (!current) return;
-    pose[key] = new THREE.Euler(
-      current.x + (delta.x || 0),
-      current.y + (delta.y || 0),
-      current.z + (delta.z || 0)
-    );
-  });
-  return pose;
-}
-
-function applyTexasDominoHumanPose(rig, pose, alpha = 1) {
-  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
-    const target = pose?.[key];
-    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
-    if (!bone || !target || !home) return;
-    bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
-    bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
-    bone.rotation.z = THREE.MathUtils.lerp(home.z, target.z, alpha);
-  });
-}
-
-function normalizeTexasDominoHumanRoot(root) {
-  const bounds = new THREE.Box3().setFromObject(root);
-  if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
-}
-
-function createTexasDominoHumanRig(instance, seatRoot, seatIndex) {
-  const bones = {
-    hips: findTexasDominoHumanBone(instance, ['hips', 'pelvis']),
-    spine: findTexasDominoHumanBone(instance, ['spine', 'chest', 'torso']),
-    head: findTexasDominoHumanBone(instance, ['head', 'neck']),
-    rightUpperArm: findTexasDominoHumanBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
-    rightForeArm: findTexasDominoHumanBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
-    rightHand: findTexasDominoHumanBone(instance, ['righthand', 'hand.r', 'r_hand']),
-    leftUpperArm: findTexasDominoHumanBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
-    leftForeArm: findTexasDominoHumanBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
-    leftHand: findTexasDominoHumanBone(instance, ['lefthand', 'hand.l', 'l_hand']),
-    leftThigh: findTexasDominoHumanBone(instance, ['leftupleg', 'leftthigh', 'l_thigh']),
-    leftCalf: findTexasDominoHumanBone(instance, ['leftleg', 'leftcalf', 'l_calf']),
-    rightThigh: findTexasDominoHumanBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
-    rightCalf: findTexasDominoHumanBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
-  };
-  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureTexasDominoHumanPose(bones), seatedPose: null };
-  addTexasDominoHumanBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
-  addTexasDominoHumanBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
-  addTexasDominoHumanBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  addTexasDominoHumanBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
-  addTexasDominoHumanBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
-  addTexasDominoHumanBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
-  addTexasDominoHumanBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
-  addTexasDominoHumanBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
-  addTexasDominoHumanBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
-  addTexasDominoHumanBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
-  addTexasDominoHumanBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
-  addTexasDominoHumanBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
-  addTexasDominoHumanBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
-  rig.seatedPose = captureTexasDominoHumanPose(bones);
-  instance.position.y -= 0.09 * MODEL_SCALE;
-  return rig;
-}
-
-function attachTexasDominoHumanToSeat(template, seatGroup, chairModel, seatIndex) {
-  if (!template || !chairModel || !seatGroup) return null;
-  const theme = getTexasDominoHumanTheme(seatIndex);
-  const instance = cloneSkeleton(template);
-  prepareLoadedModel(instance, { preserveGltfTextureMapping: true });
-  enhanceTexasDominoHumanMaterials(instance, theme, seatIndex);
-  normalizeTexasDominoHumanRoot(instance);
-  const seatRoot = new THREE.Group();
-  seatRoot.name = `texas-domino-human-seat-${seatIndex}`;
-  seatRoot.scale.setScalar(2.55);
-  seatRoot.position.set(0, -1.38, 0.49);
-  seatRoot.add(instance);
-  const rig = createTexasDominoHumanRig(instance, seatRoot, seatIndex);
-  chairModel.add(seatRoot);
-  seatGroup.characterRoot = seatRoot;
-  seatGroup.characterRig = rig;
-  return rig;
-}
-
-function runTexasDominoHumanAction(seatGroup, type = 'CARDS') {
-  const rig = seatGroup?.characterRig;
-  if (!rig?.seatedPose) return;
-  const now = performance.now();
-  const base = rig.seatedPose;
-  const twoHandLift = makeTexasDominoHumanPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-9) },
-    head: { x: THREE.MathUtils.degToRad(-5) },
-    leftUpperArm: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-16) },
-    leftForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-10) },
-    leftHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(16) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(10) },
-    rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(8) }
-  });
-  const rightThrow = makeTexasDominoHumanPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-7) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-21) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(54), y: THREE.MathUtils.degToRad(-4) },
-    rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-12) }
-  });
-  const chipGrab = makeTexasDominoHumanPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(5) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(-4) },
-    rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) }
-  });
-  const chipPlace = makeTexasDominoHumanPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(8), y: THREE.MathUtils.degToRad(-5) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(52) },
-    rightHand: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-6) }
-  });
-  const sequence = type === 'FOLD'
-    ? [rightThrow, base]
-    : type === 'CHIP'
-      ? [chipGrab, chipPlace, base]
-      : [twoHandLift, base];
-  sequence.forEach((pose, index) => {
-    texasDominoHumanActions.push({
-      rig,
-      pose,
-      start: now + index * 210,
-      duration: index === sequence.length - 1 ? 280 : 220
-    });
-  });
-}
-
-function stepTexasDominoHumanActions(now = performance.now()) {
-  for (let i = texasDominoHumanActions.length - 1; i >= 0; i -= 1) {
-    const action = texasDominoHumanActions[i];
-    const elapsed = now - action.start;
-    if (elapsed < 0) continue;
-    const t = Math.min(1, elapsed / Math.max(1, action.duration || 1));
-    applyTexasDominoHumanPose(action.rig, action.pose, 1 - Math.pow(1 - t, 3));
-    if (t >= 1) texasDominoHumanActions.splice(i, 1);
-  }
 }
 
 function disposeObjectResources(object) {
@@ -4309,7 +3950,6 @@ function TexasHoldemArena({ search }) {
     }
     const cards = seat.cardMeshes.filter((mesh) => mesh?.visible);
     if (!cards.length) return;
-    runTexasDominoHumanAction(seat, 'CARDS');
     const starts = cards.map((mesh) => ({
       position: mesh.position.clone(),
       quaternion: mesh.quaternion.clone()
@@ -4602,10 +4242,7 @@ function TexasHoldemArena({ search }) {
         three.chairMaterials = chairBuild.materials;
         three.chairThemePreserve = chairBuild.preserveOriginal || shouldPreserveChairMaterials(chairOption);
         three.chairThemeId = chairOption.id;
-        const dominoHumanTemplates = await Promise.all(
-          (three.seatGroups ?? []).map((_, seatIndex) => loadTexasDominoHumanTemplate(seatIndex, three.renderer))
-        );
-        three.seatGroups?.forEach((seat, seatIndex) => {
+        three.seatGroups?.forEach((seat) => {
           const group = seat.group;
           if (!group) return;
           const previous = [...group.children];
@@ -4624,8 +4261,6 @@ function TexasHoldemArena({ search }) {
           });
           group.add(clone);
           seat.chairMeshes = chairMeshes;
-          seat.characterRig = attachTexasDominoHumanToSeat(dominoHumanTemplates[seatIndex], seat, clone, seatIndex);
-          seat.characterRoot = seat.characterRig?.seatRoot ?? null;
         });
       })();
     } else if (chairOption && three.chairMaterials) {
@@ -5266,9 +4901,6 @@ function TexasHoldemArena({ search }) {
       applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
       const initialChairPreserve = chairBuild.preserveOriginal || shouldPreserveChairMaterials(initialChair);
       const initialChairThemeId = initialChair?.id;
-      const dominoHumanTemplates = await Promise.all(
-        seatLayout.map((_, seatIndex) => loadTexasDominoHumanTemplate(seatIndex, renderer))
-      );
 
       seatLayout.forEach((seat, seatIndex) => {
         const group = new THREE.Group();
@@ -5286,13 +4918,6 @@ function TexasHoldemArena({ search }) {
         });
         group.add(chairModel);
         arenaGroup.add(group);
-
-        const characterRig = attachTexasDominoHumanToSeat(
-          dominoHumanTemplates[seatIndex],
-          { forward: seat.forward, right: seat.right },
-          chairModel,
-          seatIndex
-        );
 
         const cardMeshes = [0, 1].map(() => {
           const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
@@ -5378,8 +5003,6 @@ function TexasHoldemArena({ search }) {
           previewStack,
           hoverChip,
           chairMeshes,
-          characterRig,
-          characterRoot: characterRig?.seatRoot ?? null,
           tableLayout,
           railLayout,
           labelOffset: seat.labelOffset,
@@ -5917,7 +5540,6 @@ function TexasHoldemArena({ search }) {
         lastFrameRef.current = time - Math.max(0, deltaMs - appliedMs);
         const deltaSeconds = Math.max(0, Math.min(0.1, appliedMs / 1000));
         three.chipFactory.update(deltaSeconds);
-        stepTexasDominoHumanActions(time);
         headAnglesRef.current.pitch = 0;
         applyHeadOrientation();
         three.renderer.render(three.scene, three.camera);
@@ -5941,7 +5563,6 @@ function TexasHoldemArena({ search }) {
         }
       });
       peekCardAnimationRef.current.clear();
-      texasDominoHumanActions.splice(0);
       lastFrameRef.current = null;
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
@@ -6140,7 +5761,6 @@ function TexasHoldemArena({ search }) {
             .addScaledVector(pileForward, foldedOrder * FOLD_PILE_CARD_GAP);
           const pileLookTarget = pilePosition.clone().add(pileForward);
           if (player.folded && !(prevPlayer?.folded)) {
-            if (cardIdx === 0) runTexasDominoHumanAction(seat, 'FOLD');
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
             mesh.position.copy(pilePosition);
@@ -6171,7 +5791,6 @@ function TexasHoldemArena({ search }) {
         const isNewHandCard = Boolean(card && !prevPlayer?.hand?.[cardIdx]);
         const cardDealOrder = cardIdx * state.players.length + idx;
         if (isNewHandCard && !state.showdown) {
-          if (cardIdx === 0) runTexasDominoHumanAction(seat, 'CARDS');
           mesh.position.copy(deckAnchor);
           animateDealCardToSeat(
             mesh,
@@ -6238,7 +5857,6 @@ function TexasHoldemArena({ search }) {
       const prevBet = seat.lastBet ?? 0;
       const betDelta = Math.max(0, bet - prevBet);
       if (betDelta > 0 && arenaGroup) {
-        runTexasDominoHumanAction(seat, 'CHIP');
         const applyPotGain = (value) => {
           potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
           const targetPile = potSeatStacks?.[idx];
@@ -6520,7 +6138,6 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.[focusIndex];
     if (seat?.isHuman) {
       resetCameraToStartView();
-      runTexasDominoHumanAction(seat, 'CARDS');
       playSound('knock');
       return;
     }
