@@ -258,7 +258,7 @@ const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
 const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 240;
+const DICE_SETTLE_DURATION = 900;
 const DICE_RESULT_HOLD_DURATION = 720;
 const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
@@ -773,21 +773,25 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
-const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
-  'slot-10-ak47-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 }),
-  'slot-18-fps-gun-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
+const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
+  // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
+  horizontal: Object.freeze({ x: 0.04, y: 0, z: -0.06 }),
+  // Portrait screen: left/right player weapons lie flat top-to-bottom on the tabletop.
+  vertical: Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
 });
-const WEAPON_FLAT_TABLE_ROTATION = Object.freeze({ x: 0.04, z: -0.06 });
-const WEAPON_VERTICAL_PARKING_ROTATION = Object.freeze({ x: 0, y: 0, z: Math.PI / 2 });
+const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
+  'slot-10-ak47-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal,
+  'slot-18-fps-gun-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal
+});
+function getSeatWeaponParkingPose(seatIndex) {
+  // Seat order: 0=bottom, 1=right, 2=top, 3=left in portrait.
+  return seatIndex === 1 || seatIndex === 3 ? 'vertical' : 'horizontal';
+}
 
-
-function applyVerticalFirearmParkingPose(object) {
+function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
   if (!object?.isObject3D) return;
-  object.rotation.set(
-    WEAPON_VERTICAL_PARKING_ROTATION.x,
-    WEAPON_VERTICAL_PARKING_ROTATION.y,
-    WEAPON_VERTICAL_PARKING_ROTATION.z
-  );
+  const rotation = WEAPON_TABLE_PARKING_ROTATION_BY_POSE[parkingPose] || WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal;
+  object.rotation.set(rotation.x, rotation.y, rotation.z);
   object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object);
   if (Number.isFinite(box.min.y)) {
@@ -3444,17 +3448,10 @@ function createDiceRollAnimation(
 }
 
 function createDiceSettleAnimation(diceArray, { basePositions, baseY, startStates = [] }) {
+  // Landing roll intentionally mirrors Ludo Battle Royal's spinDice helper: one eased
+  // tabletop arc, wobble, decelerating spin, then snap to the server-provided face value.
   const start = performance.now();
-  const startPositions = diceArray.map((die, index) => {
-    const state = startStates[index];
-    if (state?.position) return state.position.clone();
-    return die.position.clone();
-  });
-  const startQuaternions = diceArray.map((die, index) => {
-    const state = startStates[index];
-    if (state?.quaternion) return state.quaternion.clone();
-    return die.quaternion.clone();
-  });
+  const startPositions = diceArray.map((die, index) => startStates[index]?.position?.clone?.() ?? die.position.clone());
   const targetPositions = basePositions.map((base) =>
     base ? new THREE.Vector3(base.x, baseY, base.z) : null
   );
@@ -3464,35 +3461,44 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
     die.userData.targetQuaternion = fallback.clone();
     return fallback;
   });
+  const spinVectors = diceArray.map(() =>
+    new THREE.Vector3(
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
+    )
+  );
+  const wobbleVectors = diceArray.map(
+    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
+  );
 
   return {
     type: 'diceSettle',
     update: (now) => {
-      const t = Math.min((now - start) / DICE_SETTLE_DURATION, 1);
-      const ease = easeOutCubic(t);
+      const t = Math.min((now - start) / Math.max(1, DICE_SETTLE_DURATION), 1);
+      const eased = easeOutCubic(t);
       diceArray.forEach((die, index) => {
+        const startPos = startPositions[index] ?? die.position;
         const targetPos = targetPositions[index];
         if (targetPos) {
-          const startPos = startPositions[index];
-          if (startPos) {
-            die.position.copy(startPos).lerp(targetPos, ease);
-          } else {
-            die.position.copy(targetPos);
-          }
+          const position = startPos.clone().lerp(targetPos, eased);
+          const wobbleStrength = Math.sin(eased * Math.PI);
+          position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
+          const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
+          position.y = THREE.MathUtils.lerp(startPos.y, targetPos.y, eased) + bounce;
+          die.position.copy(position);
         }
-        const startQuat = startQuaternions[index];
-        const targetQuat = targetQuaternions[index];
-        if (startQuat && targetQuat) {
-          die.quaternion.copy(startQuat).slerp(targetQuat, ease);
-        }
+
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
           const targetPos = targetPositions[index];
           const targetQuat = targetQuaternions[index];
-          if (targetPos) {
-            die.position.copy(targetPos);
-          }
+          if (targetPos) die.position.copy(targetPos);
           if (targetQuat) {
             die.setRotationFromQuaternion(targetQuat);
             die.userData.appliedQuaternion = targetQuat.clone();
@@ -5834,7 +5840,7 @@ function createPolySeatWeaponMesh(weaponType) {
   return group;
 }
 function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
-  const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'flat';
+  const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'horizontal';
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
   const catalogWeaponType = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] ? rawWeaponType : null;
   const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
@@ -5847,10 +5853,8 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
     const holder = new THREE.Group();
     const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
     fallback.scale.multiplyScalar(firearmScale);
-    if (parkingPose === 'vertical') {
-      fallback.position.set(0, 0, 0);
-      applyVerticalFirearmParkingPose(fallback);
-    }
+    fallback.position.set(0, 0, 0);
+    applyFlatTableWeaponParkingPose(fallback, parkingPose);
     holder.add(fallback);
     loadCaptureWeaponCatalogModel(catalogWeaponType)
       .then((model) => {
@@ -5859,18 +5863,15 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
         model.scale.setScalar(
           TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
         );
-        if (parkingPose === 'vertical') {
-          model.position.set(0, 0, 0);
-          applyVerticalFirearmParkingPose(model);
+        model.position.set(0, 0, 0);
+        const parkedRotation =
+          parkingPose === 'horizontal' ? FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType] : null;
+        if (parkedRotation) {
+          model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
         } else {
-          const parkedRotation = FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType];
-          if (parkedRotation) {
-            model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
-          } else {
-            model.rotation.set(0.04, Math.PI * 0.5, -0.06);
-          }
-          model.position.y -= TOKEN_HEIGHT * 1.32;
+          applyFlatTableWeaponParkingPose(model, parkingPose);
         }
+        model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
       .catch(() => {});
@@ -5879,10 +5880,8 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
     const polyMesh = createPolySeatWeaponMesh(normalizedWeaponType);
     polyMesh.scale.multiplyScalar(firearmScale);
-    if (parkingPose === 'vertical') {
-      polyMesh.position.set(0, 0, 0);
-      applyVerticalFirearmParkingPose(polyMesh);
-    }
+    polyMesh.position.set(0, 0, 0);
+    applyFlatTableWeaponParkingPose(polyMesh, parkingPose);
     return polyMesh;
   }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
@@ -5896,8 +5895,7 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
   group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[normalizedWeaponType] ?? TOKEN_HEIGHT * 1.48;
-  group.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
-  group.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
+  applyFlatTableWeaponParkingPose(group, parkingPose);
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -5942,16 +5940,12 @@ function updateSeatWeaponDisplays(board, players = []) {
     }
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
-    const parkedWeaponKind = normalizeSnakeCaptureWeaponKind(parkedWeaponType);
-    const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
-      parkedWeaponKind
-    );
     if (holder.userData.weaponType !== parkedWeaponType) {
       while (holder.children.length) {
         const child = holder.children.pop();
         if (child) holder.remove(child);
       }
-      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: isVehicleWeapon ? 'flat' : 'vertical' }));
+      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: getSeatWeaponParkingPose(seatIndex) }));
       holder.userData.weaponType = parkedWeaponType;
     }
     // Park every weapon back on the shared table-side slots instead of drifting to the chair/hand anchors.
@@ -6002,19 +5996,9 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
-    const lookAwayDirection = holder.position.clone().sub(boardLookTarget).setY(0);
-    if (lookAwayDirection.lengthSq() < 1e-6) lookAwayDirection.set(0, 0, 1);
-    lookAwayDirection.normalize();
-    const lookAwayTarget = holder.position.clone().addScaledVector(lookAwayDirection, TILE_SIZE * 3);
-    holder.lookAt(lookAwayTarget.x, holder.position.y, lookAwayTarget.z);
-    if (!isVehicleWeapon) {
-      holder.rotateY(Math.PI);
-      holder.rotation.x = 0;
-      holder.rotation.z = 0;
-    } else {
-      holder.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
-      holder.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
-    }
+    // Child meshes carry the tabletop horizontal/vertical orientation so triggers stay beside
+    // each seated human character's right hand without holder lookAt rotations flipping them.
+    holder.rotation.set(0, 0, 0);
   }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
