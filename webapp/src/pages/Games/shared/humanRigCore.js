@@ -108,8 +108,7 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  shootBendDirection: 1,
-  faceTableDotTolerance: 0.035
+  shootBendDirection: 1
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -561,29 +560,6 @@ function driveHuman(human, frame) {
   aimTwoBone(b.rightUpperLeg, b.rightLowerLeg, frame.rightKnee, frame.rightFootWorld, frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(), 0.9 * ik, 1.0 * ik);
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, cfg.footLockStrength * ik);
-}
-
-
-export function resolveHumanShotOrientation(rawAimForward, cueBallWorld, rootTarget, opts = {}) {
-  const cfg = scaleVectorConfig(opts);
-  const fallback = new THREE.Vector3(0, 0, -1);
-  const aim = rawAimForward?.clone?.() ?? fallback.clone();
-  aim.y = 0;
-  if (!Number.isFinite(aim.x) || !Number.isFinite(aim.z) || aim.lengthSq() < 1e-8) {
-    aim.copy(fallback);
-  }
-  aim.normalize();
-
-  const toCueBall = cueBallWorld?.clone?.().sub(rootTarget ?? new THREE.Vector3()) ?? aim.clone();
-  toCueBall.y = 0;
-  if (Number.isFinite(toCueBall.x) && Number.isFinite(toCueBall.z) && toCueBall.lengthSq() > 1e-8) {
-    toCueBall.normalize();
-    const tolerance = Math.max(0, cfg.faceTableDotTolerance ?? 0);
-    if (aim.dot(toCueBall) < -tolerance) {
-      aim.multiplyScalar(-1);
-    }
-  }
-  return aim;
 }
 
 export function updateHumanPose(human, dt, frameData) {
