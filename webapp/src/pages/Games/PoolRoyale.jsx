@@ -2366,7 +2366,7 @@ const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pus
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
-const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
@@ -4152,7 +4152,8 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     sideWidthScale: 1.05,
     sideHeightScale: 0.86,
     sideRadiusScale: 3.4,
-    sideCutScale: 1.12
+    sideCutScale: 1.12,
+    hideGeneratedPlates: true
   },
   {
     id: 'royal-classic',
@@ -10929,7 +10930,9 @@ export function Table3D(
       finishParts.trimMeshes.push(plate);
     });
   }
-  railsGroup.add(chromePlates);
+  if (!chromePlateStyle.hideGeneratedPlates) {
+    railsGroup.add(chromePlates);
+  }
 
   const pocketJawGroup = new THREE.Group();
 
@@ -25795,8 +25798,9 @@ const shotPowerRef = useRef(0);
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view.
-            shootBendDirection: -1,
+            // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
+            // the shooter folding toward the table instead of bending backward away from it.
+            shootBendDirection: 1,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0.72,
             plantFeetDuringShot: true,
