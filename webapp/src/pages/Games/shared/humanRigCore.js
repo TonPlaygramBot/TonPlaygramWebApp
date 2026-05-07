@@ -473,8 +473,8 @@ function driveHuman(human, frame) {
     return;
   }
 
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * cfg.unit * ik).addScaledVector(frame.side, cfg.bridgeHandSide * ik).addScaledVector(UP, -0.018 * cfg.unit * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * cfg.unit * ik).addScaledVector(frame.side, cfg.bridgeHandSide * 2.8 * ik).addScaledVector(UP, -0.01 * cfg.unit * ik);
+  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * cfg.unit * ik).addScaledVector(frame.side, -0.018 * cfg.unit * ik).addScaledVector(UP, -0.018 * cfg.unit * ik);
+  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * cfg.unit * ik).addScaledVector(frame.side, -0.05 * cfg.unit * ik).addScaledVector(UP, -0.01 * cfg.unit * ik);
   aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
   twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
   twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
@@ -548,7 +548,7 @@ export function updateHumanPose(human, dt, frameData) {
 
   const bridgePalmTarget = frameData.bridgeTarget.clone()
     .addScaledVector(forward, -0.006 * cfg.unit * t)
-    .addScaledVector(side, cfg.bridgeHandSide * t)
+    .addScaledVector(side, -0.012 * cfg.unit * t)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
