@@ -11,6 +11,7 @@ type ShotState = 'aim' | 'runup' | 'keeperAim' | 'aiRunup' | 'flight' | 'var' | 
 type KickSpot = 'left' | 'center' | 'right' | 'near16';
 type ActorKind = 'kicker' | 'keeper' | 'wall';
 type ShotPhase = 'userShoot' | 'aiShoot' | 'finished';
+type ShotControlState = { power: number; aimX: number; aimY: number };
 type TeamKey = 'blue' | 'red';
 type Decision = 'GOAL' | 'NO GOAL' | 'SAVE' | 'BLOCKED' | 'MISS';
 
@@ -160,15 +161,15 @@ const MURLAN_CHARACTER_COLORS = [
 ];
 const CAMERA_YAW_LIMIT = 0.86;
 const CAMERA_DRAG_DEADZONE = 8;
-const MIN_SHOT_SWIPE_PX = 78;
 const MIN_KEEPER_SWIPE_PX = 28;
 const REPLAY_SLOWDOWN = 0.48;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
-const SPECTATOR_SCALE = 0.5;
-const SPECTATOR_FALLBACK_SCALE = 0.56;
-const SPECTATOR_SEAT_Y = 0.17;
-const SPECTATOR_SEAT_Z = 0.14;
+const SPECTATOR_SCALE = 0.78;
+const SPECTATOR_FALLBACK_SCALE = 0.86;
+const SPECTATOR_SEAT_Y = 0.09;
+const SPECTATOR_SEAT_Z = 0.11;
+const DEFAULT_SHOT_CONTROL: ShotControlState = { power: 0.72, aimX: 0, aimY: -0.35 };
 const TEAM_KITS: Record<TeamKey, { primary: number; secondary: number; shorts: number; shoes: number; name: string }> = {
   blue: { primary: 0x1d69ff, secondary: 0xffffff, shorts: 0x102a6b, shoes: 0xffffff, name: 'Blue' },
   red: { primary: 0xdc2626, secondary: 0xfacc15, shorts: 0x7f1d1d, shoes: 0x111827, name: 'Red' }
@@ -683,6 +684,41 @@ function resetKickerGroundedForShot(
   enforceActorGrounding(kicker);
 }
 
+
+function characterSurfaceType(mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial) {
+  const label = `${cleanName(mesh.name)}${cleanName(mat.name || '')}`;
+  const color = mat.color ?? new THREE.Color(0xffffff);
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  const skinLike =
+    label.includes('skin') ||
+    label.includes('face') ||
+    label.includes('head') ||
+    label.includes('hand') ||
+    (hsl.h >= 0.03 && hsl.h <= 0.13 && hsl.s >= 0.16 && hsl.l >= 0.42);
+  const hairLike =
+    label.includes('hair') ||
+    label.includes('brow') ||
+    (hsl.l < 0.18 && !label.includes('shoe') && !label.includes('boot'));
+  const eyeLike = label.includes('eye') || label.includes('pupil');
+  const shoeLike = label.includes('shoe') || label.includes('boot') || label.includes('foot');
+  if (eyeLike) return 'eye';
+  if (skinLike) return 'skin';
+  if (hairLike) return 'hair';
+  if (shoeLike) return 'shoe';
+  return 'cloth';
+}
+
+function cloneModelMaterials(model: THREE.Object3D) {
+  model.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material) return;
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map((matRef) => matRef.clone())
+      : mesh.material.clone();
+  });
+}
+
 function tintModel(
   model: THREE.Object3D,
   kind: ActorKind,
@@ -704,15 +740,14 @@ function tintModel(
     mats.forEach((raw) => {
       const m = raw as THREE.MeshStandardMaterial;
       if (m.color) {
-        const meshName = cleanName(mesh.name);
-        const materialName = cleanName(m.name || '');
-        const label = `${meshName}${materialName}`;
-        const isSkin = label.includes('skin') || label.includes('head') || label.includes('face') || label.includes('hand');
-        const isHair = label.includes('hair');
-        const isShoe = label.includes('shoe') || label.includes('boot') || label.includes('foot');
-        if (isSkin) m.color.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.28);
-        else if (isHair) m.color.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.46);
-        else if (isShoe) {
+        const surface = characterSurfaceType(mesh, m);
+        if (surface === 'skin') {
+          m.color.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.12);
+        } else if (surface === 'hair') {
+          m.color.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.2);
+        } else if (surface === 'eye') {
+          m.color.lerp(new THREE.Color(0x050505), 0.35);
+        } else if (surface === 'shoe') {
           m.color.lerp(new THREE.Color(kit.shoes), 0.55);
           m.map = shoeMap;
         } else {
@@ -849,6 +884,7 @@ function createActor(
     modelUrl,
     (gltf) => {
       const model = gltf.scene;
+      cloneModelMaterials(model);
       normalizeHuman(model, kind === 'keeper' ? 1.9 : PLAYER_H);
       tintModel(model, kind, index, kitColor, team);
       shadow(model);
@@ -883,6 +919,7 @@ function createActor(
       if (modelUrl === HUMAN_URL) return;
       loader.setCrossOrigin('anonymous').load(HUMAN_URL, (gltf) => {
         const model = gltf.scene;
+        cloneModelMaterials(model);
         normalizeHuman(model, kind === 'keeper' ? 1.9 : PLAYER_H);
         tintModel(model, kind, index, kitColor, team);
         shadow(model);
@@ -1226,6 +1263,7 @@ function attachMurlanSeatedSpectator(
   loadSeatedCharacterTemplate(loader, modelUrl)
     .then((template) => {
       const instance = cloneSkeleton(template);
+      cloneModelMaterials(instance);
       instance.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
@@ -1238,15 +1276,15 @@ function attachMurlanSeatedSpectator(
         mats.forEach((raw) => {
           const matRef = raw as THREE.MeshStandardMaterial;
           if (!matRef) return;
-          const label = `${cleanName(mesh.name)}${cleanName(matRef.name || '')}`;
-          if (label.includes('shoe') || label.includes('boot') || label.includes('foot')) {
+          const surface = characterSurfaceType(mesh, matRef);
+          if (surface === 'shoe') {
             matRef.color?.lerp(new THREE.Color(kitForTeam(team).shoes), 0.52);
             matRef.map = polyhavenTexture(POLYHAVEN_TEXTURES.shoeLeather, 4);
-          } else if (label.includes('skin') || label.includes('face') || label.includes('head') || label.includes('hand')) {
-            matRef.color?.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.25);
-          } else if (label.includes('hair')) {
-            matRef.color?.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.5);
-          } else {
+          } else if (surface === 'skin') {
+            matRef.color?.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.12);
+          } else if (surface === 'hair') {
+            matRef.color?.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.2);
+          } else if (surface === 'cloth') {
             matRef.color?.set(kitColor);
             matRef.map = polyhavenTexture(teamTexture(team), 5);
           }
@@ -2088,6 +2126,39 @@ function makeSwipeForTarget(
   };
 }
 
+
+function controlToShotSwipe(
+  control: ShotControlState,
+  viewportW = 390,
+  viewportH = 780
+): SwipeState {
+  const aimX = THREE.MathUtils.clamp(control.aimX, -1, 1);
+  const aimY = THREE.MathUtils.clamp(control.aimY, -1, 1);
+  const power = THREE.MathUtils.clamp(control.power, 0.2, 1);
+  const targetX = THREE.MathUtils.clamp(
+    aimX * (GOAL_W / 2 + 0.82),
+    -GOAL_W / 2 - 1.15,
+    GOAL_W / 2 + 1.15
+  );
+  const verticalStrike = (1 - aimY) * 0.5; // lower contact gets under the ball.
+  const targetY = THREE.MathUtils.clamp(
+    0.42 + verticalStrike * (GOAL_H + 1.1) + power * 0.44,
+    BALL_R,
+    GOAL_H + 2.0
+  );
+  const swipe = makeSwipeForTarget(
+    targetX,
+    targetY,
+    viewportW,
+    viewportH,
+    THREE.MathUtils.lerp(0.15, 1.55, power)
+  );
+  const sideSpin = -aimX * THREE.MathUtils.lerp(10, 58, power);
+  swipe.startX = viewportW * 0.5;
+  swipe.endX += sideSpin;
+  return swipe;
+}
+
 function randomAiShotSwipe(viewportW = 390, viewportH = 780) {
   const targetX = THREE.MathUtils.randFloatSpread(GOAL_W - 0.75);
   const targetY = THREE.MathUtils.randFloat(0.55, GOAL_H - 0.18);
@@ -2628,6 +2699,22 @@ function cameraFrameForShot(kicker: Actor, cameraYaw = 0) {
   return { position, lookPoint };
 }
 
+
+function cameraFrameForKeeper(keeper: Actor, ball: BallState, cameraYaw = 0) {
+  const goalCenter = new THREE.Vector3(0, 1.18, GOAL_LINE_Z + 0.24);
+  const incoming = ball.object.position
+    .clone()
+    .lerp(new THREE.Vector3(0, 1.15, GOAL_LINE_Z + 6.8), 0.32);
+  const baseBehindKeeper = keeper.pos
+    .clone()
+    .add(new THREE.Vector3(0, 1.42, -2.35));
+  const sideOffset = new THREE.Vector3(cameraYaw * 0.55, 0, 0);
+  return {
+    position: baseBehindKeeper.add(sideOffset),
+    lookPoint: incoming.lerp(goalCenter, ball.flying ? 0.18 : 0.42)
+  };
+}
+
 function placeCameraForNextShot(
   camera: THREE.PerspectiveCamera,
   kicker: Actor,
@@ -2649,6 +2736,8 @@ export default function FreeKickGame() {
     endY: 0
   });
   const skipReplayRef = useRef(false);
+  const shotControlRef = useRef<ShotControlState>({ ...DEFAULT_SHOT_CONTROL });
+  const [shotControl, setShotControl] = useState<ShotControlState>({ ...DEFAULT_SHOT_CONTROL });
   const [replaySkippable, setReplaySkippable] = useState(false);
   const [hud, setHud] = useState({
     goals: 0,
@@ -2657,7 +2746,7 @@ export default function FreeKickGame() {
     aiShots: 0,
     phase: 'userShoot' as ShotPhase,
     spot: 'center' as KickSpot,
-    state: 'You shoot first: swipe up toward the goal'
+    state: 'You shoot first: set power, choose ball contact, then tap KICK'
   });
   useEffect(() => {
     const host = hostRef.current;
@@ -2684,7 +2773,9 @@ export default function FreeKickGame() {
     hideAimLine(aimLine);
     const ball = makeBall(scene);
     const audio = makeGoalRushAudio();
-    const actorModelUrl = (_index: number) => HUMAN_URL;
+    const playerCharacterUrls = shuffledCharacterUrls();
+    const actorModelUrl = (index: number) =>
+      playerCharacterUrls[index % playerCharacterUrls.length] ?? HUMAN_URL;
     const kicker = createActor(
       scene,
       loader,
@@ -2775,8 +2866,8 @@ export default function FreeKickGame() {
         const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
         return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
       }
-      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · you are goalkeeper, swipe to jump`;
-      return `Your shot ${match.userShots + 1}/5 · swipe up to shoot`;
+      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind you, swipe to dive`;
+      return `Your shot ${match.userShots + 1}/5 · set power/contact then tap KICK`;
     };
     spot = randomKickSpot();
     configureActorsForPhase();
@@ -2792,6 +2883,48 @@ export default function FreeKickGame() {
     };
     resize();
     window.addEventListener('resize', resize);
+    const startUserKickFromControls = () => {
+      audio.start();
+      if (state !== 'aim' || match.phase !== 'userShoot') {
+        setHud((h) => ({ ...h, state: 'Wait for your next free kick before shooting' }));
+        return;
+      }
+      const rect = host.getBoundingClientRect();
+      const controlSwipe = controlToShotSwipe(
+        shotControlRef.current,
+        rect.width,
+        rect.height
+      );
+      swipeRef.current = controlSwipe;
+      activeShooter = 'user';
+      beginRunup(kicker, wall, keeper, ball, controlSwipe);
+      hideAimLine(aimLine);
+      shotBlocked = false;
+      shotSaved = false;
+      shotFinalized = false;
+      netTriggered = false;
+      goalReplayAwarded = false;
+      replayFrames.length = 0;
+      state = 'runup';
+      setHud((h) => ({
+        ...h,
+        state: `Shot ${match.userShots + 1}/5: controlled run-up · ${Math.round(shotControlRef.current.power * 100)}% power`
+      }));
+    };
+    const previewControlledShot = () => {
+      if (state !== 'aim' || match.phase !== 'userShoot') return;
+      const rect = host.getBoundingClientRect();
+      const previewSwipe = controlToShotSwipe(
+        shotControlRef.current,
+        rect.width,
+        rect.height
+      );
+      setAimCurve(aimLine, ball.object.position, previewSwipe);
+    };
+    const onControlsChanged = () => previewControlledShot();
+    const onKickRequested = () => startUserKickFromControls();
+    window.addEventListener('free-kick-controls-changed', onControlsChanged);
+    window.addEventListener('free-kick-kick', onKickRequested);
     const onDown = (e: PointerEvent) => {
       audio.start();
       const rect = host.getBoundingClientRect();
@@ -2801,13 +2934,12 @@ export default function FreeKickGame() {
         startY: e.clientY,
         endX: e.clientX,
         endY: e.clientY,
-        mode: state === 'aim' && match.phase === 'userShoot' ? 'shot' : state === 'keeperAim' || (state === 'flight' && activeShooter === 'ai') ? 'keeper' : 'camera',
+        mode: state === 'keeperAim' || (state === 'flight' && activeShooter === 'ai') ? 'keeper' : 'camera',
         moved: false,
         viewportW: rect.width,
         viewportH: rect.height
       };
-      if (state === 'aim' && match.phase === 'userShoot')
-        setAimCurve(aimLine, ball.object.position, swipeRef.current);
+      if (state === 'aim' && match.phase === 'userShoot') previewControlledShot();
     };
     const onMove = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
@@ -2822,26 +2954,15 @@ export default function FreeKickGame() {
           setHud((h) => ({ ...h, state: 'Keeper committed — dive tracks your swipe' }));
         return;
       }
-      if (
-        state !== 'aim' ||
-        match.phase !== 'userShoot'
-      ) {
-        swipeRef.current.mode = 'camera';
-        hideAimLine(aimLine);
-        const dx = e.clientX - swipeRef.current.endX;
-        cameraYaw = THREE.MathUtils.clamp(
-          cameraYaw + dx / 420,
-          -CAMERA_YAW_LIMIT,
-          CAMERA_YAW_LIMIT
-        );
-        swipeRef.current.endX = e.clientX;
-        swipeRef.current.endY = e.clientY;
-        return;
-      }
-      swipeRef.current.mode = 'shot';
+      swipeRef.current.mode = 'camera';
+      const dx = e.clientX - swipeRef.current.endX;
+      cameraYaw = THREE.MathUtils.clamp(
+        cameraYaw + dx / 420,
+        -CAMERA_YAW_LIMIT,
+        CAMERA_YAW_LIMIT
+      );
       swipeRef.current.endX = e.clientX;
       swipeRef.current.endY = e.clientY;
-      setAimCurve(aimLine, ball.object.position, swipeRef.current);
     };
     const onUp = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
@@ -2849,41 +2970,8 @@ export default function FreeKickGame() {
         swipeRef.current.endX = e.clientX;
         swipeRef.current.endY = e.clientY;
         setKeeperDiveFromSwipe(keeper, swipeRef.current);
-        swipeRef.current.active = false;
-        return;
       }
-      if (swipeRef.current.mode === 'camera' || state !== 'aim' || match.phase !== 'userShoot') {
-        swipeRef.current.active = false;
-        hideAimLine(aimLine);
-        return;
-      }
-      swipeRef.current.endX = e.clientX;
-      swipeRef.current.endY = e.clientY;
-      const shotDistance = Math.hypot(
-        swipeRef.current.endX - swipeRef.current.startX,
-        swipeRef.current.endY - swipeRef.current.startY
-      );
       swipeRef.current.active = false;
-      hideAimLine(aimLine);
-      const shotUp = swipeRef.current.startY - swipeRef.current.endY;
-      const shotSide = Math.abs(swipeRef.current.endX - swipeRef.current.startX);
-      if (shotDistance < MIN_SHOT_SWIPE_PX || shotUp < 48 || shotUp < shotSide * 0.42) {
-        setHud((h) => ({
-          ...h,
-          state: 'Swipe upward toward goal to shoot — sideways drags will not fire'
-        }));
-        return;
-      }
-      activeShooter = 'user';
-      beginRunup(kicker, wall, keeper, ball, swipeRef.current);
-      shotBlocked = false;
-      shotSaved = false;
-      shotFinalized = false;
-      netTriggered = false;
-      goalReplayAwarded = false;
-      replayFrames.length = 0;
-      state = 'runup';
-      setHud((h) => ({ ...h, state: `Shot ${match.userShots + 1}/5: 2-step run-up...` }));
     };
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
@@ -3158,7 +3246,12 @@ export default function FreeKickGame() {
       }
       let lookPoint = new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25);
       if (state !== 'replay') {
-        if (ball.flying || state === 'var') {
+        if (match.phase === 'aiShoot' && (state === 'aim' || state === 'aiRunup' || state === 'flight' || state === 'var')) {
+          const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+          lookPoint.copy(keeperFrame.lookPoint);
+          camera.position.lerp(keeperFrame.position, ball.flying ? 0.18 : 0.14);
+          camera.lookAt(lookPoint);
+        } else if (ball.flying || state === 'var') {
           const toGoal = new THREE.Vector3(0, 0, GOAL_LINE_Z)
             .sub(ball.object.position)
             .setY(0)
@@ -3205,6 +3298,8 @@ export default function FreeKickGame() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('free-kick-controls-changed', onControlsChanged);
+      window.removeEventListener('free-kick-kick', onKickRequested);
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
@@ -3213,6 +3308,21 @@ export default function FreeKickGame() {
       renderer.dispose();
     };
   }, []);
+
+
+  const updateShotControl = (patch: Partial<ShotControlState>) => {
+    setShotControl((current) => {
+      const next = { ...current, ...patch };
+      shotControlRef.current = next;
+      window.dispatchEvent(new Event('free-kick-controls-changed'));
+      return next;
+    });
+  };
+  const requestControlledKick = () => {
+    window.dispatchEvent(new Event('free-kick-kick'));
+  };
+  const shotAimPercentX = `${(shotControl.aimX + 1) * 50}%`;
+  const shotAimPercentY = `${(1 - (shotControl.aimY + 1) * 0.5) * 100}%`;
 
   return (
     <div
@@ -3281,8 +3391,179 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        User takes 5 shots first, then AI takes 5. Swipe upward to shoot; during AI shots, swipe in the direction you want the goalkeeper to jump. Sideways drags move the camera only when not aiming a shot.
+        User takes 5 shots first, then AI takes 5. Set shot power on the right edge, choose the foot contact on the ball at bottom-left, then tap KICK. During AI shots, the camera sits behind your goalkeeper and swipes only dive the keeper.
       </div>
+
+      {hud.phase === 'userShoot' && (
+        <>
+          <div
+            aria-label="Shot power slider"
+            style={{
+              position: 'fixed',
+              right: 0,
+              top: '24%',
+              bottom: '18%',
+              width: 58,
+              zIndex: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'auto'
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                right: 7,
+                top: 0,
+                bottom: 0,
+                width: 38,
+                borderRadius: 999,
+                background: 'linear-gradient(180deg, rgba(239,68,68,.92), rgba(250,204,21,.92), rgba(34,197,94,.92))',
+                border: '1px solid rgba(255,255,255,.58)',
+                boxShadow: '0 12px 30px rgba(0,0,0,.5)'
+              }}
+            />
+            <input
+              aria-label="Power"
+              type="range"
+              min={20}
+              max={100}
+              value={Math.round(shotControl.power * 100)}
+              onChange={(event) =>
+                updateShotControl({ power: Number(event.currentTarget.value) / 100 })
+              }
+              style={{
+                width: '54vh',
+                maxWidth: 440,
+                transform: 'rotate(-90deg)',
+                accentColor: '#facc15',
+                filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))'
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                right: 8,
+                bottom: -34,
+                color: 'white',
+                fontFamily: 'system-ui,sans-serif',
+                fontSize: 12,
+                fontWeight: 900,
+                textShadow: '0 2px 8px #000'
+              }}
+            >
+              {Math.round(shotControl.power * 100)}%
+            </div>
+          </div>
+
+          <div
+            style={{
+              position: 'fixed',
+              left: 14,
+              bottom: 18,
+              zIndex: 4,
+              width: 136,
+              color: 'white',
+              fontFamily: 'system-ui,sans-serif',
+              textShadow: '0 2px 8px #000',
+              pointerEvents: 'auto'
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 900,
+                marginBottom: 6,
+                textAlign: 'center'
+              }}
+            >
+              FOOT CONTACT
+            </div>
+            <div
+              role="slider"
+              aria-label="Ball contact spin controller"
+              aria-valuetext={`x ${shotControl.aimX.toFixed(2)}, y ${shotControl.aimY.toFixed(2)}`}
+              onPointerDown={(event) => {
+                const target = event.currentTarget;
+                target.setPointerCapture(event.pointerId);
+                const rect = target.getBoundingClientRect();
+                const updateFromPointer = (clientX: number, clientY: number) => {
+                  updateShotControl({
+                    aimX: THREE.MathUtils.clamp(((clientX - rect.left) / rect.width) * 2 - 1, -1, 1),
+                    aimY: THREE.MathUtils.clamp(1 - ((clientY - rect.top) / rect.height) * 2, -1, 1)
+                  });
+                };
+                updateFromPointer(event.clientX, event.clientY);
+                const move = (moveEvent: PointerEvent) => updateFromPointer(moveEvent.clientX, moveEvent.clientY);
+                const up = () => {
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', up);
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+              }}
+              style={{
+                position: 'relative',
+                width: 112,
+                height: 112,
+                margin: '0 auto',
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle at 50% 50%, #f8fafc 0 38%, transparent 39%), conic-gradient(from 18deg, #111827 0 12%, #f8fafc 12% 24%, #111827 24% 36%, #f8fafc 36% 48%, #111827 48% 60%, #f8fafc 60% 72%, #111827 72% 84%, #f8fafc 84% 100%)',
+                border: '3px solid rgba(255,255,255,.9)',
+                boxShadow: '0 14px 28px rgba(0,0,0,.48), inset 0 0 18px rgba(0,0,0,.28)'
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  left: shotAimPercentX,
+                  top: shotAimPercentY,
+                  transform: 'translate(-50%, -50%)',
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: '#facc15',
+                  border: '3px solid #111827',
+                  boxShadow: '0 0 0 2px rgba(255,255,255,.85)'
+                }}
+              />
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  right: -26,
+                  bottom: -5,
+                  fontSize: 44,
+                  transform: `rotate(${shotControl.aimX * 20 - shotControl.aimY * 10}deg)`,
+                  filter: 'drop-shadow(0 6px 8px rgba(0,0,0,.5))'
+                }}
+              >
+                🦶
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={requestControlledKick}
+              style={{
+                width: '100%',
+                marginTop: 10,
+                padding: '10px 12px',
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,.72)',
+                background: 'linear-gradient(180deg, #22c55e, #15803d)',
+                color: 'white',
+                fontWeight: 1000,
+                letterSpacing: '.08em',
+                boxShadow: '0 10px 24px rgba(0,0,0,.42)'
+              }}
+            >
+              KICK
+            </button>
+          </div>
+        </>
+      )}
       {replaySkippable && (
         <button
           aria-label="Skip goal replay"
