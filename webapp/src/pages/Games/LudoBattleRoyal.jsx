@@ -3217,13 +3217,10 @@ const SEATED_HUMAN_MOTION_TUNING = Object.freeze({
   throwPrecision: 1.08,
   tokenPrecision: 1.14
 });
-const SEATED_HUMAN_DICE_CONTACT_MODE_SET = new Set([
+const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'reachDice',
   'gripDice',
-  'holdDice'
-]);
-const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
-  ...SEATED_HUMAN_DICE_CONTACT_MODE_SET,
+  'holdDice',
   'reachToken',
   'gripToken',
   'carryToken',
@@ -3254,8 +3251,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.198 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.092 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.142 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.034 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -3336,7 +3333,7 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.3;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.26;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
@@ -3355,7 +3352,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
 const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.18;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -6076,15 +6073,7 @@ function applySeatedHumanPose(
     wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
   }
 
-  if (SEATED_HUMAN_DICE_CONTACT_MODE_SET.has(mode)) {
-    // Rotate the palm inward/down toward the dice so the grab reads as the hand
-    // wrapping the cube instead of hovering beside it in portrait gameplay.
-    wristX = THREE.MathUtils.lerp(wristX, -0.92, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.56, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.78, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.32, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.18, t);
-  } else if (SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET.has(mode)) {
+  if (SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET.has(mode)) {
     wristX = THREE.MathUtils.lerp(wristX, -1.05, t);
     wristY = THREE.MathUtils.lerp(wristY, -0.28, t);
     wristZ = THREE.MathUtils.lerp(wristZ, 0.52, t);
@@ -9964,9 +9953,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-        const gameplayTarget = boardLookTargetRef.current?.isVector3
-          ? boardLookTargetRef.current.clone()
-          : null;
+        const gameplayTarget = (() => {
+          const dice = diceRef.current;
+          if (dice?.isObject3D) {
+            const target = new THREE.Vector3();
+            dice.getWorldPosition(target);
+            return target;
+          }
+          return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
+        })();
         const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
         const hardLockedPosition = liveFacePose?.position?.isVector3
           ? liveFacePose.position
@@ -11640,8 +11635,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
 
   const resolveBottomPlayerGameplayTarget = useCallback(() => {
-    // Keep the local/bottom seat camera on the same board-centered view saved at game start.
-    // Dice rolls and token moves should not pull the portrait camera away from this baseline.
+    const dice = diceRef.current;
+    if (dice?.isObject3D) {
+      const diceTarget = new THREE.Vector3();
+      dice.getWorldPosition(diceTarget);
+      return diceTarget;
+    }
     return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
   }, []);
 
@@ -12234,8 +12233,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const state = stateRef.current;
     if (!state) return;
     if (player === 0) {
-      lockUserTurnSeatViewRef.current = true;
-      preserveUserTurnCameraRef.current = true;
+      lockUserTurnSeatViewRef.current = false;
     }
     const current = state.progress[player][tokenIndex];
     const entering = current < 0;
@@ -12272,7 +12270,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       applyCaptureVictims(captureVictims);
       finalizeMove();
     };
-    const skipCameraFollow = player === 0 ? true : options.skipCameraFollow ?? false;
+    const { skipCameraFollow = false } = options;
     if (hasCapture) {
       const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
       const firstVictim = captureVictims[0];
