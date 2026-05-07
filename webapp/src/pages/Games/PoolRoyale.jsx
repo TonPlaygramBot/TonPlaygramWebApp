@@ -2387,9 +2387,9 @@ const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camer
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
-const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
-const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.22; // keep the bridge hand close beside the cue ball when the camera lowers into aiming
+const HUMAN_BRIDGE_HAND_SIDE = -0.055; // place the bridge hand visibly next to the cue ball instead of centered on the cue line
+const HUMAN_BRIDGE_CUE_LIFT = 0.014; // flatten the cue closer to the cloth like the reference shooting photos
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
@@ -4143,8 +4143,8 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     label: 'Showood Rounded',
     description: 'Rounded showroom pocket plates shared by Showood and Royal Original tables.',
     swatches: ['#f6d56f', '#d6d8dc'],
-    showGeneratedOnExternal: false,
-    preserveExternalTrim: true,
+    showGeneratedOnExternal: true,
+    preserveExternalTrim: false,
     cornerWidthScale: 1.1,
     cornerHeightScale: 1.08,
     cornerRadiusScale: 1.9,
@@ -13740,7 +13740,6 @@ function mountPoolRoyaleExternalTableModel({
     generatedVisualObjects.forEach((object) => {
       if (
         !visible &&
-        !externalTableModelForMount?.useOriginalLayoutSurfaces &&
         (object.userData?.externalTableKeepVisible ||
           (object.userData?.isChromePlate && chromePlateStyle.showGeneratedOnExternal))
       ) {
@@ -25795,9 +25794,8 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Keep Pool Royal avatars upright during shots; the player holds the cue
-            // in the same standing pose used at the start instead of bending
-            // into the table-facing shooting stance.
+            // Let Pool Royal avatars enter the table-facing shooting stance as soon
+            // as the portrait camera lowers into cue/aim view.
             shootBendDirection: -1,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0,
@@ -25815,16 +25813,17 @@ const shotPowerRef = useRef(0);
             perimeterWalk: true,
             perimeterWalkSpeed: 4.0 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             stanceWidth: 0.52 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: 0.006 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgePalmTableLift: 0.004 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             edgeMargin: 0.68 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: 0.145 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: -0.012 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandBackFromBall: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandSide: -0.055 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeCueLift: 0.014 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeArmStraightDownStrength: 0.82,
             shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotSide: -0.46 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -26023,13 +26022,13 @@ const shotPowerRef = useRef(0);
             }
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -0.145 * humanUnitScale)
-              .addScaledVector(side, -0.012 * humanUnitScale)
-              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
+              .addScaledVector(aimForward, -0.18 * humanUnitScale)
+              .addScaledVector(side, -0.055 * humanUnitScale)
+              .setY(TABLE_Y + TABLE.THICK + 0.004 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
               .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
+              .add(new THREE.Vector3(0, 0.014 * humanUnitScale, 0));
             const cueTipShoot = cueWorld
               .clone()
               .addScaledVector(aimForward, -(BALL_R + cueBallGap));
@@ -26061,11 +26060,10 @@ const shotPowerRef = useRef(0);
               .normalize();
             const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
             const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
-            const forceStandingCuePose = true;
-            const cueBack = forceStandingCuePose || state === 'idle' ? idleCueBack : cueBackShoot;
-            const cueTip = forceStandingCuePose || state === 'idle' ? idleCueTip : cueTipShoot;
-            const gripTarget = forceStandingCuePose || state === 'idle' ? idleRight : shootGripTarget;
-            const humanPoseState = forceStandingCuePose ? 'idle' : state;
+            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
+            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
+            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
+            const humanPoseState = state;
             const isFiniteVec3 = (v) =>
               Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
             if (
