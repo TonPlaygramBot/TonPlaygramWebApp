@@ -206,7 +206,6 @@ const BASE_CFG = {
   bridgeHandBackFromBall: 0.235,
   bridgeHandSide: -0.012,
   bridgePoseUsesConfiguredSide: false,
-  bridgeArmStraightDownStrength: 0,
   chinToCueHeight: 0.11,
   footGroundY: 0.035,
   footLockStrength: 1.0,
@@ -845,15 +844,6 @@ export function updateHumanPose(human, dt, frameData) {
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
   const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * cfg.unit * t).addScaledVector(side, -0.044 * cfg.unit * t).addScaledVector(forward, 0.065 * cfg.unit * t);
-  const straightBridgeStrength = clamp01((cfg.bridgeArmStraightDownStrength ?? 0) * t);
-  if (straightBridgeStrength > 0) {
-    const straightLeftElbow = new THREE.Vector3(
-      leftHand.x,
-      THREE.MathUtils.lerp(leftShoulder.y, leftHand.y, 0.5),
-      leftHand.z
-    );
-    leftElbow.lerp(straightLeftElbow, straightBridgeStrength);
-  }
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
 
