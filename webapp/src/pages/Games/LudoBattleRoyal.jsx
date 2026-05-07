@@ -3152,10 +3152,10 @@ const AI_CHAIR_RADIUS =
   CHAIR_OUTWARD_OFFSET -
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
-// Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
+// Keep shared chair spacing readable, while the local bottom chair gets pulled inward toward the table.
 const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
-// Keep bottom/local-player seat aligned with the same table distance used by the other chairs.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.22 * MODEL_SCALE;
+// Move the bottom/local-player chair closer to the table for portrait-first gameplay framing.
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = -0.18 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -3192,9 +3192,9 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Push seated humans dramatically lower so they sit much deeper on portrait/mobile camera framing.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
-// Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
+// Shift seated humans into the chair; the local bottom avatar gets a forward/inward correction toward the table.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.34;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet lower to preserve the deeper seat grounding after the stronger vertical drop.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
@@ -3250,8 +3250,9 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.235 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.092 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.142 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.034 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -6194,6 +6195,7 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
 
   if (fallbackTarget?.isVector3) {
     target.copy(fallbackTarget);
+    target.y -= SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN;
     if (headWorld.lengthSq() > 1e-8) {
       toGameplay.copy(target).sub(headWorld);
       if (toGameplay.lengthSq() > 1e-8) {
@@ -6206,6 +6208,7 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
   } else if (actorEntry?.rig?.head?.isBone) {
     target.copy(headWorld);
     target.z += 0.285 * MODEL_SCALE;
+    target.y -= SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN;
     position.copy(headWorld);
     position.z += 0.145 * MODEL_SCALE;
     position.y += SEATED_FACE_CAMERA_GAMEPLAY_UP;
