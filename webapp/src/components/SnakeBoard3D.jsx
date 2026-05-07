@@ -37,7 +37,7 @@ const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
 const CHAIR_SIZE_SCALE = 1.3;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_RADIUS = 3.05 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -55,9 +55,9 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Match Ludo Battle Royal's seated chair ring offsets exactly so portrait seating framing is identical.
-const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
+// Portrait calibration: pull the chair ring inward so players sit closer to the smaller table.
+const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.52 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -93,15 +93,15 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.54;
-// Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
-// with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.28;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.36;
+// Portrait calibration: keep the bottom player slightly farther back, but closer to the table than before.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.1;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
-// Keep all seating/chair anchors unchanged while moving characters visibly higher on portrait screens.
-const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+// Keep the shared ground target explicit while moving characters visibly higher on portrait screens.
+const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.56 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_GROUND_Y = SEATED_HUMAN_FOOT_GROUND_Y + SEATED_HUMAN_VISUAL_UPWARD_LIFT;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -156,7 +156,7 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06; // make board footprint visibly wider
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.84; // portrait calibration: shrink board footprint to sit smaller on the table
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -262,6 +262,25 @@ function getSeatHumanOffsets(seatIndex) {
     y: SEATED_HUMAN_SEAT_Y_OFFSET,
     z: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
   };
+}
+
+function measureMinYRelativeToParent(object) {
+  const parent = object?.parent;
+  if (!object?.isObject3D || !parent?.isObject3D) return null;
+  parent.updateMatrixWorld(true);
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y)) return null;
+  return box.min.y - parent.getWorldPosition(new THREE.Vector3()).y;
+}
+
+function alignChairLegsToHumanGround(chair) {
+  const group = chair?.group;
+  const model = chair?.model;
+  if (!group?.isObject3D || !model?.isObject3D) return;
+  const localMinY = measureMinYRelativeToParent(model);
+  if (!Number.isFinite(localMinY)) return;
+  group.position.y = SEATED_HUMAN_GROUND_Y - localMinY;
 }
 
 function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds = 0, activeLean = 0) {
@@ -1977,7 +1996,7 @@ function setSnakeHandWeaponVisible(seatHuman, visible) {
 
 function alignSeatedHumanFeetToGround(
   seatHuman,
-  groundY = SEATED_HUMAN_FOOT_GROUND_Y + SEATED_HUMAN_VISUAL_UPWARD_LIFT
+  groundY = SEATED_HUMAN_GROUND_Y
 ) {
   const { root, bones } = seatHuman || {};
   if (!root || !bones) return;
@@ -3684,7 +3703,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         const model = chairTemplate.clone(true);
         chair.group.add(model);
         chair.model = model;
+        alignChairLegsToHumanGround(chair);
       }
+    });
+    seatedHumans.forEach((seatHuman, seatIndex) => {
+      applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, 0, 0);
     });
   };
   for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
@@ -3713,7 +3736,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     }
 
     arenaGroup.add(group);
-    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor });
+    const chair = { group, anchor: avatarAnchor, model: chairModel, humanAnchor };
+    alignChairLegsToHumanGround(chair);
+    chairs.push(chair);
   }
 
   loadChairTemplate(chairTheme, renderer)
