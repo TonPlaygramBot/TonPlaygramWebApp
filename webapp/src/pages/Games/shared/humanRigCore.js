@@ -238,15 +238,10 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  // Keep the shooting bend modular: forward/back bend stays separated from the
-  // screen-visible side lean so fixes do not depend on one fragile sign flip.
-  // The side lean now moves the upper body to the opposite side of the old pose,
-  // while the feet remain planted by the leg IK targets below.
+  // Negative bends the cue-side upper body away from the previous over-the-table fold.
+  // Feet remain planted through IK targets while only spine/chest/head targets cross the cue line.
   shootBendDirection: -1,
-  shootCounterLeanSide: 1,
-  shootHipCounterTwistScale: 0.32,
-  shootUpperBodySideTwistScale: 1.0,
-  shootFootPlantRollStrength: 0.42,
+  shootCounterLeanSide: -1,
   forceTableFacingAim: true
 };
 
@@ -657,31 +652,23 @@ function driveHuman(human, frame) {
   }
 
   if (ik >= 0.025) {
-    const upperSideSign = frame.upperBodySideSign >= 0 ? 1 : -1;
-    const hipCounterSign = -upperSideSign;
-    const upperTwistScale = Number.isFinite(cfg.shootUpperBodySideTwistScale)
-      ? cfg.shootUpperBodySideTwistScale
-      : 1;
-    const hipTwistScale = Number.isFinite(cfg.shootHipCounterTwistScale)
-      ? cfg.shootHipCounterTwistScale
-      : 0.32;
     rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, 0.045 * hipCounterSign * hipTwistScale * ik);
+    twistBone(b.hips, frame.side, -0.045 * ik);
     twistBone(b.hips, frame.forward, -0.025 * ik);
     rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, 0.2 * upperSideSign * upperTwistScale * ik);
+    twistBone(b.spine, frame.side, -0.2 * ik);
     twistBone(b.spine, frame.forward, -0.04 * ik);
     rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, 0.32 * upperSideSign * upperTwistScale * ik);
+    twistBone(b.chest, frame.side, -0.32 * ik);
     twistBone(b.chest, frame.forward, -0.025 * ik);
     rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, 0.12 * upperSideSign * upperTwistScale * ik);
+    twistBone(b.neck, frame.side, -0.12 * ik);
     if (b.head) {
       setBoneWorldQuaternion(
         b.head,
         b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(
           shotQ.clone()
-            .multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, 0.12 * (frame.upperBodySideSign >= 0 ? 1 : -1) * ik))
+            .multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik))
             .multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)),
           0.74 * ik
         )
@@ -731,24 +718,10 @@ function driveHuman(human, frame) {
   poseFingers(human.leftFingers, 'bridge', ik);
   aimTwoBone(b.leftUpperLeg, b.leftLowerLeg, frame.leftKnee, frame.leftFootWorld, frame.forward.clone().addScaledVector(UP, 0.18).normalize(), 0.9 * ik, 1.0 * ik);
   twistBone(b.leftUpperLeg, frame.forward, -0.035 * ik);
-  setHandBasis(
-    b.leftFoot,
-    frame.side,
-    UP,
-    frame.forward,
-    -0.02 * ik,
-    cfg.footLockStrength * cfg.shootFootPlantRollStrength * ik
-  );
+  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.02 * ik, cfg.footLockStrength * ik);
   aimTwoBone(b.rightUpperLeg, b.rightLowerLeg, frame.rightKnee, frame.rightFootWorld, frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(), 0.9 * ik, 1.0 * ik);
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
-  setHandBasis(
-    b.rightFoot,
-    frame.side,
-    UP,
-    frame.forward,
-    0.02 * ik,
-    cfg.footLockStrength * cfg.shootFootPlantRollStrength * ik
-  );
+  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, cfg.footLockStrength * ik);
 }
 
 export function updateHumanPose(human, dt, frameData) {
@@ -807,13 +780,8 @@ export function updateHumanPose(human, dt, frameData) {
   const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
-  const plantedFootY = cfg.groundY + cfg.footGroundY;
   const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
   const rightFoot = local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t));
-  // Hard-lock the IK foot targets back to the table-floor plane after yaw/local
-  // transforms, so upper-body shooting lean cannot pull either shoe upward.
-  leftFoot.y = plantedFootY;
-  rightFoot.y = plantedFootY;
 
   const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
@@ -862,7 +830,6 @@ export function updateHumanPose(human, dt, frameData) {
     forward,
     side,
     up: UP,
-    upperBodySideSign: counterLeanSide,
     rootWorld,
     torsoCenterWorld: torso,
     chestCenterWorld: chest,
