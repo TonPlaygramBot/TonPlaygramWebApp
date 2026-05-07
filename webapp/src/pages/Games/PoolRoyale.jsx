@@ -2367,7 +2367,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 42.0; // make the shooter ~4x larger than the previous size for portrait-phone readability
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 45.0; // make the shooter slightly larger for portrait-phone readability
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -2377,7 +2377,7 @@ const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
 const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
-const HUMAN_SHOOT_BLEND_THRESHOLD = 0.84; // enter shooting pose as soon as the portrait cue camera starts lowering
+const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
@@ -4629,8 +4629,8 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.8; // slightly denser weave so cloth pattern appears a bit smaller
-const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
+const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal cloth pattern footprint exactly
+const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
@@ -25915,7 +25915,7 @@ const shotPowerRef = useRef(0);
           if (isReplay) mode = 'idle';
           else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
-          else if (isHumanShooter && (hasAim || loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
+          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
           if (human) {
