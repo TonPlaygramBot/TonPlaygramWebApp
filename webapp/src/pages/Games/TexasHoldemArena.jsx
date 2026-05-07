@@ -46,6 +46,10 @@ import {
 } from '../../utils/textToSpeech.js';
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
+import {
+  createTexasHoldemSeatedHuman,
+  updateTexasHoldemSeatedHumans
+} from '../../utils/texasHoldemSeatedHumans.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -5016,6 +5020,9 @@ function TexasHoldemArena({ search }) {
           potDropPiles: [],
           potDropCount: 0
         };
+        const seatedHuman = createTexasHoldemSeatedHuman({ seat: seatGroup, seatIndex });
+        seatGroup.seatedHuman = seatedHuman;
+        arenaGroup.add(seatedHuman.root);
         seatGroups.push(seatGroup);
 
         const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
@@ -5540,6 +5547,7 @@ function TexasHoldemArena({ search }) {
         lastFrameRef.current = time - Math.max(0, deltaMs - appliedMs);
         const deltaSeconds = Math.max(0, Math.min(0.1, appliedMs / 1000));
         three.chipFactory.update(deltaSeconds);
+        updateTexasHoldemSeatedHumans(three.seatGroups, time);
         headAnglesRef.current.pitch = 0;
         applyHeadOrientation();
         three.renderer.render(three.scene, three.camera);
@@ -5614,6 +5622,7 @@ function TexasHoldemArena({ search }) {
             seat.foldBadge.userData?.dispose?.();
             seat.foldBadge.parent?.remove(seat.foldBadge);
           }
+          seat.seatedHuman?.dispose?.();
           seat.group?.parent?.remove(seat.group);
         });
         community.forEach((mesh) => {
@@ -5761,6 +5770,7 @@ function TexasHoldemArena({ search }) {
             .addScaledVector(pileForward, foldedOrder * FOLD_PILE_CARD_GAP);
           const pileLookTarget = pilePosition.clone().add(pileForward);
           if (player.folded && !(prevPlayer?.folded)) {
+            seat.seatedHuman?.setAction?.('fold', FOLD_TO_PILE_ANIMATION_MS + 180);
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
             mesh.position.copy(pilePosition);
@@ -5857,6 +5867,7 @@ function TexasHoldemArena({ search }) {
       const prevBet = seat.lastBet ?? 0;
       const betDelta = Math.max(0, bet - prevBet);
       if (betDelta > 0 && arenaGroup) {
+        seat.seatedHuman?.setAction?.('chip', 820);
         const applyPotGain = (value) => {
           potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
           const targetPile = potSeatStacks?.[idx];
