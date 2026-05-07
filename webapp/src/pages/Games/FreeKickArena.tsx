@@ -7,9 +7,11 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 
 type AnimName = 'Idle' | 'Walk' | 'Run';
-type ShotState = 'aim' | 'runup' | 'flight' | 'var' | 'replay' | 'result';
+type ShotState = 'aim' | 'runup' | 'keeperAim' | 'aiRunup' | 'flight' | 'var' | 'replay' | 'result';
 type KickSpot = 'left' | 'center' | 'right' | 'near16';
 type ActorKind = 'kicker' | 'keeper' | 'wall';
+type ShotPhase = 'userShoot' | 'aiShoot' | 'finished';
+type TeamKey = 'blue' | 'red';
 type Decision = 'GOAL' | 'NO GOAL' | 'SAVE' | 'BLOCKED' | 'MISS';
 
 type Bones = {
@@ -78,7 +80,7 @@ type SwipeState = {
   startY: number;
   endX: number;
   endY: number;
-  mode?: 'shot' | 'camera';
+  mode?: 'shot' | 'camera' | 'keeper';
   moved?: boolean;
   viewportW?: number;
   viewportH?: number;
@@ -158,7 +160,8 @@ const MURLAN_CHARACTER_COLORS = [
 ];
 const CAMERA_YAW_LIMIT = 0.86;
 const CAMERA_DRAG_DEADZONE = 8;
-const MIN_SHOT_SWIPE_PX = 34;
+const MIN_SHOT_SWIPE_PX = 78;
+const MIN_KEEPER_SWIPE_PX = 28;
 const REPLAY_SLOWDOWN = 0.48;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
@@ -166,6 +169,17 @@ const SPECTATOR_SCALE = 0.5;
 const SPECTATOR_FALLBACK_SCALE = 0.56;
 const SPECTATOR_SEAT_Y = 0.17;
 const SPECTATOR_SEAT_Z = 0.14;
+const TEAM_KITS: Record<TeamKey, { primary: number; secondary: number; shorts: number; shoes: number; name: string }> = {
+  blue: { primary: 0x1d69ff, secondary: 0xffffff, shorts: 0x102a6b, shoes: 0xffffff, name: 'Blue' },
+  red: { primary: 0xdc2626, secondary: 0xfacc15, shorts: 0x7f1d1d, shoes: 0x111827, name: 'Red' }
+};
+const POLYHAVEN_TEXTURES = {
+  // Poly Haven CC0 texture files used as lightweight 1K maps for uniforms/shoes.
+  fabricBlue: 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/terlenka/terlenka_diff_1k.png',
+  fabricRed: 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.png',
+  shoeLeather: 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/leather_white/leather_white_diff_1k.png'
+};
+
 const GOAL_RUSH_SOUNDS = {
   crowd: '/assets/sounds/football-crowd-3-69245.mp3',
   whistle: '/assets/sounds/metal-whistle-6121.mp3',
@@ -286,6 +300,74 @@ function makeGoalRushAudio() {
 
 function material(color: number, roughness = 0.72, metalness = 0.03) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+const TEXTURE_CACHE = new Map<string, THREE.Texture>();
+
+function polyhavenTexture(url: string, repeat = 3) {
+  let tex = TEXTURE_CACHE.get(url);
+  if (!tex) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const isRed = url.includes('fabric_pattern_07');
+    const isLeather = url.includes('leather');
+    const base = isLeather ? '#f8fafc' : isRed ? '#dc2626' : '#1d69ff';
+    const line = isLeather ? '#94a3b8' : isRed ? '#facc15' : '#dbeafe';
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = isLeather ? 0.18 : 0.28;
+    for (let i = -128; i < 256; i += isLeather ? 9 : 12) {
+      ctx.strokeStyle = line;
+      ctx.lineWidth = isLeather ? 2 : 3;
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + 128, 128);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(i + 128, 0);
+      ctx.lineTo(i, 128);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.18;
+    for (let i = 0; i < 128; i += 8) {
+      ctx.fillStyle = i % 16 ? '#ffffff' : '#000000';
+      ctx.fillRect(0, i, 128, 1);
+      ctx.fillRect(i, 0, 1, 128);
+    }
+    tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeat, repeat);
+    tex.anisotropy = 8;
+    TEXTURE_CACHE.set(url, tex);
+  }
+  return tex;
+}
+
+function texturedMaterial(
+  color: number,
+  textureUrl: string,
+  repeat = 3,
+  roughness = 0.66,
+  metalness = 0.02
+) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    map: polyhavenTexture(textureUrl, repeat),
+    roughness,
+    metalness
+  });
+}
+
+function kitForTeam(team: TeamKey) {
+  return TEAM_KITS[team];
+}
+
+function teamTexture(team: TeamKey) {
+  return team === 'blue' ? POLYHAVEN_TEXTURES.fabricBlue : POLYHAVEN_TEXTURES.fabricRed;
 }
 
 function shadow<T extends THREE.Object3D>(object: T) {
@@ -605,12 +687,16 @@ function tintModel(
   model: THREE.Object3D,
   kind: ActorKind,
   index = 0,
-  kitColor?: number
+  kitColor?: number,
+  team: TeamKey = index % 2 ? 'red' : 'blue'
 ) {
+  const kit = kitForTeam(team);
   const color =
     kind === 'keeper'
       ? new THREE.Color(0x111111)
-      : new THREE.Color(kitColor ?? (kind === 'kicker' ? 0x1d69ff : 0xfacc15));
+      : new THREE.Color(kitColor ?? kit.primary);
+  const fabricMap = polyhavenTexture(teamTexture(team), 5);
+  const shoeMap = polyhavenTexture(POLYHAVEN_TEXTURES.shoeLeather, 4);
   model.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -618,42 +704,54 @@ function tintModel(
     mats.forEach((raw) => {
       const m = raw as THREE.MeshStandardMaterial;
       if (m.color) {
-        m.color.lerp(color, 0.36);
-        if (kind === 'wall')
-          m.color.lerp(new THREE.Color(index % 2 ? 0x174ea6 : 0xfacc15), 0.18);
+        const meshName = cleanName(mesh.name);
+        const materialName = cleanName(m.name || '');
+        const label = `${meshName}${materialName}`;
+        const isSkin = label.includes('skin') || label.includes('head') || label.includes('face') || label.includes('hand');
+        const isHair = label.includes('hair');
+        const isShoe = label.includes('shoe') || label.includes('boot') || label.includes('foot');
+        if (isSkin) m.color.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.28);
+        else if (isHair) m.color.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.46);
+        else if (isShoe) {
+          m.color.lerp(new THREE.Color(kit.shoes), 0.55);
+          m.map = shoeMap;
+        } else {
+          m.color.copy(color);
+          m.map = fabricMap;
+          if (kind === 'wall') m.color.lerp(new THREE.Color(kit.secondary), 0.16);
+        }
       }
+      m.roughness = Math.max(m.roughness ?? 0.5, 0.62);
       m.needsUpdate = true;
     });
   });
 }
 
-function makeFallback(kind: ActorKind, index = 0, kitColor?: number) {
+function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamKey = index % 2 ? 'red' : 'blue') {
   const group = new THREE.Group();
-  const kit =
-    kind === 'keeper'
-      ? 0x111111
-      : (kitColor ?? (kind === 'kicker' ? 0x1d69ff : 0xfacc15));
+  const teamKit = kitForTeam(team);
+  const kit = kind === 'keeper' ? 0x111111 : (kitColor ?? teamKit.primary);
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.19, 0.72, 8, 14),
-    material(kit)
+    texturedMaterial(kit, teamTexture(team), 4)
   );
   torso.name = 'torso';
   torso.position.y = 1.05;
   const stripe = new THREE.Mesh(
     new THREE.BoxGeometry(0.28, 0.06, 0.02),
-    material(kind === 'wall' ? 0x174ea6 : 0xffffff)
+    material(teamKit.secondary)
   );
   stripe.name = 'stripe';
   stripe.position.set(0, 1.25, -0.16);
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.13, 18, 12),
-    material(0xf1d6bd)
+    texturedMaterial(index % 3 ? 0xd6a06f : 0xf1d6bd, POLYHAVEN_TEXTURES.fabricBlue, 7)
   );
   head.name = 'head';
   head.position.y = 1.62;
   const leftLeg = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.06, 0.64, 6, 10),
-    material(0x202020)
+    texturedMaterial(teamKit.shorts, teamTexture(team), 5)
   );
   leftLeg.name = 'leftLeg';
   const rightLeg = leftLeg.clone();
@@ -662,13 +760,30 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number) {
   rightLeg.position.set(0.09, 0.42, 0);
   const leftArm = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.045, 0.52, 6, 10),
-    material(0xdddddd)
+    texturedMaterial(teamKit.primary, teamTexture(team), 4)
   );
   leftArm.name = 'leftArm';
   const rightArm = leftArm.clone();
   rightArm.name = 'rightArm';
   leftArm.position.set(-0.25, 1.05, 0.01);
   rightArm.position.set(0.25, 1.05, 0.01);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), material(index % 2 ? 0x2b170f : 0x111111));
+  hair.name = 'hair';
+  hair.position.set(0, 1.7, -0.01);
+  const eyeMat = material(0x050505, 0.38, 0.02);
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), eyeMat);
+  leftEye.name = 'leftEye';
+  const rightEye = leftEye.clone();
+  rightEye.name = 'rightEye';
+  leftEye.position.set(-0.045, 1.635, -0.118);
+  rightEye.position.set(0.045, 1.635, -0.118);
+  const shoeMat = texturedMaterial(teamKit.shoes, POLYHAVEN_TEXTURES.shoeLeather, 4, 0.52, 0.05);
+  const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.055, 0.22), shoeMat);
+  leftShoe.name = 'leftShoe';
+  const rightShoe = leftShoe.clone();
+  rightShoe.name = 'rightShoe';
+  leftShoe.position.set(-0.09, 0.08, -0.035);
+  rightShoe.position.set(0.09, 0.08, -0.035);
   group.add(
     shadow(torso),
     shadow(stripe),
@@ -676,7 +791,12 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number) {
     shadow(leftLeg),
     shadow(rightLeg),
     shadow(leftArm),
-    shadow(rightArm)
+    shadow(rightArm),
+    shadow(hair),
+    shadow(leftEye),
+    shadow(rightEye),
+    shadow(leftShoe),
+    shadow(rightShoe)
   );
   return group;
 }
@@ -688,13 +808,14 @@ function createActor(
   pos: THREE.Vector3,
   index = 0,
   kitColor?: number,
-  modelUrl = HUMAN_URL
+  modelUrl = HUMAN_URL,
+  team: TeamKey = index % 2 ? 'red' : 'blue'
 ): Actor {
   const root = new THREE.Group();
   root.position.copy(pos).setY(GROUND_Y);
   scene.add(root);
 
-  const fallback = makeFallback(kind, index, kitColor);
+  const fallback = makeFallback(kind, index, kitColor, team);
   root.add(fallback);
 
   const actor: Actor = {
@@ -729,7 +850,7 @@ function createActor(
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, kind === 'keeper' ? 1.9 : PLAYER_H);
-      tintModel(model, kind, index, kitColor);
+      tintModel(model, kind, index, kitColor, team);
       shadow(model);
       root.add(model);
       fallback.visible = false;
@@ -763,7 +884,7 @@ function createActor(
       loader.setCrossOrigin('anonymous').load(HUMAN_URL, (gltf) => {
         const model = gltf.scene;
         normalizeHuman(model, kind === 'keeper' ? 1.9 : PLAYER_H);
-        tintModel(model, kind, index, kitColor);
+        tintModel(model, kind, index, kitColor, team);
         shadow(model);
         root.add(model);
         fallback.visible = false;
@@ -794,6 +915,34 @@ function createActor(
   );
 
   return actor;
+}
+
+
+function applyTeamUniform(actor: Actor, team: TeamKey) {
+  const kit = kitForTeam(team);
+  const color = actor.kind === 'keeper' ? (team === 'blue' ? 0x0f172a : 0x111111) : kit.primary;
+  actor.fallback.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((raw) => {
+      const matRef = raw as THREE.MeshStandardMaterial;
+      if (!matRef?.color) return;
+      const name = cleanName(mesh.name);
+      if (name.includes('torso') || name.includes('arm')) {
+        matRef.color.set(color);
+        matRef.map = polyhavenTexture(teamTexture(team), 4);
+      } else if (name.includes('leg')) {
+        matRef.color.set(kit.shorts);
+        matRef.map = polyhavenTexture(teamTexture(team), 4);
+      } else if (name.includes('shoe')) {
+        matRef.color.set(kit.shoes);
+        matRef.map = polyhavenTexture(POLYHAVEN_TEXTURES.shoeLeather, 4);
+      }
+      matRef.needsUpdate = true;
+    });
+  });
+  if (actor.model) tintModel(actor.model, actor.kind, actor.wallIndex, color, team);
 }
 
 function setAction(actor: Actor, next: AnimName) {
@@ -940,16 +1089,17 @@ function applyKeeperPose(keeper: Actor) {
   }
 }
 
-function createSeatedFallbackSpectator(color: number) {
+function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
   const group = new THREE.Group();
   group.name = 'murlan-seated-fallback';
   group.scale.setScalar(SPECTATOR_FALLBACK_SCALE);
   group.position.set(0, SPECTATOR_SEAT_Y, SPECTATOR_SEAT_Z);
 
-  const shirt = material(color, 0.72, 0.02);
+  const teamKit = kitForTeam(team);
+  const shirt = texturedMaterial(color, teamTexture(team), 4, 0.72, 0.02);
   const skin = material(0xf1d6bd, 0.7, 0.02);
-  const dark = material(0x171717, 0.68, 0.03);
-  const sleeve = material(0xe5e7eb, 0.68, 0.02);
+  const dark = texturedMaterial(teamKit.shorts, teamTexture(team), 4, 0.68, 0.03);
+  const sleeve = texturedMaterial(teamKit.primary, teamTexture(team), 4, 0.68, 0.02);
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.18, 0.54, 8, 12),
     shirt
@@ -995,6 +1145,21 @@ function createSeatedFallbackSpectator(color: number) {
     THREE.MathUtils.degToRad(6),
     THREE.MathUtils.degToRad(8)
   );
+  const hair = new THREE.Mesh(
+    new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48),
+    material(0x171717)
+  );
+  hair.position.set(0, 1.3, -0.11);
+  const eyeMat = material(0x050505, 0.38, 0.02);
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeMat);
+  const rightEye = leftEye.clone();
+  leftEye.position.set(-0.043, 1.23, -0.213);
+  rightEye.position.set(0.043, 1.23, -0.213);
+  const shoeMat = texturedMaterial(teamKit.shoes, POLYHAVEN_TEXTURES.shoeLeather, 4, 0.52, 0.05);
+  const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.05, 0.2), shoeMat);
+  const rightShoe = leftShoe.clone();
+  leftShoe.position.set(-0.085, 0.08, 0.58);
+  rightShoe.position.set(0.085, 0.08, 0.58);
   group.add(
     shadow(torso),
     shadow(head),
@@ -1003,7 +1168,12 @@ function createSeatedFallbackSpectator(color: number) {
     shadow(leftCalf),
     shadow(rightCalf),
     shadow(leftArm),
-    shadow(rightArm)
+    shadow(rightArm),
+    shadow(hair),
+    shadow(leftEye),
+    shadow(rightEye),
+    shadow(leftShoe),
+    shadow(rightShoe)
   );
   return group;
 }
@@ -1024,7 +1194,8 @@ function attachMurlanSeatedSpectator(
   loader: GLTFLoader,
   characterTheme: any,
   index: number,
-  kitColor: number
+  kitColor: number,
+  team: TeamKey
 ): SeatedSpectator {
   const root = new THREE.Group();
   root.name = `murlan-seated-spectator-${index}`;
@@ -1036,11 +1207,10 @@ function attachMurlanSeatedSpectator(
     0
   );
 
-  // Crowd supporters are GLTF-only. Keep an empty hidden placeholder so pose code
-  // can share the same shape without adding any procedural human meshes to seats.
-  const fallback = new THREE.Group();
+  // A textured fallback appears immediately, then the GLTF supporter inherits the same 50/50 team kit when loaded.
+  const fallback = createSeatedFallbackSpectator(kitColor, team);
   fallback.name = 'gltf-seated-supporter-placeholder';
-  fallback.visible = false;
+  fallback.visible = true;
   const spectator: SeatedSpectator = {
     root,
     fallback,
@@ -1067,8 +1237,21 @@ function attachMurlanSeatedSpectator(
           : [mesh.material];
         mats.forEach((raw) => {
           const matRef = raw as THREE.MeshStandardMaterial;
+          if (!matRef) return;
+          const label = `${cleanName(mesh.name)}${cleanName(matRef.name || '')}`;
+          if (label.includes('shoe') || label.includes('boot') || label.includes('foot')) {
+            matRef.color?.lerp(new THREE.Color(kitForTeam(team).shoes), 0.52);
+            matRef.map = polyhavenTexture(POLYHAVEN_TEXTURES.shoeLeather, 4);
+          } else if (label.includes('skin') || label.includes('face') || label.includes('head') || label.includes('hand')) {
+            matRef.color?.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.25);
+          } else if (label.includes('hair')) {
+            matRef.color?.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.5);
+          } else {
+            matRef.color?.set(kitColor);
+            matRef.map = polyhavenTexture(teamTexture(team), 5);
+          }
           if (matRef?.map) matRef.map.colorSpace = THREE.SRGBColorSpace;
-          if (matRef) matRef.needsUpdate = true;
+          matRef.needsUpdate = true;
         });
       });
       normalizeCharacterPivot(instance);
@@ -1654,10 +1837,8 @@ function makeBillboardsAndStands(
         row < SPECTATOR_ROWS_FILLED &&
         rowSpectators < SPECTATORS_PER_ROW_TARGET;
       if (shouldSeatHuman) {
-        const kit =
-          MURLAN_CHARACTER_COLORS[
-            characterIndex % MURLAN_CHARACTER_COLORS.length
-          ];
+        const supporterTeam: TeamKey = characterIndex % 2 === 0 ? 'blue' : 'red';
+        const kit = kitForTeam(supporterTeam).primary;
         const characterTheme = MURLAN_CHARACTER_THEMES[
           characterIndex % Math.max(1, MURLAN_CHARACTER_THEMES.length)
         ] ?? { url: HUMAN_URL, scale: 1 };
@@ -1667,7 +1848,8 @@ function makeBillboardsAndStands(
             loader,
             characterTheme,
             characterIndex,
-            kit
+            kit,
+            supporterTeam
           )
         );
         characterIndex += 1;
@@ -1879,6 +2061,56 @@ function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) {
   );
   return { target, curve, lift, power, duration };
 }
+
+function makeSwipeForTarget(
+  targetX: number,
+  targetY: number,
+  viewportW = 390,
+  viewportH = 780,
+  powerBoost = 1
+): SwipeState {
+  const screenScale = THREE.MathUtils.clamp(viewportW / 390, 0.82, 1.35);
+  const heightScale = THREE.MathUtils.clamp(viewportH / 780, 0.82, 1.35);
+  const startX = viewportW * 0.5;
+  const startY = viewportH * 0.72;
+  const endX = startX + targetX * 46 * screenScale;
+  const endY = startY - Math.max(0.2, targetY - 0.24) * 106 * heightScale - powerBoost * 36;
+  return {
+    active: false,
+    startX,
+    startY,
+    endX,
+    endY,
+    mode: 'shot',
+    moved: true,
+    viewportW,
+    viewportH
+  };
+}
+
+function randomAiShotSwipe(viewportW = 390, viewportH = 780) {
+  const targetX = THREE.MathUtils.randFloatSpread(GOAL_W - 0.75);
+  const targetY = THREE.MathUtils.randFloat(0.55, GOAL_H - 0.18);
+  return makeSwipeForTarget(targetX, targetY, viewportW, viewportH, THREE.MathUtils.randFloat(0.4, 1.1));
+}
+
+function setKeeperDiveFromSwipe(keeper: Actor, swipe: SwipeState) {
+  const dx = swipe.endX - swipe.startX;
+  const dy = swipe.startY - swipe.endY;
+  const distance = Math.hypot(dx, dy);
+  if (distance < MIN_KEEPER_SWIPE_PX) return false;
+  const side = dx < -12 ? -1 : dx > 12 ? 1 : 0;
+  const height = THREE.MathUtils.clamp(0.58 + Math.max(0, dy) / 150, 0.62, 1.95);
+  keeper.diveDir = side;
+  keeper.saveTargetX = THREE.MathUtils.clamp((dx / Math.max(1, swipe.viewportW ?? 390)) * GOAL_W, -2.9, 2.9);
+  keeper.saveTargetY = height;
+  keeper.saveTargetZ = GOAL_LINE_Z + 0.1;
+  keeper.diveHeight = height;
+  keeper.diveDelay = 0;
+  keeper.diveTime = 0.9;
+  return true;
+}
+
 function setAimCurve(
   line: THREE.Line,
   ballPos: THREE.Vector3,
@@ -2376,25 +2608,34 @@ function catchBallInNet(ball: BallState, netRig: NetRig) {
   triggerNetShake(netRig, ball.object.position.clone());
 }
 
+function cameraFrameForShot(kicker: Actor, cameraYaw = 0) {
+  const goalLook = new THREE.Vector3(0, 1.34, GOAL_LINE_Z + 0.4);
+  const toGoal = goalLook.clone().sub(kicker.pos).setY(0).normalize();
+  const baseBehind = kicker.pos
+    .clone()
+    .addScaledVector(toGoal, -5.9)
+    .add(new THREE.Vector3(0, 2.05, 0));
+  const offset = baseBehind
+    .clone()
+    .sub(kicker.pos)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw * 0.45);
+  const position = kicker.pos.clone().add(offset);
+  const lookPoint = new THREE.Vector3(
+    kicker.pos.x * 0.18,
+    1.2,
+    THREE.MathUtils.lerp(kicker.pos.z, GOAL_LINE_Z + 0.25, 0.72)
+  );
+  return { position, lookPoint };
+}
+
 function placeCameraForNextShot(
   camera: THREE.PerspectiveCamera,
   kicker: Actor,
   cameraYaw = 0
 ) {
-  const lookPoint = new THREE.Vector3(0, 1.22, GOAL_LINE_Z + 0.25);
-  const behindOffset = new THREE.Vector3(
-    kicker.pos.x * 0.45,
-    0,
-    kicker.pos.z + 2.85
-  )
-    .sub(new THREE.Vector3(lookPoint.x, 0, lookPoint.z))
-    .applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-  camera.position.set(
-    lookPoint.x + behindOffset.x,
-    1.22,
-    lookPoint.z + behindOffset.z
-  );
-  camera.lookAt(lookPoint);
+  const frame = cameraFrameForShot(kicker, cameraYaw);
+  camera.position.copy(frame.position);
+  camera.lookAt(frame.lookPoint);
 }
 
 export default function FreeKickGame() {
@@ -2411,9 +2652,12 @@ export default function FreeKickGame() {
   const [replaySkippable, setReplaySkippable] = useState(false);
   const [hud, setHud] = useState({
     goals: 0,
-    saves: 0,
+    aiGoals: 0,
+    userShots: 0,
+    aiShots: 0,
+    phase: 'userShoot' as ShotPhase,
     spot: 'center' as KickSpot,
-    state: 'Swipe to aim and shoot'
+    state: 'You shoot first: swipe up toward the goal'
   });
   useEffect(() => {
     const host = hostRef.current;
@@ -2440,20 +2684,16 @@ export default function FreeKickGame() {
     hideAimLine(aimLine);
     const ball = makeBall(scene);
     const audio = makeGoalRushAudio();
-    const characterColors = shuffledCharacterColors();
-    const characterUrls = shuffledCharacterUrls();
-    const actorKitColor = (index: number) =>
-      characterColors[index % characterColors.length];
-    const actorModelUrl = (index: number) =>
-      characterUrls[index % characterUrls.length] ?? HUMAN_URL;
+    const actorModelUrl = (_index: number) => HUMAN_URL;
     const kicker = createActor(
       scene,
       loader,
       'kicker',
       new THREE.Vector3(0, 0, 6),
       0,
-      actorKitColor(0),
-      actorModelUrl(0)
+      kitForTeam('blue').primary,
+      actorModelUrl(0),
+      'blue'
     );
     const keeper = createActor(
       scene,
@@ -2461,8 +2701,9 @@ export default function FreeKickGame() {
       'keeper',
       new THREE.Vector3(0, 0, GOAL_LINE_Z + 0.36),
       0,
-      actorKitColor(1),
-      actorModelUrl(1)
+      kitForTeam('red').primary,
+      actorModelUrl(1),
+      'red'
     );
     const wall = Array.from({ length: 5 }, (_, i) =>
       createActor(
@@ -2471,8 +2712,9 @@ export default function FreeKickGame() {
         'wall',
         new THREE.Vector3(0, 0, 0),
         i,
-        actorKitColor(i + 2),
-        actorModelUrl(i + 2)
+        kitForTeam('red').primary,
+        actorModelUrl(i + 2),
+        'red'
       )
     );
     let spot: KickSpot = 'center';
@@ -2489,8 +2731,55 @@ export default function FreeKickGame() {
     let goalReplayAwarded = false;
     let cameraYaw = 0;
     const replayFrames: ReplayFrame[] = [];
-    let score = { goals: 0, saves: 0 };
+    let match = { phase: 'userShoot' as ShotPhase, userShots: 0, aiShots: 0, userGoals: 0, aiGoals: 0 };
+    let aiShotTimer = 0;
+    let activeShooter: 'user' | 'ai' = 'user';
+    let attemptRecorded = false;
+    const syncHudScore = (stateText: string) => {
+      setHud((h) => ({
+        ...h,
+        goals: match.userGoals,
+        aiGoals: match.aiGoals,
+        userShots: match.userShots,
+        aiShots: match.aiShots,
+        phase: match.phase,
+        state: stateText
+      }));
+    };
+    const configureActorsForPhase = () => {
+      if (match.phase === 'aiShoot') {
+        applyTeamUniform(kicker, 'red');
+        applyTeamUniform(keeper, 'blue');
+        wall.forEach((w) => applyTeamUniform(w, 'blue'));
+      } else {
+        applyTeamUniform(kicker, 'blue');
+        applyTeamUniform(keeper, 'red');
+        wall.forEach((w) => applyTeamUniform(w, 'red'));
+      }
+    };
+    const recordAttempt = (decision: Decision) => {
+      if (attemptRecorded) return;
+      attemptRecorded = true;
+      if (activeShooter === 'user') {
+        match.userShots += 1;
+        if (decision === 'GOAL') match.userGoals += 1;
+        if (match.userShots >= 5) match.phase = 'aiShoot';
+      } else {
+        match.aiShots += 1;
+        if (decision === 'GOAL') match.aiGoals += 1;
+        if (match.aiShots >= 5) match.phase = 'finished';
+      }
+    };
+    const nextStatusText = () => {
+      if (match.phase === 'finished') {
+        const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
+        return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
+      }
+      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · you are goalkeeper, swipe to jump`;
+      return `Your shot ${match.userShots + 1}/5 · swipe up to shoot`;
+    };
     spot = randomKickSpot();
+    configureActorsForPhase();
     resetShot(ball, kicker, keeper, wall, spot);
     placeCameraForNextShot(camera, kicker, cameraYaw);
     const resize = () => {
@@ -2512,12 +2801,12 @@ export default function FreeKickGame() {
         startY: e.clientY,
         endX: e.clientX,
         endY: e.clientY,
-        mode: state === 'aim' ? 'shot' : 'camera',
+        mode: state === 'aim' && match.phase === 'userShoot' ? 'shot' : state === 'keeperAim' || (state === 'flight' && activeShooter === 'ai') ? 'keeper' : 'camera',
         moved: false,
         viewportW: rect.width,
         viewportH: rect.height
       };
-      if (state === 'aim')
+      if (state === 'aim' && match.phase === 'userShoot')
         setAimCurve(aimLine, ball.object.position, swipeRef.current);
     };
     const onMove = (e: PointerEvent) => {
@@ -2526,10 +2815,16 @@ export default function FreeKickGame() {
       const totalDy = e.clientY - swipeRef.current.startY;
       const moved = Math.hypot(totalDx, totalDy) > CAMERA_DRAG_DEADZONE;
       if (moved) swipeRef.current.moved = true;
+      if (swipeRef.current.mode === 'keeper') {
+        swipeRef.current.endX = e.clientX;
+        swipeRef.current.endY = e.clientY;
+        if (setKeeperDiveFromSwipe(keeper, swipeRef.current))
+          setHud((h) => ({ ...h, state: 'Keeper committed — dive tracks your swipe' }));
+        return;
+      }
       if (
         state !== 'aim' ||
-        (Math.abs(totalDx) > Math.abs(totalDy) * 1.55 &&
-          Math.abs(totalDx) > CAMERA_DRAG_DEADZONE)
+        match.phase !== 'userShoot'
       ) {
         swipeRef.current.mode = 'camera';
         hideAimLine(aimLine);
@@ -2550,7 +2845,14 @@ export default function FreeKickGame() {
     };
     const onUp = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
-      if (swipeRef.current.mode === 'camera' || state !== 'aim') {
+      if (swipeRef.current.mode === 'keeper') {
+        swipeRef.current.endX = e.clientX;
+        swipeRef.current.endY = e.clientY;
+        setKeeperDiveFromSwipe(keeper, swipeRef.current);
+        swipeRef.current.active = false;
+        return;
+      }
+      if (swipeRef.current.mode === 'camera' || state !== 'aim' || match.phase !== 'userShoot') {
         swipeRef.current.active = false;
         hideAimLine(aimLine);
         return;
@@ -2563,13 +2865,16 @@ export default function FreeKickGame() {
       );
       swipeRef.current.active = false;
       hideAimLine(aimLine);
-      if (shotDistance < MIN_SHOT_SWIPE_PX) {
+      const shotUp = swipeRef.current.startY - swipeRef.current.endY;
+      const shotSide = Math.abs(swipeRef.current.endX - swipeRef.current.startX);
+      if (shotDistance < MIN_SHOT_SWIPE_PX || shotUp < 48 || shotUp < shotSide * 0.42) {
         setHud((h) => ({
           ...h,
-          state: 'Hold + drag sideways for camera, or swipe to shoot'
+          state: 'Swipe upward toward goal to shoot — sideways drags will not fire'
         }));
         return;
       }
+      activeShooter = 'user';
       beginRunup(kicker, wall, keeper, ball, swipeRef.current);
       shotBlocked = false;
       shotSaved = false;
@@ -2578,7 +2883,7 @@ export default function FreeKickGame() {
       goalReplayAwarded = false;
       replayFrames.length = 0;
       state = 'runup';
-      setHud((h) => ({ ...h, state: '2-step run-up...' }));
+      setHud((h) => ({ ...h, state: `Shot ${match.userShots + 1}/5: 2-step run-up...` }));
     };
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
@@ -2606,11 +2911,28 @@ export default function FreeKickGame() {
       last = now;
       if (
         state === 'aim' &&
+        match.phase === 'userShoot' &&
         swipeRef.current.active &&
         swipeRef.current.mode === 'shot'
       )
         setAimCurve(aimLine, ball.object.position, swipeRef.current);
-      if (state === 'runup') {
+      if (state === 'keeperAim') {
+        aiShotTimer -= dt;
+        if (aiShotTimer <= 0) {
+          activeShooter = 'ai';
+          swipeRef.current = randomAiShotSwipe(host.clientWidth, host.clientHeight);
+          kicker.kickTime = 0;
+          wall.forEach((w) => (w.jumpTime = 0));
+          state = 'aiRunup';
+          setHud((h) => ({ ...h, state: `AI shot ${match.aiShots + 1}/5 incoming — swipe where to jump` }));
+        }
+      }
+      if (state === 'aim' && match.phase === 'aiShoot') {
+        state = 'keeperAim';
+        aiShotTimer = 0.85;
+        setHud((h) => ({ ...h, state: `You are goalkeeper: swipe left/right/up to dive` }));
+      }
+      if (state === 'runup' || state === 'aiRunup') {
         const strikeSpot = ball.object.position
           .clone()
           .add(new THREE.Vector3(-0.24, -BALL_R, 0.42))
@@ -2639,7 +2961,7 @@ export default function FreeKickGame() {
           state = 'flight';
           setHud((h) => ({
             ...h,
-            state: 'Right-foot strike · recording replay'
+            state: activeShooter === 'ai' ? 'AI strike — swipe to save!' : 'Right-foot strike · recording replay'
           }));
         }
       } else {
@@ -2655,12 +2977,8 @@ export default function FreeKickGame() {
           audio.save();
           state = 'result';
           resultTimer = 0.38;
-          score.saves += 1;
-          setHud((h) => ({
-            ...h,
-            saves: score.saves,
-            state: 'BLOCKED · next free kick'
-          }));
+          recordAttempt('BLOCKED');
+          syncHudScore('BLOCKED · next kick');
         }
         if (!shotFinalized && !shotSaved && keeperSaveCheck(keeper, ball, dt)) {
           shotSaved = true;
@@ -2670,12 +2988,8 @@ export default function FreeKickGame() {
           audio.save();
           state = 'result';
           resultTimer = 0.42;
-          score.saves += 1;
-          setHud((h) => ({
-            ...h,
-            saves: score.saves,
-            state: 'SAVE · next free kick'
-          }));
+          recordAttempt('SAVE');
+          syncHudScore(activeShooter === 'ai' ? 'YOU SAVED IT · next kick' : 'SAVE · next kick');
         }
         if (!shotFinalized && markGoalCrossing(ball))
           setHud((h) => ({
@@ -2712,12 +3026,8 @@ export default function FreeKickGame() {
           } else {
             state = 'result';
             resultTimer = 0.45;
-            score.saves += 1;
-            setHud((h) => ({
-              ...h,
-              saves: score.saves,
-              state: `${pendingDecision} · next free kick`
-            }));
+            recordAttempt(pendingDecision);
+            syncHudScore(`${pendingDecision} · next kick`);
           }
         }
       }
@@ -2785,21 +3095,17 @@ export default function FreeKickGame() {
             audio.goal();
             triggerCrowdCheer(stadium);
             kicker.celebrateTime = 2.45;
-            score.goals += 1;
-            setHud((h) => ({
-              ...h,
-              goals: score.goals,
-              state: skipReplayRef.current
+            recordAttempt('GOAL');
+            syncHudScore(
+              skipReplayRef.current
                 ? 'Replay skipped · GOAL confirmed'
-                : 'VAR: GOAL confirmed'
-            }));
+                : activeShooter === 'ai'
+                  ? 'AI GOAL confirmed'
+                  : 'VAR: GOAL confirmed'
+            );
           } else if (pendingDecision !== 'GOAL') {
-            score.saves += 1;
-            setHud((h) => ({
-              ...h,
-              saves: score.saves,
-              state: `VAR: ${pendingDecision}`
-            }));
+            recordAttempt(pendingDecision);
+            syncHudScore(`VAR: ${pendingDecision}`);
           }
         }
       }
@@ -2808,7 +3114,16 @@ export default function FreeKickGame() {
         if (resultTimer <= 0) {
           setReplaySkippable(false);
           skipReplayRef.current = false;
+          if (match.phase === 'finished') {
+            state = 'result';
+            resultTimer = 999;
+            syncHudScore(nextStatusText());
+            return;
+          }
+          configureActorsForPhase();
           state = 'aim';
+          attemptRecorded = false;
+          activeShooter = match.phase === 'aiShoot' ? 'ai' : 'user';
           shotBlocked = false;
           shotSaved = false;
           shotFinalized = false;
@@ -2816,13 +3131,10 @@ export default function FreeKickGame() {
           goalReplayAwarded = false;
           replayFrames.length = 0;
           spot = randomKickSpot(spot);
+          cameraYaw = 0;
           resetShot(ball, kicker, keeper, wall, spot);
           placeCameraForNextShot(camera, kicker, cameraYaw);
-          setHud((h) => ({
-            ...h,
-            spot,
-            state: `Random free kick ${spot} · swipe to aim`
-          }));
+          syncHudScore(nextStatusText());
         }
       }
       if (state !== 'replay') {
@@ -2866,20 +3178,9 @@ export default function FreeKickGame() {
             .add(new THREE.Vector3(0, 0.55, 0));
           camera.lookAt(lookPoint);
         } else {
-          lookPoint.set(0, 1.22, GOAL_LINE_Z + 0.25);
-          const behindOffset = new THREE.Vector3(
-            kicker.pos.x * 0.45,
-            0,
-            kicker.pos.z + 2.85
-          )
-            .sub(new THREE.Vector3(lookPoint.x, 0, lookPoint.z))
-            .applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-          const behind = new THREE.Vector3(
-            lookPoint.x + behindOffset.x,
-            1.22,
-            lookPoint.z + behindOffset.z
-          );
-          camera.position.lerp(behind, 0.18);
+          const shotFrame = cameraFrameForShot(kicker, cameraYaw);
+          lookPoint.copy(shotFrame.lookPoint);
+          camera.position.lerp(shotFrame.position, 0.18);
           camera.lookAt(lookPoint);
         }
         if (state === 'flight' || state === 'var') recordReplayFrame(lookPoint);
@@ -2952,7 +3253,7 @@ export default function FreeKickGame() {
         }}
       >
         <div style={{ fontWeight: 900, fontSize: 18 }}>
-          GOALS {hud.goals} · SAVES {hud.saves}
+          YOU {hud.goals}/{hud.userShots} · AI {hud.aiGoals}/{hud.aiShots}
         </div>
         <div
           style={{
@@ -2980,9 +3281,7 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        Hold and drag left/right to move the camera. Swipe in the shot
-        direction: swipe length sets power and the ball follows that screen
-        trajectory.
+        User takes 5 shots first, then AI takes 5. Swipe upward to shoot; during AI shots, swipe in the direction you want the goalkeeper to jump. Sideways drags move the camera only when not aiming a shot.
       </div>
       {replaySkippable && (
         <button
