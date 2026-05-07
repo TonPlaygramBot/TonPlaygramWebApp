@@ -4632,7 +4632,6 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.92; // tighten the cloth fibres so the visible felt texture reads smaller in portrait
 const CLOTH_TEXTURE_REPEAT_HINT = 1.72;
-const POOL_ROYALE_SINGLE_CLOTH_REPEAT_SCALE = 1.45;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
@@ -4993,7 +4992,6 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const bumpData = new Uint8Array(SIZE * SIZE * 4);
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -5126,10 +5124,10 @@ const createClothTextures = (() => {
         data[idx + 1] = g;
         data[idx + 2] = b;
         data[idx + 3] = a;
-        bumpData[idx] = bumpValue;
-        bumpData[idx + 1] = bumpValue;
-        bumpData[idx + 2] = bumpValue;
-        bumpData[idx + 3] = a;
+        data[idx + 4] = bumpValue;
+        data[idx + 5] = bumpValue;
+        data[idx + 6] = bumpValue;
+        data[idx + 7] = a;
       }
     }
 
@@ -5137,7 +5135,7 @@ const createClothTextures = (() => {
     applySRGBColorSpace(colorMap);
     applyTextureDefaults(colorMap);
 
-    const bumpMap = new THREE.DataTexture(bumpData, SIZE, SIZE, THREE.RGBAFormat);
+    const bumpMap = new THREE.DataTexture(image.data, SIZE, SIZE, THREE.RGBAFormat);
     applyTextureDefaults(bumpMap);
 
     return { map: colorMap, bump: bumpMap, mapSource: 'procedural' };
@@ -9268,8 +9266,8 @@ export function Table3D(
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
   const clothPatternUpscale = isPolyHavenCloth
-    ? POOL_ROYALE_SINGLE_CLOTH_REPEAT_SCALE
-    : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE * POOL_ROYALE_SINGLE_CLOTH_REPEAT_SCALE; // use one denser small-weave cloth instead of mixing visible pattern sizes
+    ? 1
+    : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const patternOverride = resolveClothPatternOverride(clothTextureKey);
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // keep Pool Royale cloth texel density aligned with Snooker Royal
@@ -25763,7 +25761,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            shootBendDirection: -1,
+            shootBendDirection: 1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
