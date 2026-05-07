@@ -12654,24 +12654,34 @@ function getPoolRoyaleExternalUvSpan(mesh) {
   };
 }
 
-function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
+function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role, tableModel = null) {
   if (!mesh || !material || (role !== 'cloth' && role !== 'cushion')) return;
-  if (material.userData?.poolRoyaleMatchProceduralClothRepeat) return;
   const uvSpan = getPoolRoyaleExternalUvSpan(mesh);
-  if (!uvSpan) return;
+  const roleRepeatScale = role === 'cushion'
+    ? tableModel?.cushionTextureRepeatScale
+    : tableModel?.clothTextureRepeatScale;
+  const repeatScale = Number.isFinite(roleRepeatScale) && roleRepeatScale > 0
+    ? roleRepeatScale
+    : 1;
   ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
     const texture = material[prop];
     if (!texture?.repeat || texture.userData?.poolRoyaleExternalUvNormalized) return;
-    const scaleX = uvSpan.x > 1 + MICRO_EPS ? uvSpan.x : 1;
-    const scaleY = uvSpan.y > 1 + MICRO_EPS ? uvSpan.y : 1;
-    texture.repeat.set(texture.repeat.x / scaleX, texture.repeat.y / scaleY);
+    const scaleX = uvSpan?.x > 1 + MICRO_EPS ? uvSpan.x : 1;
+    const scaleY = uvSpan?.y > 1 + MICRO_EPS ? uvSpan.y : 1;
+    texture.repeat.set((texture.repeat.x / scaleX) * repeatScale, (texture.repeat.y / scaleY) * repeatScale);
     texture.userData = {
       ...(texture.userData || {}),
       poolRoyaleExternalUvNormalized: true,
-      poolRoyaleExternalUvSpan: { x: uvSpan.x, y: uvSpan.y }
+      poolRoyaleExternalUvSpan: uvSpan ? { x: uvSpan.x, y: uvSpan.y } : null,
+      poolRoyaleExternalRepeatScale: repeatScale
     };
     texture.needsUpdate = true;
   });
+  material.userData = {
+    ...(material.userData || {}),
+    poolRoyaleMatchProceduralClothRepeat: true,
+    poolRoyaleExternalRepeatScale: repeatScale
+  };
   material.needsUpdate = true;
 }
 
@@ -12782,7 +12792,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
-        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
+        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role, tableModel);
         return nextMaterial;
       }
       const mat = material.clone ? material.clone() : material;
