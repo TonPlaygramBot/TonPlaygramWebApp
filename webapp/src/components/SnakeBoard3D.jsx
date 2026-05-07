@@ -26,7 +26,6 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
-const easeInOutSine01 = (v) => -(Math.cos(Math.PI * clamp01(v)) - 1) / 2;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -87,9 +86,7 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-// Snake humans use the same seated-posture baseline as Murlan Royale, but at a
-// smaller portrait scale so they sit on the chair cushions instead of crowding the board.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.05;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
@@ -100,24 +97,6 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = -0.05;
-
-const SEATED_HUMAN_DICE_PHASES = Object.freeze({
-  reachMs: 170,
-  gripMs: 120,
-  holdMs: 130,
-  windupMs: 300,
-  releaseMs: 260,
-  followMs: 520
-});
-const SEATED_HUMAN_CAPTURE_PHASES = Object.freeze({
-  pickupMs: 220,
-  aimMs: 420,
-  shootMs: 260,
-  followMs: 520
-});
-const SEATED_HELPER_RIGHT_DICE = 0.03 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.055 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.065 * MODEL_SCALE;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1783,43 +1762,6 @@ function buildHumanBoneMap(root) {
   return map;
 }
 
-function getSeatedHumanActionMode(seatHuman, nowMs = performance.now()) {
-  const action = seatHuman?.action;
-  if (!action || !Number.isFinite(action.startMs)) return { mode: 'idle', t: 0 };
-  const elapsed = Math.max(0, nowMs - action.startMs);
-  if (action.type === 'diceThrow') {
-    const p = SEATED_HUMAN_DICE_PHASES;
-    const reachEnd = p.reachMs;
-    const gripEnd = reachEnd + p.gripMs;
-    const holdEnd = gripEnd + p.holdMs;
-    const windupEnd = holdEnd + p.windupMs;
-    const releaseEnd = windupEnd + p.releaseMs;
-    const total = releaseEnd + p.followMs;
-    if (elapsed < reachEnd) return { mode: 'reachDice', t: elapsed / p.reachMs };
-    if (elapsed < gripEnd) return { mode: 'gripDice', t: (elapsed - reachEnd) / p.gripMs };
-    if (elapsed < holdEnd) return { mode: 'holdDice', t: (elapsed - gripEnd) / p.holdMs };
-    if (elapsed < windupEnd) return { mode: 'windupDice', t: (elapsed - holdEnd) / p.windupMs };
-    if (elapsed < releaseEnd) return { mode: 'releaseDice', t: (elapsed - windupEnd) / p.releaseMs };
-    if (elapsed < total) return { mode: 'followDice', t: (elapsed - releaseEnd) / p.followMs };
-    seatHuman.action = null;
-    return { mode: 'idle', t: 0 };
-  }
-  if (action.type === 'captureShoot') {
-    const p = SEATED_HUMAN_CAPTURE_PHASES;
-    const pickupEnd = p.pickupMs;
-    const aimEnd = pickupEnd + p.aimMs;
-    const shootEnd = aimEnd + p.shootMs;
-    const total = shootEnd + p.followMs;
-    if (elapsed < pickupEnd) return { mode: 'pickupWeapon', t: elapsed / p.pickupMs };
-    if (elapsed < aimEnd) return { mode: 'aimWeapon', t: (elapsed - pickupEnd) / p.aimMs };
-    if (elapsed < shootEnd) return { mode: 'shootWeapon', t: (elapsed - aimEnd) / p.shootMs };
-    if (elapsed < total) return { mode: 'followWeapon', t: (elapsed - shootEnd) / p.followMs };
-    seatHuman.action = null;
-    return { mode: 'idle', t: 0 };
-  }
-  return { mode: 'idle', t: 0 };
-}
-
 function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman || {};
   if (!root || !rest || !bones) return;
@@ -1830,87 +1772,35 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   root.scale.setScalar(baseScale);
   const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
   const dynamicLean = activeLean * 0.04;
-  const action = getSeatedHumanActionMode(seatHuman);
-  const actionT = clamp01(action.t || 0);
-  const actionEase = easeInOutSine01(actionT);
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
   offsetModelBone(rest, bones.hips, 0, -0.62, -0.078);
 
-  // Base pose mirrors Murlan Royale's seated human rotations so chair contact and
-  // portrait-facing posture match that game's seated characters.
-  composeModelBone(rest, bones.hips, new THREE.Euler(THREE.MathUtils.degToRad(-9) - dynamicLean * 0.4, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(THREE.MathUtils.degToRad(-3) + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(THREE.MathUtils.degToRad(-3), 0, 0, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.hips,
+    new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
+  );
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine2, new THREE.Euler(0, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.neck, new THREE.Euler(THREE.MathUtils.degToRad(1), 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(THREE.MathUtils.degToRad(2), 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9), 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1), 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6), 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6), 'XYZ'));
+  // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
+  // Mirror lower-body spread inward toward the table while preserving seated location.
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.12, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
   composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
 
-  let rightArmX = THREE.MathUtils.degToRad(-57);
-  let rightArmY = THREE.MathUtils.degToRad(6);
-  let rightArmZ = THREE.MathUtils.degToRad(2);
-  let rightForeX = THREE.MathUtils.degToRad(44);
-  let rightForeY = THREE.MathUtils.degToRad(3);
-  let rightForeZ = THREE.MathUtils.degToRad(2);
-  let rightHandX = THREE.MathUtils.degToRad(13);
-  let rightHandY = THREE.MathUtils.degToRad(4);
-  let rightHandZ = THREE.MathUtils.degToRad(2);
-  let leftArmX = THREE.MathUtils.degToRad(-53);
-  let leftArmY = THREE.MathUtils.degToRad(-6);
-  let leftArmZ = THREE.MathUtils.degToRad(-2);
-  let leftForeX = THREE.MathUtils.degToRad(40);
-  let leftForeY = THREE.MathUtils.degToRad(-3);
-  let leftForeZ = THREE.MathUtils.degToRad(-2);
-  let leftHandX = THREE.MathUtils.degToRad(11);
-  let leftHandY = THREE.MathUtils.degToRad(-4);
-  let leftHandZ = THREE.MathUtils.degToRad(-2);
-
-  if (action.mode === 'reachDice' || action.mode === 'gripDice' || action.mode === 'holdDice') {
-    rightArmX = THREE.MathUtils.lerp(rightArmX, -0.92, actionEase);
-    rightArmY = THREE.MathUtils.lerp(rightArmY, -0.1, actionEase);
-    rightArmZ = THREE.MathUtils.lerp(rightArmZ, -0.58, actionEase);
-    rightForeX = THREE.MathUtils.lerp(rightForeX, -1.02, actionEase);
-    rightForeY = THREE.MathUtils.lerp(rightForeY, -0.18, actionEase);
-    rightForeZ = THREE.MathUtils.lerp(rightForeZ, 0.36, actionEase);
-    rightHandX = THREE.MathUtils.lerp(rightHandX, -0.86, actionEase);
-    rightHandY = THREE.MathUtils.lerp(rightHandY, -0.18, actionEase);
-  } else if (action.mode === 'windupDice') {
-    rightArmX = THREE.MathUtils.lerp(rightArmX, -0.48, actionEase);
-    rightArmZ = THREE.MathUtils.lerp(rightArmZ, -0.92, actionEase);
-    rightForeX = THREE.MathUtils.lerp(rightForeX, -0.42, actionEase);
-    rightHandX = THREE.MathUtils.lerp(rightHandX, -0.28, actionEase);
-  } else if (action.mode === 'releaseDice' || action.mode === 'followDice') {
-    rightArmX = THREE.MathUtils.lerp(rightArmX, -1.04, 1 - actionEase * 0.35);
-    rightArmZ = THREE.MathUtils.lerp(rightArmZ, -0.72, 1 - actionEase * 0.3);
-    rightForeX = THREE.MathUtils.lerp(rightForeX, -1.16, 1 - actionEase * 0.25);
-    rightHandX = THREE.MathUtils.lerp(rightHandX, -0.62, 1 - actionEase * 0.2);
-  } else if (action.mode === 'pickupWeapon' || action.mode === 'aimWeapon' || action.mode === 'shootWeapon' || action.mode === 'followWeapon') {
-    const aim = action.mode === 'pickupWeapon' ? actionEase : 1;
-    const recoil = action.mode === 'shootWeapon' ? Math.sin(actionT * Math.PI) * 0.18 : 0;
-    rightArmX = THREE.MathUtils.lerp(rightArmX, -1.1 + recoil, aim);
-    rightArmY = THREE.MathUtils.lerp(rightArmY, -0.04, aim);
-    rightArmZ = THREE.MathUtils.lerp(rightArmZ, -0.82, aim);
-    rightForeX = THREE.MathUtils.lerp(rightForeX, -1.0 + recoil, aim);
-    rightForeY = THREE.MathUtils.lerp(rightForeY, -0.12, aim);
-    rightForeZ = THREE.MathUtils.lerp(rightForeZ, 0.18, aim);
-    rightHandX = THREE.MathUtils.lerp(rightHandX, -0.36 + recoil, aim);
-    leftArmX = THREE.MathUtils.lerp(leftArmX, -0.92, aim);
-    leftArmY = THREE.MathUtils.lerp(leftArmY, 0.16, aim);
-    leftForeX = THREE.MathUtils.lerp(leftForeX, -0.74, aim);
-  }
-
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(leftArmX, leftArmY, leftArmZ, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(rightArmX, rightArmY, rightArmZ, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(leftForeX, leftForeY, leftForeZ, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(rightForeX, rightForeY, rightForeZ, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(leftHandX, leftHandY, leftHandZ, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(rightHandX, rightHandY, rightHandZ, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
+  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
+  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
 }
 
 function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
@@ -1927,26 +1817,6 @@ function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GRO
   if (!Number.isFinite(minFootY)) return;
   root.position.y += groundY - minFootY;
   root.updateMatrixWorld(true);
-}
-
-function createSeatedHumanActionHelpers(seatHuman) {
-  const root = seatHuman?.root;
-  const rightHand = seatHuman?.bones?.rightHand;
-  if (!root?.isObject3D) return null;
-  const helperRoot = rightHand?.isBone ? rightHand : root;
-  const diceRelease = new THREE.Object3D();
-  diceRelease.name = 'snakeDiceReleaseHelper';
-  diceRelease.position.set(SEATED_HELPER_RIGHT_DICE, SEATED_HELPER_UP_DICE_RELEASE, SEATED_HELPER_FORWARD_DICE_RELEASE);
-  helperRoot.add(diceRelease);
-  return { diceRelease };
-}
-
-function sampleSeatedHumanActionHelper(seatHuman, helperKey, out) {
-  const helper = seatHuman?.actionHelpers?.[helperKey];
-  if (!helper?.isObject3D || !out?.isVector3) return false;
-  helper.updateMatrixWorld?.(true);
-  helper.getWorldPosition(out);
-  return true;
 }
 
 
@@ -2828,17 +2698,6 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   const seatWorld = new THREE.Vector3();
   anchor.getWorldPosition(seatWorld);
-  const diceReleaseLocal = new THREE.Vector3();
-  const releaseHelperWorld = new THREE.Vector3();
-  const hasDiceReleaseHelper = sampleSeatedHumanActionHelper(
-    board.seatedHumans?.[seatIndex],
-    'diceRelease',
-    releaseHelperWorld
-  );
-  if (hasDiceReleaseHelper) {
-    diceReleaseLocal.copy(releaseHelperWorld);
-    board.root.worldToLocal(diceReleaseLocal);
-  }
 
   const diceBaseY = board.diceBaseY ?? 0;
   const centerLocal = new THREE.Vector3(0, diceBaseY, 0);
@@ -2902,15 +2761,11 @@ function computeDiceThrowLayout(board, seatIndex, count) {
       settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
     );
 
-    const start = hasDiceReleaseHelper
-      ? diceReleaseLocal.clone().addScaledVector(lateral, offset * 0.52 + lateralJitter * 0.35)
-      : centerLocal
-          .clone()
-          .addScaledVector(awayFromBoard, startDistance)
-          .addScaledVector(lateral, offset * 0.9 + lateralJitter);
-    start.y = hasDiceReleaseHelper
-      ? Math.max(diceBaseY + DICE_THROW_HEIGHT * 0.72, start.y + DICE_SIZE * 0.18)
-      : diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
+    const start = centerLocal
+      .clone()
+      .addScaledVector(awayFromBoard, startDistance)
+      .addScaledVector(lateral, offset * 0.9 + lateralJitter);
+    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
     applyAxisOffsets(start, 'start');
 
     const bounce = centerLocal
@@ -3743,11 +3598,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
           root: instance,
           bones: buildHumanBoneMap(instance),
           rest: captureModelRestPose(instance),
-          baseScale,
-          action: null,
-          actionHelpers: null
+          baseScale
         };
-        seatedHumans[seatIndex].actionHelpers = createSeatedHumanActionHelpers(seatedHumans[seatIndex]);
         applyChessBattleSeatedHumanBaseline(seatedHumans[seatIndex], seatIndex, 0, 0);
       });
     })
@@ -5451,18 +5303,15 @@ function updateSeatWeaponDisplays(board, players = []) {
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
     if (!Number.isFinite(seatIndex)) return;
     if (seatIndex < 0 || seatIndex >= anchors.length) return;
-    if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, { player, playerIndex: index });
+    if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, player);
   });
 
   for (let seatIndex = 0; seatIndex < anchors.length; seatIndex += 1) {
-    const seatPlayerEntry = playersBySeat.get(seatIndex) ?? null;
-    const player = seatPlayerEntry?.player ?? null;
-    const playerIndex = Number.isFinite(seatPlayerEntry?.playerIndex) ? seatPlayerEntry.playerIndex : seatIndex;
+    const player = playersBySeat.get(seatIndex) ?? null;
     const anchor = anchors[seatIndex];
     if (!anchor) continue;
     const holderKey = `seat-${seatIndex}`;
     keep.add(holderKey);
-    keep.add(playerIndex);
     let holder = board.weaponDisplayGroup.userData.byPlayer?.get(holderKey);
     if (!holder) {
       holder = new THREE.Group();
@@ -5471,9 +5320,6 @@ function updateSeatWeaponDisplays(board, players = []) {
       if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
       board.weaponDisplayGroup.userData.byPlayer.set(holderKey, holder);
     }
-    board.weaponDisplayGroup.userData.byPlayer.set(playerIndex, holder);
-    holder.userData.playerIndex = playerIndex;
-    holder.userData.seatIndex = seatIndex;
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
     const parkedWeaponKind = normalizeSnakeCaptureWeaponKind(parkedWeaponType);
@@ -6574,14 +6420,6 @@ export default function SnakeBoard3D({
         : 0;
       const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
       const seatIndex = seatCount > 0 ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex)) : Math.max(0, rawSeatIndex);
-      if (board.seatedHumans?.[seatIndex]) {
-        board.seatedHumans[seatIndex].action = {
-          type: 'diceThrow',
-          startMs: performance.now(),
-          diceEventId: diceEvent.id
-        };
-        applyChessBattleSeatedHumanBaseline(board.seatedHumans[seatIndex], seatIndex, performance.now() * 0.001, 0.12);
-      }
       const layout = computeDiceThrowLayout(board, seatIndex, count);
       const spacing = DICE_SIZE * 1.35;
       const centerOffset = (count - 1) / 2;
@@ -6754,18 +6592,6 @@ export default function SnakeBoard3D({
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const attackerSeatIndex = Number.isFinite(players?.[captureEvent.attackerIndex]?.seatIndex)
-      ? players[captureEvent.attackerIndex].seatIndex
-      : captureEvent.attackerIndex;
-    const seatedAttacker = board.seatedHumans?.[attackerSeatIndex];
-    if (seatedAttacker) {
-      seatedAttacker.action = {
-        type: 'captureShoot',
-        startMs: performance.now(),
-        captureEventId: captureEvent.id,
-        targetCell: captureEvent.targetCell
-      };
-    }
     const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
@@ -7060,7 +6886,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [captureEvent, onCaptureAnimationComplete, players]);
+  }, [captureEvent, onCaptureAnimationComplete]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
