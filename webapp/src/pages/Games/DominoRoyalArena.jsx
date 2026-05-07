@@ -4,14 +4,12 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-07-domino-realistic-random-humans-v3';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-07-domino-seated-humans-v2';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
   'https://api.readyplayer.me',
-  'https://avatars.readyplayer.me',
-  'https://raw.githubusercontent.com',
-  'https://dl.polyhaven.org'
+  'https://avatars.readyplayer.me'
 ]);
 
 export default function DominoRoyalArena() {

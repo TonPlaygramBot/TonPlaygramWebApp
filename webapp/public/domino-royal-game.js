@@ -7730,111 +7730,56 @@ if (typeof MutationObserver !== 'undefined') {
 }
 
 /* ---------- Domino Royal seated human characters ---------- */
-const DOMINO_CHARACTER_BASE_SEAT = Object.freeze({
-  scale: 1,
-  seatOffsetY: -0.4,
-  seatOffsetZ: 0.52,
-  handLift: 1.04
-});
 const DOMINO_CHARACTER_THEMES = Object.freeze([
   {
-    id: 'rpm-current',
-    label: 'Current Avatar',
+    id: 'rpm-current-domino',
     urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
-    clothTexture: 'bi_stretch',
-    clothTint: 0x315a9f,
-    hairColor: 0x24170f,
-    eyeColor: 0x2f6f96,
-    skinColor: 0xf2c7a5
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
   },
   {
-    id: 'rpm-67d411',
-    label: 'RPM 67d411',
+    id: 'rpm-67d411-domino',
     urls: [
       'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
       'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
     ],
-    clothTexture: 'terlenka',
-    clothTint: 0x8b5e3c,
-    hairColor: 0x120c08,
-    eyeColor: 0x5b442c,
-    skinColor: 0xd9a57f
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
   },
   {
-    id: 'rpm-67f433',
-    label: 'RPM 67f433',
+    id: 'rpm-67f433-domino',
     urls: [
       'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
       'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
     ],
-    clothTexture: 'denmin_fabric_02',
-    clothTint: 0x2e5f8f,
-    hairColor: 0x3b2417,
-    eyeColor: 0x365f39,
-    skinColor: 0xc98f63
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
   },
   {
-    id: 'rpm-67e1b5',
-    label: 'RPM 67e1b5',
+    id: 'rpm-67e1b5-domino',
     urls: [
       'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
       'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
     ],
-    clothTexture: 'fabric_leather_02',
-    clothTint: 0x5b3521,
-    hairColor: 0x0f172a,
-    eyeColor: 0x5a7cbb,
-    skinColor: 0xe0b08a
-  },
-  {
-    id: 'webgl-vietnam-human',
-    label: 'Vietnam Human',
-    urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
-    clothTexture: 'stretch_poplin',
-    clothTint: 0x6b2f72,
-    hairColor: 0x0b0b0b,
-    eyeColor: 0x45311f,
-    skinColor: 0xd69b72
-  },
-  {
-    id: 'webgl-ai-teacher',
-    label: 'AI Teacher',
-    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
-    clothTexture: 'jersey_melange',
-    clothTint: 0x374151,
-    hairColor: 0x22130b,
-    eyeColor: 0x2f4858,
-    skinColor: 0xe5b18f
-  },
-  {
-    id: 'webgl-ai-teacher-1',
-    label: 'AI Teacher 1',
-    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
-    clothTexture: 'knitted_fleece',
-    clothTint: 0x0f766e,
-    hairColor: 0x171717,
-    eyeColor: 0x6b4f2a,
-    skinColor: 0xc58a61
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
   }
-].map((theme) => Object.freeze({ ...DOMINO_CHARACTER_BASE_SEAT, ...theme })));
-const DOMINO_CHARACTER_PROPORTION_SCALE = 2.08;
-const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.7;
-const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.34;
-const DOMINO_CHARACTER_CLOTH_TEXTURES = Object.freeze({
-  bi_stretch: polyHavenTextureSet('bi_stretch', '1k'),
-  terlenka: polyHavenTextureSet('terlenka', '1k'),
-  denmin_fabric_02: polyHavenTextureSet('denmin_fabric_02', '1k'),
-  fabric_leather_02: polyHavenTextureSet('fabric_leather_02', '1k'),
-  stretch_poplin: polyHavenTextureSet('stretch_poplin', '1k'),
-  jersey_melange: polyHavenTextureSet('jersey_melange', '1k'),
-  knitted_fleece: polyHavenTextureSet('knitted_fleece', '1k')
-});
+]);
+const DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
+const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
 const DOMINO_CHARACTER_CACHE = new Map();
-const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
-let dominoCharacterThemeOrder = [];
 const dominoCharacterInstances = [];
 const dominoCharacterRigs = new Map();
 const dominoCharacterActions = [];
@@ -7850,16 +7795,6 @@ function buildDominoFallbackCharacterTemplate() {
   const dark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.84, metalness: 0.02 });
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 18), skin);
   head.position.set(0, 1.42, 0.02);
-  const hair = new THREE.Mesh(
-    new THREE.SphereGeometry(0.164, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
-    new THREE.MeshStandardMaterial({ color: 0x1f130b, roughness: 0.56, metalness: 0.01 })
-  );
-  hair.position.set(0, 1.49, -0.006);
-  const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x2f4858, roughness: 0.18, metalness: 0 });
-  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), eyeMaterial);
-  leftEye.position.set(-0.052, 1.435, 0.145);
-  const rightEye = leftEye.clone();
-  rightEye.position.x = 0.052;
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.34, 8, 18), suit);
   torso.position.set(0, 1.02, 0.01);
   torso.rotation.x = THREE.MathUtils.degToRad(-7);
@@ -7876,7 +7811,7 @@ function buildDominoFallbackCharacterTemplate() {
   const rightLeg = makeLimb(0.055, 0.56, dark);
   rightLeg.position.set(0.1, 0.48, 0.27);
   rightLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(4));
-  group.add(head, hair, leftEye, rightEye, torso, leftArm, rightArm, leftLeg, rightLeg);
+  group.add(head, torso, leftArm, rightArm, leftLeg, rightLeg);
   group.traverse((obj) => {
     if (!obj?.isMesh) return;
     obj.castShadow = true;
@@ -7975,126 +7910,6 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-function getDominoCharacterThemeForSeat(seatIndex) {
-  if (!dominoCharacterThemeOrder.length) return DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length];
-  return dominoCharacterThemeOrder[seatIndex % dominoCharacterThemeOrder.length] || DOMINO_CHARACTER_THEMES[0];
-}
-
-function reshuffleDominoCharacterThemesForSeats(seatCount = 4) {
-  const availableThemes = [...DOMINO_CHARACTER_THEMES];
-  for (let i = availableThemes.length - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [availableThemes[i], availableThemes[j]] = [availableThemes[j], availableThemes[i]];
-  }
-  dominoCharacterThemeOrder = availableThemes.slice(0, Math.max(1, Math.min(seatCount, availableThemes.length)));
-  return dominoCharacterThemeOrder;
-}
-
-function isDominoMostlyWhiteMaterial(material) {
-  if (!material?.color) return false;
-  return material.color.r > 0.82 && material.color.g > 0.82 && material.color.b > 0.82;
-}
-
-function classifyDominoCharacterSurface(obj, material) {
-  const label = `${obj?.name || ''} ${material?.name || ''}`.toLowerCase();
-  if (/eye|iris|pupil|cornea|sclera/.test(label)) return 'eye';
-  if (/hair|brow|beard|mustache|moustache|lash/.test(label)) return 'hair';
-  if (/skin|face|head|body|hand|arm|leg|neck|ear|nose|lip/.test(label)) return 'skin';
-  if (/shirt|cloth|jacket|coat|dress|suit|pant|trouser|jean|denim|skirt|shoe|boot|sock|sleeve|hoodie|top|bottom/.test(label)) return 'cloth';
-  if (isDominoMostlyWhiteMaterial(material) && !material?.map) return 'cloth';
-  return 'existing';
-}
-
-function cloneDominoCharacterTexture(texture, { isColor = false } = {}) {
-  if (!texture) return null;
-  const clone = texture.clone();
-  clone.wrapS = clone.wrapT = THREE.RepeatWrapping;
-  clone.repeat.set(2.2, 2.2);
-  clone.anisotropy = getRendererAnisotropyCap();
-  if (isColor) applySRGBColorSpace(clone);
-  clone.needsUpdate = true;
-  return clone;
-}
-
-function loadDominoCharacterTexture(url, { isColor = false } = {}) {
-  if (!url) return Promise.resolve(null);
-  const cacheKey = `${isColor ? 'color' : 'data'}:${url}`;
-  if (DOMINO_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return DOMINO_CHARACTER_TEXTURE_CACHE.get(cacheKey);
-  const promise = new Promise((resolve) => {
-    textureLoader.load(
-      url,
-      (texture) => {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(2.2, 2.2);
-        texture.anisotropy = getRendererAnisotropyCap();
-        if (isColor) applySRGBColorSpace(texture);
-        texture.needsUpdate = true;
-        resolve(texture);
-      },
-      undefined,
-      () => resolve(null)
-    );
-  });
-  DOMINO_CHARACTER_TEXTURE_CACHE.set(cacheKey, promise);
-  return promise;
-}
-
-async function loadDominoCharacterClothTextureSet(textureId) {
-  const textureSet = DOMINO_CHARACTER_CLOTH_TEXTURES[textureId];
-  if (!textureSet) return null;
-  const [map, roughnessMap, normalMap] = await Promise.all([
-    loadDominoCharacterTexture(textureSet.mapUrl, { isColor: true }),
-    loadDominoCharacterTexture(textureSet.roughnessMapUrl),
-    loadDominoCharacterTexture(textureSet.normalMapUrl)
-  ]);
-  return { map, roughnessMap, normalMap };
-}
-
-function applyDominoCharacterMaterialRole(material, role, theme, clothTextures = null) {
-  if (!material) return;
-  if (!material.color) material.color = new THREE.Color(0xffffff);
-  if (role === 'cloth') {
-    material.color.setHex(theme.clothTint ?? 0xffffff);
-    material.map = cloneDominoCharacterTexture(clothTextures?.map, { isColor: true }) || material.map;
-    material.roughnessMap = cloneDominoCharacterTexture(clothTextures?.roughnessMap) || material.roughnessMap;
-    material.normalMap = cloneDominoCharacterTexture(clothTextures?.normalMap) || material.normalMap;
-    material.roughness = 0.82;
-    material.metalness = 0.02;
-  } else if (role === 'hair') {
-    material.color.setHex(theme.hairColor ?? 0x18110a);
-    material.roughness = 0.58;
-    material.metalness = 0.01;
-  } else if (role === 'eye') {
-    material.color.setHex(theme.eyeColor ?? 0x2f4858);
-    material.roughness = 0.2;
-    material.metalness = 0.0;
-    material.envMapIntensity = Math.max(material.envMapIntensity || 0, 0.75);
-  } else if (role === 'skin' && isDominoMostlyWhiteMaterial(material) && !material.map) {
-    material.color.setHex(theme.skinColor ?? 0xf2c7a5);
-    material.roughness = 0.64;
-    material.metalness = 0.0;
-  }
-  normalizeMaterialTextures(material, getRendererAnisotropyCap());
-  material.needsUpdate = true;
-}
-
-function improveDominoCharacterMaterials(instance, theme, clothTextures = null) {
-  instance.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    const originalMats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const upgradedMats = originalMats.map((mat) => {
-      if (!mat) return mat;
-      const upgraded = mat.clone();
-      const role = classifyDominoCharacterSurface(obj, upgraded);
-      applyDominoCharacterMaterialRole(upgraded, role, theme, clothTextures);
-      return upgraded;
-    });
-    obj.material = Array.isArray(obj.material) ? upgradedMats : upgradedMats[0];
-  });
-}
-
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
   const visibleTiles = Array.isArray(handTiles) ? handTiles.slice(0, 5) : [];
@@ -8170,10 +7985,20 @@ function refreshAllDominoCharacterRacks() {
   });
 }
 
-function attachDominoCharacterToChair(template, chair, seatIndex, player, clothTextures = null) {
-  const theme = getDominoCharacterThemeForSeat(seatIndex);
+function attachDominoCharacterToChair(template, chair, seatIndex, player) {
+  const theme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
   const instance = cloneSkeleton(template);
-  improveDominoCharacterMaterials(instance, theme, clothTextures);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      [mat.map, mat.emissiveMap].filter(Boolean).forEach(applySRGBColorSpace);
+      mat.needsUpdate = true;
+    });
+  });
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
   const seatScale = (theme.scale || 1) * DOMINO_CHARACTER_PROPORTION_SCALE;
@@ -8196,7 +8021,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player, clothT
 }
 
 async function loadDominoSeatCharacterTemplate(seatIndex) {
-  const primaryTheme = getDominoCharacterThemeForSeat(seatIndex);
+  const primaryTheme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
   const fallbackTheme = DOMINO_CHARACTER_THEMES[0];
   try {
     return await loadDominoCharacterTemplate(primaryTheme);
@@ -8217,22 +8042,14 @@ async function rebuildDominoCharactersForChairs() {
   const token = ++dominoCharacterBuildToken;
   clearDominoCharacters();
   if (!ENABLE_DOMINO_SEATED_HUMANS || !chairs.length) return;
-  reshuffleDominoCharacterThemesForSeats(chairs.length);
-  const characterAssets = await Promise.all(
-    chairs.map(async (_, seatIndex) => {
-      const theme = getDominoCharacterThemeForSeat(seatIndex);
-      const [template, clothTextures] = await Promise.all([
-        loadDominoSeatCharacterTemplate(seatIndex),
-        loadDominoCharacterClothTextureSet(theme?.clothTexture)
-      ]);
-      return { template, clothTextures };
-    })
+  const templates = await Promise.all(
+    chairs.map((_, seatIndex) => loadDominoSeatCharacterTemplate(seatIndex))
   );
   if (token !== dominoCharacterBuildToken) return;
   chairs.forEach((chair, seatIndex) => {
-    const asset = characterAssets[seatIndex];
-    if (!asset?.template) return;
-    attachDominoCharacterToChair(asset.template, chair, seatIndex, players[seatIndex] || null, asset.clothTextures);
+    const template = templates[seatIndex];
+    if (!template) return;
+    attachDominoCharacterToChair(template, chair, seatIndex, players[seatIndex] || null);
   });
 }
 
