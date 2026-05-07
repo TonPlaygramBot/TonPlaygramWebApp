@@ -71,6 +71,7 @@ const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
+const SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
   fighter: 'green_metal_rust',
@@ -3244,9 +3245,13 @@ const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.116 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
+// The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
+// portrait players see over the local avatar and closer into the Ludo board/action area.
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.235 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.092 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -5599,6 +5604,196 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
+
+const SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze({
+  'rpm-current': {
+    cloth: 'cotton_jersey',
+    shoes: 'brown_leather',
+    accessory: 'leather_white',
+    skin: ['#e2c3a5', '#c99974', '#8f5f42'],
+    hair: '#3b2416',
+    eyes: '#3f6f8f'
+  },
+  'rpm-67d411': {
+    cloth: 'denim_fabric_04',
+    shoes: 'fabric_leather_01',
+    accessory: 'poly_wool_herringbone',
+    skin: ['#f0c7a8', '#cf946c', '#985d3c'],
+    hair: '#111827',
+    eyes: '#5b7c54'
+  },
+  'rpm-67f433': {
+    cloth: 'quatrefoil_jacquard_fabric',
+    shoes: 'leather_red_03',
+    accessory: 'fabric_leather_02',
+    skin: ['#b77955', '#8a5139', '#5a3528'],
+    hair: '#1f1712',
+    eyes: '#4b5563'
+  },
+  'rpm-67e1b5': {
+    cloth: 'wool_boucle',
+    shoes: 'brown_leather',
+    accessory: 'scuba_suede',
+    skin: ['#d5a17f', '#a86f4f', '#70432f'],
+    hair: '#6b3f23',
+    eyes: '#7c5f37'
+  },
+  'webgl-vietnam-human': {
+    cloth: 'denim_fabric_05',
+    shoes: 'fabric_leather_02',
+    accessory: 'terry_cloth',
+    skin: ['#d6a07c', '#a96d4c', '#6f412e'],
+    hair: '#17120f',
+    eyes: '#2f3a44'
+  },
+  'webgl-ai-teacher': {
+    cloth: 'fabric_pattern_05',
+    shoes: 'leather_white',
+    accessory: 'poly_wool_herringbone',
+    skin: ['#e7b890', '#bd7c57', '#7a4933'],
+    hair: '#21160f',
+    eyes: '#465f86'
+  },
+  'webgl-ai-teacher-1': {
+    cloth: 'waffle_pique_cotton',
+    shoes: 'fabric_leather_01',
+    accessory: 'leather_red_02',
+    skin: ['#f2d0b4', '#d39d78', '#a4694d'],
+    hair: '#4a2f1c',
+    eyes: '#566b45'
+  }
+});
+
+function createDetailedSkinTexture(tone = ['#d8c0a6', '#b48d6b', '#7c4f36']) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const [light, mid, deep] = tone;
+  const grad = ctx.createRadialGradient(size * 0.42, size * 0.32, size * 0.08, size * 0.5, size * 0.5, size * 0.72);
+  grad.addColorStop(0, light);
+  grad.addColorStop(0.58, mid);
+  grad.addColorStop(1, deep);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 950; i += 1) {
+    const x = (i * 137) % size;
+    const y = (i * 197) % size;
+    const r = 0.45 + ((i * 17) % 5) * 0.18;
+    ctx.globalAlpha = 0.035 + (i % 7) * 0.007;
+    ctx.fillStyle = i % 5 === 0 ? 'rgba(92,43,25,0.65)' : 'rgba(255,239,216,0.75)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = 'rgba(255,185,165,0.9)';
+  ctx.fillRect(size * 0.08, size * 0.18, size * 0.22, size * 0.16);
+  ctx.fillRect(size * 0.7, size * 0.18, size * 0.22, size * 0.16);
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.flipY = false;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+async function loadSeatedHumanTextureProfile(renderer = null, humanOption = HUMAN_CHARACTER_OPTIONS[0]) {
+  const optionId = humanOption?.id || HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
+  const profile = SEATED_HUMAN_TEXTURE_PROFILES[optionId] || SEATED_HUMAN_TEXTURE_PROFILES['rpm-current'];
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.setCrossOrigin?.('anonymous');
+  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || activeModelTextureAnisotropy || 1;
+  const preferred = ['2k', '1k'];
+  const [cloth, shoes, accessory] = await Promise.all([
+    loadPolyhavenTextureSet(profile.cloth, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred),
+    loadPolyhavenTextureSet(profile.shoes, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred),
+    loadPolyhavenTextureSet(profile.accessory, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred)
+  ]);
+  return {
+    cloth,
+    shoes,
+    accessory,
+    skinTexture: createDetailedSkinTexture(profile.skin),
+    skinTone: profile.skin?.[1] || '#c99974',
+    hairColor: profile.hair || '#2a1a10',
+    eyeColor: profile.eyes || '#3f6f8f'
+  };
+}
+
+function classifySeatedHumanSurface(meshName, materialName) {
+  const label = `${meshName || ''} ${materialName || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea/.test(label)) return 'eyes';
+  if (/hair|beard|mustache|moustache|brow/.test(label)) return 'hair';
+  if (/shoe|boot|sneaker|sole|footwear/.test(label)) return 'shoes';
+  if (/glass|watch|ring|necklace|earring|bracelet|accessor|belt|hat|cap|bag/.test(label)) return 'accessory';
+  if (/outfit|top|shirt|jacket|hoodie|coat|bottom|pant|trouser|short|skirt|dress|cloth|fabric|sleeve|torso|bodywear/.test(label)) return 'cloth';
+  if (/head|face|skin|neck|ear|hand|arm|leg|body/.test(label)) return 'skin';
+  return 'cloth';
+}
+
+function applySeatedHumanMaterialDetail(root, textureProfile, fallbackTextures = {}) {
+  if (!root?.isObject3D || !textureProfile) return;
+  const assignPbrSet = (material, set, fallbackMap = null) => {
+    if (!material) return;
+    material.map = set?.diffuse || fallbackMap || material.map || null;
+    if (set?.normal) material.normalMap = set.normal;
+    if (set?.roughness) material.roughnessMap = set.roughness;
+    normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+    material.needsUpdate = true;
+  };
+
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    obj.frustumCulled = false;
+    const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+    materials.forEach((mat) => {
+      const kind = classifySeatedHumanSurface(obj.name, mat?.name);
+      if (kind === 'eyes') {
+        mat.map = mat.map || null;
+        mat.color?.set?.(textureProfile.eyeColor);
+        mat.roughness = 0.18;
+        mat.metalness = 0.02;
+      } else if (kind === 'hair') {
+        mat.map = mat.map || fallbackTextures.hairTex || null;
+        mat.color?.set?.(textureProfile.hairColor);
+        mat.roughness = 0.72;
+        mat.metalness = 0.02;
+      } else if (kind === 'skin') {
+        mat.map = textureProfile.skinTexture || fallbackTextures.skinTex || mat.map || null;
+        mat.color?.set?.(textureProfile.skinTone);
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      } else if (kind === 'shoes') {
+        assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null);
+        mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
+      } else if (kind === 'accessory') {
+        assignPbrSet(mat, textureProfile.accessory, fallbackTextures.clothTex || null);
+        mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.48, 0.48);
+        mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.22);
+      } else {
+        assignPbrSet(mat, textureProfile.cloth, fallbackTextures.clothTex || null);
+        mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
+        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
+      }
+      normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+      if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+      mat.needsUpdate = true;
+    });
+  });
+}
+
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -6004,8 +6199,8 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
         // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, 0.165 * MODEL_SCALE);
-        position.y += 0.058 * MODEL_SCALE;
+        position.copy(headWorld).addScaledVector(toGameplay, SEATED_FACE_CAMERA_GAMEPLAY_FORWARD);
+        position.y += SEATED_FACE_CAMERA_GAMEPLAY_UP;
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {
@@ -6013,7 +6208,7 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
     target.z += 0.285 * MODEL_SCALE;
     position.copy(headWorld);
     position.z += 0.145 * MODEL_SCALE;
-    position.y += 0.058 * MODEL_SCALE;
+    position.y += SEATED_FACE_CAMERA_GAMEPLAY_UP;
   } else {
     target.copy(position).add(new THREE.Vector3(0, -0.004, 0.2 * MODEL_SCALE));
   }
@@ -6441,26 +6636,23 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
         if (!root) throw new Error('Missing seated human scene');
         const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
         const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+        const shoesTex = createSeatedHumanFallbackTexture('#4a3324', '#1f1711');
         const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-        root.traverse((obj) => {
-          if (obj?.isMesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            obj.frustumCulled = false;
-            const meshName = `${obj.name || ''}`.toLowerCase();
-            const useSkin = /head|face|neck|ear|hand/.test(meshName);
-            const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-            const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-            const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-            materials.forEach((mat) => {
-              if (!mat?.map) mat.map = fallbackTex;
-              if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-              normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
-              if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
-              mat.needsUpdate = true;
-            });
-          }
-        });
+        let textureProfile = null;
+        try {
+          textureProfile = await loadSeatedHumanTextureProfile(renderer, humanOption);
+        } catch (error) {
+          console.warn('Unable to load Poly Haven seated-human texture profile; using procedural fallback', optionId, error);
+        }
+        applySeatedHumanMaterialDetail(root, textureProfile || {
+          cloth: null,
+          shoes: null,
+          accessory: null,
+          skinTexture: skinTex,
+          skinTone: '#c99974',
+          hairColor: '#3f2f20',
+          eyeColor: '#3f6f8f'
+        }, { skinTex, clothTex, shoesTex, hairTex });
         applyModelQualityToObject(root);
         return root;
       })()
