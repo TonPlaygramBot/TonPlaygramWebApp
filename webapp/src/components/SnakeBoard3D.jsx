@@ -159,15 +159,26 @@ const SNAKE_DOMINO_CHARACTER_THEMES = Object.freeze([
   }
 ]);
 const SNAKE_DOMINO_CHARACTER_CACHE = new Map();
+
+function pickUniqueSnakeDominoCharacterThemes(count = DEFAULT_PLAYER_COUNT) {
+  const themes = [...SNAKE_DOMINO_CHARACTER_THEMES];
+  for (let i = themes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [themes[i], themes[j]] = [themes[j], themes[i]];
+  }
+  return Array.from({ length: count }, (_, index) => themes[index % themes.length]);
+}
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.36;
-// Portrait calibration: keep the bottom player only slightly farther back while all humans sit closer to the table.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.08;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.48;
+// Portrait calibration: keep all seated humans pulled visibly inward toward the table on phone screens.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.03;
+const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
+const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
@@ -767,6 +778,23 @@ const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
   'slot-18-fps-gun-gltf': Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
 });
 const WEAPON_FLAT_TABLE_ROTATION = Object.freeze({ x: 0.04, z: -0.06 });
+const WEAPON_VERTICAL_PARKING_ROTATION = Object.freeze({ x: 0, y: 0, z: Math.PI / 2 });
+
+
+function applyVerticalFirearmParkingPose(object) {
+  if (!object?.isObject3D) return;
+  object.rotation.set(
+    WEAPON_VERTICAL_PARKING_ROTATION.x,
+    WEAPON_VERTICAL_PARKING_ROTATION.y,
+    WEAPON_VERTICAL_PARKING_ROTATION.z
+  );
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  if (Number.isFinite(box.min.y)) {
+    object.position.y -= box.min.y;
+    object.updateMatrixWorld(true);
+  }
+}
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
   return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
@@ -2378,8 +2406,8 @@ async function loadSeatedHumanTemplate(renderer) {
 }
 
 
-async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0) {
-  const theme = SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0, characterTheme = null) {
+  const theme = characterTheme || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
   if (!theme) return loadSeatedHumanTemplate(renderer);
   if (SNAKE_DOMINO_CHARACTER_CACHE.has(theme.id)) return SNAKE_DOMINO_CHARACTER_CACHE.get(theme.id);
   const promise = (async () => {
@@ -4067,6 +4095,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   let chairMaterials = initialChair.materials;
   const chairs = [];
   const seatedHumans = [];
+  const seatCharacterThemes = pickUniqueSnakeDominoCharacterThemes(DEFAULT_PLAYER_COUNT);
   const refreshChairInstances = () => {
     chairs.forEach((chair) => {
       if (chair.model) {
@@ -4103,13 +4132,17 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
+    const weaponAnchor = new THREE.Object3D();
+    weaponAnchor.position.set(SEATED_HUMAN_WEAPON_RIGHT_HAND_X, 0, SEATED_HUMAN_WEAPON_SIDE_Z);
+    group.add(weaponAnchor);
+
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
     if (chairModel) {
       group.add(chairModel);
     }
 
     arenaGroup.add(group);
-    const chair = { group, anchor: avatarAnchor, model: chairModel, humanAnchor };
+    const chair = { group, anchor: avatarAnchor, model: chairModel, humanAnchor, weaponAnchor };
     alignChairLegsToHumanGround(chair);
     chairs.push(chair);
   }
@@ -4126,7 +4159,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     })
     .catch(() => {});
 
-  Promise.all(chairs.map((_, seatIndex) => loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex)))
+  Promise.all(chairs.map((_, seatIndex) => loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex, seatCharacterThemes[seatIndex])))
     .then((humanTemplates) => {
       if (!humanTemplates?.length || disposed) return;
       chairs.forEach((chair, seatIndex) => {
@@ -4136,7 +4169,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         makeSnakeHumanMaterialsUnique(instance);
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
-        const dominoTheme = SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+        const dominoTheme = seatCharacterThemes[seatIndex] || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
         const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
         const shirtTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
         const pantsTex = createSeatedHumanFallbackTexture('#1f3f68', '#111827');
@@ -4218,6 +4251,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     controls,
     tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor),
+    weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     seatedHumans,
     startCameraState
   };
@@ -5807,7 +5841,8 @@ function createPolySeatWeaponMesh(weaponType) {
   group.position.y -= TOKEN_HEIGHT * 1.3;
   return group;
 }
-function createSeatWeaponMesh(weaponType = 'fighter') {
+function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
+  const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'flat';
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
   const catalogWeaponType = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] ? rawWeaponType : null;
   const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
@@ -5820,6 +5855,10 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
     const holder = new THREE.Group();
     const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
     fallback.scale.multiplyScalar(firearmScale);
+    if (parkingPose === 'vertical') {
+      fallback.position.set(0, 0, 0);
+      applyVerticalFirearmParkingPose(fallback);
+    }
     holder.add(fallback);
     loadCaptureWeaponCatalogModel(catalogWeaponType)
       .then((model) => {
@@ -5828,13 +5867,18 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
         model.scale.setScalar(
           TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
         );
-        const parkedRotation = FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType];
-        if (parkedRotation) {
-          model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
+        if (parkingPose === 'vertical') {
+          model.position.set(0, 0, 0);
+          applyVerticalFirearmParkingPose(model);
         } else {
-          model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+          const parkedRotation = FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType];
+          if (parkedRotation) {
+            model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
+          } else {
+            model.rotation.set(0.04, Math.PI * 0.5, -0.06);
+          }
+          model.position.y -= TOKEN_HEIGHT * 1.32;
         }
-        model.position.y -= TOKEN_HEIGHT * 1.32;
         holder.add(model);
       })
       .catch(() => {});
@@ -5843,6 +5887,10 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
     const polyMesh = createPolySeatWeaponMesh(normalizedWeaponType);
     polyMesh.scale.multiplyScalar(firearmScale);
+    if (parkingPose === 'vertical') {
+      polyMesh.position.set(0, 0, 0);
+      applyVerticalFirearmParkingPose(polyMesh);
+    }
     return polyMesh;
   }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
@@ -5911,55 +5959,65 @@ function updateSeatWeaponDisplays(board, players = []) {
         const child = holder.children.pop();
         if (child) holder.remove(child);
       }
-      holder.add(createSeatWeaponMesh(parkedWeaponType));
+      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: isVehicleWeapon ? 'flat' : 'vertical' }));
       holder.userData.weaponType = parkedWeaponType;
     }
-    const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
-    if (railLayout) {
-      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
-      holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(
-          railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
-            lateralNudge +
-            WEAPON_RIGHT_HAND_SIDE_OFFSET
-        )
-        .addScaledVector(
-          railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
-        );
-      if (portraitShift) {
-        holder.position
-          .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
-          .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
-      }
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-      holder.position.y += PARKING_VERTICAL_LIFT;
-      const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
-      const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
-      if (radialFromCenter.length() < minClearance) {
-        radialFromCenter.normalize().multiplyScalar(minClearance);
-        holder.position.x = boardLookTarget.x + radialFromCenter.x;
-        holder.position.z = boardLookTarget.z + radialFromCenter.z;
-      }
+    const weaponAnchor = !isVehicleWeapon ? board.weaponAnchors?.[seatIndex] : null;
+    const weaponParent = board.weaponDisplayGroup.parent || board.boardRoot || null;
+    if (weaponAnchor && weaponParent) {
+      const chairSideWorld = new THREE.Vector3();
+      weaponAnchor.getWorldPosition(chairSideWorld);
+      chairSideWorld.y = SEATED_HUMAN_GROUND_Y;
+      weaponParent.worldToLocal(chairSideWorld);
+      holder.position.copy(chairSideWorld);
     } else {
-      const seatWorld = new THREE.Vector3();
-      anchor.getWorldPosition(seatWorld);
-      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-      if (seatDirection.lengthSq() < 1e-6) continue;
-      seatDirection.normalize();
-      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
-      const markerPos = boardLookTarget
-        .clone()
-        .addScaledVector(seatDirection, radius)
-        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
-      holder.position.copy(markerPos);
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
+      const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
+      if (railLayout) {
+        const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+        const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+        const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
+        holder.position
+          .copy(railLayout.railLocal)
+          .addScaledVector(
+            railLayout.lateral,
+            sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
+              lateralNudge +
+              WEAPON_RIGHT_HAND_SIDE_OFFSET
+          )
+          .addScaledVector(
+            railLayout.seatDirection,
+            WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+          );
+        if (portraitShift) {
+          holder.position
+            .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
+            .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+        }
+        holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+        holder.position.y += PARKING_VERTICAL_LIFT;
+        const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
+        const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
+        if (radialFromCenter.length() < minClearance) {
+          radialFromCenter.normalize().multiplyScalar(minClearance);
+          holder.position.x = boardLookTarget.x + radialFromCenter.x;
+          holder.position.z = boardLookTarget.z + radialFromCenter.z;
+        }
+      } else {
+        const seatWorld = new THREE.Vector3();
+        anchor.getWorldPosition(seatWorld);
+        const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+        if (seatDirection.lengthSq() < 1e-6) continue;
+        seatDirection.normalize();
+        const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+        const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+        const markerPos = boardLookTarget
+          .clone()
+          .addScaledVector(seatDirection, radius)
+          .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+        holder.position.copy(markerPos);
+        holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+        holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
+      }
     }
     const lookAwayDirection = holder.position.clone().sub(boardLookTarget).setY(0);
     if (lookAwayDirection.lengthSq() < 1e-6) lookAwayDirection.set(0, 0, 1);
@@ -5968,10 +6026,12 @@ function updateSeatWeaponDisplays(board, players = []) {
     holder.lookAt(lookAwayTarget.x, holder.position.y, lookAwayTarget.z);
     if (!isVehicleWeapon) {
       holder.rotateY(Math.PI);
+      holder.rotation.x = 0;
+      holder.rotation.z = 0;
+    } else {
+      holder.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
+      holder.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
     }
-    holder.rotation.x = 0;
-    holder.rotation.z = WEAPON_FLAT_TABLE_ROTATION.z;
-    holder.rotation.x = WEAPON_FLAT_TABLE_ROTATION.x;
   }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
@@ -6332,6 +6392,7 @@ export default function SnakeBoard3D({
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? [],
+      weaponAnchors: arena.weaponAnchors ?? [],
       seatedHumans: arena.seatedHumans ?? [],
       startCameraState: arena.startCameraState ?? null,
       tableInfo: arena.tableInfo ?? null,
