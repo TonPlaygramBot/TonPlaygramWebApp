@@ -56,8 +56,8 @@ const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: push the chair ring slightly outward while the human anchors move closer to the table.
-const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.5 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.56 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.58 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -174,9 +174,9 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.48;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.53;
 // Portrait calibration: keep all seated humans pulled visibly inward toward the table on phone screens.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.03;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.06;
 const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
 const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -256,8 +256,8 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice pacing and bounce aligned with Pool Royale's break-dice roll configuration.
-const DICE_ROLL_DURATION = 940;
+// Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
+const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 240;
 const DICE_RESULT_HOLD_DURATION = 720;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
@@ -3391,12 +3391,10 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = [],
-    bouncePoints = []
+    startPositions = []
   }
 ) {
   const start = performance.now();
-  const rollSplit = 0.58;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -3405,7 +3403,7 @@ function createDiceRollAnimation(
     )
   );
   const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE * 1.35, 0, (Math.random() - 0.5) * DICE_SIZE * 1.35)
+    () => new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE * 1.25, 0, (Math.random() - 0.5) * DICE_SIZE * 1.25)
   );
 
   return {
@@ -3417,25 +3415,19 @@ function createDiceRollAnimation(
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const bouncePos = bouncePoints[index] ?? startPos.clone().lerp(base, 0.58);
-        const firstLeg = eased < rollSplit;
-        const legT = firstLeg ? smootherstep01(eased / rollSplit) : smootherstep01((eased - rollSplit) / (1 - rollSplit));
-        const from = firstLeg ? startPos : bouncePos;
-        const to = firstLeg ? bouncePos : base;
-        const position = from.clone().lerp(to, legT);
+        const endPos = new THREE.Vector3(base.x, baseY, base.z);
+        const position = startPos.clone().lerp(endPos, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.32);
-        const hopArc = Math.sin(legT * Math.PI);
-        const hopHeight = firstLeg ? DICE_THROW_HEIGHT * 0.34 : DICE_BOUNCE_HEIGHT * 0.9;
-        position.y = THREE.MathUtils.lerp(from.y, firstLeg ? bouncePos.y : baseY, legT) + hopArc * hopHeight * (1 - eased * 0.34);
+        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
+        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
+        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
         die.position.copy(position);
 
-        const travelDistance = Math.max(DICE_SIZE, from.distanceTo(to));
-        const rollAmount = (travelDistance / Math.max(DICE_SIZE * 0.5, 0.001)) * (firstLeg ? 0.17 : 0.13);
+        // Same spin cadence as Ludo Battle Royal's spinDice helper.
         const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * rollAmount;
-        die.rotation.y += spinVectors[index].y * spinFactor * rollAmount;
-        die.rotation.z += spinVectors[index].z * spinFactor * rollAmount;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
