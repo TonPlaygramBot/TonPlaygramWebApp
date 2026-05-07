@@ -7,6 +7,7 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -7728,6 +7729,315 @@ if (typeof MutationObserver !== 'undefined') {
   });
 }
 
+/* ---------- Domino Royal seated human characters ---------- */
+const DOMINO_CHARACTER_THEMES = Object.freeze([
+  {
+    id: 'rpm-current-domino',
+    urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67d411-domino',
+    urls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67f433-domino',
+    urls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    urls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.4,
+    seatOffsetZ: 0.52,
+    handLift: 1.04
+  }
+]);
+const DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
+const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
+const DOMINO_CHARACTER_CACHE = new Map();
+const dominoCharacterInstances = [];
+const dominoCharacterRigs = new Map();
+const dominoCharacterActions = [];
+let dominoCharacterBuildToken = 0;
+
+async function loadDominoCharacterTemplate(theme) {
+  const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
+  if (!urls.length) throw new Error('Missing Domino character URLs');
+  const cacheKey = `${theme.id}:${urls.join('|')}`;
+  if (DOMINO_CHARACTER_CACHE.has(cacheKey)) return DOMINO_CHARACTER_CACHE.get(cacheKey);
+  const promise = (async () => {
+    const loader = createConfiguredGltfLoader();
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (root) {
+          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+          return root;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Unable to load Domino character ${theme.id}`);
+  })();
+  DOMINO_CHARACTER_CACHE.set(cacheKey, promise);
+  promise.catch(() => DOMINO_CHARACTER_CACHE.delete(cacheKey));
+  return promise;
+}
+
+function clearDominoCharacters() {
+  dominoCharacterActions.splice(0);
+  dominoCharacterRigs.clear();
+  while (dominoCharacterInstances.length) {
+    const root = dominoCharacterInstances.pop();
+    root?.userData?.dispose?.();
+    root?.parent?.remove(root);
+  }
+}
+
+function findDominoBone(root, hints) {
+  let found = null;
+  root?.traverse?.((obj) => {
+    if (found || !obj?.isBone) return;
+    const name = String(obj.name || '').toLowerCase();
+    if (hints.some((hint) => name.includes(hint))) found = obj;
+  });
+  return found;
+}
+
+function addDominoBoneOffset(bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function captureDominoPose(bones) {
+  return Object.fromEntries(
+    Object.entries(bones || {}).map(([key, bone]) => [key, bone ? bone.rotation.clone() : null])
+  );
+}
+
+function makeDominoPose(base, offsets = {}) {
+  const pose = { ...base };
+  Object.entries(offsets).forEach(([key, delta]) => {
+    const currentPose = base?.[key];
+    if (!currentPose) return;
+    pose[key] = new THREE.Euler(
+      currentPose.x + (delta.x || 0),
+      currentPose.y + (delta.y || 0),
+      currentPose.z + (delta.z || 0)
+    );
+  });
+  return pose;
+}
+
+function applyDominoRigPose(rig, pose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const target = pose?.[key];
+    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    if (!bone || !target || !home) return;
+    bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(home.z, target.z, alpha);
+  });
+}
+
+function normalizeDominoCharacterRoot(root) {
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
+}
+
+function createHeldDominoRack(seatIndex, handTiles = []) {
+  const rack = new THREE.Group();
+  const visibleTiles = Array.isArray(handTiles) ? handTiles.slice(0, 5) : [];
+  const desiredSignature = visibleTiles.map((tile) => `${tile.a}:${tile.b}`).join('|');
+  const tiles = visibleTiles.length ? visibleTiles : [{ a: 6, b: 6 }, { a: 5, b: 4 }];
+  tiles.forEach((tile, index) => {
+    const mini = makeDomino(tile.a ?? 0, tile.b ?? 0, { flat: false, faceUp: true });
+    const centered = index - (tiles.length - 1) / 2;
+    mini.scale.setScalar(0.34);
+    mini.position.set(centered * 0.12 * MODEL_SCALE, (1.22 + Math.abs(centered) * 0.012) * MODEL_SCALE, 0.42 * MODEL_SCALE + index * 0.006);
+    mini.rotation.set(THREE.MathUtils.degToRad(-74), THREE.MathUtils.degToRad(centered * -7), THREE.MathUtils.degToRad(centered * 10));
+    rack.add(mini);
+  });
+  const isBottom = seatIndex === human;
+  rack.position.set(0, isBottom ? 1.48 * MODEL_SCALE : 2.45 * MODEL_SCALE, isBottom ? -0.12 * MODEL_SCALE : -1.48 * MODEL_SCALE);
+  rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
+  rack.scale.setScalar(isBottom ? 1.28 : 1.1);
+  rack.userData.signature = desiredSignature;
+  rack.userData.dispose = () => {};
+  return rack;
+}
+
+function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
+  const bones = {
+    hips: findDominoBone(instance, ['hips', 'pelvis']),
+    spine: findDominoBone(instance, ['spine', 'chest', 'torso']),
+    head: findDominoBone(instance, ['head', 'neck']),
+    rightUpperArm: findDominoBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
+    rightForeArm: findDominoBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
+    rightHand: findDominoBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    leftUpperArm: findDominoBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
+    leftForeArm: findDominoBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
+    leftHand: findDominoBone(instance, ['lefthand', 'hand.l', 'l_hand']),
+    leftThigh: findDominoBone(instance, ['leftupleg', 'leftthigh', 'l_thigh']),
+    leftCalf: findDominoBone(instance, ['leftleg', 'leftcalf', 'l_calf']),
+    rightThigh: findDominoBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
+    rightCalf: findDominoBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
+  };
+  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureDominoPose(bones), heldRack: null, seatedPose: null };
+  addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
+  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  addDominoBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  rig.seatedPose = captureDominoPose(bones);
+  instance.position.y -= 0.09 * MODEL_SCALE;
+  refreshDominoRigRack(rig, player?.hand || []);
+  return rig;
+}
+
+function refreshDominoRigRack(rig, handTiles = []) {
+  if (!rig) return;
+  const signature = (Array.isArray(handTiles) ? handTiles.slice(0, 5) : []).map((tile) => `${tile.a}:${tile.b}`).join('|');
+  if (rig.heldRack?.userData?.signature === signature) return;
+  const parent = rig.heldRack?.parent || rig.instance;
+  rig.heldRack?.userData?.dispose?.();
+  rig.heldRack?.parent?.remove(rig.heldRack);
+  rig.heldRack = createHeldDominoRack(rig.seatIndex, handTiles);
+  parent.add(rig.heldRack);
+}
+
+function refreshAllDominoCharacterRacks() {
+  dominoCharacterRigs.forEach((rig, seatIndex) => {
+    refreshDominoRigRack(rig, players[seatIndex]?.hand || []);
+  });
+}
+
+function attachDominoCharacterToChair(template, chair, seatIndex, player) {
+  const theme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+  const instance = cloneSkeleton(template);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      [mat.map, mat.emissiveMap].filter(Boolean).forEach(applySRGBColorSpace);
+      mat.needsUpdate = true;
+    });
+  });
+  normalizeDominoCharacterRoot(instance);
+  const seatRoot = new THREE.Group();
+  const seatScale = (theme.scale || 1) * DOMINO_CHARACTER_PROPORTION_SCALE;
+  const scaleDelta = Math.max(0, DOMINO_CHARACTER_PROPORTION_SCALE - 1);
+  seatRoot.scale.setScalar(seatScale);
+  seatRoot.position.set(
+    0,
+    (theme.seatOffsetY ?? -0.4) - 0.22 - scaleDelta * 0.08 - DOMINO_CHARACTER_EXTRA_LOWER_OFFSET,
+    (theme.seatOffsetZ ?? 0.52) - 0.03 - DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET
+  );
+  seatRoot.add(instance);
+  const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
+  seatRoot.userData.dispose = () => rig.heldRack?.userData?.dispose?.();
+  chair.add(seatRoot);
+  dominoCharacterInstances.push(seatRoot);
+  dominoCharacterRigs.set(seatIndex, rig);
+}
+
+async function rebuildDominoCharactersForChairs() {
+  const token = ++dominoCharacterBuildToken;
+  clearDominoCharacters();
+  if (!chairs.length) return;
+  try {
+    const templates = await Promise.all(
+      chairs.map((_, seatIndex) => {
+        const theme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+        return loadDominoCharacterTemplate(theme);
+      })
+    );
+    if (token !== dominoCharacterBuildToken) return;
+    chairs.forEach((chair, seatIndex) => {
+      attachDominoCharacterToChair(templates[seatIndex], chair, seatIndex, players[seatIndex] || null);
+    });
+  } catch (error) {
+    console.warn('Failed to seat Domino Royal human characters', error);
+  }
+}
+
+function runDominoCharacterAction(seatIndex, type = 'PLAY') {
+  const rig = dominoCharacterRigs.get(seatIndex);
+  if (!rig?.seatedPose) return;
+  const now = performance.now();
+  const base = rig.seatedPose;
+  const reach = makeDominoPose(base, {
+    spine: { x: THREE.MathUtils.degToRad(-13) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
+    rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
+    head: { x: THREE.MathUtils.degToRad(-8) }
+  });
+  const place = makeDominoPose(base, {
+    spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -8 : 10) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -26 : 34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 34 : 54) },
+    rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 16), y: THREE.MathUtils.degToRad(-6) }
+  });
+  dominoCharacterActions.push(
+    { start: now, duration: 180, update: (t) => applyDominoRigPose(rig, reach, t) },
+    { start: now + 180, duration: 240, update: (t) => applyDominoRigPose(rig, place, t) },
+    { start: now + 420, duration: 280, update: (t) => applyDominoRigPose(rig, base, t) }
+  );
+}
+
+function stepDominoCharacterActions(now = performance.now()) {
+  for (let i = dominoCharacterActions.length - 1; i >= 0; i--) {
+    const action = dominoCharacterActions[i];
+    const elapsed = now - action.start;
+    if (elapsed < 0) continue;
+    const t = Math.min(1, elapsed / Math.max(1, action.duration || 1));
+    action.update?.(1 - Math.pow(1 - t, 3));
+    if (t >= 1) dominoCharacterActions.splice(i, 1);
+  }
+}
+
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
 const CHAIR_TEXTURE_PROPS = Object.freeze([
   'map',
@@ -7822,6 +8132,7 @@ function placeChairsWithOption(option, chairData, token) {
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
+  rebuildDominoCharactersForChairs();
 }
 
 async function buildChairs(
@@ -8431,6 +8742,7 @@ function renderHands() {
     });
   });
   updateLeaderboardCard();
+  refreshAllDominoCharacterRacks();
 }
 
 /* ---------- Chain Rendering ---------- */
@@ -9705,6 +10017,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         return;
       }
       playedPlacement = placement;
+      runDominoCharacterAction(human, 'PLAY');
     }
     selectedTile = null;
     clearMarkers();
@@ -9828,6 +10141,7 @@ if (btnDraw) {
     if (!t) break;
     players[human].hand.push(t);
     spawnDrawAnimation(startWorld, human);
+    runDominoCharacterAction(human, 'DRAW');
     drewTile = true;
     const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
     const canR = t.a === ends?.R?.v || t.b === ends?.R?.v;
@@ -10123,6 +10437,7 @@ function cpuPlay() {
     const picked = player.hand.splice(move.index, 1)[0];
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
+      runDominoCharacterAction(current, 'PLAY');
       renderHands();
       if (player.hand.length === 0) {
         concludeHand({
@@ -10394,6 +10709,7 @@ function schedulePassTurnAdvance(
   playerIndex = current,
   delayMs = PASS_TURN_ADVANCE_DELAY_MS
 ) {
+  runDominoCharacterAction(playerIndex, 'PASS');
   showPassBubble(playerIndex);
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
@@ -10842,6 +11158,7 @@ function shutdownDominoRoyal(reason = 'unknown') {
     if (leaderboardCard?.parentNode) {
       leaderboardCard.parentNode.removeChild(leaderboardCard);
     }
+    clearDominoCharacters();
     if (reason === 'react-unmount') {
       controls?.dispose?.();
       renderer?.dispose?.();
@@ -10878,6 +11195,7 @@ function tick(now) {
     updateEntrySequence(current);
     updateDrawAnimations(current);
     updatePlacementAnimations(current);
+    stepDominoCharacterActions(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
