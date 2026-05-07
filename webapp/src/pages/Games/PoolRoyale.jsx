@@ -125,7 +125,6 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
   chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
-  resolveHumanShotOrientation as sharedResolveHumanShotOrientation,
   updateBilardoHumanPose as sharedUpdateBilardoHumanPose
 } from './shared/bilardoHumanRig.js';
 
@@ -559,7 +558,6 @@ function updateBilardoHumanPose(human, dt, frameData) {
 // Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
 const createBilardoHumanRig = sharedCreateBilardoHumanRig;
 const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
-const resolveBilardoHumanShotOrientation = sharedResolveHumanShotOrientation;
 const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -25763,8 +25761,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Positive bend keeps the upper body folding toward the table/cue ball.
-            shootBendDirection: 1,
+            shootBendDirection: -1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
@@ -25796,7 +25793,7 @@ const shotPowerRef = useRef(0);
             rightForearmDown: 0.48 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePull: 0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePush: 0.20 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightStrokePush: 0.08 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -25936,27 +25933,15 @@ const shotPowerRef = useRef(0);
           if (anim) anim.mode = mode;
 
           if (human) {
-            const rawAimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
-            let desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, rawAimForward, {
+            const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
+            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
               tableW: TABLE.W,
               tableL: TABLE.H,
               edgeMargin: HUMAN_EDGE_MARGIN,
               desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
             }).setY(floorY);
-            let perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            const aimForward = resolveBilardoHumanShotOrientation(rawAimForward, cueWorld, perimeterRoot, {
-              faceTableDotTolerance: 0.02
-            });
-            if (aimForward.dot(rawAimForward) < 0.999) {
-              desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-                tableW: TABLE.W,
-                tableL: TABLE.H,
-                edgeMargin: HUMAN_EDGE_MARGIN,
-                desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
-              }).setY(floorY);
-              perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            }
-            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
             if (isInsideTableBlocker(perimeterRoot)) {
               perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
             }
