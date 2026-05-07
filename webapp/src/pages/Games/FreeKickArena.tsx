@@ -161,7 +161,9 @@ const MURLAN_CHARACTER_COLORS = [
 ];
 const CAMERA_YAW_LIMIT = 0.86;
 const CAMERA_DRAG_DEADZONE = 8;
-const MIN_KEEPER_SWIPE_PX = 28;
+const MIN_KEEPER_SWIPE_PX = 22;
+const KEEPER_DIVE_DURATION = 0.62;
+const KEEPER_DIVE_REACH_BOOST = 1.16;
 const REPLAY_SLOWDOWN = 0.48;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
@@ -1081,10 +1083,10 @@ function applyKeeperPose(keeper: Actor) {
     }
     return;
   }
-  const t = 1 - keeper.diveTime / 0.9;
-  const pushOff = THREE.MathUtils.smoothstep(t, 0.02, 0.24);
-  const flight = THREE.MathUtils.smoothstep(t, 0.18, 0.68);
-  const recover = THREE.MathUtils.smoothstep(t, 0.82, 1);
+  const t = 1 - keeper.diveTime / KEEPER_DIVE_DURATION;
+  const pushOff = THREE.MathUtils.smoothstep(t, 0.0, 0.16);
+  const flight = THREE.MathUtils.smoothstep(t, 0.08, 0.5);
+  const recover = THREE.MathUtils.smoothstep(t, 0.78, 1);
   const a = flight * (1 - recover);
   const side = keeper.diveDir || (keeper.saveTargetX < 0 ? -1 : 1);
   const heightBlend = THREE.MathUtils.clamp(
@@ -1096,7 +1098,7 @@ function applyKeeperPose(keeper: Actor) {
     -side * THREE.MathUtils.lerp(1.05, 1.48, heightBlend) * a;
   keeper.root.rotation.x = -THREE.MathUtils.lerp(0.18, 0.44, heightBlend) * a;
   keeper.root.position.x +=
-    side * THREE.MathUtils.lerp(1.55, 2.85, heightBlend) * a;
+    side * THREE.MathUtils.lerp(1.55, 2.85, heightBlend) * a * KEEPER_DIVE_REACH_BOOST;
   keeper.root.position.z += -0.24 * pushOff * (1 - recover);
   keeper.root.position.y +=
     keeper.diveHeight *
@@ -1112,7 +1114,7 @@ function applyKeeperPose(keeper: Actor) {
     keeper.bones.leftLeg.rotation.x += side > 0 ? 0.7 * pushOff : -0.22 * a;
   if (keeper.bones.rightLeg)
     keeper.bones.rightLeg.rotation.x += side < 0 ? 0.7 * pushOff : -0.22 * a;
-  const reachX = -side * THREE.MathUtils.lerp(1.1, 1.55, heightBlend) * a;
+  const reachX = -side * THREE.MathUtils.lerp(1.1, 1.55, heightBlend) * a * KEEPER_DIVE_REACH_BOOST;
   const reachZ = -side * 0.38 * a;
   if (keeper.bones.leftArm) {
     keeper.bones.leftArm.rotation.x += -1.12 - heightBlend * 0.65;
@@ -2178,7 +2180,7 @@ function setKeeperDiveFromSwipe(keeper: Actor, swipe: SwipeState) {
   keeper.saveTargetZ = GOAL_LINE_Z + 0.1;
   keeper.diveHeight = height;
   keeper.diveDelay = 0;
-  keeper.diveTime = 0.9;
+  keeper.diveTime = KEEPER_DIVE_DURATION;
   return true;
 }
 
@@ -2346,7 +2348,7 @@ function beginRunup(
     quality < 0.08 ? -targetSide || (Math.random() > 0.5 ? 1 : -1) : targetSide;
   keeper.diveHeight =
     keeper.saveTargetY < 0.8 ? 0.62 : keeper.saveTargetY > 1.7 ? 1.78 : 1.18;
-  keeper.diveDelay = quality > 0.7 ? 0.06 : quality > 0.25 ? 0.12 : 0.18;
+  keeper.diveDelay = quality > 0.7 ? 0.035 : quality > 0.25 ? 0.07 : 0.11;
   keeper.diveTime = 0;
 }
 
@@ -2473,7 +2475,7 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   if (!ball.flying || ball.netCaught) return false;
   if (keeper.diveDelay > 0) {
     keeper.diveDelay = Math.max(0, keeper.diveDelay - dt);
-    if (keeper.diveDelay <= 0) keeper.diveTime = 0.9;
+    if (keeper.diveDelay <= 0) keeper.diveTime = KEEPER_DIVE_DURATION;
   }
 
   const reaction = Math.max(0, 1 - keeper.diveDelay * 5.2);
@@ -2485,12 +2487,12 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   keeper.pos.x = THREE.MathUtils.lerp(
     keeper.pos.x,
     targetStep,
-    0.16 * reaction + 0.045
+    0.24 * reaction + 0.07
   );
   keeper.pos.z = THREE.MathUtils.lerp(
     keeper.pos.z,
     keeper.saveTargetZ,
-    0.075 * reaction + 0.025
+    0.11 * reaction + 0.04
   );
 
   const nearGoal =
@@ -2705,10 +2707,12 @@ function cameraFrameForKeeper(keeper: Actor, ball: BallState, cameraYaw = 0) {
   const incoming = ball.object.position
     .clone()
     .lerp(new THREE.Vector3(0, 1.15, GOAL_LINE_Z + 6.8), 0.32);
-  const baseBehindKeeper = keeper.pos
-    .clone()
-    .add(new THREE.Vector3(0, 1.42, -2.35));
-  const sideOffset = new THREE.Vector3(cameraYaw * 0.55, 0, 0);
+  const baseBehindKeeper = new THREE.Vector3(
+    0,
+    2.05,
+    GOAL_LINE_Z - GOAL_D - 2.05
+  );
+  const sideOffset = new THREE.Vector3(cameraYaw * 0.8, 0, 0);
   return {
     position: baseBehindKeeper.add(sideOffset),
     lookPoint: incoming.lerp(goalCenter, ball.flying ? 0.18 : 0.42)
@@ -2866,8 +2870,8 @@ export default function FreeKickGame() {
         const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
         return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
       }
-      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind you, swipe to dive`;
-      return `Your shot ${match.userShots + 1}/5 · set power/contact then tap KICK`;
+      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind the goal, swipe to dive`;
+      return `Your shot ${match.userShots + 1}/5 · pull the power slider and release to shoot`;
     };
     spot = randomKickSpot();
     configureActorsForPhase();
@@ -3030,6 +3034,8 @@ export default function FreeKickGame() {
           kicker.dir.copy(TMP.clone().normalize());
           kicker.vel.copy(kicker.dir).multiplyScalar(4.05);
           kicker.pos.addScaledVector(kicker.vel, dt);
+          kicker.pos.y = GROUND_Y;
+          kicker.root.position.y = GROUND_Y;
           kicker.speed = kicker.vel.length();
         } else {
           kicker.speed = 0;
@@ -3049,7 +3055,7 @@ export default function FreeKickGame() {
           state = 'flight';
           setHud((h) => ({
             ...h,
-            state: activeShooter === 'ai' ? 'AI strike — swipe to save!' : 'Right-foot strike · recording replay'
+            state: activeShooter === 'ai' ? 'AI strike — swipe to save!' : 'Grounded right-foot strike · recording replay'
           }));
         }
       } else {
@@ -3391,7 +3397,7 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        User takes 5 shots first, then AI takes 5. Set shot power on the right edge, choose the foot contact on the ball at bottom-left, then tap KICK. During AI shots, the camera sits behind your goalkeeper and swipes only dive the keeper.
+        User takes 5 shots first, then AI takes 5. Pull the power slider upward and release to shoot; set foot contact on the ball under the slider. During AI shots, the camera sits behind the goal and swipes dive the keeper in the same screen direction.
       </div>
 
       {hud.phase === 'userShoot' && (
@@ -3400,10 +3406,10 @@ export default function FreeKickGame() {
             aria-label="Shot power slider"
             style={{
               position: 'fixed',
-              right: 0,
-              top: '24%',
-              bottom: '18%',
-              width: 58,
+              right: 4,
+              top: '12%',
+              bottom: '46%',
+              width: 64,
               zIndex: 4,
               display: 'flex',
               alignItems: 'center',
@@ -3433,9 +3439,13 @@ export default function FreeKickGame() {
               onChange={(event) =>
                 updateShotControl({ power: Number(event.currentTarget.value) / 100 })
               }
+              onPointerUp={requestControlledKick}
+              onKeyUp={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') requestControlledKick();
+              }}
               style={{
-                width: '54vh',
-                maxWidth: 440,
+                width: '38vh',
+                maxWidth: 360,
                 transform: 'rotate(-90deg)',
                 accentColor: '#facc15',
                 filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))'
@@ -3445,7 +3455,7 @@ export default function FreeKickGame() {
               style={{
                 position: 'absolute',
                 right: 8,
-                bottom: -34,
+                bottom: -28,
                 color: 'white',
                 fontFamily: 'system-ui,sans-serif',
                 fontSize: 12,
@@ -3460,10 +3470,10 @@ export default function FreeKickGame() {
           <div
             style={{
               position: 'fixed',
-              left: 14,
-              bottom: 18,
+              right: 10,
+              top: '56%',
               zIndex: 4,
-              width: 136,
+              width: 138,
               color: 'white',
               fontFamily: 'system-ui,sans-serif',
               textShadow: '0 2px 8px #000',
@@ -3478,7 +3488,7 @@ export default function FreeKickGame() {
                 textAlign: 'center'
               }}
             >
-              FOOT CONTACT
+              BALL + SHOE
             </div>
             <div
               role="slider"
@@ -3543,24 +3553,6 @@ export default function FreeKickGame() {
                 🦶
               </div>
             </div>
-            <button
-              type="button"
-              onClick={requestControlledKick}
-              style={{
-                width: '100%',
-                marginTop: 10,
-                padding: '10px 12px',
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,.72)',
-                background: 'linear-gradient(180deg, #22c55e, #15803d)',
-                color: 'white',
-                fontWeight: 1000,
-                letterSpacing: '.08em',
-                boxShadow: '0 10px 24px rgba(0,0,0,.42)'
-              }}
-            >
-              KICK
-            </button>
           </div>
         </>
       )}
