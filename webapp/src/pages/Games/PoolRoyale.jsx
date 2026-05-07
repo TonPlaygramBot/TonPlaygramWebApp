@@ -2369,6 +2369,9 @@ const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
+// Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
+// the visible player faces inward toward the table instead of showing their back in portrait play.
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -25796,7 +25799,7 @@ const shotPowerRef = useRef(0);
             modelUrl: BILARDO_SHQIP_HUMAN_URL,
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
-            humanVisualYawFix: Math.PI,
+            humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
             // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
             // the shooter folding toward the table instead of bending backward away from it.
