@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 type Team = 'blue' | 'red';
-type ActorKind = Team | 'robot';
+type ActorKind = Team;
 type PlayerId = number;
 type WeaponType = 'pistol' | 'rifle' | 'sniper';
 
@@ -112,8 +112,8 @@ type MazeCell = 0 | 1;
 
 declare global {
   interface Window {
-    __resetRobotMaze?: () => void;
-    __fireRobotMaze?: (aimDir?: THREE.Vector3) => void;
+    __resetMazeBattle?: () => void;
+    __fireMazeBattle?: (aimDir?: THREE.Vector3) => void;
     __tapMazeBattle?: (clientX: number, clientY: number) => void;
     __meleeMazeBattle?: (kind: 'punch' | 'kick') => void;
     __swapMazeWeapon?: (weaponId: string) => void;
@@ -121,8 +121,6 @@ declare global {
 }
 
 const SOLDIER_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-const ROBOT_URL =
-  'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
 const CELL = 0.58;
 const ROWS = 17;
@@ -130,20 +128,18 @@ const COLS = 17;
 const MAZE_W = COLS * CELL;
 const MAZE_H = ROWS * CELL;
 const PLAYER_RADIUS = 0.16;
-const ROBOT_RADIUS = 0.17;
 const PICKUP_RADIUS = 0.13;
 const PLAYER_WALK_SPEED = 1.35;
 const PLAYER_RUN_SPEED = 2.35;
 const FIRST_PERSON_EYE_HEIGHT = 0.72;
 const TOUCH_LOOK_SENSITIVITY = 0.004;
 const WEAPON_PICKUP_TAP_RANGE = 1.35;
-const ROBOT_SPEED = 1.1;
+const AI_RUNNER_SPEED = 1.1;
 const MAX_PLAYERS = 8;
 const GROUND_Y = 0;
 const DT_MAX = 1 / 30;
 const GAME_TIME = 180;
 const TMP = new THREE.Vector3();
-const FPS_GUN_HAND_PARTS = ['hand', 'hands', 'arm', 'arms', 'forearm', 'wrist', 'finger', 'thumb', 'glove', 'sleeve'];
 const HUMAN_FPS_HANDS_NAME = 'human-character-fps-hands';
 
 function polyGlb(uuid: string) {
@@ -162,10 +158,7 @@ const KNOWN_WORKING_GLB = {
   pistolHolster:
     'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
   pistolHolsterRaw:
-    'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
-  fps: 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-  fpsRaw:
-    'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
+    'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
 };
 
 const WEAPONS: WeaponEntry[] = [
@@ -440,29 +433,11 @@ const WEAPONS: WeaponEntry[] = [
     bulletSpeed: 5.45,
     bulletLife: 1.05,
     pickupColor: 0x2dd4bf
-  },
-  {
-    id: 'slot-18-fps-gun-gltf',
-    name: 'FPS Gun GLTF',
-    shortName: 'FPS Shotgun',
-    source: 'Extra',
-    weaponType: 'rifle',
-    urls: [
-      KNOWN_WORKING_GLB.fps,
-      KNOWN_WORKING_GLB.fpsRaw,
-      KNOWN_WORKING_GLB.awp,
-      KNOWN_WORKING_GLB.awpRaw
-    ],
-    ammo: 5,
-    damage: 2,
-    cooldown: 0.54,
-    bulletSpeed: 4.9,
-    bulletLife: 1.08,
-    pickupColor: 0xfacc15
   }
 ];
 
-const STARTER_WEAPON = WEAPONS[17];
+const STARTER_WEAPON =
+  WEAPONS.find((weapon) => weapon.id === 'poly-assault-rifle-01') ?? WEAPONS[0];
 
 function getForwardFromYaw(yaw: number) {
   return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
@@ -472,29 +447,9 @@ function getRightFromYaw(yaw: number) {
   return new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).normalize();
 }
 
-function hideEmbeddedFpsGunHands(model: THREE.Object3D) {
-  model.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh && !(mesh as THREE.SkinnedMesh).isSkinnedMesh) return;
-    const materialNames = (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
-      .map((m) => (m as THREE.Material | undefined)?.name ?? '')
-      .join(' ');
-    const descriptor = clean(`${mesh.name} ${mesh.parent?.name ?? ''} ${materialNames}`);
-    if (FPS_GUN_HAND_PARTS.some((part) => descriptor.includes(part))) {
-      mesh.visible = false;
-      mesh.userData.hiddenOriginalFpsGunHands = true;
-    }
-  });
-}
-
-function cloneWeaponModel(
-  source: THREE.Object3D,
-  height = 0.3,
-  stripEmbeddedHands = false
-) {
+function cloneWeaponModel(source: THREE.Object3D, height = 0.3) {
   const model = source.clone(true);
   normalizeModel(model, height, Math.PI / 2);
-  if (stripEmbeddedHands) hideEmbeddedFpsGunHands(model);
   shadow(model);
   return model;
 }
@@ -587,7 +542,7 @@ function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number
   const pistol = weapon.weaponType === 'pistol';
   parts.leftForearm.visible = !pistol;
   parts.leftHand.visible = !pistol;
-  const supportZ = weapon.id === 'slot-18-fps-gun-gltf' ? -0.36 : -0.325;
+  const supportZ = -0.325;
   parts.leftHand.position.set(
     -0.095,
     -0.122 - recoil * 0.004,
@@ -776,11 +731,7 @@ function tintModel(model: THREE.Object3D, kind: ActorKind) {
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     mats.forEach((raw) => {
       const m = raw as THREE.MeshStandardMaterial;
-      if (m.color) m.color.lerp(tint, kind === 'robot' ? 0.42 : 0.34);
-      if (kind === 'robot') {
-        m.emissive = new THREE.Color(0x004d5d);
-        m.emissiveIntensity = 0.22;
-      }
+      if (m.color) m.color.lerp(tint, 0.34);
       m.needsUpdate = true;
     });
   });
@@ -788,25 +739,6 @@ function tintModel(model: THREE.Object3D, kind: ActorKind) {
 
 function makeFallback(kind: ActorKind) {
   const group = new THREE.Group();
-  if (kind === 'robot') {
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.34, 0.12),
-      mat(0x7dd3fc, 0.48, 0.22)
-    );
-    body.position.y = 0.42;
-    const head = new THREE.Mesh(
-      new THREE.BoxGeometry(0.17, 0.13, 0.13),
-      mat(0xd9f99d, 0.4, 0.18)
-    );
-    head.position.y = 0.65;
-    const eye = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.025, 0.015),
-      mat(0x00ffcc, 0.25, 0.1)
-    );
-    eye.position.set(0, 0.66, -0.068);
-    group.add(shadow(body), shadow(head), shadow(eye));
-    return group;
-  }
   const color = kind === 'blue' ? 0x1d69ff : 0xd92f2f;
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.085, 0.3, 8, 14),
@@ -874,9 +806,9 @@ function createActor(
     dir: new THREE.Vector3(0, 0, 1),
     targetDir: new THREE.Vector3(0, 0, 1),
     speed: 0,
-    radius: kind === 'robot' ? ROBOT_RADIUS : PLAYER_RADIUS,
+    radius: PLAYER_RADIUS,
     stun: 0,
-    health: isUser ? 5 : kind === 'robot' ? 2 : 4,
+    health: isUser ? 5 : 4,
     ammo: STARTER_WEAPON.ammo,
     weapon: STARTER_WEAPON,
     fireCooldown: 0,
@@ -890,16 +822,12 @@ function createActor(
     return actor;
   }
 
-  const url = kind === 'robot' ? ROBOT_URL : SOLDIER_URL;
+  const url = SOLDIER_URL;
   loader.setCrossOrigin('anonymous').load(
     url,
     (gltf) => {
       const model = gltf.scene;
-      normalizeModel(
-        model,
-        kind === 'robot' ? 0.58 : 0.62,
-        kind === 'robot' ? 0 : Math.PI
-      );
+      normalizeModel(model, 0.62, Math.PI);
       tintModel(model, kind);
       shadow(model);
       root.add(model);
@@ -911,18 +839,11 @@ function createActor(
       const clipByName = new Map(
         gltf.animations.map((clip) => [clip.name.toLowerCase(), clip])
       );
-      const aliases: Record<AnimName, string[]> =
-        kind === 'robot'
-          ? {
-              Idle: ['idle'],
-              Walk: ['walking', 'walk'],
-              Run: ['running', 'run', 'walking']
-            }
-          : {
-              Idle: ['idle'],
-              Walk: ['walk', 'walking'],
-              Run: ['run', 'running']
-            };
+      const aliases: Record<AnimName, string[]> = {
+        Idle: ['idle'],
+        Walk: ['walk', 'walking'],
+        Run: ['run', 'running']
+      };
 
       (Object.keys(aliases) as AnimName[]).forEach((name) => {
         const clip = aliases[name].map((a) => clipByName.get(a)).find(Boolean);
@@ -968,10 +889,6 @@ function updateFallbackWalk(actor: Actor) {
     (o) => o instanceof THREE.Mesh
   ) as THREE.Mesh[];
   const t = performance.now() * 0.011;
-  if (actor.kind === 'robot') {
-    actor.fallback.rotation.y = Math.sin(t * 0.4) * 0.02;
-    return;
-  }
   const legs = meshes.slice(-2);
   const s = Math.sin(t) * Math.min(1.2, actor.speed);
   if (legs[0]) legs[0].rotation.x = s * 0.75;
@@ -1017,7 +934,7 @@ function updateActorAnimation(actor: Actor, dt: number) {
     );
   actor.mixer?.update(dt);
 
-  if (actor.kind !== 'robot' && actor.ammo > 0) {
+  if (actor.ammo > 0) {
     if (actor.bones.spine) actor.bones.spine.rotation.x += -0.04;
     if (actor.bones.rightArm) actor.bones.rightArm.rotation.x += -0.42;
     if (actor.bones.leftArm) actor.bones.leftArm.rotation.x += -0.2;
@@ -1841,8 +1758,7 @@ export default function RunMan() {
         weaponModelMount.remove(fallback);
         const model = cloneWeaponModel(
           source,
-          weapon.weaponType === 'pistol' ? 0.2 : 0.28,
-          weapon.id === 'slot-18-fps-gun-gltf'
+          weapon.weaponType === 'pistol' ? 0.2 : 0.28
         );
         model.rotation.set(0.06, 0, -0.06);
         model.position.set(0.02, -0.02, 0.02);
@@ -1914,8 +1830,8 @@ export default function RunMan() {
           'New Maze Battle Royal round. Break boxes for health, ammo, weapons.'
       });
     };
-    window.__resetRobotMaze = resetGame;
-    window.__fireRobotMaze = (aimDir?: THREE.Vector3) => {
+    window.__resetMazeBattle = resetGame;
+    window.__fireMazeBattle = (aimDir?: THREE.Vector3) => {
       if (state !== 'playing') return;
       if (user.ammo <= 0 || user.fireCooldown > 0 || user.health <= 0) {
         setStatus('You need weapon ammo!');
@@ -2030,7 +1946,7 @@ export default function RunMan() {
     window.__tapMazeBattle = (clientX: number, clientY: number) => {
       if (state !== 'playing') return;
       if (tapPickup(clientX, clientY)) return;
-      window.__fireRobotMaze?.(aimDirFromScreen(clientX, clientY));
+      window.__fireMazeBattle?.(aimDirFromScreen(clientX, clientY));
     };
 
     window.__meleeMazeBattle = (kind: 'punch' | 'kick') => {
@@ -2108,7 +2024,7 @@ export default function RunMan() {
         actors.slice(1).forEach((actor, i) => {
           if (actor.health <= 0) return;
           const speed =
-            ROBOT_SPEED +
+            AI_RUNNER_SPEED +
             0.38 +
             i * 0.018 +
             Math.min(0.26, ((GAME_TIME - gameTime) / GAME_TIME) * 0.26);
@@ -2241,8 +2157,8 @@ export default function RunMan() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
-      delete window.__resetRobotMaze;
-      delete window.__fireRobotMaze;
+      delete window.__resetMazeBattle;
+      delete window.__fireMazeBattle;
       delete window.__tapMazeBattle;
       delete window.__meleeMazeBattle;
       delete window.__swapMazeWeapon;
@@ -2314,8 +2230,8 @@ export default function RunMan() {
     if (!look.moved) window.__tapMazeBattle?.(e.clientX, e.clientY);
   };
 
-  const resetGame = () => window.__resetRobotMaze?.();
-  const fire = () => window.__fireRobotMaze?.();
+  const resetGame = () => window.__resetMazeBattle?.();
+  const fire = () => window.__fireMazeBattle?.();
   const punch = () => window.__meleeMazeBattle?.('punch');
   const kick = () => window.__meleeMazeBattle?.('kick');
   const swapWeapon = (weaponId: string) => window.__swapMazeWeapon?.(weaponId);
