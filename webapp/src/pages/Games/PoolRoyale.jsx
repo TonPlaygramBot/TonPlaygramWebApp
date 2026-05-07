@@ -12808,10 +12808,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
-      child.userData = {
-        ...(child.userData || {}),
-        poolRoyaleExternalSurfaceRole: role
-      };
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
@@ -12919,38 +12915,6 @@ function applyPoolRoyaleExternalPlayfieldVisualLift(table, lift = 0) {
     liftedRoots.push(object);
   });
   return liftedRoots.length;
-}
-
-
-function shrinkPoolRoyaleExternalClothSurfaces(root, tableModel = null) {
-  const scale = tableModel?.clothVisualScale;
-  if (!root || !Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < MICRO_EPS) return 0;
-  let changed = 0;
-  root.traverse?.((child) => {
-    if (!child?.isMesh || child.userData?.poolRoyaleExternalSurfaceRole !== 'cloth') return;
-    if (child.userData.poolRoyaleExternalClothVisualScaleApplied) return;
-    const sourceGeometry = child.geometry;
-    const position = sourceGeometry?.attributes?.position;
-    if (!position) return;
-    const geometry = sourceGeometry.clone();
-    geometry.computeBoundingBox();
-    const center = geometry.boundingBox?.getCenter(new THREE.Vector3()) ?? new THREE.Vector3();
-    const scaledPosition = geometry.attributes.position;
-    for (let i = 0; i < scaledPosition.count; i += 1) {
-      scaledPosition.setX(i, center.x + (scaledPosition.getX(i) - center.x) * scale);
-      scaledPosition.setZ(i, center.z + (scaledPosition.getZ(i) - center.z) * scale);
-    }
-    scaledPosition.needsUpdate = true;
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-    child.geometry = geometry;
-    child.userData = {
-      ...(child.userData || {}),
-      poolRoyaleExternalClothVisualScaleApplied: scale
-    };
-    changed += 1;
-  });
-  return changed;
 }
 
 function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
@@ -13080,7 +13044,6 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      shrinkPoolRoyaleExternalClothSurfaces(model, tableModel);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -13791,12 +13754,11 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
-          preserveOriginalSurfaceRoles:
-            chromePlateStyle.preserveExternalTrim || resolvedTableOptions.tableModel.forcePreserveExternalTrim
-              ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
-              : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
-                  (role) => role !== 'trim'
-                )
+          preserveOriginalSurfaceRoles: chromePlateStyle.preserveExternalTrim
+            ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
+            : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
+                (role) => role !== 'trim'
+              )
         }
       : null;
   const externalTable =
@@ -25830,8 +25792,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Keep the shooter upright in the same relaxed stance used at game start.
-            keepUprightWhileShooting: true,
+            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
             shootBendDirection: -1,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 1.18,
