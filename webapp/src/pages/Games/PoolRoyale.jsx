@@ -25761,7 +25761,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            shootBendDirection: 1,
+            shootBendDirection: -1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
@@ -26047,9 +26047,7 @@ const shotPowerRef = useRef(0);
               idleLeft,
               cueBack,
               cueTip,
-              power: activePower,
-              faceTarget: cueWorld.clone(),
-              cueBallWorld: cueWorld.clone()
+              power: activePower
             });
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
