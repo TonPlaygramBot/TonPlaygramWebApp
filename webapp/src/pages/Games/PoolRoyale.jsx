@@ -4633,7 +4633,7 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
-const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // tighten Showood GLB cloth to the procedural/Snooker Royal weave scale
+const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // base normalization for external GLB cloth UV spans
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -12621,6 +12621,31 @@ function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
   return clone;
 }
 
+function scalePoolRoyaleExternalClothTextureRepeats(material, repeatScale = 1) {
+  if (
+    !material ||
+    !Number.isFinite(repeatScale) ||
+    repeatScale <= 0 ||
+    Math.abs(repeatScale - 1) < MICRO_EPS
+  ) return;
+  ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
+    const texture = material[prop];
+    if (!texture?.repeat || texture.userData?.poolRoyaleExternalModelRepeatScaled) return;
+    texture.repeat.multiplyScalar(repeatScale);
+    texture.userData = {
+      ...(texture.userData || {}),
+      poolRoyaleExternalModelRepeatScaled: true,
+      poolRoyaleExternalModelRepeatScale: repeatScale
+    };
+    texture.needsUpdate = true;
+  });
+  material.userData = {
+    ...(material.userData || {}),
+    poolRoyaleExternalModelRepeatScale: repeatScale
+  };
+  material.needsUpdate = true;
+}
+
 function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   if (!texture) return;
   if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
@@ -12731,6 +12756,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
 
   if (role === 'cloth' || role === 'cushion') {
     copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
     mat.side = THREE.DoubleSide;
     mat.userData = {
       ...(mat.userData || {}),
@@ -25766,8 +25792,11 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Positive bend keeps the upper body folding toward the table/cue ball.
-            shootBendDirection: 1,
+            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
+            shootBendDirection: -1,
+            shootCounterLeanSide: -1,
+            shootUpperBodyCounterLean: 1.18,
+            plantFeetDuringShot: true,
             forceTableFacingAim: true,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
