@@ -3245,14 +3245,14 @@ const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.164 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.19 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.082 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.142 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.034 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -6328,33 +6328,6 @@ function solveSeatedRightArmContactIK(entry, targetWorld, weight = 1, effectorKe
     applyBoneStep(lower);
     applyBoneStep(upper);
   }
-}
-
-
-function alignSeatedRightHandPalmTowardTarget(entry, targetWorld, weight = 1) {
-  const rig = entry?.rig;
-  const hand = rig?.rightHand;
-  const contactEffector = entry?.actionHelpers?.contactEffector;
-  if (!hand?.isBone || !contactEffector?.isObject3D || !targetWorld?.isVector3) return;
-  const blend = clamp(weight, 0, 1);
-  if (blend <= 1e-4) return;
-
-  hand.updateMatrixWorld?.(true);
-  contactEffector.updateMatrixWorld?.(true);
-  const handPos = hand.getWorldPosition(new THREE.Vector3());
-  const currentPalmDirection = contactEffector
-    .getWorldPosition(new THREE.Vector3())
-    .sub(handPos);
-  const desiredPalmDirection = targetWorld.clone().sub(handPos);
-  if (currentPalmDirection.lengthSq() < 1e-8 || desiredPalmDirection.lengthSq() < 1e-8) return;
-  currentPalmDirection.normalize();
-  desiredPalmDirection.normalize();
-
-  const worldDeltaQ = new THREE.Quaternion().setFromUnitVectors(currentPalmDirection, desiredPalmDirection);
-  if (blend < 0.999) {
-    worldDeltaQ.slerp(new THREE.Quaternion(), 1 - blend);
-  }
-  applyWorldRotationDeltaToBone(hand, worldDeltaQ);
 }
 
 function solveSeatedLeftArmContactIK(entry, targetWorld, weight = 1) {
@@ -9834,7 +9807,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             entry?.chairSupportsArmrest !== false
           );
           let hasContactTarget = false;
-          let dicePalmTarget = null;
           const poseToHelperKey = {
             reachDice: 'dicePickup',
             gripDice: 'dicePickup',
@@ -9860,9 +9832,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
           ) {
             hasContactTarget = sampleSeatedObjectContactTarget(entry, diceRef.current, 'dice', handContactTarget);
-            if (hasContactTarget) {
-              dicePalmTarget = diceRef.current.getWorldPosition(new THREE.Vector3());
-            }
           }
           if (!hasContactTarget) {
             const captureAttackId =
@@ -9896,21 +9865,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             };
             const contactWeight = contactWeightByMode[pose.mode] ?? 1;
             solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, 'contactEffector');
-            if (dicePalmTarget?.isVector3) {
-              const palmWeightByMode = {
-                reachDice: 0.62,
-                gripDice: 0.82,
-                holdDice: 0.78,
-                windUp: 0.7,
-                release: 0.52,
-                followThrough: 0.36
-              };
-              alignSeatedRightHandPalmTowardTarget(
-                entry,
-                dicePalmTarget,
-                (palmWeightByMode[pose.mode] ?? 0.55) * contactWeight
-              );
-            }
           }
         });
       }
@@ -9999,9 +9953,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-        const gameplayTarget = boardLookTargetRef.current?.isVector3
-          ? boardLookTargetRef.current.clone()
-          : null;
+        const gameplayTarget = (() => {
+          const dice = diceRef.current;
+          if (dice?.isObject3D) {
+            const target = new THREE.Vector3();
+            dice.getWorldPosition(target);
+            return target;
+          }
+          return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
+        })();
         const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
         const hardLockedPosition = liveFacePose?.position?.isVector3
           ? liveFacePose.position
@@ -11675,7 +11635,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
 
   const resolveBottomPlayerGameplayTarget = useCallback(() => {
-    // Bottom-player turns should keep the same board-centered portrait view as match start.
+    const dice = diceRef.current;
+    if (dice?.isObject3D) {
+      const diceTarget = new THREE.Vector3();
+      dice.getWorldPosition(diceTarget);
+      return diceTarget;
+    }
     return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
   }, []);
 
