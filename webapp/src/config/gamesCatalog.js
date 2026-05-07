@@ -1,12 +1,13 @@
 const gamesCatalog = [
+
   {
-    name: 'The Maze Battle Royal',
+    name: 'RunMan',
     route: '/games/runman',
     slug: 'runman',
     image: '/assets/icons/runman.svg',
-    description:
-      'Fast mobile FPS maze battle royale with joystick movement, GLTF guns, breakable supply boxes, minimap, and last-player survival.'
+    description: 'Neon 3D maze runner where two soldiers collect diamonds, grab weapons, and dodge robots.'
   },
+
 
   {
     name: 'Real Bowling',
@@ -21,8 +22,7 @@ const gamesCatalog = [
     route: '/games/table-tennis/lobby',
     slug: 'table-tennis',
     image: '/assets/icons/table-tennis-icon.svg',
-    description:
-      'Portrait-friendly 3D table tennis with swipe spin and power controls.'
+    description: 'Portrait-friendly 3D table tennis with swipe spin and power controls.'
   },
   {
     name: 'Tennis',
@@ -51,8 +51,7 @@ const gamesCatalog = [
     slug: 'poolroyale',
     image: '/assets/icons/pool-royale.svg',
     description: 'Rack up and run the table in stylish arenas.'
-  },
-  {
+  },  {
     name: 'Snooker Royal',
     route: '/games/snookerroyale/lobby',
     slug: 'snookerroyale',
@@ -108,8 +107,7 @@ const gamesCatalog = [
     route: '/games/fourinrowroyale/lobby',
     slug: 'fourinrowroyale',
     image: '/assets/icons/four-in-row-royale.svg',
-    description:
-      'Vertical 4 in a Row strategy on the shared Battle Royal 3D arena.'
+    description: 'Vertical 4 in a Row strategy on the shared Battle Royal 3D arena.'
   },
 
   {
@@ -125,8 +123,7 @@ const gamesCatalog = [
     route: '/games/freekickarena/lobby',
     slug: 'freekickarena',
     image: '/assets/icons/Goal%20rush%20logo.png',
-    description:
-      'Portrait-friendly 3D free kicks with swipe curve, VAR checks, and replay cams.'
+    description: 'Portrait-friendly 3D free kicks with swipe curve, VAR checks, and replay cams.'
   },
 
   {
