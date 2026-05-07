@@ -5,6 +5,64 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const UP = Y_AXIS;
 const BASIS_MAT = new THREE.Matrix4();
 
+
+const REALISTIC_HUMAN_MATERIALS = Object.freeze({
+  skin: 0xd7a47b,
+  hair: 0x2d1d16,
+  top: 0x2368b8,
+  bottom: 0x25324a,
+  shoes: 0x4a3328,
+  eyes: 0xf5f7fb,
+  teeth: 0xf4eadc,
+  defaultFabric: 0x8b5a3c
+});
+
+function isMostlyGreyColor(color) {
+  if (!color) return true;
+  const max = Math.max(color.r, color.g, color.b);
+  const min = Math.min(color.r, color.g, color.b);
+  return max - min < 0.075;
+}
+
+function pickHumanMaterialColor(obj, mat) {
+  const key = cleanName(`${obj?.name || ''} ${mat?.name || ''}`);
+  if (key.includes('skin') || key.includes('head') || key.includes('face') || key.includes('hand') || key.includes('arm')) {
+    return REALISTIC_HUMAN_MATERIALS.skin;
+  }
+  if (key.includes('hair') || key.includes('beard') || key.includes('brow')) {
+    return REALISTIC_HUMAN_MATERIALS.hair;
+  }
+  if (key.includes('eye')) {
+    return REALISTIC_HUMAN_MATERIALS.eyes;
+  }
+  if (key.includes('teeth') || key.includes('tooth')) {
+    return REALISTIC_HUMAN_MATERIALS.teeth;
+  }
+  if (key.includes('shoe') || key.includes('footwear') || key.includes('boot')) {
+    return REALISTIC_HUMAN_MATERIALS.shoes;
+  }
+  if (key.includes('bottom') || key.includes('pant') || key.includes('trouser') || key.includes('jean') || key.includes('leg')) {
+    return REALISTIC_HUMAN_MATERIALS.bottom;
+  }
+  if (key.includes('top') || key.includes('shirt') || key.includes('hoodie') || key.includes('jacket') || key.includes('torso') || key.includes('outfit')) {
+    return REALISTIC_HUMAN_MATERIALS.top;
+  }
+  return REALISTIC_HUMAN_MATERIALS.defaultFabric;
+}
+
+function applyRealisticHumanMaterialFallback(obj, mat) {
+  if (!mat || !mat.color || mat.userData?.realisticHumanFallbackApplied) return;
+  const shouldTint = !mat.map || isMostlyGreyColor(mat.color);
+  if (!shouldTint) return;
+  mat.color.setHex(pickHumanMaterialColor(obj, mat));
+  if ('roughness' in mat) mat.roughness = Math.max(0.58, mat.roughness ?? 0.72);
+  if ('metalness' in mat) mat.metalness = Math.min(0.04, mat.metalness ?? 0);
+  mat.userData = {
+    ...(mat.userData || {}),
+    realisticHumanFallbackApplied: true
+  };
+}
+
 const BASE_CFG = {
   unit: 1,
   poseLambda: 9,
@@ -268,6 +326,7 @@ export function createHumanRig(scene, opts = {}) {
             mat.map.flipY = false;
             mat.map.needsUpdate = true;
           }
+          applyRealisticHumanMaterialFallback(obj, mat);
           mat.depthWrite = true;
           mat.depthTest = true;
           mat.needsUpdate = true;
