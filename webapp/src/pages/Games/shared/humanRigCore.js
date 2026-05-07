@@ -245,7 +245,8 @@ const BASE_CFG = {
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
   plantFeetDuringShot: true,
-  forceTableFacingAim: true
+  forceTableFacingAim: true,
+  keepUprightWhileShooting: false
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -732,9 +733,10 @@ export function updateHumanPose(human, dt, frameData) {
   const cfg = human.cfg;
   const state = frameData.state || 'idle';
   const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
-  human.poseT = dampScalar(human.poseT, activeState === 'idle' ? 0 : 1, cfg.poseLambda, dt);
-  human.breathT += dt * (activeState === 'idle' ? 1.05 : 0.5);
-  human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
+  const keepUprightWhileShooting = cfg.keepUprightWhileShooting === true;
+  human.poseT = dampScalar(human.poseT, activeState === 'idle' || keepUprightWhileShooting ? 0 : 1, cfg.poseLambda, dt);
+  human.breathT += dt * (activeState === 'idle' || keepUprightWhileShooting ? 1.05 : 0.5);
+  human.settleT = dampScalar(human.settleT, activeState === 'dragging' && !keepUprightWhileShooting ? 1 : 0, 5.5, dt);
   if (activeState === 'striking') {
     if (human.strikeClock === 0) {
       human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget);
