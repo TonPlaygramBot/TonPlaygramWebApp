@@ -31,9 +31,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    // Showood GLB UV islands are larger than the native table, so boost repeat density
-    // only for this model to make the visible cloth weave/pattern smaller.
-    externalClothRepeatScale: 3.45,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
     hideSurfaceRoles: []
