@@ -21,14 +21,14 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.kind, 'gltf');
     assert.equal(showood.useOriginalLayoutSurfaces, true);
     assert.equal(showood.fitScale, 1.035);
-    assert.equal(showood.clothRepeatScale, 4.25);
+    assert.equal(showood.clothRepeatScale, 1.55);
     assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['trim']);
-    assert.deepEqual(showood.alwaysPreserveOriginalSurfaceRoles, ['trim']);
+    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
       'cushion',
       'wood',
+      'trim',
       'pocket'
     ]);
     assert.equal('playfieldVisualLift' in showood, false);
