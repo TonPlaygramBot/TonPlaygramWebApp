@@ -99,6 +99,9 @@ const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.54;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.28;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
+// Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
+// This keeps all seating/chair anchors unchanged while moving characters visually higher on screen.
+const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.25 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -340,7 +343,8 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.22,
   TILE_SIZE * 0.22
 ]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
+// Slightly reduce parked/capture weapon displays so they do not overpower the seated players.
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.55;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
@@ -1971,7 +1975,10 @@ function setSnakeHandWeaponVisible(seatHuman, visible) {
   }
 }
 
-function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
+function alignSeatedHumanFeetToGround(
+  seatHuman,
+  groundY = SEATED_HUMAN_FOOT_GROUND_Y + SEATED_HUMAN_VISUAL_UPWARD_LIFT
+) {
   const { root, bones } = seatHuman || {};
   if (!root || !bones) return;
   root.updateMatrixWorld(true);
