@@ -25796,9 +25796,7 @@ const shotPowerRef = useRef(0);
             modelUrl: BILARDO_SHQIP_HUMAN_URL,
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
-            // ReadyPlayer avatars face down their local -Z axis after normalization; keep
-            // that visual forward aligned with the rig yaw so the shooter faces the table.
-            humanVisualYawFix: 0,
+            humanVisualYawFix: Math.PI,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
             // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
             // the shooter folding toward the table instead of bending backward away from it.
