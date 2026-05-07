@@ -55,7 +55,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: push the chair ring slightly outward while the human anchors move closer to the table.
+// Portrait calibration: push the chair ring slightly outward and seat humans closer to the chair backs.
 const CHAIR_GLOBAL_PUSHBACK = 0.64 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.66 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
@@ -168,15 +168,15 @@ function pickUniqueSnakeDominoCharacterThemes(count = DEFAULT_PLAYER_COUNT) {
   }
   return Array.from({ length: count }, (_, index) => themes[index % themes.length]);
 }
-// Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
+// Keep Snake seated humans aligned with Ludo/Chess Battle Royal scale while sitting farther back on the chairs.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.58;
-// Portrait calibration: keep all seated humans pulled visibly inward toward the table on phone screens.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.08;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.38;
+// Portrait calibration: nudge the bottom/self human outward too so bodies sit closer to chairs than the table.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.06;
 const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
 const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
