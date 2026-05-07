@@ -6,6 +6,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
@@ -447,6 +448,7 @@ const FOLD_PILE_FORWARD_OFFSET = CARD_H * -1.18;
 const FOLD_PILE_RIGHT_OFFSET = CARD_W * 1.98;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
 const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.62;
+const CHIP_BUTTON_GRID_VERTICAL_LIFT = CARD_H * 0.64;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -594,6 +596,69 @@ function pickBestModelUrl(urls) {
 
   return glbs[0] || gltfs[0] || null;
 }
+
+
+const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg'
+  },
+  check: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg'
+  },
+  hessian: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg'
+  },
+  floral: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg'
+  },
+  fleece: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg'
+  },
+  picnic: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg'
+  }
+});
+
+const TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 } },
+  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 } },
+  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 } },
+  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 } },
+  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 } },
+  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
+});
+
+const TEXAS_DOMINO_CHARACTER_THEMES = Object.freeze([
+  { id: 'rpm-current-domino', urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'royalDenim', hairColor: 0x24150f, eyeColor: 0x2f5d7c, skinTone: 0xd9a27d },
+  { id: 'rpm-67d411-domino', urls: ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb', 'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb', 'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'casinoCheck', hairColor: 0x14100c, eyeColor: 0x5a3d2b, skinTone: 0xc78f68 },
+  { id: 'rpm-67f433-domino', urls: ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb', 'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb', 'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'linenStreet', hairColor: 0x2c1b12, eyeColor: 0x406a45, skinTone: 0xe0b18d },
+  { id: 'rpm-67e1b5-domino', urls: ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb', 'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb', 'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'jacquardNight', hairColor: 0x3a2418, eyeColor: 0x364f7d, skinTone: 0xb87957 },
+  { id: 'webgl-vietnam-human-domino', urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'softFleece', hairColor: 0x120d0a, eyeColor: 0x33271e, skinTone: 0xd39a72 },
+  { id: 'webgl-ai-teacher-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'patternedRed', hairColor: 0x231915, eyeColor: 0x3d5f73, skinTone: 0xc88b64 },
+  { id: 'webgl-ai-teacher-1-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'mixedDenim', hairColor: 0x0f0b08, eyeColor: 0x4c3425, skinTone: 0xe3b08b }
+]);
+const TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
+const TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0;
+const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
+const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
+const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
+const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
+const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
+const texasDominoCharacterTemplateCache = new Map();
+const texasDominoCharacterTextureCache = new Map();
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
@@ -1155,6 +1220,402 @@ function disposeObjectResources(object) {
     if (mat?.map) mat.map.dispose?.();
     if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
     mat?.dispose?.();
+  });
+}
+
+
+function findTexasCharacterBone(root, names = []) {
+  const normalized = names.map((name) => String(name || '').toLowerCase());
+  let found = null;
+  root?.traverse?.((obj) => {
+    if (found || !obj?.isBone) return;
+    const boneName = String(obj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalized.some((name) => boneName.includes(name.replace(/[^a-z0-9]/g, '')))) {
+      found = obj;
+    }
+  });
+  return found;
+}
+
+function captureTexasCharacterPose(bones = {}) {
+  return Object.entries(bones).reduce((pose, [key, bone]) => {
+    if (bone) pose[key] = bone.rotation.clone();
+    return pose;
+  }, {});
+}
+
+function addTexasBoneOffset(bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function makeTexasCharacterPose(base = {}, offsets = {}) {
+  const pose = {};
+  Object.entries(base).forEach(([key, rot]) => {
+    pose[key] = rot.clone();
+  });
+  Object.entries(offsets).forEach(([key, delta]) => {
+    const current = base?.[key];
+    if (!current) return;
+    pose[key] = new THREE.Euler(
+      current.x + (delta.x || 0),
+      current.y + (delta.y || 0),
+      current.z + (delta.z || 0)
+    );
+  });
+  return pose;
+}
+
+function applyTexasCharacterPose(rig, pose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const target = pose?.[key];
+    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    if (!bone || !target || !home) return;
+    bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(home.z, target.z, alpha);
+  });
+}
+
+function normalizeTexasCharacterRoot(root) {
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
+}
+
+function getTexasDominoCharacterThemeForSeat(seatIndex) {
+  return TEXAS_DOMINO_CHARACTER_THEMES[seatIndex % TEXAS_DOMINO_CHARACTER_THEMES.length] || TEXAS_DOMINO_CHARACTER_THEMES[0];
+}
+
+function loadTexasDominoCharacterTexture(url, { isColor = false, repeat = 3 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}`;
+  if (texasDominoCharacterTextureCache.has(cacheKey)) return texasDominoCharacterTextureCache.get(cacheKey);
+  const texture = new THREE.TextureLoader().load(
+    url,
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(repeat, repeat);
+      loaded.anisotropy = 6;
+      if (isColor) applySRGBColorSpace(loaded);
+      loaded.needsUpdate = true;
+    },
+    undefined,
+    () => texasDominoCharacterTextureCache.delete(cacheKey)
+  );
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  if (isColor) applySRGBColorSpace(texture);
+  texasDominoCharacterTextureCache.set(cacheKey, texture);
+  return texture;
+}
+
+function createTexasDominoClothMaterial(comboEntry = {}, fallbackColor = 0x2f5f9f) {
+  const cloth = POLYHAVEN_CLOTH_MATERIALS[comboEntry.material] || POLYHAVEN_CLOTH_MATERIALS.denim;
+  const repeat = comboEntry.repeat || 3.5;
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(comboEntry.tint ?? fallbackColor),
+    roughness: 0.74,
+    metalness: 0.025
+  });
+  mat.map = loadTexasDominoCharacterTexture(cloth.color, { isColor: true, repeat });
+  mat.normalMap = loadTexasDominoCharacterTexture(cloth.normal, { repeat });
+  mat.roughnessMap = loadTexasDominoCharacterTexture(cloth.roughness, { repeat });
+  mat.needsUpdate = true;
+  return mat;
+}
+
+function enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex) {
+  const combo = TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const clothMaterials = [
+    createTexasDominoClothMaterial(combo.upper, 0x2f5f9f),
+    createTexasDominoClothMaterial(combo.lower, 0x374151),
+    createTexasDominoClothMaterial(combo.accent, 0xd8dee9)
+  ];
+  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.skinTone ?? 0xd9a27d), roughness: 0.52, metalness: 0.02 });
+  const hair = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.hairColor ?? 0x24150f), roughness: 0.66, metalness: 0.03 });
+  const eye = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.eyeColor ?? 0x2f5d7c), roughness: 0.35, metalness: 0.04 });
+  let meshIndex = 0;
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const name = String(obj.name || '').toLowerCase();
+    if (name.includes('hair')) {
+      obj.material = hair;
+    } else if (name.includes('eye')) {
+      obj.material = eye;
+    } else if (name.includes('head') || name.includes('skin') || name.includes('hand') || name.includes('arm')) {
+      obj.material = skin;
+    } else if (name.includes('leg') || name.includes('pant') || name.includes('shoe')) {
+      obj.material = clothMaterials[1];
+    } else if (name.includes('shirt') || name.includes('top') || name.includes('body') || name.includes('torso')) {
+      obj.material = clothMaterials[0];
+    } else {
+      obj.material = clothMaterials[(meshIndex + seatIndex) % clothMaterials.length];
+      meshIndex += 1;
+    }
+  });
+}
+
+function buildTexasFallbackDominoCharacterTemplate(theme = TEXAS_DOMINO_CHARACTER_THEMES[0]) {
+  const group = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.skinTone), roughness: 0.55 });
+  const hair = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.hairColor), roughness: 0.68 });
+  const eye = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.eyeColor), roughness: 0.42 });
+  const combo = TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS[theme.clothCombo] || TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const shirt = createTexasDominoClothMaterial(combo.upper, 0x2f5f9f);
+  const pants = createTexasDominoClothMaterial(combo.lower, 0x374151);
+  const makeLimb = (name, radius, length, mat) => {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.92, length, 14), mat);
+    mesh.name = name;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  };
+  const hips = new THREE.Group();
+  hips.name = 'hips';
+  group.add(hips);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.38, 6, 14), shirt);
+  torso.name = 'torso';
+  torso.position.y = 0.86;
+  torso.rotation.x = THREE.MathUtils.degToRad(-7);
+  hips.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.155, 24, 16), skin);
+  head.name = 'head';
+  head.position.y = 1.28;
+  hips.add(head);
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.162, 24, 8), hair);
+  hairCap.name = 'hair';
+  hairCap.scale.y = 0.48;
+  hairCap.position.set(0, 1.37, -0.015);
+  hips.add(hairCap);
+  [-1, 1].forEach((side) => {
+    const eyeMesh = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), eye);
+    eyeMesh.name = side < 0 ? 'leftEye' : 'rightEye';
+    eyeMesh.position.set(side * 0.055, 1.3, 0.142);
+    hips.add(eyeMesh);
+    const upperArm = makeLimb(side < 0 ? 'leftarm' : 'rightarm', 0.036, 0.32, skin);
+    upperArm.position.set(side * 0.23, 0.94, 0.06);
+    upperArm.rotation.set(THREE.MathUtils.degToRad(73), 0, THREE.MathUtils.degToRad(side * 11));
+    hips.add(upperArm);
+    const foreArm = makeLimb(side < 0 ? 'leftforearm' : 'rightforearm', 0.031, 0.3, skin);
+    foreArm.position.set(side * 0.25, 0.75, 0.23);
+    foreArm.rotation.set(THREE.MathUtils.degToRad(58), 0, THREE.MathUtils.degToRad(side * 4));
+    hips.add(foreArm);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.044, 16, 10), skin);
+    hand.name = side < 0 ? 'lefthand' : 'righthand';
+    hand.position.set(side * 0.26, 0.58, 0.36);
+    hips.add(hand);
+    const thigh = makeLimb(side < 0 ? 'leftthigh' : 'rightthigh', 0.052, 0.44, pants);
+    thigh.position.set(side * 0.09, 0.43, 0.09);
+    thigh.rotation.set(THREE.MathUtils.degToRad(82), 0, THREE.MathUtils.degToRad(side * 4));
+    hips.add(thigh);
+    const calf = makeLimb(side < 0 ? 'leftcalf' : 'rightcalf', 0.044, 0.42, pants);
+    calf.position.set(side * 0.1, 0.2, 0.36);
+    calf.rotation.set(THREE.MathUtils.degToRad(95), 0, THREE.MathUtils.degToRad(side * 2));
+    hips.add(calf);
+  });
+  return group;
+}
+
+async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
+  const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
+  const cacheKey = `${theme?.id || 'fallback'}:${urls.join('|')}`;
+  if (texasDominoCharacterTemplateCache.has(cacheKey)) return texasDominoCharacterTemplateCache.get(cacheKey);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (root) {
+          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+          return root;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) console.warn('Texas Holdem Domino character model failed, using fallback', theme?.id, lastError);
+    return buildTexasFallbackDominoCharacterTemplate(theme);
+  })();
+  texasDominoCharacterTemplateCache.set(cacheKey, promise);
+  promise.catch(() => texasDominoCharacterTemplateCache.delete(cacheKey));
+  return promise;
+}
+
+function createTexasCharacterRig(instance, seatRoot, seatIndex) {
+  const bones = {
+    hips: findTexasCharacterBone(instance, ['hips', 'pelvis']),
+    spine: findTexasCharacterBone(instance, ['spine', 'chest', 'torso']),
+    head: findTexasCharacterBone(instance, ['head', 'neck']),
+    rightUpperArm: findTexasCharacterBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
+    rightForeArm: findTexasCharacterBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
+    rightHand: findTexasCharacterBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    leftUpperArm: findTexasCharacterBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
+    leftForeArm: findTexasCharacterBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
+    leftHand: findTexasCharacterBone(instance, ['lefthand', 'hand.l', 'l_hand']),
+    leftThigh: findTexasCharacterBone(instance, ['leftupleg', 'leftthigh', 'l_thigh']),
+    leftCalf: findTexasCharacterBone(instance, ['leftleg', 'leftcalf', 'l_calf']),
+    rightThigh: findTexasCharacterBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
+    rightCalf: findTexasCharacterBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
+  };
+  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureTexasCharacterPose(bones), seatedPose: null, actionFrame: null };
+  addTexasBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  addTexasBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  addTexasBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
+  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
+  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
+  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
+  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  addTexasBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  rig.seatedPose = captureTexasCharacterPose(bones);
+  instance.position.y -= 0.09 * MODEL_SCALE;
+  return rig;
+}
+
+async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) {
+  if (!seatGroup?.group) return null;
+  const theme = getTexasDominoCharacterThemeForSeat(seatIndex);
+  const isHumanSeat = Boolean(seatGroup.isHuman);
+
+  const mountInstance = (sourceInstance, { replace = false } = {}) => {
+    if (replace && seatGroup.character?.root?.parent) {
+      const prior = seatGroup.character.root;
+      seatGroup.character.rig?.actionFrame && cancelAnimationFrame(seatGroup.character.rig.actionFrame);
+      prior.parent.remove(prior);
+    }
+    const instance = sourceInstance;
+    enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex);
+    normalizeTexasCharacterRoot(instance);
+    const seatRoot = new THREE.Group();
+    const characterScale = TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE + (isHumanSeat ? TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
+    const seatScale = (theme.scale || 1) * characterScale;
+    const scaleDelta = Math.max(0, characterScale - 1);
+    seatRoot.scale.setScalar(seatScale);
+    const baseSeatOffsetY = (theme.normalizedSeatOffsetY ?? TEXAS_MURLAN_SEATED_OFFSET_Y) - 0.2;
+    const baseSeatOffsetZ = theme.normalizedSeatOffsetZ ?? TEXAS_MURLAN_SEATED_OFFSET_Z;
+    seatRoot.position.set(
+      0,
+      baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET,
+      baseSeatOffsetZ - 0.03 - TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET
+    );
+    seatRoot.add(instance);
+    seatGroup.group.add(seatRoot);
+    const rig = createTexasCharacterRig(instance, seatRoot, seatIndex);
+    seatGroup.character = { root: seatRoot, rig, theme };
+    return seatGroup.character;
+  };
+
+  const fallback = mountInstance(buildTexasFallbackDominoCharacterTemplate(theme));
+  loadTexasDominoCharacterTemplate(theme, renderer)
+    .then((template) => {
+      if (!seatGroup?.group?.parent || !template) return;
+      mountInstance(cloneSkeleton(template), { replace: true });
+    })
+    .catch((error) => {
+      console.warn('Texas Holdem Domino character model failed after fallback mount', theme?.id, error);
+    });
+  return fallback;
+}
+
+function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
+  const rig = seatGroup?.character?.rig;
+  if (!rig?.seatedPose) return;
+  if (rig.actionFrame) {
+    cancelAnimationFrame(rig.actionFrame);
+    rig.actionFrame = null;
+  }
+  const now = performance.now();
+  const base = rig.seatedPose;
+  const poses = {
+    cards: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-9) },
+      head: { x: THREE.MathUtils.degToRad(-6) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-6) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-3) },
+      leftHand: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(6) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(3) },
+      rightHand: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(8) }
+    }),
+    fold: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(56) },
+      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-10) },
+      head: { x: THREE.MathUtils.degToRad(-4) }
+    }),
+    chip: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-64), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-22) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(4) },
+      rightHand: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-8) }
+    })
+  };
+  const sequence = type === 'FOLD'
+    ? [{ at: 0, duration: 220, pose: poses.fold }, { at: 220, duration: 320, pose: base }]
+    : type === 'CHIP'
+      ? [{ at: 0, duration: 260, pose: poses.chip }, { at: 260, duration: 440, pose: base }]
+      : [{ at: 0, duration: 240, pose: poses.cards }, { at: 240, duration: 900, pose: poses.cards }, { at: 1140, duration: 260, pose: base }];
+  const tick = (time) => {
+    const elapsed = time - now;
+    let active = false;
+    for (const step of sequence) {
+      if (elapsed < step.at || elapsed > step.at + step.duration) continue;
+      const localT = Math.min(1, Math.max(0, (elapsed - step.at) / Math.max(1, step.duration)));
+      applyTexasCharacterPose(rig, step.pose, 1 - Math.pow(1 - localT, 3));
+      active = true;
+      break;
+    }
+    if (elapsed < sequence[sequence.length - 1].at + sequence[sequence.length - 1].duration) {
+      rig.actionFrame = requestAnimationFrame(tick);
+    } else {
+      applyTexasCharacterPose(rig, base, 1);
+      rig.actionFrame = null;
+    }
+    if (!active && elapsed >= 0 && elapsed < sequence[sequence.length - 1].at) {
+      rig.actionFrame = requestAnimationFrame(tick);
+    }
+  };
+  rig.actionFrame = requestAnimationFrame(tick);
+}
+
+function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
+  const character = seatGroup?.character;
+  if (!character?.root || !seatGroup?.cardMeshes?.length) return;
+  const visibleCards = seatGroup.cardMeshes.filter((mesh) => mesh?.visible);
+  if (!visibleCards.length) return;
+  const center = visibleCards.reduce((sum, mesh) => sum.add(mesh.position), new THREE.Vector3()).multiplyScalar(1 / visibleCards.length);
+  const leftHandWorld = center.clone().addScaledVector(seatGroup.right, -HOLE_SPACING * 0.68).add(new THREE.Vector3(0, TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase, 0));
+  const rightHandWorld = center.clone().addScaledVector(seatGroup.right, HOLE_SPACING * 0.68).add(new THREE.Vector3(0, TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase, 0));
+  [
+    ['leftHandTarget', leftHandWorld],
+    ['rightHandTarget', rightHandWorld]
+  ].forEach(([key, world]) => {
+    let marker = character[key];
+    if (!marker) {
+      marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.025 * MODEL_SCALE, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xd9a27d, roughness: 0.5 })
+      );
+      marker.name = key;
+      marker.castShadow = true;
+      marker.visible = false;
+      character.root.add(marker);
+      character[key] = marker;
+    }
+    character.root.worldToLocal(world);
+    marker.position.copy(world);
   });
 }
 
@@ -2661,7 +3122,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     .clone()
     .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT - CARD_RAIL_FORWARD_SHIFT + CHIP_BUTTON_GRID_OUTWARD_SHIFT)
     .addScaledVector(axis, CHIP_BUTTON_GRID_RIGHT_SHIFT);
-  chipCenter.y = anchorY;
+  chipCenter.y = anchorY + CHIP_BUTTON_GRID_VERTICAL_LIFT;
   const columns = 3;
   const rows = Math.ceil(CHIP_VALUES.length / columns);
   const colOffset = (columns - 1) / 2;
@@ -2670,7 +3131,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     const chip = chipFactory.createSingleChip?.(value) ?? chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
-    chip.position.y = anchorY + CARD_D * 0.82;
+    chip.position.y = anchorY + CHIP_BUTTON_GRID_VERTICAL_LIFT + CARD_D * 0.82;
     const row = Math.floor(index / columns);
     const col = index % columns;
     chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
@@ -3941,7 +4402,7 @@ function TexasHoldemArena({ search }) {
   }, [applyHeadOrientation, stopCameraTurnAnimation]);
 
   const animateCardsPeek = useCallback((seat, seatIndex) => {
-    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number' || seat.isHuman) return;
+    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number') return;
     const key = `seat-${seatIndex}`;
     const previous = peekCardAnimationRef.current.get(key);
     if (previous) {
@@ -3967,6 +4428,9 @@ function TexasHoldemArena({ search }) {
       } else {
         phase = Math.max(0, 1 - (t - 0.7) / 0.3);
       }
+      if (seat.isHuman) {
+        runTexasCharacterPoseAction(seat, 'CARDS');
+      }
       cards.forEach((mesh, cardIdx) => {
         const outwardSign = cardIdx === 0 ? -1 : 1;
         const standAngle = CARD_PEEK_TOP_LIFT_ANGLE * phase;
@@ -3982,6 +4446,9 @@ function TexasHoldemArena({ search }) {
         mesh.position.copy(starts[cardIdx].position.clone().add(offset));
         mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
       });
+      if (seat.isHuman) {
+        updateTexasCharacterCardHands(seat, phase);
+      }
       if (t < 1) {
         const frame = requestAnimationFrame(tick);
         peekCardAnimationRef.current.set(key, { frame });
@@ -5017,6 +5484,9 @@ function TexasHoldemArena({ search }) {
           potDropCount: 0
         };
         seatGroups.push(seatGroup);
+        attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer).catch((error) => {
+          console.warn('Failed to attach Texas Holdem Domino-style seated human', seatIndex, error);
+        });
 
         const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
         const labelForward = seat.labelOffset?.forward ?? 0;
@@ -5761,6 +6231,7 @@ function TexasHoldemArena({ search }) {
             .addScaledVector(pileForward, foldedOrder * FOLD_PILE_CARD_GAP);
           const pileLookTarget = pilePosition.clone().add(pileForward);
           if (player.folded && !(prevPlayer?.folded)) {
+            if (cardIdx === 0) runTexasCharacterPoseAction(seat, 'FOLD');
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
             mesh.position.copy(pilePosition);
@@ -5830,6 +6301,10 @@ function TexasHoldemArena({ search }) {
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
+      if (seat.isHuman) {
+        const humanActiveTurn = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded;
+        updateTexasCharacterCardHands(seat, humanActiveTurn ? 0.28 : 0);
+      }
 
       if (seat.foldBadge) {
         if (player.folded && !state.showdown) {
@@ -5897,6 +6372,7 @@ function TexasHoldemArena({ search }) {
           seat.potDropCount = pileIndex + 1;
         };
         if (seat.isHuman) {
+          runTexasCharacterPoseAction(seat, 'CHIP');
           applyPotGain(betDelta);
         } else {
           const chipHeight = chipFactory.chipHeight;
@@ -6139,6 +6615,7 @@ function TexasHoldemArena({ search }) {
     if (seat?.isHuman) {
       resetCameraToStartView();
       playSound('knock');
+      animateCardsPeek(seat, focusIndex);
       return;
     }
     animateCardsPeek(seat, focusIndex);
