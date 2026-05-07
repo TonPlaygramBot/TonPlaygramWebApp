@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
+import { MURLAN_CHARACTER_THEMES } from '../config/murlanCharacterThemes.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -56,7 +57,7 @@ const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: pull the chair ring inward so players sit closer to the smaller table.
-const CHAIR_GLOBAL_PUSHBACK = 0.38 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.42 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -93,9 +94,9 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.56;
 // Portrait calibration: keep the bottom player slightly farther back, but closer to the table than before.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.14;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.18;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
@@ -173,14 +174,14 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 1100;
-const DICE_SETTLE_DURATION = 240;
-const DICE_RESULT_HOLD_DURATION = 2000;
-const DICE_BOUNCE_HEIGHT = 0.06;
+// Keep Snake dice pacing aligned with Pool Royale break-dice rhythm.
+const DICE_ROLL_DURATION = 930;
+const DICE_SETTLE_DURATION = 180;
+const DICE_RESULT_HOLD_DURATION = 720;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
+const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -473,8 +474,8 @@ const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
-  heightOffset: 2.72,
-  targetLift: 0
+  heightOffset: 2.48,
+  targetLift: 0.16 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,
@@ -1665,6 +1666,118 @@ function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTe
 }
 
 
+const DOMINO_SNAKE_CHARACTER_CLOTH_MATERIALS = Object.freeze({
+  denim: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg', tint: '#314d86' },
+  check: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg', tint: '#9f3651' },
+  hessian: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg', tint: '#a27445' },
+  floral: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg', tint: '#6d3f7f' },
+  fleece: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg', tint: '#4b5563' },
+  picnic: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg', tint: '#c44f42' }
+});
+
+const DOMINO_SNAKE_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: '#2f5f9f', repeat: 4.2 }, lower: { material: 'hessian', tint: '#9b6b3f', repeat: 3.4 }, accent: { material: 'fleece', tint: '#d8dee9', repeat: 5 } },
+  casinoCheck: { upper: { material: 'check', tint: '#b7375d', repeat: 3.8 }, lower: { material: 'denim', tint: '#243e70', repeat: 4.4 }, accent: { material: 'hessian', tint: '#f4d7a1', repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: '#b68452', repeat: 3.6 }, lower: { material: 'fleece', tint: '#374151', repeat: 5.2 }, accent: { material: 'denim', tint: '#4a6fa4', repeat: 4 } },
+  jacquardNight: { upper: { material: 'floral', tint: '#7c3f88', repeat: 3.2 }, lower: { material: 'denim', tint: '#1f335f', repeat: 4.5 }, accent: { material: 'check', tint: '#e3c16f', repeat: 4 } },
+  softFleece: { upper: { material: 'fleece', tint: '#556070', repeat: 5.3 }, lower: { material: 'hessian', tint: '#8b633f', repeat: 3.7 }, accent: { material: 'floral', tint: '#b88ab8', repeat: 3 } },
+  patternedRed: { upper: { material: 'picnic', tint: '#c44f42', repeat: 3.4 }, lower: { material: 'denim', tint: '#263f73', repeat: 4.7 }, accent: { material: 'fleece', tint: '#f1f5f9', repeat: 5 } },
+  mixedDenim: { upper: { material: 'denim', tint: '#3b6ea8', repeat: 4 }, lower: { material: 'check', tint: '#4f6f93', repeat: 4.2 }, accent: { material: 'hessian', tint: '#d6a35f', repeat: 3.2 } }
+});
+
+const DOMINO_SNAKE_CHARACTER_THEME_DETAILS = Object.freeze([
+  { clothCombo: 'royalDenim', hairColor: '#24150f', eyeColor: '#2f5d7c', skin: ['#f0c2a0', '#d9a27d', '#9a6044'] },
+  { clothCombo: 'casinoCheck', hairColor: '#14100c', eyeColor: '#5a3d2b', skin: ['#e2b28d', '#c78f68', '#8a5338'] },
+  { clothCombo: 'linenStreet', hairColor: '#2c1b12', eyeColor: '#406a45', skin: ['#f2cfb0', '#e0b18d', '#9d6b4d'] },
+  { clothCombo: 'jacquardNight', hairColor: '#3a2418', eyeColor: '#364f7d', skin: ['#d49a78', '#b87957', '#754331'] },
+  { clothCombo: 'softFleece', hairColor: '#120d0a', eyeColor: '#33271e', skin: ['#edba91', '#d39a72', '#905a3f'] },
+  { clothCombo: 'patternedRed', hairColor: '#231915', eyeColor: '#3d5f73', skin: ['#e3ad86', '#c88b64', '#855037'] },
+  { clothCombo: 'mixedDenim', hairColor: '#0f0b08', eyeColor: '#4c3425', skin: ['#f5c9a8', '#e3b08b', '#9b6748'] }
+]);
+
+const SNAKE_DOMINO_CHARACTER_MODEL_CACHE = new Map();
+const SNAKE_DOMINO_CLOTH_TEXTURE_CACHE = new Map();
+
+function getSnakeDominoCharacterTheme(seatIndex = 0) {
+  const source = MURLAN_CHARACTER_THEMES[seatIndex % MURLAN_CHARACTER_THEMES.length] || MURLAN_CHARACTER_THEMES[0];
+  const detail = DOMINO_SNAKE_CHARACTER_THEME_DETAILS[seatIndex % DOMINO_SNAKE_CHARACTER_THEME_DETAILS.length];
+  return { ...source, ...detail, modelUrls: source.modelUrls || [source.url].filter(Boolean) };
+}
+
+async function loadSnakeDominoClothTextureSet(cloth, renderer = null) {
+  if (!cloth?.color) return null;
+  const cacheKey = `${cloth.color}|${cloth.normal}|${cloth.roughness}`;
+  if (SNAKE_DOMINO_CLOTH_TEXTURE_CACHE.has(cacheKey)) return SNAKE_DOMINO_CLOTH_TEXTURE_CACHE.get(cacheKey);
+  const loader = new THREE.TextureLoader();
+  const [map, normalMap, roughnessMap] = await Promise.all([
+    loader.loadAsync(cloth.color),
+    cloth.normal ? loader.loadAsync(cloth.normal) : Promise.resolve(null),
+    cloth.roughness ? loader.loadAsync(cloth.roughness) : Promise.resolve(null)
+  ]);
+  if (map) applySRGBColorSpace(map);
+  const textureSet = { map, normalMap, roughnessMap, anisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8 };
+  SNAKE_DOMINO_CLOTH_TEXTURE_CACHE.set(cacheKey, textureSet);
+  return textureSet;
+}
+
+function resolveSnakeDominoCloth(theme, slot) {
+  const combo = DOMINO_SNAKE_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || DOMINO_SNAKE_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper;
+  const base = DOMINO_SNAKE_CHARACTER_CLOTH_MATERIALS[slotConfig?.material] || DOMINO_SNAKE_CHARACTER_CLOTH_MATERIALS.denim;
+  return { ...base, tint: slotConfig?.tint || base.tint, repeat: slotConfig?.repeat || 3.5 };
+}
+
+async function loadSnakeDominoHumanTextureProfile(renderer = null, seatIndex = 0) {
+  const theme = getSnakeDominoCharacterTheme(seatIndex);
+  const [shirt, pants, jacket] = await Promise.all([
+    loadSnakeDominoClothTextureSet(resolveSnakeDominoCloth(theme, 'upper'), renderer),
+    loadSnakeDominoClothTextureSet(resolveSnakeDominoCloth(theme, 'lower'), renderer),
+    loadSnakeDominoClothTextureSet(resolveSnakeDominoCloth(theme, 'accent'), renderer)
+  ]);
+  return {
+    shirt,
+    pants,
+    jacket,
+    shoes: jacket,
+    skinTexture: createDetailedHumanSkinTexture(theme.skin),
+    skinTone: theme.skin?.[1] || '#c99974',
+    hairColor: theme.hairColor || '#2a1a10',
+    eyeColor: theme.eyeColor || '#3f6f8f',
+    shirtTint: resolveSnakeDominoCloth(theme, 'upper').tint,
+    pantsTint: resolveSnakeDominoCloth(theme, 'lower').tint,
+    jacketTint: resolveSnakeDominoCloth(theme, 'accent').tint
+  };
+}
+
+async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0) {
+  const theme = getSnakeDominoCharacterTheme(seatIndex);
+  const urls = Array.isArray(theme.modelUrls) ? theme.modelUrls.filter(Boolean) : [];
+  const cacheKey = `${theme.id}:${urls.join('|')}`;
+  if (SNAKE_DOMINO_CHARACTER_MODEL_CACHE.has(cacheKey)) return SNAKE_DOMINO_CHARACTER_MODEL_CACHE.get(cacheKey);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader.setCrossOrigin('anonymous');
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (scene) {
+          applyOriginalTextureMapping(scene);
+          return scene;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (seatIndex === 0) return loadSeatedHumanTemplate(renderer);
+    throw lastError || new Error('Failed to load Domino seated human template');
+  })();
+  SNAKE_DOMINO_CHARACTER_MODEL_CACHE.set(cacheKey, promise);
+  return promise;
+}
+
+
 const SNAKE_SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze([
   Object.freeze({ shirt: 'cotton_jersey', pants: 'denim_fabric_04', jacket: 'brown_leather', shoes: 'leather_white', skin: ['#e2c3a5', '#c99974', '#8f5f42'], hair: '#3b2416', eyes: '#3f6f8f' }),
   Object.freeze({ shirt: 'waffle_pique_cotton', pants: 'denim_fabric_05', jacket: 'fabric_leather_01', shoes: 'brown_leather', skin: ['#f0c7a8', '#cf946c', '#985d3c'], hair: '#111827', eyes: '#5b7c54' }),
@@ -1792,22 +1905,26 @@ function applySnakeSeatedHumanMaterialDetail(root, textureProfile, fallbackTextu
         mat.metalness = 0;
       } else if (kind === 'shoes') {
         assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null, 2.0);
-        mat.color?.setHex?.(0xffffff);
+        if (textureProfile.jacketTint) mat.color?.set?.(textureProfile.jacketTint);
+        else mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
         mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
       } else if (kind === 'jacket') {
         assignPbrSet(mat, textureProfile.jacket, fallbackTextures.jacketTex || fallbackTextures.clothTex || null, 1.35);
-        mat.color?.setHex?.(0xffffff);
+        if (textureProfile.jacketTint) mat.color?.set?.(textureProfile.jacketTint);
+        else mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.46, 0.46);
         mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.18);
       } else if (kind === 'pants') {
         assignPbrSet(mat, textureProfile.pants, fallbackTextures.pantsTex || fallbackTextures.clothTex || null, 2.2);
-        mat.color?.setHex?.(0xffffff);
+        if (textureProfile.pantsTint) mat.color?.set?.(textureProfile.pantsTint);
+        else mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.74, 0.74);
         mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
       } else {
         assignPbrSet(mat, textureProfile.shirt, fallbackTextures.shirtTex || fallbackTextures.clothTex || null, 2.4);
-        mat.color?.setHex?.(0xffffff);
+        if (textureProfile.shirtTint) mat.color?.set?.(textureProfile.shirtTint);
+        else mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
         mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
       }
@@ -3153,12 +3270,10 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = [],
-    bouncePoints = []
+    startPositions = []
   }
 ) {
   const start = performance.now();
-  const rollSplit = 0.58;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -3167,7 +3282,7 @@ function createDiceRollAnimation(
     )
   );
   const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE * 1.35, 0, (Math.random() - 0.5) * DICE_SIZE * 1.35)
+    () => new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE, 0, (Math.random() - 0.5) * DICE_SIZE)
   );
 
   return {
@@ -3179,25 +3294,17 @@ function createDiceRollAnimation(
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const bouncePos = bouncePoints[index] ?? startPos.clone().lerp(base, 0.58);
-        const firstLeg = eased < rollSplit;
-        const legT = firstLeg ? smootherstep01(eased / rollSplit) : smootherstep01((eased - rollSplit) / (1 - rollSplit));
-        const from = firstLeg ? startPos : bouncePos;
-        const to = firstLeg ? bouncePos : base;
-        const position = from.clone().lerp(to, legT);
+        const position = startPos.clone().lerp(base, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.32);
-        const hopArc = Math.sin(legT * Math.PI);
-        const hopHeight = firstLeg ? DICE_THROW_HEIGHT * 0.34 : DICE_BOUNCE_HEIGHT * 0.9;
-        position.y = THREE.MathUtils.lerp(from.y, firstLeg ? bouncePos.y : baseY, legT) + hopArc * hopHeight * (1 - eased * 0.34);
+        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
+        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
+        position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounce;
         die.position.copy(position);
 
-        const travelDistance = Math.max(DICE_SIZE, from.distanceTo(to));
-        const rollAmount = (travelDistance / Math.max(DICE_SIZE * 0.5, 0.001)) * (firstLeg ? 0.17 : 0.13);
         const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * rollAmount;
-        die.rotation.y += spinVectors[index].y * spinFactor * rollAmount;
-        die.rotation.z += spinVectors[index].z * spinFactor * rollAmount;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -3916,21 +4023,21 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     })
     .catch(() => {});
 
-  loadSeatedHumanTemplate(renderer)
-    .then((humanTemplate) => {
-      if (!humanTemplate || disposed) return;
-      chairs.forEach((chair, seatIndex) => {
+  chairs.forEach((chair, seatIndex) => {
+    loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex)
+      .then((humanTemplate) => {
+        if (!humanTemplate || disposed) return;
         const instance = cloneSkeleton(humanTemplate);
         makeSnakeHumanMaterialsUnique(instance);
         applyOriginalTextureMapping(instance);
-        instance.name = `SnakeSeatHuman_${seatIndex}`;
+        instance.name = `SnakeSeatHuman_DominoRoyal_${seatIndex}`;
         const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
         const shirtTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
         const pantsTex = createSeatedHumanFallbackTexture('#1f3f68', '#111827');
         const jacketTex = createSeatedHumanFallbackTexture('#3b2416', '#160f0b');
         const shoesTex = createSeatedHumanFallbackTexture('#171717', '#5c4033');
         const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-        loadSnakeSeatedHumanTextureProfile(renderer, seatIndex)
+        loadSnakeDominoHumanTextureProfile(renderer, seatIndex)
           .then((textureProfile) => {
             if (!disposed) {
               applySnakeSeatedHumanMaterialDetail(instance, textureProfile, {
@@ -3945,19 +4052,37 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
             }
           })
           .catch(() => {
-            applySnakeSeatedHumanMaterialDetail(instance, {
-              shirt: null,
-              pants: null,
-              jacket: null,
-              shoes: null,
-              skinTexture: skinTex,
-              skinTone: '#c99974',
-              hairColor: '#3f2f20',
-              eyeColor: '#3f6f8f'
-            }, { skinTex, shirtTex, pantsTex, jacketTex, shoesTex, hairTex, clothTex: shirtTex });
+            loadSnakeSeatedHumanTextureProfile(renderer, seatIndex)
+              .then((textureProfile) => {
+                if (!disposed) {
+                  applySnakeSeatedHumanMaterialDetail(instance, textureProfile, {
+                    skinTex,
+                    shirtTex,
+                    pantsTex,
+                    jacketTex,
+                    shoesTex,
+                    hairTex,
+                    clothTex: shirtTex
+                  });
+                }
+              })
+              .catch(() => {
+                applySnakeSeatedHumanMaterialDetail(instance, {
+                  shirt: null,
+                  pants: null,
+                  jacket: null,
+                  shoes: null,
+                  skinTexture: skinTex,
+                  skinTone: '#c99974',
+                  hairColor: '#3f2f20',
+                  eyeColor: '#3f6f8f'
+                }, { skinTex, shirtTex, pantsTex, jacketTex, shoesTex, hairTex, clothTex: shirtTex });
+              });
           });
         const baseScale =
-          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+          SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER *
+          (getSnakeDominoCharacterTheme(seatIndex)?.scale || 1);
         instance.scale.setScalar(baseScale);
         chair.humanAnchor.add(instance);
         seatedHumans[seatIndex] = {
@@ -3967,11 +4092,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
           baseScale
         };
         applyChessBattleSeatedHumanBaseline(seatedHumans[seatIndex], seatIndex, 0, 0);
+      })
+      .catch((error) => {
+        console.warn('Failed to load Domino Royal seated human for Snake', seatIndex, error);
       });
-    })
-    .catch((error) => {
-      console.warn('Failed to load seated human players', error);
-    });
+  });
 
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
