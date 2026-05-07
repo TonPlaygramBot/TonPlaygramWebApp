@@ -12,7 +12,7 @@ describe('Pool Royale table models', () => {
     assert.equal(resolvePoolRoyaleTableModel('unknown').id, 'royal-original');
   });
 
-  test('Showood keeps its own cloth while Pool Royale finishes wood and gold trim', () => {
+  test('Showood uses original GLB surface layout with Pool Royale finish textures', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -23,11 +23,15 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.fitScale, 1.035);
     assert.equal(showood.clothRepeatScale, 1.55);
     assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['cloth', 'cushion', 'pocket']);
-    assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['wood', 'trim']);
-    assert.equal(showood.fitHeightScale, 1.12);
-    assert.equal(showood.externalLowerWoodExpansionScale, 1.08);
-    assert.equal(showood.addGoldLegLevelers, true);
+    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
+    assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
+      'cloth',
+      'cushion',
+      'wood',
+      'trim',
+      'pocket'
+    ]);
     assert.equal('playfieldVisualLift' in showood, false);
+    assert.equal('fitHeightScale' in showood, false);
   });
 });
