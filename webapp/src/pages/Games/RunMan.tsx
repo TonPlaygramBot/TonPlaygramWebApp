@@ -129,15 +129,18 @@ const MAZE_W = COLS * CELL;
 const MAZE_H = ROWS * CELL;
 const PLAYER_RADIUS = 0.16;
 const PICKUP_RADIUS = 0.13;
-const PLAYER_WALK_SPEED = 1.35;
-const PLAYER_RUN_SPEED = 2.35;
+const PLAYER_WALK_SPEED = 2.05;
+const PLAYER_RUN_SPEED = 3.85;
+const PLAYER_ACCEL_RESPONSE = 0.00018;
+const PLAYER_BRAKE_RESPONSE = 0.00008;
 const FIRST_PERSON_EYE_HEIGHT = 0.72;
-const TOUCH_LOOK_SENSITIVITY = 0.004;
+const TOUCH_LOOK_SENSITIVITY = 0.0032;
+const MOBILE_MAX_DPR = 1.05;
 const WEAPON_PICKUP_TAP_RANGE = 1.35;
-const AI_RUNNER_SPEED = 1.1;
+const AI_RUNNER_SPEED = 1.45;
 const MAX_PLAYERS = 8;
 const GROUND_Y = 0;
-const DT_MAX = 1 / 30;
+const DT_MAX = 1 / 45;
 const GAME_TIME = 180;
 const TMP = new THREE.Vector3();
 const HUMAN_FPS_HANDS_NAME = 'human-character-fps-hands';
@@ -534,10 +537,12 @@ function makeHumanFpsHands(actor: Actor) {
   return rig;
 }
 
-function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number) {
-  const parts = rig.userData.parts as
-    | Record<string, THREE.Mesh>
-    | undefined;
+function poseHumanFpsHands(
+  rig: THREE.Group,
+  weapon: WeaponEntry,
+  recoil: number
+) {
+  const parts = rig.userData.parts as Record<string, THREE.Mesh> | undefined;
   if (!parts) return;
   const pistol = weapon.weaponType === 'pistol';
   parts.leftForearm.visible = !pistol;
@@ -556,7 +561,11 @@ function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number
     -0.148 - recoil * 0.006,
     -0.295 + recoil * 0.022
   );
-  parts.rightHand.rotation.set(1.1 - recoil * 0.08, -0.14, 0.36 + recoil * 0.06);
+  parts.rightHand.rotation.set(
+    1.1 - recoil * 0.08,
+    -0.14,
+    0.36 + recoil * 0.06
+  );
   parts.rightForearm.position.set(0.145, -0.14, -0.14 + recoil * 0.014);
   parts.rightForearm.rotation.set(1.18 - recoil * 0.05, -0.2, 0.44);
 }
@@ -780,7 +789,8 @@ function createActor(
   kind: ActorKind,
   start: THREE.Vector3,
   onLoaded: () => void,
-  isUser = false
+  isUser = false,
+  useDetailedModel = true
 ): Actor {
   const root = new THREE.Group();
   root.position.copy(start).setY(GROUND_Y);
@@ -816,7 +826,7 @@ function createActor(
     loaded: false
   };
 
-  if (!isUser && id > 2) {
+  if (!useDetailedModel || (!isUser && id > 2)) {
     actor.loaded = true;
     onLoaded();
     return actor;
@@ -991,9 +1001,12 @@ function tryMoveActor(
   if (dir.lengthSq() > 0.001) {
     dir.normalize();
     actor.targetDir.copy(dir);
-    actor.vel.lerp(dir.clone().multiplyScalar(speed), 1 - Math.pow(0.006, dt));
+    actor.vel.lerp(
+      dir.clone().multiplyScalar(speed),
+      1 - Math.pow(PLAYER_ACCEL_RESPONSE, dt)
+    );
   } else {
-    actor.vel.multiplyScalar(Math.pow(0.001, dt));
+    actor.vel.multiplyScalar(Math.pow(PLAYER_BRAKE_RESPONSE, dt));
   }
 
   const old = actor.pos.clone();
@@ -1080,32 +1093,48 @@ function makeMaze(scene: THREE.Scene) {
   });
   const pathMat = mat(0x172033, 0.92, 0.02);
 
+  const wallCount = MAZE.flat().filter((cell) => cell === 1).length;
+  const pathCount = ROWS * COLS - wallCount;
+  const wallMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96),
+    wallMat,
+    wallCount
+  );
+  const capMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98),
+    topMat,
+    wallCount
+  );
+  const pathMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9),
+    pathMat,
+    pathCount
+  );
+  const matrix = new THREE.Matrix4();
+  let wallIndex = 0;
+  let pathIndex = 0;
+
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = cellToWorld(r, c);
       if (MAZE[r][c] === 1) {
-        const wall = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96),
-          wallMat
-        );
-        wall.position.set(p.x, 0.31, p.z);
-        const cap = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98),
-          topMat
-        );
-        cap.position.set(p.x, 0.645, p.z);
-        scene.add(shadow(wall), shadow(cap));
+        matrix.makeTranslation(p.x, 0.31, p.z);
+        wallMesh.setMatrixAt(wallIndex, matrix);
+        matrix.makeTranslation(p.x, 0.645, p.z);
+        capMesh.setMatrixAt(wallIndex, matrix);
+        wallIndex += 1;
       } else {
-        const tile = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9),
-          pathMat
-        );
-        tile.position.set(p.x, 0.004, p.z);
-        tile.receiveShadow = true;
-        scene.add(tile);
+        matrix.makeTranslation(p.x, 0.004, p.z);
+        pathMesh.setMatrixAt(pathIndex, matrix);
+        pathIndex += 1;
       }
     }
   }
+
+  wallMesh.instanceMatrix.needsUpdate = true;
+  capMesh.instanceMatrix.needsUpdate = true;
+  pathMesh.instanceMatrix.needsUpdate = true;
+  scene.add(shadow(wallMesh), shadow(capMesh), shadow(pathMesh));
 
   const border = new THREE.LineSegments(
     new THREE.EdgesGeometry(
@@ -1663,10 +1692,19 @@ export default function RunMan() {
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
 
-    const lowPower = window.matchMedia?.('(max-width: 720px)').matches ?? true;
+    const narrowScreen =
+      window.matchMedia?.('(max-width: 720px)').matches ?? true;
+    const saveData =
+      (navigator as Navigator & { connection?: { saveData?: boolean } })
+        .connection?.saveData ?? false;
+    const lowPower = narrowScreen || saveData;
+    const mobileFastMode = lowPower;
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: !lowPower,
+      antialias: false,
+      alpha: false,
+      stencil: false,
+      depth: true,
       powerPreference: 'high-performance'
     });
     renderer.setClearColor(0x020617, 1);
@@ -1674,7 +1712,11 @@ export default function RunMan() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x020617, 7, 18);
+    scene.fog = new THREE.Fog(
+      0x020617,
+      mobileFastMode ? 5 : 7,
+      mobileFastMode ? 14 : 18
+    );
 
     const camera = new THREE.PerspectiveCamera(66, 1, 0.035, 70);
     camera.position.set(0, 5.2, 4.2);
@@ -1683,8 +1725,11 @@ export default function RunMan() {
     scene.add(new THREE.AmbientLight(0xffffff, 0.54));
     const sun = new THREE.DirectionalLight(0xffffff, 1.25);
     sun.position.set(4, 9, 5);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = !mobileFastMode;
+    sun.shadow.mapSize.set(
+      mobileFastMode ? 512 : 2048,
+      mobileFastMode ? 512 : 2048
+    );
     scene.add(sun);
 
     const cyanLight = new THREE.PointLight(0x00e5ff, 1.4, 11);
@@ -1706,7 +1751,9 @@ export default function RunMan() {
       if (loadedCount >= MAX_PLAYERS)
         setHud((h) => ({
           ...h,
-          status: 'The Maze Battle Royal: shoot, punch boxes, survive.'
+          status: mobileFastMode
+            ? 'Fast mobile mode: drag MOVE farther to sprint, tap FIRE to shoot.'
+            : 'The Maze Battle Royal: shoot, punch boxes, survive.'
         }));
     };
 
@@ -1721,7 +1768,17 @@ export default function RunMan() {
       cellToWorld(8, 1)
     ];
     const actors: Actor[] = [
-      createActor(scene, loader, 0, 'You', 'blue', starts[0], onLoaded, true),
+      createActor(
+        scene,
+        loader,
+        0,
+        'You',
+        'blue',
+        starts[0],
+        onLoaded,
+        true,
+        !mobileFastMode
+      ),
       ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) =>
         createActor(
           scene,
@@ -1730,7 +1787,9 @@ export default function RunMan() {
           `Runner ${i + 2}`,
           'red',
           starts[i + 1],
-          onLoaded
+          onLoaded,
+          false,
+          !mobileFastMode
         )
       )
     ];
@@ -1754,6 +1813,7 @@ export default function RunMan() {
       fallback.scale.setScalar(0.62);
       fallback.rotation.set(0.1, Math.PI / 2, 0);
       weaponModelMount.add(fallback);
+      if (mobileFastMode) return;
       loadWeaponModel(loader, weapon, (source) => {
         weaponModelMount.remove(fallback);
         const model = cloneWeaponModel(
@@ -1790,7 +1850,7 @@ export default function RunMan() {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
       renderer.setPixelRatio(
-        Math.min(lowPower ? 1.25 : 2, window.devicePixelRatio || 1)
+        Math.min(lowPower ? MOBILE_MAX_DPR : 1.75, window.devicePixelRatio || 1)
       );
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
@@ -1827,7 +1887,7 @@ export default function RunMan() {
         weapon: STARTER_WEAPON.shortName,
         time: GAME_TIME,
         status:
-          'New Maze Battle Royal round. Break boxes for health, ammo, weapons.'
+          'New round: movement is faster. Break boxes for health, ammo, weapons.'
       });
     };
     window.__resetMazeBattle = resetGame;
@@ -2176,7 +2236,7 @@ export default function RunMan() {
     const dx = clientX - cx;
     const dy = clientY - cy;
     const max = r.width * 0.44;
-    const deadZone = max * 0.08;
+    const deadZone = max * 0.05;
     const rawLen = Math.hypot(dx, dy);
     const len = Math.min(max, rawLen);
     const a = Math.atan2(dy, dx);
@@ -2185,8 +2245,9 @@ export default function RunMan() {
     knob.style.transform = `translate(${x}px, ${y}px)`;
     const normalized =
       rawLen < deadZone ? 0 : Math.min(1, (len - deadZone) / (max - deadZone));
-    input.current.moveX = Math.cos(a) * normalized;
-    input.current.moveY = Math.sin(a) * normalized;
+    const responsivePower = Math.pow(normalized, 0.55);
+    input.current.moveX = Math.cos(a) * responsivePower;
+    input.current.moveY = Math.sin(a) * responsivePower;
   };
 
   const endStick = () => {
