@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import React, { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-type Team = "blue" | "red";
-type ActorKind = Team | "robot";
+type Team = 'blue' | 'red';
+type ActorKind = Team | 'robot';
 type PlayerId = number;
-type WeaponType = "pistol" | "rifle" | "sniper";
+type WeaponType = 'pistol' | 'rifle' | 'sniper';
 
 type WeaponEntry = {
   id: string;
   name: string;
   shortName: string;
-  source: "Quaternius" | "Extra";
+  source: 'Quaternius' | 'Extra';
   weaponType: WeaponType;
   urls: string[];
   ammo: number;
@@ -23,9 +23,9 @@ type WeaponEntry = {
   bulletLife: number;
   pickupColor: number;
 };
-type AnimName = "Idle" | "Walk" | "Run";
-type GameState = "playing" | "gameover";
-type PickupKind = "diamond" | "weapon";
+type AnimName = 'Idle' | 'Walk' | 'Run';
+type GameState = 'playing' | 'gameover';
+type PickupKind = 'diamond' | 'weapon';
 
 type Bones = {
   hips?: THREE.Bone;
@@ -63,12 +63,24 @@ type Actor = {
   ammo: number;
   weapon: WeaponEntry;
   fireCooldown: number;
+  inventory: WeaponEntry[];
   loaded: boolean;
 };
 
 type InputState = {
   moveX: number;
   moveY: number;
+  lookYaw: number;
+  lookPitch: number;
+};
+
+type MazeBox = {
+  group: THREE.Group;
+  pos: THREE.Vector3;
+  hp: number;
+  reward: 'health' | 'ammo' | 'weapon';
+  weapon?: WeaponEntry;
+  broken: boolean;
 };
 
 type Pickup = {
@@ -97,12 +109,16 @@ type MazeCell = 0 | 1;
 declare global {
   interface Window {
     __resetRobotMaze?: () => void;
-    __fireRobotMaze?: () => void;
+    __fireRobotMaze?: (aimDir?: THREE.Vector3) => void;
+    __tapMazeBattle?: (clientX: number, clientY: number) => void;
+    __meleeMazeBattle?: (kind: 'punch' | 'kick') => void;
+    __swapMazeWeapon?: (weaponId: string) => void;
   }
 }
 
-const SOLDIER_URL = "https://threejs.org/examples/models/gltf/Soldier.glb";
-const ROBOT_URL = "https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb";
+const SOLDIER_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
+const ROBOT_URL =
+  'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
 const CELL = 0.58;
 const ROWS = 17;
@@ -112,7 +128,11 @@ const MAZE_H = ROWS * CELL;
 const PLAYER_RADIUS = 0.16;
 const ROBOT_RADIUS = 0.17;
 const PICKUP_RADIUS = 0.13;
-const PLAYER_SPEED = 2.12;
+const PLAYER_WALK_SPEED = 1.35;
+const PLAYER_RUN_SPEED = 2.35;
+const FIRST_PERSON_EYE_HEIGHT = 0.72;
+const TOUCH_LOOK_SENSITIVITY = 0.004;
+const WEAPON_PICKUP_TAP_RANGE = 1.35;
 const ROBOT_SPEED = 1.1;
 const MAX_PLAYERS = 8;
 const GROUND_Y = 0;
@@ -125,58 +145,368 @@ function polyGlb(uuid: string) {
 }
 
 const KNOWN_WORKING_GLB = {
-  awp: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb",
-  awpRaw: "https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb",
-  mrtk: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-  mrtkRaw: "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-  mrtkMaster: "https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-  pistolHolster: "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-  pistolHolsterRaw: "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-  fps: "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf",
-  fpsRaw: "https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf",
+  awp: 'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
+  awpRaw:
+    'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb',
+  mrtk: 'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+  mrtkRaw:
+    'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+  mrtkMaster:
+    'https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+  pistolHolster:
+    'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+  pistolHolsterRaw:
+    'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+  fps: 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+  fpsRaw:
+    'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
 };
 
 const WEAPONS: WeaponEntry[] = [
-  { id: "poly-shotgun-01", name: "Quaternius Shotgun", shortName: "Shotgun", source: "Quaternius", weaponType: "rifle", urls: [polyGlb("032e6589-3188-41bc-b92b-e25528344275")], ammo: 5, damage: 2, cooldown: 0.52, bulletSpeed: 4.6, bulletLife: 1.05, pickupColor: 0xf59e0b },
-  { id: "poly-assault-rifle-01", name: "Quaternius Assault Rifle", shortName: "Assault", source: "Quaternius", weaponType: "rifle", urls: [polyGlb("b3e6be61-0299-4866-a227-58f5f3fe610b")], ammo: 14, damage: 1, cooldown: 0.18, bulletSpeed: 5.6, bulletLife: 1.15, pickupColor: 0x22c55e },
-  { id: "poly-pistol-01", name: "Quaternius Pistol", shortName: "Pistol", source: "Quaternius", weaponType: "pistol", urls: [polyGlb("3b53f0fe-f86e-451c-816d-6ab9bd265cdc")], ammo: 9, damage: 1, cooldown: 0.34, bulletSpeed: 5.0, bulletLife: 1.0, pickupColor: 0x93c5fd },
-  { id: "poly-revolver-01", name: "Quaternius Heavy Revolver", shortName: "Revolver", source: "Quaternius", weaponType: "pistol", urls: [polyGlb("9e728565-67a3-44db-9567-982320abff09")], ammo: 6, damage: 2, cooldown: 0.46, bulletSpeed: 5.35, bulletLife: 1.05, pickupColor: 0xf97316 },
-  { id: "poly-sawed-off-01", name: "Quaternius Sawed-Off Shotgun", shortName: "Sawed-Off", source: "Quaternius", weaponType: "pistol", urls: [polyGlb("9a6ee0ee-068b-4774-8b0f-679c3cef0b6e")], ammo: 4, damage: 2, cooldown: 0.58, bulletSpeed: 4.4, bulletLife: 0.95, pickupColor: 0xfb923c },
-  { id: "poly-revolver-02", name: "Quaternius Revolver Silver", shortName: "Silver Rev", source: "Quaternius", weaponType: "pistol", urls: [polyGlb("7951b3b9-d3a5-4ec8-81b7-11111f1c8e88")], ammo: 7, damage: 2, cooldown: 0.43, bulletSpeed: 5.25, bulletLife: 1.05, pickupColor: 0xcbd5e1 },
-  { id: "poly-shotgun-02", name: "Quaternius Long Shotgun", shortName: "Long Shot", source: "Quaternius", weaponType: "rifle", urls: [polyGlb("f71d6771-f512-4374-bd23-ba00b564db68")], ammo: 5, damage: 2, cooldown: 0.5, bulletSpeed: 4.75, bulletLife: 1.1, pickupColor: 0xfbbf24 },
-  { id: "poly-shotgun-03", name: "Quaternius Pump Shotgun", shortName: "Pump", source: "Quaternius", weaponType: "rifle", urls: [polyGlb("08f27141-8e64-425a-9161-1bbd6956dfca")], ammo: 6, damage: 2, cooldown: 0.48, bulletSpeed: 4.85, bulletLife: 1.1, pickupColor: 0xeab308 },
-  { id: "poly-smg-01", name: "Quaternius Submachine Gun", shortName: "SMG", source: "Quaternius", weaponType: "rifle", urls: [polyGlb("fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710")], ammo: 18, damage: 1, cooldown: 0.14, bulletSpeed: 5.4, bulletLife: 1.0, pickupColor: 0x38bdf8 },
-  { id: "slot-10-ak47-gltf", name: "AK47 GLTF", shortName: "AK47", source: "Extra", weaponType: "rifle", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf", KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw], ammo: 16, damage: 1, cooldown: 0.16, bulletSpeed: 5.8, bulletLife: 1.15, pickupColor: 0x16a34a },
-  { id: "slot-11-krsv-gltf", name: "KRSV GLTF", shortName: "KRSV", source: "Extra", weaponType: "rifle", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf", KNOWN_WORKING_GLB.mrtk, KNOWN_WORKING_GLB.mrtkRaw], ammo: 15, damage: 1, cooldown: 0.17, bulletSpeed: 5.65, bulletLife: 1.12, pickupColor: 0x14b8a6 },
-  { id: "slot-12-smith-gltf", name: "Smith GLTF", shortName: "Smith", source: "Extra", weaponType: "pistol", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf", KNOWN_WORKING_GLB.pistolHolster, KNOWN_WORKING_GLB.pistolHolsterRaw], ammo: 8, damage: 1, cooldown: 0.3, bulletSpeed: 5.1, bulletLife: 1.0, pickupColor: 0xa78bfa },
-  { id: "slot-13-mosin-gltf", name: "Mosin GLTF", shortName: "Mosin", source: "Extra", weaponType: "sniper", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf", KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw], ammo: 5, damage: 3, cooldown: 0.72, bulletSpeed: 7.0, bulletLife: 1.45, pickupColor: 0x818cf8 },
-  { id: "slot-14-uzi-gltf", name: "Uzi GLTF", shortName: "Uzi", source: "Extra", weaponType: "rifle", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf", KNOWN_WORKING_GLB.mrtk, KNOWN_WORKING_GLB.mrtkMaster], ammo: 20, damage: 1, cooldown: 0.12, bulletSpeed: 5.25, bulletLife: 0.95, pickupColor: 0x06b6d4 },
-  { id: "slot-15-sigsauer-gltf", name: "SigSauer GLTF", shortName: "SigSauer", source: "Extra", weaponType: "pistol", urls: ["https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf", "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf", KNOWN_WORKING_GLB.pistolHolster, KNOWN_WORKING_GLB.pistolHolsterRaw], ammo: 10, damage: 1, cooldown: 0.26, bulletSpeed: 5.25, bulletLife: 1.0, pickupColor: 0xf472b6 },
-  { id: "slot-16-awp-glb", name: "AWP Sniper GLB", shortName: "AWP", source: "Extra", weaponType: "sniper", urls: [KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw], ammo: 4, damage: 3, cooldown: 0.82, bulletSpeed: 7.4, bulletLife: 1.55, pickupColor: 0x60a5fa },
-  { id: "slot-17-mrtk-gun-glb", name: "MRTK Gun GLB", shortName: "MRTK", source: "Extra", weaponType: "rifle", urls: [KNOWN_WORKING_GLB.mrtk, KNOWN_WORKING_GLB.mrtkRaw, KNOWN_WORKING_GLB.mrtkMaster], ammo: 12, damage: 1, cooldown: 0.2, bulletSpeed: 5.45, bulletLife: 1.05, pickupColor: 0x2dd4bf },
-  { id: "slot-18-fps-gun-gltf", name: "FPS Gun GLTF", shortName: "FPS Shotgun", source: "Extra", weaponType: "rifle", urls: [KNOWN_WORKING_GLB.fps, KNOWN_WORKING_GLB.fpsRaw, KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw], ammo: 5, damage: 2, cooldown: 0.54, bulletSpeed: 4.9, bulletLife: 1.08, pickupColor: 0xfacc15 },
+  {
+    id: 'poly-shotgun-01',
+    name: 'Quaternius Shotgun',
+    shortName: 'Shotgun',
+    source: 'Quaternius',
+    weaponType: 'rifle',
+    urls: [polyGlb('032e6589-3188-41bc-b92b-e25528344275')],
+    ammo: 5,
+    damage: 2,
+    cooldown: 0.52,
+    bulletSpeed: 4.6,
+    bulletLife: 1.05,
+    pickupColor: 0xf59e0b
+  },
+  {
+    id: 'poly-assault-rifle-01',
+    name: 'Quaternius Assault Rifle',
+    shortName: 'Assault',
+    source: 'Quaternius',
+    weaponType: 'rifle',
+    urls: [polyGlb('b3e6be61-0299-4866-a227-58f5f3fe610b')],
+    ammo: 14,
+    damage: 1,
+    cooldown: 0.18,
+    bulletSpeed: 5.6,
+    bulletLife: 1.15,
+    pickupColor: 0x22c55e
+  },
+  {
+    id: 'poly-pistol-01',
+    name: 'Quaternius Pistol',
+    shortName: 'Pistol',
+    source: 'Quaternius',
+    weaponType: 'pistol',
+    urls: [polyGlb('3b53f0fe-f86e-451c-816d-6ab9bd265cdc')],
+    ammo: 9,
+    damage: 1,
+    cooldown: 0.34,
+    bulletSpeed: 5.0,
+    bulletLife: 1.0,
+    pickupColor: 0x93c5fd
+  },
+  {
+    id: 'poly-revolver-01',
+    name: 'Quaternius Heavy Revolver',
+    shortName: 'Revolver',
+    source: 'Quaternius',
+    weaponType: 'pistol',
+    urls: [polyGlb('9e728565-67a3-44db-9567-982320abff09')],
+    ammo: 6,
+    damage: 2,
+    cooldown: 0.46,
+    bulletSpeed: 5.35,
+    bulletLife: 1.05,
+    pickupColor: 0xf97316
+  },
+  {
+    id: 'poly-sawed-off-01',
+    name: 'Quaternius Sawed-Off Shotgun',
+    shortName: 'Sawed-Off',
+    source: 'Quaternius',
+    weaponType: 'pistol',
+    urls: [polyGlb('9a6ee0ee-068b-4774-8b0f-679c3cef0b6e')],
+    ammo: 4,
+    damage: 2,
+    cooldown: 0.58,
+    bulletSpeed: 4.4,
+    bulletLife: 0.95,
+    pickupColor: 0xfb923c
+  },
+  {
+    id: 'poly-revolver-02',
+    name: 'Quaternius Revolver Silver',
+    shortName: 'Silver Rev',
+    source: 'Quaternius',
+    weaponType: 'pistol',
+    urls: [polyGlb('7951b3b9-d3a5-4ec8-81b7-11111f1c8e88')],
+    ammo: 7,
+    damage: 2,
+    cooldown: 0.43,
+    bulletSpeed: 5.25,
+    bulletLife: 1.05,
+    pickupColor: 0xcbd5e1
+  },
+  {
+    id: 'poly-shotgun-02',
+    name: 'Quaternius Long Shotgun',
+    shortName: 'Long Shot',
+    source: 'Quaternius',
+    weaponType: 'rifle',
+    urls: [polyGlb('f71d6771-f512-4374-bd23-ba00b564db68')],
+    ammo: 5,
+    damage: 2,
+    cooldown: 0.5,
+    bulletSpeed: 4.75,
+    bulletLife: 1.1,
+    pickupColor: 0xfbbf24
+  },
+  {
+    id: 'poly-shotgun-03',
+    name: 'Quaternius Pump Shotgun',
+    shortName: 'Pump',
+    source: 'Quaternius',
+    weaponType: 'rifle',
+    urls: [polyGlb('08f27141-8e64-425a-9161-1bbd6956dfca')],
+    ammo: 6,
+    damage: 2,
+    cooldown: 0.48,
+    bulletSpeed: 4.85,
+    bulletLife: 1.1,
+    pickupColor: 0xeab308
+  },
+  {
+    id: 'poly-smg-01',
+    name: 'Quaternius Submachine Gun',
+    shortName: 'SMG',
+    source: 'Quaternius',
+    weaponType: 'rifle',
+    urls: [polyGlb('fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710')],
+    ammo: 18,
+    damage: 1,
+    cooldown: 0.14,
+    bulletSpeed: 5.4,
+    bulletLife: 1.0,
+    pickupColor: 0x38bdf8
+  },
+  {
+    id: 'slot-10-ak47-gltf',
+    name: 'AK47 GLTF',
+    shortName: 'AK47',
+    source: 'Extra',
+    weaponType: 'rifle',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
+      KNOWN_WORKING_GLB.awp,
+      KNOWN_WORKING_GLB.awpRaw
+    ],
+    ammo: 16,
+    damage: 1,
+    cooldown: 0.16,
+    bulletSpeed: 5.8,
+    bulletLife: 1.15,
+    pickupColor: 0x16a34a
+  },
+  {
+    id: 'slot-11-krsv-gltf',
+    name: 'KRSV GLTF',
+    shortName: 'KRSV',
+    source: 'Extra',
+    weaponType: 'rifle',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
+      KNOWN_WORKING_GLB.mrtk,
+      KNOWN_WORKING_GLB.mrtkRaw
+    ],
+    ammo: 15,
+    damage: 1,
+    cooldown: 0.17,
+    bulletSpeed: 5.65,
+    bulletLife: 1.12,
+    pickupColor: 0x14b8a6
+  },
+  {
+    id: 'slot-12-smith-gltf',
+    name: 'Smith GLTF',
+    shortName: 'Smith',
+    source: 'Extra',
+    weaponType: 'pistol',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
+      KNOWN_WORKING_GLB.pistolHolster,
+      KNOWN_WORKING_GLB.pistolHolsterRaw
+    ],
+    ammo: 8,
+    damage: 1,
+    cooldown: 0.3,
+    bulletSpeed: 5.1,
+    bulletLife: 1.0,
+    pickupColor: 0xa78bfa
+  },
+  {
+    id: 'slot-13-mosin-gltf',
+    name: 'Mosin GLTF',
+    shortName: 'Mosin',
+    source: 'Extra',
+    weaponType: 'sniper',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
+      KNOWN_WORKING_GLB.awp,
+      KNOWN_WORKING_GLB.awpRaw
+    ],
+    ammo: 5,
+    damage: 3,
+    cooldown: 0.72,
+    bulletSpeed: 7.0,
+    bulletLife: 1.45,
+    pickupColor: 0x818cf8
+  },
+  {
+    id: 'slot-14-uzi-gltf',
+    name: 'Uzi GLTF',
+    shortName: 'Uzi',
+    source: 'Extra',
+    weaponType: 'rifle',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
+      KNOWN_WORKING_GLB.mrtk,
+      KNOWN_WORKING_GLB.mrtkMaster
+    ],
+    ammo: 20,
+    damage: 1,
+    cooldown: 0.12,
+    bulletSpeed: 5.25,
+    bulletLife: 0.95,
+    pickupColor: 0x06b6d4
+  },
+  {
+    id: 'slot-15-sigsauer-gltf',
+    name: 'SigSauer GLTF',
+    shortName: 'SigSauer',
+    source: 'Extra',
+    weaponType: 'pistol',
+    urls: [
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
+      KNOWN_WORKING_GLB.pistolHolster,
+      KNOWN_WORKING_GLB.pistolHolsterRaw
+    ],
+    ammo: 10,
+    damage: 1,
+    cooldown: 0.26,
+    bulletSpeed: 5.25,
+    bulletLife: 1.0,
+    pickupColor: 0xf472b6
+  },
+  {
+    id: 'slot-16-awp-glb',
+    name: 'AWP Sniper GLB',
+    shortName: 'AWP',
+    source: 'Extra',
+    weaponType: 'sniper',
+    urls: [KNOWN_WORKING_GLB.awp, KNOWN_WORKING_GLB.awpRaw],
+    ammo: 4,
+    damage: 3,
+    cooldown: 0.82,
+    bulletSpeed: 7.4,
+    bulletLife: 1.55,
+    pickupColor: 0x60a5fa
+  },
+  {
+    id: 'slot-17-mrtk-gun-glb',
+    name: 'MRTK Gun GLB',
+    shortName: 'MRTK',
+    source: 'Extra',
+    weaponType: 'rifle',
+    urls: [
+      KNOWN_WORKING_GLB.mrtk,
+      KNOWN_WORKING_GLB.mrtkRaw,
+      KNOWN_WORKING_GLB.mrtkMaster
+    ],
+    ammo: 12,
+    damage: 1,
+    cooldown: 0.2,
+    bulletSpeed: 5.45,
+    bulletLife: 1.05,
+    pickupColor: 0x2dd4bf
+  },
+  {
+    id: 'slot-18-fps-gun-gltf',
+    name: 'FPS Gun GLTF',
+    shortName: 'FPS Shotgun',
+    source: 'Extra',
+    weaponType: 'rifle',
+    urls: [
+      KNOWN_WORKING_GLB.fps,
+      KNOWN_WORKING_GLB.fpsRaw,
+      KNOWN_WORKING_GLB.awp,
+      KNOWN_WORKING_GLB.awpRaw
+    ],
+    ammo: 5,
+    damage: 2,
+    cooldown: 0.54,
+    bulletSpeed: 4.9,
+    bulletLife: 1.08,
+    pickupColor: 0xfacc15
+  }
 ];
 
-const STARTER_WEAPON = WEAPONS[2];
+const STARTER_WEAPON = WEAPONS[17];
+
+function getForwardFromYaw(yaw: number) {
+  return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+}
+
+function getRightFromYaw(yaw: number) {
+  return new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).normalize();
+}
+
+function cloneWeaponModel(source: THREE.Object3D, height = 0.3) {
+  const model = source.clone(true);
+  normalizeModel(model, height, Math.PI / 2);
+  shadow(model);
+  return model;
+}
+
+function loadWeaponModel(
+  loader: GLTFLoader,
+  weapon: WeaponEntry,
+  onLoaded: (model: THREE.Object3D) => void
+) {
+  let index = 0;
+  const tryLoad = () => {
+    const url = weapon.urls[index++];
+    if (!url) return;
+    loader
+      .setCrossOrigin('anonymous')
+      .load(url, (gltf) => onLoaded(gltf.scene), undefined, tryLoad);
+  };
+  tryLoad();
+}
 
 const MAZE: MazeCell[][] = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
-  [1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-  [1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1],
-  [1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1],
-  [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1],
-  [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
-  [1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-  [1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+  [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
+  [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+  [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
+  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+  [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
 function mat(color: number, roughness = 0.78, metalness = 0.02) {
@@ -196,11 +526,15 @@ function shadow<T extends THREE.Object3D>(o: T) {
 }
 
 function clean(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function cellToWorld(row: number, col: number) {
-  return new THREE.Vector3((col - COLS / 2 + 0.5) * CELL, GROUND_Y, (row - ROWS / 2 + 0.5) * CELL);
+  return new THREE.Vector3(
+    (col - COLS / 2 + 0.5) * CELL,
+    GROUND_Y,
+    (row - ROWS / 2 + 0.5) * CELL
+  );
 }
 
 function worldToCell(pos: THREE.Vector3) {
@@ -220,21 +554,53 @@ function findBones(model: THREE.Object3D): Bones {
     const bone = o as THREE.Bone;
     if (!bone.isBone) return;
     const n = clean(bone.name);
-    if (!b.hips && n.includes("hips")) b.hips = bone;
-    if (!b.spine && n.includes("spine")) b.spine = bone;
-    if (!b.leftUpLeg && (n.includes("leftupleg") || n.includes("leftthigh") || n.includes("lthigh"))) b.leftUpLeg = bone;
-    if (!b.rightUpLeg && (n.includes("rightupleg") || n.includes("rightthigh") || n.includes("rthigh"))) b.rightUpLeg = bone;
-    if (!b.leftLeg && !n.includes("foot") && !n.includes("upleg") && (n.includes("leftleg") || n.includes("leftcalf") || n.includes("leftshin"))) b.leftLeg = bone;
-    if (!b.rightLeg && !n.includes("foot") && !n.includes("upleg") && (n.includes("rightleg") || n.includes("rightcalf") || n.includes("rightshin"))) b.rightLeg = bone;
-    if (!b.leftFoot && n.includes("leftfoot")) b.leftFoot = bone;
-    if (!b.rightFoot && n.includes("rightfoot")) b.rightFoot = bone;
-    if (!b.leftArm && n.includes("leftarm")) b.leftArm = bone;
-    if (!b.rightArm && n.includes("rightarm")) b.rightArm = bone;
+    if (!b.hips && n.includes('hips')) b.hips = bone;
+    if (!b.spine && n.includes('spine')) b.spine = bone;
+    if (
+      !b.leftUpLeg &&
+      (n.includes('leftupleg') ||
+        n.includes('leftthigh') ||
+        n.includes('lthigh'))
+    )
+      b.leftUpLeg = bone;
+    if (
+      !b.rightUpLeg &&
+      (n.includes('rightupleg') ||
+        n.includes('rightthigh') ||
+        n.includes('rthigh'))
+    )
+      b.rightUpLeg = bone;
+    if (
+      !b.leftLeg &&
+      !n.includes('foot') &&
+      !n.includes('upleg') &&
+      (n.includes('leftleg') ||
+        n.includes('leftcalf') ||
+        n.includes('leftshin'))
+    )
+      b.leftLeg = bone;
+    if (
+      !b.rightLeg &&
+      !n.includes('foot') &&
+      !n.includes('upleg') &&
+      (n.includes('rightleg') ||
+        n.includes('rightcalf') ||
+        n.includes('rightshin'))
+    )
+      b.rightLeg = bone;
+    if (!b.leftFoot && n.includes('leftfoot')) b.leftFoot = bone;
+    if (!b.rightFoot && n.includes('rightfoot')) b.rightFoot = bone;
+    if (!b.leftArm && n.includes('leftarm')) b.leftArm = bone;
+    if (!b.rightArm && n.includes('rightarm')) b.rightArm = bone;
   });
   return b;
 }
 
-function normalizeModel(model: THREE.Object3D, height = 0.62, rotateY = Math.PI) {
+function normalizeModel(
+  model: THREE.Object3D,
+  height = 0.62,
+  rotateY = Math.PI
+) {
   model.rotation.set(0, rotateY, 0);
   model.scale.setScalar(1);
   model.updateMatrixWorld(true);
@@ -250,15 +616,17 @@ function normalizeModel(model: THREE.Object3D, height = 0.62, rotateY = Math.PI)
 }
 
 function tintModel(model: THREE.Object3D, kind: ActorKind) {
-  const tint = new THREE.Color(kind === "blue" ? 0x1d69ff : kind === "red" ? 0xd92f2f : 0x84fffb);
+  const tint = new THREE.Color(
+    kind === 'blue' ? 0x1d69ff : kind === 'red' ? 0xd92f2f : 0x84fffb
+  );
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     mats.forEach((raw) => {
       const m = raw as THREE.MeshStandardMaterial;
-      if (m.color) m.color.lerp(tint, kind === "robot" ? 0.42 : 0.34);
-      if (kind === "robot") {
+      if (m.color) m.color.lerp(tint, kind === 'robot' ? 0.42 : 0.34);
+      if (kind === 'robot') {
         m.emissive = new THREE.Color(0x004d5d);
         m.emissiveIntensity = 0.22;
       }
@@ -269,32 +637,68 @@ function tintModel(model: THREE.Object3D, kind: ActorKind) {
 
 function makeFallback(kind: ActorKind) {
   const group = new THREE.Group();
-  if (kind === "robot") {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.12), mat(0x7dd3fc, 0.48, 0.22));
+  if (kind === 'robot') {
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.34, 0.12),
+      mat(0x7dd3fc, 0.48, 0.22)
+    );
     body.position.y = 0.42;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.13, 0.13), mat(0xd9f99d, 0.4, 0.18));
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.17, 0.13, 0.13),
+      mat(0xd9f99d, 0.4, 0.18)
+    );
     head.position.y = 0.65;
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.015), mat(0x00ffcc, 0.25, 0.1));
+    const eye = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.025, 0.015),
+      mat(0x00ffcc, 0.25, 0.1)
+    );
     eye.position.set(0, 0.66, -0.068);
     group.add(shadow(body), shadow(head), shadow(eye));
     return group;
   }
-  const color = kind === "blue" ? 0x1d69ff : 0xd92f2f;
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.3, 8, 14), mat(color));
+  const color = kind === 'blue' ? 0x1d69ff : 0xd92f2f;
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.085, 0.3, 8, 14),
+    mat(color)
+  );
   body.position.y = 0.42;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.065, 18, 12), mat(0xf1d6bd));
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.065, 18, 12),
+    mat(0xf1d6bd)
+  );
   head.position.y = 0.67;
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.035, 0.045), mat(0x111827, 0.44, 0.26));
+  const gun = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.035, 0.045),
+    mat(0x111827, 0.44, 0.26)
+  );
   gun.position.set(0.09, 0.45, -0.09);
-  const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.024, 0.23, 6, 8), mat(0x171717));
+  const leftLeg = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.024, 0.23, 6, 8),
+    mat(0x171717)
+  );
   const rightLeg = leftLeg.clone();
   leftLeg.position.set(-0.04, 0.18, 0);
   rightLeg.position.set(0.04, 0.18, 0);
-  group.add(shadow(body), shadow(head), shadow(gun), shadow(leftLeg), shadow(rightLeg));
+  group.add(
+    shadow(body),
+    shadow(head),
+    shadow(gun),
+    shadow(leftLeg),
+    shadow(rightLeg)
+  );
   return group;
 }
 
-function createActor(scene: THREE.Scene, loader: GLTFLoader, id: PlayerId, name: string, kind: ActorKind, start: THREE.Vector3, onLoaded: () => void, isUser = false): Actor {
+function createActor(
+  scene: THREE.Scene,
+  loader: GLTFLoader,
+  id: PlayerId,
+  name: string,
+  kind: ActorKind,
+  start: THREE.Vector3,
+  onLoaded: () => void,
+  isUser = false
+): Actor {
   const root = new THREE.Group();
   root.position.copy(start).setY(GROUND_Y);
   scene.add(root);
@@ -312,28 +716,39 @@ function createActor(scene: THREE.Scene, loader: GLTFLoader, id: PlayerId, name:
     fallback,
     mixer: null,
     actions: {},
-    current: "Idle",
+    current: 'Idle',
     bones: {},
     pos: start.clone().setY(GROUND_Y),
     vel: new THREE.Vector3(),
     dir: new THREE.Vector3(0, 0, 1),
     targetDir: new THREE.Vector3(0, 0, 1),
     speed: 0,
-    radius: kind === "robot" ? ROBOT_RADIUS : PLAYER_RADIUS,
+    radius: kind === 'robot' ? ROBOT_RADIUS : PLAYER_RADIUS,
     stun: 0,
-    health: isUser ? 5 : kind === "robot" ? 2 : 4,
+    health: isUser ? 5 : kind === 'robot' ? 2 : 4,
     ammo: STARTER_WEAPON.ammo,
     weapon: STARTER_WEAPON,
     fireCooldown: 0,
-    loaded: false,
+    inventory: [STARTER_WEAPON],
+    loaded: false
   };
 
-  const url = kind === "robot" ? ROBOT_URL : SOLDIER_URL;
-  loader.setCrossOrigin("anonymous").load(
+  if (!isUser && id > 2) {
+    actor.loaded = true;
+    onLoaded();
+    return actor;
+  }
+
+  const url = kind === 'robot' ? ROBOT_URL : SOLDIER_URL;
+  loader.setCrossOrigin('anonymous').load(
     url,
     (gltf) => {
       const model = gltf.scene;
-      normalizeModel(model, kind === "robot" ? 0.58 : 0.62, kind === "robot" ? 0 : Math.PI);
+      normalizeModel(
+        model,
+        kind === 'robot' ? 0.58 : 0.62,
+        kind === 'robot' ? 0 : Math.PI
+      );
       tintModel(model, kind);
       shadow(model);
       root.add(model);
@@ -342,10 +757,21 @@ function createActor(scene: THREE.Scene, loader: GLTFLoader, id: PlayerId, name:
       actor.bones = findBones(model);
       actor.mixer = new THREE.AnimationMixer(model);
 
-      const clipByName = new Map(gltf.animations.map((clip) => [clip.name.toLowerCase(), clip]));
-      const aliases: Record<AnimName, string[]> = kind === "robot"
-        ? { Idle: ["idle"], Walk: ["walking", "walk"], Run: ["running", "run", "walking"] }
-        : { Idle: ["idle"], Walk: ["walk", "walking"], Run: ["run", "running"] };
+      const clipByName = new Map(
+        gltf.animations.map((clip) => [clip.name.toLowerCase(), clip])
+      );
+      const aliases: Record<AnimName, string[]> =
+        kind === 'robot'
+          ? {
+              Idle: ['idle'],
+              Walk: ['walking', 'walk'],
+              Run: ['running', 'run', 'walking']
+            }
+          : {
+              Idle: ['idle'],
+              Walk: ['walk', 'walking'],
+              Run: ['run', 'running']
+            };
 
       (Object.keys(aliases) as AnimName[]).forEach((name) => {
         const clip = aliases[name].map((a) => clipByName.get(a)).find(Boolean);
@@ -353,7 +779,7 @@ function createActor(scene: THREE.Scene, loader: GLTFLoader, id: PlayerId, name:
         const action = actor.mixer.clipAction(clip);
         action.enabled = true;
         action.setLoop(THREE.LoopRepeat, Infinity);
-        action.setEffectiveWeight(name === "Idle" ? 1 : 0);
+        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
         action.play();
         actor.actions[name] = action;
       });
@@ -387,9 +813,11 @@ function setAction(actor: Actor, next: AnimName, blend = 0.16) {
 }
 
 function updateFallbackWalk(actor: Actor) {
-  const meshes = actor.fallback.children.filter((o) => o instanceof THREE.Mesh) as THREE.Mesh[];
+  const meshes = actor.fallback.children.filter(
+    (o) => o instanceof THREE.Mesh
+  ) as THREE.Mesh[];
   const t = performance.now() * 0.011;
-  if (actor.kind === "robot") {
+  if (actor.kind === 'robot') {
     actor.fallback.rotation.y = Math.sin(t * 0.4) * 0.02;
     return;
   }
@@ -402,16 +830,43 @@ function updateFallbackWalk(actor: Actor) {
 function updateActorAnimation(actor: Actor, dt: number) {
   actor.pos.y = GROUND_Y;
   actor.root.position.copy(actor.pos);
-  if (actor.targetDir.lengthSq() > 0.001) actor.dir.lerp(actor.targetDir, 1 - Math.pow(0.002, dt)).normalize();
+  if (actor.health <= 0) {
+    actor.root.rotation.set(
+      Math.PI / 2,
+      Math.atan2(actor.dir.x, actor.dir.z),
+      0
+    );
+    actor.mixer?.update(dt * 0.2);
+    return;
+  }
+  if (actor.targetDir.lengthSq() > 0.001)
+    actor.dir.lerp(actor.targetDir, 1 - Math.pow(0.002, dt)).normalize();
   actor.root.rotation.y = Math.atan2(actor.dir.x, actor.dir.z);
 
-  const next: AnimName = actor.stun > 0 ? "Idle" : actor.speed > 1.2 ? "Run" : actor.speed > 0.06 ? "Walk" : "Idle";
+  const next: AnimName =
+    actor.stun > 0
+      ? 'Idle'
+      : actor.speed > 1.2
+        ? 'Run'
+        : actor.speed > 0.06
+          ? 'Walk'
+          : 'Idle';
   setAction(actor, next);
-  if (actor.actions.Walk) actor.actions.Walk.timeScale = THREE.MathUtils.clamp(actor.speed / 1.0, 0.75, 1.45);
-  if (actor.actions.Run) actor.actions.Run.timeScale = THREE.MathUtils.clamp(actor.speed / 1.7, 0.75, 1.55);
+  if (actor.actions.Walk)
+    actor.actions.Walk.timeScale = THREE.MathUtils.clamp(
+      actor.speed / 1.0,
+      0.75,
+      1.45
+    );
+  if (actor.actions.Run)
+    actor.actions.Run.timeScale = THREE.MathUtils.clamp(
+      actor.speed / 1.7,
+      0.75,
+      1.55
+    );
   actor.mixer?.update(dt);
 
-  if (actor.kind !== "robot" && actor.ammo > 0) {
+  if (actor.kind !== 'robot' && actor.ammo > 0) {
     if (actor.bones.spine) actor.bones.spine.rotation.x += -0.04;
     if (actor.bones.rightArm) actor.bones.rightArm.rotation.x += -0.42;
     if (actor.bones.leftArm) actor.bones.leftArm.rotation.x += -0.2;
@@ -440,7 +895,7 @@ function collidesWithMaze(pos: THREE.Vector3, radius: number) {
     [pos.x + radius * 0.72, pos.z + radius * 0.72],
     [pos.x - radius * 0.72, pos.z + radius * 0.72],
     [pos.x + radius * 0.72, pos.z - radius * 0.72],
-    [pos.x - radius * 0.72, pos.z - radius * 0.72],
+    [pos.x - radius * 0.72, pos.z - radius * 0.72]
   ];
   return points.some(([x, z]) => {
     const col = Math.floor(x / CELL + COLS / 2);
@@ -449,7 +904,12 @@ function collidesWithMaze(pos: THREE.Vector3, radius: number) {
   });
 }
 
-function tryMoveActor(actor: Actor, dir: THREE.Vector3, speed: number, dt: number) {
+function tryMoveActor(
+  actor: Actor,
+  dir: THREE.Vector3,
+  speed: number,
+  dt: number
+) {
   if (actor.stun > 0 || actor.health <= 0) {
     actor.vel.multiplyScalar(Math.pow(0.01, dt));
     actor.speed = 0;
@@ -486,15 +946,23 @@ function cellNeighbors(row: number, col: number) {
     { row: row - 1, col, dir: new THREE.Vector3(0, 0, -1) },
     { row: row + 1, col, dir: new THREE.Vector3(0, 0, 1) },
     { row, col: col - 1, dir: new THREE.Vector3(-1, 0, 0) },
-    { row, col: col + 1, dir: new THREE.Vector3(1, 0, 0) },
+    { row, col: col + 1, dir: new THREE.Vector3(1, 0, 0) }
   ];
   return dirs.filter((d) => !isWallCell(d.row, d.col));
 }
 
 function chooseAiDir(actor: Actor, actors: Actor[]) {
-  const targets = aliveActors(actors).filter((candidate) => candidate.id !== actor.id);
+  const targets = aliveActors(actors).filter(
+    (candidate) => candidate.id !== actor.id
+  );
   if (!targets.length) return new THREE.Vector3();
-  const target = targets.reduce((best, candidate) => (actor.pos.distanceTo(candidate.pos) < actor.pos.distanceTo(best.pos) ? candidate : best), targets[0]);
+  const target = targets.reduce(
+    (best, candidate) =>
+      actor.pos.distanceTo(candidate.pos) < actor.pos.distanceTo(best.pos)
+        ? candidate
+        : best,
+    targets[0]
+  );
   const c = worldToCell(actor.pos);
   const t = worldToCell(target.pos);
   const neighbors = cellNeighbors(c.row, c.col);
@@ -505,7 +973,8 @@ function chooseAiDir(actor: Actor, actors: Actor[]) {
   for (const n of neighbors) {
     const dist = Math.abs(n.row - t.row) + Math.abs(n.col - t.col);
     const world = cellToWorld(n.row, n.col);
-    const score = dist + world.distanceTo(target.pos) * 0.28 + Math.random() * 0.26;
+    const score =
+      dist + world.distanceTo(target.pos) * 0.28 + Math.random() * 0.26;
     if (score < bestScore) {
       bestScore = score;
       best = n;
@@ -515,26 +984,50 @@ function chooseAiDir(actor: Actor, actors: Actor[]) {
 }
 
 function makeMaze(scene: THREE.Scene) {
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(MAZE_W + 1.1, MAZE_H + 1.1), mat(0x080b16, 0.9, 0));
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(MAZE_W + 1.1, MAZE_H + 1.1),
+    mat(0x080b16, 0.9, 0)
+  );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.55, metalness: 0.12, emissive: 0x061122, emissiveIntensity: 0.25 });
-  const topMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.1, emissive: 0x0b2344, emissiveIntensity: 0.22 });
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.55,
+    metalness: 0.12,
+    emissive: 0x061122,
+    emissiveIntensity: 0.25
+  });
+  const topMat = new THREE.MeshStandardMaterial({
+    color: 0x334155,
+    roughness: 0.45,
+    metalness: 0.1,
+    emissive: 0x0b2344,
+    emissiveIntensity: 0.22
+  });
   const pathMat = mat(0x172033, 0.92, 0.02);
 
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = cellToWorld(r, c);
       if (MAZE[r][c] === 1) {
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96), wallMat);
+        const wall = new THREE.Mesh(
+          new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96),
+          wallMat
+        );
         wall.position.set(p.x, 0.31, p.z);
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98), topMat);
+        const cap = new THREE.Mesh(
+          new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98),
+          topMat
+        );
         cap.position.set(p.x, 0.645, p.z);
         scene.add(shadow(wall), shadow(cap));
       } else {
-        const tile = new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9), pathMat);
+        const tile = new THREE.Mesh(
+          new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9),
+          pathMat
+        );
         tile.position.set(p.x, 0.004, p.z);
         tile.receiveShadow = true;
         scene.add(tile);
@@ -543,8 +1036,14 @@ function makeMaze(scene: THREE.Scene) {
   }
 
   const border = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(MAZE_W + 0.2, 0.06, MAZE_H + 0.2)),
-    new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.35 })
+    new THREE.EdgesGeometry(
+      new THREE.BoxGeometry(MAZE_W + 0.2, 0.06, MAZE_H + 0.2)
+    ),
+    new THREE.LineBasicMaterial({
+      color: 0x00e5ff,
+      transparent: true,
+      opacity: 0.35
+    })
   );
   border.position.y = 0.04;
   scene.add(border);
@@ -555,7 +1054,13 @@ function makeDiamond(color: number, value = 1) {
   const geo = new THREE.OctahedronGeometry(value > 1 ? 0.13 : 0.095, 0);
   const mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ color, roughness: 0.18, metalness: 0.25, emissive: color, emissiveIntensity: 0.28 })
+    new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.18,
+      metalness: 0.25,
+      emissive: color,
+      emissiveIntensity: 0.28
+    })
   );
   mesh.rotation.y = Math.PI / 4;
   group.add(shadow(mesh));
@@ -567,8 +1072,14 @@ function makeDiamond(color: number, value = 1) {
 
 function makeWeaponPickup(weapon: WeaponEntry) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.055, 0.075), mat(weapon.pickupColor, 0.4, 0.3));
-  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.025, 0.035), mat(0x111827, 0.35, 0.4));
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.055, 0.075),
+    mat(weapon.pickupColor, 0.4, 0.3)
+  );
+  const barrel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 0.025, 0.035),
+    mat(0x111827, 0.35, 0.4)
+  );
   barrel.position.x = 0.16;
   const glow = new THREE.PointLight(weapon.pickupColor, 0.65, 1.1);
   glow.position.y = 0.2;
@@ -579,29 +1090,68 @@ function makeWeaponPickup(weapon: WeaponEntry) {
 
 function createPickups(scene: THREE.Scene) {
   const pickups: Pickup[] = [];
-  const weaponCells = new Set(["1,3", "1,8", "1,13", "3,3", "3,7", "3,13", "5,1", "5,5", "5,8", "5,11", "5,15", "8,2", "8,8", "8,14", "11,3", "13,7", "13,13", "15,11"]);
+  const weaponCells = new Set([
+    '1,3',
+    '1,8',
+    '1,13',
+    '3,3',
+    '3,7',
+    '3,13',
+    '5,1',
+    '5,5',
+    '5,8',
+    '5,11',
+    '5,15',
+    '8,2',
+    '8,8',
+    '8,14',
+    '11,3',
+    '13,7',
+    '13,13',
+    '15,11'
+  ]);
 
   for (let r = 1; r < ROWS - 1; r++) {
     for (let c = 1; c < COLS - 1; c++) {
       if (MAZE[r][c] === 1) continue;
-      const startSpot = (r === 1 && c === 1) || (r === 15 && c === 15) || (r === 8 && c === 8);
+      const startSpot =
+        (r === 1 && c === 1) || (r === 15 && c === 15) || (r === 8 && c === 8);
       if (startSpot) continue;
 
       const key = `${r},${c}`;
       if (weaponCells.has(key)) {
-        const weapon = WEAPONS[pickups.filter((p) => p.kind === "weapon").length % WEAPONS.length];
+        const weapon =
+          WEAPONS[
+            pickups.filter((p) => p.kind === 'weapon').length % WEAPONS.length
+          ];
         const group = makeWeaponPickup(weapon);
         const pos = cellToWorld(r, c).setY(0.25);
         group.position.copy(pos);
         scene.add(group);
-        pickups.push({ kind: "weapon", group, pos: pos.clone(), taken: false, value: weapon.ammo, weapon });
+        pickups.push({
+          kind: 'weapon',
+          group,
+          pos: pos.clone(),
+          taken: false,
+          value: weapon.ammo,
+          weapon
+        });
       } else {
         const special = (r + c) % 8 === 0;
-        const group = makeDiamond(special ? 0xffd166 : 0x63e6ff, special ? 3 : 1);
+        const group = makeDiamond(
+          special ? 0xffd166 : 0x63e6ff,
+          special ? 3 : 1
+        );
         const pos = cellToWorld(r, c).setY(special ? 0.25 : 0.2);
         group.position.copy(pos);
         scene.add(group);
-        pickups.push({ kind: "diamond", group, pos: pos.clone(), taken: false, value: special ? 3 : 1 });
+        pickups.push({
+          kind: 'diamond',
+          group,
+          pos: pos.clone(),
+          taken: false,
+          value: special ? 3 : 1
+        });
       }
     }
   }
@@ -625,10 +1175,15 @@ function collectPickups(actor: Actor, pickups: Pickup[]) {
     if (TMP.length() < actor.radius + PICKUP_RADIUS) {
       p.taken = true;
       p.group.visible = false;
-      if (p.kind === "diamond") score += p.value;
-      else {
+      if (p.kind === 'diamond') {
+        score += p.value;
+        if (p.value >= 3)
+          actor.health = Math.min(actor.isUser ? 6 : 4, actor.health + 1);
+      } else {
         ammo += p.value;
         weapon = p.weapon;
+        if (p.weapon && !actor.inventory.some((w) => w.id === p.weapon?.id))
+          actor.inventory = [p.weapon, ...actor.inventory].slice(0, 5);
       }
     }
   });
@@ -643,8 +1198,14 @@ function aliveActors(actors: Actor[]) {
 
 function resetActors(actors: Actor[]) {
   const starts = [
-    cellToWorld(15, 1), cellToWorld(1, 15), cellToWorld(15, 15), cellToWorld(1, 1),
-    cellToWorld(8, 8), cellToWorld(1, 8), cellToWorld(15, 8), cellToWorld(8, 1),
+    cellToWorld(15, 1),
+    cellToWorld(1, 15),
+    cellToWorld(15, 15),
+    cellToWorld(1, 1),
+    cellToWorld(8, 8),
+    cellToWorld(1, 8),
+    cellToWorld(15, 8),
+    cellToWorld(8, 1)
   ];
   actors.forEach((actor, i) => {
     actor.pos.copy(starts[i % starts.length]);
@@ -655,28 +1216,62 @@ function resetActors(actors: Actor[]) {
     actor.health = actor.isUser ? 5 : 4;
     actor.ammo = STARTER_WEAPON.ammo;
     actor.weapon = STARTER_WEAPON;
+    actor.inventory = [STARTER_WEAPON];
     actor.root.visible = true;
+    actor.root.rotation.set(0, 0, 0);
   });
 }
 
 function makeMiniMap(scene: THREE.Scene) {
   const group = new THREE.Group();
   group.position.set(0, 0.025, 0);
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.18 });
+  const lineMat = new THREE.LineBasicMaterial({
+    color: 0x00e5ff,
+    transparent: true,
+    opacity: 0.18
+  });
   for (let c = 0; c <= COLS; c++) {
     const x = (c - COLS / 2) * CELL;
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, 0, -MAZE_H / 2), new THREE.Vector3(x, 0, MAZE_H / 2)]), lineMat));
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, 0, -MAZE_H / 2),
+          new THREE.Vector3(x, 0, MAZE_H / 2)
+        ]),
+        lineMat
+      )
+    );
   }
   for (let r = 0; r <= ROWS; r++) {
     const z = (r - ROWS / 2) * CELL;
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-MAZE_W / 2, 0, z), new THREE.Vector3(MAZE_W / 2, 0, z)]), lineMat));
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-MAZE_W / 2, 0, z),
+          new THREE.Vector3(MAZE_W / 2, 0, z)
+        ]),
+        lineMat
+      )
+    );
   }
   scene.add(group);
 }
 
-function makePortal(scene: THREE.Scene, row: number, col: number, color: number) {
+function makePortal(
+  scene: THREE.Scene,
+  row: number,
+  col: number,
+  color: number
+) {
   const g = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.018, 8, 32), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55 }));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.18, 0.018, 8, 32),
+    new THREE.MeshStandardMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.55
+    })
+  );
   ring.rotation.x = Math.PI / 2;
   g.add(ring);
   const light = new THREE.PointLight(color, 0.8, 1.4);
@@ -686,18 +1281,168 @@ function makePortal(scene: THREE.Scene, row: number, col: number, color: number)
   scene.add(g);
 }
 
-function makeBullet(scene: THREE.Scene, owner: Actor, pos: THREE.Vector3, dir: THREE.Vector3): Bullet {
+function makeWoodenBox(reward: MazeBox['reward'], weapon?: WeaponEntry) {
+  const group = new THREE.Group();
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.34, 0.34),
+    new THREE.MeshStandardMaterial({
+      color: 0x8b5a2b,
+      roughness: 0.82,
+      metalness: 0.02
+    })
+  );
+  box.position.y = 0.17;
+  const straps = new THREE.Mesh(
+    new THREE.BoxGeometry(0.36, 0.035, 0.37),
+    new THREE.MeshStandardMaterial({ color: 0x3f2a1c, roughness: 0.9 })
+  );
+  straps.position.y = 0.34;
+  const glow = new THREE.PointLight(
+    reward === 'health' ? 0x22c55e : reward === 'weapon' ? 0xfacc15 : 0x38bdf8,
+    0.32,
+    0.9
+  );
+  glow.position.y = 0.45;
+  group.add(shadow(box), shadow(straps), glow);
+  group.userData.reward = reward;
+  group.userData.weaponId = weapon?.id;
+  return group;
+}
+
+function createWoodenBoxes(scene: THREE.Scene) {
+  const cells = [
+    [2, 1],
+    [3, 11],
+    [5, 3],
+    [5, 9],
+    [7, 8],
+    [9, 7],
+    [11, 15],
+    [13, 5],
+    [15, 13]
+  ];
+  return cells.map(([r, c], i) => {
+    const reward: MazeBox['reward'] =
+      i % 3 === 0 ? 'health' : i % 3 === 1 ? 'ammo' : 'weapon';
+    const weapon =
+      reward === 'weapon' ? WEAPONS[(i + 9) % WEAPONS.length] : undefined;
+    const group = makeWoodenBox(reward, weapon);
+    const pos = cellToWorld(r, c).setY(0);
+    group.position.copy(pos);
+    scene.add(group);
+    return {
+      group,
+      pos: pos.clone(),
+      hp: reward === 'weapon' ? 3 : 2,
+      reward,
+      weapon,
+      broken: false
+    };
+  });
+}
+
+function spawnBoxReward(scene: THREE.Scene, box: MazeBox, pickups: Pickup[]) {
+  if (box.reward === 'health') {
+    const group = makeDiamond(0x22c55e, 3);
+    const pos = box.pos.clone().setY(0.24);
+    group.position.copy(pos);
+    scene.add(group);
+    pickups.push({ kind: 'diamond', group, pos, taken: false, value: 3 });
+  } else if (box.reward === 'ammo') {
+    const group = makeDiamond(0x38bdf8, 2);
+    const pos = box.pos.clone().setY(0.22);
+    group.position.copy(pos);
+    scene.add(group);
+    pickups.push({ kind: 'diamond', group, pos, taken: false, value: 2 });
+  } else if (box.weapon) {
+    const group = makeWeaponPickup(box.weapon);
+    const pos = box.pos.clone().setY(0.25);
+    group.position.copy(pos);
+    scene.add(group);
+    pickups.push({
+      kind: 'weapon',
+      group,
+      pos,
+      taken: false,
+      value: box.weapon.ammo,
+      weapon: box.weapon
+    });
+  }
+}
+
+function damageBox(
+  scene: THREE.Scene,
+  box: MazeBox,
+  damage: number,
+  pickups: Pickup[]
+) {
+  if (box.broken) return false;
+  box.hp -= damage;
+  box.group.scale.setScalar(Math.max(0.78, 1 - (3 - box.hp) * 0.08));
+  if (box.hp > 0) return true;
+  box.broken = true;
+  box.group.visible = false;
+  spawnBoxReward(scene, box, pickups);
+  return true;
+}
+
+function makeBlood(scene: THREE.Scene, pos: THREE.Vector3) {
+  const blood = new THREE.Mesh(
+    new THREE.CircleGeometry(0.23, 18),
+    new THREE.MeshBasicMaterial({
+      color: 0x7f1d1d,
+      transparent: true,
+      opacity: 0.82
+    })
+  );
+  blood.rotation.x = -Math.PI / 2;
+  blood.position.copy(pos).setY(0.013);
+  scene.add(blood);
+}
+
+function makeBullet(
+  scene: THREE.Scene,
+  owner: Actor,
+  pos: THREE.Vector3,
+  dir: THREE.Vector3
+): Bullet {
   const ownerColor = owner.isUser ? 0x93c5fd : 0xfca5a5;
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(owner.weapon.weaponType === "sniper" ? 0.052 : 0.045, 12, 8),
-    new THREE.MeshStandardMaterial({ color: ownerColor, emissive: ownerColor, emissiveIntensity: 0.8 })
+    new THREE.SphereGeometry(
+      owner.weapon.weaponType === 'sniper' ? 0.052 : 0.045,
+      12,
+      8
+    ),
+    new THREE.MeshStandardMaterial({
+      color: ownerColor,
+      emissive: ownerColor,
+      emissiveIntensity: 0.8
+    })
   );
   mesh.position.copy(pos).setY(0.38);
   scene.add(mesh);
-  return { mesh, pos: mesh.position.clone(), vel: dir.clone().normalize().multiplyScalar(owner.weapon.bulletSpeed), ownerId: owner.id, ownerName: owner.name, ownerColor, weapon: owner.weapon, life: owner.weapon.bulletLife, active: true };
+  return {
+    mesh,
+    pos: mesh.position.clone(),
+    vel: dir.clone().normalize().multiplyScalar(owner.weapon.bulletSpeed),
+    ownerId: owner.id,
+    ownerName: owner.name,
+    ownerColor,
+    weapon: owner.weapon,
+    life: owner.weapon.bulletLife,
+    active: true
+  };
 }
 
-function updateBullets(bullets: Bullet[], dt: number, actors: Actor[], setStatus: (s: string) => void) {
+function updateBullets(
+  bullets: Bullet[],
+  dt: number,
+  actors: Actor[],
+  boxes: MazeBox[],
+  pickups: Pickup[],
+  scene: THREE.Scene,
+  setStatus: (s: string) => void
+) {
   bullets.forEach((b) => {
     if (!b.active) return;
     b.life -= dt;
@@ -710,26 +1455,104 @@ function updateBullets(bullets: Bullet[], dt: number, actors: Actor[], setStatus
       return;
     }
 
+    for (const box of boxes) {
+      if (!box.broken && b.pos.distanceTo(box.pos.clone().setY(0.24)) < 0.32) {
+        damageBox(scene, box, b.weapon.damage, pickups);
+        b.active = false;
+        b.mesh.visible = false;
+        setStatus(`${b.ownerName} cracked a supply box!`);
+        return;
+      }
+    }
+
     for (const enemy of actors) {
-      if (enemy.id === b.ownerId || enemy.health <= 0 || !enemy.root.visible) continue;
-      if (b.pos.distanceTo(enemy.pos.clone().setY(0.38)) < enemy.radius + 0.08) {
+      if (enemy.id === b.ownerId || enemy.health <= 0 || !enemy.root.visible)
+        continue;
+      if (
+        b.pos.distanceTo(enemy.pos.clone().setY(0.38)) <
+        enemy.radius + 0.08
+      ) {
         enemy.health = Math.max(0, enemy.health - b.weapon.damage);
         enemy.stun = 0.75;
         b.active = false;
         b.mesh.visible = false;
         if (enemy.health <= 0) {
-          enemy.root.visible = false;
-          enemy.pos.set(99, 0, 99);
-          setStatus(`${b.ownerName} eliminated ${enemy.name} with ${b.weapon.shortName}!`);
+          makeBlood(scene, enemy.pos);
+          setStatus(
+            `${b.ownerName} eliminated ${enemy.name} with ${b.weapon.shortName}!`
+          );
         } else {
-          const knockback = enemy.pos.clone().sub(b.pos).setY(0).normalize().multiplyScalar(0.18);
+          const knockback = enemy.pos
+            .clone()
+            .sub(b.pos)
+            .setY(0)
+            .normalize()
+            .multiplyScalar(0.18);
           enemy.pos.add(knockback);
-          setStatus(`${b.ownerName} hit ${enemy.name} with ${b.weapon.shortName}!`);
+          setStatus(
+            `${b.ownerName} hit ${enemy.name} with ${b.weapon.shortName}!`
+          );
         }
         return;
       }
     }
   });
+}
+
+function drawMiniMap(
+  canvas: HTMLCanvasElement,
+  user: Actor,
+  actors: Actor[],
+  boxes: MazeBox[],
+  pickups: Pickup[]
+) {
+  const size = 124;
+  if (canvas.width !== size) {
+    canvas.width = size;
+    canvas.height = size;
+  }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = 'rgba(2,6,23,0.78)';
+  ctx.fillRect(0, 0, size, size);
+  const pad = 5;
+  const tile = (size - pad * 2) / COLS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.fillStyle =
+        MAZE[r][c] === 1 ? 'rgba(148,163,184,0.72)' : 'rgba(15,23,42,0.62)';
+      ctx.fillRect(
+        pad + c * tile,
+        pad + r * tile,
+        Math.max(1, tile - 1),
+        Math.max(1, tile - 1)
+      );
+    }
+  }
+  const dot = (pos: THREE.Vector3, color: string, radius: number) => {
+    const cell = worldToCell(pos);
+    ctx.beginPath();
+    ctx.arc(
+      pad + (cell.col + 0.5) * tile,
+      pad + (cell.row + 0.5) * tile,
+      radius,
+      0,
+      Math.PI * 2
+    );
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  pickups.forEach((p) => {
+    if (!p.taken && p.kind === 'weapon') dot(p.pos, '#facc15', 2);
+  });
+  boxes.forEach((b) => {
+    if (!b.broken) dot(b.pos, '#a16207', 2);
+  });
+  actors.slice(1).forEach((a) => {
+    if (a.health > 0) dot(a.pos, '#ef4444', 2.2);
+  });
+  dot(user.pos, '#38bdf8', 3.2);
 }
 
 export default function RunMan() {
@@ -738,23 +1561,50 @@ export default function RunMan() {
   const moveBase = useRef<HTMLDivElement | null>(null);
   const moveKnob = useRef<HTMLDivElement | null>(null);
   const moveTouch = useRef<number | null>(null);
-  const input = useRef<InputState>({ moveX: 0, moveY: 0 });
-  const [hud, setHud] = useState({ alive: MAX_PLAYERS, ammo: STARTER_WEAPON.ammo, hp: 5, weapon: STARTER_WEAPON.shortName, time: GAME_TIME, status: "Loading 8-player last-man-standing arena…" });
+  const miniMapRef = useRef<HTMLCanvasElement | null>(null);
+  const lookTouch = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
+  const input = useRef<InputState>({
+    moveX: 0,
+    moveY: 0,
+    lookYaw: 0,
+    lookPitch: -0.02
+  });
+  const [weaponSlots, setWeaponSlots] = useState<WeaponEntry[]>([
+    STARTER_WEAPON
+  ]);
+  const [hud, setHud] = useState({
+    alive: MAX_PLAYERS,
+    ammo: STARTER_WEAPON.ammo,
+    hp: 5,
+    weapon: STARTER_WEAPON.shortName,
+    time: GAME_TIME,
+    status: 'The Maze Battle Royal is loading fast mode…'
+  });
 
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const lowPower = window.matchMedia?.('(max-width: 720px)').matches ?? true;
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: !lowPower,
+      powerPreference: 'high-performance'
+    });
     renderer.setClearColor(0x020617, 1);
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !lowPower;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x020617, 7, 18);
 
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 70);
+    const camera = new THREE.PerspectiveCamera(66, 1, 0.035, 70);
     camera.position.set(0, 5.2, 4.2);
     camera.lookAt(0, 0, 0);
 
@@ -774,82 +1624,296 @@ export default function RunMan() {
     makePortal(scene, 1, 1, 0x1d69ff);
     makePortal(scene, 15, 15, 0xd92f2f);
     const pickups = createPickups(scene);
+    const boxes = createWoodenBoxes(scene);
     const bullets: Bullet[] = [];
 
     const loader = new GLTFLoader();
     let loadedCount = 0;
     const onLoaded = () => {
       loadedCount += 1;
-      if (loadedCount >= MAX_PLAYERS) setHud((h) => ({ ...h, status: "8 players ready. Last man standing wins." }));
+      if (loadedCount >= MAX_PLAYERS)
+        setHud((h) => ({
+          ...h,
+          status: 'The Maze Battle Royal: shoot, punch boxes, survive.'
+        }));
     };
 
     const starts = [
-      cellToWorld(15, 1), cellToWorld(1, 15), cellToWorld(15, 15), cellToWorld(1, 1),
-      cellToWorld(8, 8), cellToWorld(1, 8), cellToWorld(15, 8), cellToWorld(8, 1),
+      cellToWorld(15, 1),
+      cellToWorld(1, 15),
+      cellToWorld(15, 15),
+      cellToWorld(1, 1),
+      cellToWorld(8, 8),
+      cellToWorld(1, 8),
+      cellToWorld(15, 8),
+      cellToWorld(8, 1)
     ];
     const actors: Actor[] = [
-      createActor(scene, loader, 0, "You", "blue", starts[0], onLoaded, true),
-      ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => createActor(scene, loader, i + 1, `Runner ${i + 2}`, "red", starts[i + 1], onLoaded)),
+      createActor(scene, loader, 0, 'You', 'blue', starts[0], onLoaded, true),
+      ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) =>
+        createActor(
+          scene,
+          loader,
+          i + 1,
+          `Runner ${i + 2}`,
+          'red',
+          starts[i + 1],
+          onLoaded
+        )
+      )
     ];
     const user = actors[0];
+    const raycaster = new THREE.Raycaster();
+    const weaponRoot = new THREE.Group();
+    const handMat = new THREE.MeshStandardMaterial({
+      color: 0xf1c9a8,
+      roughness: 0.72
+    });
+    const leftHand = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.035, 0.22, 6, 8),
+      handMat
+    );
+    const rightHand = leftHand.clone();
+    leftHand.position.set(-0.09, -0.16, -0.34);
+    rightHand.position.set(0.12, -0.17, -0.32);
+    leftHand.rotation.set(1.15, 0.1, -0.28);
+    rightHand.rotation.set(1.08, -0.1, 0.28);
+    weaponRoot.add(leftHand, rightHand);
+    weaponRoot.position.set(0.18, -0.2, -0.42);
+    camera.add(weaponRoot);
+    scene.add(camera);
+    let weaponKick = 0;
+
+    const syncWeaponSlots = () => setWeaponSlots([...user.inventory]);
+    const mountWeapon = (weapon: WeaponEntry) => {
+      weaponRoot.children.slice(2).forEach((child) => weaponRoot.remove(child));
+      const fallback = makeWeaponPickup(weapon);
+      fallback.scale.setScalar(0.62);
+      fallback.rotation.set(0.1, Math.PI / 2, 0);
+      weaponRoot.add(fallback);
+      loadWeaponModel(loader, weapon, (source) => {
+        weaponRoot.remove(fallback);
+        const model = cloneWeaponModel(
+          source,
+          weapon.weaponType === 'pistol' ? 0.2 : 0.28
+        );
+        model.rotation.set(0.06, 0, -0.06);
+        model.position.set(0.02, -0.02, 0.02);
+        weaponRoot.add(model);
+      });
+    };
+    mountWeapon(user.weapon);
 
     let gameTime = GAME_TIME;
-    let state: GameState = "playing";
+    let state: GameState = 'playing';
     let aiThink = 0;
     let aiFireThink = 0;
     let frame = 0;
     let last = performance.now();
 
-    const syncHud = (status?: string) => setHud((h) => ({
-      ...h,
-      alive: aliveActors(actors).length,
-      ammo: user.ammo,
-      hp: Math.max(0, user.health),
-      weapon: user.weapon.shortName,
-      time: Math.ceil(gameTime),
-      status: status ?? h.status,
-    }));
+    const syncHud = (status?: string) =>
+      setHud((h) => ({
+        ...h,
+        alive: aliveActors(actors).length,
+        ammo: user.ammo,
+        hp: Math.max(0, user.health),
+        weapon: user.weapon.shortName,
+        time: Math.ceil(gameTime),
+        status: status ?? h.status
+      }));
     const setStatus = (status: string) => syncHud(status);
 
     const resize = () => {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.setPixelRatio(
+        Math.min(lowPower ? 1.25 : 2, window.devicePixelRatio || 1)
+      );
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
     resize();
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
 
     const resetGame = () => {
       gameTime = GAME_TIME;
-      state = "playing";
+      state = 'playing';
       resetPickups(pickups);
-      bullets.forEach((b) => { b.active = false; b.mesh.visible = false; });
+      boxes.forEach((box) => {
+        box.broken = false;
+        box.hp = box.reward === 'weapon' ? 3 : 2;
+        box.group.visible = true;
+        box.group.scale.setScalar(1);
+      });
+      bullets.forEach((b) => {
+        b.active = false;
+        b.mesh.visible = false;
+      });
       resetActors(actors);
-      input.current = { moveX: 0, moveY: 0 };
-      setHud({ alive: MAX_PLAYERS, ammo: STARTER_WEAPON.ammo, hp: 5, weapon: STARTER_WEAPON.shortName, time: GAME_TIME, status: "New 8-player round. Survive and collect all 18 weapons." });
+      input.current.moveX = 0;
+      input.current.moveY = 0;
+      input.current.lookYaw = 0;
+      input.current.lookPitch = -0.02;
+      mountWeapon(user.weapon);
+      syncWeaponSlots();
+      setHud({
+        alive: MAX_PLAYERS,
+        ammo: STARTER_WEAPON.ammo,
+        hp: 5,
+        weapon: STARTER_WEAPON.shortName,
+        time: GAME_TIME,
+        status:
+          'New Maze Battle Royal round. Break boxes for health, ammo, weapons.'
+      });
     };
     window.__resetRobotMaze = resetGame;
-    window.__fireRobotMaze = () => {
-      if (state !== "playing") return;
+    window.__fireRobotMaze = (aimDir?: THREE.Vector3) => {
+      if (state !== 'playing') return;
       if (user.ammo <= 0 || user.fireCooldown > 0 || user.health <= 0) {
-        setStatus("You need weapon ammo!");
+        setStatus('You need weapon ammo!');
         return;
       }
       user.ammo -= 1;
       user.fireCooldown = user.weapon.cooldown;
-      const muzzle = user.pos.clone().addScaledVector(user.dir, 0.24).setY(0.38);
+      if (aimDir && aimDir.lengthSq() > 0.001) {
+        user.dir.copy(aimDir).setY(0).normalize();
+        user.targetDir.copy(user.dir);
+      }
+      const muzzle = user.pos
+        .clone()
+        .addScaledVector(user.dir, 0.24)
+        .setY(0.38);
       bullets.push(makeBullet(scene, user, muzzle, user.dir));
+      weaponKick = 1;
       setStatus(`Fired ${user.weapon.shortName}!`);
+      syncHud();
+    };
+
+    window.__swapMazeWeapon = (weaponId: string) => {
+      const weapon = user.inventory.find((entry) => entry.id === weaponId);
+      if (!weapon) return;
+      user.weapon = weapon;
+      mountWeapon(weapon);
+      setStatus(`Quick swap: ${weapon.shortName}`);
+      syncHud();
+    };
+
+    const aimDirFromScreen = (clientX: number, clientY: number) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -(((clientY - rect.top) / rect.height) * 2 - 1)
+      );
+      raycaster.setFromCamera(pointer, camera);
+      const targets: THREE.Object3D[] = [];
+      actors.slice(1).forEach((actor) => {
+        if (actor.health > 0 && actor.root.visible) targets.push(actor.root);
+      });
+      boxes.forEach((box) => {
+        if (!box.broken) targets.push(box.group);
+      });
+      const hit = raycaster.intersectObjects(targets, true)[0];
+      if (hit) {
+        const enemy = actors.slice(1).find((actor) => {
+          let found = false;
+          actor.root.traverse((child) => {
+            if (child === hit.object) found = true;
+          });
+          return found;
+        });
+        if (enemy) return enemy.pos.clone().sub(user.pos).setY(0).normalize();
+        const box = boxes.find((entry) => {
+          let found = false;
+          entry.group.traverse((child) => {
+            if (child === hit.object) found = true;
+          });
+          return found;
+        });
+        if (box) return box.pos.clone().sub(user.pos).setY(0).normalize();
+      }
+      return getForwardFromYaw(input.current.lookYaw);
+    };
+
+    const tapPickup = (clientX: number, clientY: number) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -(((clientY - rect.top) / rect.height) * 2 - 1)
+      );
+      raycaster.setFromCamera(pointer, camera);
+      const weapons = pickups.filter((p) => p.kind === 'weapon' && !p.taken);
+      const hit = raycaster.intersectObjects(
+        weapons.map((p) => p.group),
+        true
+      )[0];
+      if (!hit) return false;
+      const pickup = weapons.find((p) => {
+        let found = false;
+        p.group.traverse((child) => {
+          if (child === hit.object) found = true;
+        });
+        return found;
+      });
+      if (!pickup) return false;
+      if (pickup.pos.distanceTo(user.pos) > WEAPON_PICKUP_TAP_RANGE) {
+        setStatus(
+          `Move closer to pick up ${pickup.weapon?.shortName ?? 'weapon'}.`
+        );
+        return true;
+      }
+      pickup.taken = true;
+      pickup.group.visible = false;
+      if (
+        pickup.weapon &&
+        !user.inventory.some((w) => w.id === pickup.weapon?.id)
+      )
+        user.inventory = [pickup.weapon, ...user.inventory].slice(0, 5);
+      if (pickup.weapon) {
+        user.weapon = pickup.weapon;
+        user.ammo += pickup.value;
+        mountWeapon(pickup.weapon);
+        syncWeaponSlots();
+        setStatus(`Picked ${pickup.weapon.shortName}.`);
+        syncHud();
+      }
+      return true;
+    };
+
+    window.__tapMazeBattle = (clientX: number, clientY: number) => {
+      if (state !== 'playing') return;
+      if (tapPickup(clientX, clientY)) return;
+      window.__fireRobotMaze?.(aimDirFromScreen(clientX, clientY));
+    };
+
+    window.__meleeMazeBattle = (kind: 'punch' | 'kick') => {
+      const range = kind === 'kick' ? 0.62 : 0.48;
+      const box = boxes.find(
+        (entry) => !entry.broken && entry.pos.distanceTo(user.pos) < range
+      );
+      if (!box) {
+        setStatus(`${kind === 'kick' ? 'Kick' : 'Punch'} near a wooden box.`);
+        return;
+      }
+      damageBox(scene, box, kind === 'kick' ? 2 : 1, pickups);
+      weaponKick = 0.65;
+      setStatus(`${kind === 'kick' ? 'Kicked' : 'Punched'} a supply box.`);
     };
 
     const fireActor = (actor: Actor) => {
-      if (state !== "playing" || actor.ammo <= 0 || actor.fireCooldown > 0 || actor.health <= 0) return;
+      if (
+        state !== 'playing' ||
+        actor.ammo <= 0 ||
+        actor.fireCooldown > 0 ||
+        actor.health <= 0
+      )
+        return;
       actor.ammo -= 1;
       actor.fireCooldown = actor.weapon.cooldown * 1.18;
-      const muzzle = actor.pos.clone().addScaledVector(actor.dir, 0.24).setY(0.38);
+      const muzzle = actor.pos
+        .clone()
+        .addScaledVector(actor.dir, 0.24)
+        .setY(0.38);
       bullets.push(makeBullet(scene, actor, muzzle, actor.dir));
     };
 
@@ -866,21 +1930,41 @@ export default function RunMan() {
         }
       });
 
-      if (state === "playing") {
+      if (state === 'playing') {
         gameTime = Math.max(0, gameTime - dt);
-        const userDir = new THREE.Vector3(input.current.moveX, 0, input.current.moveY);
-        tryMoveActor(user, userDir, PLAYER_SPEED, dt);
+        const forward = getForwardFromYaw(input.current.lookYaw);
+        const right = getRightFromYaw(input.current.lookYaw);
+        const userDir = forward
+          .multiplyScalar(-input.current.moveY)
+          .add(right.multiplyScalar(input.current.moveX));
+        const stickPower = Math.min(
+          1,
+          Math.hypot(input.current.moveX, input.current.moveY)
+        );
+        tryMoveActor(
+          user,
+          userDir,
+          THREE.MathUtils.lerp(PLAYER_WALK_SPEED, PLAYER_RUN_SPEED, stickPower),
+          dt
+        );
+        user.dir.copy(getForwardFromYaw(input.current.lookYaw));
+        user.targetDir.copy(user.dir);
 
         aiThink -= dt;
         if (aiThink <= 0) {
           aiThink = 0.22;
           actors.slice(1).forEach((actor) => {
-            if (actor.health > 0) actor.targetDir.copy(chooseAiDir(actor, actors));
+            if (actor.health > 0)
+              actor.targetDir.copy(chooseAiDir(actor, actors));
           });
         }
         actors.slice(1).forEach((actor, i) => {
           if (actor.health <= 0) return;
-          const speed = ROBOT_SPEED + 0.38 + i * 0.018 + Math.min(0.26, (GAME_TIME - gameTime) / GAME_TIME * 0.26);
+          const speed =
+            ROBOT_SPEED +
+            0.38 +
+            i * 0.018 +
+            Math.min(0.26, ((GAME_TIME - gameTime) / GAME_TIME) * 0.26);
           tryMoveActor(actor, actor.targetDir.clone(), speed, dt);
         });
 
@@ -889,10 +1973,25 @@ export default function RunMan() {
           aiFireThink = 0.42;
           actors.slice(1).forEach((actor) => {
             if (actor.health <= 0 || actor.ammo <= 0) return;
-            const targets = aliveActors(actors).filter((candidate) => candidate.id !== actor.id);
-            const target = targets.reduce((best, candidate) => actor.pos.distanceTo(candidate.pos) < actor.pos.distanceTo(best.pos) ? candidate : best, targets[0]);
-            if (target && actor.pos.distanceTo(target.pos) < 2.35 && Math.random() < 0.42) {
-              actor.targetDir.copy(target.pos.clone().sub(actor.pos).setY(0).normalize());
+            const targets = aliveActors(actors).filter(
+              (candidate) => candidate.id !== actor.id
+            );
+            const target = targets.reduce(
+              (best, candidate) =>
+                actor.pos.distanceTo(candidate.pos) <
+                actor.pos.distanceTo(best.pos)
+                  ? candidate
+                  : best,
+              targets[0]
+            );
+            if (
+              target &&
+              actor.pos.distanceTo(target.pos) < 2.35 &&
+              Math.random() < 0.42
+            ) {
+              actor.targetDir.copy(
+                target.pos.clone().sub(actor.pos).setY(0).normalize()
+              );
               fireActor(actor);
             }
           });
@@ -902,20 +2001,35 @@ export default function RunMan() {
           if (actor.health <= 0) return;
           const gain = collectPickups(actor, pickups);
           if (gain.score || gain.ammo) {
-            const weaponMsg = gain.weapon ? `${actor.name} picked ${gain.weapon.shortName} +${gain.ammo} ammo` : `${actor.name} +${gain.score}`;
+            const weaponMsg = gain.weapon
+              ? `${actor.name} picked ${gain.weapon.shortName} +${gain.ammo} ammo`
+              : gain.score >= 3
+                ? `${actor.name} recovered life`
+                : `${actor.name} found supplies`;
+            if (actor.isUser && gain.weapon) {
+              mountWeapon(gain.weapon);
+              syncWeaponSlots();
+            }
             setStatus(weaponMsg);
           }
         });
 
-        updateBullets(bullets, dt, actors, setStatus);
+        updateBullets(bullets, dt, actors, boxes, pickups, scene, setStatus);
 
         actors.forEach((a) => {
           if (a.health <= 0) return;
           actors.forEach((b) => {
             if (a.id >= b.id || b.health <= 0) return;
             TMP.copy(a.pos).sub(b.pos).setY(0);
-            if (TMP.length() < a.radius + b.radius && a.stun <= 0 && b.stun <= 0) {
-              const push = TMP.lengthSq() > 0.0001 ? TMP.normalize() : new THREE.Vector3(1, 0, 0);
+            if (
+              TMP.length() < a.radius + b.radius &&
+              a.stun <= 0 &&
+              b.stun <= 0
+            ) {
+              const push =
+                TMP.lengthSq() > 0.0001
+                  ? TMP.normalize()
+                  : new THREE.Vector3(1, 0, 0);
               a.pos.addScaledVector(push, 0.08);
               b.pos.addScaledVector(push, -0.08);
             }
@@ -924,10 +2038,26 @@ export default function RunMan() {
 
         const alive = aliveActors(actors);
         if (alive.length <= 1 || user.health <= 0 || gameTime <= 0) {
-          state = "gameover";
-          const winner = alive.length === 1 ? alive[0] : alive.reduce((best, actor) => actor.health > best.health ? actor : best, alive[0] ?? user);
-          const status = winner?.id === user.id ? "You are the last man standing!" : `${winner?.name ?? "No one"} wins. Last man standing!`;
-          setHud({ alive: alive.length, ammo: user.ammo, hp: Math.max(0, user.health), weapon: user.weapon.shortName, time: Math.ceil(gameTime), status });
+          state = 'gameover';
+          const winner =
+            alive.length === 1
+              ? alive[0]
+              : alive.reduce(
+                  (best, actor) => (actor.health > best.health ? actor : best),
+                  alive[0] ?? user
+                );
+          const status =
+            winner?.id === user.id
+              ? 'You are the last man standing!'
+              : `${winner?.name ?? 'No one'} wins. Last man standing!`;
+          setHud({
+            alive: alive.length,
+            ammo: user.ammo,
+            hp: Math.max(0, user.health),
+            weapon: user.weapon.shortName,
+            time: Math.ceil(gameTime),
+            status
+          });
         } else if (Math.ceil(gameTime) % 3 === 0) {
           syncHud();
         }
@@ -935,12 +2065,26 @@ export default function RunMan() {
 
       actors.forEach((actor) => updateActorAnimation(actor, dt));
 
-      const cameraHeight = 1.12;
-      const behind = user.pos.clone().addScaledVector(user.dir, -0.95).add(new THREE.Vector3(0, cameraHeight, 0));
-      const ahead = user.pos.clone().addScaledVector(user.dir, 1.95).add(new THREE.Vector3(0, 0.45, 0));
-      camera.position.lerp(behind, 1 - Math.pow(0.0015, dt));
+      user.fallback.visible = false;
+      if (user.model) user.model.visible = false;
+      weaponKick = Math.max(0, weaponKick - dt * 7);
+      weaponRoot.position.z = -0.42 + weaponKick * 0.08;
+      weaponRoot.rotation.x = -weaponKick * 0.08;
+
+      const eye = user.pos
+        .clone()
+        .add(new THREE.Vector3(0, FIRST_PERSON_EYE_HEIGHT, 0));
+      const lookForward = getForwardFromYaw(input.current.lookYaw);
+      const ahead = eye
+        .clone()
+        .addScaledVector(lookForward, 1.9)
+        .add(new THREE.Vector3(0, Math.sin(input.current.lookPitch) * 1.1, 0));
+      camera.position.lerp(eye, 1 - Math.pow(0.0005, dt));
       camera.lookAt(ahead);
 
+      const mini = miniMapRef.current;
+      if (mini && Math.floor(now / 150) !== Math.floor((now - dt * 1000) / 150))
+        drawMiniMap(mini, user, actors, boxes, pickups);
       renderer.render(scene, camera);
     };
 
@@ -948,9 +2092,12 @@ export default function RunMan() {
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
       delete window.__resetRobotMaze;
       delete window.__fireRobotMaze;
+      delete window.__tapMazeBattle;
+      delete window.__meleeMazeBattle;
+      delete window.__swapMazeWeapon;
       renderer.dispose();
     };
   }, []);
@@ -972,7 +2119,8 @@ export default function RunMan() {
     const x = Math.cos(a) * len;
     const y = Math.sin(a) * len;
     knob.style.transform = `translate(${x}px, ${y}px)`;
-    const normalized = rawLen < deadZone ? 0 : Math.min(1, (len - deadZone) / (max - deadZone));
+    const normalized =
+      rawLen < deadZone ? 0 : Math.min(1, (len - deadZone) / (max - deadZone));
     input.current.moveX = Math.cos(a) * normalized;
     input.current.moveY = Math.sin(a) * normalized;
   };
@@ -981,38 +2129,333 @@ export default function RunMan() {
     moveTouch.current = null;
     input.current.moveX = 0;
     input.current.moveY = 0;
-    if (moveKnob.current) moveKnob.current.style.transform = "translate(0px,0px)";
+    if (moveKnob.current)
+      moveKnob.current.style.transform = 'translate(0px,0px)';
+  };
+
+  const beginLook = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    lookTouch.current = {
+      id: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      moved: false
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const updateLook = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const look = lookTouch.current;
+    if (!look || look.id !== e.pointerId) return;
+    const dx = e.clientX - look.x;
+    const dy = e.clientY - look.y;
+    look.x = e.clientX;
+    look.y = e.clientY;
+    if (Math.hypot(dx, dy) > 2) look.moved = true;
+    input.current.lookYaw -= dx * TOUCH_LOOK_SENSITIVITY;
+    input.current.lookPitch = THREE.MathUtils.clamp(
+      input.current.lookPitch - dy * TOUCH_LOOK_SENSITIVITY * 0.7,
+      -0.42,
+      0.36
+    );
+  };
+
+  const endLook = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const look = lookTouch.current;
+    if (!look || look.id !== e.pointerId) return;
+    lookTouch.current = null;
+    if (!look.moved) window.__tapMazeBattle?.(e.clientX, e.clientY);
   };
 
   const resetGame = () => window.__resetRobotMaze?.();
   const fire = () => window.__fireRobotMaze?.();
+  const punch = () => window.__meleeMazeBattle?.('punch');
+  const kick = () => window.__meleeMazeBattle?.('kick');
+  const swapWeapon = (weaponId: string) => window.__swapMazeWeapon?.(weaponId);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#020617", overflow: "hidden", touchAction: "none", userSelect: "none" }}>
-      <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
-        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#020617',
+        overflow: 'hidden',
+        touchAction: 'none',
+        userSelect: 'none'
+      }}
+    >
+      <div ref={hostRef} style={{ position: 'absolute', inset: 0 }}>
+        <canvas
+          ref={canvasRef}
+          onPointerDown={beginLook}
+          onPointerMove={updateLook}
+          onPointerUp={endLook}
+          onPointerCancel={() => {
+            lookTouch.current = null;
+          }}
+          style={{ width: '100%', height: '100%', display: 'block' }}
+        />
       </div>
 
-      <div style={{ position: "fixed", left: 0, right: 0, top: 0, padding: "10px 12px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 8, pointerEvents: "none", color: "white", fontFamily: "system-ui,sans-serif", textShadow: "0 2px 8px #000" }}>
-        <div style={{ fontWeight: 950, fontSize: 12, lineHeight: 1.25 }}>YOU · HP {hud.hp} · AMMO {hud.ammo} · {hud.weapon}</div>
-        <div style={{ fontSize: 12, fontWeight: 900, textAlign: "right" }}>👥 {hud.alive}/8 · ⏱ {hud.time}s</div>
-        <div style={{ gridColumn: "1 / 3", fontSize: 11, textAlign: "center", lineHeight: 1.2 }}>{hud.status}</div>
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          top: 0,
+          padding: '10px 12px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'center',
+          gap: 8,
+          pointerEvents: 'none',
+          color: 'white',
+          fontFamily: 'system-ui,sans-serif',
+          textShadow: '0 2px 8px #000'
+        }}
+      >
+        <div style={{ fontWeight: 950, fontSize: 12, lineHeight: 1.25 }}>
+          THE MAZE BATTLE ROYAL · HP {hud.hp} · AMMO {hud.ammo} · {hud.weapon}
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 900, textAlign: 'right' }}>
+          👥 {hud.alive}/8 · ⏱ {hud.time}s
+        </div>
+        <div
+          style={{
+            gridColumn: '1 / 3',
+            fontSize: 11,
+            textAlign: 'center',
+            lineHeight: 1.2
+          }}
+        >
+          {hud.status}
+        </div>
       </div>
 
-      <button onClick={resetGame} style={{ position: "fixed", right: 14, top: 64, border: "1px solid rgba(255,255,255,0.28)", color: "white", background: "rgba(15,23,42,0.82)", borderRadius: 14, padding: "8px 12px", fontWeight: 900, pointerEvents: "auto" }}>Reset</button>
+      <button
+        onClick={resetGame}
+        style={{
+          position: 'fixed',
+          right: 14,
+          top: 64,
+          border: '1px solid rgba(255,255,255,0.28)',
+          color: 'white',
+          background: 'rgba(15,23,42,0.82)',
+          borderRadius: 14,
+          padding: '8px 12px',
+          fontWeight: 900,
+          pointerEvents: 'auto'
+        }}
+      >
+        Reset
+      </button>
 
-      <button onClick={fire} style={{ position: "fixed", right: 28, bottom: 54, width: 104, height: 104, border: "1px solid rgba(252,211,77,0.58)", borderRadius: 999, color: "white", background: "rgba(234,88,12,0.78)", fontWeight: 950, pointerEvents: "auto", boxShadow: "0 18px 34px rgba(0,0,0,0.38)", fontSize: 16 }}>FIRE</button>
+      <canvas
+        ref={miniMapRef}
+        width={124}
+        height={124}
+        style={{
+          position: 'fixed',
+          right: 12,
+          top: 110,
+          width: 124,
+          height: 124,
+          border: '1px solid rgba(148,163,184,0.42)',
+          borderRadius: 16,
+          background: 'rgba(2,6,23,0.72)',
+          pointerEvents: 'none',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.35)'
+        }}
+      />
 
-      <div style={{ position: "fixed", left: 14, bottom: 14, color: "#93c5fd", fontFamily: "system-ui,sans-serif", fontSize: 11, fontWeight: 900, textShadow: "0 2px 8px #000" }}>MOVE</div>
+      <div
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          width: 20,
+          height: 20,
+          transform: 'translate(-50%,-50%)',
+          border: '2px solid rgba(255,255,255,0.82)',
+          borderRadius: 999,
+          boxShadow: '0 0 16px rgba(34,211,238,0.7)',
+          pointerEvents: 'none'
+        }}
+      />
+
+      <div
+        style={{
+          position: 'fixed',
+          left: 16,
+          right: 16,
+          top: 82,
+          padding: '7px 10px',
+          border: '1px solid rgba(147,197,253,0.22)',
+          borderRadius: 14,
+          color: '#dbeafe',
+          background: 'rgba(15,23,42,0.56)',
+          fontFamily: 'system-ui,sans-serif',
+          fontSize: 10.5,
+          fontWeight: 850,
+          textAlign: 'center',
+          pointerEvents: 'none'
+        }}
+      >
+        Drag screen to look · tap target to shoot · tap nearby guns · break
+        boxes
+      </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          left: '50%',
+          bottom: 18,
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: 8,
+          maxWidth: '58vw',
+          overflowX: 'auto',
+          pointerEvents: 'auto',
+          padding: '4px'
+        }}
+      >
+        {weaponSlots.map((weapon) => (
+          <button
+            key={weapon.id}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => swapWeapon(weapon.id)}
+            style={{
+              minWidth: 58,
+              border: `1px solid ${hud.weapon === weapon.shortName ? 'rgba(252,211,77,0.95)' : 'rgba(255,255,255,0.28)'}`,
+              borderRadius: 12,
+              color: 'white',
+              background:
+                hud.weapon === weapon.shortName
+                  ? 'rgba(180,83,9,0.86)'
+                  : 'rgba(15,23,42,0.82)',
+              padding: '7px 8px',
+              fontSize: 10,
+              fontWeight: 950,
+              boxShadow: '0 8px 20px rgba(0,0,0,0.28)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {weapon.shortName}
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={punch}
+        style={{
+          position: 'fixed',
+          right: 22,
+          bottom: 176,
+          width: 66,
+          height: 42,
+          border: '1px solid rgba(255,255,255,0.35)',
+          borderRadius: 16,
+          color: 'white',
+          background: 'rgba(15,23,42,0.78)',
+          fontWeight: 950,
+          pointerEvents: 'auto'
+        }}
+      >
+        PUNCH
+      </button>
+      <button
+        onClick={kick}
+        style={{
+          position: 'fixed',
+          right: 94,
+          bottom: 146,
+          width: 58,
+          height: 38,
+          border: '1px solid rgba(255,255,255,0.32)',
+          borderRadius: 16,
+          color: 'white',
+          background: 'rgba(15,23,42,0.72)',
+          fontWeight: 950,
+          fontSize: 12,
+          pointerEvents: 'auto'
+        }}
+      >
+        KICK
+      </button>
+
+      <button
+        onClick={fire}
+        style={{
+          position: 'fixed',
+          right: 28,
+          bottom: 54,
+          width: 104,
+          height: 104,
+          border: '1px solid rgba(252,211,77,0.58)',
+          borderRadius: 999,
+          color: 'white',
+          background: 'rgba(234,88,12,0.78)',
+          fontWeight: 950,
+          pointerEvents: 'auto',
+          boxShadow: '0 18px 34px rgba(0,0,0,0.38)',
+          fontSize: 16
+        }}
+      >
+        FIRE
+      </button>
+
+      <div
+        style={{
+          position: 'fixed',
+          left: 14,
+          bottom: 14,
+          color: '#93c5fd',
+          fontFamily: 'system-ui,sans-serif',
+          fontSize: 11,
+          fontWeight: 900,
+          textShadow: '0 2px 8px #000'
+        }}
+      >
+        MOVE
+      </div>
       <div
         ref={moveBase}
-        onPointerDown={(e) => { moveTouch.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); updateStick(e.clientX, e.clientY); }}
-        onPointerMove={(e) => { if (moveTouch.current === e.pointerId) updateStick(e.clientX, e.clientY); }}
+        onPointerDown={(e) => {
+          moveTouch.current = e.pointerId;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          updateStick(e.clientX, e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (moveTouch.current === e.pointerId)
+            updateStick(e.clientX, e.clientY);
+        }}
         onPointerUp={() => endStick()}
         onPointerCancel={() => endStick()}
-        style={{ position: "fixed", left: 22, bottom: 34, width: 152, height: 152, borderRadius: 999, background: "rgba(29,105,255,0.18)", border: "1px solid rgba(147,197,253,0.5)", pointerEvents: "auto", display: "grid", placeItems: "center", boxShadow: "0 18px 34px rgba(0,0,0,0.35)" }}
+        style={{
+          position: 'fixed',
+          left: 22,
+          bottom: 34,
+          width: 152,
+          height: 152,
+          borderRadius: 999,
+          background: 'rgba(29,105,255,0.18)',
+          border: '1px solid rgba(147,197,253,0.5)',
+          pointerEvents: 'auto',
+          display: 'grid',
+          placeItems: 'center',
+          boxShadow: '0 18px 34px rgba(0,0,0,0.35)'
+        }}
       >
-        <div ref={moveKnob} style={{ width: 62, height: 62, borderRadius: 999, background: "rgba(147,197,253,0.96)", boxShadow: "0 8px 18px rgba(0,0,0,0.35)", transition: "transform 45ms linear" }} />
+        <div
+          ref={moveKnob}
+          style={{
+            width: 62,
+            height: 62,
+            borderRadius: 999,
+            background: 'rgba(147,197,253,0.96)',
+            boxShadow: '0 8px 18px rgba(0,0,0,0.35)',
+            transition: 'transform 45ms linear'
+          }}
+        />
       </div>
     </div>
   );
