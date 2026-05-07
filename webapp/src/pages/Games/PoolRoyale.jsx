@@ -25806,6 +25806,7 @@ const shotPowerRef = useRef(0);
             shootBendDirection: 1,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0.72,
+            shootForwardBendScale: 0.62,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
@@ -25828,8 +25829,8 @@ const shotPowerRef = useRef(0);
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             edgeMargin: 0.68 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: 0.145 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: -0.012 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandBackFromBall: 0.072 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandSide: -0.024 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -26027,10 +26028,13 @@ const shotPowerRef = useRef(0);
                 1 - Math.pow(1 - strikeNorm, 3)
               );
             }
+            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? 0.072 * humanUnitScale;
+            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? -0.024 * humanUnitScale;
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -0.105 * humanUnitScale)
-              .addScaledVector(side, -0.038 * humanUnitScale)
+              // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
+              .addScaledVector(aimForward, -bridgeBackFromBall)
+              .addScaledVector(side, bridgeSideOffset)
               .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
