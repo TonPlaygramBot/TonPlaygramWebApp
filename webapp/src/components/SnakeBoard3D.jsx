@@ -55,9 +55,9 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: pull the chair ring inward so players sit closer to the smaller table.
-const CHAIR_GLOBAL_PUSHBACK = 0.38 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.42 * MODEL_SCALE;
+// Portrait calibration: push the chair ring slightly outward while the human anchors move closer to the table.
+const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.5 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -87,15 +87,87 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
+
+const SNAKE_DOMINO_CHARACTER_THEMES = Object.freeze([
+  {
+    id: 'rpm-current-domino',
+    urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    clothCombo: 'royalDenim',
+    hairColor: '#24150f',
+    eyeColor: '#2f5d7c',
+    skin: ['#f0c2a0', '#d9a27d', '#8f5f42']
+  },
+  {
+    id: 'rpm-67d411-domino',
+    urls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    clothCombo: 'casinoCheck',
+    hairColor: '#14100c',
+    eyeColor: '#5a3d2b',
+    skin: ['#edb38d', '#c78f68', '#7a4932']
+  },
+  {
+    id: 'rpm-67f433-domino',
+    urls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    clothCombo: 'linenStreet',
+    hairColor: '#2c1b12',
+    eyeColor: '#406a45',
+    skin: ['#f4c8a8', '#e0b18d', '#9a6242']
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    urls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    clothCombo: 'jacquardNight',
+    hairColor: '#3a2418',
+    eyeColor: '#364f7d',
+    skin: ['#daa07d', '#b87957', '#70402d']
+  },
+  {
+    id: 'webgl-vietnam-human-domino',
+    urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    clothCombo: 'softFleece',
+    hairColor: '#120d0a',
+    eyeColor: '#33271e',
+    skin: ['#ebb88f', '#d39a72', '#8b563a']
+  },
+  {
+    id: 'webgl-ai-teacher-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    clothCombo: 'patternedRed',
+    hairColor: '#231915',
+    eyeColor: '#3d5f73',
+    skin: ['#e8ad87', '#c88b64', '#7c4932']
+  },
+  {
+    id: 'webgl-ai-teacher-1-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    clothCombo: 'mixedDenim',
+    hairColor: '#0f0b08',
+    eyeColor: '#4c3425',
+    skin: ['#f3c4a0', '#e3b08b', '#9b6445']
+  }
+]);
+const SNAKE_DOMINO_CHARACTER_CACHE = new Map();
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
-// Portrait calibration: keep the bottom player slightly farther back, but closer to the table than before.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.14;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.36;
+// Portrait calibration: keep the bottom player only slightly farther back while all humans sit closer to the table.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.08;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
 // Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
@@ -173,14 +245,14 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 1100;
+// Keep Snake dice pacing and bounce aligned with Pool Royale's break-dice roll configuration.
+const DICE_ROLL_DURATION = 940;
 const DICE_SETTLE_DURATION = 240;
-const DICE_RESULT_HOLD_DURATION = 2000;
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_RESULT_HOLD_DURATION = 720;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
+const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -465,7 +537,7 @@ const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = 0.08;
+const CAMERA_EXTRA_LIFT = -0.1;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
@@ -473,8 +545,8 @@ const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
-  heightOffset: 2.72,
-  targetLift: 0
+  heightOffset: 2.46,
+  targetLift: 0.16 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,
@@ -919,6 +991,28 @@ async function loadPolyhavenTextureSet(assetId, renderer) {
     anisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 6
   };
   POLYHAVEN_TEXTURE_CACHE.set(assetId, textureSet);
+  return textureSet;
+}
+
+
+async function loadSnakeDirectTextureSet(key, urls, renderer) {
+  if (!key || !urls?.color) return null;
+  const cacheKey = `snake-domino-cloth:${key}`;
+  if (POLYHAVEN_TEXTURE_CACHE.has(cacheKey)) return POLYHAVEN_TEXTURE_CACHE.get(cacheKey);
+  const loader = new THREE.TextureLoader();
+  const [map, roughnessMap, normalMap] = await Promise.all([
+    loader.loadAsync(urls.color),
+    urls.roughness ? loader.loadAsync(urls.roughness) : Promise.resolve(null),
+    urls.normal ? loader.loadAsync(urls.normal) : Promise.resolve(null)
+  ]);
+  if (map) applySRGBColorSpace(map);
+  const textureSet = {
+    map,
+    roughnessMap,
+    normalMap,
+    anisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 6
+  };
+  POLYHAVEN_TEXTURE_CACHE.set(cacheKey, textureSet);
   return textureSet;
 }
 
@@ -1665,6 +1759,49 @@ function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTe
 }
 
 
+
+const SNAKE_DOMINO_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg'
+  },
+  check: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg'
+  },
+  hessian: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg'
+  },
+  floral: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg'
+  },
+  fleece: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg'
+  },
+  picnic: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg'
+  }
+});
+const SNAKE_DOMINO_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: '#2f5f9f', repeat: 4.2 }, lower: { material: 'hessian', tint: '#9b6b3f', repeat: 3.4 }, accent: { material: 'fleece', tint: '#d8dee9', repeat: 5.0 } },
+  casinoCheck: { upper: { material: 'check', tint: '#b7375d', repeat: 3.8 }, lower: { material: 'denim', tint: '#243e70', repeat: 4.4 }, accent: { material: 'hessian', tint: '#f4d7a1', repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: '#b68452', repeat: 3.6 }, lower: { material: 'fleece', tint: '#374151', repeat: 5.2 }, accent: { material: 'denim', tint: '#4a6fa4', repeat: 4.0 } },
+  jacquardNight: { upper: { material: 'floral', tint: '#7c3f88', repeat: 3.2 }, lower: { material: 'denim', tint: '#1f335f', repeat: 4.5 }, accent: { material: 'check', tint: '#e3c16f', repeat: 4.0 } },
+  softFleece: { upper: { material: 'fleece', tint: '#556070', repeat: 5.3 }, lower: { material: 'hessian', tint: '#8b633f', repeat: 3.7 }, accent: { material: 'floral', tint: '#b88ab8', repeat: 3.0 } },
+  patternedRed: { upper: { material: 'picnic', tint: '#c44f42', repeat: 3.4 }, lower: { material: 'denim', tint: '#263f73', repeat: 4.7 }, accent: { material: 'fleece', tint: '#f1f5f9', repeat: 5.0 } },
+  mixedDenim: { upper: { material: 'denim', tint: '#3b6ea8', repeat: 4.0 }, lower: { material: 'check', tint: '#4f6f93', repeat: 4.2 }, accent: { material: 'hessian', tint: '#d6a35f', repeat: 3.2 } }
+});
+
 const SNAKE_SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze([
   Object.freeze({ shirt: 'cotton_jersey', pants: 'denim_fabric_04', jacket: 'brown_leather', shoes: 'leather_white', skin: ['#e2c3a5', '#c99974', '#8f5f42'], hair: '#3b2416', eyes: '#3f6f8f' }),
   Object.freeze({ shirt: 'waffle_pique_cotton', pants: 'denim_fabric_05', jacket: 'fabric_leather_01', shoes: 'brown_leather', skin: ['#f0c7a8', '#cf946c', '#985d3c'], hair: '#111827', eyes: '#5b7c54' }),
@@ -1707,7 +1844,39 @@ function createDetailedHumanSkinTexture(tone = ['#d8c0a6', '#b48d6b', '#7c4f36']
   return texture;
 }
 
-async function loadSnakeSeatedHumanTextureProfile(renderer = null, seatIndex = 0) {
+async function loadSnakeSeatedHumanTextureProfile(renderer = null, seatIndex = 0, characterTheme = null) {
+  const dominoTheme = characterTheme || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+  const combo = SNAKE_DOMINO_CLOTH_COMBOS[dominoTheme?.clothCombo] || null;
+  if (combo) {
+    const loadDominoSlot = async (slotName) => {
+      const slot = combo[slotName] || combo.upper;
+      const material = SNAKE_DOMINO_CLOTH_MATERIALS[slot?.material] || SNAKE_DOMINO_CLOTH_MATERIALS.denim;
+      try {
+        const set = await loadSnakeDirectTextureSet(`${dominoTheme.id}:${slotName}:${slot.material}`, material, renderer);
+        return set ? { ...set, repeat: slot.repeat, tint: slot.tint } : null;
+      } catch (error) {
+        console.warn('Snake Domino seated-human cloth texture failed', dominoTheme?.id, slotName, error);
+        return null;
+      }
+    };
+    const [shirt, pants, jacket, shoes] = await Promise.all([
+      loadDominoSlot('upper'),
+      loadDominoSlot('lower'),
+      loadDominoSlot('accent'),
+      loadDominoSlot('accent')
+    ]);
+    return {
+      shirt,
+      pants,
+      jacket,
+      shoes,
+      skinTexture: createDetailedHumanSkinTexture(dominoTheme.skin),
+      skinTone: dominoTheme.skin?.[1] || '#c99974',
+      hairColor: dominoTheme.hairColor || '#2a1a10',
+      eyeColor: dominoTheme.eyeColor || '#3f6f8f'
+    };
+  }
+
   const profile = SNAKE_SEATED_HUMAN_TEXTURE_PROFILES[seatIndex % SNAKE_SEATED_HUMAN_TEXTURE_PROFILES.length];
   const loadSet = async (assetId) => {
     try {
@@ -1737,13 +1906,13 @@ async function loadSnakeSeatedHumanTextureProfile(renderer = null, seatIndex = 0
 
 function classifySnakeHumanSurface(meshName, materialName) {
   const label = `${meshName || ''} ${materialName || ''}`.toLowerCase();
-  if (/eye|iris|pupil|cornea/.test(label)) return 'eyes';
-  if (/hair|beard|mustache|moustache|brow/.test(label)) return 'hair';
-  if (/shoe|boot|sneaker|sole|footwear/.test(label)) return 'shoes';
-  if (/jacket|coat|hoodie|outer|blazer|vest|accessor|belt|strap|bag/.test(label)) return 'jacket';
-  if (/pant|trouser|jean|denim|short|skirt|bottom|legwear/.test(label)) return 'pants';
-  if (/shirt|tshirt|t-shirt|top|torso|sleeve|bodywear|outfit|cloth|fabric|dress/.test(label)) return 'shirt';
-  if (/head|face|skin|neck|ear|hand|arm|leg|body/.test(label)) return 'skin';
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(label)) return 'eyes';
+  if (/hair|beard|mustache|moustache|brow|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(label)) return 'hair';
+  if (/shoe|boot|sneaker|sole|footwear|wolf3d_outfit_footwear/.test(label)) return 'shoes';
+  if (/jacket|coat|hoodie|outer|blazer|vest|accessor|belt|strap|bag|tie|scarf|hat|cap|glove|sock/.test(label)) return 'jacket';
+  if (/pant|trouser|jean|denim|short|skirt|bottom|legwear|outfit_bottom|wolf3d_outfit_bottom/.test(label)) return 'pants';
+  if (/shirt|tshirt|t-shirt|top|torso|sleeve|bodywear|outfit_top|wolf3d_outfit_top|outfit|cloth|fabric|dress/.test(label)) return 'shirt';
+  if (/head|face|skin|neck|ear|hand|finger|arm|leg|body|wolf3d_head|wolf3d_body|bodymesh/.test(label) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(label)) return 'skin';
   return 'shirt';
 }
 
@@ -1758,12 +1927,14 @@ function applySnakeSeatedHumanMaterialDetail(root, textureProfile, fallbackTextu
   if (!root?.isObject3D || !textureProfile) return;
   const assignPbrSet = (material, set, fallbackMap = null, repeat = 1.8) => {
     if (!material) return;
+    const resolvedRepeat = set?.repeat ?? repeat;
     if (set) {
-      applyTextureSetToMaterial(material, set, repeat);
+      applyTextureSetToMaterial(material, set, resolvedRepeat);
     } else {
       material.map = fallbackMap || material.map || null;
     }
     normalizeMaterialTextures(material, 8, { preserveGltfTextureMapping: true });
+    if (set?.tint && material.color?.set) material.color.set(set.tint);
     material.needsUpdate = true;
   };
 
@@ -1792,22 +1963,22 @@ function applySnakeSeatedHumanMaterialDetail(root, textureProfile, fallbackTextu
         mat.metalness = 0;
       } else if (kind === 'shoes') {
         assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null, 2.0);
-        mat.color?.setHex?.(0xffffff);
+        if (!textureProfile.shoes?.tint) mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
         mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
       } else if (kind === 'jacket') {
         assignPbrSet(mat, textureProfile.jacket, fallbackTextures.jacketTex || fallbackTextures.clothTex || null, 1.35);
-        mat.color?.setHex?.(0xffffff);
+        if (!textureProfile.jacket?.tint) mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.46, 0.46);
         mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.18);
       } else if (kind === 'pants') {
         assignPbrSet(mat, textureProfile.pants, fallbackTextures.pantsTex || fallbackTextures.clothTex || null, 2.2);
-        mat.color?.setHex?.(0xffffff);
+        if (!textureProfile.pants?.tint) mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.74, 0.74);
         mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
       } else {
         assignPbrSet(mat, textureProfile.shirt, fallbackTextures.shirtTex || fallbackTextures.clothTex || null, 2.4);
-        mat.color?.setHex?.(0xffffff);
+        if (!textureProfile.shirt?.tint) mat.color?.setHex?.(0xffffff);
         mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
         mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
       }
@@ -2204,6 +2375,45 @@ async function loadSeatedHumanTemplate(renderer) {
     })();
   }
   return HUMAN_MODEL_CACHE.promise;
+}
+
+
+async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0) {
+  const theme = SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+  if (!theme) return loadSeatedHumanTemplate(renderer);
+  if (SNAKE_DOMINO_CHARACTER_CACHE.has(theme.id)) return SNAKE_DOMINO_CHARACTER_CACHE.get(theme.id);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader.setCrossOrigin('anonymous');
+    let lastError = null;
+    for (const url of theme.urls || []) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (!scene) throw new Error(`Missing scene for ${theme.id}`);
+        scene.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          obj.frustumCulled = false;
+          const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+          materials.forEach((mat) => {
+            if (mat?.map) applySRGBColorSpace(mat.map);
+            if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+            normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+            mat.needsUpdate = true;
+          });
+        });
+        return scene;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    console.warn('Snake Domino seated-human avatar failed, using default', theme.id, lastError);
+    return loadSeatedHumanTemplate(renderer);
+  })();
+  SNAKE_DOMINO_CHARACTER_CACHE.set(theme.id, promise);
+  return promise;
 }
 
 function prepareLoadedModel(model) {
@@ -3916,21 +4126,24 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     })
     .catch(() => {});
 
-  loadSeatedHumanTemplate(renderer)
-    .then((humanTemplate) => {
-      if (!humanTemplate || disposed) return;
+  Promise.all(chairs.map((_, seatIndex) => loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex)))
+    .then((humanTemplates) => {
+      if (!humanTemplates?.length || disposed) return;
       chairs.forEach((chair, seatIndex) => {
+        const humanTemplate = humanTemplates[seatIndex] || humanTemplates[0];
+        if (!humanTemplate) return;
         const instance = cloneSkeleton(humanTemplate);
         makeSnakeHumanMaterialsUnique(instance);
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
+        const dominoTheme = SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
         const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
         const shirtTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
         const pantsTex = createSeatedHumanFallbackTexture('#1f3f68', '#111827');
         const jacketTex = createSeatedHumanFallbackTexture('#3b2416', '#160f0b');
         const shoesTex = createSeatedHumanFallbackTexture('#171717', '#5c4033');
         const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-        loadSnakeSeatedHumanTextureProfile(renderer, seatIndex)
+        loadSnakeSeatedHumanTextureProfile(renderer, seatIndex, dominoTheme)
           .then((textureProfile) => {
             if (!disposed) {
               applySnakeSeatedHumanMaterialDetail(instance, textureProfile, {
@@ -3951,9 +4164,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
               jacket: null,
               shoes: null,
               skinTexture: skinTex,
-              skinTone: '#c99974',
-              hairColor: '#3f2f20',
-              eyeColor: '#3f6f8f'
+              skinTone: dominoTheme?.skin?.[1] || '#c99974',
+              hairColor: dominoTheme?.hairColor || '#3f2f20',
+              eyeColor: dominoTheme?.eyeColor || '#3f6f8f'
             }, { skinTex, shirtTex, pantsTex, jacketTex, shoesTex, hairTex, clothTex: shirtTex });
           });
         const baseScale =
@@ -3964,7 +4177,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
           root: instance,
           bones: buildHumanBoneMap(instance),
           rest: captureModelRestPose(instance),
-          baseScale
+          baseScale,
+          dominoThemeId: dominoTheme?.id
         };
         applyChessBattleSeatedHumanBaseline(seatedHumans[seatIndex], seatIndex, 0, 0);
       });
