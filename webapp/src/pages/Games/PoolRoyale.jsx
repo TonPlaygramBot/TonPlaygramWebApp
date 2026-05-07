@@ -12716,15 +12716,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
-    if (role === 'trim' && tableModel?.forceGoldTrim && originalMat.color) {
-      originalMat.color.set(0xd4af37);
-      originalMat.metalness = Math.max(originalMat.metalness ?? 0, 0.92);
-      originalMat.roughness = Math.min(originalMat.roughness ?? 0.16, 0.16);
-      originalMat.clearcoat = Math.max(originalMat.clearcoat ?? 0, 0.5);
-      originalMat.clearcoatRoughness = Math.min(originalMat.clearcoatRoughness ?? 0.06, 0.06);
-      originalMat.envMapIntensity = Math.max(originalMat.envMapIntensity ?? 0, 0.72);
-      enhanceChromeMaterial(originalMat);
-    }
     preparePoolRoyaleExternalTexture(originalMat.map, true);
     preparePoolRoyaleExternalTexture(originalMat.emissiveMap, true);
     preparePoolRoyaleExternalTexture(originalMat.aoMap, false);
@@ -12773,14 +12764,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
     };
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
-    if (tableModel?.forceGoldTrim && mat.color) {
-      mat.color.set(0xd4af37);
-      mat.metalness = Math.max(mat.metalness ?? 0, 0.92);
-      mat.roughness = Math.min(mat.roughness ?? 0.16, 0.16);
-      mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.5);
-      mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.06, 0.06);
-      mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0, 0.72);
-    }
     enhanceChromeMaterial(mat);
   } else if (role === 'pocket') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
@@ -13037,102 +13020,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   };
 }
 
-
-function tunePoolRoyaleExternalShowoodBase(model, tableModel = null) {
-  if (!model) return;
-  const baseHeightScale = Number.isFinite(tableModel?.externalBaseHeightScale)
-    ? Math.max(1, tableModel.externalBaseHeightScale)
-    : 1;
-  const bottomExpansion = Number.isFinite(tableModel?.externalBaseBottomExpansion)
-    ? Math.max(1, tableModel.externalBaseBottomExpansion)
-    : 1;
-  if (baseHeightScale <= 1 + MICRO_EPS && bottomExpansion <= 1 + MICRO_EPS) return;
-
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const fullHeight = Math.max(MICRO_EPS, fullBox.max.y - fullBox.min.y);
-  const lowerCutoff = fullBox.min.y + fullHeight * 0.42;
-  const center = fullBox.getCenter(new THREE.Vector3());
-
-  model.traverse((child) => {
-    if (!child?.isMesh) return;
-    const material = Array.isArray(child.material) ? child.material[0] : child.material;
-    const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    if (role !== 'wood') return;
-    const childBox = new THREE.Box3().setFromObject(child);
-    if (childBox.isEmpty() || childBox.min.y > lowerCutoff) return;
-    child.position.y = fullBox.min.y + (child.position.y - fullBox.min.y) * baseHeightScale;
-    if (bottomExpansion > 1 + MICRO_EPS) {
-      const lowFactor = THREE.MathUtils.clamp((lowerCutoff - childBox.min.y) / (fullHeight * 0.42), 0, 1);
-      const expansion = THREE.MathUtils.lerp(1, bottomExpansion, lowFactor);
-      child.position.x = center.x + (child.position.x - center.x) * expansion;
-      child.position.z = center.z + (child.position.z - center.z) * expansion;
-      child.scale.x *= expansion;
-      child.scale.z *= expansion;
-    }
-    child.updateMatrixWorld(true);
-  });
-}
-
-function addPoolRoyaleExternalGoldLevelers(model, tableModel = null) {
-  if (!model || !tableModel?.addGeneratedGoldLevelers) return;
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const size = fullBox.getSize(new THREE.Vector3());
-  const radius = Math.max(Math.min(size.x, size.z) * 0.035, BALL_R * 0.42);
-  const height = Math.max(radius * 0.22, BALL_R * 0.18);
-  const stemRadius = radius * 0.38;
-  const stemHeight = height * 1.45;
-  const rubberHeight = height * 0.26;
-  const insetX = size.x * 0.18;
-  const insetZ = size.z * 0.18;
-  const centers = [
-    [fullBox.min.x + insetX, fullBox.min.z + insetZ],
-    [fullBox.max.x - insetX, fullBox.min.z + insetZ],
-    [fullBox.min.x + insetX, fullBox.max.z - insetZ],
-    [fullBox.max.x - insetX, fullBox.max.z - insetZ]
-  ];
-  const goldMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd4af37,
-    metalness: 0.92,
-    roughness: 0.16,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.08,
-    envMapIntensity: 0.88
-  });
-  enhanceChromeMaterial(goldMat);
-  const rubberMat = new THREE.MeshStandardMaterial({
-    color: 0x090909,
-    roughness: 0.85,
-    metalness: 0.08,
-    envMapIntensity: 0.05
-  });
-  const discGeo = new THREE.CylinderGeometry(radius * 0.84, radius, height, 42);
-  const stemGeo = new THREE.CylinderGeometry(stemRadius, stemRadius * 1.02, stemHeight, 26);
-  const rubberGeo = new THREE.CylinderGeometry(radius * 1.03, radius * 1.03, rubberHeight, 34);
-  const levelerGroup = new THREE.Group();
-  levelerGroup.name = 'pool-royale-showood-gold-leg-levelers';
-  centers.forEach(([x, z]) => {
-    const group = new THREE.Group();
-    group.position.set(x, fullBox.min.y - height * 0.5, z);
-    const rubber = new THREE.Mesh(rubberGeo, rubberMat);
-    rubber.position.y = rubberHeight * 0.5 - height * 0.5 - rubberHeight;
-    const disc = new THREE.Mesh(discGeo, goldMat);
-    disc.position.y = 0;
-    const stem = new THREE.Mesh(stemGeo, goldMat);
-    stem.position.y = height * 0.5 + stemHeight * 0.5 - MICRO_EPS;
-    [rubber, disc, stem].forEach((mesh) => {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    });
-    group.add(rubber, disc, stem);
-    levelerGroup.add(group);
-  });
-  model.add(levelerGroup);
-}
-
 function mountPoolRoyaleExternalTableModel({
   table,
   tableModel,
@@ -13157,8 +13044,6 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      tunePoolRoyaleExternalShowoodBase(model, tableModel);
-      addPoolRoyaleExternalGoldLevelers(model, tableModel);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -25907,13 +25792,10 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Keep the shooting upper body controlled while the IK feet stay planted.
-            // Use a small body-position helper in the shared rig so the player leans
-            // toward the cue ball (not backward) and keeps the bend subtle in portrait aim view.
-            shootBendDirection: 1,
+            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
+            shootBendDirection: -1,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 0.72,
-            shootForwardBendScale: 0.56,
+            shootUpperBodyCounterLean: 1.18,
             plantFeetDuringShot: true,
             forceTableFacingAim: true,
             poseLambda: HUMAN_POSE_LAMBDA,
@@ -25928,9 +25810,9 @@ const shotPowerRef = useRef(0);
             perimeterWalk: true,
             perimeterWalkSpeed: 4.0 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             stanceWidth: 0.52 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: 0.002 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgePalmTableLift: 0.006 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: 0,
+            footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
