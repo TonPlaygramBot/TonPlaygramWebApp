@@ -244,6 +244,8 @@ const BASE_CFG = {
   shootBendDirection: -1,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
+  shootForwardBendScale: 0.72,
+  shootBodyHelperYOffset: 0.02,
   plantFeetDuringShot: true,
   forceTableFacingAim: true
 };
@@ -458,11 +460,14 @@ export function createHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
+    bodyPositionHelper: new THREE.Object3D(),
     cfg
   };
   human.root.visible = false;
   human.modelRoot.visible = false;
-  scene.add(human.root, human.modelRoot);
+  human.bodyPositionHelper.name = 'PoolRoyale_Human_BodyPositionHelper';
+  human.bodyPositionHelper.visible = false;
+  scene.add(human.root, human.modelRoot, human.bodyPositionHelper);
 
   const { loader, modelUrl = HUMAN_URL, onStatus } = opts;
   if (!loader) return human;
@@ -774,7 +779,10 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootUpperBodyCounterLean)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => value * bendDirection;
+  const forwardBendScale = Number.isFinite(cfg.shootForwardBendScale)
+    ? Math.max(0.35, Math.min(1.15, cfg.shootForwardBendScale))
+    : 0.72;
+  const shotBendZ = (value) => value * bendDirection * forwardBendScale;
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
@@ -783,6 +791,16 @@ export function updateHumanPose(human, dt, frameData) {
   const chest = local(new THREE.Vector3(shotCounterLeanX(0.07 * t + 0.012 * powerLean) * cfg.unit, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
   const neck = local(new THREE.Vector3(shotCounterLeanX(0.105 * t + 0.016 * powerLean) * cfg.unit, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
   const head = local(new THREE.Vector3(shotCounterLeanX(0.12 * t + 0.018 * powerLean) * cfg.unit, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  if (human.bodyPositionHelper) {
+    const helperTarget = chest.clone()
+      .lerp(neck, 0.42)
+      .addScaledVector(side, shotCounterLeanX(0.018 * t) * cfg.unit)
+      .addScaledVector(UP, (cfg.shootBodyHelperYOffset ?? 0.02) * cfg.unit * t);
+    human.bodyPositionHelper.position.copy(helperTarget);
+    human.bodyPositionHelper.quaternion.setFromRotationMatrix(
+      new THREE.Matrix4().lookAt(helperTarget, helperTarget.clone().add(forward), UP)
+    );
+  }
   const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.075 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
   const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));

@@ -13020,6 +13020,135 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   };
 }
 
+
+function createPoolRoyaleGoldLegLevelerMaterial() {
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xe5b84a,
+    metalness: 0.92,
+    roughness: 0.22,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 1.25
+  });
+}
+
+function expandPoolRoyaleExternalLowerWood(model, tableModel = null) {
+  const expansion = tableModel?.externalLowerWoodExpansionScale ?? 1;
+  if (!model || !Number.isFinite(expansion) || expansion <= 1 + MICRO_EPS) return 0;
+  model.updateMatrixWorld(true);
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return 0;
+  const fullSize = fullBox.getSize(new THREE.Vector3());
+  const lowerLimitY = fullBox.min.y + fullSize.y * 0.46;
+  const center = fullBox.getCenter(new THREE.Vector3());
+  let expanded = 0;
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleLowerWoodExpanded) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (role !== 'wood') return;
+    const name = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    if (!/leg|foot|base|support|pedestal|cabinet|frame|apron/.test(name)) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty() || childBox.max.y > lowerLimitY) return;
+    child.scale.x *= expansion;
+    child.scale.z *= expansion;
+    child.position.x = center.x + (child.position.x - center.x) * expansion;
+    child.position.z = center.z + (child.position.z - center.z) * expansion;
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleLowerWoodExpanded: true,
+      poolRoyaleLowerWoodExpansionScale: expansion
+    };
+    expanded += 1;
+  });
+  if (expanded) model.updateMatrixWorld(true);
+  return expanded;
+}
+
+function resolvePoolRoyaleExternalLegLevelerCenters(model) {
+  if (!model) return [];
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return [];
+  const fullSize = fullBox.getSize(new THREE.Vector3());
+  const center = fullBox.getCenter(new THREE.Vector3());
+  const legBoxes = [];
+  const lowLimitY = fullBox.min.y + fullSize.y * 0.5;
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (role !== 'wood') return;
+    const name = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    if (!/leg|foot|base|support|pedestal/.test(name)) return;
+    const box = new THREE.Box3().setFromObject(child);
+    if (box.isEmpty() || box.min.y > lowLimitY) return;
+    legBoxes.push(box);
+  });
+  if (legBoxes.length >= 4) {
+    return legBoxes
+      .map((box) => {
+        const c = box.getCenter(new THREE.Vector3());
+        return { x: c.x, z: c.z, y: box.min.y };
+      })
+      .sort((a, b) => a.y - b.y)
+      .slice(0, 4);
+  }
+  const insetX = Math.max(fullSize.x * 0.32, BALL_R * 4.5);
+  const insetZ = Math.max(fullSize.z * 0.32, BALL_R * 4.5);
+  return [
+    { x: center.x - insetX, z: center.z - insetZ, y: fullBox.min.y },
+    { x: center.x + insetX, z: center.z - insetZ, y: fullBox.min.y },
+    { x: center.x - insetX, z: center.z + insetZ, y: fullBox.min.y },
+    { x: center.x + insetX, z: center.z + insetZ, y: fullBox.min.y }
+  ];
+}
+
+function addPoolRoyaleExternalGoldLegLevelers(model, tableModel = null) {
+  if (!model || !tableModel?.addGoldLegLevelers || model.userData?.poolRoyaleGoldLegLevelersAdded) return 0;
+  model.updateMatrixWorld(true);
+  const centers = resolvePoolRoyaleExternalLegLevelerCenters(model);
+  if (!centers.length) return 0;
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = bounds.getSize(new THREE.Vector3());
+  const mat = createPoolRoyaleGoldLegLevelerMaterial();
+  const radius = Math.max(BALL_R * 0.42, Math.min(size.x, size.z) * 0.026);
+  const discHeight = Math.max(BALL_R * 0.18, radius * 0.28);
+  const stemHeight = Math.max(BALL_R * 0.28, radius * 0.48);
+  const rubberHeight = Math.max(BALL_R * 0.07, radius * 0.12);
+  const discGeom = new THREE.CylinderGeometry(radius * 0.86, radius, discHeight, 42);
+  const stemGeom = new THREE.CylinderGeometry(radius * 0.36, radius * 0.4, stemHeight, 32);
+  const rubberGeom = new THREE.CylinderGeometry(radius * 0.92, radius * 0.92, rubberHeight, 36);
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x090807, roughness: 0.86, metalness: 0.04 });
+  const group = new THREE.Group();
+  group.name = 'PoolRoyale_Showood_GoldLegLevelers';
+  centers.forEach((center, idx) => {
+    const foot = new THREE.Group();
+    foot.name = `PoolRoyale_Showood_GoldLegLeveler_${idx + 1}`;
+    const rubber = new THREE.Mesh(rubberGeom, rubberMat);
+    rubber.position.y = rubberHeight * 0.5;
+    const disc = new THREE.Mesh(discGeom, mat);
+    disc.position.y = rubberHeight + discHeight * 0.5;
+    const stem = new THREE.Mesh(stemGeom, mat);
+    stem.position.y = rubberHeight + discHeight + stemHeight * 0.5 - MICRO_EPS;
+    [rubber, disc, stem].forEach((mesh) => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { ...(mesh.userData || {}), externalTableKeepVisible: true };
+    });
+    foot.add(rubber, disc, stem);
+    foot.position.set(center.x, center.y - (rubberHeight + discHeight * 0.5), center.z);
+    group.add(foot);
+  });
+  group.userData = { ...(group.userData || {}), externalTableKeepVisible: true };
+  model.add(group);
+  model.userData = {
+    ...(model.userData || {}),
+    poolRoyaleGoldLegLevelersAdded: true
+  };
+  return centers.length;
+}
+
 function mountPoolRoyaleExternalTableModel({
   table,
   tableModel,
@@ -13044,6 +13173,8 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      expandPoolRoyaleExternalLowerWood(model, tableModel);
+      addPoolRoyaleExternalGoldLegLevelers(model, tableModel);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -25573,7 +25704,7 @@ const shotPowerRef = useRef(0);
             rig.group.parent.remove(rig.group);
           }
           if (rig?.human) {
-            [rig.human.root, rig.human.modelRoot, rig.human.fallback].forEach((node) => {
+            [rig.human.root, rig.human.modelRoot, rig.human.bodyPositionHelper, rig.human.fallback].forEach((node) => {
               if (node?.parent) node.parent.remove(node);
             });
           }
@@ -25792,10 +25923,12 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
-            shootBendDirection: -1,
+            // Bend the shooting upper body gently toward the cue ball while the IK feet stay planted.
+            shootBendDirection: 1,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 1.18,
+            shootUpperBodyCounterLean: 0.92,
+            shootForwardBendScale: 0.58,
+            shootBodyHelperYOffset: 0.018,
             plantFeetDuringShot: true,
             forceTableFacingAim: true,
             poseLambda: HUMAN_POSE_LAMBDA,
