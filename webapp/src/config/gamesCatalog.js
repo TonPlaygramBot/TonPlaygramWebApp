@@ -1,11 +1,11 @@
 const gamesCatalog = [
 
   {
-    name: 'The Maze Battle Royal',
+    name: 'RunMan',
     route: '/games/runman',
     slug: 'runman',
     image: '/assets/icons/runman.svg',
-    description: 'Fast portrait FPS maze battle royale with GLTF guns, breakable boxes, pickups, and a minimap.'
+    description: 'Neon 3D maze runner where two soldiers collect diamonds, grab weapons, and dodge robots.'
   },
 
 
