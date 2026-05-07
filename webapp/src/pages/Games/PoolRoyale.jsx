@@ -12710,9 +12710,14 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
     ? tableModel.usePoolRoyaleFinishRoles
     : null;
-  const preserveRoles = Array.isArray(tableModel?.preserveOriginalSurfaceRoles)
-    ? tableModel.preserveOriginalSurfaceRoles
-    : [];
+  const preserveRoles = [
+    ...(Array.isArray(tableModel?.preserveOriginalSurfaceRoles)
+      ? tableModel.preserveOriginalSurfaceRoles
+      : []),
+    ...(Array.isArray(tableModel?.forcePreserveOriginalSurfaceRoles)
+      ? tableModel.forcePreserveOriginalSurfaceRoles
+      : [])
+  ];
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
@@ -12835,8 +12840,48 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
   });
 }
 
+function shrinkPoolRoyaleExternalRoleGeometry(mesh, role, tableModel = null) {
+  const shrinkConfig = tableModel?.shrinkOriginalSurfaceRoles;
+  const shrinkScale =
+    shrinkConfig && typeof shrinkConfig === 'object'
+      ? shrinkConfig[role]
+      : null;
+  if (
+    !mesh?.geometry ||
+    !Number.isFinite(shrinkScale) ||
+    shrinkScale <= 0 ||
+    Math.abs(shrinkScale - 1) < MICRO_EPS ||
+    mesh.userData?.poolRoyaleExternalRoleShrinkApplied
+  ) return;
+
+  const geometry = mesh.geometry.clone();
+  geometry.computeBoundingBox();
+  const center = geometry.boundingBox?.getCenter(new THREE.Vector3());
+  if (!center) return;
+  const scaleMatrix = new THREE.Matrix4()
+    .makeTranslation(-center.x, 0, -center.z)
+    .premultiply(new THREE.Matrix4().makeScale(shrinkScale, 1, shrinkScale))
+    .premultiply(new THREE.Matrix4().makeTranslation(center.x, 0, center.z));
+  geometry.applyMatrix4(scaleMatrix);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  mesh.geometry = geometry;
+  mesh.userData = {
+    ...(mesh.userData || {}),
+    poolRoyaleExternalRoleShrinkApplied: true,
+    poolRoyaleExternalRoleShrinkRole: role,
+    poolRoyaleExternalRoleShrinkScale: shrinkScale
+  };
+}
+
 function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
+  clone.traverse?.((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    shrinkPoolRoyaleExternalRoleGeometry(child, role, tableModel);
+  });
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
   return clone;
 }
@@ -25792,7 +25837,8 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            // Bend the shooting upper body to the opposite side while the IK feet stay planted.
+            // Keep Pool Royale players upright during aiming/shooting; they only hold the cue stick.
+            standStraightWhileShooting: true,
             shootBendDirection: -1,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 1.18,
@@ -26036,13 +26082,15 @@ const shotPowerRef = useRef(0);
             const shootGripTarget = cueBackShoot
               .clone()
               .addScaledVector(cueShootDir, 0.58 * humanUnitScale);
-            if (isHumanShooter && state === 'dragging') {
+            if (isHumanShooter && state === 'dragging' && !human.cfg?.standStraightWhileShooting) {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
                 bridgeTarget: bridgeTarget.clone(),
                 aimForward: aimForward.clone(),
                 side: side.clone()
               };
+            } else if (isHumanShooter && human.cfg?.standStraightWhileShooting) {
+              activeHumanCueViewRef.current = null;
             }
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
@@ -26056,9 +26104,11 @@ const shotPowerRef = useRef(0);
               .normalize();
             const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
             const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
-            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
-            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
-            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
+            const keepStandingPose = human.cfg?.standStraightWhileShooting === true;
+            const poseState = keepStandingPose ? 'idle' : state;
+            const cueBack = keepStandingPose || state === 'idle' ? idleCueBack : cueBackShoot;
+            const cueTip = keepStandingPose || state === 'idle' ? idleCueTip : cueTipShoot;
+            const gripTarget = keepStandingPose || state === 'idle' ? idleRight : shootGripTarget;
             const isFiniteVec3 = (v) =>
               Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
             if (
@@ -26074,7 +26124,7 @@ const shotPowerRef = useRef(0);
               return;
             }
             updateBilardoHumanPose(human, dtSeconds, {
-              state,
+              state: poseState,
               rootTarget: walkRoot,
               aimForward,
               bridgeTarget,
