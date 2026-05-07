@@ -325,7 +325,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     description: 'Ready Player Me seated avatar with full PBR texture maps.',
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     source: 'three.js examples',
-    license: 'MIT examples bundle'
+    license: 'MIT examples bundle',
+    clothTexture: 'denim',
+    skinTone: 0xd9a27d,
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    shoeColor: 0x111827,
+    accessoryColor: 0xc9a14a
   },
   {
     id: 'rpm-67d411',
@@ -337,7 +343,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
       'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
     ],
     source: 'Ready Player Me public GLB',
-    license: 'Check Ready Player Me terms'
+    license: 'Check Ready Player Me terms',
+    clothTexture: 'check',
+    skinTone: 0xc78f68,
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    shoeColor: 0x101827,
+    accessoryColor: 0x8b5cf6
   },
   {
     id: 'rpm-67f433',
@@ -349,7 +361,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
       'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
     ],
     source: 'Ready Player Me public GLB',
-    license: 'Check Ready Player Me terms'
+    license: 'Check Ready Player Me terms',
+    clothTexture: 'hessian',
+    skinTone: 0xe0b18d,
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    shoeColor: 0x1f2937,
+    accessoryColor: 0x22c55e
   },
   {
     id: 'rpm-67e1b5',
@@ -361,7 +379,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
       'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
     ],
     source: 'Ready Player Me public GLB',
-    license: 'Check Ready Player Me terms'
+    license: 'Check Ready Player Me terms',
+    clothTexture: 'floral',
+    skinTone: 0xb87957,
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    shoeColor: 0x171717,
+    accessoryColor: 0xd946ef
   },
   {
     id: 'webgl-vietnam-human',
@@ -369,7 +393,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     description: 'Open WebGL GLB humanoid seated with the same Ludo scale/orientation/motion rig.',
     modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
     source: 'hmthanh/3d-human-model GitHub',
-    license: 'Check repository license'
+    license: 'Check repository license',
+    clothTexture: 'fleece',
+    skinTone: 0xd39a72,
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    shoeColor: 0x111111,
+    accessoryColor: 0x0ea5e9
   },
   {
     id: 'webgl-ai-teacher',
@@ -377,7 +407,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
     source: 'Surbh77/AI-teacher GitHub',
-    license: 'Check repository license'
+    license: 'Check repository license',
+    clothTexture: 'picnic',
+    skinTone: 0xc88b64,
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    shoeColor: 0x0f172a,
+    accessoryColor: 0xf59e0b
   },
   {
     id: 'webgl-ai-teacher-1',
@@ -385,7 +421,13 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     source: 'Surbh77/AI-teacher GitHub',
-    license: 'Check repository license'
+    license: 'Check repository license',
+    clothTexture: 'denim',
+    skinTone: 0xe3b08b,
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    shoeColor: 0x111827,
+    accessoryColor: 0x38bdf8
   }
 ]);
 
