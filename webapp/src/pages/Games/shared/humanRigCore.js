@@ -244,6 +244,7 @@ const BASE_CFG = {
   shootBendDirection: -1,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
+  shootForwardBendScale: 1,
   plantFeetDuringShot: true,
   forceTableFacingAim: true
 };
@@ -774,7 +775,10 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootUpperBodyCounterLean)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => value * bendDirection;
+  const forwardBendScale = Number.isFinite(cfg.shootForwardBendScale)
+    ? THREE.MathUtils.clamp(cfg.shootForwardBendScale, 0.25, 1.25)
+    : 1;
+  const shotBendZ = (value) => value * bendDirection * forwardBendScale;
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
@@ -812,7 +816,10 @@ export function updateHumanPose(human, dt, frameData) {
   const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
     : -0.012 * cfg.unit;
-  const bridgePalmTarget = frameData.bridgeTarget.clone()
+  const bridgeAimHelper = frameData.bridgeTarget.clone()
+    .lerp(frameData.cueTip || frameData.bridgeTarget, 0.18 * t);
+  bridgeAimHelper.y = cfg.tableTopY + cfg.bridgePalmTableLift;
+  const bridgePalmTarget = bridgeAimHelper
     .addScaledVector(forward, -0.006 * cfg.unit * t)
     .addScaledVector(side, bridgePalmSide * t)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
