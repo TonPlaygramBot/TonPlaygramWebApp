@@ -244,6 +244,7 @@ const BASE_CFG = {
   shootBendDirection: -1,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
+  shootForwardBendScale: 1,
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true
@@ -828,8 +829,11 @@ export function updateHumanPose(human, dt, frameData) {
   const upperBodyCounterLean = Number.isFinite(cfg.shootUpperBodyCounterLean)
     ? Math.max(0, cfg.shootUpperBodyCounterLean)
     : 1;
+  const forwardBendScale = Number.isFinite(cfg.shootForwardBendScale)
+    ? Math.max(0, cfg.shootForwardBendScale)
+    : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => value * bendDirection;
+  const shotBendZ = (value) => value * bendDirection * forwardBendScale;
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
