@@ -26,6 +26,10 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
+const smoother01 = (v) => {
+  const t = clamp01(v);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -86,7 +90,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
+// Keep the Snake players noticeably smaller while preserving Murlan Royale's seated-chair posture.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.18;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
@@ -243,11 +248,11 @@ function getSeatHumanOffsets(seatIndex) {
   };
 }
 
-function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds = 0, activeLean = 0) {
+function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds = 0, activeLean = 0, action = {}) {
   if (!seatHuman?.root) return;
   const anchorOffset = getSeatHumanOffsets(seatIndex);
   seatHuman.root.position.set(0, anchorOffset.y, anchorOffset.z);
-  applySeatedHumanPose(seatHuman, timeSeconds, activeLean);
+  applySeatedHumanPose(seatHuman, timeSeconds, activeLean, action);
   alignSeatedHumanFeetToGround(seatHuman);
 }
 
@@ -1762,7 +1767,7 @@ function buildHumanBoneMap(root) {
   return map;
 }
 
-function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
+function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0, action = {}) {
   const { root, bones, rest, baseScale = 1 } = seatHuman || {};
   if (!root || !rest || !bones) return;
   rest.forEach((pose, bone) => {
@@ -1771,7 +1776,9 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   });
   root.scale.setScalar(baseScale);
   const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
-  const dynamicLean = activeLean * 0.04;
+  const actionMode = action?.mode || 'idle';
+  const actionBlend = smoother01(clamp01(action?.blend ?? 0));
+  const dynamicLean = Math.max(activeLean * 0.04, actionBlend * (actionMode === 'aimWeapon' ? 0.06 : 0.045));
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
   offsetModelBone(rest, bones.hips, 0, -0.62, -0.078);
 
@@ -1786,21 +1793,90 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
-  // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
-  // Mirror lower-body spread inward toward the table while preserving seated location.
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.12, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
+  // Match Murlan Royale's seated lower-body orientation for the same chair-sitting silhouette.
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9), 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1), 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6), 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6), 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
   composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
 
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
+  let leftArm = new THREE.Euler(THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2), 'XYZ');
+  let rightArm = new THREE.Euler(THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2), 'XYZ');
+  let leftForeArm = new THREE.Euler(THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2), 'XYZ');
+  let rightForeArm = new THREE.Euler(THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2), 'XYZ');
+  let leftHand = new THREE.Euler(THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2), 'XYZ');
+  let rightHand = new THREE.Euler(THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2), 'XYZ');
+
+  if (actionMode === 'throwDice') {
+    rightArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightArm.x, -1.1, actionBlend),
+      THREE.MathUtils.lerp(rightArm.y, 0.1 + (action?.lateral ?? 0) * 0.18, actionBlend),
+      THREE.MathUtils.lerp(rightArm.z, -0.54, actionBlend),
+      'XYZ'
+    );
+    rightForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightForeArm.x, -0.26 + (action?.forward ?? 1) * -0.16, actionBlend),
+      THREE.MathUtils.lerp(rightForeArm.y, 0.02, actionBlend),
+      THREE.MathUtils.lerp(rightForeArm.z, 0.12, actionBlend),
+      'XYZ'
+    );
+    rightHand = new THREE.Euler(THREE.MathUtils.lerp(rightHand.x, 0.05, actionBlend), rightHand.y, THREE.MathUtils.lerp(rightHand.z, -0.08, actionBlend), 'XYZ');
+  } else if (actionMode === 'aimWeapon') {
+    rightArm = new THREE.Euler(THREE.MathUtils.lerp(rightArm.x, -1.02, actionBlend), THREE.MathUtils.lerp(rightArm.y, -0.08, actionBlend), THREE.MathUtils.lerp(rightArm.z, -1.04, actionBlend), 'XYZ');
+    rightForeArm = new THREE.Euler(THREE.MathUtils.lerp(rightForeArm.x, -0.24, actionBlend), THREE.MathUtils.lerp(rightForeArm.y, -0.06, actionBlend), THREE.MathUtils.lerp(rightForeArm.z, 0.1, actionBlend), 'XYZ');
+    rightHand = new THREE.Euler(THREE.MathUtils.lerp(rightHand.x, 0.1, actionBlend), THREE.MathUtils.lerp(rightHand.y, -0.05, actionBlend), THREE.MathUtils.lerp(rightHand.z, -0.18, actionBlend), 'XYZ');
+    leftArm = new THREE.Euler(THREE.MathUtils.lerp(leftArm.x, -0.82, actionBlend), THREE.MathUtils.lerp(leftArm.y, 0.18, actionBlend), THREE.MathUtils.lerp(leftArm.z, 0.72, actionBlend), 'XYZ');
+    leftForeArm = new THREE.Euler(THREE.MathUtils.lerp(leftForeArm.x, -0.28, actionBlend), THREE.MathUtils.lerp(leftForeArm.y, 0.05, actionBlend), THREE.MathUtils.lerp(leftForeArm.z, -0.16, actionBlend), 'XYZ');
+  }
+
+  composeModelBone(rest, bones.leftArm, leftArm);
+  composeModelBone(rest, bones.rightArm, rightArm);
+  composeModelBone(rest, bones.leftForeArm, leftForeArm);
+  composeModelBone(rest, bones.rightForeArm, rightForeArm);
+  composeModelBone(rest, bones.leftHand, leftHand);
+  composeModelBone(rest, bones.rightHand, rightHand);
+}
+
+
+function resolveSeatedHumanAction(board, seatIndex, nowMs) {
+  const state = board?.seatedHumanAction || {};
+  const dicePlayer = state.dicePlayer;
+  if (dicePlayer === seatIndex && Number.isFinite(state.diceStartMs)) {
+    const elapsed = nowMs - state.diceStartMs;
+    if (elapsed >= 0 && elapsed <= 760) {
+      const windup = elapsed < 180 ? elapsed / 180 : elapsed < 520 ? 1 : 1 - (elapsed - 520) / 240;
+      return {
+        mode: 'throwDice',
+        blend: clamp01(windup),
+        lateral: state.throwLateral ?? 0,
+        forward: state.throwForward ?? 1
+      };
+    }
+  }
+  const capturePlayer = state.capturePlayer;
+  if (capturePlayer === seatIndex && Number.isFinite(state.captureStartMs) && Number.isFinite(state.captureEndMs)) {
+    const total = Math.max(1, state.captureEndMs - state.captureStartMs);
+    const phase = clamp01((nowMs - state.captureStartMs) / total);
+    if (phase >= 0 && phase <= 1 && nowMs <= state.captureEndMs) {
+      const enter = phase < 0.18 ? phase / 0.18 : 1;
+      const exit = phase > 0.86 ? 1 - (phase - 0.86) / 0.14 : 1;
+      return { mode: 'aimWeapon', blend: clamp01(enter * exit) };
+    }
+  }
+  return { mode: 'idle', blend: 0 };
+}
+
+function sampleSeatedHumanRightHandLocal(board, seatIndex, out) {
+  if (!out?.isVector3 || !board?.root) return false;
+  const human = board.seatedHumans?.[seatIndex];
+  const hand = human?.bones?.rightHand;
+  if (!hand?.isBone) return false;
+  hand.updateMatrixWorld?.(true);
+  hand.getWorldPosition(out);
+  out.y += DICE_SIZE * 0.12;
+  board.root.worldToLocal(out);
+  return true;
 }
 
 function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
@@ -6038,12 +6114,13 @@ export default function SnakeBoard3D({
           const isActiveSeat = seatIndex === activeTurn;
           const root = seatHuman.root;
           const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.004;
+          const actionPose = resolveSeatedHumanAction(board, seatIndex, now);
           const throwLean = isActiveSeat && isThrowing ? 0.18 : 0;
           root.position.y = breathe;
           root.rotation.x = 0;
           root.rotation.y = 0;
           root.rotation.z = 0;
-          applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, now * 0.001, throwLean);
+          applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, now * 0.001, Math.max(throwLean, actionPose.blend * 0.18), actionPose);
         });
       }
       let hasDiceCenter = false;
@@ -6421,6 +6498,14 @@ export default function SnakeBoard3D({
       const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
       const seatIndex = seatCount > 0 ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex)) : Math.max(0, rawSeatIndex);
       const layout = computeDiceThrowLayout(board, seatIndex, count);
+      const firstTravel = layout.travelVectors?.[0];
+      board.seatedHumanAction = {
+        ...(board.seatedHumanAction || {}),
+        dicePlayer: seatIndex,
+        diceStartMs: performance.now(),
+        throwLateral: firstTravel?.x ? clamp(firstTravel.x * 3.4, -1, 1) : 0,
+        throwForward: firstTravel?.z ? clamp(Math.abs(firstTravel.z) * 3.4, 0.2, 1) : 1
+      };
       const spacing = DICE_SIZE * 1.35;
       const centerOffset = (count - 1) / 2;
       const basePositions = [];
@@ -6436,7 +6521,12 @@ export default function SnakeBoard3D({
         if (!visible) return;
         const fallbackBase = new THREE.Vector3((index - centerOffset) * spacing, diceBaseY, diceAnchorZ);
         const base = layout.basePositions?.[visibleIndex] ?? fallbackBase;
-        const start = layout.startPositions?.[visibleIndex] ?? base.clone();
+        const handStart = new THREE.Vector3();
+        const hasHandStart = sampleSeatedHumanRightHandLocal(board, seatIndex, handStart);
+        const layoutStart = layout.startPositions?.[visibleIndex] ?? base.clone();
+        const start = hasHandStart
+          ? handStart.clone().add(new THREE.Vector3((visibleIndex - centerOffset) * DICE_SIZE * 0.34, 0, 0))
+          : layoutStart;
         const travel = layout.travelVectors?.[visibleIndex] ?? base.clone().sub(start);
         const bounce = layout.bouncePoints?.[visibleIndex] ?? base.clone();
         const retreat = layout.retreatVectors?.[visibleIndex] ?? base.clone().sub(bounce);
@@ -6496,6 +6586,10 @@ export default function SnakeBoard3D({
       }
     } else if (diceEvent.phase === 'end') {
       if (diceStateRef.current.currentId !== diceEvent.id) return;
+      board.seatedHumanAction = {
+        ...(board.seatedHumanAction || {}),
+        diceEndMs: performance.now()
+      };
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       const values = diceEvent.values || [];
       const active = diceSet.filter((die) => die.visible);
@@ -6607,7 +6701,6 @@ export default function SnakeBoard3D({
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
     const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     if (attackerHolder) attackerHolder.visible = false;
-
     attacker.position.copy(startPos);
     attacker.userData.isSliding = true;
     Object.values(vehicleMap).forEach((vehicle) => {
@@ -6635,6 +6728,13 @@ export default function SnakeBoard3D({
     const droneLaunchProgress = 0.68;
     const aircraftLaunchDuration = Math.round(droneAttackDuration * droneLaunchProgress);
     const returnDuration = CAPTURE_RETURN_MS;
+    board.seatedHumanAction = {
+      ...(board.seatedHumanAction || {}),
+      capturePlayer: captureEvent.attackerIndex,
+      captureStartMs: startTime,
+      captureEndMs: startTime + Math.max(1800, stageFlightDuration + volleyDuration + impactDuration + advanceDuration + returnDuration),
+      captureWeaponType: vehicleKind
+    };
     let aircraftMissileLaunchStartedAt = null;
     let aircraftMissileLaunchFrom = null;
     const camera = cameraRef.current;
@@ -6813,6 +6913,7 @@ export default function SnakeBoard3D({
             primaryVehicle.root.visible = false;
             missileProjectile.root.visible = false;
             if (attackerHolder) attackerHolder.visible = true;
+            board.seatedHumanAction = { ...(board.seatedHumanAction || {}), captureEndMs: performance.now() };
             onCaptureAnimationComplete?.(captureEvent.id);
             return true;
           }
@@ -6880,6 +6981,7 @@ export default function SnakeBoard3D({
           primaryVehicle.root.visible = false;
           missileProjectile.root.visible = false;
           if (attackerHolder) attackerHolder.visible = true;
+          board.seatedHumanAction = { ...(board.seatedHumanAction || {}), captureEndMs: performance.now() };
           onCaptureAnimationComplete?.(captureEvent.id);
           return true;
         }
