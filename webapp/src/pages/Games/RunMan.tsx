@@ -38,6 +38,10 @@ type Bones = {
   rightFoot?: THREE.Bone;
   leftArm?: THREE.Bone;
   rightArm?: THREE.Bone;
+  leftForeArm?: THREE.Bone;
+  rightForeArm?: THREE.Bone;
+  leftHand?: THREE.Bone;
+  rightHand?: THREE.Bone;
 };
 
 type Actor = {
@@ -139,6 +143,8 @@ const GROUND_Y = 0;
 const DT_MAX = 1 / 30;
 const GAME_TIME = 180;
 const TMP = new THREE.Vector3();
+const FPS_GUN_HAND_PARTS = ['hand', 'hands', 'arm', 'arms', 'forearm', 'wrist', 'finger', 'thumb', 'glove', 'sleeve'];
+const HUMAN_FPS_HANDS_NAME = 'human-character-fps-hands';
 
 function polyGlb(uuid: string) {
   return `https://static.poly.pizza/${uuid}.glb`;
@@ -466,11 +472,138 @@ function getRightFromYaw(yaw: number) {
   return new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).normalize();
 }
 
-function cloneWeaponModel(source: THREE.Object3D, height = 0.3) {
+function hideEmbeddedFpsGunHands(model: THREE.Object3D) {
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh && !(mesh as THREE.SkinnedMesh).isSkinnedMesh) return;
+    const materialNames = (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+      .map((m) => (m as THREE.Material | undefined)?.name ?? '')
+      .join(' ');
+    const descriptor = clean(`${mesh.name} ${mesh.parent?.name ?? ''} ${materialNames}`);
+    if (FPS_GUN_HAND_PARTS.some((part) => descriptor.includes(part))) {
+      mesh.visible = false;
+      mesh.userData.hiddenOriginalFpsGunHands = true;
+    }
+  });
+}
+
+function cloneWeaponModel(
+  source: THREE.Object3D,
+  height = 0.3,
+  stripEmbeddedHands = false
+) {
   const model = source.clone(true);
   normalizeModel(model, height, Math.PI / 2);
+  if (stripEmbeddedHands) hideEmbeddedFpsGunHands(model);
   shadow(model);
   return model;
+}
+
+function sampleHumanSkinMaterial(actor: Actor) {
+  const fallbackMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf1c9a8,
+    roughness: 0.72,
+    metalness: 0.02
+  });
+  let sampled: THREE.Material | null = null;
+  actor.model?.traverse((o) => {
+    if (sampled) return;
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    sampled =
+      mats.find((m) => {
+        const sm = m as THREE.MeshStandardMaterial;
+        const name = `${m?.name ?? ''} ${mesh.name}`.toLowerCase();
+        const color = sm.color;
+        return (
+          name.includes('skin') ||
+          name.includes('hand') ||
+          (color && color.r > color.b * 1.12 && color.g > color.b * 0.82)
+        );
+      }) ?? null;
+  });
+  if (!sampled) return fallbackMaterial;
+  const clone = sampled.clone() as THREE.MeshStandardMaterial;
+  clone.roughness = Math.max(0.62, clone.roughness ?? 0.72);
+  return clone;
+}
+
+function makeCapsulePart(
+  radius: number,
+  length: number,
+  material: THREE.Material
+) {
+  const mesh = new THREE.Mesh(
+    new THREE.CapsuleGeometry(radius, length, 8, 12),
+    material
+  );
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function makeHumanFpsHands(actor: Actor) {
+  const skin = sampleHumanSkinMaterial(actor);
+  const sleeve = new THREE.MeshStandardMaterial({
+    color: actor.kind === 'blue' ? 0x1d69ff : 0xd92f2f,
+    roughness: 0.76,
+    metalness: 0.02
+  });
+  const rig = new THREE.Group();
+  rig.name = HUMAN_FPS_HANDS_NAME;
+
+  const leftForearm = makeCapsulePart(0.025, 0.25, sleeve);
+  leftForearm.name = 'human-left-forearm-fps';
+  leftForearm.position.set(-0.125, -0.125, -0.175);
+  leftForearm.rotation.set(1.28, 0.26, -0.48);
+
+  const leftHand = makeCapsulePart(0.038, 0.09, skin);
+  leftHand.name = 'human-left-support-hand-fps';
+  leftHand.position.set(-0.095, -0.122, -0.325);
+  leftHand.rotation.set(1.2, 0.16, -0.42);
+
+  const rightForearm = makeCapsulePart(0.027, 0.28, sleeve);
+  rightForearm.name = 'human-right-forearm-fps';
+  rightForearm.position.set(0.145, -0.14, -0.14);
+  rightForearm.rotation.set(1.18, -0.2, 0.44);
+
+  const rightHand = makeCapsulePart(0.04, 0.11, skin);
+  rightHand.name = 'human-right-trigger-hand-fps';
+  rightHand.position.set(0.108, -0.148, -0.295);
+  rightHand.rotation.set(1.1, -0.14, 0.36);
+
+  rig.add(leftForearm, leftHand, rightForearm, rightHand);
+  rig.userData.parts = { leftForearm, leftHand, rightForearm, rightHand };
+  return rig;
+}
+
+function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number) {
+  const parts = rig.userData.parts as
+    | Record<string, THREE.Mesh>
+    | undefined;
+  if (!parts) return;
+  const pistol = weapon.weaponType === 'pistol';
+  parts.leftForearm.visible = !pistol;
+  parts.leftHand.visible = !pistol;
+  const supportZ = weapon.id === 'slot-18-fps-gun-gltf' ? -0.36 : -0.325;
+  parts.leftHand.position.set(
+    -0.095,
+    -0.122 - recoil * 0.004,
+    supportZ + recoil * 0.018
+  );
+  parts.leftHand.rotation.set(1.2 - recoil * 0.05, 0.16, -0.42);
+  parts.leftForearm.position.set(-0.125, -0.125, supportZ + 0.15);
+  parts.leftForearm.rotation.set(1.28 - recoil * 0.04, 0.26, -0.48);
+  parts.rightHand.position.set(
+    0.108,
+    -0.148 - recoil * 0.006,
+    -0.295 + recoil * 0.022
+  );
+  parts.rightHand.rotation.set(1.1 - recoil * 0.08, -0.14, 0.36 + recoil * 0.06);
+  parts.rightForearm.position.set(0.145, -0.14, -0.14 + recoil * 0.014);
+  parts.rightForearm.rotation.set(1.18 - recoil * 0.05, -0.2, 0.44);
 }
 
 function loadWeaponModel(
@@ -590,8 +723,26 @@ function findBones(model: THREE.Object3D): Bones {
       b.rightLeg = bone;
     if (!b.leftFoot && n.includes('leftfoot')) b.leftFoot = bone;
     if (!b.rightFoot && n.includes('rightfoot')) b.rightFoot = bone;
-    if (!b.leftArm && n.includes('leftarm')) b.leftArm = bone;
-    if (!b.rightArm && n.includes('rightarm')) b.rightArm = bone;
+    if (!b.leftArm && n.includes('leftarm') && !n.includes('forearm'))
+      b.leftArm = bone;
+    if (!b.rightArm && n.includes('rightarm') && !n.includes('forearm'))
+      b.rightArm = bone;
+    if (
+      !b.leftForeArm &&
+      (n.includes('leftforearm') ||
+        n.includes('leftlowerarm') ||
+        n.includes('leftelbow'))
+    )
+      b.leftForeArm = bone;
+    if (
+      !b.rightForeArm &&
+      (n.includes('rightforearm') ||
+        n.includes('rightlowerarm') ||
+        n.includes('rightelbow'))
+    )
+      b.rightForeArm = bone;
+    if (!b.leftHand && n.includes('lefthand')) b.leftHand = bone;
+    if (!b.rightHand && n.includes('righthand')) b.rightHand = bone;
   });
   return b;
 }
@@ -870,6 +1021,10 @@ function updateActorAnimation(actor: Actor, dt: number) {
     if (actor.bones.spine) actor.bones.spine.rotation.x += -0.04;
     if (actor.bones.rightArm) actor.bones.rightArm.rotation.x += -0.42;
     if (actor.bones.leftArm) actor.bones.leftArm.rotation.x += -0.2;
+    if (actor.bones.rightForeArm) actor.bones.rightForeArm.rotation.x += -0.36;
+    if (actor.bones.leftForeArm) actor.bones.leftForeArm.rotation.x += -0.3;
+    if (actor.bones.rightHand) actor.bones.rightHand.rotation.z += 0.18;
+    if (actor.bones.leftHand) actor.bones.leftHand.rotation.z += -0.18;
   }
 
   updateFallbackWalk(actor);
@@ -1665,20 +1820,10 @@ export default function RunMan() {
     const user = actors[0];
     const raycaster = new THREE.Raycaster();
     const weaponRoot = new THREE.Group();
-    const handMat = new THREE.MeshStandardMaterial({
-      color: 0xf1c9a8,
-      roughness: 0.72
-    });
-    const leftHand = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.035, 0.22, 6, 8),
-      handMat
-    );
-    const rightHand = leftHand.clone();
-    leftHand.position.set(-0.09, -0.16, -0.34);
-    rightHand.position.set(0.12, -0.17, -0.32);
-    leftHand.rotation.set(1.15, 0.1, -0.28);
-    rightHand.rotation.set(1.08, -0.1, 0.28);
-    weaponRoot.add(leftHand, rightHand);
+    const weaponModelMount = new THREE.Group();
+    weaponModelMount.name = 'first-person-weapon-model-mount';
+    const humanFpsHands = makeHumanFpsHands(user);
+    weaponRoot.add(humanFpsHands, weaponModelMount);
     weaponRoot.position.set(0.18, -0.2, -0.42);
     camera.add(weaponRoot);
     scene.add(camera);
@@ -1686,20 +1831,22 @@ export default function RunMan() {
 
     const syncWeaponSlots = () => setWeaponSlots([...user.inventory]);
     const mountWeapon = (weapon: WeaponEntry) => {
-      weaponRoot.children.slice(2).forEach((child) => weaponRoot.remove(child));
+      weaponModelMount.clear();
+      poseHumanFpsHands(humanFpsHands, weapon, weaponKick);
       const fallback = makeWeaponPickup(weapon);
       fallback.scale.setScalar(0.62);
       fallback.rotation.set(0.1, Math.PI / 2, 0);
-      weaponRoot.add(fallback);
+      weaponModelMount.add(fallback);
       loadWeaponModel(loader, weapon, (source) => {
-        weaponRoot.remove(fallback);
+        weaponModelMount.remove(fallback);
         const model = cloneWeaponModel(
           source,
-          weapon.weaponType === 'pistol' ? 0.2 : 0.28
+          weapon.weaponType === 'pistol' ? 0.2 : 0.28,
+          weapon.id === 'slot-18-fps-gun-gltf'
         );
         model.rotation.set(0.06, 0, -0.06);
         model.position.set(0.02, -0.02, 0.02);
-        weaponRoot.add(model);
+        weaponModelMount.add(model);
       });
     };
     mountWeapon(user.weapon);
@@ -2070,6 +2217,7 @@ export default function RunMan() {
       weaponKick = Math.max(0, weaponKick - dt * 7);
       weaponRoot.position.z = -0.42 + weaponKick * 0.08;
       weaponRoot.rotation.x = -weaponKick * 0.08;
+      poseHumanFpsHands(humanFpsHands, user.weapon, weaponKick);
 
       const eye = user.pos
         .clone()
