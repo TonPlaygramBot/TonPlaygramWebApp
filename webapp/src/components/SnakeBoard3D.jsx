@@ -58,7 +58,6 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: push the chair ring slightly outward while the human anchors move closer to the table.
 const CHAIR_GLOBAL_PUSHBACK = 0.56 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.58 * MODEL_SCALE;
-const CHAIR_MODEL_AWAY_FROM_TABLE_OFFSET = SEAT_DEPTH * 0.1;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -175,9 +174,9 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.59;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.53;
 // Portrait calibration: keep all seated humans pulled visibly inward toward the table on phone screens.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.08;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.06;
 const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
 const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -258,10 +257,10 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
-const DICE_ROLL_DURATION = 900;
+const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 240;
 const DICE_RESULT_HOLD_DURATION = 720;
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
@@ -356,11 +355,6 @@ function measureMinYRelativeToParent(object) {
   const box = new THREE.Box3().setFromObject(object);
   if (!Number.isFinite(box.min.y)) return null;
   return box.min.y - parent.getWorldPosition(new THREE.Vector3()).y;
-}
-
-function pushChairModelAwayFromTable(model) {
-  if (!model?.isObject3D) return;
-  model.position.z = CHAIR_MODEL_AWAY_FROM_TABLE_OFFSET;
 }
 
 function alignChairLegsToHumanGround(chair) {
@@ -3409,7 +3403,7 @@ function createDiceRollAnimation(
     )
   );
   const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
+    () => new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE * 1.25, 0, (Math.random() - 0.5) * DICE_SIZE * 1.25)
   );
 
   return {
@@ -4101,7 +4095,6 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       }
       if (chairTemplate) {
         const model = chairTemplate.clone(true);
-        pushChairModelAwayFromTable(model);
         chair.group.add(model);
         chair.model = model;
         alignChairLegsToHumanGround(chair);
@@ -4137,7 +4130,6 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
     if (chairModel) {
-      pushChairModelAwayFromTable(chairModel);
       group.add(chairModel);
     }
 
@@ -5962,52 +5954,62 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: isVehicleWeapon ? 'flat' : 'vertical' }));
       holder.userData.weaponType = parkedWeaponType;
     }
-    const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
-    if (railLayout) {
-      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
-      holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(
-          railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
-            lateralNudge +
-            WEAPON_RIGHT_HAND_SIDE_OFFSET
-        )
-        .addScaledVector(
-          railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
-        );
-      if (portraitShift) {
-        holder.position
-          .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
-          .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
-      }
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-      holder.position.y += PARKING_VERTICAL_LIFT;
-      const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
-      const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
-      if (radialFromCenter.length() < minClearance) {
-        radialFromCenter.normalize().multiplyScalar(minClearance);
-        holder.position.x = boardLookTarget.x + radialFromCenter.x;
-        holder.position.z = boardLookTarget.z + radialFromCenter.z;
-      }
+    const weaponAnchor = !isVehicleWeapon ? board.weaponAnchors?.[seatIndex] : null;
+    const weaponParent = board.weaponDisplayGroup.parent || board.boardRoot || null;
+    if (weaponAnchor && weaponParent) {
+      const chairSideWorld = new THREE.Vector3();
+      weaponAnchor.getWorldPosition(chairSideWorld);
+      chairSideWorld.y = SEATED_HUMAN_GROUND_Y;
+      weaponParent.worldToLocal(chairSideWorld);
+      holder.position.copy(chairSideWorld);
     } else {
-      const seatWorld = new THREE.Vector3();
-      anchor.getWorldPosition(seatWorld);
-      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-      if (seatDirection.lengthSq() < 1e-6) continue;
-      seatDirection.normalize();
-      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
-      const markerPos = boardLookTarget
-        .clone()
-        .addScaledVector(seatDirection, radius)
-        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
-      holder.position.copy(markerPos);
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
-      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
+      const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
+      if (railLayout) {
+        const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+        const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+        const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
+        holder.position
+          .copy(railLayout.railLocal)
+          .addScaledVector(
+            railLayout.lateral,
+            sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
+              lateralNudge +
+              WEAPON_RIGHT_HAND_SIDE_OFFSET
+          )
+          .addScaledVector(
+            railLayout.seatDirection,
+            WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+          );
+        if (portraitShift) {
+          holder.position
+            .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
+            .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+        }
+        holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+        holder.position.y += PARKING_VERTICAL_LIFT;
+        const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
+        const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
+        if (radialFromCenter.length() < minClearance) {
+          radialFromCenter.normalize().multiplyScalar(minClearance);
+          holder.position.x = boardLookTarget.x + radialFromCenter.x;
+          holder.position.z = boardLookTarget.z + radialFromCenter.z;
+        }
+      } else {
+        const seatWorld = new THREE.Vector3();
+        anchor.getWorldPosition(seatWorld);
+        const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+        if (seatDirection.lengthSq() < 1e-6) continue;
+        seatDirection.normalize();
+        const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+        const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+        const markerPos = boardLookTarget
+          .clone()
+          .addScaledVector(seatDirection, radius)
+          .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+        holder.position.copy(markerPos);
+        holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+        holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
+      }
     }
     const lookAwayDirection = holder.position.clone().sub(boardLookTarget).setY(0);
     if (lookAwayDirection.lengthSq() < 1e-6) lookAwayDirection.set(0, 0, 1);
