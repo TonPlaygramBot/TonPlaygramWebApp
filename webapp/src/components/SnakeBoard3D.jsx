@@ -26,6 +26,10 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
+const smootherstep01 = (v) => {
+  const t = clamp01(v);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -86,17 +90,17 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo/Chess Battle Royal chair anchoring and 7am scale baseline.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 // Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -2.25 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 // Mirror Ludo Battle Royal's deeper bottom-seat pushback so the local player sits
 // with the same portrait-facing posture/orientation while preserving Snake table scale.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.34;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_Y = -0.44 * MODEL_SCALE * STOOL_SCALE;
 const HUMAN_FRONT_SIDE_Z = 1;
-const HUMAN_LEG_FRONT_OFFSET = -0.05;
+const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -167,7 +171,7 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 980;
+const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 240;
 const DICE_RESULT_HOLD_DURATION = 2000;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
@@ -226,6 +230,21 @@ const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
+
+const SNAKE_SEATED_DICE_PHASES = Object.freeze({
+  reachMs: 170,
+  gripMs: 120,
+  holdMs: 130,
+  windupMs: 300,
+  releaseMs: 260,
+  followMs: 520
+});
+const SNAKE_SEATED_CAPTURE_PHASES = Object.freeze({
+  pickupMs: 260,
+  aimMs: 520,
+  fireMs: 620,
+  recoverMs: 260
+});
 
 function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
   const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (seatIndex / activePlayerCount) * Math.PI * 2;
@@ -326,11 +345,11 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.78;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   // Match AK47 GLTF visual size to Quaternius Assault Rifle baseline.
-  'slot-10-ak47-gltf': 0.03,
+  'slot-10-ak47-gltf': 0.02,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
   'slot-15-sigsauer-gltf': 0.12,
   // Match FPS Gun GLTF visual size to Quaternius Shotgun baseline.
-  'slot-18-fps-gun-gltf': 0.062,
+  'slot-18-fps-gun-gltf': 0.04,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
   'slot-13-mosin-gltf': 3
@@ -1762,7 +1781,7 @@ function buildHumanBoneMap(root) {
   return map;
 }
 
-function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
+function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0, actionMode = 'idle', actionIntensity = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman || {};
   if (!root || !rest || !bones) return;
   rest.forEach((pose, bone) => {
@@ -1771,7 +1790,8 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   });
   root.scale.setScalar(baseScale);
   const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
-  const dynamicLean = activeLean * 0.04;
+  const action = clamp01(actionIntensity);
+  const dynamicLean = (activeLean + action * (actionMode === 'weaponAim' ? 0.22 : 0.12)) * 0.04;
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
   offsetModelBone(rest, bones.hips, 0, -0.62, -0.078);
 
@@ -1788,19 +1808,160 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
 
   // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
   // Mirror lower-body spread inward toward the table while preserving seated location.
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, -0.12, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
   composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
   composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
 
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
+  let leftArm = new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ');
+  let rightArm = new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ');
+  let leftForeArm = new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ');
+  let rightForeArm = new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ');
+  let leftHand = new THREE.Euler(-0.16, 0, 0, 'XYZ');
+  let rightHand = new THREE.Euler(-0.08, 0, 0.06, 'XYZ');
+
+  if (actionMode === 'diceReach' || actionMode === 'diceHold' || actionMode === 'diceThrow') {
+    const reach = action;
+    const releaseBoost = actionMode === 'diceThrow' ? Math.sin(action * Math.PI) * 0.32 : 0;
+    rightArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightArm.x, -0.9 - releaseBoost, reach),
+      THREE.MathUtils.lerp(rightArm.y, -0.16, reach),
+      THREE.MathUtils.lerp(rightArm.z, -1.12, reach),
+      'XYZ'
+    );
+    rightForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightForeArm.x, -1.12 + releaseBoost * 0.8, reach),
+      THREE.MathUtils.lerp(rightForeArm.y, -0.22, reach),
+      THREE.MathUtils.lerp(rightForeArm.z, -0.42, reach),
+      'XYZ'
+    );
+    rightHand = new THREE.Euler(
+      THREE.MathUtils.lerp(rightHand.x, actionMode === 'diceThrow' ? -0.25 : -0.58, reach),
+      THREE.MathUtils.lerp(rightHand.y, 0.12, reach),
+      THREE.MathUtils.lerp(rightHand.z, -0.08, reach),
+      'XYZ'
+    );
+  } else if (actionMode === 'weaponPickup' || actionMode === 'weaponAim') {
+    const aim = action;
+    rightArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightArm.x, -1.02, aim),
+      THREE.MathUtils.lerp(rightArm.y, -0.11, aim),
+      THREE.MathUtils.lerp(rightArm.z, -1.12, aim),
+      'XYZ'
+    );
+    rightForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightForeArm.x, -0.28, aim),
+      THREE.MathUtils.lerp(rightForeArm.y, -0.07, aim),
+      THREE.MathUtils.lerp(rightForeArm.z, 0.14, aim),
+      'XYZ'
+    );
+    rightHand = new THREE.Euler(
+      THREE.MathUtils.lerp(rightHand.x, 0.14, aim),
+      THREE.MathUtils.lerp(rightHand.y, -0.07, aim),
+      THREE.MathUtils.lerp(rightHand.z, -0.22, aim),
+      'XYZ'
+    );
+    leftArm = new THREE.Euler(
+      THREE.MathUtils.lerp(leftArm.x, -0.86, aim * 0.8),
+      THREE.MathUtils.lerp(leftArm.y, 0.04, aim * 0.8),
+      THREE.MathUtils.lerp(leftArm.z, 0.46, aim * 0.8),
+      'XYZ'
+    );
+    leftForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(leftForeArm.x, -0.36, aim * 0.8),
+      THREE.MathUtils.lerp(leftForeArm.y, 0.08, aim * 0.8),
+      THREE.MathUtils.lerp(leftForeArm.z, -0.18, aim * 0.8),
+      'XYZ'
+    );
+  }
+
+  composeModelBone(rest, bones.leftArm, leftArm);
+  composeModelBone(rest, bones.rightArm, rightArm);
+  composeModelBone(rest, bones.leftForeArm, leftForeArm);
+  composeModelBone(rest, bones.rightForeArm, rightForeArm);
+  composeModelBone(rest, bones.leftHand, leftHand);
+  composeModelBone(rest, bones.rightHand, rightHand);
+}
+
+
+function resolveSnakeSeatedActionPose(actionState, seatIndex, nowMs) {
+  const pose = { mode: 'idle', intensity: 0 };
+  if (!actionState || !Number.isFinite(seatIndex)) return pose;
+  if (actionState.capturePlayer === seatIndex && actionState.captureStartMs > 0) {
+    const elapsed = Math.max(0, nowMs - actionState.captureStartMs);
+    const { pickupMs, aimMs, fireMs, recoverMs } = SNAKE_SEATED_CAPTURE_PHASES;
+    if (elapsed < pickupMs) {
+      pose.mode = 'weaponPickup';
+      pose.intensity = smootherstep01(elapsed / pickupMs);
+    } else if (elapsed < pickupMs + aimMs + fireMs) {
+      pose.mode = 'weaponAim';
+      pose.intensity = 1;
+    } else if (elapsed < pickupMs + aimMs + fireMs + recoverMs) {
+      pose.mode = 'weaponAim';
+      pose.intensity = 1 - smootherstep01((elapsed - pickupMs - aimMs - fireMs) / recoverMs);
+    }
+    return pose;
+  }
+  if (actionState.throwPlayer === seatIndex && actionState.throwStartMs > 0) {
+    const elapsed = Math.max(0, nowMs - actionState.throwStartMs);
+    const { reachMs, gripMs, holdMs = 0, windupMs, releaseMs, followMs } = SNAKE_SEATED_DICE_PHASES;
+    if (elapsed < reachMs) {
+      pose.mode = 'diceReach';
+      pose.intensity = smootherstep01(elapsed / reachMs);
+    } else if (elapsed < reachMs + gripMs + holdMs) {
+      pose.mode = 'diceHold';
+      pose.intensity = 1;
+    } else if (elapsed < reachMs + gripMs + holdMs + windupMs + releaseMs) {
+      pose.mode = 'diceThrow';
+      pose.intensity = smootherstep01((elapsed - reachMs - gripMs - holdMs) / (windupMs + releaseMs));
+    } else if (elapsed < reachMs + gripMs + holdMs + windupMs + releaseMs + followMs) {
+      pose.mode = 'diceThrow';
+      pose.intensity = 1 - smootherstep01((elapsed - reachMs - gripMs - holdMs - windupMs - releaseMs) / followMs);
+    }
+  }
+  return pose;
+}
+
+function createSnakeHandWeaponMesh() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#1f2937', metalness: 0.72, roughness: 0.34 });
+  const barrelMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 0.55, roughness: 0.32 });
+  const gripMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.2, roughness: 0.68 });
+  const add = (geometry, material, position, rotation = [0, 0, 0]) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(...position);
+    mesh.rotation.set(...rotation);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+  add(new THREE.BoxGeometry(0.26, 0.045, 0.055), bodyMat, [0.09, 0, 0]);
+  add(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 10), barrelMat, [0.25, 0, 0], [0, 0, Math.PI / 2]);
+  add(new THREE.BoxGeometry(0.055, 0.13, 0.045), gripMat, [0, -0.075, 0], [0, 0, 0.24]);
+  add(new THREE.BoxGeometry(0.075, 0.026, 0.04), barrelMat, [0.09, -0.048, 0]);
+  group.rotation.set(0.08, Math.PI * 0.5, -0.04);
+  group.scale.setScalar(0.42);
+  group.name = 'SnakeHandCaptureWeapon';
+  return group;
+}
+
+function setSnakeHandWeaponVisible(seatHuman, visible) {
+  const rightHand = seatHuman?.bones?.rightHand;
+  if (!rightHand?.isBone) return;
+  if (visible) {
+    if (!seatHuman.handWeapon?.isObject3D) {
+      const weapon = createSnakeHandWeaponMesh();
+      weapon.position.set(0.035, 0.012, 0.012);
+      rightHand.add(weapon);
+      seatHuman.handWeapon = weapon;
+    }
+    seatHuman.handWeapon.visible = true;
+  } else if (seatHuman?.handWeapon?.isObject3D) {
+    seatHuman.handWeapon.visible = false;
+  }
 }
 
 function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
@@ -2806,73 +2967,44 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = [],
-    bouncePoints = []
+    startPositions = []
   }
 ) {
   const start = performance.now();
-  const firstImpactAt = 0.42;
-  const secondImpactAt = 0.71;
-  const thirdImpactAt = 0.88;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
-      1.68 + Math.random() * 0.42,
-      1.74 + Math.random() * 0.34,
-      1.52 + Math.random() * 0.3
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
     )
   );
   const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.09, 0, (Math.random() - 0.5) * 0.09)
+    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
   );
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.8 + Math.random() * 0.2));
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.92 + Math.random() * 0.12));
 
   return {
     type: 'diceRoll',
     update: (now) => {
       const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
       const eased = easeOutCubic(t);
-      const travelEase = t < firstImpactAt ? easeOutCubic(t / firstImpactAt) : 1;
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
-        const bounce = bouncePoints[index];
-        let position = startPos.clone().lerp(base, eased);
-        if (bounce) {
-          if (t <= firstImpactAt) {
-            position = startPos.clone().lerp(bounce, travelEase);
-          } else {
-            const settleT = (t - firstImpactAt) / (1 - firstImpactAt);
-            const easedSettle = easeOutQuart(settleT);
-            position = bounce.clone().lerp(base, easedSettle);
-          }
-        }
+        const endPos = new THREE.Vector3(base.x, baseY, base.z);
+        const position = startPos.clone().lerp(endPos, eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * DICE_SIZE * 0.48);
-        const arcFall = THREE.MathUtils.lerp(startPos.y, baseY, eased);
-        let bounceLift = 0;
-        if (t <= firstImpactAt) {
-          const phaseT = t / firstImpactAt;
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.92;
-        } else if (t <= secondImpactAt) {
-          const phaseT = (t - firstImpactAt) / (secondImpactAt - firstImpactAt);
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.44;
-        } else if (t <= thirdImpactAt) {
-          const phaseT = (t - secondImpactAt) / (thirdImpactAt - secondImpactAt);
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.2;
-        } else {
-          const phaseT = (t - thirdImpactAt) / Math.max(1e-6, 1 - thirdImpactAt);
-          bounceLift = Math.sin(phaseT * Math.PI) * bounceHeights[index] * 0.09;
-        }
-        position.y = Math.max(baseY, arcFall + bounceLift);
+        position.addScaledVector(wobbleVectors[index], wobbleStrength * DICE_SIZE * 0.45);
+        const bounce =
+          Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeights[index] * (1 - eased * 0.45);
+        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
         die.position.copy(position);
 
-        const impactDamping =
-          t <= firstImpactAt ? 1 : t <= secondImpactAt ? 0.68 : t <= thirdImpactAt ? 0.42 : 0.24;
-        const spinFactor = Math.max(0.06, (1 - eased * 0.92) * impactDamping);
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.2;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.2;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.2;
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -5458,6 +5590,13 @@ export default function SnakeBoard3D({
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
+  const seatedHumanActionRef = useRef({
+    throwPlayer: null,
+    throwStartMs: 0,
+    capturePlayer: null,
+    captureStartMs: 0,
+    captureEndMs: 0
+  });
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
@@ -5487,6 +5626,28 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     diceEventRef.current = diceEvent;
+    if (!diceEvent) return;
+    const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
+      ? diceEvent.seatIndex
+      : Number.isInteger(diceEvent.playerIndex)
+      ? diceEvent.playerIndex
+      : Number.isInteger(currentTurnRef.current)
+      ? currentTurnRef.current
+      : 0;
+    if (diceEvent.phase === 'start') {
+      seatedHumanActionRef.current = {
+        ...seatedHumanActionRef.current,
+        throwPlayer: rawSeatIndex,
+        throwStartMs: performance.now()
+      };
+    } else if (diceEvent.phase === 'end') {
+      const current = seatedHumanActionRef.current;
+      seatedHumanActionRef.current = {
+        ...current,
+        throwStartMs: current.throwStartMs || performance.now(),
+        throwPlayer: Number.isInteger(current.throwPlayer) ? current.throwPlayer : rawSeatIndex
+      };
+    }
   }, [diceEvent]);
 
   useEffect(() => {
@@ -6032,18 +6193,38 @@ export default function SnakeBoard3D({
       }
       if (Array.isArray(board?.seatedHumans) && board.seatedHumans.length) {
         const activeTurn = Number.isInteger(currentTurnRef.current) ? currentTurnRef.current : -1;
-        const isThrowing = diceEventRef.current?.phase === 'start';
+        const actorState = seatedHumanActionRef.current;
+        const diceTotalMs =
+          SNAKE_SEATED_DICE_PHASES.reachMs +
+          SNAKE_SEATED_DICE_PHASES.gripMs +
+          (SNAKE_SEATED_DICE_PHASES.holdMs ?? 0) +
+          SNAKE_SEATED_DICE_PHASES.windupMs +
+          SNAKE_SEATED_DICE_PHASES.releaseMs +
+          SNAKE_SEATED_DICE_PHASES.followMs;
+        if (actorState?.throwStartMs > 0 && now - actorState.throwStartMs > diceTotalMs + 80) {
+          actorState.throwPlayer = null;
+          actorState.throwStartMs = 0;
+        }
+        if (actorState?.captureEndMs > 0 && now > actorState.captureEndMs + SNAKE_SEATED_CAPTURE_PHASES.recoverMs + 80) {
+          actorState.capturePlayer = null;
+          actorState.captureStartMs = 0;
+          actorState.captureEndMs = 0;
+        }
         board.seatedHumans.forEach((seatHuman, seatIndex) => {
           if (!seatHuman?.root) return;
           const isActiveSeat = seatIndex === activeTurn;
           const root = seatHuman.root;
           const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.004;
-          const throwLean = isActiveSeat && isThrowing ? 0.18 : 0;
+          const pose = resolveSnakeSeatedActionPose(actorState, seatIndex, now);
+          const throwLean = isActiveSeat && pose.mode.startsWith('dice') ? 0.18 : 0;
           root.position.y = breathe;
           root.rotation.x = 0;
           root.rotation.y = 0;
           root.rotation.z = 0;
+          setSnakeHandWeaponVisible(seatHuman, pose.mode === 'weaponPickup' || pose.mode === 'weaponAim');
           applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, now * 0.001, throwLean);
+          applySeatedHumanPose(seatHuman, now * 0.001, throwLean, pose.mode, pose.intensity);
+          alignSeatedHumanFeetToGround(seatHuman);
         });
       }
       let hasDiceCenter = false;
@@ -6573,26 +6754,42 @@ export default function SnakeBoard3D({
     if (captureFxIdRef.current === captureEvent.id) return;
     captureFxIdRef.current = captureEvent.id;
     const board = boardRef.current;
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      capturePlayer: Number.isInteger(captureEvent.attackerIndex) ? captureEvent.attackerIndex : 0,
+      captureStartMs: performance.now(),
+      captureEndMs: 0
+    };
+    const completeCaptureAnimation = () => {
+      seatedHumanActionRef.current = {
+        ...seatedHumanActionRef.current,
+        captureEndMs: performance.now()
+      };
+      onCaptureAnimationComplete?.(captureEvent.id);
+    };
     const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
     const vehicleMap = board.captureFx?.vehicles || {};
     const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const missileProjectile = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const explosion = board.captureFx?.explosion;
     if (!primaryVehicle || !missileProjectile || !explosion) {
-      onCaptureAnimationComplete?.(captureEvent.id);
+      completeCaptureAnimation();
       return;
     }
     const attacker =
       board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex) ||
       board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex);
     if (!attacker) {
-      onCaptureAnimationComplete?.(captureEvent.id);
+      completeCaptureAnimation();
       return;
     }
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const parkedHolder =
+      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
+      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
+      null;
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
@@ -6605,7 +6802,10 @@ export default function SnakeBoard3D({
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
-    const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const attackerHolder =
+      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
+      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
+      null;
     if (attackerHolder) attackerHolder.visible = false;
 
     attacker.position.copy(startPos);
@@ -6813,7 +7013,7 @@ export default function SnakeBoard3D({
             primaryVehicle.root.visible = false;
             missileProjectile.root.visible = false;
             if (attackerHolder) attackerHolder.visible = true;
-            onCaptureAnimationComplete?.(captureEvent.id);
+            completeCaptureAnimation();
             return true;
           }
           return false;
@@ -6880,7 +7080,7 @@ export default function SnakeBoard3D({
           primaryVehicle.root.visible = false;
           missileProjectile.root.visible = false;
           if (attackerHolder) attackerHolder.visible = true;
-          onCaptureAnimationComplete?.(captureEvent.id);
+          completeCaptureAnimation();
           return true;
         }
         return false;
