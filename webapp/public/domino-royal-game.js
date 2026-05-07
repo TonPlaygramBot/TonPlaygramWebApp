@@ -7730,14 +7730,107 @@ if (typeof MutationObserver !== 'undefined') {
 }
 
 /* ---------- Domino Royal seated human characters ---------- */
+const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: 'Poly Haven denim_fabric 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    tint: 0x314d86
+  },
+  check: {
+    source: 'Poly Haven gingham_check 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    tint: 0x9f3651
+  },
+  hessian: {
+    source: 'Poly Haven hessian_230 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    tint: 0xa27445
+  },
+  floral: {
+    source: 'Poly Haven floral_jacquard 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    tint: 0x6d3f7f
+  },
+  fleece: {
+    source: 'Poly Haven knitted_fleece 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    tint: 0x4b5563
+  },
+  picnic: {
+    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    tint: 0xc44f42
+  }
+});
+
+const DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: {
+    upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
+    lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 },
+    accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 }
+  },
+  casinoCheck: {
+    upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
+    lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 },
+    accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 }
+  },
+  linenStreet: {
+    upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 },
+    lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
+    accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 }
+  },
+  jacquardNight: {
+    upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 },
+    lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 },
+    accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 }
+  },
+  softFleece: {
+    upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
+    lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 },
+    accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 }
+  },
+  patternedRed: {
+    upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
+    lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
+    accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 }
+  },
+  mixedDenim: {
+    upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
+    lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
+    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
+  }
+});
+
 const DOMINO_CHARACTER_THEMES = Object.freeze([
   {
     id: 'rpm-current-domino',
     urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     scale: 1,
-    seatOffsetY: -0.4,
+    seatOffsetY: -0.56,
     seatOffsetZ: 0.52,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'royalDenim',
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    skinTone: 0xd9a27d
   },
   {
     id: 'rpm-67d411-domino',
@@ -7747,9 +7840,13 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
       'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
     ],
     scale: 1,
-    seatOffsetY: -0.4,
+    seatOffsetY: -0.56,
     seatOffsetZ: 0.52,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    skinTone: 0xc78f68
   },
   {
     id: 'rpm-67f433-domino',
@@ -7759,9 +7856,13 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
       'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
     ],
     scale: 1,
-    seatOffsetY: -0.4,
+    seatOffsetY: -0.56,
     seatOffsetZ: 0.52,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'linenStreet',
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    skinTone: 0xe0b18d
   },
   {
     id: 'rpm-67e1b5-domino',
@@ -7771,15 +7872,57 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
       'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
     ],
     scale: 1,
-    seatOffsetY: -0.4,
+    seatOffsetY: -0.56,
     seatOffsetZ: 0.52,
-    handLift: 1.04
+    handLift: 1.04,
+    clothCombo: 'jacquardNight',
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    skinTone: 0xb87957
+  },
+  {
+    id: 'webgl-vietnam-human-domino',
+    urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'softFleece',
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    skinTone: 0xd39a72
+  },
+  {
+    id: 'webgl-ai-teacher-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'patternedRed',
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    skinTone: 0xc88b64
+  },
+  {
+    id: 'webgl-ai-teacher-1-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'mixedDenim',
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
-const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
-const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.42;
+const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.95;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.56;
 const DOMINO_CHARACTER_CACHE = new Map();
+const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
+let dominoCharacterThemeOrder = DOMINO_CHARACTER_THEMES.map((_, index) => index);
 const dominoCharacterInstances = [];
 const dominoCharacterRigs = new Map();
 const dominoCharacterActions = [];
@@ -7845,6 +7988,168 @@ async function loadDominoCharacterTemplate(theme) {
   DOMINO_CHARACTER_CACHE.set(cacheKey, promise);
   promise.catch(() => DOMINO_CHARACTER_CACHE.delete(cacheKey));
   return promise;
+}
+
+
+function shuffleDominoCharacterThemeOrder() {
+  const order = DOMINO_CHARACTER_THEMES.map((_, index) => index);
+  const seedSource =
+    typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function'
+      ? crypto.getRandomValues(new Uint32Array(order.length))
+      : null;
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const randomValue = seedSource?.[index] ?? Math.floor(Math.random() * 0xffffffff);
+    const swapIndex = randomValue % (index + 1);
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+  }
+  dominoCharacterThemeOrder = order;
+}
+
+function getDominoCharacterThemeForSeat(seatIndex) {
+  const orderIndex = dominoCharacterThemeOrder[seatIndex % dominoCharacterThemeOrder.length];
+  return DOMINO_CHARACTER_THEMES[orderIndex] || DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+}
+
+function loadDominoCharacterTexture(url, { isColor = false, repeat = 3 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}`;
+  if (DOMINO_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return DOMINO_CHARACTER_TEXTURE_CACHE.get(cacheKey);
+  const texture = textureLoader.load(
+    url,
+    (loaded) => {
+      loaded.wrapS = THREE.RepeatWrapping;
+      loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(repeat, repeat);
+      normalizePbrTexture(loaded, {
+        isColor,
+        maxAnisotropy: getRendererAnisotropyCap()
+      });
+    },
+    undefined,
+    () => DOMINO_CHARACTER_TEXTURE_CACHE.delete(cacheKey)
+  );
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  normalizePbrTexture(texture, {
+    isColor,
+    maxAnisotropy: getRendererAnisotropyCap()
+  });
+  texture.userData.dominoCanDispose = false;
+  DOMINO_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function isNearlyWhiteMaterial(mat) {
+  if (!mat?.color) return false;
+  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
+}
+
+function isLowSaturationLightMaterial(mat) {
+  if (!mat?.color || mat.map) return false;
+  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
+  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyDominoHumanSurface(obj, mat) {
+  const name = `${obj?.name || ''} ${mat?.name || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'lowerCloth';
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
+  if (isNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
+  return 'other';
+}
+
+function resolveDominoClothSlot(theme, slot, seatIndex) {
+  const combo = DOMINO_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
+  const material = POLYHAVEN_CLOTH_MATERIALS[slotConfig.material] || POLYHAVEN_CLOTH_MATERIALS.denim;
+  const repeatBoost = seatIndex === human ? 0.75 : 0;
+  return {
+    ...material,
+    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
+    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
+  };
+}
+
+function applyDominoClothMaterial(mat, cloth) {
+  mat.map = loadDominoCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat });
+  mat.normalMap = loadDominoCharacterTexture(cloth.normal, { repeat: cloth.repeat });
+  mat.roughnessMap = loadDominoCharacterTexture(cloth.roughness, { repeat: cloth.repeat });
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
+}
+
+function enhanceDominoCharacterMaterials(instance, theme, seatIndex) {
+  const clothSlots = {
+    upperCloth: resolveDominoClothSlot(theme, 'upper', seatIndex),
+    lowerCloth: resolveDominoClothSlot(theme, 'lower', seatIndex),
+    accentCloth: resolveDominoClothSlot(theme, 'accent', seatIndex)
+  };
+  const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
+
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyDominoHumanSurface(obj, mat);
+      if (clothSlots[surface]) {
+        applyDominoClothMaterial(mat, clothSlots[surface]);
+      } else if (surface === 'hair') {
+        mat.map = null;
+        mat.color = hairColor.clone();
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
+      } else if (surface === 'eye') {
+        mat.map = null;
+        mat.color = eyeColor.clone();
+        mat.roughness = 0.18;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+      } else if (surface === 'skin') {
+        if (isLowSaturationLightMaterial(mat)) {
+          mat.color = skinColor.clone();
+        }
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = 0;
+      } else if (surface === 'shoe') {
+        if (isLowSaturationLightMaterial(mat)) {
+          mat.color = new THREE.Color(0x111827);
+        }
+        mat.roughness = 0.78;
+        mat.metalness = 0.02;
+      } else if (surface === 'mouth') {
+        if (isNearlyWhiteMaterial(mat)) {
+          mat.color = new THREE.Color(0xf8fafc);
+        }
+        mat.roughness = 0.32;
+        mat.metalness = 0;
+      } else if (isNearlyWhiteMaterial(mat)) {
+        mat.color = skinColor.clone();
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      }
+      normalizeMaterialTextures(mat, getRendererAnisotropyCap());
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
+  });
 }
 
 function clearDominoCharacters() {
@@ -7986,7 +8291,7 @@ function refreshAllDominoCharacterRacks() {
 }
 
 function attachDominoCharacterToChair(template, chair, seatIndex, player) {
-  const theme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+  const theme = getDominoCharacterThemeForSeat(seatIndex);
   const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
     if (!obj?.isMesh) return;
@@ -7999,6 +8304,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
       mat.needsUpdate = true;
     });
   });
+  enhanceDominoCharacterMaterials(instance, theme, seatIndex);
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
   const seatScale = (theme.scale || 1) * DOMINO_CHARACTER_PROPORTION_SCALE;
@@ -8021,7 +8327,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
 }
 
 async function loadDominoSeatCharacterTemplate(seatIndex) {
-  const primaryTheme = DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+  const primaryTheme = getDominoCharacterThemeForSeat(seatIndex);
   const fallbackTheme = DOMINO_CHARACTER_THEMES[0];
   try {
     return await loadDominoCharacterTemplate(primaryTheme);
@@ -9373,8 +9679,10 @@ function startGame({ resetRace = true } = {}) {
     raceDisqualifiedPlayers = [];
     raceRoundNumber = 1;
   }
+  shuffleDominoCharacterThemeOrder();
   refreshSeatAvatars();
   players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+  rebuildDominoCharactersForChairs();
   boneyard = shuffle(genSet());
   renderBoneyardStack();
   spawnOpeningShuffleAnimation();
