@@ -9,8 +9,6 @@ import {
   BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS
 } from './battleRoyaleSharedInventory.js';
 
-const DOMINO_HUMAN_CHARACTER_OPTIONS = Object.freeze([]);
-
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
     id,
@@ -69,7 +67,6 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'iceTracer', label: 'Ice Tracer' },
     { id: 'violetPulse', label: 'Violet Pulse' }
   ],
-  humanCharacter: DOMINO_HUMAN_CHARACTER_OPTIONS,
   chairTheme: BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS.map(({ id, label, price = 0, description }) => ({
     id,
     label,
@@ -128,8 +125,7 @@ const DOMINO_DEFAULT_IDS = Object.freeze({
   tableTheme: 'murlan-default',
   tableWood: 'peelingPaintWeathered',
   tableCloth: 'emerald',
-  chairTheme: 'dining_chair_02',
-  humanCharacter: null
+  chairTheme: 'dining_chair_02'
 });
 
 const getDefaultOptionId = (options) => options?.[0]?.id;
@@ -152,7 +148,6 @@ export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
   dominoDotStyle: [getDominoDefaultOptionId('dominoDotStyle')].filter(Boolean),
   dominoFrameStyle: [getDominoDefaultOptionId('dominoFrameStyle')].filter(Boolean),
   highlightStyle: [getDominoDefaultOptionId('highlightStyle')].filter(Boolean),
-  humanCharacter: [getDominoDefaultOptionId('humanCharacter')].filter(Boolean),
   chairTheme: DOMINO_ROYAL_OPTION_SETS.chairTheme.map((option) => option.id)
 });
 
@@ -242,15 +237,6 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     description: 'Unlocks a new tracer highlight for the table setup.',
     thumbnail: DOMINO_HIGHLIGHT_THUMBNAILS[option.id]
   })),
-  ...DOMINO_ROYAL_OPTION_SETS.humanCharacter.slice(1).map((option, idx) => ({
-    id: `domino-human-character-${option.id}`,
-    type: 'humanCharacter',
-    optionId: option.id,
-    name: option.label,
-    price: 1200 + idx * 90,
-    description: option.description || 'Premium seated human character for Domino Battle Royal chairs.',
-    thumbnail: swatchThumbnail(['#334155', '#64748b', '#f59e0b'])
-  })),
   ...DOMINO_ROYAL_OPTION_SETS.chairTheme.map((option, idx) => ({
     id: `domino-chair-${option.id}`,
     type: 'chairTheme',
@@ -307,11 +293,6 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
     type: 'highlightStyle',
     optionId: getDominoDefaultOptionId('highlightStyle'),
     label: getLabelForOption('highlightStyle', getDominoDefaultOptionId('highlightStyle'))
-  },
-  {
-    type: 'humanCharacter',
-    optionId: getDominoDefaultOptionId('humanCharacter'),
-    label: getLabelForOption('humanCharacter', getDominoDefaultOptionId('humanCharacter'))
   },
   {
     type: 'chairTheme',
