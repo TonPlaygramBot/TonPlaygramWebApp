@@ -410,11 +410,11 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.5;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.82;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
 const AI_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const AI_CHIP_INWARD_SHIFT = CARD_W * -0.2;
+const AI_CHIP_INWARD_SHIFT = CARD_W * -0.72;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
 const CHIP_STACK_VERTICAL_LIFT = CARD_H * 0.06;
@@ -448,7 +448,7 @@ const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -1.18;
 const FOLD_PILE_RIGHT_OFFSET = CARD_W * 1.98;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 2.12;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 2.9;
 const CHIP_BUTTON_GRID_VERTICAL_LIFT = CARD_H * 0.64;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -655,7 +655,7 @@ const TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
 const TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0;
 const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
 const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
-const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
+const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
@@ -1386,6 +1386,22 @@ async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
   return promise;
 }
 
+async function loadAnyTexasDominoCharacterTemplate(preferredTheme, renderer = null) {
+  const fallbackThemes = [
+    preferredTheme,
+    ...TEXAS_DOMINO_CHARACTER_THEMES.filter((theme) => theme?.id !== preferredTheme?.id)
+  ].filter(Boolean);
+  let lastError = null;
+  for (const fallbackTheme of fallbackThemes) {
+    try {
+      return await loadTexasDominoCharacterTemplate(fallbackTheme, renderer);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Texas Holdem GLTF character model unavailable for every fallback theme');
+}
+
 function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   const bones = {
     hips: findTexasCharacterBone(instance, ['hips', 'pelvis']),
@@ -1455,7 +1471,7 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
   };
 
   try {
-    const template = await loadTexasDominoCharacterTemplate(theme, renderer);
+    const template = await loadAnyTexasDominoCharacterTemplate(theme, renderer);
     if (!seatGroup?.group?.parent || !template) return null;
     return mountInstance(cloneSkeleton(template));
   } catch (error) {
