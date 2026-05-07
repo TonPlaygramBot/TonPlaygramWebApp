@@ -2294,6 +2294,369 @@ async function loadPolyhavenModel(
 
   throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
 }
+const DOMINO_ROYAL_CHARACTER_THEMES = Object.freeze([
+  {
+    id: 'rpm-royal-human-default',
+    label: 'Royal Human Default',
+    modelUrls: Object.freeze([
+      'https://models.readyplayer.me/64bfa15f0e72c63d7c3934aa.glb',
+      'https://api.readyplayer.me/v1/avatars/64bfa15f0e72c63d7c3934aa.glb',
+      'https://avatars.readyplayer.me/64bfa15f0e72c63d7c3934aa.glb'
+    ]),
+    scale: 0.82,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-royal-human-blue',
+    label: 'Royal Human Blue',
+    modelUrls: Object.freeze([
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ]),
+    scale: 0.82,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-royal-human-gold',
+    label: 'Royal Human Gold',
+    modelUrls: Object.freeze([
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ]),
+    scale: 0.82,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    handLift: 1.04
+  },
+  {
+    id: 'rpm-royal-human-emerald',
+    label: 'Royal Human Emerald',
+    modelUrls: Object.freeze([
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ]),
+    scale: 0.82,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    handLift: 1.04
+  }
+]);
+const DOMINO_CHARACTER_MODEL_CACHE = new Map();
+const DOMINO_CHARACTER_PROPORTION_SCALE = 1.92;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.015;
+const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62;
+
+async function loadDominoCharacterModel(theme) {
+  const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
+    ? theme.modelUrls
+    : theme?.url
+      ? [theme.url]
+      : [];
+  if (!urls.length) throw new Error('Missing Domino Royal character URL');
+  const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
+  if (DOMINO_CHARACTER_MODEL_CACHE.has(cacheKey)) {
+    return DOMINO_CHARACTER_MODEL_CACHE.get(cacheKey);
+  }
+  const promise = (async () => {
+    const loader = createConfiguredGltfLoader();
+    let gltf = null;
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        gltf = await loader.loadAsync(url);
+        if (gltf) break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!gltf) throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
+    const root = gltf.scene || gltf.scenes?.[0];
+    if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+    return root;
+  })();
+  DOMINO_CHARACTER_MODEL_CACHE.set(cacheKey, promise);
+  promise.catch(() => DOMINO_CHARACTER_MODEL_CACHE.delete(cacheKey));
+  return promise;
+}
+
+function disposeDominoCharacterGroup(root) {
+  if (!root) return;
+  root.userData?.dispose?.();
+  root.parent?.remove(root);
+}
+
+function normalizeDominoCharacterPivot(characterRoot) {
+  if (!characterRoot) return;
+  const bounds = new THREE.Box3().setFromObject(characterRoot);
+  if (bounds.isEmpty()) return;
+  characterRoot.position.y -= bounds.min.y;
+}
+
+function findDominoCharacterBone(root, hints = []) {
+  if (!root || !hints.length) return null;
+  let matched = null;
+  root.traverse((obj) => {
+    if (matched || !obj?.isBone) return;
+    const name = String(obj.name || '').toLowerCase();
+    if (hints.some((hint) => name.includes(hint))) matched = obj;
+  });
+  return matched;
+}
+
+function captureDominoBoneRotation(bone) {
+  return bone ? bone.rotation.clone() : new THREE.Euler();
+}
+
+function addDominoBoneOffset(bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function makeHeldDominoRack(seatIndex = 0, hand = []) {
+  const group = new THREE.Group();
+  const tiles = Array.isArray(hand) && hand.length
+    ? hand.slice(0, 5)
+    : [{ a: 6, b: 6 }, { a: 5, b: 4 }, { a: 3, b: 2 }];
+  const safeCount = Math.max(2, tiles.length);
+  const managed = [];
+  const width = 0.092 * MODEL_SCALE;
+  const height = 0.19 * MODEL_SCALE;
+  const depth = 0.018 * MODEL_SCALE;
+  const geometry = new RoundedBoxGeometry(width, height, depth, 4, 0.008 * MODEL_SCALE);
+  managed.push(geometry);
+  for (let i = 0; i < safeCount; i++) {
+    const tile = tiles[i] || tiles[tiles.length - 1];
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(i % 2 ? '#f8fafc' : '#fff7ed'),
+      roughness: 0.78,
+      metalness: 0.02,
+      emissive: new THREE.Color('#111827'),
+      emissiveIntensity: 0.02
+    });
+    managed.push(mat);
+    const mesh = new THREE.Mesh(geometry, mat);
+    const centered = i - (safeCount - 1) / 2;
+    mesh.position.set(centered * 0.072 * MODEL_SCALE, Math.abs(centered) * 0.004 * MODEL_SCALE, i * 0.006 * MODEL_SCALE);
+    mesh.rotation.set(THREE.MathUtils.degToRad(-68), THREE.MathUtils.degToRad(-centered * 5), THREE.MathUtils.degToRad(centered * 9));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.tile = tile;
+    group.add(mesh);
+  }
+  group.userData.signature = tiles.map((tile) => `${tile.a}|${tile.b}`).join(',');
+  group.userData.dispose = () => managed.forEach((item) => item?.dispose?.());
+  return group;
+}
+
+function applyDominoRigPoseLerp(rig, targetPose, alpha = 1) {
+  if (!rig || !targetPose) return;
+  const base = rig.seatedPose || {};
+  Object.entries(rig.bones || {}).forEach(([key, bone]) => {
+    if (!bone) return;
+    const from = base[key] || rig.defaults?.[key];
+    const to = targetPose[key] || from;
+    if (!from || !to) return;
+    bone.rotation.x = THREE.MathUtils.lerp(from.x, to.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(from.y, to.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(from.z, to.z, alpha);
+  });
+}
+
+function buildDominoPose(basePose, overrides = {}) {
+  const output = { ...basePose };
+  Object.entries(overrides).forEach(([key, delta]) => {
+    const base = basePose?.[key];
+    if (!base) return;
+    output[key] = new THREE.Euler(base.x + (delta.x || 0), base.y + (delta.y || 0), base.z + (delta.z || 0));
+  });
+  return output;
+}
+
+function refreshDominoRigHeldTiles(rig, hand = []) {
+  if (!rig) return;
+  const nextSignature = (Array.isArray(hand) ? hand.slice(0, 5) : [])
+    .map((tile) => `${tile.a}|${tile.b}`)
+    .join(',');
+  if (rig.heldDominoes?.userData?.signature === nextSignature) return;
+  const parent = rig.heldDominoes?.parent;
+  rig.heldDominoes?.userData?.dispose?.();
+  parent?.remove(rig.heldDominoes);
+  const rack = makeHeldDominoRack(rig.seatIndex, hand);
+  rack.position.copy(rig.heldDominoPose);
+  rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
+  rack.scale.setScalar(1.26);
+  rig.instance.add(rack);
+  rig.heldDominoes = rack;
+}
+
+function createDominoCharacterRig(instance, seatRoot, seatIndex, playerHand = []) {
+  const hips = findDominoCharacterBone(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
+  const spine = findDominoCharacterBone(instance, ['spine', 'chest', 'torso']);
+  const head = findDominoCharacterBone(instance, ['head', 'neck', 'headjoint', 'head_joint']);
+  const rightUpperArm = findDominoCharacterBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']);
+  const rightForeArm = findDominoCharacterBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']);
+  const rightHand = findDominoCharacterBone(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']);
+  const rightIndexFinger = findDominoCharacterBone(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']);
+  const leftUpperArm = findDominoCharacterBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
+  const leftForeArm = findDominoCharacterBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
+  const leftHand = findDominoCharacterBone(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
+  const leftThigh = findDominoCharacterBone(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
+  const leftCalf = findDominoCharacterBone(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
+  const rightThigh = findDominoCharacterBone(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
+  const rightCalf = findDominoCharacterBone(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
+  const heldDominoPose = new THREE.Vector3(
+    seatIndex === 1 ? -0.08 * MODEL_SCALE : seatIndex === 3 ? 0.08 * MODEL_SCALE : 0,
+    2.16 * MODEL_SCALE + (seatIndex === 0 ? 0.16 * MODEL_SCALE : 0.52 * MODEL_SCALE),
+    0.82 * MODEL_SCALE + (seatIndex === 0 ? -0.05 * MODEL_SCALE : -0.24 * MODEL_SCALE)
+  );
+  const rack = makeHeldDominoRack(seatIndex, playerHand);
+  rack.position.copy(heldDominoPose);
+  rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
+  rack.scale.setScalar(1.26);
+  instance.add(rack);
+
+  const rig = {
+    seatIndex,
+    seatRoot,
+    instance,
+    heldDominoes: rack,
+    heldDominoPose,
+    actionId: 0,
+    bones: { hips, spine, head, rightUpperArm, rightForeArm, rightHand, rightIndexFinger, leftUpperArm, leftForeArm, leftHand, leftThigh, leftCalf, rightThigh, rightCalf },
+    defaults: { hips: captureDominoBoneRotation(hips), spine: captureDominoBoneRotation(spine), head: captureDominoBoneRotation(head), rightUpperArm: captureDominoBoneRotation(rightUpperArm), rightForeArm: captureDominoBoneRotation(rightForeArm), rightHand: captureDominoBoneRotation(rightHand), leftUpperArm: captureDominoBoneRotation(leftUpperArm), leftForeArm: captureDominoBoneRotation(leftForeArm), leftHand: captureDominoBoneRotation(leftHand), leftThigh: captureDominoBoneRotation(leftThigh), leftCalf: captureDominoBoneRotation(leftCalf), rightThigh: captureDominoBoneRotation(rightThigh), rightCalf: captureDominoBoneRotation(rightCalf) }
+  };
+
+  instance.position.y -= 0.09 * MODEL_SCALE;
+  addDominoBoneOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  addDominoBoneOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  addDominoBoneOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
+  addDominoBoneOffset(leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  addDominoBoneOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  addDominoBoneOffset(leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  addDominoBoneOffset(rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+
+  rig.seatedPose = {
+    hips: captureDominoBoneRotation(hips), spine: captureDominoBoneRotation(spine), head: captureDominoBoneRotation(head),
+    rightUpperArm: captureDominoBoneRotation(rightUpperArm), rightForeArm: captureDominoBoneRotation(rightForeArm), rightHand: captureDominoBoneRotation(rightHand),
+    leftUpperArm: captureDominoBoneRotation(leftUpperArm), leftForeArm: captureDominoBoneRotation(leftForeArm), leftHand: captureDominoBoneRotation(leftHand),
+    leftThigh: captureDominoBoneRotation(leftThigh), leftCalf: captureDominoBoneRotation(leftCalf), rightThigh: captureDominoBoneRotation(rightThigh), rightCalf: captureDominoBoneRotation(rightCalf)
+  };
+  return rig;
+}
+
+function attachDominoSeatedCharacter(wrapper, template, theme, seatIndex) {
+  if (!wrapper || !template) return null;
+  const instance = template.clone(true);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((mat) => {
+      if (!mat) return;
+      [mat.map, mat.emissiveMap].filter(Boolean).forEach(applySRGBColorSpace);
+      mat.needsUpdate = true;
+    });
+  });
+  normalizeDominoCharacterPivot(instance);
+  const seatRoot = new THREE.Group();
+  const seatScale = (theme.scale ?? 0.82) * DOMINO_CHARACTER_PROPORTION_SCALE;
+  seatRoot.scale.setScalar(seatScale);
+  seatRoot.position.set(
+    0,
+    (theme.seatOffsetY ?? -0.84) - 0.42 - DOMINO_CHARACTER_EXTRA_LOWER_OFFSET,
+    (theme.seatOffsetZ ?? -0.22) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET
+  );
+  seatRoot.rotation.set(theme.seatPitch ?? 0, theme.seatYaw ?? 0, 0);
+  seatRoot.add(instance);
+  const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, players[seatIndex]?.hand ?? []);
+  seatRoot.userData.dispose = () => rig.heldDominoes?.userData?.dispose?.();
+  wrapper.add(seatRoot);
+  dominoCharacterRoots.push(seatRoot);
+  dominoCharacterRigs.set(seatIndex, rig);
+  return seatRoot;
+}
+
+async function populateDominoSeatedCharacters(token = chairBuildToken) {
+  const targetChairs = chairs.slice(0, N);
+  if (!targetChairs.length) return;
+  const themes = DOMINO_ROYAL_CHARACTER_THEMES;
+  const templates = await Promise.all(themes.map((theme) => loadDominoCharacterModel(theme)));
+  if (token !== chairBuildToken) return;
+  targetChairs.forEach((wrapper, seatIndex) => {
+    const theme = themes[seatIndex % themes.length];
+    const template = templates[seatIndex % templates.length];
+    attachDominoSeatedCharacter(wrapper, template, theme, seatIndex);
+  });
+}
+
+function refreshDominoCharacterHands() {
+  dominoCharacterRigs.forEach((rig, seatIndex) => {
+    refreshDominoRigHeldTiles(rig, players[seatIndex]?.hand ?? []);
+  });
+}
+
+function runDominoCharacterAction(seatIndex = current, type = 'PLAY') {
+  const rig = dominoCharacterRigs.get(seatIndex);
+  if (!rig?.seatedPose) return;
+  const now = performance.now();
+  const actionId = ++rig.actionId;
+  const base = rig.seatedPose;
+  const poses = type === 'PASS'
+    ? [
+        buildDominoPose(base, { spine: { x: THREE.MathUtils.degToRad(-8) }, rightUpperArm: { x: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-10) }, rightForeArm: { x: THREE.MathUtils.degToRad(34) }, rightHand: { x: THREE.MathUtils.degToRad(12) }, head: { x: THREE.MathUtils.degToRad(4) } }),
+        base
+      ]
+    : [
+        buildDominoPose(base, { spine: { x: THREE.MathUtils.degToRad(-14) }, rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) }, rightForeArm: { x: THREE.MathUtils.degToRad(-22) }, rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) }, head: { x: THREE.MathUtils.degToRad(-10) } }),
+        buildDominoPose(base, { spine: { x: THREE.MathUtils.degToRad(2) }, rightUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-20) }, rightForeArm: { x: THREE.MathUtils.degToRad(24) }, rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-8) } }),
+        buildDominoPose(base, { spine: { x: THREE.MathUtils.degToRad(10) }, rightUpperArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) }, rightForeArm: { x: THREE.MathUtils.degToRad(48) }, rightHand: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-8) } }),
+        base
+      ];
+  const duration = type === 'PASS' ? 620 : 980;
+  dominoCharacterActionAnimations.push({ rig, poses, actionId, start: now, duration });
+}
+
+function stepDominoCharacterActions(now) {
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  dominoCharacterActionAnimations = dominoCharacterActionAnimations.filter((anim) => {
+    const elapsed = timestamp - anim.start;
+    const progress = Math.min(1, Math.max(0, elapsed / Math.max(1, anim.duration)));
+    const scaled = progress * (anim.poses.length - 1);
+    const index = Math.min(anim.poses.length - 2, Math.floor(scaled));
+    const local = scaled - index;
+    const eased = local < 0.5 ? 4 * local * local * local : 1 - Math.pow(-2 * local + 2, 3) / 2;
+    if (anim.rig.actionId === anim.actionId) {
+      const mixedPose = buildDominoPose(anim.poses[index], {});
+      Object.keys(anim.rig.bones || {}).forEach((key) => {
+        const a = anim.poses[index]?.[key];
+        const b = anim.poses[index + 1]?.[key];
+        if (!a || !b) return;
+        mixedPose[key] = new THREE.Euler(
+          THREE.MathUtils.lerp(a.x, b.x, eased),
+          THREE.MathUtils.lerp(a.y, b.y, eased),
+          THREE.MathUtils.lerp(a.z, b.z, eased)
+        );
+      });
+      applyDominoRigPoseLerp(anim.rig, mixedPose, 1);
+    }
+    return progress < 1;
+  });
+}
+
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679,
   1.9173749900311232,
@@ -6037,6 +6400,9 @@ async function applyTableTheme(
 
 const tableParts = {};
 const chairs = [];
+const dominoCharacterRoots = [];
+const dominoCharacterRigs = new Map();
+let dominoCharacterActionAnimations = [];
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7780,6 +8146,11 @@ function placeChairsWithOption(option, chairData, token) {
   disposeSeatAvatars();
   disposeSeatNameTags();
   disposeSeatBadges();
+  dominoCharacterActionAnimations = [];
+  dominoCharacterRigs.clear();
+  while (dominoCharacterRoots.length) {
+    disposeDominoCharacterGroup(dominoCharacterRoots.pop());
+  }
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -7822,6 +8193,9 @@ function placeChairsWithOption(option, chairData, token) {
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
+  populateDominoSeatedCharacters(token).catch((error) => {
+    console.warn('Failed to seat Domino Royal characters', error);
+  });
 }
 
 async function buildChairs(
@@ -8430,6 +8804,7 @@ function renderHands() {
       }
     });
   });
+  refreshDominoCharacterHands();
   updateLeaderboardCard();
 }
 
@@ -8523,6 +8898,7 @@ function getBoneyardTopWorld() {
 }
 
 function spawnDrawAnimation(startWorld, seatIndex = human) {
+  runDominoCharacterAction(seatIndex, 'DRAW');
   if (!startWorld) {
     return;
   }
@@ -8689,6 +9065,7 @@ function spawnPlacementAnimation(
   if (!segment) {
     return;
   }
+  runDominoCharacterAction(sourceSeat, 'PLAY');
   let mesh = providedMesh;
   if (!mesh) {
     mesh = takeTileMeshForAnimation(tile);
@@ -10341,6 +10718,7 @@ function clearAllPassBubbles() {
 }
 
 function showPassBubble(seatIndex = current) {
+  runDominoCharacterAction(seatIndex, 'PASS');
   clearPassBubble(seatIndex);
   const bubble = document.createElement('div');
   bubble.dataset.passBubble = String(seatIndex);
@@ -10878,6 +11256,7 @@ function tick(now) {
     updateEntrySequence(current);
     updateDrawAnimations(current);
     updatePlacementAnimations(current);
+    stepDominoCharacterActions(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
