@@ -2390,7 +2390,7 @@ const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camer
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.18; // keep the bridge hand close behind the cue ball like the reference shooting photos
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
@@ -25805,10 +25805,7 @@ const shotPowerRef = useRef(0);
             // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 0.45,
-            shootForwardBendScale: 0.62,
-            shootVerticalBendScale: 0.72,
-            bridgeHandTablePress: 0.004 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            shootUpperBodyCounterLean: 0.72,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
@@ -25831,9 +25828,9 @@ const shotPowerRef = useRef(0);
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             edgeMargin: 0.68 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: HUMAN_BRIDGE_HAND_BACK_FROM_BALL,
-            bridgeHandSide: HUMAN_BRIDGE_HAND_SIDE,
-            bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
+            bridgeHandBackFromBall: 0.145 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandSide: -0.012 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotSide: -0.46 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -26032,13 +26029,13 @@ const shotPowerRef = useRef(0);
             }
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-              .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
+              .addScaledVector(aimForward, -0.105 * humanUnitScale)
+              .addScaledVector(side, -0.038 * humanUnitScale)
               .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
               .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
+              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
             const cueTipShoot = cueWorld
               .clone()
               .addScaledVector(aimForward, -(BALL_R + cueBallGap));
@@ -26046,7 +26043,10 @@ const shotPowerRef = useRef(0);
               .clone()
               .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - cueBallGap))
               .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
-            const shootGripTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
+            const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
+            const shootGripTarget = cueBackShoot
+              .clone()
+              .addScaledVector(cueShootDir, 0.58 * humanUnitScale);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
