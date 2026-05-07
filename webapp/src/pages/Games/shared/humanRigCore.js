@@ -238,10 +238,14 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  // Negative bends the cue-side upper body away from the previous over-the-table fold.
-  // Feet remain planted through IK targets while only spine/chest/head targets cross the cue line.
+  // Positive X counter-lean bends the upper body to the opposite side of the bridge/cue-side fold
+  // that was visually pulling the shooter across the table. Feet stay locked by grounded IK targets.
   shootBendDirection: -1,
-  shootCounterLeanSide: -1,
+  shootCounterLeanSide: 1,
+  shootUpperBodyTwistSideDirection: 1,
+  shootUpperBodyCounterLean: 1.16,
+  shootShoulderCounterLean: 0.9,
+  footShotGroundLock: true,
   forceTableFacingAim: true
 };
 
@@ -257,6 +261,35 @@ const dampVector = (current, target, lambda, dt) =>
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+
+
+function resolveShotUpperBodyLean(cfg, powerLean, t) {
+  const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
+  const counterLeanDirection = cfg.shootCounterLeanSide >= 0 ? 1 : -1;
+  const counterLeanAmount = Number.isFinite(cfg.shootUpperBodyCounterLean)
+    ? cfg.shootUpperBodyCounterLean
+    : 1;
+  const shoulderCounterLeanAmount = Number.isFinite(cfg.shootShoulderCounterLean)
+    ? cfg.shootShoulderCounterLean
+    : counterLeanAmount;
+  const bendZ = (value) => value * bendDirection;
+  const counterLeanX = (value, amount = counterLeanAmount) =>
+    value * counterLeanDirection * amount;
+  return {
+    bendZ,
+    counterLeanX,
+    shoulderLeanX: (value) => counterLeanX(value, shoulderCounterLeanAmount),
+    twistSideDirection: cfg.shootUpperBodyTwistSideDirection >= 0 ? 1 : -1,
+    powerLean: powerLean * counterLeanAmount,
+    t
+  };
+}
+
+function lockFootTargetToGround(footTarget, rootWorld, cfg) {
+  if (!footTarget || !cfg.footShotGroundLock) return footTarget;
+  footTarget.y = (rootWorld?.y ?? cfg.groundY ?? 0) + cfg.footGroundY;
+  return footTarget;
+}
 
 function resolveTableFacingForward(rawForward, root, frameData, cfg) {
   const forward = rawForward?.clone?.() ?? new THREE.Vector3(0, 0, -1);
@@ -653,16 +686,17 @@ function driveHuman(human, frame) {
 
   if (ik >= 0.025) {
     rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, -0.045 * ik);
+    const sideTwist = frame.twistSideDirection ?? -1;
+    twistBone(b.hips, frame.side, 0.045 * sideTwist * ik);
     twistBone(b.hips, frame.forward, -0.025 * ik);
     rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, -0.2 * ik);
+    twistBone(b.spine, frame.side, 0.2 * sideTwist * ik);
     twistBone(b.spine, frame.forward, -0.04 * ik);
     rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, -0.32 * ik);
+    twistBone(b.chest, frame.side, 0.32 * sideTwist * ik);
     twistBone(b.chest, frame.forward, -0.025 * ik);
     rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, -0.12 * ik);
+    twistBone(b.neck, frame.side, 0.12 * sideTwist * ik);
     if (b.head) {
       setBoneWorldQuaternion(
         b.head,
@@ -765,23 +799,28 @@ export function updateHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = (frameData.power || 0) * t;
-  const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
-  const counterLeanSide = cfg.shootCounterLeanSide >= 0 ? 1 : -1;
-  const shotBendZ = (value) => value * bendDirection;
-  const shotCounterLeanX = (value) => value * counterLeanSide;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
+  const shotLean = resolveShotUpperBodyLean(cfg, powerLean, t);
 
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.025 * t) * cfg.unit, lerp(1.3, 1.14, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.07 * t + 0.012 * powerLean) * cfg.unit, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.105 * t + 0.016 * powerLean) * cfg.unit, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.12 * t + 0.018 * powerLean) * cfg.unit, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.075 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotLean.counterLeanX(0.025 * t) * cfg.unit, lerp(1.3, 1.14, t) * cfg.unit + breath, shotLean.bendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotLean.counterLeanX(0.07 * t + 0.012 * shotLean.powerLean) * cfg.unit, lerp(1.52, 1.24, t) * cfg.unit + breath, shotLean.bendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotLean.counterLeanX(0.105 * t + 0.016 * shotLean.powerLean) * cfg.unit, lerp(1.68, 1.28, t) * cfg.unit + breath, shotLean.bendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotLean.counterLeanX(0.12 * t + 0.018 * shotLean.powerLean) * cfg.unit, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotLean.bendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotLean.shoulderLeanX(0.075 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotLean.bendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotLean.shoulderLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotLean.bendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
-  const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
-  const rightFoot = local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t));
+  const leftFoot = lockFootTargetToGround(
+    local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t)),
+    rootWorld,
+    cfg
+  );
+  const rightFoot = lockFootTargetToGround(
+    local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t)),
+    rootWorld,
+    cfg
+  );
 
   const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
@@ -839,6 +878,7 @@ export function updateHumanPose(human, dt, frameData) {
     rightElbow: lockedRightElbow,
     leftHandWorld: leftHand,
     rightHandWorld: rightHand,
+    twistSideDirection: shotLean.twistSideDirection,
     leftKnee,
     rightKnee,
     leftFootWorld: leftFoot,
