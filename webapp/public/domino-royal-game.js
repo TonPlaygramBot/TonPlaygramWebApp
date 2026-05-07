@@ -7917,9 +7917,9 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 2.42;
-const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.95;
-const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 0.56;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.0;
+const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET = 1.0;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.0;
 const DOMINO_CHARACTER_CACHE = new Map();
 const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
 let dominoCharacterThemeOrder = DOMINO_CHARACTER_THEMES.map((_, index) => index);
@@ -8316,7 +8316,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   seatRoot.position.set(
     0,
     visibleSeatLift + (theme.seatOffsetY ?? -0.4) - 0.22 - scaleDelta * 0.08 - DOMINO_CHARACTER_EXTRA_LOWER_OFFSET,
-    (theme.seatOffsetZ ?? 0.52) - 0.03 - DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET
+    (theme.seatOffsetZ ?? 0.52) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET
   );
   seatRoot.add(instance);
   const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
