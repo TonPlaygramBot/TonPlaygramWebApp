@@ -129,10 +129,13 @@ const MAZE_W = COLS * CELL;
 const MAZE_H = ROWS * CELL;
 const PLAYER_RADIUS = 0.16;
 const PICKUP_RADIUS = 0.13;
-const PLAYER_WALK_SPEED = 1.35;
-const PLAYER_RUN_SPEED = 2.35;
+const PLAYER_WALK_SPEED = 2.15;
+const PLAYER_RUN_SPEED = 4.15;
 const FIRST_PERSON_EYE_HEIGHT = 0.72;
-const TOUCH_LOOK_SENSITIVITY = 0.004;
+const TOUCH_LOOK_SENSITIVITY = 0.0033;
+const MOBILE_RENDER_SCALE = 1;
+const DESKTOP_RENDER_SCALE = 1.6;
+const MOBILE_MAX_POINT_LIGHTS = 3;
 const WEAPON_PICKUP_TAP_RANGE = 1.35;
 const AI_RUNNER_SPEED = 1.1;
 const MAX_PLAYERS = 8;
@@ -534,10 +537,12 @@ function makeHumanFpsHands(actor: Actor) {
   return rig;
 }
 
-function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number) {
-  const parts = rig.userData.parts as
-    | Record<string, THREE.Mesh>
-    | undefined;
+function poseHumanFpsHands(
+  rig: THREE.Group,
+  weapon: WeaponEntry,
+  recoil: number
+) {
+  const parts = rig.userData.parts as Record<string, THREE.Mesh> | undefined;
   if (!parts) return;
   const pistol = weapon.weaponType === 'pistol';
   parts.leftForearm.visible = !pistol;
@@ -556,7 +561,11 @@ function poseHumanFpsHands(rig: THREE.Group, weapon: WeaponEntry, recoil: number
     -0.148 - recoil * 0.006,
     -0.295 + recoil * 0.022
   );
-  parts.rightHand.rotation.set(1.1 - recoil * 0.08, -0.14, 0.36 + recoil * 0.06);
+  parts.rightHand.rotation.set(
+    1.1 - recoil * 0.08,
+    -0.14,
+    0.36 + recoil * 0.06
+  );
   parts.rightForearm.position.set(0.145, -0.14, -0.14 + recoil * 0.014);
   parts.rightForearm.rotation.set(1.18 - recoil * 0.05, -0.2, 0.44);
 }
@@ -601,13 +610,17 @@ function mat(color: number, roughness = 0.78, metalness = 0.02) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 
-function shadow<T extends THREE.Object3D>(o: T) {
+function shadow<T extends THREE.Object3D>(
+  o: T,
+  enabled = true,
+  cullable = true
+) {
   o.traverse((c) => {
     const m = c as THREE.Mesh;
     if (m.isMesh) {
-      m.castShadow = true;
-      m.receiveShadow = true;
-      m.frustumCulled = false;
+      m.castShadow = enabled;
+      m.receiveShadow = enabled;
+      m.frustumCulled = cullable;
     }
   });
   return o;
@@ -980,7 +993,8 @@ function tryMoveActor(
   actor: Actor,
   dir: THREE.Vector3,
   speed: number,
-  dt: number
+  dt: number,
+  responsive = false
 ) {
   if (actor.stun > 0 || actor.health <= 0) {
     actor.vel.multiplyScalar(Math.pow(0.01, dt));
@@ -991,9 +1005,12 @@ function tryMoveActor(
   if (dir.lengthSq() > 0.001) {
     dir.normalize();
     actor.targetDir.copy(dir);
-    actor.vel.lerp(dir.clone().multiplyScalar(speed), 1 - Math.pow(0.006, dt));
+    actor.vel.lerp(
+      dir.clone().multiplyScalar(speed),
+      1 - Math.pow(responsive ? 0.0000008 : 0.006, dt)
+    );
   } else {
-    actor.vel.multiplyScalar(Math.pow(0.001, dt));
+    actor.vel.multiplyScalar(Math.pow(responsive ? 0.0000002 : 0.001, dt));
   }
 
   const old = actor.pos.clone();
@@ -1055,7 +1072,7 @@ function chooseAiDir(actor: Actor, actors: Actor[]) {
   return best.dir.clone();
 }
 
-function makeMaze(scene: THREE.Scene) {
+function makeMaze(scene: THREE.Scene, shadowsEnabled = true) {
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(MAZE_W + 1.1, MAZE_H + 1.1),
     mat(0x080b16, 0.9, 0)
@@ -1080,32 +1097,49 @@ function makeMaze(scene: THREE.Scene) {
   });
   const pathMat = mat(0x172033, 0.92, 0.02);
 
+  const wallCount = MAZE.flat().filter((cell) => cell === 1).length;
+  const pathCount = ROWS * COLS - wallCount;
+  const wallMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96),
+    wallMat,
+    wallCount
+  );
+  const capMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98),
+    topMat,
+    wallCount
+  );
+  const tileMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9),
+    pathMat,
+    pathCount
+  );
+  const matrix = new THREE.Matrix4();
+  let wallIndex = 0;
+  let pathIndex = 0;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = cellToWorld(r, c);
       if (MAZE[r][c] === 1) {
-        const wall = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.96, 0.62, CELL * 0.96),
-          wallMat
-        );
-        wall.position.set(p.x, 0.31, p.z);
-        const cap = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.98, 0.055, CELL * 0.98),
-          topMat
-        );
-        cap.position.set(p.x, 0.645, p.z);
-        scene.add(shadow(wall), shadow(cap));
+        matrix.makeTranslation(p.x, 0.31, p.z);
+        wallMesh.setMatrixAt(wallIndex, matrix);
+        matrix.makeTranslation(p.x, 0.645, p.z);
+        capMesh.setMatrixAt(wallIndex, matrix);
+        wallIndex += 1;
       } else {
-        const tile = new THREE.Mesh(
-          new THREE.BoxGeometry(CELL * 0.9, 0.018, CELL * 0.9),
-          pathMat
-        );
-        tile.position.set(p.x, 0.004, p.z);
-        tile.receiveShadow = true;
-        scene.add(tile);
+        matrix.makeTranslation(p.x, 0.004, p.z);
+        tileMesh.setMatrixAt(pathIndex, matrix);
+        pathIndex += 1;
       }
     }
   }
+  [wallMesh, capMesh, tileMesh].forEach((mesh) => {
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = shadowsEnabled;
+    mesh.receiveShadow = shadowsEnabled;
+    mesh.frustumCulled = true;
+    scene.add(mesh);
+  });
 
   const border = new THREE.LineSegments(
     new THREE.EdgesGeometry(
@@ -1121,7 +1155,7 @@ function makeMaze(scene: THREE.Scene) {
   scene.add(border);
 }
 
-function makeDiamond(color: number, value = 1) {
+function makeDiamond(color: number, value = 1, withLight = true) {
   const group = new THREE.Group();
   const geo = new THREE.OctahedronGeometry(value > 1 ? 0.13 : 0.095, 0);
   const mesh = new THREE.Mesh(
@@ -1135,14 +1169,16 @@ function makeDiamond(color: number, value = 1) {
     })
   );
   mesh.rotation.y = Math.PI / 4;
-  group.add(shadow(mesh));
-  const glow = new THREE.PointLight(color, value > 1 ? 0.6 : 0.35, 1.1);
-  glow.position.y = 0.18;
-  group.add(glow);
+  group.add(shadow(mesh, false));
+  if (withLight) {
+    const glow = new THREE.PointLight(color, value > 1 ? 0.6 : 0.35, 1.1);
+    glow.position.y = 0.18;
+    group.add(glow);
+  }
   return group;
 }
 
-function makeWeaponPickup(weapon: WeaponEntry) {
+function makeWeaponPickup(weapon: WeaponEntry, withLight = true) {
   const group = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.22, 0.055, 0.075),
@@ -1153,14 +1189,17 @@ function makeWeaponPickup(weapon: WeaponEntry) {
     mat(0x111827, 0.35, 0.4)
   );
   barrel.position.x = 0.16;
-  const glow = new THREE.PointLight(weapon.pickupColor, 0.65, 1.1);
-  glow.position.y = 0.2;
-  group.add(shadow(body), shadow(barrel), glow);
+  group.add(shadow(body, false), shadow(barrel, false));
+  if (withLight) {
+    const glow = new THREE.PointLight(weapon.pickupColor, 0.65, 1.1);
+    glow.position.y = 0.2;
+    group.add(glow);
+  }
   group.rotation.y = Math.PI / 4;
   return group;
 }
 
-function createPickups(scene: THREE.Scene) {
+function createPickups(scene: THREE.Scene, withPickupLights = true) {
   const pickups: Pickup[] = [];
   const weaponCells = new Set([
     '1,3',
@@ -1196,7 +1235,7 @@ function createPickups(scene: THREE.Scene) {
           WEAPONS[
             pickups.filter((p) => p.kind === 'weapon').length % WEAPONS.length
           ];
-        const group = makeWeaponPickup(weapon);
+        const group = makeWeaponPickup(weapon, withPickupLights);
         const pos = cellToWorld(r, c).setY(0.25);
         group.position.copy(pos);
         scene.add(group);
@@ -1212,7 +1251,8 @@ function createPickups(scene: THREE.Scene) {
         const special = (r + c) % 8 === 0;
         const group = makeDiamond(
           special ? 0xffd166 : 0x63e6ff,
-          special ? 3 : 1
+          special ? 3 : 1,
+          withPickupLights && pickups.length < MOBILE_MAX_POINT_LIGHTS
         );
         const pos = cellToWorld(r, c).setY(special ? 0.25 : 0.2);
         group.position.copy(pos);
@@ -1353,7 +1393,11 @@ function makePortal(
   scene.add(g);
 }
 
-function makeWoodenBox(reward: MazeBox['reward'], weapon?: WeaponEntry) {
+function makeWoodenBox(
+  reward: MazeBox['reward'],
+  weapon?: WeaponEntry,
+  withLight = true
+) {
   const group = new THREE.Group();
   const box = new THREE.Mesh(
     new THREE.BoxGeometry(0.34, 0.34, 0.34),
@@ -1369,19 +1413,26 @@ function makeWoodenBox(reward: MazeBox['reward'], weapon?: WeaponEntry) {
     new THREE.MeshStandardMaterial({ color: 0x3f2a1c, roughness: 0.9 })
   );
   straps.position.y = 0.34;
-  const glow = new THREE.PointLight(
-    reward === 'health' ? 0x22c55e : reward === 'weapon' ? 0xfacc15 : 0x38bdf8,
-    0.32,
-    0.9
-  );
-  glow.position.y = 0.45;
-  group.add(shadow(box), shadow(straps), glow);
+  group.add(shadow(box, false), shadow(straps, false));
+  if (withLight) {
+    const glow = new THREE.PointLight(
+      reward === 'health'
+        ? 0x22c55e
+        : reward === 'weapon'
+          ? 0xfacc15
+          : 0x38bdf8,
+      0.32,
+      0.9
+    );
+    glow.position.y = 0.45;
+    group.add(glow);
+  }
   group.userData.reward = reward;
   group.userData.weaponId = weapon?.id;
   return group;
 }
 
-function createWoodenBoxes(scene: THREE.Scene) {
+function createWoodenBoxes(scene: THREE.Scene, withBoxLights = true) {
   const cells = [
     [2, 1],
     [3, 11],
@@ -1398,7 +1449,7 @@ function createWoodenBoxes(scene: THREE.Scene) {
       i % 3 === 0 ? 'health' : i % 3 === 1 ? 'ammo' : 'weapon';
     const weapon =
       reward === 'weapon' ? WEAPONS[(i + 9) % WEAPONS.length] : undefined;
-    const group = makeWoodenBox(reward, weapon);
+    const group = makeWoodenBox(reward, weapon, withBoxLights);
     const pos = cellToWorld(r, c).setY(0);
     group.position.copy(pos);
     scene.add(group);
@@ -1415,19 +1466,19 @@ function createWoodenBoxes(scene: THREE.Scene) {
 
 function spawnBoxReward(scene: THREE.Scene, box: MazeBox, pickups: Pickup[]) {
   if (box.reward === 'health') {
-    const group = makeDiamond(0x22c55e, 3);
+    const group = makeDiamond(0x22c55e, 3, false);
     const pos = box.pos.clone().setY(0.24);
     group.position.copy(pos);
     scene.add(group);
     pickups.push({ kind: 'diamond', group, pos, taken: false, value: 3 });
   } else if (box.reward === 'ammo') {
-    const group = makeDiamond(0x38bdf8, 2);
+    const group = makeDiamond(0x38bdf8, 2, false);
     const pos = box.pos.clone().setY(0.22);
     group.position.copy(pos);
     scene.add(group);
     pickups.push({ kind: 'diamond', group, pos, taken: false, value: 2 });
   } else if (box.weapon) {
-    const group = makeWeaponPickup(box.weapon);
+    const group = makeWeaponPickup(box.weapon, false);
     const pos = box.pos.clone().setY(0.25);
     group.position.copy(pos);
     scene.add(group);
@@ -1643,8 +1694,8 @@ export default function RunMan() {
   const input = useRef<InputState>({
     moveX: 0,
     moveY: 0,
-    lookYaw: 0,
-    lookPitch: -0.02
+    lookYaw: Math.PI / 2,
+    lookPitch: -0.04
   });
   const [weaponSlots, setWeaponSlots] = useState<WeaponEntry[]>([
     STARTER_WEAPON
@@ -1663,7 +1714,10 @@ export default function RunMan() {
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
 
-    const lowPower = window.matchMedia?.('(max-width: 720px)').matches ?? true;
+    const lowPower =
+      (window.matchMedia?.('(max-width: 860px), (pointer: coarse)').matches ??
+        true) ||
+      (navigator.hardwareConcurrency ?? 4) <= 4;
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: !lowPower,
@@ -1671,32 +1725,36 @@ export default function RunMan() {
     });
     renderer.setClearColor(0x020617, 1);
     renderer.shadowMap.enabled = !lowPower;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x020617, 7, 18);
+    scene.fog = new THREE.Fog(0x020617, lowPower ? 5.5 : 7, lowPower ? 12 : 18);
 
     const camera = new THREE.PerspectiveCamera(66, 1, 0.035, 70);
     camera.position.set(0, 5.2, 4.2);
     camera.lookAt(0, 0, 0);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.54));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.25);
+    scene.add(new THREE.AmbientLight(0xffffff, lowPower ? 0.74 : 0.54));
+    const sun = new THREE.DirectionalLight(0xffffff, lowPower ? 0.92 : 1.25);
     sun.position.set(4, 9, 5);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = !lowPower;
+    sun.shadow.mapSize.set(lowPower ? 512 : 1536, lowPower ? 512 : 1536);
     scene.add(sun);
 
-    const cyanLight = new THREE.PointLight(0x00e5ff, 1.4, 11);
+    const cyanLight = new THREE.PointLight(
+      0x00e5ff,
+      lowPower ? 0.55 : 1.4,
+      lowPower ? 5 : 11
+    );
     cyanLight.position.set(0, 2.2, 0);
     scene.add(cyanLight);
 
-    makeMaze(scene);
+    makeMaze(scene, !lowPower);
     makeMiniMap(scene);
     makePortal(scene, 1, 1, 0x1d69ff);
     makePortal(scene, 15, 15, 0xd92f2f);
-    const pickups = createPickups(scene);
-    const boxes = createWoodenBoxes(scene);
+    const pickups = createPickups(scene, !lowPower);
+    const boxes = createWoodenBoxes(scene, !lowPower);
     const bullets: Bullet[] = [];
 
     const loader = new GLTFLoader();
@@ -1790,7 +1848,10 @@ export default function RunMan() {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
       renderer.setPixelRatio(
-        Math.min(lowPower ? 1.25 : 2, window.devicePixelRatio || 1)
+        Math.min(
+          lowPower ? MOBILE_RENDER_SCALE : DESKTOP_RENDER_SCALE,
+          window.devicePixelRatio || 1
+        )
       );
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
@@ -1816,8 +1877,8 @@ export default function RunMan() {
       resetActors(actors);
       input.current.moveX = 0;
       input.current.moveY = 0;
-      input.current.lookYaw = 0;
-      input.current.lookPitch = -0.02;
+      input.current.lookYaw = Math.PI / 2;
+      input.current.lookPitch = -0.04;
       mountWeapon(user.weapon);
       syncWeaponSlots();
       setHud({
@@ -2008,7 +2069,8 @@ export default function RunMan() {
           user,
           userDir,
           THREE.MathUtils.lerp(PLAYER_WALK_SPEED, PLAYER_RUN_SPEED, stickPower),
-          dt
+          dt,
+          true
         );
         user.dir.copy(getForwardFromYaw(input.current.lookYaw));
         user.targetDir.copy(user.dir);
@@ -2176,7 +2238,7 @@ export default function RunMan() {
     const dx = clientX - cx;
     const dy = clientY - cy;
     const max = r.width * 0.44;
-    const deadZone = max * 0.08;
+    const deadZone = max * 0.045;
     const rawLen = Math.hypot(dx, dy);
     const len = Math.min(max, rawLen);
     const a = Math.atan2(dy, dx);
@@ -2185,8 +2247,9 @@ export default function RunMan() {
     knob.style.transform = `translate(${x}px, ${y}px)`;
     const normalized =
       rawLen < deadZone ? 0 : Math.min(1, (len - deadZone) / (max - deadZone));
-    input.current.moveX = Math.cos(a) * normalized;
-    input.current.moveY = Math.sin(a) * normalized;
+    const boosted = normalized <= 0 ? 0 : Math.min(1, 0.28 + normalized * 0.72);
+    input.current.moveX = Math.cos(a) * boosted;
+    input.current.moveY = Math.sin(a) * boosted;
   };
 
   const endStick = () => {
@@ -2364,8 +2427,8 @@ export default function RunMan() {
           pointerEvents: 'none'
         }}
       >
-        Drag screen to look · tap target to shoot · tap nearby guns · break
-        boxes
+        Fast mobile mode: left stick moves instantly · drag screen to look · tap
+        or FIRE to shoot
       </div>
 
       <div
