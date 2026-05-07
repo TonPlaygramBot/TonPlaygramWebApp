@@ -25761,8 +25761,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            shootBendDirection: 1,
-            tableFacingDotGuard: 0.18,
+            shootBendDirection: -1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
@@ -25777,7 +25776,7 @@ const shotPowerRef = useRef(0);
             stanceWidth: 0.52 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgePalmTableLift: 0.006 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: 0.005 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -25960,9 +25959,6 @@ const shotPowerRef = useRef(0);
               1
             );
             const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            const bodyForward = cueWorld.clone().sub(walkRoot).setY(0);
-            if (bodyForward.lengthSq() > 1e-6) bodyForward.normalize();
-            else bodyForward.copy(aimForward);
             const state =
               mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
@@ -26045,8 +26041,6 @@ const shotPowerRef = useRef(0);
               state,
               rootTarget: walkRoot,
               aimForward,
-              bodyForward,
-              tableFocus: cueWorld,
               bridgeTarget,
               gripTarget,
               idleRight,

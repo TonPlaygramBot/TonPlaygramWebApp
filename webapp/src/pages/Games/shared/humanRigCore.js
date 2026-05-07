@@ -108,8 +108,7 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  shootBendDirection: 1,
-  tableFacingDotGuard: 0.18
+  shootBendDirection: 1
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -122,19 +121,6 @@ const dampScalar = (current, target, lambda, dt) =>
 const dampVector = (current, target, lambda, dt) =>
   current.lerp(target, 1 - Math.exp(-lambda * dt));
 const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
-
-function resolveTableFacingForward(root, aimForward, tableFocus, cfg) {
-  const safeAim = aimForward?.clone?.() || new THREE.Vector3(0, 0, -1);
-  safeAim.y = 0;
-  if (safeAim.lengthSq() < 1e-6) safeAim.set(0, 0, -1);
-  safeAim.normalize();
-  const towardTable = tableFocus?.clone?.().sub(root) || safeAim.clone();
-  towardTable.y = 0;
-  if (towardTable.lengthSq() < 1e-6) return safeAim;
-  towardTable.normalize();
-  const minDot = Number.isFinite(cfg?.tableFacingDotGuard) ? cfg.tableFacingDotGuard : 0.18;
-  return safeAim.dot(towardTable) >= minDot ? safeAim : towardTable;
-}
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function scaleVectorConfig(cfg) {
@@ -603,13 +589,7 @@ export function updateHumanPose(human, dt, frameData) {
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
   human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
-  const facingForward = resolveTableFacingForward(
-    human.root.position,
-    frameData.bodyForward || frameData.aimForward,
-    frameData.tableFocus || frameData.bridgeTarget || frameData.cueTip || frameData.rootTarget,
-    cfg
-  );
-  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(facingForward), cfg.rotLambda, dt);
+  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
 
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
@@ -622,13 +602,7 @@ export function updateHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = (frameData.power || 0) * t;
-  const leanFocus = frameData.tableFocus || frameData.bridgeTarget || frameData.cueTip;
-  const leanTowardTable = leanFocus?.clone?.().sub(human.root.position) || forward.clone();
-  leanTowardTable.y = 0;
-  const configuredBendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
-  const bendDirection = leanTowardTable.lengthSq() > 1e-6
-    ? (forward.dot(leanTowardTable.normalize()) < -0.05 ? -1 : 1)
-    : configuredBendDirection;
+  const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
   const shotBendZ = (value) => value * bendDirection;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * cfg.unit * bendDirection);
   rootWorld.y = cfg.groundY;
