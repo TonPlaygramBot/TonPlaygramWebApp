@@ -1586,7 +1586,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.83; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -2241,8 +2241,8 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
-const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
+const SPIN_GLOBAL_SCALE = 1.176; // +20% global spin response for stronger overall english/follow/draw
+const STRAIGHT_TOPSPIN_BONUS_SCALE = 1.22; // stronger straight follow-through so center-line follow shots carry farther
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -2367,8 +2367,7 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.52 * POOL_ROYALE_HUMAN_UNIT_SCALE; // match Snooker Royal human scale while staying smaller than the previous oversized avatar
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 42.0; // make the shooter ~4x larger than the previous size for portrait-phone readability
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -2378,7 +2377,7 @@ const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
 const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
-const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
+const HUMAN_SHOOT_BLEND_THRESHOLD = 0.84; // enter shooting pose as soon as the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
@@ -2438,10 +2437,10 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
-const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536; // +20% overall spin response
+const SIDE_SPIN_MULTIPLIER = 1.96 * SPIN_GLOBAL_BOOST_MULTIPLIER; // boost side english so left/right cue-ball bend is easier to notice
+const BACKSPIN_MULTIPLIER = 3.1 * SPIN_GLOBAL_BOOST_MULTIPLIER; // nudge draw slightly stronger for better pull-back feedback
+const TOPSPIN_MULTIPLIER = 2.28 * SPIN_GLOBAL_BOOST_MULTIPLIER; // soften follow a touch so topspin does not overrun position play
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -4630,8 +4629,8 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal cloth pattern footprint exactly
-const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
+const CLOTH_PATTERN_SCALE = 0.8; // slightly denser weave so cloth pattern appears a bit smaller
+const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
@@ -12656,7 +12655,6 @@ function getPoolRoyaleExternalUvSpan(mesh) {
 
 function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   if (!mesh || !material || (role !== 'cloth' && role !== 'cushion')) return;
-  if (material.userData?.poolRoyaleMatchProceduralClothRepeat) return;
   const uvSpan = getPoolRoyaleExternalUvSpan(mesh);
   if (!uvSpan) return;
   ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
@@ -12727,10 +12725,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   if (role === 'cloth' || role === 'cushion') {
     copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
     mat.side = THREE.DoubleSide;
-    mat.userData = {
-      ...(mat.userData || {}),
-      poolRoyaleMatchProceduralClothRepeat: true
-    };
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
     enhanceChromeMaterial(mat);
@@ -25748,8 +25742,6 @@ const shotPowerRef = useRef(0);
         return rigGroup;
       };
 
-      let setCueStickFromHumanCuePose = null;
-
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
         const zOffset = TABLE.H * 0.72;
@@ -25758,47 +25750,42 @@ const shotPowerRef = useRef(0);
           const human = createBilardoHumanRig(world, {
             loader: new GLTFLoader(),
             modelUrl: BILARDO_SHQIP_HUMAN_URL,
-            unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            shootBendDirection: -1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
             strikeTime: 0.11,
             holdTime: 0.05,
+            stanceWidth: 0.58,
+            bridgePalmTableLift: 0.004,
+            chinToCueHeight: 0.11,
+            cueArmElbowRise: 0.18,
             tableTopY: TABLE_Y + TABLE.THICK,
-            groundY: floorY,
-            tableW: PLAY_W,
-            tableL: PLAY_H,
-            perimeterWalk: true,
-            perimeterWalkSpeed: 4.0 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            stanceWidth: 0.52 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: 0.006 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: 0.035 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            desiredShootDistance: 1.25 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            edgeMargin: 0.68 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: 0.235 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: -0.012 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotSide: -0.46 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotBack: -0.78 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmOutward: 0.36 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmBack: 0.44 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmDown: 0.48 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePull: 0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePush: 0.08 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandZ: -0.015 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleCueGripFromBack: 0.24 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(POOL_ROYALE_HUMAN_UNIT_SCALE),
+            desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
+            bridgeHandBackFromBall: HUMAN_BRIDGE_HAND_BACK_FROM_BALL,
+            bridgeHandSide: HUMAN_BRIDGE_HAND_SIDE,
+            bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
+            cueLength: HUMAN_CUE_LENGTH,
+            bridgeDist: HUMAN_BRIDGE_DIST,
+            shootCueGripFromBack: 0.42,
+            rightHandShotExtraBack: 0.26,
+            rightHandShotLift: -0.36,
+            rightHandForwardClamp: -0.08,
+            rightHandOutward: 0.1,
+            rightForearmOutward: 0.26,
+            rightForearmBack: 0.62,
+            rightForearmDown: 0.54,
+            rightForearmLength: 0.28,
+            idleRightHandX: 0.31,
+            idleRightHandY: 0.8,
+            idleRightHandZ: -0.015,
+            rightHandRollIdle: -2.2,
+            rightHandRollShoot: -2.05,
+            rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092),
+            rightElbowShotRise: 0.34,
+            rightElbowShotSide: -0.38,
+            rightElbowShotBack: -0.96,
             textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
           });
           human.root.position.set(x, floorY, z);
@@ -25928,7 +25915,7 @@ const shotPowerRef = useRef(0);
           if (isReplay) mode = 'idle';
           else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
-          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
+          else if (isHumanShooter && (hasAim || loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
           if (human) {
@@ -25963,42 +25950,42 @@ const shotPowerRef = useRef(0);
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
             const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
             const activePower = state === 'dragging' ? draggingPower : strikingPower;
-            const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const pull = 0.42 * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
+            const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
             const practiceStroke =
               state === 'dragging'
-                ? Math.sin(nowMs * 0.012) * 0.035 * humanUnitScale * (0.25 + activePower * 0.75)
+                ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
                 : 0;
             const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / 120, 0, 1) : 0;
-            let cueBallGap = 0.012 * humanUnitScale;
+            let cueBallGap = BALL_R * 1.22;
             if (state === 'dragging') cueBallGap += pull + practiceStroke;
             else if (state === 'striking') {
               cueBallGap = THREE.MathUtils.lerp(
-                0.012 * humanUnitScale + pull,
-                0.0012 * humanUnitScale,
+                BALL_R * (1.22 + pull / BALL_R),
+                BALL_R * 1.05,
                 1 - Math.pow(1 - strikeNorm, 3)
               );
             }
             const bridgeTarget = cueWorld
               .clone()
-              .addScaledVector(aimForward, -0.235 * humanUnitScale)
-              .addScaledVector(side, -0.012 * humanUnitScale)
-              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
+              .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+              .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
+              .setY(TABLE_Y + TABLE.THICK + 0.009);
             const bridgeCuePoint = bridgeTarget
               .clone()
-              .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
+              .addScaledVector(aimForward, 0.014)
+              .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
             const cueTipShoot = cueWorld
               .clone()
-              .addScaledVector(aimForward, -(BALL_R + cueBallGap));
+              .addScaledVector(aimForward, -cueBallGap)
+              .setY(bridgeTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
             const cueBackShoot = bridgeCuePoint
               .clone()
-              .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - cueBallGap))
-              .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
+              .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
+              .add(new THREE.Vector3(0, 0.024, 0));
             const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
             const shootGripTarget = cueBackShoot
               .clone()
-              .addScaledVector(cueShootDir, 0.58 * humanUnitScale);
+              .addScaledVector(cueShootDir, 0.42);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
@@ -26010,15 +25997,15 @@ const shotPowerRef = useRef(0);
             const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
             const idleRight = walkRoot
               .clone()
-              .add(new THREE.Vector3(0.31, 0.8, -0.015).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+              .add(new THREE.Vector3(0.31, 0.8, -0.015).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             const idleLeft = walkRoot
               .clone()
-              .add(new THREE.Vector3(-0.18, 1.08, 0.03).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+              .add(new THREE.Vector3(-0.18, 1.08, 0.03).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
             const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
               .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
               .normalize();
-            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
-            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
+            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24);
+            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, HUMAN_CUE_LENGTH - 0.24);
             const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
             const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
             const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
@@ -26048,9 +26035,6 @@ const shotPowerRef = useRef(0);
               cueTip,
               power: activePower
             });
-            if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
-              setCueStickFromHumanCuePose(cueBack, cueTip);
-            }
             return;
           }
 
@@ -26675,22 +26659,6 @@ const shotPowerRef = useRef(0);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      setCueStickFromHumanCuePose = (back, tip) => {
-        if (!cueStick || !back || !tip) return;
-        const dir = tip.clone().sub(back);
-        if (dir.lengthSq() < 1e-8) return;
-        const n = dir.normalize();
-        cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), n);
-        cueStick.position.copy(back).add(tip).multiplyScalar(0.5);
-        cueStick.visible = true;
-        cueAnimating = true;
-        const info = cueStick.userData?.buttTilt;
-        if (info) {
-          info.current = cueStick.rotation.x;
-          info.extra = cueStick.rotation.x - (info.angle ?? 0);
-          info.buttHeightOffset = Math.max(0, back.y - tip.y);
-        }
-      };
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
