@@ -81,7 +81,7 @@ export const POOL_ROYALE_CLOTH_VARIANTS = Object.freeze(
     group.hex.map((hex, index) => ({
       id: `${group.idPrefix}${group.tones[index]}`,
       name: `${group.label} ${group.tones[index]}`,
-      sourceId: `${group.idPrefix}-${group.tones[index].toLowerCase()}`,
+      sourceId: 'caban',
       tone: group.label.toLowerCase(),
       baseColor: toNumber(hex),
       palette: buildPalette(hex),
@@ -91,7 +91,7 @@ export const POOL_ROYALE_CLOTH_VARIANTS = Object.freeze(
       thumbnail: polyHavenThumb('caban'),
       price: BASE_PRICE + PRICE_STEP * index,
       swatches: createSwatches(hex),
-      description: `Original Poly Haven caban cloth texture with a ${group.label.toLowerCase()} ${group.tones[index].toLowerCase()} tint.`
+      description: `Original Poly Haven caban cloth texture with a ${group.label.toLowerCase()} ${group.tones[index].toLowerCase()} tint and the same single small-weave source used by Snooker Royal.`
     }))
   )
 )
