@@ -77,6 +77,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform weaponSwapIcon;
         [SerializeField] private Transform rightHandGrip;
         [SerializeField] private Transform leftHandGrip;
+        [SerializeField] private FpsGunHumanHandRetargeter humanHandRetargeter;
 
         [Header("Weapon presets")]
         [SerializeField] private List<WeaponBallisticsProfile> weaponProfiles = new List<WeaponBallisticsProfile>();
@@ -127,6 +128,11 @@ namespace TonPlaygram.Gameplay.Weapons
             if (sfxSource == null)
             {
                 sfxSource = GetComponent<AudioSource>();
+            }
+
+            if (humanHandRetargeter == null)
+            {
+                humanHandRetargeter = GetComponentInChildren<FpsGunHumanHandRetargeter>(true);
             }
 
             if (playerCamera != null)
@@ -397,6 +403,11 @@ namespace TonPlaygram.Gameplay.Weapons
                 leftHandGrip.position = muzzle.position - (shotDirection * 0.06f) - leftOffset;
                 leftHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
             }
+
+            if (humanHandRetargeter != null)
+            {
+                humanHandRetargeter.SnapToMappedPose();
+            }
         }
 
         private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
@@ -574,6 +585,10 @@ namespace TonPlaygram.Gameplay.Weapons
         private void LateUpdate()
         {
             MaintainStaticPresentationAnchors();
+            if (humanHandRetargeter != null)
+            {
+                humanHandRetargeter.SnapToMappedPose();
+            }
         }
 
         private void CacheStaticAnchors()
