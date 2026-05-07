@@ -4630,8 +4630,8 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.92; // tighten the cloth fibres so the visible felt texture reads smaller in portrait
-const CLOTH_TEXTURE_REPEAT_HINT = 1.72;
+const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
+const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
@@ -25761,7 +25761,7 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: Math.PI,
-            shootBendDirection: 1,
+            shootBendDirection: -1,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
