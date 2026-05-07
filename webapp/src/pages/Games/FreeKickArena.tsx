@@ -162,6 +162,8 @@ const MURLAN_CHARACTER_COLORS = [
 const CAMERA_YAW_LIMIT = 0.86;
 const CAMERA_DRAG_DEADZONE = 8;
 const MIN_KEEPER_SWIPE_PX = 28;
+const KEEPER_DIVE_DURATION = 0.62;
+const KEEPER_DIVE_START = KEEPER_DIVE_DURATION;
 const REPLAY_SLOWDOWN = 0.48;
 const SPECTATOR_ROWS_FILLED = 5;
 const SPECTATORS_PER_ROW_TARGET = 18;
@@ -1081,9 +1083,9 @@ function applyKeeperPose(keeper: Actor) {
     }
     return;
   }
-  const t = 1 - keeper.diveTime / 0.9;
-  const pushOff = THREE.MathUtils.smoothstep(t, 0.02, 0.24);
-  const flight = THREE.MathUtils.smoothstep(t, 0.18, 0.68);
+  const t = 1 - keeper.diveTime / KEEPER_DIVE_DURATION;
+  const pushOff = THREE.MathUtils.smoothstep(t, 0.0, 0.16);
+  const flight = THREE.MathUtils.smoothstep(t, 0.08, 0.52);
   const recover = THREE.MathUtils.smoothstep(t, 0.82, 1);
   const a = flight * (1 - recover);
   const side = keeper.diveDir || (keeper.saveTargetX < 0 ? -1 : 1);
@@ -1096,7 +1098,7 @@ function applyKeeperPose(keeper: Actor) {
     -side * THREE.MathUtils.lerp(1.05, 1.48, heightBlend) * a;
   keeper.root.rotation.x = -THREE.MathUtils.lerp(0.18, 0.44, heightBlend) * a;
   keeper.root.position.x +=
-    side * THREE.MathUtils.lerp(1.55, 2.85, heightBlend) * a;
+    side * THREE.MathUtils.lerp(1.78, 3.1, heightBlend) * a;
   keeper.root.position.z += -0.24 * pushOff * (1 - recover);
   keeper.root.position.y +=
     keeper.diveHeight *
@@ -2178,7 +2180,7 @@ function setKeeperDiveFromSwipe(keeper: Actor, swipe: SwipeState) {
   keeper.saveTargetZ = GOAL_LINE_Z + 0.1;
   keeper.diveHeight = height;
   keeper.diveDelay = 0;
-  keeper.diveTime = 0.9;
+  keeper.diveTime = KEEPER_DIVE_START;
   return true;
 }
 
@@ -2473,7 +2475,7 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   if (!ball.flying || ball.netCaught) return false;
   if (keeper.diveDelay > 0) {
     keeper.diveDelay = Math.max(0, keeper.diveDelay - dt);
-    if (keeper.diveDelay <= 0) keeper.diveTime = 0.9;
+    if (keeper.diveDelay <= 0) keeper.diveTime = KEEPER_DIVE_START;
   }
 
   const reaction = Math.max(0, 1 - keeper.diveDelay * 5.2);
@@ -2485,12 +2487,12 @@ function keeperSaveCheck(keeper: Actor, ball: BallState, dt: number) {
   keeper.pos.x = THREE.MathUtils.lerp(
     keeper.pos.x,
     targetStep,
-    0.16 * reaction + 0.045
+    0.24 * reaction + 0.065
   );
   keeper.pos.z = THREE.MathUtils.lerp(
     keeper.pos.z,
     keeper.saveTargetZ,
-    0.075 * reaction + 0.025
+    0.11 * reaction + 0.035
   );
 
   const nearGoal =
@@ -2705,13 +2707,14 @@ function cameraFrameForKeeper(keeper: Actor, ball: BallState, cameraYaw = 0) {
   const incoming = ball.object.position
     .clone()
     .lerp(new THREE.Vector3(0, 1.15, GOAL_LINE_Z + 6.8), 0.32);
-  const baseBehindKeeper = keeper.pos
-    .clone()
-    .add(new THREE.Vector3(0, 1.42, -2.35));
-  const sideOffset = new THREE.Vector3(cameraYaw * 0.55, 0, 0);
+  const position = new THREE.Vector3(
+    THREE.MathUtils.clamp(keeper.pos.x * 0.22 + cameraYaw * 0.68, -1.15, 1.15),
+    1.58,
+    GOAL_LINE_Z - GOAL_D - 1.25
+  );
   return {
-    position: baseBehindKeeper.add(sideOffset),
-    lookPoint: incoming.lerp(goalCenter, ball.flying ? 0.18 : 0.42)
+    position,
+    lookPoint: incoming.lerp(goalCenter, ball.flying ? 0.14 : 0.38)
   };
 }
 
@@ -2866,13 +2869,19 @@ export default function FreeKickGame() {
         const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
         return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
       }
-      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind you, swipe to dive`;
-      return `Your shot ${match.userShots + 1}/5 · set power/contact then tap KICK`;
+      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind the goal, swipe to dive`;
+      return `Your shot ${match.userShots + 1}/5 · pull power and release to kick`;
     };
     spot = randomKickSpot();
     configureActorsForPhase();
     resetShot(ball, kicker, keeper, wall, spot);
-    placeCameraForNextShot(camera, kicker, cameraYaw);
+    if (match.phase === 'aiShoot') {
+      const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+      camera.position.copy(keeperFrame.position);
+      camera.lookAt(keeperFrame.lookPoint);
+    } else {
+      placeCameraForNextShot(camera, kicker, cameraYaw);
+    }
     const resize = () => {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
@@ -3221,13 +3230,20 @@ export default function FreeKickGame() {
           spot = randomKickSpot(spot);
           cameraYaw = 0;
           resetShot(ball, kicker, keeper, wall, spot);
-          placeCameraForNextShot(camera, kicker, cameraYaw);
+          if (match.phase === 'aiShoot') {
+            const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+            camera.position.copy(keeperFrame.position);
+            camera.lookAt(keeperFrame.lookPoint);
+          } else {
+            placeCameraForNextShot(camera, kicker, cameraYaw);
+          }
           syncHudScore(nextStatusText());
         }
       }
       if (state !== 'replay') {
         updateActorBase(kicker, dt);
         applyKickerPose(kicker);
+        if (activeShooter === 'user' || match.phase === 'userShoot') enforceActorGrounding(kicker);
         applyGoalDancePose(kicker);
         updateActorBase(keeper, dt);
         applyKeeperPose(keeper);
@@ -3288,7 +3304,13 @@ export default function FreeKickGame() {
       hideAimLine(aimLine);
       replayFrames.length = 0;
       resetShot(ball, kicker, keeper, wall, spot);
-      placeCameraForNextShot(camera, kicker, cameraYaw);
+      if (match.phase === 'aiShoot') {
+        const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+        camera.position.copy(keeperFrame.position);
+        camera.lookAt(keeperFrame.lookPoint);
+      } else {
+        placeCameraForNextShot(camera, kicker, cameraYaw);
+      }
       setHud((h) => ({
         ...h,
         spot,
@@ -3311,12 +3333,10 @@ export default function FreeKickGame() {
 
 
   const updateShotControl = (patch: Partial<ShotControlState>) => {
-    setShotControl((current) => {
-      const next = { ...current, ...patch };
-      shotControlRef.current = next;
-      window.dispatchEvent(new Event('free-kick-controls-changed'));
-      return next;
-    });
+    const next = { ...shotControlRef.current, ...patch };
+    shotControlRef.current = next;
+    setShotControl(next);
+    window.dispatchEvent(new Event('free-kick-controls-changed'));
   };
   const requestControlledKick = () => {
     window.dispatchEvent(new Event('free-kick-kick'));
@@ -3391,7 +3411,7 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        User takes 5 shots first, then AI takes 5. Set shot power on the right edge, choose the foot contact on the ball at bottom-left, then tap KICK. During AI shots, the camera sits behind your goalkeeper and swipes only dive the keeper.
+        User takes 5 shots first, then AI takes 5. Pull the power slider and release to kick, then use the ball-and-shoe contact control below it for curve and lift. During AI shots, the camera sits behind the goal and swipes dive the keeper in the same direction.
       </div>
 
       {hud.phase === 'userShoot' && (
@@ -3400,10 +3420,10 @@ export default function FreeKickGame() {
             aria-label="Shot power slider"
             style={{
               position: 'fixed',
-              right: 0,
-              top: '24%',
-              bottom: '18%',
-              width: 58,
+              right: 10,
+              top: '13%',
+              bottom: '43%',
+              width: 68,
               zIndex: 4,
               display: 'flex',
               alignItems: 'center',
@@ -3412,56 +3432,81 @@ export default function FreeKickGame() {
             }}
           >
             <div
+              role="slider"
+              aria-label="Pull power and release to kick"
+              aria-valuemin={20}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(shotControl.power * 100)}
+              onPointerDown={(event) => {
+                const target = event.currentTarget;
+                target.setPointerCapture(event.pointerId);
+                const rect = target.getBoundingClientRect();
+                const updateFromPointer = (clientY: number) => {
+                  const pull = THREE.MathUtils.clamp((clientY - rect.top) / rect.height, 0, 1);
+                  updateShotControl({ power: THREE.MathUtils.lerp(0.2, 1, pull) });
+                };
+                updateFromPointer(event.clientY);
+                const move = (moveEvent: PointerEvent) => updateFromPointer(moveEvent.clientY);
+                const up = (upEvent: PointerEvent) => {
+                  updateFromPointer(upEvent.clientY);
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', up);
+                  requestControlledKick();
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+              }}
               style={{
                 position: 'absolute',
                 right: 7,
                 top: 0,
                 bottom: 0,
-                width: 38,
+                width: 42,
                 borderRadius: 999,
-                background: 'linear-gradient(180deg, rgba(239,68,68,.92), rgba(250,204,21,.92), rgba(34,197,94,.92))',
-                border: '1px solid rgba(255,255,255,.58)',
-                boxShadow: '0 12px 30px rgba(0,0,0,.5)'
+                background: 'linear-gradient(180deg, rgba(34,197,94,.92), rgba(250,204,21,.92), rgba(239,68,68,.92))',
+                border: '1px solid rgba(255,255,255,.64)',
+                boxShadow: '0 12px 30px rgba(0,0,0,.5)',
+                touchAction: 'none'
               }}
-            />
-            <input
-              aria-label="Power"
-              type="range"
-              min={20}
-              max={100}
-              value={Math.round(shotControl.power * 100)}
-              onChange={(event) =>
-                updateShotControl({ power: Number(event.currentTarget.value) / 100 })
-              }
-              style={{
-                width: '54vh',
-                maxWidth: 440,
-                transform: 'rotate(-90deg)',
-                accentColor: '#facc15',
-                filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))'
-              }}
-            />
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: `${THREE.MathUtils.clamp((shotControl.power - 0.2) / 0.8, 0, 1) * 100}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: 56,
+                  height: 22,
+                  borderRadius: 999,
+                  background: '#facc15',
+                  border: '3px solid #111827',
+                  boxShadow: '0 0 0 2px rgba(255,255,255,.75)'
+                }}
+              />
+            </div>
             <div
               style={{
                 position: 'absolute',
-                right: 8,
-                bottom: -34,
+                right: 0,
+                bottom: -31,
                 color: 'white',
                 fontFamily: 'system-ui,sans-serif',
                 fontSize: 12,
                 fontWeight: 900,
-                textShadow: '0 2px 8px #000'
+                textShadow: '0 2px 8px #000',
+                textAlign: 'center',
+                width: 68
               }}
             >
-              {Math.round(shotControl.power * 100)}%
+              PULL {Math.round(shotControl.power * 100)}%
             </div>
           </div>
 
           <div
             style={{
               position: 'fixed',
-              left: 14,
-              bottom: 18,
+              right: 4,
+              top: '59%',
               zIndex: 4,
               width: 136,
               color: 'white',
@@ -3543,24 +3588,17 @@ export default function FreeKickGame() {
                 🦶
               </div>
             </div>
-            <button
-              type="button"
-              onClick={requestControlledKick}
+            <div
               style={{
-                width: '100%',
-                marginTop: 10,
-                padding: '10px 12px',
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,.72)',
-                background: 'linear-gradient(180deg, #22c55e, #15803d)',
-                color: 'white',
-                fontWeight: 1000,
-                letterSpacing: '.08em',
-                boxShadow: '0 10px 24px rgba(0,0,0,.42)'
+                marginTop: 8,
+                fontSize: 10,
+                fontWeight: 900,
+                textAlign: 'center',
+                opacity: 0.92
               }}
             >
-              KICK
-            </button>
+              RELEASE POWER TO SHOOT
+            </div>
           </div>
         </>
       )}
