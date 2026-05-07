@@ -244,6 +244,9 @@ const BASE_CFG = {
   shootBendDirection: -1,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
+  shootForwardBendScale: 1,
+  shootVerticalBendScale: 1,
+  bridgeHandTablePress: 0.006,
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true
@@ -761,7 +764,7 @@ function driveHuman(human, frame) {
   const leftHand = frame.leftHandWorld.clone()
     .addScaledVector(frame.forward, 0.032 * cfg.unit * ik)
     .addScaledVector(frame.side, bridgeIkHandSide * ik)
-    .addScaledVector(UP, -0.018 * cfg.unit * ik);
+    .addScaledVector(UP, -0.006 * cfg.unit * ik);
   const leftElbow = frame.leftElbow.clone()
     .addScaledVector(frame.forward, 0.045 * cfg.unit * ik)
     .addScaledVector(frame.side, bridgeIkElbowSide * ik)
@@ -828,18 +831,25 @@ export function updateHumanPose(human, dt, frameData) {
   const upperBodyCounterLean = Number.isFinite(cfg.shootUpperBodyCounterLean)
     ? Math.max(0, cfg.shootUpperBodyCounterLean)
     : 1;
+  const forwardBendScale = Number.isFinite(cfg.shootForwardBendScale)
+    ? THREE.MathUtils.clamp(cfg.shootForwardBendScale, 0.25, 1.15)
+    : 1;
+  const verticalBendScale = Number.isFinite(cfg.shootVerticalBendScale)
+    ? THREE.MathUtils.clamp(cfg.shootVerticalBendScale, 0.35, 1.15)
+    : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => value * bendDirection;
+  const shotBendZ = (value) => value * bendDirection * forwardBendScale;
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
+  const shotY = (standing, shooting) => lerp(standing, lerp(standing, shooting, verticalBendScale), t);
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
 
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.025 * t) * cfg.unit, lerp(1.3, 1.14, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.07 * t + 0.012 * powerLean) * cfg.unit, lerp(1.52, 1.24, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.105 * t + 0.016 * powerLean) * cfg.unit, lerp(1.68, 1.28, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.12 * t + 0.018 * powerLean) * cfg.unit, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.075 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.025 * t) * cfg.unit, shotY(1.3, 1.14) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.07 * t + 0.012 * powerLean) * cfg.unit, shotY(1.52, 1.24) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.105 * t + 0.016 * powerLean) * cfg.unit, shotY(1.68, 1.28) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.12 * t + 0.018 * powerLean) * cfg.unit, shotY(1.84, 1.37) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, shotBendZ(lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.075 * t)) * cfg.unit, shotY(1.58, 1.36) * cfg.unit + breath, shotBendZ(lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.058 * t)) * cfg.unit, shotY(1.58, 1.36) * cfg.unit + breath, shotBendZ(lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
@@ -871,7 +881,7 @@ export function updateHumanPose(human, dt, frameData) {
     .addScaledVector(forward, -0.006 * cfg.unit * t)
     .addScaledVector(side, bridgePalmSide * t)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
-    .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
+    .addScaledVector(UP, -cfg.bridgeHandTablePress * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
   const handIk = easeInOut(clamp01(t));
