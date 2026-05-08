@@ -128,8 +128,8 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   missile: 0.032,
   firearmRack: 0.044
 });
-// Lift parked capture vehicles slightly so they read a bit higher on portrait screens.
-const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
+// Keep parked capture vehicles and firearms grounded directly on the table surface.
+const CAPTURE_PARKED_LIFT_OFFSET_Y = 0;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.2,
   helicopter: 1.2 * 1.2,
@@ -517,6 +517,15 @@ function applyModelQualityToObject(root) {
   });
 }
 
+const FIREARM_SHOTGUN_IDS = new Set([
+  'shotgunBlastAttack',
+  'polyShotgun01Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polySawedOff01Attack'
+]);
+const FIREARM_MARKSMAN_IDS = new Set(['sniperShotAttack', 'mosinMarksmanAttack', 'marksmanDmrAttack']);
+const FIREARM_PELLET_IDS = new Set(['fpsGunAttack', ...FIREARM_SHOTGUN_IDS]);
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   mrtkGunAttack: 22,
   pistolHolsterAttack: 14,
@@ -528,22 +537,22 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   ak47VolleyAttack: 30,
   krsvBurstAttack: 30,
   smithSidearmAttack: 16,
-  mosinMarksmanAttack: 10,
+  mosinMarksmanAttack: 1,
   sigsauerTacticalAttack: 20,
   grenadeBlastAttack: 1,
-  shotgunBlastAttack: 8,
-  sniperShotAttack: 10,
+  shotgunBlastAttack: 1,
+  sniperShotAttack: 1,
   smgBurstAttack: 28,
   compactCarbineAttack: 30,
-  marksmanDmrAttack: 20,
-  polyShotgun01Attack: 8,
+  marksmanDmrAttack: 1,
+  polyShotgun01Attack: 1,
   polyAssaultRifle01Attack: 30,
   polyPistol01Attack: 16,
   polyRevolver01Attack: 8,
-  polySawedOff01Attack: 2,
+  polySawedOff01Attack: 1,
   polyRevolver02Attack: 8,
-  polyShotgun02Attack: 10,
-  polyShotgun03Attack: 8,
+  polyShotgun02Attack: 1,
+  polyShotgun03Attack: 1,
   polySmg01Attack: 28
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
@@ -862,15 +871,18 @@ function orientFirearmRackTowardBoardCenter(root, target) {
     orientFirearmRackFlat(root);
     return;
   }
-  const lookTarget = target.clone();
-  lookTarget.y = root.position.y;
-  root.lookAt(lookTarget);
-  // Keep the rack physically flat on table; only yaw may change.
+  const forward = target.clone().sub(root.position).setY(0);
+  if (forward.lengthSq() < 1e-6) {
+    orientFirearmRackFlat(root);
+    return;
+  }
+  root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), forward.normalize());
+  // Keep the rack physically flat on the table surface; only yaw may change.
   root.rotation.x = 0;
   root.rotation.z = 0;
 }
 
-function orientBottomWeaponHolderTowardBoardCenter(entry, boardCenter) {
+function orientWeaponHolderTowardBoardCenter(entry, boardCenter) {
   if (!entry?.weaponHolder?.isObject3D || !boardCenter?.isVector3) return;
   const holderParent = entry.weaponHolder.parent;
   if (!holderParent?.isObject3D) return;
@@ -3311,6 +3323,7 @@ const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 4500;
+const DICE_RESULT_CAMERA_HOLD_MS = 950;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -3457,7 +3470,7 @@ const CAMERA_SIDE_AVATAR_BLEND = 1.08;
 const USER_TURN_CAMERA_PULLBACK = 0;
 const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
-const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
+const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
 const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
 const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
@@ -7691,7 +7704,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
-      if (playerIndex === 0) orientBottomWeaponHolderTowardBoardCenter(entry, arena.boardLookTarget);
+      orientWeaponHolderTowardBoardCenter(entry, arena.boardLookTarget);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7811,7 +7824,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
       orientFirearmRackTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
-      if (playerIndex === 0) orientBottomWeaponHolderTowardBoardCenter(weaponRackFx, arena.boardLookTarget);
+      orientWeaponHolderTowardBoardCenter(weaponRackFx, arena.boardLookTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
@@ -10591,7 +10604,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const mergedBallistics = caliberProfile
             ? { ...ballisticsProfile, ...bridgeBallisticsBias, ...caliberProfile }
             : { ...ballisticsProfile, ...bridgeBallisticsBias };
-          const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
+          const cadenceMs = (FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId) ? 155 : FIREARM_SHOTGUN_IDS.has(resolvedCaptureAnimationId) ? 92 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
           const durationMs = preFireLeadMs + shots * cadenceMs + 760;
@@ -10604,16 +10617,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
           const bulletGeometry = new THREE.SphereGeometry(mergedBallistics.bulletRadius, 10, 10);
           const bulletMaterial = new THREE.MeshStandardMaterial({
-            color: '#d9dde2',
+            color: FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId) ? '#b87333' : '#d9dde2',
             metalness: 0.95,
             roughness: 0.16
           });
-          const bullets = Array.from({ length: shots }, (_, index) => {
+          const pelletsPerShot = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? (FIREARM_SHOTGUN_IDS.has(resolvedCaptureAnimationId) ? 14 : 8) : 1;
+          const projectileCount = shots * pelletsPerShot;
+          const bullets = Array.from({ length: projectileCount }, (_, index) => {
             const mesh = new THREE.Mesh(bulletGeometry, bulletMaterial.clone());
             mesh.visible = false;
             mesh.castShadow = false;
             mesh.receiveShadow = false;
-            mesh.userData.spawnAt = preFireLeadMs + index * cadenceMs;
+            mesh.userData.shotIndex = Math.floor(index / pelletsPerShot);
+            mesh.userData.pelletIndex = index % pelletsPerShot;
+            mesh.userData.spawnAt = preFireLeadMs + mesh.userData.shotIndex * cadenceMs;
             mesh.userData.completed = false;
             scene.add(mesh);
             return mesh;
@@ -10627,8 +10644,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           let shatterDone = false;
           let chipDamageDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
-          const singleShotFirearm = shots <= 1 || resolvedCaptureAnimationId === 'sniperShotAttack' || resolvedCaptureAnimationId === 'fpsGunAttack';
-          const bulletFollowStartIndex = Math.max(0, shots - (singleShotFirearm ? 1 : 3));
+          const singleShotFirearm = shots <= 1 || FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId);
+          const bulletFollowStartIndex = Math.max(0, projectileCount - (singleShotFirearm || FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? pelletsPerShot : 3));
           const aimUp = new THREE.Vector3(0, 1, 0);
           const cameraWorldUp = new THREE.Vector3(0, 1, 0);
           const cinematicAimDir = new THREE.Vector3();
@@ -10765,7 +10782,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               targetReticle.root.visible = false;
             }
             tracers.forEach((entry, idx) => {
-              const active = idx <= shotIdx && idx > shotIdx - 2;
+              const active = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? idx < Math.min(tracers.length, pelletsPerShot) && shotIdx === 0 : idx <= shotIdx && idx > shotIdx - 2;
               entry.root.visible = active;
               if (!active) return;
               const spread = new THREE.Vector3(
@@ -10792,8 +10809,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const cinematicBulletSpeed = mergedBallistics.bulletSpeed * 0.42;
               const shotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * 0.82), 0, 1);
               const start = muzzleOrigin.clone();
-              const end = muzzleTarget.clone();
+              const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
+              const pelletOffset = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId)
+                ? new THREE.Vector3(
+                  Math.cos(pelletIndex * 2.399) * mergedBallistics.tracerSpread * 0.72,
+                  Math.sin(pelletIndex * 2.399) * mergedBallistics.tracerSpread * 0.36,
+                  Math.sin(pelletIndex * 1.719) * mergedBallistics.tracerSpread * 0.72
+                )
+                : new THREE.Vector3();
+              const end = muzzleTarget.clone().add(pelletOffset);
               const bulletPos = start.lerp(end, shotProgress);
+              bulletMesh.rotation.x += singleShotFirearm ? 0.42 : 0.22;
+              bulletMesh.rotation.y += singleShotFirearm ? 0.36 : 0.18;
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
@@ -12738,37 +12765,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
-    const hasBoardMoveOption = options.some((option) => !option.entering);
-    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length || !hasBoardMoveOption;
     scheduleDiceClear();
-    if (!keepTurnCameraFraming) {
-      if (!(isHumanTurn && lockUserTurnSeatViewRef.current)) {
-        setCameraFocus({
-          target: landingFocus,
-          follow: false,
-          ttl: 0.88,
-          priority: 2,
-          offset: CAMERA_TARGET_LIFT + 0.03,
-          force: true
-        });
-      }
-    } else if (!isHumanTurn) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+    if (!isHumanTurn || !lockUserTurnSeatViewRef.current) {
+      setCameraFocus({
+        target: landingFocus,
+        follow: false,
+        priority: 7,
+        offset: CAMERA_TARGET_LIFT + 0.03,
+        force: true
+      });
     }
     if (!options.length) {
-      const playerCycle = Math.max(1, activePlayerCount);
-      const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      if (upcomingTurn !== 0) {
-        setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-        setCameraFocus({ target: resolveTurnLookTarget(upcomingTurn), priority: 1, force: true });
-      } else {
-        preserveUserTurnCameraRef.current = true;
-      }
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
         advanceTurn(value === 6);
-      }, 900);
+      }, DICE_RESULT_CAMERA_HOLD_MS);
       return;
     }
     if (player === 0) {
@@ -12790,9 +12802,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    moveToken(player, choice.token, value, {
-      skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
-    });
+    clearTurnAdvanceTimeout();
+    turnAdvanceTimeoutRef.current = window.setTimeout(() => {
+      turnAdvanceTimeoutRef.current = null;
+      moveToken(player, choice.token, value, {
+        skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
+      });
+    }, DICE_RESULT_CAMERA_HOLD_MS);
   };
 
   rollDiceRef.current = rollDice;
