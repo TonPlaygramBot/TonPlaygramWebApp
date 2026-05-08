@@ -56,8 +56,8 @@ const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: keep the chair ring closer to the table while humans sit back toward the chair backs.
-const CHAIR_GLOBAL_PUSHBACK = 0.52 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.54 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.22 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -239,13 +239,13 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.84; // portrait calibration: shrink board footprint to sit smaller on the table
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // portrait calibration: shrink board footprint to sit smaller and shorter on the table
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
+const PYRAMID_HEIGHT_MULTIPLIER = 0.92; // portrait calibration: shorter, lower pyramid tiers
 const MAX_DICE = 1;
 const DICE_SIZE = TILE_SIZE * 0.61 * 0.8;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -510,14 +510,14 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
 // seats higher on the screen without changing the side players' slots.
 const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom/self player: lift the reserve token farther up from the bottom UI/logo area.
-  TILE_SIZE * 1.42,
+  TILE_SIZE * 2.08,
   0,
   0,
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom/self player: lift parked weapons farther up to visually match the raised token.
-  TILE_SIZE * 1.86,
+  TILE_SIZE * 2.56,
   0,
   TILE_SIZE * 0.46,
   0
@@ -794,9 +794,9 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
 });
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
-  horizontal: Object.freeze({ x: 0.04, y: 0, z: -0.06 }),
+  horizontal: Object.freeze({ x: 0, y: 0, z: 0 }),
   // Portrait screen: left/right player weapons lie flat top-to-bottom on the tabletop.
-  vertical: Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
+  vertical: Object.freeze({ x: 0, y: Math.PI * 0.5, z: 0 })
 });
 const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
   'slot-10-ak47-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal,
@@ -3617,13 +3617,15 @@ function createTileMaterialSet(baseColor, palette = {}) {
     .clone()
     .lerp(topColor.clone(), Number.isFinite(palette.bottomBlend) ? palette.bottomBlend : 0.2);
 
-  const topMaterial = new THREE.MeshStandardMaterial({
+  const topMaterial = new THREE.MeshPhysicalMaterial({
     color: topColor,
-    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.48,
-    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.18,
+    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.34,
+    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.28,
+    clearcoat: Number.isFinite(palette.topClearcoat) ? palette.topClearcoat : 0.42,
+    clearcoatRoughness: Number.isFinite(palette.topClearcoatRoughness) ? palette.topClearcoatRoughness : 0.18,
     emissive: toThreeColor(palette.topEmissive, 0x101321),
-    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.18,
-    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.45
+    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.22,
+    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.68
   });
   topMaterial.shadowSide = THREE.DoubleSide;
 
@@ -4396,7 +4398,13 @@ function buildSnakeBoard(
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
       : new THREE.Color(tileSpec.color);
     const materialSet = createTileMaterialSet(baseColor, boardTheme);
-    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileHeight, tileSpec.size);
+    const tileGeo = makeRoundedBoxGeometry(
+      tileSpec.size,
+      tileHeight,
+      tileSpec.size,
+      Math.min(tileSpec.size, tileHeight) * 0.12,
+      5
+    );
     const tile = new THREE.Mesh(tileGeo, materialSet.materials);
     tile.position.set(tileSpec.x, tileSpec.y, tileSpec.z);
     tile.castShadow = true;
@@ -5890,10 +5898,8 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
           parkingPose === 'horizontal' ? FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType] : null;
         if (parkedRotation) {
           model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
-        } else {
-          applyFlatTableWeaponParkingPose(model, parkingPose);
         }
-        model.position.y -= TOKEN_HEIGHT * 1.32;
+        applyFlatTableWeaponParkingPose(model, parkingPose);
         holder.add(model);
       })
       .catch(() => {});
