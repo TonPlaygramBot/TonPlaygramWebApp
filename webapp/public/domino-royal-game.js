@@ -1071,8 +1071,8 @@ const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.46;
 const CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT = 0.14;
 const CAMERA_TURN_SIDE_SEAT_SCREEN_OFFSET = 0.2 * MODEL_SCALE;
-const CAMERA_DOMINO_FOCUS_HOLD_MS = 1700;
-const TURN_ADVANCE_AFTER_PLACEMENT_MS = 1650;
+const CAMERA_DOMINO_FOCUS_HOLD_MS = 1250;
+const TURN_ADVANCE_AFTER_PLACEMENT_MS = 950;
 const PASS_TURN_ADVANCE_DELAY_MS = 680;
 const UP = new THREE.Vector3(0, 1, 0);
 const USE_MINIMAL_STAGE = true;
@@ -7168,13 +7168,8 @@ const OPENING_SHUFFLE_ANIM_DURATION = 620;
 const OPENING_DEAL_ANIM_DURATION = 560;
 const OPENING_DEAL_STEP_DELAY = 76;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 1320;
-const PLACE_ANIM_ARC = 0.075;
-const PLACE_PICK_HOLD_RATIO = 0.18;
-const PLACE_TRAVEL_END_RATIO = 0.82;
-const PLACE_TOUCH_DOWN_RATIO = 0.94;
-const PLACE_PICK_LIFT = 0.028;
-const PLACE_TOUCH_HOVER = 0.018;
+const PLACE_ANIM_DURATION = OPENING_DEAL_ANIM_DURATION;
+const PLACE_ANIM_ARC = 0.05;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
@@ -8255,13 +8250,9 @@ function makeDominoPose(base, offsets = {}) {
 }
 
 function applyDominoRigPose(rig, pose, alpha = 1) {
-  applyDominoRigPoseBetween(rig, rig?.seatedPose || rig?.defaultPose, pose, alpha);
-}
-
-function applyDominoRigPoseBetween(rig, fromPose, toPose, alpha = 1) {
   Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
-    const target = toPose?.[key];
-    const home = fromPose?.[key] || rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    const target = pose?.[key];
+    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
     if (!bone || !target || !home) return;
     bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
     bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
@@ -8315,15 +8306,6 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
     rightUpperArm: findDominoBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
     rightForeArm: findDominoBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
     rightHand: findDominoBone(instance, ['righthand', 'hand.r', 'r_hand']),
-    rightThumb1: findDominoBone(instance, ['righthandthumb1', 'rightthumb1', 'thumb1.r', 'r_thumb1']),
-    rightThumb2: findDominoBone(instance, ['righthandthumb2', 'rightthumb2', 'thumb2.r', 'r_thumb2']),
-    rightThumb3: findDominoBone(instance, ['righthandthumb3', 'rightthumb3', 'thumb3.r', 'r_thumb3']),
-    rightIndex1: findDominoBone(instance, ['righthandindex1', 'rightindex1', 'index1.r', 'r_index1']),
-    rightIndex2: findDominoBone(instance, ['righthandindex2', 'rightindex2', 'index2.r', 'r_index2']),
-    rightIndex3: findDominoBone(instance, ['righthandindex3', 'rightindex3', 'index3.r', 'r_index3']),
-    rightMiddle1: findDominoBone(instance, ['righthandmiddle1', 'rightmiddle1', 'middle1.r', 'r_middle1']),
-    rightMiddle2: findDominoBone(instance, ['righthandmiddle2', 'rightmiddle2', 'middle2.r', 'r_middle2']),
-    rightMiddle3: findDominoBone(instance, ['righthandmiddle3', 'rightmiddle3', 'middle3.r', 'r_middle3']),
     leftUpperArm: findDominoBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
     leftForeArm: findDominoBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
     leftHand: findDominoBone(instance, ['lefthand', 'hand.l', 'l_hand']),
@@ -8342,8 +8324,6 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
   addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
   addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
-  ['rightThumb1', 'rightIndex1', 'rightMiddle1'].forEach((key) => addDominoBoneOffset(bones[key], THREE.MathUtils.degToRad(8), 0, 0));
-  ['rightThumb2', 'rightThumb3', 'rightIndex2', 'rightIndex3', 'rightMiddle2', 'rightMiddle3'].forEach((key) => addDominoBoneOffset(bones[key], THREE.MathUtils.degToRad(10), 0, 0));
   addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
@@ -8551,71 +8531,34 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
   if (!rig?.seatedPose) return;
   const now = performance.now();
   const base = rig.seatedPose;
-  const pinchCurl = {
-    rightThumb1: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(8) },
-    rightThumb2: { x: THREE.MathUtils.degToRad(30) },
-    rightThumb3: { x: THREE.MathUtils.degToRad(22) },
-    rightIndex1: { x: THREE.MathUtils.degToRad(36), z: THREE.MathUtils.degToRad(-5) },
-    rightIndex2: { x: THREE.MathUtils.degToRad(42) },
-    rightIndex3: { x: THREE.MathUtils.degToRad(28) },
-    rightMiddle1: { x: THREE.MathUtils.degToRad(26), z: THREE.MathUtils.degToRad(-3) },
-    rightMiddle2: { x: THREE.MathUtils.degToRad(34) },
-    rightMiddle3: { x: THREE.MathUtils.degToRad(22) }
-  };
-  const openFingers = {
-    rightThumb1: { x: THREE.MathUtils.degToRad(-7), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(-5) },
-    rightThumb2: { x: THREE.MathUtils.degToRad(-10) },
-    rightIndex1: { x: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(4) },
-    rightIndex2: { x: THREE.MathUtils.degToRad(-12) },
-    rightMiddle1: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(3) },
-    rightMiddle2: { x: THREE.MathUtils.degToRad(-9) }
-  };
   const reach = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-14) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-72), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-22) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(4) },
-    rightHand: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(-19), z: THREE.MathUtils.degToRad(-13) },
-    head: { x: THREE.MathUtils.degToRad(-9) },
-    ...openFingers
-  });
-  const grip = makeDominoPose(reach, pinchCurl);
-  const carry = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-4) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-36), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-19) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(3) },
-    rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-8) },
-    head: { x: THREE.MathUtils.degToRad(-5) },
-    ...pinchCurl
+    spine: { x: THREE.MathUtils.degToRad(-13) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
+    rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
+    head: { x: THREE.MathUtils.degToRad(-8) }
   });
   const place = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -8 : 11) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -26 : 38), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-18) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 34 : 58), y: THREE.MathUtils.degToRad(2) },
-    rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 18), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-4) },
-    ...pinchCurl
+    spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -8 : 10) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -26 : 34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 34 : 54) },
+    rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 16), y: THREE.MathUtils.degToRad(-6) }
   });
-  const release = makeDominoPose(place, openFingers);
   dominoCharacterActions.push(
-    { start: now, duration: 260, update: (t) => applyDominoRigPoseBetween(rig, base, reach, t) },
-    { start: now + 260, duration: 220, update: (t) => applyDominoRigPoseBetween(rig, reach, grip, t) },
-    { start: now + 480, duration: 430, update: (t) => applyDominoRigPoseBetween(rig, grip, carry, t) },
-    { start: now + 910, duration: 330, update: (t) => applyDominoRigPoseBetween(rig, carry, place, t) },
-    { start: now + 1240, duration: 190, update: (t) => applyDominoRigPoseBetween(rig, place, release, t) },
-    { start: now + 1430, duration: 360, update: (t) => applyDominoRigPoseBetween(rig, release, base, t) }
+    { start: now, duration: 180, update: (t) => applyDominoRigPose(rig, reach, t) },
+    { start: now + 180, duration: 240, update: (t) => applyDominoRigPose(rig, place, t) },
+    { start: now + 420, duration: 280, update: (t) => applyDominoRigPose(rig, base, t) }
   );
 }
 
 function stepDominoCharacterActions(now = performance.now()) {
-  for (let i = 0; i < dominoCharacterActions.length; i++) {
+  for (let i = dominoCharacterActions.length - 1; i >= 0; i--) {
     const action = dominoCharacterActions[i];
     const elapsed = now - action.start;
     if (elapsed < 0) continue;
     const t = Math.min(1, elapsed / Math.max(1, action.duration || 1));
     action.update?.(1 - Math.pow(1 - t, 3));
-    if (t >= 1) {
-      dominoCharacterActions.splice(i, 1);
-      i -= 1;
-    }
+    if (t >= 1) dominoCharacterActions.splice(i, 1);
   }
 }
 
@@ -9659,11 +9602,6 @@ function spawnPlacementAnimation(
     startTime: performance.now(),
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
-    pickHoldRatio: PLACE_PICK_HOLD_RATIO,
-    travelEndRatio: PLACE_TRAVEL_END_RATIO,
-    touchDownRatio: PLACE_TOUCH_DOWN_RATIO,
-    pickLift: PLACE_PICK_LIFT,
-    touchHover: PLACE_TOUCH_HOVER,
     segment
   });
 }
@@ -11615,39 +11553,19 @@ function updatePlacementAnimations(now) {
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
     const ease = 1 - Math.pow(1 - t, 3);
 
-    const pickHoldRatio = Math.min(0.45, Math.max(0, anim.pickHoldRatio ?? PLACE_PICK_HOLD_RATIO));
-    const travelEndRatio = Math.min(0.9, Math.max(pickHoldRatio + 0.05, anim.travelEndRatio ?? PLACE_TRAVEL_END_RATIO));
-    const touchDownRatio = Math.min(0.98, Math.max(travelEndRatio + 0.02, anim.touchDownRatio ?? PLACE_TOUCH_DOWN_RATIO));
-    let travelEase = 0;
-    let verticalLift = 0;
-    if (t < pickHoldRatio) {
-      const grabT = t / Math.max(0.001, pickHoldRatio);
-      verticalLift = Math.sin(grabT * Math.PI * 0.5) * (anim.pickLift ?? PLACE_PICK_LIFT);
-    } else if (t < travelEndRatio) {
-      const travelT = (t - pickHoldRatio) / Math.max(0.001, travelEndRatio - pickHoldRatio);
-      travelEase = travelT < 0.5
-        ? 4 * travelT * travelT * travelT
-        : 1 - Math.pow(-2 * travelT + 2, 3) / 2;
-      verticalLift = (anim.pickLift ?? PLACE_PICK_LIFT) + Math.sin(Math.PI * travelEase) * (anim.arc || 0);
-    } else if (t < touchDownRatio) {
-      travelEase = 1;
-      const settleT = (t - travelEndRatio) / Math.max(0.001, touchDownRatio - travelEndRatio);
-      verticalLift = (1 - settleT) * (anim.touchHover ?? PLACE_TOUCH_HOVER);
-    } else {
-      travelEase = 1;
+    const pos = anim.start.clone().lerp(anim.end, ease);
+    if (anim.arc) {
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
-
-    const pos = anim.start.clone().lerp(anim.end, travelEase);
-    pos.y += verticalLift;
     anim.mesh.position.copy(pos);
 
     if (anim.endQuat && anim.startQuat) {
-      const quat = anim.startQuat.clone().slerp(anim.endQuat, travelEase);
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
       anim.mesh.quaternion.copy(quat);
     }
 
     if (anim.endScale && anim.startScale) {
-      const scale = anim.startScale.clone().lerp(anim.endScale, travelEase);
+      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
       anim.mesh.scale.copy(scale);
     }
 
