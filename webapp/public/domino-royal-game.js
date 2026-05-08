@@ -7919,14 +7919,10 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
 ]);
 const DOMINO_CHARACTER_PROPORTION_SCALE = 2.55;
 const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.55;
-const DOMINO_CHARACTER_CHAIR_COORDINATE_OUTWARD_RATIO = 0.52;
-const DOMINO_CHARACTER_CHAIR_PUSHBACK_OFFSET = 0.02;
-const DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET =
-  CHAIR_DIMENSIONS.seatDepth *
-    CHAIR_VISUAL_SCALE *
-    DOMINO_CHARACTER_CHAIR_COORDINATE_OUTWARD_RATIO +
-  DOMINO_CHARACTER_CHAIR_PUSHBACK_OFFSET;
-const DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.16; // portrait-calibrated push toward the chair, away from the table.
+// Seat avatars from the chair footprint instead of adding a table-facing Z offset.
+// This keeps every human visually aligned with the chair that owns the seat.
+const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.1;
+const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.04;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
 const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
 const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
@@ -8306,6 +8302,108 @@ function refreshAllDominoCharacterRacks() {
   });
 }
 
+function getDominoChairLocalFootprint(chairWrapper) {
+  const chairModel = chairWrapper?.userData?.dominoCharacterChair;
+  if (!chairWrapper || !chairModel) {
+    return {
+      center: new THREE.Vector3(
+        0,
+        0,
+        TARGET_CHAIR_CENTER_Z * CHAIR_VISUAL_SCALE
+      ),
+      size: new THREE.Vector3(
+        TARGET_CHAIR_SIZE.x * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.y * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.z * CHAIR_VISUAL_SCALE
+      )
+    };
+  }
+  chairWrapper.updateWorldMatrix(true, true);
+  const worldBounds = new THREE.Box3().setFromObject(chairModel);
+  if (worldBounds.isEmpty()) {
+    return {
+      center: new THREE.Vector3(
+        0,
+        0,
+        TARGET_CHAIR_CENTER_Z * CHAIR_VISUAL_SCALE
+      ),
+      size: new THREE.Vector3(
+        TARGET_CHAIR_SIZE.x * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.y * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.z * CHAIR_VISUAL_SCALE
+      )
+    };
+  }
+  const min = chairWrapper.worldToLocal(worldBounds.min.clone());
+  const max = chairWrapper.worldToLocal(worldBounds.max.clone());
+  const localBounds = new THREE.Box3().setFromPoints([min, max]);
+  return {
+    center: localBounds.getCenter(new THREE.Vector3()),
+    size: localBounds.getSize(new THREE.Vector3())
+  };
+}
+
+function getDominoChairLocalOutwardDirection(chairWrapper) {
+  if (!chairWrapper) return new THREE.Vector3(0, 0, -1);
+  chairWrapper.updateWorldMatrix(true, false);
+  const originWorld = chairWrapper.getWorldPosition(new THREE.Vector3());
+  const tableWorld = tableG?.getWorldPosition
+    ? tableG.getWorldPosition(new THREE.Vector3())
+    : new THREE.Vector3(0, originWorld.y, 0);
+  const outwardWorld = originWorld.clone().sub(tableWorld);
+  outwardWorld.y = 0;
+  if (outwardWorld.lengthSq() === 0) {
+    outwardWorld.set(0, 0, 1);
+  } else {
+    outwardWorld.normalize();
+  }
+  const localOrigin = chairWrapper.worldToLocal(originWorld.clone());
+  const localOutward = chairWrapper.worldToLocal(
+    originWorld.clone().add(outwardWorld)
+  );
+  localOutward.sub(localOrigin);
+  localOutward.y = 0;
+  if (localOutward.lengthSq() === 0) {
+    localOutward.set(0, 0, -1);
+  } else {
+    localOutward.normalize();
+  }
+  return localOutward;
+}
+
+function resolveDominoCharacterSeatPosition(
+  chairWrapper,
+  theme,
+  scaleDelta,
+  isHumanSeat
+) {
+  const visibleSeatLift = Number.isFinite(
+    chairWrapper?.userData?.dominoCharacterSeatLift
+  )
+    ? chairWrapper.userData.dominoCharacterSeatLift
+    : 0;
+  const footprint = getDominoChairLocalFootprint(chairWrapper);
+  const outward = getDominoChairLocalOutwardDirection(chairWrapper);
+  const seatDepth = Math.max(
+    0.01,
+    footprint.size.z || CHAIR_DIMENSIONS.seatDepth * CHAIR_VISUAL_SCALE
+  );
+  const outwardBias =
+    DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS : 0);
+  const position = footprint.center
+    .clone()
+    .addScaledVector(outward, seatDepth * outwardBias);
+  position.y =
+    visibleSeatLift +
+    (theme.seatOffsetY ?? -0.4) -
+    0.22 -
+    scaleDelta * 0.08 -
+    DOMINO_CHARACTER_EXTRA_LOWER_OFFSET +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0);
+  return position;
+}
+
 function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   const theme = getDominoCharacterThemeForSeat(seatIndex);
   const instance = cloneSkeleton(template);
@@ -8329,19 +8427,8 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   const seatScale = (theme.scale || 1) * characterScale;
   const scaleDelta = Math.max(0, characterScale - 1);
   seatRoot.scale.setScalar(seatScale);
-  const visibleSeatLift = Number.isFinite(chair?.userData?.dominoCharacterSeatLift)
-    ? chair.userData.dominoCharacterSeatLift
-    : 0;
-  seatRoot.position.set(
-    0,
-    visibleSeatLift +
-      (theme.seatOffsetY ?? -0.4) -
-      0.22 -
-      scaleDelta * 0.08 -
-      DOMINO_CHARACTER_EXTRA_LOWER_OFFSET +
-      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0),
-    (theme.seatOffsetZ ?? 0.52) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET +
-      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET : 0)
+  seatRoot.position.copy(
+    resolveDominoCharacterSeatPosition(chair, theme, scaleDelta, isHumanSeat)
   );
   seatRoot.add(instance);
   const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
