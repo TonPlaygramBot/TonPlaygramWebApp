@@ -269,11 +269,17 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   })
 });
 const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
-  Object.freeze({ side: 0.012, inward: -0.008 }), // bottom
+  // Portrait top/bottom players need their firearms tucked closer to the tabletop/board
+  // edge while pointing straight across to the opposite side.
+  Object.freeze({ side: 0.012, inward: 0.052 }), // bottom
   Object.freeze({ side: 0.008, inward: 0.004 }), // right
-  Object.freeze({ side: -0.012, inward: -0.008 }), // top
+  Object.freeze({ side: -0.012, inward: 0.052 }), // top
   Object.freeze({ side: -0.008, inward: 0.004 }) // left
 ]);
+const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
+  0: 2,
+  2: 0
+});
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -891,10 +897,23 @@ function orientWeaponHolderTowardBoardCenter(entry, boardCenter) {
   lookTarget.y = holderWorld.y;
   const inward = lookTarget.sub(holderWorld);
   if (inward.lengthSq() < 1e-8) return;
-  // Align the local +Z axis (weapon muzzle direction) toward table center.
+  // Align the local +Z axis (weapon muzzle direction) toward the requested target.
   const worldQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), inward.normalize());
   const parentQuatInv = holderParent.getWorldQuaternion(new THREE.Quaternion()).invert();
   entry.weaponHolder.quaternion.copy(parentQuatInv.multiply(worldQuat));
+}
+
+function resolveFirearmRackAimTarget(arena, playerIndex, getKingTokenPositionForPlayer) {
+  const oppositePlayerIndex = FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER[playerIndex];
+  if (Number.isFinite(oppositePlayerIndex)) {
+    const oppositeKingPos = getKingTokenPositionForPlayer?.(oppositePlayerIndex);
+    if (oppositeKingPos?.isVector3) return oppositeKingPos;
+    const oppositeSeatAnchor = arena?.seatAnchors?.[oppositePlayerIndex];
+    if (oppositeSeatAnchor?.isObject3D) {
+      return oppositeSeatAnchor.getWorldPosition(new THREE.Vector3());
+    }
+  }
+  return arena?.boardLookTarget?.isVector3 ? arena.boardLookTarget : null;
 }
 
 function resolveFirearmBallisticsProfile(captureAnimationId = '') {
@@ -7703,8 +7722,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
-      orientFirearmRackTowardBoardCenter(entry.weaponRack, arena.boardLookTarget);
-      orientWeaponHolderTowardBoardCenter(entry, arena.boardLookTarget);
+      const firearmAimTarget =
+        resolveFirearmRackAimTarget(
+          arena,
+          playerIndex,
+          getKingTokenPositionForPlayer
+        ) ?? arena.boardLookTarget;
+      orientFirearmRackTowardBoardCenter(entry.weaponRack, firearmAimTarget);
+      orientWeaponHolderTowardBoardCenter(entry, firearmAimTarget);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
@@ -7823,8 +7848,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
-      orientFirearmRackTowardBoardCenter(weaponRackFx.root, arena.boardLookTarget);
-      orientWeaponHolderTowardBoardCenter(weaponRackFx, arena.boardLookTarget);
+      const firearmAimTarget =
+        resolveFirearmRackAimTarget(
+          arena,
+          playerIndex,
+          getKingTokenPositionForPlayer
+        ) ?? arena.boardLookTarget;
+      orientFirearmRackTowardBoardCenter(weaponRackFx.root, firearmAimTarget);
+      orientWeaponHolderTowardBoardCenter(weaponRackFx, firearmAimTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
