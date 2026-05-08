@@ -506,10 +506,18 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
-// Portrait phone calibration: visually move only the bottom/top players' parked
-// weapons higher on the screen without changing the side players' slots.
+// Portrait phone calibration: visually move only parked items for selected
+// seats higher on the screen without changing the side players' slots.
+const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
+  // Bottom/self player: lift the reserve token away from the bottom UI/logo area.
+  TILE_SIZE * 0.42,
+  0,
+  0,
+  0
+]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.46,
+  // Bottom/self player: lift parked weapons to visually match the raised token.
+  TILE_SIZE * 0.84,
   0,
   TILE_SIZE * 0.46,
   0
@@ -4966,7 +4974,10 @@ function updateTokens(
               .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
               .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
           }
-          worldPos.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+          worldPos.addScaledVector(
+            BOARD_FRONT_VECTOR,
+            -(PARKING_TOP_SCREEN_WORLD_SHIFT + (TOKEN_TOP_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? 0))
+          );
           worldPos.y = railLayout.railHeightY + (portraitShift?.y ?? 0) + PARKING_VERTICAL_LIFT;
         }
       }
