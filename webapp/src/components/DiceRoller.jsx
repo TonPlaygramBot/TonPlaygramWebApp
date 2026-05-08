@@ -79,21 +79,22 @@ export default function DiceRoller({
 
     const tick = 50; // ms between face changes
     const iterations = 20; // ~1 second of rolling
+    const finalResults = Array.from({ length: numDice }, rand);
     let count = 0;
 
     const id = setInterval(() => {
-      const results = Array.from({ length: numDice }, rand);
-      setValues(results);
       count += 1;
+      const results = count >= iterations ? finalResults : Array.from({ length: numDice }, rand);
+      setValues(results);
       if (count >= iterations) {
         clearInterval(id);
-        // allow the final face to be visible before stopping
+        // The face shown on the dice is the exact value emitted to game logic.
         setTimeout(() => {
           setRolling(false);
-          startValuesRef.current = results;
-          onRollEnd && onRollEnd(results);
+          startValuesRef.current = finalResults;
+          onRollEnd && onRollEnd(finalResults);
           if (emitRollEvent) {
-            socket.emit('rollDice');
+            socket.emit('rollDice', { values: finalResults });
           }
         }, tick);
       }
