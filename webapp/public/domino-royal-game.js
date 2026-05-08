@@ -1010,7 +1010,7 @@ const CARPET_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.2;
 const FLOOR_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 3.2;
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
-const CAMERA_FOV = 52;
+const CAMERA_FOV = 48;
 const CAMERA_NEAR = 0.1;
 const CAMERA_FAR = 5000;
 const CAMERA_MIN_POLAR = 0.92;
@@ -1021,7 +1021,7 @@ const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(
   0.35
 );
 const CAMERA_BASE_RADIUS = CAMERA_REFERENCE_TABLE_RADIUS;
-const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
+const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.45;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
@@ -1030,12 +1030,12 @@ const CAMERA_LATERAL_OFFSET = {
   landscape: 0 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_REAR_OFFSET = {
-  portrait: 0.72 * CAMERA_LAYOUT_SCALE,
-  landscape: 0.68 * CAMERA_LAYOUT_SCALE
+  portrait: 0.42 * CAMERA_LAYOUT_SCALE,
+  landscape: 0.52 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_HEIGHT_BOOST = {
-  portrait: 3.05 * CAMERA_LAYOUT_SCALE,
-  landscape: 1.12 * CAMERA_LAYOUT_SCALE
+  portrait: 2.58 * CAMERA_LAYOUT_SCALE,
+  landscape: 1.02 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_PORTRAIT_LOOKDOWN_EXTRA = 0.14 * MODEL_SCALE;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
@@ -6673,12 +6673,12 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.16;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.14;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 1.84;
-const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.065;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.08;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.175;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.82;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.36;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.42;
+const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.22;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.38;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
@@ -8230,12 +8230,12 @@ function createHeldDominoRack(seatIndex, handTiles = []) {
     const mini = makeDomino(tile.a ?? 0, tile.b ?? 0, { flat: false, faceUp: true });
     const centered = index - (tiles.length - 1) / 2;
     mini.scale.setScalar(0.34);
-    mini.position.set(centered * 0.12 * MODEL_SCALE, (1.22 + Math.abs(centered) * 0.012) * MODEL_SCALE, 0.42 * MODEL_SCALE + index * 0.006);
+    mini.position.set(centered * 0.12 * MODEL_SCALE, (1.34 + Math.abs(centered) * 0.012) * MODEL_SCALE, 0.5 * MODEL_SCALE + index * 0.006);
     mini.rotation.set(THREE.MathUtils.degToRad(-74), THREE.MathUtils.degToRad(centered * -7), THREE.MathUtils.degToRad(centered * 10));
     rack.add(mini);
   });
   const isBottom = seatIndex === human;
-  rack.position.set(0, isBottom ? 1.48 * MODEL_SCALE : 2.45 * MODEL_SCALE, isBottom ? -0.12 * MODEL_SCALE : -1.48 * MODEL_SCALE);
+  rack.position.set(0, isBottom ? 1.62 * MODEL_SCALE : 2.58 * MODEL_SCALE, isBottom ? -0.2 * MODEL_SCALE : -1.66 * MODEL_SCALE);
   rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
   rack.scale.setScalar(isBottom ? 1.28 : 1.1);
   rack.userData.signature = desiredSignature;
