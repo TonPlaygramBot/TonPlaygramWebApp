@@ -12952,124 +12952,6 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
-
-function tunePoolRoyaleExternalTableVerticalProportions(model, tableModel = null) {
-  if (!model || !tableModel) return;
-  const railScale = Number.isFinite(tableModel.railBottomTrimScale)
-    ? THREE.MathUtils.clamp(tableModel.railBottomTrimScale, 0.35, 1)
-    : 1;
-  const baseScale = Number.isFinite(tableModel.baseHeightScale)
-    ? THREE.MathUtils.clamp(tableModel.baseHeightScale, 1, 1.6)
-    : 1;
-  if (Math.abs(railScale - 1) <= MICRO_EPS && Math.abs(baseScale - 1) <= MICRO_EPS) return;
-
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const fullSize = fullBox.getSize(new THREE.Vector3());
-  const lowerCutoff = fullBox.min.y + fullSize.y * 0.48;
-  const upperCutoff = fullBox.min.y + fullSize.y * 0.58;
-  const tableTop = fullBox.max.y;
-  const floorY = fullBox.min.y;
-  const center = new THREE.Vector3();
-
-  model.traverse((child) => {
-    if (!child?.isMesh) return;
-    const material = Array.isArray(child.material) ? child.material[0] : child.material;
-    const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    if (role !== 'wood') return;
-    const childBox = new THREE.Box3().setFromObject(child);
-    if (childBox.isEmpty()) return;
-    childBox.getCenter(center);
-    if (center.y >= upperCutoff && railScale < 1) {
-      const worldPos = child.getWorldPosition(new THREE.Vector3());
-      const targetWorldY = tableTop - (tableTop - worldPos.y) * railScale;
-      child.scale.y *= railScale;
-      if (child.parent) {
-        const localPos = child.parent.worldToLocal(worldPos.setY(targetWorldY));
-        child.position.y = localPos.y;
-      }
-      child.userData = {
-        ...(child.userData || {}),
-        poolRoyaleExternalRailBottomTrimScale: railScale
-      };
-    } else if (center.y <= lowerCutoff && baseScale > 1) {
-      const worldPos = child.getWorldPosition(new THREE.Vector3());
-      const targetWorldY = floorY + (worldPos.y - floorY) * baseScale;
-      child.scale.y *= baseScale;
-      if (child.parent) {
-        const localPos = child.parent.worldToLocal(worldPos.setY(targetWorldY));
-        child.position.y = localPos.y;
-      }
-      child.userData = {
-        ...(child.userData || {}),
-        poolRoyaleExternalBaseHeightScale: baseScale
-      };
-    }
-  });
-  model.updateMatrixWorld(true);
-}
-
-function addPoolRoyaleExternalLegLevelers(model, tableModel = null) {
-  if (!model || !tableModel?.addGeneratedLegLevelers) return;
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const size = fullBox.getSize(new THREE.Vector3());
-  const levelerRadius = Math.max(BALL_R * 0.52, Math.min(size.x, size.z) * 0.022);
-  const levelerHeight = Math.max(BALL_R * 0.16, levelerRadius * 0.18);
-  const stemRadius = levelerRadius * LEG_LEVELER_STEM_RADIUS_SCALE;
-  const stemHeight = Math.max(BALL_R * 0.16, levelerHeight * 1.25);
-  const rubberHeight = Math.max(BALL_R * 0.08, levelerHeight * LEG_LEVELER_RUBBER_RING_HEIGHT_SCALE);
-  const insetX = size.x * 0.23;
-  const insetZ = size.z * 0.24;
-  const y = fullBox.min.y - rubberHeight;
-  const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xdbeafe,
-    metalness: 0.94,
-    roughness: 0.2,
-    envMapIntensity: 1.3
-  });
-  const rubberMat = new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    metalness: 0.02,
-    roughness: 0.82
-  });
-  const discGeo = new THREE.CylinderGeometry(levelerRadius * 0.84, levelerRadius, levelerHeight, 42);
-  const stemGeo = new THREE.CylinderGeometry(stemRadius, stemRadius, stemHeight, 32);
-  const rubberGeo = new THREE.CylinderGeometry(
-    levelerRadius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
-    levelerRadius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
-    rubberHeight,
-    42
-  );
-  const group = new THREE.Group();
-  group.name = 'showood-generated-chrome-leg-levelers';
-  [
-    [fullBox.min.x + insetX, fullBox.min.z + insetZ],
-    [fullBox.max.x - insetX, fullBox.min.z + insetZ],
-    [fullBox.min.x + insetX, fullBox.max.z - insetZ],
-    [fullBox.max.x - insetX, fullBox.max.z - insetZ]
-  ].forEach(([x, z]) => {
-    const foot = new THREE.Group();
-    foot.position.copy(model.worldToLocal(new THREE.Vector3(x, y, z)));
-    const rubber = new THREE.Mesh(rubberGeo, rubberMat);
-    rubber.position.y = rubberHeight * 0.5;
-    rubber.receiveShadow = true;
-    const disc = new THREE.Mesh(discGeo, chromeMat);
-    disc.position.y = rubberHeight + levelerHeight * 0.5;
-    disc.castShadow = true;
-    disc.receiveShadow = true;
-    const stem = new THREE.Mesh(stemGeo, chromeMat);
-    stem.position.y = rubberHeight + levelerHeight + stemHeight * 0.5 - MICRO_EPS;
-    stem.castShadow = true;
-    stem.receiveShadow = true;
-    foot.add(rubber, disc, stem);
-    group.add(foot);
-  });
-  model.add(group);
-}
-
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -13131,8 +13013,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
-  tunePoolRoyaleExternalTableVerticalProportions(model, tableModel);
-  addPoolRoyaleExternalLegLevelers(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
@@ -13868,10 +13748,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
-          (
-            object.userData?.externalTableKeepVisible &&
-            (!externalTableModelForMount?.useOriginalLayoutSurfaces || externalTableModelForMount?.forceGeneratedPocketHolders)
-          ) ||
+          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
       ) {
