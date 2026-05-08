@@ -25804,6 +25804,7 @@ const shotPowerRef = useRef(0);
             // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
             // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
+            shootBendTowardCueStick: true,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0.72,
             shootForwardBendScale: 0.62,

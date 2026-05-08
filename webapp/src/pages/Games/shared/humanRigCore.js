@@ -238,10 +238,11 @@ const BASE_CFG = {
   groundY: 0,
   perimeterWalk: false,
   perimeterWalkSpeed: 4.0,
-  // The shooting pose bends the upper body away from the cue-side fold while the
-  // IK feet stay planted on the floor. Pool Royale can override the strength,
-  // but the default keeps spine/chest/head targets on the opposite side.
+  // The shooting pose can lock the upper-body fold to the live cue/bridge target
+  // so the avatar leans toward the cue stick instead of relying on a fixed local
+  // Z sign that may read as backwards after table/camera orientation changes.
   shootBendDirection: -1,
+  shootBendTowardCueStick: false,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
   shootForwardBendScale: 1,
@@ -833,7 +834,19 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootForwardBendScale)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => value * bendDirection * forwardBendScale;
+  const cueBendReference = cfg.shootBendTowardCueStick
+    ? frameData.bridgeTarget || frameData.cueTip || frameData.gripTarget || null
+    : null;
+  const cueBendLocalZ = cueBendReference
+    ? cueBendReference.clone().sub(human.root.position).applyAxisAngle(Y_AXIS, -human.yaw).z
+    : 0;
+  const cueBendSign = Math.abs(cueBendLocalZ) > 1e-5 ? Math.sign(cueBendLocalZ) : 0;
+  const shotBendZ = (value) => {
+    if (cfg.shootBendTowardCueStick && cueBendSign !== 0) {
+      return Math.abs(value) * cueBendSign * forwardBendScale;
+    }
+    return value * bendDirection * forwardBendScale;
+  };
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;

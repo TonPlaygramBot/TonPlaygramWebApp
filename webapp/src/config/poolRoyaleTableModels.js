@@ -24,7 +24,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1.055,
+    fitScale: 1.08,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
