@@ -255,7 +255,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const HUMAN_CHAIR_PULLBACK = -0.3 * MODEL_SCALE;
+const HUMAN_CHAIR_PULLBACK = -0.42 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -264,7 +264,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
-const AI_CHAIR_GAP = CARD_W * 0.4;
+const AI_CHAIR_GAP = CARD_W * 0.1;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
@@ -398,6 +398,7 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 }
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 1.12 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
+const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.16;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
@@ -657,7 +658,8 @@ const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
 const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
 const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
-const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.24;
+const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 0.24;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.34;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.14;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
@@ -1465,7 +1467,11 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     seatRoot.position.set(
       0,
       baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET - humanLowerOffset,
-      baseSeatOffsetZ - 0.03 - TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET - humanTableInwardOffset
+      baseSeatOffsetZ -
+        0.03 -
+        TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET +
+        TEXAS_CHARACTER_TABLE_INWARD_OFFSET +
+        humanTableInwardOffset
     );
     seatRoot.add(instance);
     seatGroup.group.add(seatRoot);
@@ -5219,7 +5225,9 @@ function TexasHoldemArena({ search }) {
         railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
         focus.copy(potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND));
       }
-      if (!portrait) {
+      if (portrait) {
+        focus.y += CAMERA_PORTRAIT_LOOK_UP_LIFT;
+      } else {
         focus.y += CAMERA_LANDSCAPE_LOOK_UP_LIFT;
         focus.addScaledVector(humanSeat.right, CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT);
       }
