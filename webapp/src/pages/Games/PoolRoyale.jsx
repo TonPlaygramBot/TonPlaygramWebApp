@@ -12608,12 +12608,12 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/diamond|gold|metal|chrome|sight|marker|plate|rim|trim|screw|bolt/.test(childName)) return 'trim';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|rim|trim|screw|bolt/.test(label)) return 'trim';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
   if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
@@ -12952,67 +12952,6 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
-
-function applyPoolRoyaleExternalVerticalProfile(model, tableModel = null) {
-  const profile = tableModel?.verticalProfile;
-  if (!model || !profile) return false;
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return false;
-  const fullHeight = Math.max(MICRO_EPS, fullBox.max.y - fullBox.min.y);
-  const splitY = fullBox.min.y + fullHeight * THREE.MathUtils.clamp(profile.baseSplitRatio ?? 0.42, 0.18, 0.72);
-  const upperTrim = fullHeight * Math.max(0, profile.upperRailBottomTrimRatio ?? 0);
-  const baseBoost = Math.max(0, profile.baseHeightBoostRatio ?? 0);
-  let changed = false;
-
-  model.traverse((child) => {
-    if (!child?.isMesh || !child.geometry?.attributes?.position) return;
-    const childName = `${child.name || ''}`.toLowerCase();
-    const material = Array.isArray(child.material) ? child.material[0] : child.material;
-    const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    const isBase = /leg|foot|base|pedestal|support/.test(childName);
-    const isUpperWood = role === 'wood' && /rail|frame|apron|cabinet|wood|showood|bevel/.test(childName) && !isBase;
-    if (!isBase && !isUpperWood) return;
-
-    child.updateMatrixWorld?.(true);
-    const position = child.geometry.attributes.position;
-    const localToModel = child.matrixWorld.clone();
-    const modelToLocal = child.matrixWorld.clone().invert();
-    const vertex = new THREE.Vector3();
-
-    for (let i = 0; i < position.count; i += 1) {
-      vertex.fromBufferAttribute(position, i).applyMatrix4(localToModel);
-      const originalY = vertex.y;
-      if (isBase && vertex.y <= splitY) {
-        vertex.y = splitY - (splitY - vertex.y) * (1 + baseBoost);
-      } else if (isUpperWood && vertex.y > splitY) {
-        const upperBandHeight = Math.max(MICRO_EPS, fullBox.max.y - splitY);
-        const bottomWeight = THREE.MathUtils.clamp((fullBox.max.y - vertex.y) / upperBandHeight, 0, 1);
-        vertex.y += upperTrim * bottomWeight;
-      }
-      if (Math.abs(vertex.y - originalY) > MICRO_EPS) {
-        vertex.applyMatrix4(modelToLocal);
-        position.setXYZ(i, vertex.x, vertex.y, vertex.z);
-        changed = true;
-      }
-    }
-    if (changed) {
-      position.needsUpdate = true;
-      child.geometry.computeBoundingBox?.();
-      child.geometry.computeBoundingSphere?.();
-    }
-  });
-
-  if (changed) {
-    model.updateMatrixWorld(true);
-    model.userData = {
-      ...(model.userData || {}),
-      poolRoyaleVerticalProfileApplied: true,
-      poolRoyaleVerticalProfile: { ...profile }
-    };
-  }
-  return changed;
-}
-
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -13066,7 +13005,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
   }
   model.updateMatrixWorld(true);
-  applyPoolRoyaleExternalVerticalProfile(model, tableModel);
 
   ({ fullBox, footprintBox } = resolvePoolRoyaleExternalTableFitBounds(model, tableModel));
   const footprintCenter = footprintBox.getCenter(new THREE.Vector3());
@@ -13810,8 +13748,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
-          ((!externalTableModelForMount?.useOriginalLayoutSurfaces || externalTableModelForMount?.keepGeneratedPocketHolders) &&
-            object.userData?.externalTableKeepVisible) ||
+          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
       ) {
@@ -25864,10 +25801,10 @@ const shotPowerRef = useRef(0);
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Keep the upper-body
-            // fold on the avatar's table-facing forward side so it cannot bend away from the shot.
+            // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
+            // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
-            shootBendTowardCueStick: false,
+            shootBendTowardCueStick: true,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0.72,
             shootForwardBendScale: 0.62,
