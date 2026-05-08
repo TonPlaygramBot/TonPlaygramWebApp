@@ -520,10 +520,11 @@ const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: lift parked weapons farther up to visually match the raised token.
-  TILE_SIZE * 2.56,
+  // Bottom/self player: lift parked weapons farther toward the top of the portrait screen.
+  TILE_SIZE * 3.12,
   0,
-  TILE_SIZE * 0.46,
+  // Top player: keep the weapon cluster visually higher on the portrait screen too.
+  TILE_SIZE * 1.18,
   0
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.38;
@@ -5465,6 +5466,43 @@ function createCaptureVehicleFallbackMesh(kind = 'fighter') {
   return root;
 }
 
+function stripAk47RearWoodStock(model) {
+  if (!model?.isObject3D) return model;
+  model.updateMatrixWorld(true);
+  const rootBox = new THREE.Box3().setFromObject(model);
+  const rootSize = rootBox.getSize(new THREE.Vector3());
+  const rearCutoffX = rootBox.min.x + rootSize.x * 0.34;
+  const minWoodScore = 0.08;
+  const meshesToHide = [];
+
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const meshName = `${obj.name || ''} ${obj.parent?.name || ''}`.toLowerCase();
+    const meshBox = new THREE.Box3().setFromObject(obj);
+    if (!Number.isFinite(meshBox.min.x) || !Number.isFinite(meshBox.max.x)) return;
+    const meshCenter = meshBox.getCenter(new THREE.Vector3());
+    const meshSize = meshBox.getSize(new THREE.Vector3());
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const hasWoodName = /stock|butt|rear|wood|wooden/.test(meshName) && !/grip|handle|hand/.test(meshName);
+    const hasWoodColor = mats.some((mat) => {
+      if (!mat?.color) return false;
+      const { r, g, b } = mat.color;
+      return r > g + minWoodScore && g > b + minWoodScore && r > 0.22 && g > 0.1;
+    });
+    const isRearOnly = meshCenter.x < rearCutoffX && meshSize.x < rootSize.x * 0.58;
+    const isGripOrHandle = /grip|handle|trigger|magazine|mag/.test(meshName) || meshCenter.y < rootBox.min.y + rootSize.y * 0.38;
+    if (isRearOnly && !isGripOrHandle && (hasWoodName || hasWoodColor)) {
+      meshesToHide.push(obj);
+    }
+  });
+
+  meshesToHide.forEach((mesh) => {
+    mesh.visible = false;
+    mesh.userData.snakeAk47RearWoodStockHidden = true;
+  });
+  return model;
+}
+
 function normalizeCaptureVehicleModel(model) {
   if (!model) return model;
   const box = new THREE.Box3().setFromObject(model);
@@ -5945,7 +5983,9 @@ async function loadCaptureWeaponCatalogModel(weaponId) {
             const root = gltf?.scene || gltf?.scenes?.[0] || null;
             if (!root) continue;
             prepareLoadedModel(root);
-            return normalizeCaptureVehicleModel(root);
+            const normalized = normalizeCaptureVehicleModel(root);
+            if (weaponId === 'slot-10-ak47-gltf') stripAk47RearWoodStock(normalized);
+            return normalized;
           } catch (error) {
             console.warn(`Capture weapon model load failed`, weaponId, url, error);
           }
@@ -7142,7 +7182,7 @@ export default function SnakeBoard3D({
     }
     const curve = pathInfo.curve;
     token.userData.isSliding = true;
-    const duration = 1100;
+    const duration = Number.isFinite(slide.duration) ? slide.duration : 1100;
     const startTime = performance.now();
     const lift = TOKEN_HEIGHT * 0.6;
     const camera = cameraRef.current;
