@@ -112,6 +112,7 @@ const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62; // nudge seated humans just a bit closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
+const SHOW_CHARACTER_HELD_CARD_HELPERS = false;
 const HUMAN_CARD_HAND_DEBUG_HELPERS =
   typeof window !== 'undefined' &&
   (new URLSearchParams(window.location.search).get('showHandHelpers') === '1' ||
@@ -2050,23 +2051,27 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
   const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
 
-  const heldCards = createCharacterCards({
-    handLift: characterTheme.handLift ?? 0.94,
-    handCardsInput: player?.hand ?? [],
-    cardTheme,
-    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
-    cardTextureSize
-  });
+  let heldCards = null;
+  let heldCardsPose = null;
+  if (SHOW_CHARACTER_HELD_CARD_HELPERS) {
+    heldCards = createCharacterCards({
+      handLift: characterTheme.handLift ?? 0.94,
+      handCardsInput: player?.hand ?? [],
+      cardTheme,
+      playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
+      cardTextureSize
+    });
 
-  heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
-  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
+    heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+    heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
-  instance.add(heldCards);
-  const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
-  const heldCardsPose = computeHeldCardsPose({ player, resolvedSeatIndex });
-  heldCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
-  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.2);
+    instance.add(heldCards);
+    const resolvedSeatIndex = seatConfig?.seatIndex ?? playerIndex;
+    heldCardsPose = computeHeldCardsPose({ player, resolvedSeatIndex });
+    heldCards.position.set(heldCardsPose.x, heldCardsPose.y, heldCardsPose.z);
+    heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+    heldCards.scale.setScalar(1.2);
+  }
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -2172,7 +2177,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 }
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
-  if (!rig) return;
+  if (!rig || !SHOW_CHARACTER_HELD_CARD_HELPERS) return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
@@ -2722,7 +2727,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 1.04 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 0.99 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.01 * MODEL_SCALE * CARD_SCALE; // Extra-trimmed thickness to avoid dark edge wedges.
@@ -2770,7 +2775,7 @@ const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
   portrait: 0.19 * MODEL_SCALE,
   landscape: 0.05 * MODEL_SCALE
 });
-const HUMAN_HAND_CARD_SCALE = 1.06;
+const HUMAN_HAND_CARD_SCALE = 1.02;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
@@ -2793,8 +2798,9 @@ const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
-const AI_TOP_SIDE_HAND_UP_SHIFT_Y = 0.64 * MODEL_SCALE;
-const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.68 * MODEL_SCALE;
+const AI_TOP_HAND_UP_SHIFT_Y = 0.64 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = 0.76 * MODEL_SCALE;
+const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.76 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -2832,8 +2838,8 @@ const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT_PORTION = 0.32;
-const AI_CARD_OUTWARD = 0.26 * MODEL_SCALE;
-const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.34 * MODEL_SCALE;
+const AI_CARD_OUTWARD = 0.32 * MODEL_SCALE;
+const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.4 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
 
@@ -4319,7 +4325,8 @@ export default function MurlanRoyaleArena({ search }) {
           (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side') ? AI_TOP_SIDE_HAND_UP_SHIFT_Y : 0) +
+          (!isHumanCard && seat?.handVariant === 'top' ? AI_TOP_HAND_UP_SHIFT_Y : 0) +
+          (!isHumanCard && seat?.handVariant === 'side' ? AI_SIDE_HAND_UP_SHIFT_Y : 0) +
           (isHumanCard ? PLAYER_HAND_UP_LIFT_ONE_CARD : 0);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
@@ -6174,7 +6181,6 @@ export default function MurlanRoyaleArena({ search }) {
             const avatarSize = avatarSizeBase * AVATAR_VISUAL_SCALE;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
-            const handCount = activePlayer?.hand?.length ?? 0;
             return (
               <div
                 key={activePlayer?.id ?? idx}
@@ -6194,9 +6200,6 @@ export default function MurlanRoyaleArena({ search }) {
                   frameScale={(idx === humanPlayerIndex ? 2 : 1) * AVATAR_VISUAL_SCALE}
                   onClick={idx === humanPlayerIndex ? triggerLiveAvatarVideo : undefined}
                 />
-                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
-                  {handCount} cards
-                </span>
               </div>
             );
           })}
