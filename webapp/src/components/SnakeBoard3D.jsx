@@ -259,9 +259,9 @@ const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
 const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 900;
+const DICE_SETTLE_DURATION = 220;
 const DICE_RESULT_HOLD_DURATION = 720;
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
@@ -439,7 +439,7 @@ const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.16;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
-const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, 1, -1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08,
@@ -3510,10 +3510,12 @@ function createDiceRollAnimation(
 }
 
 function createDiceSettleAnimation(diceArray, { basePositions, baseY, startStates = [] }) {
-  // Landing roll intentionally mirrors Ludo Battle Royal's spinDice helper: one eased
-  // tabletop arc, wobble, decelerating spin, then snap to the server-provided face value.
+  // Pool Royale break dice does one real roll, then resolves directly to the result face.
+  // Keep Snake & Ladder identical: the start phase performs the roll; this phase only
+  // calibrates the final server/local value without a second distracting roll.
   const start = performance.now();
   const startPositions = diceArray.map((die, index) => startStates[index]?.position?.clone?.() ?? die.position.clone());
+  const startQuaternions = diceArray.map((die, index) => startStates[index]?.quaternion?.clone?.() ?? die.quaternion.clone());
   const targetPositions = basePositions.map((base) =>
     base ? new THREE.Vector3(base.x, baseY, base.z) : null
   );
@@ -3523,16 +3525,6 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
     die.userData.targetQuaternion = fallback.clone();
     return fallback;
   });
-  const spinVectors = diceArray.map(() =>
-    new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
-  );
-  const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
-  );
 
   return {
     type: 'diceSettle',
@@ -3543,18 +3535,14 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
         const startPos = startPositions[index] ?? die.position;
         const targetPos = targetPositions[index];
         if (targetPos) {
-          const position = startPos.clone().lerp(targetPos, eased);
-          const wobbleStrength = Math.sin(eased * Math.PI);
-          position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-          const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
-          position.y = THREE.MathUtils.lerp(startPos.y, targetPos.y, eased) + bounce;
-          die.position.copy(position);
+          die.position.copy(startPos.clone().lerp(targetPos, eased));
+          die.position.y = THREE.MathUtils.lerp(startPos.y, targetPos.y, eased);
         }
-
-        const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        const targetQuat = targetQuaternions[index];
+        const startQuat = startQuaternions[index];
+        if (targetQuat && startQuat) {
+          die.quaternion.copy(startQuat).slerp(targetQuat, eased);
+        }
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -6138,9 +6126,8 @@ function updateSeatWeaponDisplays(board, players = []) {
         .copy(railLayout.railLocal)
         .addScaledVector(
           railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE +
-            lateralNudge +
-            WEAPON_RIGHT_HAND_SIDE_OFFSET
+          sideSign * (SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + WEAPON_RIGHT_HAND_SIDE_OFFSET) +
+            lateralNudge
         )
         .addScaledVector(
           railLayout.seatDirection,
