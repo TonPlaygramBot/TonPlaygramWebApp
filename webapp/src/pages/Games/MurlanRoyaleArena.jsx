@@ -2838,6 +2838,13 @@ const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
+const AI_HAND_CARD_SCALE = 0.96;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.16 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.1 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = 0.11 * MODEL_SCALE;
+const AI_TOP_HAND_UP_SHIFT_Y = 0.07 * MODEL_SCALE;
+const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.05 * MODEL_SCALE;
+const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
@@ -2949,7 +2956,7 @@ const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.38 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
-const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
+const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = false;
 const CAMERA_HUMAN_TURN_TARGET_WEIGHT = 0.74;
 const CAMERA_HUMAN_TURN_TARGET_DOWNSHIFT = 0.08 * MODEL_SCALE;
 const PASS_BUBBLE_DURATION_MS = 1700;
@@ -4344,18 +4351,37 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
-        target.addScaledVector(forward, -HUMAN_HAND_EXTRA_INWARD_PULL);
-        target.addScaledVector(layoutAxis, isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT);
+        const aiHandVariant = isHumanCard ? 'human' : seat?.handVariant;
+        const aiExtraInwardPull = aiHandVariant === 'side'
+          ? AI_SIDE_HAND_EXTRA_INWARD_PULL
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_EXTRA_INWARD_PULL
+            : 0;
+        const aiExtraUpShift = aiHandVariant === 'side'
+          ? AI_SIDE_HAND_UP_SHIFT_Y
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_UP_SHIFT_Y
+            : 0;
+        const aiPalmLateralShift = aiHandVariant === 'side'
+          ? (forward?.x ?? 0) < 0
+            ? -AI_SIDE_HAND_LATERAL_PALM_SHIFT
+            : AI_SIDE_HAND_LATERAL_PALM_SHIFT
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_LATERAL_PALM_SHIFT
+            : 0;
+        target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
+        target.addScaledVector(forward, -(HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull));
+        target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift);
         target.y =
           baseHeight +
           centerWeight * fanArcLift +
           HUMAN_HAND_BOTTOM_SHIFT_Y +
           HUMAN_HAND_UP_SHIFT_Y +
+          aiExtraUpShift +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
           PLAYER_HAND_UP_LIFT_ONE_CARD;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
+        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : AI_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
@@ -5301,11 +5327,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (liveState?.status !== 'PLAYING' || !activeSeat?.stoolPosition) {
         turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
       } else if (activePlayer?.isHuman) {
-        const humanTurnFocus = cameraDefaultTargetRef.current
-          .clone()
-          .lerp(activeSeat.focus, CAMERA_HUMAN_TURN_TARGET_WEIGHT);
-        humanTurnFocus.y -= CAMERA_HUMAN_TURN_TARGET_DOWNSHIFT;
-        turnCameraTowardTarget(humanTurnFocus, { animate: true });
+        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
       } else {
         const blendedFocus = cameraDefaultTargetRef.current
           .clone()
