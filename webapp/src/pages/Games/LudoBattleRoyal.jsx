@@ -3245,6 +3245,13 @@ const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
+// Keep the floating player badge on the torso instead of the face so portrait players can track
+// characters without the head/idle animation causing the UI to shimmer over facial details.
+const SEATED_HELPER_AVATAR_BADGE_RIGHT = 0;
+const SEATED_HELPER_AVATAR_BADGE_UP = -0.035 * MODEL_SCALE;
+const SEATED_HELPER_AVATAR_BADGE_FORWARD = 0.048 * MODEL_SCALE;
+const AVATAR_ANCHOR_SCREEN_DEADBAND_PERCENT = 0.38;
+const AVATAR_ANCHOR_DEPTH_DEADBAND = 0.055;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
 const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
@@ -3252,8 +3259,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.19 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.072 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.255 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.118 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 7;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
@@ -6123,8 +6130,10 @@ function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_
 function createSeatedHumanActionHelpers(actor, rig) {
   const rightHand = rig?.rightHand;
   const headBone = rig?.head;
+  const chestBone = rig?.chest || rig?.spine || rig?.neck;
   const helperRoot = rightHand?.isBone ? rightHand : actor;
   const faceRoot = headBone?.isBone ? headBone : actor;
+  const avatarRoot = chestBone?.isBone ? chestBone : actor;
   if (!helperRoot?.isObject3D) return null;
   const createHelper = (name, x, y, z) => {
     const helper = new THREE.Object3D();
@@ -6180,6 +6189,18 @@ function createSeatedHumanActionHelpers(actor, rig) {
         SEATED_HELPER_FACE_CAMERA_FORWARD
       );
       faceRoot.add(helper);
+      return helper;
+    })(),
+    avatarBadge: (() => {
+      if (!avatarRoot?.isObject3D) return null;
+      const helper = new THREE.Object3D();
+      helper.name = 'avatarBadgeChestHelper';
+      helper.position.set(
+        SEATED_HELPER_AVATAR_BADGE_RIGHT,
+        SEATED_HELPER_AVATAR_BADGE_UP,
+        SEATED_HELPER_AVATAR_BADGE_FORWARD
+      );
+      avatarRoot.add(helper);
       return helper;
     })()
   };
@@ -9692,7 +9713,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const animLook = new THREE.Vector3();
     const seatWorld = new THREE.Vector3();
     const seatNdc = new THREE.Vector3();
-    const faceWorld = new THREE.Vector3();
     const handContactTarget = new THREE.Vector3();
 
     const step = () => {
@@ -9890,13 +9910,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
+        const previousPositions = seatPositionsRef.current;
         const positions = arenaState.seatAnchors.map((anchor, index) => {
           const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === index);
-          const faceHelper = actorEntry?.actionHelpers?.faceCamera;
+          const avatarBadgeHelper = actorEntry?.actionHelpers?.avatarBadge;
+          const chestBone = actorEntry?.rig?.chest || actorEntry?.rig?.spine || actorEntry?.rig?.neck;
           const headBone = actorEntry?.rig?.head;
-          if (faceHelper?.isObject3D) {
-            faceHelper.updateMatrixWorld?.(true);
-            faceHelper.getWorldPosition(seatWorld);
+          if (avatarBadgeHelper?.isObject3D) {
+            avatarBadgeHelper.updateMatrixWorld?.(true);
+            avatarBadgeHelper.getWorldPosition(seatWorld);
+          } else if (chestBone?.isBone) {
+            chestBone.updateMatrixWorld?.(true);
+            chestBone.getWorldPosition(seatWorld);
           } else if (headBone?.isBone) {
             headBone.updateMatrixWorld?.(true);
             headBone.getWorldPosition(seatWorld);
@@ -9904,29 +9929,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             anchor.getWorldPosition(seatWorld);
           }
           seatNdc.copy(seatWorld).project(camera);
-          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
-          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-          if (faceHelper?.isObject3D) {
-            faceHelper.getWorldPosition(faceWorld);
-          } else if (headBone?.isBone) {
-            headBone.getWorldPosition(faceWorld);
-          } else {
-            faceWorld.copy(seatWorld);
+          const rawX = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+          const rawY = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+          const depth = camera.position.distanceTo(seatWorld);
+          const prev = previousPositions.find((entry) => entry?.index === index);
+          if (
+            prev &&
+            Math.abs(prev.x - rawX) < AVATAR_ANCHOR_SCREEN_DEADBAND_PERCENT &&
+            Math.abs(prev.y - rawY) < AVATAR_ANCHOR_SCREEN_DEADBAND_PERCENT &&
+            Math.abs((prev.depth ?? 0) - depth) < AVATAR_ANCHOR_DEPTH_DEADBAND
+          ) {
+            return prev;
           }
-          const depth = camera.position.distanceTo(faceWorld);
-          return { index, x, y, depth };
+          return { index, x: rawX, y: rawY, depth };
         });
-        let changed = positions.length !== seatPositionsRef.current.length;
+        let changed = positions.length !== previousPositions.length;
         if (!changed) {
           for (let i = 0; i < positions.length; i += 1) {
-            const prev = seatPositionsRef.current[i];
-            const curr = positions[i];
-            if (
-              !prev ||
-              Math.abs(prev.x - curr.x) > 0.2 ||
-              Math.abs(prev.y - curr.y) > 0.2 ||
-              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
-            ) {
+            if (positions[i] !== previousPositions[i]) {
               changed = true;
               break;
             }
