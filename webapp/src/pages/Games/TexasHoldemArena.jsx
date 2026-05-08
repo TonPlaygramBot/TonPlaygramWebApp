@@ -395,16 +395,16 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(46);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 1.46 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.38, landscape: 0.64 });
-const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.34;
-const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.32;
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.16, landscape: 1.38 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.32, landscape: 0.62 });
+const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.48;
+const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.54;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
 const CAMERA_PORTRAIT_MIN_LOOK_UP = THREE.MathUtils.degToRad(34);
 const CAMERA_PORTRAIT_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(46);
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(30);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(44);
-const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.55, landscape: -CARD_W * 0.85 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.25, landscape: -CARD_W * 0.55 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -412,12 +412,12 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.82;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.22;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.72;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
-const AI_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const AI_CHIP_INWARD_SHIFT = CARD_W * -0.72;
+const AI_CARD_INWARD_SHIFT = CARD_W * -1.88;
+const AI_CHIP_INWARD_SHIFT = CARD_W * -0.52;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
 const CHIP_STACK_VERTICAL_LIFT = CARD_H * 0.06;
@@ -661,9 +661,9 @@ const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
 const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.28;
 const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.12;
-const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.82;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.92;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.24;
-const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
+const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.42 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
 const texasDominoCharacterTextureCache = new Map();
 
@@ -1503,14 +1503,14 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
   const base = rig.seatedPose;
   const poses = {
     cards: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-9) },
-      head: { x: THREE.MathUtils.degToRad(-6) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-6) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-3) },
-      leftHand: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(6) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(3) },
-      rightHand: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(8) }
+      spine: { x: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-7) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(8) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(10) }
     }),
     fold: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(8) },
@@ -1519,19 +1519,53 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
       rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-10) },
       head: { x: THREE.MathUtils.degToRad(-4) }
     }),
-    chip: makeTexasCharacterPose(base, {
+    chipGrab: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-15) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-72), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(-4) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-14) },
+      head: { x: THREE.MathUtils.degToRad(-9) }
+    }),
+    chipPlace: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-18) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-86), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-10) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
+      head: { x: THREE.MathUtils.degToRad(-10) }
+    }),
+    checkLift: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-62), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(8) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(6) },
+      rightHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(12) },
+      head: { x: THREE.MathUtils.degToRad(-6) }
+    }),
+    checkTap: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(-12) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-64), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-22) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(4) },
-      rightHand: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
-      head: { x: THREE.MathUtils.degToRad(-8) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-78), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(6) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-26), y: THREE.MathUtils.degToRad(5) },
+      rightHand: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(10) },
+      head: { x: THREE.MathUtils.degToRad(-7) }
     })
   };
   const sequence = type === 'FOLD'
     ? [{ at: 0, duration: 220, pose: poses.fold }, { at: 220, duration: 320, pose: base }]
     : type === 'CHIP'
-      ? [{ at: 0, duration: 260, pose: poses.chip }, { at: 260, duration: 440, pose: base }]
-      : [{ at: 0, duration: 240, pose: poses.cards }, { at: 240, duration: 900, pose: poses.cards }, { at: 1140, duration: 260, pose: base }];
+      ? [
+        { at: 0, duration: 180, pose: poses.chipGrab },
+        { at: 180, duration: 220, pose: poses.chipPlace },
+        { at: 400, duration: 260, pose: poses.chipPlace },
+        { at: 660, duration: 320, pose: base }
+      ]
+      : type === 'CHECK'
+        ? [
+          { at: 0, duration: 130, pose: poses.checkLift },
+          { at: 130, duration: 120, pose: poses.checkTap },
+          { at: 250, duration: 130, pose: poses.checkLift },
+          { at: 380, duration: 120, pose: poses.checkTap },
+          { at: 500, duration: 260, pose: base }
+        ]
+        : [{ at: 0, duration: 240, pose: poses.cards }, { at: 240, duration: 900, pose: poses.cards }, { at: 1140, duration: 260, pose: base }];
   const tick = (time) => {
     const elapsed = time - now;
     let active = false;
@@ -4036,23 +4070,31 @@ function TexasHoldemArena({ search }) {
   const playSound = useCallback((name) => {
     const audio = soundsRef.current?.[name];
     if (!audio || isGameMuted()) return;
+    const volume = getGameVolume();
     if (name === 'knock') {
-      audio.currentTime = Math.min(audio.duration || 1, 1);
-    } else {
-      audio.currentTime = 0;
-    }
-    audio.volume = getGameVolume();
-    audio.play().catch(() => {});
-    if (name === 'knock') {
+      const knockAudio = audio.cloneNode(true);
+      knockAudio.currentTime = Math.min(knockAudio.duration || 1, 1);
+      knockAudio.volume = volume;
+      knockAudio.play().catch(() => {});
       window.setTimeout(() => {
         try {
-          audio.pause();
+          knockAudio.pause();
+          knockAudio.src = '';
         } catch (error) {
           console.debug('Failed to pause knock sound', error);
         }
-      }, 2000);
+      }, 420);
+      return;
     }
+    audio.currentTime = 0;
+    audio.volume = volume;
+    audio.play().catch(() => {});
   }, []);
+
+  const playCheckKnock = useCallback(() => {
+    playSound('knock');
+    window.setTimeout(() => playSound('knock'), 300);
+  }, [playSound]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
@@ -6352,31 +6394,34 @@ function TexasHoldemArena({ search }) {
           }
           seat.potDropCount = pileIndex + 1;
         };
+        const chipHeight = chipFactory.chipHeight;
+        const startBase = seat.chipRailAnchor.clone();
+        startBase.y -= chipHeight / 2;
+        const endBase = (potSeatStacks?.[idx]?.position ?? potStack.position).clone();
+        endBase.y -= chipHeight / 2;
+        const midBase = seat.isHuman
+          ? startBase
+            .clone()
+            .lerp(endBase, 0.42)
+            .addScaledVector(seat.forward, CARD_W * 0.28)
+          : startBase.clone().lerp(endBase, 0.65);
+        midBase.y -= chipHeight * (seat.isHuman ? 0.02 : 0.1);
         if (seat.isHuman) {
           runTexasCharacterPoseAction(seat, 'CHIP');
-          applyPotGain(betDelta);
-        } else {
-          const chipHeight = chipFactory.chipHeight;
-          const startBase = seat.chipRailAnchor.clone();
-          startBase.y -= chipHeight / 2;
-          const endBase = (potSeatStacks?.[idx]?.position ?? potStack.position).clone();
-          endBase.y -= chipHeight / 2;
-          const midBase = startBase.clone().lerp(endBase, 0.65);
-          midBase.y -= chipHeight * 0.1;
-          chipFactory.animateTransfer(betDelta, {
-            scene: arenaGroup,
-            start: startBase,
-            mid: midBase,
-            end: endBase,
-            startLayout: seat.railLayout,
-            midLayout: seat.tableLayout,
-            endLayout: { ...potLayout, ...POT_TRANSFER_LOCK_LAYOUT },
-            pauseDuration: 0.45,
-            toMidDuration: 0.35,
-            toEndDuration: 0.6,
-            onComplete: applyPotGain
-          });
         }
+        chipFactory.animateTransfer(betDelta, {
+          scene: arenaGroup,
+          start: startBase,
+          mid: midBase,
+          end: endBase,
+          startLayout: seat.railLayout,
+          midLayout: seat.tableLayout,
+          endLayout: { ...potLayout, ...POT_TRANSFER_LOCK_LAYOUT },
+          pauseDuration: seat.isHuman ? 0.28 : 0.45,
+          toMidDuration: seat.isHuman ? 0.3 : 0.35,
+          toEndDuration: seat.isHuman ? 0.52 : 0.6,
+          onComplete: applyPotGain
+        });
       }
 
       seat.lastBet = bet;
@@ -6426,6 +6471,9 @@ function TexasHoldemArena({ search }) {
       if (currentStatus !== previousStatus) {
         if (currentStatus === 'All-in') {
           playSound('allIn');
+        } else if (currentStatus === 'Check') {
+          runTexasCharacterPoseAction(seat, 'CHECK');
+          playCheckKnock();
         } else if (
           currentStatus === 'Call' ||
           currentStatus === 'Bet' ||
@@ -6545,6 +6593,7 @@ function TexasHoldemArena({ search }) {
     findSeatWithAvatar,
     gameState,
     overheadView,
+    playCheckKnock,
     playSound,
     resetCameraToStartView,
     turnCameraTowardsSeat
@@ -6595,7 +6644,6 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.[focusIndex];
     if (seat?.isHuman) {
       resetCameraToStartView();
-      playSound('knock');
       animateCardsPeek(seat, focusIndex);
       return;
     }
@@ -6607,7 +6655,6 @@ function TexasHoldemArena({ search }) {
     currentStage,
     winnerFocusIndex,
     findSeatWithAvatar,
-    playSound,
     resetCameraToStartView,
     turnCameraTowardsSeat
   ]);
