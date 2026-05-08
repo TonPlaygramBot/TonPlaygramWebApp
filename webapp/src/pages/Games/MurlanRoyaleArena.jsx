@@ -2833,15 +2833,28 @@ const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT_PORTION = 0.32;
 const AI_CARD_OUTWARD = 0.26 * MODEL_SCALE;
+const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.34 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
   if (isHumanSeat) {
-    return safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET - HAND_CARDS_INWARD_BIAS;
+    return (
+      safeTableRadius +
+      HUMAN_HAND_TABLE_EDGE_MARGIN +
+      PLAYER_HAND_TABLE_OUTWARD_PUSH -
+      HUMAN_HAND_CLOSER_OFFSET -
+      HAND_CARDS_INWARD_BIAS
+    );
   }
-  return safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET - HAND_CARDS_INWARD_BIAS;
+  return (
+    safeTableRadius +
+    AI_HAND_TABLE_EDGE_MARGIN +
+    PLAYER_HAND_TABLE_OUTWARD_PUSH -
+    AI_HAND_CLOSER_OFFSET -
+    HAND_CARDS_INWARD_BIAS
+  );
 }
 
 function calcFanCardPose(cardCount, cardIdx) {
