@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 
@@ -11,7 +12,7 @@ type ShotState = 'aim' | 'runup' | 'keeperAim' | 'aiRunup' | 'flight' | 'var' | 
 type KickSpot = 'left' | 'center' | 'right' | 'near16';
 type ActorKind = 'kicker' | 'keeper' | 'wall' | 'referee' | 'field';
 type ShotPhase = 'userShoot' | 'aiShoot' | 'finished';
-type ShotControlState = { power: number; aimX: number; aimY: number };
+type HdriOption = { id: string; name: string; time: 'Day' | 'Night'; url: string; thumb: string };
 type TeamKey = 'blue' | 'red';
 type Decision = 'GOAL' | 'NO GOAL' | 'SAVE' | 'BLOCKED' | 'MISS';
 type ShotFeedback = { title: string; detail: string; quality: number; xg: number };
@@ -185,10 +186,23 @@ const SPECTATOR_SCALE = 0.78;
 const SPECTATOR_FALLBACK_SCALE = 0.86;
 const SPECTATOR_SEAT_Y = 0.09;
 const SPECTATOR_SEAT_Z = 0.11;
-const DEFAULT_SHOT_CONTROL: ShotControlState = { power: 0.72, aimX: 0, aimY: -0.35 };
+const FREE_KICK_HDRI_STORAGE_KEY = 'free-kick.hdri';
+const POLYHAVEN_HDRI_OPTIONS: HdriOption[] = [
+  { id: 'kloofendal_48d_partly_cloudy_puresky', name: 'Kloofendal Cloudy', time: 'Day', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/kloofendal_48d_partly_cloudy_puresky.png?height=120' },
+  { id: 'sunflowers_puresky', name: 'Sunflowers Pure Sky', time: 'Day', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/sunflowers_puresky_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/sunflowers_puresky.png?height=120' },
+  { id: 'spruit_sunrise', name: 'Spruit Sunrise', time: 'Day', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/spruit_sunrise_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/spruit_sunrise.png?height=120' },
+  { id: 'venice_sunset', name: 'Venice Sunset', time: 'Day', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/venice_sunset.png?height=120' },
+  { id: 'quarry_01', name: 'Quarry Day Sky', time: 'Day', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/quarry_01_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/quarry_01.png?height=120' },
+  { id: 'dikhololo_night', name: 'Dikhololo Night', time: 'Night', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/dikhololo_night_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/dikhololo_night.png?height=120' },
+  { id: 'moonlit_golf', name: 'Moonlit Golf', time: 'Night', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/moonlit_golf_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/moonlit_golf.png?height=120' },
+  { id: 'satara_night', name: 'Satara Night', time: 'Night', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/satara_night_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/satara_night.png?height=120' },
+  { id: 'misty_pines', name: 'Misty Pines Night', time: 'Night', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/misty_pines_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/misty_pines.png?height=120' },
+  { id: 'the_sky_is_on_fire', name: 'Sky Is On Fire', time: 'Night', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/the_sky_is_on_fire_1k.hdr', thumb: 'https://cdn.polyhaven.com/asset_img/thumbs/the_sky_is_on_fire.png?height=120' }
+];
+const GLOBAL_HUMAN_APPEARANCE = Object.freeze({ skin: 0xd6a06f, hair: 0x2b170f, eyes: 0x1e3a8a });
 const DEFAULT_FEEDBACK: ShotFeedback = {
   title: 'Training ground ready',
-  detail: 'Drag the contact point: lower contact adds lift, side contact bends the ball.',
+  detail: 'Swipe on the pitch: direction aims the shot, length controls power, and release shoots with no helper line.',
   quality: 0.58,
   xg: 0.31
 };
@@ -271,52 +285,71 @@ function makeGoalRushAudio() {
   let started = false;
   let pendingWhistle = true;
   const crowd = new Audio(GOAL_RUSH_SOUNDS.crowd);
+  const whistle = new Audio(GOAL_RUSH_SOUNDS.whistle);
+  const goalNet = new Audio(GOAL_RUSH_SOUNDS.net);
+  const postHit = new Audio(GOAL_RUSH_SOUNDS.post);
   crowd.loop = true;
   crowd.volume = 0.5;
+  postHit.volume = 0.7;
 
-  const playOneShot = (src: string, volume = 1) => {
-    if (!enabled || !started) return;
-    const sound = new Audio(src);
-    sound.volume = volume;
-    sound.play().catch(() => {});
+  const stopAfter = (sound: HTMLAudioElement, ms: number, resetTo = 0) => {
+    window.setTimeout(() => {
+      sound.pause();
+      sound.currentTime = resetTo;
+    }, ms);
   };
 
   const start = () => {
-    if (!enabled || started) return;
+    if (started || !enabled) return;
     started = true;
     crowd.play().catch(() => {});
-    if (pendingWhistle) {
-      pendingWhistle = false;
-      playOneShot(GOAL_RUSH_SOUNDS.whistle, 0.9);
+    if (pendingWhistle) playWhistle();
+  };
+
+  const playWhistle = () => {
+    if (!enabled || !started) {
+      pendingWhistle = true;
+      return;
     }
+    pendingWhistle = false;
+    whistle.currentTime = 0;
+    whistle.play().catch(() => {});
+    stopAfter(whistle, 2000, 0);
   };
 
   return {
     start,
-    whistle() {
-      if (!enabled) return;
-      if (!started) {
-        pendingWhistle = true;
-        return;
-      }
-      playOneShot(GOAL_RUSH_SOUNDS.whistle, 0.9);
-    },
+    whistle: playWhistle,
     kick() {
-      playOneShot(GOAL_RUSH_SOUNDS.kick, 0.92);
+      if (!enabled || !started) return;
+      const sound = new Audio(GOAL_RUSH_SOUNDS.kick);
+      sound.play().catch(() => {});
+      window.setTimeout(() => sound.pause(), 700);
     },
     net() {
-      playOneShot(GOAL_RUSH_SOUNDS.net, 0.95);
+      if (!enabled || !started) return;
+      goalNet.currentTime = 0;
+      goalNet.play().catch(() => {});
+      stopAfter(goalNet, 2000, 0);
+      playWhistle();
     },
     save() {
-      playOneShot(GOAL_RUSH_SOUNDS.post, 0.7);
+      if (!enabled || !started) return;
+      postHit.currentTime = 0.15;
+      postHit.play().catch(() => {});
+      stopAfter(postHit, 1000, 0.15);
     },
     goal() {
-      playOneShot(GOAL_RUSH_SOUNDS.victory, 0.72);
+      if (!enabled || !started) return;
+      const victory = new Audio(GOAL_RUSH_SOUNDS.victory);
+      victory.play().catch(() => {});
     },
     dispose() {
       enabled = false;
-      crowd.pause();
-      crowd.src = '';
+      [crowd, whistle, goalNet, postHit].forEach((sound) => {
+        sound.pause();
+        sound.src = '';
+      });
     }
   };
 }
@@ -764,13 +797,11 @@ function tintModel(
       if (m.color) {
         const surface = characterSurfaceType(mesh, m);
         if (surface === 'skin') {
-          m.color.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.12);
+          m.color.set(GLOBAL_HUMAN_APPEARANCE.skin);
         } else if (surface === 'hair') {
-          const hairPalette = [0x111111, 0x2b170f, 0x8b5a2b, 0xd6b37a, 0x64748b];
-          m.color.lerp(new THREE.Color(hairPalette[index % hairPalette.length]), 0.42);
+          m.color.set(GLOBAL_HUMAN_APPEARANCE.hair);
         } else if (surface === 'eye') {
-          const eyePalette = [0x050505, 0x1e3a8a, 0x166534, 0x78350f];
-          m.color.lerp(new THREE.Color(eyePalette[index % eyePalette.length]), 0.45);
+          m.color.set(GLOBAL_HUMAN_APPEARANCE.eyes);
         } else if (surface === 'shoe') {
           m.color.lerp(new THREE.Color(kit.shoes), 0.55);
           m.map = shoeMap;
@@ -791,9 +822,6 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
   const group = new THREE.Group();
   const teamKit = kitForTeam(team);
   const kit = kind === 'keeper' || kind === 'referee' ? 0x111111 : (kitColor ?? teamKit.primary);
-  const skinPalette = [0xf1d6bd, 0xd6a06f, 0x9a6248, 0x6b3f2a, 0xffdfc4];
-  const hairPalette = [0x111111, 0x2b170f, 0x8b5a2b, 0xd6b37a, 0x64748b];
-  const eyePalette = [0x050505, 0x1e3a8a, 0x166534, 0x78350f];
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.19, 0.72, 8, 14),
     texturedMaterial(kit, teamTexture(team), 4)
@@ -808,7 +836,7 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
   stripe.position.set(0, 1.25, -0.16);
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.13, 18, 12),
-    texturedMaterial(skinPalette[index % skinPalette.length], POLYHAVEN_TEXTURES.fabricBlue, 7)
+    material(GLOBAL_HUMAN_APPEARANCE.skin, 0.7, 0.02)
   );
   head.name = 'head';
   head.position.y = 1.62;
@@ -830,17 +858,17 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
   rightArm.name = 'rightArm';
   leftArm.position.set(-0.25, 1.05, 0.01);
   rightArm.position.set(0.25, 1.05, 0.01);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), material(hairPalette[index % hairPalette.length]));
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), material(GLOBAL_HUMAN_APPEARANCE.hair));
   hair.name = 'hair';
   hair.position.set(0, 1.7, -0.01);
-  const eyeMat = material(eyePalette[index % eyePalette.length], 0.38, 0.02);
+  const eyeMat = material(GLOBAL_HUMAN_APPEARANCE.eyes, 0.38, 0.02);
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), eyeMat);
   leftEye.name = 'leftEye';
   const rightEye = leftEye.clone();
   rightEye.name = 'rightEye';
   leftEye.position.set(-0.045, 1.635, -0.118);
   rightEye.position.set(0.045, 1.635, -0.118);
-  const browMat = material(hairPalette[index % hairPalette.length], 0.5, 0.01);
+  const browMat = material(GLOBAL_HUMAN_APPEARANCE.hair, 0.5, 0.01);
   const leftBrow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.012), browMat);
   leftBrow.name = 'leftEyebrow';
   const rightBrow = leftBrow.clone();
@@ -1173,10 +1201,7 @@ function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
 
   const teamKit = kitForTeam(team);
   const shirt = texturedMaterial(color, teamTexture(team), 4, 0.72, 0.02);
-  const spectatorTone = team === 'blue' ? 0xf1d6bd : 0xd6a06f;
-  const spectatorHair = team === 'blue' ? 0x171717 : 0x6b3f2a;
-  const spectatorEyes = team === 'blue' ? 0x1e3a8a : 0x166534;
-  const skin = material(spectatorTone, 0.7, 0.02);
+  const skin = material(GLOBAL_HUMAN_APPEARANCE.skin, 0.7, 0.02);
   const dark = texturedMaterial(teamKit.shorts, teamTexture(team), 4, 0.68, 0.03);
   const sleeve = texturedMaterial(teamKit.primary, teamTexture(team), 4, 0.68, 0.02);
   const torso = new THREE.Mesh(
@@ -1226,15 +1251,15 @@ function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
   );
   const hair = new THREE.Mesh(
     new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48),
-    material(spectatorHair)
+    material(GLOBAL_HUMAN_APPEARANCE.hair)
   );
   hair.position.set(0, 1.3, -0.11);
-  const eyeMat = material(spectatorEyes, 0.38, 0.02);
+  const eyeMat = material(GLOBAL_HUMAN_APPEARANCE.eyes, 0.38, 0.02);
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeMat);
   const rightEye = leftEye.clone();
   leftEye.position.set(-0.043, 1.23, -0.213);
   rightEye.position.set(0.043, 1.23, -0.213);
-  const browMat = material(spectatorHair, 0.5, 0.01);
+  const browMat = material(GLOBAL_HUMAN_APPEARANCE.hair, 0.5, 0.01);
   const leftBrow = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.007, 0.012), browMat);
   const rightBrow = leftBrow.clone();
   leftBrow.position.set(-0.045, 1.258, -0.217);
@@ -1332,9 +1357,9 @@ function attachMurlanSeatedSpectator(
             matRef.color?.lerp(new THREE.Color(kitForTeam(team).shoes), 0.52);
             matRef.map = polyhavenTexture(POLYHAVEN_TEXTURES.shoeLeather, 4);
           } else if (surface === 'skin') {
-            matRef.color?.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.12);
+            matRef.color?.set(GLOBAL_HUMAN_APPEARANCE.skin);
           } else if (surface === 'hair') {
-            matRef.color?.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.2);
+            matRef.color?.set(GLOBAL_HUMAN_APPEARANCE.hair);
           } else if (surface === 'cloth') {
             matRef.color?.set(kitColor);
             matRef.map = polyhavenTexture(teamTexture(team), 5);
@@ -1751,8 +1776,8 @@ function rateShot(ball: BallState, decision: Decision, blocked: boolean, saved: 
     : blocked
       ? 'Try more lift or aim around the outside shoulder of the wall.'
       : saved
-        ? 'Hit farther into the corner or add more side contact to wrong-foot the keeper.'
-        : 'Lower power/contact for dip if the ball climbs, or raise contact for a driven low shot.';
+        ? 'Swipe farther into the corner to wrong-foot the keeper.'
+        : 'Shorten the upward swipe for dip if the ball climbs, or swipe flatter for a driven low shot.';
   return { title, detail, quality, xg };
 }
 
@@ -2459,23 +2484,6 @@ function makeHalfField(
   return makeBillboardsAndStands(scene, loader);
 }
 
-function makeAimLine(scene: THREE.Scene) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(new Float32Array(34 * 3), 3)
-  );
-  const line = new THREE.Line(
-    geometry,
-    new THREE.LineBasicMaterial({
-      color: 0xfff200,
-      transparent: true,
-      opacity: 0.95
-    })
-  );
-  scene.add(line);
-  return line;
-}
 function shotPoint(
   start: THREE.Vector3,
   target: THREE.Vector3,
@@ -2491,57 +2499,47 @@ function shotPoint(
 function swipeToShot(ballPos: THREE.Vector3, swipe: SwipeState) {
   const dx = swipe.endX - swipe.startX;
   const dy = swipe.startY - swipe.endY;
-  const screenScale = THREE.MathUtils.clamp(
-    (swipe.viewportW ?? 390) / 390,
-    0.82,
-    1.35
-  );
-  const heightScale = THREE.MathUtils.clamp(
-    (swipe.viewportH ?? 780) / 780,
-    0.82,
-    1.35
-  );
-  const swipeLen = Math.hypot(dx / screenScale, dy / heightScale);
-  const power = THREE.MathUtils.clamp(swipeLen / 142, 0.42, 1.92);
-  const normalizedDx = dx / (46 * screenScale);
-  const normalizedDy = dy / (106 * heightScale);
+  const viewportW = Math.max(1, swipe.viewportW ?? 390);
+  const viewportH = Math.max(1, swipe.viewportH ?? 780);
+  const swipeLen = Math.hypot(dx, dy);
+  const power = THREE.MathUtils.clamp(swipeLen / (viewportH * 0.34), 0.34, 1.86);
 
-  // Screen swipe is the source of truth: left/right moves the shot left/right,
-  // upward distance lifts the ball, and total swipe length controls speed/power.
+  // Precision is intentionally direct: the released swipe vector maps to the
+  // exact goal coordinate, without a separate power slider, spin pad, or aim aid.
   const targetX = THREE.MathUtils.clamp(
-    normalizedDx,
-    -GOAL_W / 2 - 1.15,
-    GOAL_W / 2 + 1.15
+    (dx / (viewportW * 0.46)) * (GOAL_W / 2 + 0.72),
+    -GOAL_W / 2 - 0.78,
+    GOAL_W / 2 + 0.78
   );
   const targetY = THREE.MathUtils.clamp(
-    0.24 + normalizedDy,
+    BALL_R + (Math.max(0, dy) / (viewportH * 0.42)) * (GOAL_H + 1.62),
     BALL_R,
-    GOAL_H + 2.0
+    GOAL_H + 1.92
   );
   const onFrame =
-    Math.abs(targetX) > GOAL_W / 2 - 0.34 || targetY > GOAL_H - 0.08;
+    Math.abs(targetX) > GOAL_W / 2 - 0.22 || targetY > GOAL_H - 0.06;
   const inMouth =
-    Math.abs(targetX) <= GOAL_W / 2 - BALL_R * 1.4 &&
+    Math.abs(targetX) <= GOAL_W / 2 - BALL_R * 1.2 &&
     targetY >= BALL_R &&
-    targetY <= GOAL_H - BALL_R * 0.3;
+    targetY <= GOAL_H - BALL_R * 0.24;
   const targetDepth =
     inMouth && !onFrame ? GOAL_LINE_Z - GOAL_D + 0.32 : GOAL_LINE_Z - 0.12;
   const target = new THREE.Vector3(targetX, targetY, targetDepth);
   const curve = THREE.MathUtils.clamp(
-    (dx / (96 * screenScale)) * power,
-    -4.9,
-    4.9
+    (dx / (viewportW * 0.5)) * power * 1.15,
+    -2.4,
+    2.4
   );
   const lift = THREE.MathUtils.clamp(
-    0.18 + normalizedDy * 1.04 + power * 0.18,
-    0.28,
-    GOAL_H + 2.75
+    0.12 + (Math.max(0, dy) / (viewportH * 0.44)) * (GOAL_H + 1.35) + power * 0.12,
+    0.18,
+    GOAL_H + 2.15
   );
   const distance = ballPos.distanceTo(target);
   const duration = THREE.MathUtils.clamp(
-    distance / (17.2 + power * 12.6),
-    0.62,
-    1.42
+    distance / (18.5 + power * 14.2),
+    0.56,
+    1.36
   );
   return { target, curve, lift, power, duration };
 }
@@ -2553,12 +2551,12 @@ function makeSwipeForTarget(
   viewportH = 780,
   powerBoost = 1
 ): SwipeState {
-  const screenScale = THREE.MathUtils.clamp(viewportW / 390, 0.82, 1.35);
-  const heightScale = THREE.MathUtils.clamp(viewportH / 780, 0.82, 1.35);
   const startX = viewportW * 0.5;
   const startY = viewportH * 0.72;
-  const endX = startX + targetX * 46 * screenScale;
-  const endY = startY - Math.max(0.2, targetY - 0.24) * 106 * heightScale - powerBoost * 36;
+  const dx = (targetX / (GOAL_W / 2 + 0.72)) * (viewportW * 0.46);
+  const dy = Math.max(34, ((targetY - BALL_R) / (GOAL_H + 1.62)) * (viewportH * 0.42) + powerBoost * 32);
+  const endX = startX + dx;
+  const endY = startY - dy;
   return {
     active: false,
     startX,
@@ -2573,37 +2571,6 @@ function makeSwipeForTarget(
 }
 
 
-function controlToShotSwipe(
-  control: ShotControlState,
-  viewportW = 390,
-  viewportH = 780
-): SwipeState {
-  const aimX = THREE.MathUtils.clamp(control.aimX, -1, 1);
-  const aimY = THREE.MathUtils.clamp(control.aimY, -1, 1);
-  const power = THREE.MathUtils.clamp(control.power, 0.2, 1);
-  const targetX = THREE.MathUtils.clamp(
-    aimX * (GOAL_W / 2 + 0.82),
-    -GOAL_W / 2 - 1.15,
-    GOAL_W / 2 + 1.15
-  );
-  const verticalStrike = (1 - aimY) * 0.5; // lower contact gets under the ball.
-  const targetY = THREE.MathUtils.clamp(
-    0.42 + verticalStrike * (GOAL_H + 1.1) + power * 0.44,
-    BALL_R,
-    GOAL_H + 2.0
-  );
-  const swipe = makeSwipeForTarget(
-    targetX,
-    targetY,
-    viewportW,
-    viewportH,
-    THREE.MathUtils.lerp(0.15, 1.55, power)
-  );
-  const sideSpin = -aimX * THREE.MathUtils.lerp(10, 58, power);
-  swipe.startX = viewportW * 0.5;
-  swipe.endX += sideSpin;
-  return swipe;
-}
 
 const AI_SHOT_TECHNIQUES = Object.freeze([
   Object.freeze({ name: 'whipped top-left curl', x: -GOAL_W / 2 + 0.34, y: GOAL_H - 0.22, power: 1.28, spin: -54 }),
@@ -2657,30 +2624,6 @@ function setKeeperDiveFromSwipe(keeper: Actor, swipe: SwipeState) {
   return true;
 }
 
-function setAimCurve(
-  line: THREE.Line,
-  ballPos: THREE.Vector3,
-  swipe: SwipeState
-) {
-  const attr = (line.geometry as THREE.BufferGeometry).getAttribute(
-    'position'
-  ) as THREE.BufferAttribute;
-  const shot = swipeToShot(ballPos, swipe);
-  for (let i = 0; i < attr.count; i++) {
-    const t = i / (attr.count - 1);
-    const p = shotPoint(ballPos, shot.target, shot.curve, shot.lift, t);
-    attr.setXYZ(i, p.x, p.y + 0.08, p.z);
-  }
-  attr.needsUpdate = true;
-  line.geometry.computeBoundingSphere();
-}
-function hideAimLine(line: THREE.Line) {
-  const attr = (line.geometry as THREE.BufferGeometry).getAttribute(
-    'position'
-  ) as THREE.BufferAttribute;
-  for (let i = 0; i < attr.count; i++) attr.setXYZ(i, 99, 99, 99);
-  attr.needsUpdate = true;
-}
 function freeKickPosition(spot: KickSpot) {
   if (spot === 'left')
     return new THREE.Vector3(-4.6, BALL_R, GOAL_LINE_Z + 24.5);
@@ -3253,19 +3196,16 @@ function cameraFrameForShot(kicker: Actor, cameraYaw = 0) {
 
 
 function cameraFrameForKeeper(keeper: Actor, ball: BallState, cameraYaw = 0) {
-  const goalCenter = new THREE.Vector3(0, 1.18, GOAL_LINE_Z + 0.24);
-  const incoming = ball.object.position
-    .clone()
-    .lerp(new THREE.Vector3(0, 1.15, GOAL_LINE_Z + 6.8), 0.32);
-  const baseBehindKeeper = new THREE.Vector3(
-    0,
-    2.05,
-    GOAL_LINE_Z - GOAL_D - 2.05
-  );
-  const sideOffset = new THREE.Vector3(cameraYaw * 0.8, 0, 0);
+  const facePosition = keeper.pos.clone().add(new THREE.Vector3(0, 1.62, 0.18));
+  const ballFocus = ball.object.position.clone().add(new THREE.Vector3(0, 0.26, 0));
+  const goalMouthFocus = new THREE.Vector3(0, 1.05, GOAL_LINE_Z + 8.5);
+  const lookPoint = ball.flying
+    ? ballFocus
+    : ballFocus.lerp(goalMouthFocus, 0.18);
+  facePosition.x += cameraYaw * 0.18;
   return {
-    position: baseBehindKeeper.add(sideOffset),
-    lookPoint: incoming.lerp(goalCenter, ball.flying ? 0.18 : 0.42)
+    position: facePosition,
+    lookPoint
   };
 }
 
@@ -3290,9 +3230,12 @@ export default function FreeKickGame() {
     endY: 0
   });
   const skipReplayRef = useRef(false);
-  const shotControlRef = useRef<ShotControlState>({ ...DEFAULT_SHOT_CONTROL });
-  const [shotControl, setShotControl] = useState<ShotControlState>({ ...DEFAULT_SHOT_CONTROL });
   const [replaySkippable, setReplaySkippable] = useState(false);
+  const [hdriMenuOpen, setHdriMenuOpen] = useState(false);
+  const [selectedHdriId, setSelectedHdriId] = useState(() => {
+    if (typeof window === 'undefined') return POLYHAVEN_HDRI_OPTIONS[0].id;
+    return localStorage.getItem(FREE_KICK_HDRI_STORAGE_KEY) ?? POLYHAVEN_HDRI_OPTIONS[0].id;
+  });
   const [hud, setHud] = useState({
     goals: 0,
     aiGoals: 0,
@@ -3300,7 +3243,7 @@ export default function FreeKickGame() {
     aiShots: 0,
     phase: 'userShoot' as ShotPhase,
     spot: 'center' as KickSpot,
-    state: 'You shoot first: set power, choose ball contact, then tap KICK',
+    state: 'You shoot first: swipe precisely on the pitch and release to shoot',
     feedback: DEFAULT_FEEDBACK
   });
   useEffect(() => {
@@ -3312,22 +3255,49 @@ export default function FreeKickGame() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x07110b, 0.025);
-    addFloodlightsAndAtmosphere(scene);
     const camera = new THREE.PerspectiveCamera(62, 1, 0.05, 140);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.68));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.35);
-    sun.position.set(8, 16, 10);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    scene.add(sun);
+    const rgbeLoader = new RGBELoader();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    let activeEnvironment: THREE.Texture | null = null;
+    let activeBackground: THREE.Texture | null = null;
+    let hdriRequestId = 0;
+    const applyHdri = (option: HdriOption) => {
+      const requestId = ++hdriRequestId;
+      rgbeLoader.load(option.url, (texture) => {
+        if (requestId !== hdriRequestId) {
+          texture.dispose();
+          return;
+        }
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        activeEnvironment?.dispose();
+        activeBackground?.dispose();
+        activeEnvironment = envMap;
+        activeBackground = texture;
+        scene.environment = envMap;
+        scene.background = texture;
+        scene.fog = option.time === 'Night'
+          ? new THREE.FogExp2(0x020617, 0.032)
+          : new THREE.FogExp2(0x93c5fd, 0.018);
+        renderer.toneMappingExposure = option.time === 'Night' ? 1.28 : 0.96;
+      });
+    };
+    const initialHdri = POLYHAVEN_HDRI_OPTIONS.find((option) => option.id === selectedHdriId) ?? POLYHAVEN_HDRI_OPTIONS[0];
+    applyHdri(initialHdri);
+    const onHdriChanged = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      const option = POLYHAVEN_HDRI_OPTIONS.find((item) => item.id === id);
+      if (option) applyHdri(option);
+    };
+    window.addEventListener('free-kick-hdri-changed', onHdriChanged as EventListener);
     const netRig: NetRig = { lines: [], shake: 0, impact: new THREE.Vector3() };
     const particles = createParticleRig(scene);
     const loader = new GLTFLoader();
     const stadium = makeHalfField(scene, netRig, loader);
-    const aimLine = makeAimLine(scene);
-    hideAimLine(aimLine);
     const ball = makeBall(scene);
     const audio = makeGoalRushAudio();
     const playerCharacterUrls = shuffledCharacterUrls();
@@ -3421,18 +3391,27 @@ export default function FreeKickGame() {
         if (match.aiShots >= 5) match.phase = 'finished';
       }
     };
+    const placeCameraForCurrentPhase = () => {
+      if (match.phase === 'aiShoot') {
+        const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+        camera.position.copy(keeperFrame.position);
+        camera.lookAt(keeperFrame.lookPoint);
+      } else {
+        placeCameraForNextShot(camera, kicker, cameraYaw);
+      }
+    };
     const nextStatusText = () => {
       if (match.phase === 'finished') {
         const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
         return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
       }
-      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · camera is behind the goal, swipe to dive`;
-      return `Your shot ${match.userShots + 1}/5 · pull the power slider and release to shoot`;
+      if (match.phase === 'aiShoot') return `AI turn ${match.aiShots + 1}/5 · goalkeeper-face camera, swipe to dive`;
+      return `Your shot ${match.userShots + 1}/5 · swipe on screen and release to shoot`;
     };
     spot = randomKickSpot();
     configureActorsForPhase();
     resetShot(ball, kicker, keeper, wall, spot);
-    placeCameraForNextShot(camera, kicker, cameraYaw);
+    placeCameraForCurrentPhase();
     const resize = () => {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
@@ -3443,22 +3422,20 @@ export default function FreeKickGame() {
     };
     resize();
     window.addEventListener('resize', resize);
-    const startUserKickFromControls = () => {
+    const startUserKickFromSwipe = (shotSwipe: SwipeState) => {
       audio.start();
       if (state !== 'aim' || match.phase !== 'userShoot') {
         setHud((h) => ({ ...h, state: 'Wait for your next free kick before shooting' }));
         return;
       }
-      const rect = host.getBoundingClientRect();
-      const controlSwipe = controlToShotSwipe(
-        shotControlRef.current,
-        rect.width,
-        rect.height
-      );
-      swipeRef.current = controlSwipe;
+      const shotLength = Math.hypot(shotSwipe.endX - shotSwipe.startX, shotSwipe.endY - shotSwipe.startY);
+      if (shotLength < 34) {
+        setHud((h) => ({ ...h, state: 'Swipe farther in the exact shot direction to shoot' }));
+        return;
+      }
+      swipeRef.current = { ...shotSwipe, active: false, mode: 'shot', moved: true };
       activeShooter = 'user';
-      beginRunup(kicker, wall, keeper, ball, controlSwipe);
-      hideAimLine(aimLine);
+      beginRunup(kicker, wall, keeper, ball, swipeRef.current);
       shotBlocked = false;
       shotSaved = false;
       shotFinalized = false;
@@ -3468,23 +3445,9 @@ export default function FreeKickGame() {
       state = 'runup';
       setHud((h) => ({
         ...h,
-        state: `Shot ${match.userShots + 1}/5: controlled run-up · ${Math.round(shotControlRef.current.power * 100)}% power`
+        state: `Shot ${match.userShots + 1}/5: precise swipe run-up`
       }));
     };
-    const previewControlledShot = () => {
-      if (state !== 'aim' || match.phase !== 'userShoot') return;
-      const rect = host.getBoundingClientRect();
-      const previewSwipe = controlToShotSwipe(
-        shotControlRef.current,
-        rect.width,
-        rect.height
-      );
-      setAimCurve(aimLine, ball.object.position, previewSwipe);
-    };
-    const onControlsChanged = () => previewControlledShot();
-    const onKickRequested = () => startUserKickFromControls();
-    window.addEventListener('free-kick-controls-changed', onControlsChanged);
-    window.addEventListener('free-kick-kick', onKickRequested);
     const onDown = (e: PointerEvent) => {
       audio.start();
       const rect = host.getBoundingClientRect();
@@ -3494,12 +3457,11 @@ export default function FreeKickGame() {
         startY: e.clientY,
         endX: e.clientX,
         endY: e.clientY,
-        mode: state === 'keeperAim' || (state === 'flight' && activeShooter === 'ai') ? 'keeper' : 'camera',
+        mode: state === 'keeperAim' || (state === 'flight' && activeShooter === 'ai') ? 'keeper' : state === 'aim' && match.phase === 'userShoot' ? 'shot' : 'camera',
         moved: false,
         viewportW: rect.width,
         viewportH: rect.height
       };
-      if (state === 'aim' && match.phase === 'userShoot') previewControlledShot();
     };
     const onMove = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
@@ -3514,6 +3476,12 @@ export default function FreeKickGame() {
           setHud((h) => ({ ...h, state: 'Keeper committed — dive tracks your swipe' }));
         return;
       }
+      if (swipeRef.current.mode === 'shot') {
+        swipeRef.current.endX = e.clientX;
+        swipeRef.current.endY = e.clientY;
+        setHud((h) => ({ ...h, state: 'Release to shoot exactly along your swipe' }));
+        return;
+      }
       swipeRef.current.mode = 'camera';
       const dx = e.clientX - swipeRef.current.endX;
       cameraYaw = THREE.MathUtils.clamp(
@@ -3526,10 +3494,12 @@ export default function FreeKickGame() {
     };
     const onUp = (e: PointerEvent) => {
       if (!swipeRef.current.active) return;
+      swipeRef.current.endX = e.clientX;
+      swipeRef.current.endY = e.clientY;
       if (swipeRef.current.mode === 'keeper') {
-        swipeRef.current.endX = e.clientX;
-        swipeRef.current.endY = e.clientY;
         setKeeperDiveFromSwipe(keeper, swipeRef.current);
+      } else if (swipeRef.current.mode === 'shot') {
+        startUserKickFromSwipe({ ...swipeRef.current });
       }
       swipeRef.current.active = false;
     };
@@ -3557,13 +3527,6 @@ export default function FreeKickGame() {
       const now = performance.now();
       const dt = Math.min(DT_MAX, (now - last) / 1000);
       last = now;
-      if (
-        state === 'aim' &&
-        match.phase === 'userShoot' &&
-        swipeRef.current.active &&
-        swipeRef.current.mode === 'shot'
-      )
-        setAimCurve(aimLine, ball.object.position, swipeRef.current);
       if (state === 'keeperAim') {
         aiShotTimer -= dt;
         if (aiShotTimer <= 0) {
@@ -3578,6 +3541,9 @@ export default function FreeKickGame() {
       if (state === 'aim' && match.phase === 'aiShoot') {
         state = 'keeperAim';
         aiShotTimer = 0.85;
+        const keeperFrame = cameraFrameForKeeper(keeper, ball, cameraYaw);
+        camera.position.copy(keeperFrame.position);
+        camera.lookAt(keeperFrame.lookPoint);
         setHud((h) => ({ ...h, state: `You are goalkeeper: swipe left/right/up to dive` }));
       }
       if (state === 'runup' || state === 'aiRunup') {
@@ -3789,7 +3755,7 @@ export default function FreeKickGame() {
           spot = randomKickSpot(spot);
           cameraYaw = 0;
           resetShot(ball, kicker, keeper, wall, spot);
-          placeCameraForNextShot(camera, kicker, cameraYaw);
+          placeCameraForCurrentPhase();
           syncHudScore(nextStatusText());
         }
       }
@@ -3854,10 +3820,9 @@ export default function FreeKickGame() {
       audio.whistle();
       spot = next;
       state = 'aim';
-      hideAimLine(aimLine);
       replayFrames.length = 0;
       resetShot(ball, kicker, keeper, wall, spot);
-      placeCameraForNextShot(camera, kicker, cameraYaw);
+      placeCameraForCurrentPhase();
       setHud((h) => ({
         ...h,
         spot,
@@ -3867,31 +3832,26 @@ export default function FreeKickGame() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('free-kick-controls-changed', onControlsChanged);
-      window.removeEventListener('free-kick-kick', onKickRequested);
-      canvas.removeEventListener('pointerdown', onDown);
+        canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('free-kick-hdri-changed', onHdriChanged as EventListener);
+      activeEnvironment?.dispose();
+      activeBackground?.dispose();
+      pmrem.dispose();
       audio.dispose();
       renderer.dispose();
     };
   }, []);
 
 
-  const updateShotControl = (patch: Partial<ShotControlState>) => {
-    setShotControl((current) => {
-      const next = { ...current, ...patch };
-      shotControlRef.current = next;
-      window.dispatchEvent(new Event('free-kick-controls-changed'));
-      return next;
-    });
+  const selectedHdri = POLYHAVEN_HDRI_OPTIONS.find((option) => option.id === selectedHdriId) ?? POLYHAVEN_HDRI_OPTIONS[0];
+  const chooseHdri = (option: HdriOption) => {
+    setSelectedHdriId(option.id);
+    localStorage.setItem(FREE_KICK_HDRI_STORAGE_KEY, option.id);
+    window.dispatchEvent(new CustomEvent('free-kick-hdri-changed', { detail: option.id }));
   };
-  const requestControlledKick = () => {
-    window.dispatchEvent(new Event('free-kick-kick'));
-  };
-  const shotAimPercentX = `${(shotControl.aimX + 1) * 50}%`;
-  const shotAimPercentY = `${(1 - (shotControl.aimY + 1) * 0.5) * 100}%`;
 
   return (
     <div
@@ -3960,7 +3920,7 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        User takes 5 shots first, then AI takes 5. Pull the power slider upward and release to shoot; set foot contact on the ball under the slider. During AI shots, the camera sits behind the goal and swipes dive the keeper in the same screen direction.
+        User takes 5 shots first, then AI takes 5. Swipe on the pitch in the exact visual shot direction and release to shoot. During AI shots, the camera starts on the goalkeeper face looking at the ball; swipe in the same screen direction to dive.
       </div>
 
       <div
@@ -4002,161 +3962,105 @@ export default function FreeKickGame() {
       </div>
 
       {hud.phase === 'userShoot' && (
-        <>
-          <div
-            aria-label="Shot power slider"
-            style={{
-              position: 'fixed',
-              right: 4,
-              top: '12%',
-              bottom: '46%',
-              width: 64,
-              zIndex: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'auto'
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                right: 7,
-                top: 0,
-                bottom: 0,
-                width: 38,
-                borderRadius: 999,
-                background: 'linear-gradient(180deg, rgba(239,68,68,.92), rgba(250,204,21,.92), rgba(34,197,94,.92))',
-                border: '1px solid rgba(255,255,255,.58)',
-                boxShadow: '0 12px 30px rgba(0,0,0,.5)'
-              }}
-            />
-            <input
-              aria-label="Power"
-              type="range"
-              min={20}
-              max={100}
-              value={Math.round(shotControl.power * 100)}
-              onChange={(event) =>
-                updateShotControl({ power: Number(event.currentTarget.value) / 100 })
-              }
-              onPointerUp={requestControlledKick}
-              onKeyUp={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') requestControlledKick();
-              }}
-              style={{
-                width: '38vh',
-                maxWidth: 360,
-                transform: 'rotate(-90deg)',
-                accentColor: '#facc15',
-                filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                right: 8,
-                bottom: -28,
-                color: 'white',
-                fontFamily: 'system-ui,sans-serif',
-                fontSize: 12,
-                fontWeight: 900,
-                textShadow: '0 2px 8px #000'
-              }}
-            >
-              {Math.round(shotControl.power * 100)}%
+        <div
+          style={{
+            position: 'fixed',
+            right: 14,
+            bottom: 92,
+            zIndex: 4,
+            maxWidth: 220,
+            padding: '10px 12px',
+            borderRadius: 16,
+            background: 'rgba(15,23,42,.62)',
+            border: '1px solid rgba(255,255,255,.18)',
+            color: 'white',
+            fontFamily: 'system-ui,sans-serif',
+            fontSize: 12,
+            fontWeight: 800,
+            lineHeight: 1.25,
+            textShadow: '0 2px 8px #000',
+            pointerEvents: 'none'
+          }}
+        >
+          Swipe the screen in the exact shot direction. Release to shoot.
+        </div>
+      )}
+      <button
+        aria-label="Open sky HDRI menu"
+        onClick={() => setHdriMenuOpen((open) => !open)}
+        style={{
+          position: 'fixed',
+          right: 14,
+          top: 58,
+          width: 48,
+          height: 48,
+          borderRadius: 999,
+          border: '1px solid rgba(255,255,255,.58)',
+          background: 'rgba(15,23,42,.72)',
+          color: 'white',
+          fontSize: 24,
+          boxShadow: '0 10px 26px rgba(0,0,0,.42)',
+          zIndex: 6
+        }}
+      >
+        🌌
+      </button>
+      {hdriMenuOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            right: 12,
+            top: 112,
+            zIndex: 6,
+            width: 300,
+            maxWidth: 'calc(100vw - 24px)',
+            maxHeight: '58vh',
+            overflowY: 'auto',
+            padding: 12,
+            borderRadius: 18,
+            background: 'rgba(2,6,23,.86)',
+            border: '1px solid rgba(255,255,255,.22)',
+            boxShadow: '0 20px 54px rgba(0,0,0,.5)',
+            backdropFilter: 'blur(12px)',
+            color: 'white',
+            fontFamily: 'system-ui,sans-serif'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900 }}>Poly Haven sky HDRI</div>
+              <div style={{ fontSize: 11, opacity: 0.72 }}>Lighting and sky: {selectedHdri.name}</div>
             </div>
+            <button
+              onClick={() => setHdriMenuOpen(false)}
+              style={{ border: 0, borderRadius: 999, background: 'rgba(255,255,255,.14)', color: 'white', width: 30, height: 30 }}
+            >
+              ×
+            </button>
           </div>
-
-          <div
-            style={{
-              position: 'fixed',
-              right: 10,
-              top: '56%',
-              zIndex: 4,
-              width: 138,
-              color: 'white',
-              fontFamily: 'system-ui,sans-serif',
-              textShadow: '0 2px 8px #000',
-              pointerEvents: 'auto'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                marginBottom: 6,
-                textAlign: 'center'
-              }}
-            >
-              BALL + SHOE
-            </div>
-            <div
-              role="slider"
-              aria-label="Ball contact spin controller"
-              aria-valuetext={`x ${shotControl.aimX.toFixed(2)}, y ${shotControl.aimY.toFixed(2)}`}
-              onPointerDown={(event) => {
-                const target = event.currentTarget;
-                target.setPointerCapture(event.pointerId);
-                const rect = target.getBoundingClientRect();
-                const updateFromPointer = (clientX: number, clientY: number) => {
-                  updateShotControl({
-                    aimX: THREE.MathUtils.clamp(((clientX - rect.left) / rect.width) * 2 - 1, -1, 1),
-                    aimY: THREE.MathUtils.clamp(1 - ((clientY - rect.top) / rect.height) * 2, -1, 1)
-                  });
-                };
-                updateFromPointer(event.clientX, event.clientY);
-                const move = (moveEvent: PointerEvent) => updateFromPointer(moveEvent.clientX, moveEvent.clientY);
-                const up = () => {
-                  window.removeEventListener('pointermove', move);
-                  window.removeEventListener('pointerup', up);
-                };
-                window.addEventListener('pointermove', move);
-                window.addEventListener('pointerup', up);
-              }}
-              style={{
-                position: 'relative',
-                width: 112,
-                height: 112,
-                margin: '0 auto',
-                borderRadius: '50%',
-                background:
-                  'radial-gradient(circle at 50% 50%, #f8fafc 0 38%, transparent 39%), conic-gradient(from 18deg, #111827 0 12%, #f8fafc 12% 24%, #111827 24% 36%, #f8fafc 36% 48%, #111827 48% 60%, #f8fafc 60% 72%, #111827 72% 84%, #f8fafc 84% 100%)',
-                border: '3px solid rgba(255,255,255,.9)',
-                boxShadow: '0 14px 28px rgba(0,0,0,.48), inset 0 0 18px rgba(0,0,0,.28)'
-              }}
-            >
-              <div
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {POLYHAVEN_HDRI_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => chooseHdri(option)}
                 style={{
-                  position: 'absolute',
-                  left: shotAimPercentX,
-                  top: shotAimPercentY,
-                  transform: 'translate(-50%, -50%)',
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  background: '#facc15',
-                  border: '3px solid #111827',
-                  boxShadow: '0 0 0 2px rgba(255,255,255,.85)'
-                }}
-              />
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  right: -26,
-                  bottom: -5,
-                  fontSize: 44,
-                  transform: `rotate(${shotControl.aimX * 20 - shotControl.aimY * 10}deg)`,
-                  filter: 'drop-shadow(0 6px 8px rgba(0,0,0,.5))'
+                  textAlign: 'left',
+                  border: option.id === selectedHdri.id ? '2px solid #facc15' : '1px solid rgba(255,255,255,.18)',
+                  borderRadius: 12,
+                  padding: 7,
+                  background: option.id === selectedHdri.id ? 'rgba(250,204,21,.18)' : 'rgba(255,255,255,.06)',
+                  color: 'white'
                 }}
               >
-                🦶
-              </div>
-            </div>
+                <img src={option.thumb} alt={option.name} style={{ width: '100%', height: 62, objectFit: 'cover', borderRadius: 8, display: 'block', marginBottom: 6 }} />
+                <div style={{ fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{option.name}</div>
+                <div style={{ fontSize: 10, opacity: 0.72 }}>{option.time} sky</div>
+              </button>
+            ))}
           </div>
-        </>
+        </div>
       )}
+
       {replaySkippable && (
         <button
           aria-label="Skip goal replay"
