@@ -258,10 +258,10 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 900;
-const DICE_RESULT_HOLD_DURATION = 720;
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_ROLL_DURATION = 820;
+const DICE_SETTLE_DURATION = 780;
+const DICE_RESULT_HOLD_DURATION = 820;
+const DICE_BOUNCE_HEIGHT = 0.085;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
@@ -403,6 +403,8 @@ const TOKEN_RADIUS_SCALE = 1.19;
 const TOKEN_SCALE_MULTIPLIER = 1.62;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
+const TOKEN_STEP_ANIMATION_MS = 540;
+const TOKEN_STEP_JUMP_HEIGHT = TOKEN_HEIGHT * 1.22;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0012;
@@ -521,9 +523,10 @@ const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom/self player: lift parked weapons farther up to visually match the raised token.
-  TILE_SIZE * 2.56,
+  TILE_SIZE * 3.12,
   0,
-  TILE_SIZE * 0.46,
+  // Top player: move the parked weapon visibly higher toward the top edge in portrait.
+  TILE_SIZE * 1.18,
   0
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.38;
@@ -2509,6 +2512,24 @@ async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0, chara
   return promise;
 }
 
+function trimAk47RearWoodStock(model) {
+  if (!model) return;
+  model.traverse((obj) => {
+    const name = `${obj?.name || ''} ${obj?.parent?.name || ''}`.toLowerCase();
+    // Remove only the rear wooden buttstock from the AK47 GLTF. Keep trigger/hand grips intact.
+    if (name.includes('ak_buttstock')) {
+      obj.visible = false;
+      obj.userData.skipRaycast = true;
+    }
+  });
+}
+
+function applyCaptureWeaponModelAdjustments(model, weaponId) {
+  if (weaponId === 'slot-10-ak47-gltf') {
+    trimAk47RearWoodStock(model);
+  }
+}
+
 function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -3456,7 +3477,8 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = []
+    startPositions = [],
+    bouncePoints = []
   }
 ) {
   const start = performance.now();
@@ -3480,16 +3502,21 @@ function createDiceRollAnimation(
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
+        const midPos = bouncePoints[index] ?? startPos.clone().lerp(base, 0.58);
         const endPos = new THREE.Vector3(base.x, baseY, base.z);
-        const position = startPos.clone().lerp(endPos, eased);
+        const pathT = eased < 0.58 ? eased / 0.58 : (eased - 0.58) / 0.42;
+        const position =
+          eased < 0.58
+            ? startPos.clone().lerp(midPos, easeOutCubic(pathT))
+            : midPos.clone().lerp(endPos, smootherstep01(pathT));
         const wobbleStrength = Math.sin(eased * Math.PI);
         position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
+        const bounce = Math.sin(Math.min(1, eased * 1.35) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.35);
+        position.y = Math.max(position.y, THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce);
         die.position.copy(position);
 
-        // Same spin cadence as Ludo Battle Royal's spinDice helper.
-        const spinFactor = 1 - eased * 0.28;
+        // Ludo-style single throw: fast pickup spin, tabletop bounce, then decelerate into settle.
+        const spinFactor = 1 - eased * 0.22;
         die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
         die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
         die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
@@ -4821,7 +4848,8 @@ function updateTokens(
     seatAnchors = [],
     boardLookTarget = null,
     boardRoot = null,
-    tableInfo = null
+    tableInfo = null,
+    tokenMoveAnimations = null
   } = {}
 ) {
   if (!boardTokensGroup || !reserveTokensGroup) return;
@@ -5119,8 +5147,56 @@ function updateTokens(
     }
 
     if (!token.userData.isSliding && worldPos) {
-      token.position.copy(worldPos);
+      const previousRawPosition = token.userData.currentRawPosition;
+      const hadBoardPosition = token.userData.hasBoardPosition === true;
+      const canAnimateStep =
+        Array.isArray(tokenMoveAnimations) &&
+        token.parent === targetGroup &&
+        hasBoardPosition &&
+        hadBoardPosition &&
+        Number.isFinite(previousRawPosition) &&
+        Math.abs(rawPosition - previousRawPosition) === 1 &&
+        token.position.distanceToSquared(worldPos) > 1e-8;
+
+      if (canAnimateStep) {
+        for (let i = tokenMoveAnimations.length - 1; i >= 0; i -= 1) {
+          const animation = tokenMoveAnimations[i];
+          if (animation?.type === 'tokenStep' && animation.token === token) {
+            tokenMoveAnimations.splice(i, 1);
+          }
+        }
+        const startPosition = token.position.clone();
+        const targetPosition = worldPos.clone();
+        const startRotationY = token.rotation.y;
+        const hopDirection = targetPosition.clone().sub(startPosition).setY(0);
+        const yawTarget = hopDirection.lengthSq() > 1e-8 ? Math.atan2(hopDirection.x, hopDirection.z) : startRotationY;
+        const animationStart = performance.now();
+        token.userData.isTokenStepping = true;
+        tokenMoveAnimations.push({
+          type: 'tokenStep',
+          token,
+          update(now) {
+            const t = clamp01((now - animationStart) / TOKEN_STEP_ANIMATION_MS);
+            const eased = smootherstep01(t);
+            const position = startPosition.clone().lerp(targetPosition, eased);
+            position.y += Math.sin(t * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
+            token.position.copy(position);
+            token.rotation.y = THREE.MathUtils.lerp(startRotationY, yawTarget, Math.sin(t * Math.PI) * 0.38);
+            if (t >= 1) {
+              token.userData.isTokenStepping = false;
+              token.position.copy(targetPosition);
+              token.rotation.y = startRotationY;
+              return true;
+            }
+            return false;
+          }
+        });
+      } else if (!token.userData.isTokenStepping) {
+        token.position.copy(worldPos);
+      }
     }
+    token.userData.currentRawPosition = rawPosition;
+    token.userData.hasBoardPosition = hasBoardPosition;
   });
 
   existing.forEach((group, index) => {
@@ -5945,6 +6021,7 @@ async function loadCaptureWeaponCatalogModel(weaponId) {
             const root = gltf?.scene || gltf?.scenes?.[0] || null;
             if (!root) continue;
             prepareLoadedModel(root);
+            applyCaptureWeaponModelAdjustments(root, weaponId);
             return normalizeCaptureVehicleModel(root);
           } catch (error) {
             console.warn(`Capture weapon model load failed`, weaponId, url, error);
@@ -7030,7 +7107,8 @@ export default function SnakeBoard3D({
       seatAnchors: board.seatAnchors,
       boardLookTarget: board.boardLookTarget,
       boardRoot: board.root,
-      tableInfo: board.tableInfo
+      tableInfo: board.tableInfo,
+      tokenMoveAnimations: animationsRef.current
     });
     updateSeatWeaponDisplays(board, players);
 
