@@ -509,15 +509,15 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
 // Portrait phone calibration: visually move only parked items for selected
 // seats higher on the screen without changing the side players' slots.
 const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: lift the reserve token away from the bottom UI/logo area.
-  TILE_SIZE * 0.42,
+  // Bottom/self player: lift the reserve token farther up from the bottom UI/logo area.
+  TILE_SIZE * 0.88,
   0,
   0,
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: lift parked weapons to visually match the raised token.
-  TILE_SIZE * 0.84,
+  // Bottom/self player: lift parked weapons farther up to visually match the raised token.
+  TILE_SIZE * 1.28,
   0,
   TILE_SIZE * 0.46,
   0
