@@ -1449,6 +1449,7 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
   const diceRollerDivRef = useRef(null);
+  const activeDiceBoardRollRef = useRef(null);
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
@@ -1512,6 +1513,20 @@ export default function SnakeAndLadder() {
 
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
+  }, []);
+
+  const normalizeAuthoritativeDiceValues = useCallback((value, fallbackCount = 1) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((candidate) => Number(candidate))
+        .filter((candidate) => Number.isFinite(candidate))
+        .map((candidate) => Math.max(1, Math.min(6, Math.floor(candidate))));
+    }
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return [Math.max(1, Math.min(6, Math.floor(numeric)))];
+    }
+    return Array(Math.max(1, fallbackCount || 1)).fill(1);
   }, []);
 
   const startCaptureAnimation = useCallback(
@@ -2309,12 +2324,45 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value, playerId }) => {
-      setRollResult(value);
+    const onRolled = ({ value, dice, playerId, accountId }) => {
+      const authoritativeValue = dice ?? value;
+      const serverValues = normalizeAuthoritativeDiceValues(authoritativeValue, diceCount);
+      const resultTotal = serverValues.reduce((sum, face) => sum + face, 0);
+      const rollerId = playerId ?? accountId ?? playersRef.current[currentTurn]?.id;
+      const rollerIndex = resolveTurnIndex({ playerId: rollerId, currentTurn });
+      const seatIndex = rollerIndex >= 0 ? rollerIndex : currentTurn ?? 0;
+      const activeRoll = activeDiceBoardRollRef.current;
+      const canReuseActiveRoll =
+        activeRoll &&
+        activeRoll.seatIndex === seatIndex &&
+        activeRoll.phase === 'start';
+      const rollId = canReuseActiveRoll ? activeRoll.id : diceRollIdRef.current + 1;
+
+      if (!canReuseActiveRoll) {
+        diceRollIdRef.current = rollId;
+        activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'start' };
+        startDiceBoardAnimation({
+          id: rollId,
+          phase: 'start',
+          count: serverValues.length || 1,
+          seatIndex
+        });
+      }
+
+      window.setTimeout(() => {
+        startDiceBoardAnimation({
+          id: rollId,
+          phase: 'end',
+          values: serverValues,
+          seatIndex
+        });
+        activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
+      }, canReuseActiveRoll ? 0 : 80);
+
+      setRollResult(resultTotal);
       setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
-      const rollerId = playerId ?? playersRef.current[currentTurn]?.id;
-      playDiceRollSound(`${rollerId ?? 'turn'}:${value}`);
-      if (rollerId === myAccountId && Number(value) === 6) {
+      playDiceRollSound(`${rollerId ?? 'turn'}:${resultTotal}`);
+      if (rollerId === myAccountId && serverValues.some((face) => Number(face) === 6)) {
         setPendingExtraRoll(true);
         setRollCooldown(0);
       }
@@ -4161,6 +4209,11 @@ export default function SnakeAndLadder() {
                 values: vals,
                 seatIndex: aiRollingIndex ?? 0
               });
+              activeDiceBoardRollRef.current = {
+                id: diceRollIdRef.current,
+                seatIndex: aiRollingIndex ?? 0,
+                phase: 'end'
+              };
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
                 setAiRollingIndex(null);
@@ -4173,6 +4226,11 @@ export default function SnakeAndLadder() {
             }}
             onRollStart={() => {
               diceRollIdRef.current += 1;
+              activeDiceBoardRollRef.current = {
+                id: diceRollIdRef.current,
+                seatIndex: aiRollingIndex ?? 0,
+                phase: 'start'
+              };
               startDiceBoardAnimation({
                 id: diceRollIdRef.current,
                 phase: 'start',
@@ -4214,6 +4272,11 @@ export default function SnakeAndLadder() {
               divRef={diceRollerDivRef}
               onRollStart={() => {
                 diceRollIdRef.current += 1;
+                activeDiceBoardRollRef.current = {
+                  id: diceRollIdRef.current,
+                  seatIndex: currentTurn,
+                  phase: 'start'
+                };
                 startDiceBoardAnimation({
                   id: diceRollIdRef.current,
                   phase: 'start',
@@ -4222,17 +4285,11 @@ export default function SnakeAndLadder() {
                 });
                 setPendingExtraRoll(false);
               }}
-              onRollEnd={(vals) => {
-                startDiceBoardAnimation({
-                  id: diceRollIdRef.current,
-                  phase: 'end',
-                  values: vals,
-                  seatIndex: currentTurn
-                });
-                const rolledSix = Array.isArray(vals)
-                  ? vals.some((v) => Number(v) === 6)
-                  : Number(vals) === 6;
-                setPendingExtraRoll(rolledSix);
+              onRollEnd={() => {
+                // Multiplayer rolls are server-authoritative. The dice face and
+                // token movement are completed from the diceRolled socket event
+                // so the board never displays a local random value that differs
+                // from the value used to move the token.
               }}
             />
           ) : null}
