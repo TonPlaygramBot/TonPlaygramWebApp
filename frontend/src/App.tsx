@@ -1,5 +1,5 @@
-import ChessBattleRoyaleStore from './ChessBattleRoyaleStore';
+import FreeKickArenaGame from './FreeKickArenaGame';
 
 export function App() {
-  return <ChessBattleRoyaleStore />;
+  return <FreeKickArenaGame />;
 }
