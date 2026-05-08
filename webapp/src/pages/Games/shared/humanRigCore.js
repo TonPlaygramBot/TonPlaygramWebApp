@@ -241,11 +241,11 @@ const BASE_CFG = {
   // The shooting pose can lock the upper-body fold to the live cue/bridge target
   // so the avatar leans toward the cue stick instead of relying on a fixed local
   // Z sign that may read as backwards after table/camera orientation changes.
-  shootBendDirection: -1,
-  shootBendTowardCueStick: false,
+  shootBendDirection: 1,
+  shootBendTowardCueStick: true,
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
-  shootForwardBendScale: 1,
+  shootForwardBendScale: 0.86,
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true
