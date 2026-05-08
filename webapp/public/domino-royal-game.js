@@ -1072,7 +1072,7 @@ const CAMERA_TURN_SEAT_WEIGHT = 0.46;
 const CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT = 0.14;
 const CAMERA_TURN_SIDE_SEAT_SCREEN_OFFSET = 0.2 * MODEL_SCALE;
 const CAMERA_DOMINO_FOCUS_HOLD_MS = 1250;
-const TURN_ADVANCE_AFTER_PLACEMENT_MS = 950;
+const TURN_ADVANCE_AFTER_PLACEMENT_MS = 1700;
 const PASS_TURN_ADVANCE_DELAY_MS = 680;
 const UP = new THREE.Vector3(0, 1, 0);
 const USE_MINIMAL_STAGE = true;
@@ -7168,8 +7168,12 @@ const OPENING_SHUFFLE_ANIM_DURATION = 620;
 const OPENING_DEAL_ANIM_DURATION = 560;
 const OPENING_DEAL_STEP_DELAY = 76;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = OPENING_DEAL_ANIM_DURATION;
-const PLACE_ANIM_ARC = 0.05;
+const PLACE_ANIM_DURATION = 1450;
+const PLACE_ANIM_PICK_HOLD = 0.18;
+const PLACE_ANIM_LIFT_END = 0.34;
+const PLACE_ANIM_CARRY_END = 0.74;
+const PLACE_ANIM_LOWER_END = 0.92;
+const PLACE_ANIM_ARC = 0.075;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
@@ -8306,6 +8310,9 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
     rightUpperArm: findDominoBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
     rightForeArm: findDominoBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
     rightHand: findDominoBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    rightThumb: findDominoBone(instance, ['rightthumb', 'thumb.r', 'r_thumb', 'right_hand_thumb']),
+    rightIndex: findDominoBone(instance, ['rightindex', 'index.r', 'r_index', 'right_hand_index']),
+    rightMiddle: findDominoBone(instance, ['rightmiddle', 'middle.r', 'r_middle', 'right_hand_middle']),
     leftUpperArm: findDominoBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
     leftForeArm: findDominoBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
     leftHand: findDominoBone(instance, ['lefthand', 'hand.l', 'l_hand']),
@@ -8531,24 +8538,55 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
   if (!rig?.seatedPose) return;
   const now = performance.now();
   const base = rig.seatedPose;
-  const reach = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-13) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
-    rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
-    head: { x: THREE.MathUtils.degToRad(-8) }
+  const isPass = type === 'PASS';
+  const fingerCurl = isPass ? 0 : THREE.MathUtils.degToRad(28);
+  const fingerPinch = isPass ? 0 : THREE.MathUtils.degToRad(-13);
+  const approach = makeDominoPose(base, {
+    spine: { x: THREE.MathUtils.degToRad(isPass ? -8 : -15) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(isPass ? -26 : -76), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-20) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(isPass ? 34 : -28), y: THREE.MathUtils.degToRad(isPass ? 0 : 5) },
+    rightHand: { x: THREE.MathUtils.degToRad(isPass ? 12 : -10), y: THREE.MathUtils.degToRad(isPass ? -6 : -21), z: THREE.MathUtils.degToRad(isPass ? 0 : -14) },
+    head: { x: THREE.MathUtils.degToRad(isPass ? -3 : -9) }
   });
-  const place = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -8 : 10) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -26 : 34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 34 : 54) },
-    rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 16), y: THREE.MathUtils.degToRad(-6) }
+  const pinch = makeDominoPose(approach, {
+    rightHand: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(4) },
+    rightThumb: { x: fingerPinch, y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(7) },
+    rightIndex: { x: fingerCurl, y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-4) },
+    rightMiddle: { x: fingerCurl * 0.68, y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) }
   });
-  dominoCharacterActions.push(
-    { start: now, duration: 180, update: (t) => applyDominoRigPose(rig, reach, t) },
-    { start: now + 180, duration: 240, update: (t) => applyDominoRigPose(rig, place, t) },
-    { start: now + 420, duration: 280, update: (t) => applyDominoRigPose(rig, base, t) }
-  );
+  const carry = makeDominoPose(pinch, {
+    spine: { x: THREE.MathUtils.degToRad(8) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(74), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(2) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(70), y: THREE.MathUtils.degToRad(-8) },
+    rightHand: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(6) },
+    head: { x: THREE.MathUtils.degToRad(5) }
+  });
+  const release = makeDominoPose(carry, {
+    rightThumb: { x: -fingerPinch * 0.9, y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-7) },
+    rightIndex: { x: -fingerCurl * 0.72, y: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(3) },
+    rightMiddle: { x: -fingerCurl * 0.45, y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(2) }
+  });
+  const timings = isPass
+    ? [180, 240, 280]
+    : [260, 230, 520, 260, 300];
+  if (isPass) {
+    dominoCharacterActions.push(
+      { start: now, duration: timings[0], update: (t) => applyDominoRigPose(rig, approach, t) },
+      { start: now + timings[0], duration: timings[1], update: (t) => applyDominoRigPose(rig, release, t) },
+      { start: now + timings[0] + timings[1], duration: timings[2], update: (t) => applyDominoRigPose(rig, base, t) }
+    );
+    return;
+  }
+  let cursor = now;
+  dominoCharacterActions.push({ start: cursor, duration: timings[0], update: (t) => applyDominoRigPose(rig, approach, t) });
+  cursor += timings[0];
+  dominoCharacterActions.push({ start: cursor, duration: timings[1], update: (t) => applyDominoRigPose(rig, pinch, t) });
+  cursor += timings[1];
+  dominoCharacterActions.push({ start: cursor, duration: timings[2], update: (t) => applyDominoRigPose(rig, carry, t) });
+  cursor += timings[2];
+  dominoCharacterActions.push({ start: cursor, duration: timings[3], update: (t) => applyDominoRigPose(rig, release, t) });
+  cursor += timings[3];
+  dominoCharacterActions.push({ start: cursor, duration: timings[4], update: (t) => applyDominoRigPose(rig, base, t) });
 }
 
 function stepDominoCharacterActions(now = performance.now()) {
@@ -11544,6 +11582,53 @@ function updateDrawAnimations(now) {
   }
 }
 
+function smoothPlacementStep(edge0, edge1, value) {
+  if (edge1 <= edge0) return value >= edge1 ? 1 : 0;
+  const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function resolvePrecisionPlacementPosition(anim, t) {
+  const pickupLift = (anim.arc || PLACE_ANIM_ARC) * 0.85;
+  const carryLift = (anim.arc || PLACE_ANIM_ARC) * 1.18;
+  const pickup = anim.start.clone();
+  pickup.y += pickupLift;
+  const carryStart = pickup.clone();
+  const carryEnd = anim.end.clone();
+  carryEnd.y += carryLift;
+  const lowerReady = anim.end.clone();
+  lowerReady.y += 0.012;
+
+  if (t < PLACE_ANIM_PICK_HOLD) {
+    const press = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
+    const pos = anim.start.clone();
+    pos.y -= Math.sin(press * Math.PI) * 0.004;
+    return pos;
+  }
+  if (t < PLACE_ANIM_LIFT_END) {
+    return anim.start.clone().lerp(
+      pickup,
+      smoothPlacementStep(PLACE_ANIM_PICK_HOLD, PLACE_ANIM_LIFT_END, t)
+    );
+  }
+  if (t < PLACE_ANIM_CARRY_END) {
+    const carryT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_CARRY_END, t);
+    const pos = carryStart.lerp(carryEnd, carryT);
+    pos.y += Math.sin(Math.PI * carryT) * carryLift * 0.28;
+    return pos;
+  }
+  if (t < PLACE_ANIM_LOWER_END) {
+    return carryEnd.lerp(
+      lowerReady,
+      smoothPlacementStep(PLACE_ANIM_CARRY_END, PLACE_ANIM_LOWER_END, t)
+    );
+  }
+  return lowerReady.lerp(
+    anim.end,
+    smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t)
+  );
+}
+
 function updatePlacementAnimations(now) {
   const timestamp = Number.isFinite(now) ? now : performance.now();
   for (let i = placementAnimations.length - 1; i >= 0; i--) {
@@ -11551,21 +11636,17 @@ function updatePlacementAnimations(now) {
     const elapsed = timestamp - anim.startTime;
     const duration = anim.duration || PLACE_ANIM_DURATION;
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
-    const ease = 1 - Math.pow(1 - t, 3);
+    const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
 
-    const pos = anim.start.clone().lerp(anim.end, ease);
-    if (anim.arc) {
-      pos.y += Math.sin(Math.PI * ease) * anim.arc;
-    }
-    anim.mesh.position.copy(pos);
+    anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
 
     if (anim.endQuat && anim.startQuat) {
-      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, rotateT);
       anim.mesh.quaternion.copy(quat);
     }
 
     if (anim.endScale && anim.startScale) {
-      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
+      const scale = anim.startScale.clone().lerp(anim.endScale, rotateT);
       anim.mesh.scale.copy(scale);
     }
 
