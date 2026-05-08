@@ -56,8 +56,8 @@ const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: keep the chair ring closer to the table while humans sit back toward the chair backs.
-const CHAIR_GLOBAL_PUSHBACK = 0.52 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.54 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.28 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.26 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
@@ -176,7 +176,7 @@ const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
 // Portrait calibration: nudge the bottom/self human farther outward too so bodies sit closer to chairs than the table.
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.04;
 const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
 const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -239,13 +239,13 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.84; // portrait calibration: shrink board footprint to sit smaller on the table
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.66; // portrait calibration: shrink board footprint to sit smaller on the table
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
+const PYRAMID_HEIGHT_MULTIPLIER = 1.06; // portrait calibration: keep board tiers shorter on the table
 const MAX_DICE = 1;
 const DICE_SIZE = TILE_SIZE * 0.61 * 0.8;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -510,14 +510,14 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
 // seats higher on the screen without changing the side players' slots.
 const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom/self player: lift the reserve token farther up from the bottom UI/logo area.
-  TILE_SIZE * 1.42,
+  TILE_SIZE * 2.18,
   0,
   0,
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom/self player: lift parked weapons farther up to visually match the raised token.
-  TILE_SIZE * 1.86,
+  TILE_SIZE * 2.62,
   0,
   TILE_SIZE * 0.46,
   0
@@ -794,9 +794,9 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
 });
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
-  horizontal: Object.freeze({ x: 0.04, y: 0, z: -0.06 }),
+  horizontal: Object.freeze({ x: 0, y: 0, z: 0 }),
   // Portrait screen: left/right player weapons lie flat top-to-bottom on the tabletop.
-  vertical: Object.freeze({ x: 0.04, y: Math.PI * 0.5, z: -0.06 })
+  vertical: Object.freeze({ x: 0, y: Math.PI * 0.5, z: 0 })
 });
 const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
   'slot-10-ak47-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal,
@@ -935,24 +935,24 @@ function createPreciseSnakeTiles(scale = 1) {
     const localT = clamp01((t - left.at) / span);
     return `#${left.color.clone().lerp(right.color, localT).getHexString()}`;
   };
-  const outwardSpread = 1.56; // nudge tiles a bit farther from center
+  const outwardSpread = 1.34; // tighter stylish footprint for portrait tables
   const totalTiles = 50;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
-    let baseTop = 0.07;
-    let riseStep = 0.012;
+    let baseTop = 0.05;
+    let riseStep = 0.008;
     let size = 1.08; // make each tile slightly larger for readability
     if (index >= 24 && index < 40) {
       level = 1;
       localIndex = index - 24;
-      baseTop = 0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET;
-      riseStep = 0.022;
+      baseTop = 0.58 + LEVEL_ONE_TILE_VERTICAL_OFFSET;
+      riseStep = 0.014;
     } else if (index >= 40) {
       level = 2;
       localIndex = index - 40;
-      baseTop = 1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET;
-      riseStep = 0.048;
+      baseTop = 1.05 + LEVEL_TWO_TILE_VERTICAL_OFFSET;
+      riseStep = 0.026;
       size = 1.04;
     }
     const dx = cell.col - center;
@@ -970,7 +970,7 @@ function createPreciseSnakeTiles(scale = 1) {
     id: 49,
     x: -outwardSpread * 0.54 * scale,
     z: 0,
-    y: (2.46 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
+    y: (1.46 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
     size: 1.03 * scale,
     color: getGradientHex(48 / (totalTiles - 1))
   });
@@ -978,7 +978,7 @@ function createPreciseSnakeTiles(scale = 1) {
     id: 50,
     x: outwardSpread * 0.34 * scale,
     z: 0,
-    y: (2.9 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
+    y: (1.68 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
     size: 1.18 * scale,
     color: getGradientHex(1)
   });
@@ -4306,7 +4306,7 @@ function buildSnakeBoard(
   const tileMeshes = new Map();
   const indexToPosition = new Map();
   const preciseBoardScale = (BASE_LEVEL_TILES * TILE_SIZE) / 10.2;
-  const tileHeight = 0.26 * preciseBoardScale;
+  const tileHeight = 0.2 * preciseBoardScale;
 
   const labelGroup = new THREE.Group();
   boardRotationRoot.add(labelGroup);
@@ -4316,7 +4316,7 @@ function buildSnakeBoard(
   const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.94, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0.14, envMapIntensity: 0.45 })
     );
     mesh.position.y = y;
     mesh.castShadow = true;
@@ -4367,36 +4367,36 @@ function buildSnakeBoard(
     0.42 * preciseBoardScale,
     levelDimensions[0].sizeZ * 1.03,
     -0.36 * preciseBoardScale,
-    '#5a5a5a'
+    '#2f3545'
   );
-  addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
+  addLayer(levelDimensions[0].sizeX, 0.18 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#3b475f');
   addLayer(
     levelDimensions[1].sizeX * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[1].sizeZ * UPPER_FLOOR_SIDE_SCALE,
-    0.76 * preciseBoardScale,
-    '#555555'
+    0.48 * preciseBoardScale,
+    '#475569'
   );
   addLayer(
     levelDimensions[2].sizeX * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[2].sizeZ * UPPER_FLOOR_SIDE_SCALE,
-    1.54 * preciseBoardScale,
-    '#666666'
+    0.96 * preciseBoardScale,
+    '#55637a'
   );
   addLayer(
     levelDimensions[2].sizeX * 0.62 * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[2].sizeZ * 0.44 * UPPER_FLOOR_SIDE_SCALE,
-    2.22 * preciseBoardScale,
-    '#7b7b7b'
+    1.28 * preciseBoardScale,
+    '#64748b'
   );
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
       : new THREE.Color(tileSpec.color);
     const materialSet = createTileMaterialSet(baseColor, boardTheme);
-    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileHeight, tileSpec.size);
+    const tileGeo = new RoundedBoxGeometry(tileSpec.size, tileHeight, tileSpec.size, 3, tileSpec.size * 0.08);
     const tile = new THREE.Mesh(tileGeo, materialSet.materials);
     tile.position.set(tileSpec.x, tileSpec.y, tileSpec.z);
     tile.castShadow = true;
@@ -4417,9 +4417,9 @@ function buildSnakeBoard(
   });
 
   const levelPlacements = [
-    { tileTopY: 0.07 * preciseBoardScale + tileHeight },
-    { tileTopY: (0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight },
-    { tileTopY: (1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight }
+    { tileTopY: 0.05 * preciseBoardScale + tileHeight },
+    { tileTopY: (0.58 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight },
+    { tileTopY: (1.05 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight }
   ];
   railingInfos.push(
     {
@@ -5890,10 +5890,8 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
           parkingPose === 'horizontal' ? FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType] : null;
         if (parkedRotation) {
           model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
-        } else {
-          applyFlatTableWeaponParkingPose(model, parkingPose);
         }
-        model.position.y -= TOKEN_HEIGHT * 1.32;
+        applyFlatTableWeaponParkingPose(model, parkingPose);
         holder.add(model);
       })
       .catch(() => {});
