@@ -447,7 +447,8 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.22,
+  // Bottom/self player: trim side spacing so the weapon parks closer to the token cluster.
+  TILE_SIZE * 0.12,
   TILE_SIZE * 0.22,
   TILE_SIZE * 0.22,
   TILE_SIZE * 0.22
@@ -469,7 +470,8 @@ const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  0,
+  // Bottom/self player: pull the parked weapon inward so it sits closer to the reserve token.
+  -TILE_SIZE * 0.26,
   0,
   0,
   0
@@ -520,11 +522,11 @@ const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: keep the weapon visually level with the bottom reserve token row.
-  TILE_SIZE * 2.08,
+  // Bottom/self player: move the weapon farther toward the top of the portrait screen.
+  TILE_SIZE * 2.36,
   0,
-  // Top player: keep the weapon cluster visually higher on the portrait screen too.
-  TILE_SIZE * 1.18,
+  // Top player: move the weapon cluster farther toward the top of the portrait screen too.
+  TILE_SIZE * 1.46,
   0
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.38;
@@ -573,7 +575,7 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = -0.1;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
