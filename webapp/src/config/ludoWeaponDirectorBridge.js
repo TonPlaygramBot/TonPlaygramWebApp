@@ -29,8 +29,8 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
   firearmBroadcastProfile: Object.freeze({
     aimLift: 0.064,
     aimRearPullback: 0.124,
-    bulletFollowStart: 0.08,
-    bulletFollowEnd: 0.998,
+    bulletFollowStart: 0.045,
+    bulletFollowEnd: 0.999,
     bulletTargetBlend: 0.84,
     bulletFollowLift: 0.092,
     bulletFollowRearPullback: 0.138,
