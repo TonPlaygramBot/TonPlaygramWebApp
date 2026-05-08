@@ -9902,6 +9902,7 @@ export function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
+    net.userData.isPocketHolder = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -9918,6 +9919,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.isPocketHolder = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -9952,6 +9954,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.isPocketHolder = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -10016,6 +10019,7 @@ export function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       strap.userData.externalTableKeepVisible = true;
+      strap.userData.isPocketHolder = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -12814,6 +12818,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
+      child.userData = { ...(child.userData || {}), poolRoyaleExternalSurfaceRole: role };
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
@@ -12841,9 +12846,65 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
   });
 }
 
+
+function scalePoolRoyaleExternalMeshGeometryY(mesh, originY, scale) {
+  const geometry = mesh?.geometry;
+  const position = geometry?.attributes?.position;
+  if (!geometry || !position || !Number.isFinite(originY) || !Number.isFinite(scale) || scale <= 0) {
+    return false;
+  }
+  if (Math.abs(scale - 1) <= MICRO_EPS) return false;
+  mesh.geometry = geometry.clone();
+  const nextPosition = mesh.geometry.attributes.position;
+  for (let i = 0; i < nextPosition.count; i += 1) {
+    const y = nextPosition.getY(i);
+    nextPosition.setY(i, originY + (y - originY) * scale);
+  }
+  nextPosition.needsUpdate = true;
+  mesh.geometry.computeBoundingBox?.();
+  mesh.geometry.computeBoundingSphere?.();
+  mesh.userData = {
+    ...(mesh.userData || {}),
+    poolRoyaleExternalHeightTuned: scale
+  };
+  return true;
+}
+
+function applyPoolRoyaleExternalTableShapeTuning(root, tableModel = null) {
+  const frameRailHeightScale = Number.isFinite(tableModel?.frameRailHeightScale)
+    ? tableModel.frameRailHeightScale
+    : 1;
+  const tableBaseHeightScale = Number.isFinite(tableModel?.tableBaseHeightScale)
+    ? tableModel.tableBaseHeightScale
+    : 1;
+  const shouldTuneFrame = frameRailHeightScale > MICRO_EPS && Math.abs(frameRailHeightScale - 1) > MICRO_EPS;
+  const shouldTuneBase = tableBaseHeightScale > MICRO_EPS && Math.abs(tableBaseHeightScale - 1) > MICRO_EPS;
+  if (!root || (!shouldTuneFrame && !shouldTuneBase)) return 0;
+
+  let tunedCount = 0;
+  root.traverse?.((child) => {
+    if (!child?.isMesh || !child.geometry) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = child.userData?.poolRoyaleExternalSurfaceRole || classifyPoolRoyaleExternalTableSurface(child, material);
+    const label = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    const isBaseSupport = /leg|foot|feet|base|support|pedestal|stand|trestle/.test(label);
+    const isUpperWoodRail = role === 'wood' && !isBaseSupport && /rail|frame|apron|cabinet|wood|showood|bevel|body/.test(label);
+    child.geometry.computeBoundingBox?.();
+    const bbox = child.geometry.boundingBox;
+    if (!bbox || !Number.isFinite(bbox.min.y) || !Number.isFinite(bbox.max.y)) return;
+    if (shouldTuneBase && isBaseSupport) {
+      tunedCount += scalePoolRoyaleExternalMeshGeometryY(child, bbox.max.y, tableBaseHeightScale) ? 1 : 0;
+    } else if (shouldTuneFrame && isUpperWoodRail) {
+      tunedCount += scalePoolRoyaleExternalMeshGeometryY(child, bbox.max.y, frameRailHeightScale) ? 1 : 0;
+    }
+  });
+  return tunedCount;
+}
+
 function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
+  applyPoolRoyaleExternalTableShapeTuning(clone, tableModel);
   return clone;
 }
 
@@ -13234,18 +13295,22 @@ function mountPoolRoyaleExternalTableModel({
     );
     return centers.map((center) => {
       const group = new THREE.Group();
+      group.userData = { ...(group.userData || {}), isLegLeveler: true };
       const disc = tagBasePart(new THREE.Mesh(levelerGeom, chromeMat), 'trim');
       disc.position.set(0, levelerHeight * 0.5 + rubberHeight, 0);
       disc.castShadow = true;
       disc.receiveShadow = true;
+      disc.userData = { ...(disc.userData || {}), isLegLeveler: true };
       const stem = tagBasePart(new THREE.Mesh(stemGeom, chromeMat), 'trim');
       stem.position.set(0, levelerHeight + stemHeight * 0.5 + rubberHeight - MICRO_EPS, 0);
       stem.castShadow = true;
       stem.receiveShadow = true;
+      stem.userData = { ...(stem.userData || {}), isLegLeveler: true };
       const rubberRing = tagBasePart(new THREE.Mesh(rubberGeom, rubberMat), 'trim');
       rubberRing.position.set(0, rubberHeight * 0.5, 0);
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
+      rubberRing.userData = { ...(rubberRing.userData || {}), isLegLeveler: true };
       group.add(rubberRing, disc, stem);
       const legBottomY = Number.isFinite(center?.legBottomY)
         ? center.legBottomY
@@ -13745,11 +13810,15 @@ function mountPoolRoyaleExternalTableModel({
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
+      const forceGeneratedPocketHolders = Boolean(externalTableModelForMount?.forceGeneratedPocketHolders);
+      const forceGeneratedLegLevelers = Boolean(externalTableModelForMount?.forceGeneratedLegLevelers);
       if (
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
+          (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome)) ||
+          (object.userData?.isPocketHolder && forceGeneratedPocketHolders) ||
+          (object.userData?.isLegLeveler && forceGeneratedLegLevelers)
         )
       ) {
         object.visible = true;
@@ -25804,10 +25873,10 @@ const shotPowerRef = useRef(0);
             // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
             // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
-            shootBendTowardCueStick: true,
+            shootBendTowardCueStick: false,
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: 0.72,
-            shootForwardBendScale: 0.62,
+            shootForwardBendScale: 0.54,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
@@ -25836,9 +25905,9 @@ const shotPowerRef = useRef(0);
             shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotSide: -0.46 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotBack: -0.78 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightElbowShotBack: -0.62 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightForearmOutward: 0.36 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmBack: 0.44 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightForearmBack: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightForearmDown: 0.48 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePull: 0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
