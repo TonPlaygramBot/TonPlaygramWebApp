@@ -520,8 +520,8 @@ const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: lift parked weapons farther toward the top of the portrait screen.
-  TILE_SIZE * 3.12,
+  // Bottom/self player: keep the weapon visually level with the bottom reserve token row.
+  TILE_SIZE * 2.08,
   0,
   // Top player: keep the weapon cluster visually higher on the portrait screen too.
   TILE_SIZE * 1.18,
