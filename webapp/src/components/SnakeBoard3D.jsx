@@ -274,7 +274,10 @@ const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
+// Portrait framing calibration: aim the camera at the physical board surface center,
+// not above the table, so the Snake board center projects to the exact phone center.
+const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
+const CAMERA_TARGET_EXTRA = 0;
 const CAMERA_SIDE_LOOK_EXTRA = 0.6 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
@@ -557,7 +560,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
   heightOffset: 2.46,
-  targetLift: 0.16 * MODEL_SCALE
+  targetLift: BOARD_SURFACE_CENTER_LIFT
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,

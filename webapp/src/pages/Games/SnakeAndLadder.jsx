@@ -346,11 +346,12 @@ function resolveAiTokenShapes(options, count) {
 }
 
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '92%' },
-  { left: '78%', top: '54%' },
-  { left: '48%', top: '22%' },
-  { left: '22%', top: '55%' }
+  { left: '50%', top: '94%' },
+  { left: '78%', top: '58%' },
+  { left: '48%', top: '27%' },
+  { left: '22%', top: '59%' }
 ];
+const AVATAR_RING_SCREEN_DOWN_OFFSET_PERCENT = 3.8;
 const SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT = 12.4;
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -3927,7 +3928,7 @@ export default function SnakeAndLadder() {
                   left: `${anchor.x}%`,
                   top: `${Math.min(
                     97,
-                    anchor.y + (seatIndex === 0 ? SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT : 0)
+                    anchor.y + AVATAR_RING_SCREEN_DOWN_OFFSET_PERCENT + (seatIndex === 0 ? SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT : 0)
                   )}%`,
                   transform: 'translate(-50%, -50%)'
                 }
