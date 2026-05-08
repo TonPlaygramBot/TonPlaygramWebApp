@@ -239,8 +239,9 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // portrait calibration: shrink board footprint to sit smaller and shorter on the table
-const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // keep the previous vertical/table-height calibration
+const BOARD_FOOTPRINT_SCALE = BOARD_SCALE * 1.16; // widen the board in portrait while preserving the existing height
+const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_FOOTPRINT_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
@@ -306,13 +307,13 @@ const DEFAULT_HIGHLIGHT_COLORS = Object.freeze({
   ladder: new THREE.Color(0x22c55e)
 });
 
-const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
-const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
-const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
-const PYRAMID_CONCRETE_BASE = new THREE.Color('#e2e8f0');
-const PYRAMID_WALL_LIGHT = new THREE.Color('#d4d4d8');
-const PYRAMID_WALL_DARK = new THREE.Color('#4b5563');
-const PYRAMID_WALL_ACCENT = new THREE.Color('#9ca3af');
+const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#f8fafc');
+const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#64748b');
+const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#38bdf8');
+const PYRAMID_CONCRETE_BASE = new THREE.Color('#0f172a');
+const PYRAMID_WALL_LIGHT = new THREE.Color('#cbd5e1');
+const PYRAMID_WALL_DARK = new THREE.Color('#1e293b');
+const PYRAMID_WALL_ACCENT = new THREE.Color('#22d3ee');
 
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
@@ -386,10 +387,13 @@ const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
 const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
-const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
-const TILE_BOTTOM_COLOR = new THREE.Color(0x3d2514);
-const TILE_SIDE_EMISSIVE_SCALE = 0.25;
-const TILE_BOTTOM_EMISSIVE_SCALE = 0.1;
+const TILE_SIDE_COLOR = new THREE.Color('#334155');
+const TILE_BOTTOM_COLOR = new THREE.Color('#0f172a');
+const TILE_SIDE_EMISSIVE_SCALE = 0.32;
+const TILE_BOTTOM_EMISSIVE_SCALE = 0.14;
+const SPIRAL_PATH_COLOR = new THREE.Color('#0f172a');
+const SPIRAL_PATH_EMISSIVE = new THREE.Color('#38bdf8');
+const MILESTONE_RING_COLOR = new THREE.Color('#f8fafc');
 
 const BENTONITE_EXTRA_SHRINK = [0.85, 0.92];
 const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
@@ -401,7 +405,7 @@ const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLI
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
-const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
+const TILE_LABEL_OFFSET = TILE_SIZE * 0.0012;
 
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const GROUND_FLOOR_OUTWARD_SCALE = 1.08;
@@ -794,27 +798,65 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
 });
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
-  horizontal: Object.freeze({ x: 0, y: 0, z: 0 }),
+  horizontal: Object.freeze({ yaw: 0, preferAxis: 'x' }),
   // Portrait screen: left/right player weapons lie flat top-to-bottom on the tabletop.
-  vertical: Object.freeze({ x: 0, y: Math.PI * 0.5, z: 0 })
+  vertical: Object.freeze({ yaw: Math.PI * 0.5, preferAxis: 'z' })
 });
 const FIREARM_CATALOG_PARKED_ROTATION_BY_ID = Object.freeze({
   'slot-10-ak47-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal,
   'slot-18-fps-gun-gltf': WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal
 });
+const WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES = Object.freeze([
+  Object.freeze({ x: 0, z: 0 }),
+  Object.freeze({ x: Math.PI * 0.5, z: 0 }),
+  Object.freeze({ x: -Math.PI * 0.5, z: 0 }),
+  Object.freeze({ x: 0, z: Math.PI * 0.5 }),
+  Object.freeze({ x: 0, z: -Math.PI * 0.5 }),
+  Object.freeze({ x: Math.PI, z: 0 }),
+  Object.freeze({ x: 0, z: Math.PI })
+]);
 function getSeatWeaponParkingPose(seatIndex) {
   // Seat order: 0=bottom, 1=right, 2=top, 3=left in portrait.
   return seatIndex === 1 || seatIndex === 3 ? 'vertical' : 'horizontal';
 }
 
+function measureWeaponFlatnessScore(object, preferAxis = 'x') {
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return Number.POSITIVE_INFINITY;
+  const size = box.getSize(new THREE.Vector3());
+  const footprint = Math.max(size.x, size.z, 1e-6);
+  const heightPenalty = size.y / footprint;
+  const preferredLength = preferAxis === 'z' ? size.z : size.x;
+  const crossLength = preferAxis === 'z' ? size.x : size.z;
+  const alignmentPenalty = Math.max(0, crossLength - preferredLength) / footprint;
+  return heightPenalty * 10 + alignmentPenalty;
+}
+
 function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
   if (!object?.isObject3D) return;
-  const rotation = WEAPON_TABLE_PARKING_ROTATION_BY_POSE[parkingPose] || WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal;
-  object.rotation.set(rotation.x, rotation.y, rotation.z);
+  const pose = WEAPON_TABLE_PARKING_ROTATION_BY_POSE[parkingPose] || WEAPON_TABLE_PARKING_ROTATION_BY_POSE.horizontal;
+  const yaw = Number.isFinite(pose.yaw) ? pose.yaw : 0;
+  const preferAxis = pose.preferAxis || 'x';
+  const originalPosition = object.position.clone();
+  let best = WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES[0];
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES.forEach((candidate) => {
+    object.rotation.set(candidate.x, yaw, candidate.z);
+    const score = measureWeaponFlatnessScore(object, preferAxis);
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  });
+
+  object.position.copy(originalPosition);
+  object.rotation.set(best.x, yaw, best.z);
   object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object);
   if (Number.isFinite(box.min.y)) {
-    object.position.y -= box.min.y;
+    object.position.y += -box.min.y;
     object.updateMatrixWorld(true);
   }
 }
@@ -3578,11 +3620,23 @@ function createTileLabel(number) {
   const text = String(number);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `700 ${size * 0.55}px 'Inter', 'Segoe UI', sans-serif`;
-  ctx.lineWidth = size * 0.08;
-  ctx.strokeStyle = 'rgba(15,23,42,0.85)';
+  const radius = size * 0.44;
+  const ring = ctx.createLinearGradient(size * 0.18, size * 0.18, size * 0.82, size * 0.82);
+  ring.addColorStop(0, 'rgba(255,255,255,0.92)');
+  ring.addColorStop(1, 'rgba(56,189,248,0.72)');
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15,23,42,0.28)';
+  ctx.fill();
+  ctx.lineWidth = size * 0.035;
+  ctx.strokeStyle = ring;
+  ctx.stroke();
+
+  ctx.font = `800 ${size * 0.5}px 'Inter', 'Segoe UI', sans-serif`;
+  ctx.lineWidth = size * 0.075;
+  ctx.strokeStyle = 'rgba(2,6,23,0.9)';
   ctx.strokeText(text, size / 2, size / 2);
-  ctx.fillStyle = '#f8fafc';
+  ctx.fillStyle = '#ffffff';
   ctx.fillText(text, size / 2, size / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -3596,7 +3650,7 @@ function createTileLabel(number) {
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1
   });
-  const planeSize = TILE_SIZE * 0.58;
+  const planeSize = TILE_SIZE * 0.68;
   const geometry = new THREE.PlaneGeometry(planeSize, planeSize);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 10;
@@ -3619,13 +3673,13 @@ function createTileMaterialSet(baseColor, palette = {}) {
 
   const topMaterial = new THREE.MeshPhysicalMaterial({
     color: topColor,
-    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.34,
-    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.28,
-    clearcoat: Number.isFinite(palette.topClearcoat) ? palette.topClearcoat : 0.42,
+    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.26,
+    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.34,
+    clearcoat: Number.isFinite(palette.topClearcoat) ? palette.topClearcoat : 0.62,
     clearcoatRoughness: Number.isFinite(palette.topClearcoatRoughness) ? palette.topClearcoatRoughness : 0.18,
     emissive: toThreeColor(palette.topEmissive, 0x101321),
-    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.22,
-    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.68
+    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.28,
+    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.82
   });
   topMaterial.shadowSide = THREE.DoubleSide;
 
@@ -3997,7 +4051,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const targetLift = cameraTuning.targetLift;
 
   const boardGroup = new THREE.Group();
-  boardGroup.scale.setScalar(BOARD_SCALE);
+  boardGroup.scale.set(BOARD_FOOTPRINT_SCALE, BOARD_SCALE, BOARD_FOOTPRINT_SCALE);
   const boardLookTarget = new THREE.Vector3(
     0,
     tableInfo.surfaceY + targetLift + CAMERA_TARGET_EXTRA,
@@ -4316,9 +4370,17 @@ function buildSnakeBoard(
   const platformMeshes = [];
   const railingInfos = [];
   const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
+    const layerColor = toThreeColor(color, PYRAMID_CONCRETE_SHADOW);
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.94, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({
+        color: layerColor,
+        roughness: 0.58,
+        metalness: 0.18,
+        emissive: layerColor.clone().lerp(PYRAMID_WALL_ACCENT, 0.32),
+        emissiveIntensity: 0.08,
+        envMapIntensity: 0.48
+      })
     );
     mesh.position.y = y;
     mesh.castShadow = true;
@@ -4369,30 +4431,48 @@ function buildSnakeBoard(
     0.42 * preciseBoardScale,
     levelDimensions[0].sizeZ * 1.03,
     -0.36 * preciseBoardScale,
-    '#5a5a5a'
+    PYRAMID_CONCRETE_BASE
   );
-  addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
+  addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, PYRAMID_WALL_DARK);
   addLayer(
     levelDimensions[1].sizeX * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[1].sizeZ * UPPER_FLOOR_SIDE_SCALE,
     0.76 * preciseBoardScale,
-    '#555555'
+    PYRAMID_CONCRETE_SHADOW
   );
   addLayer(
     levelDimensions[2].sizeX * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[2].sizeZ * UPPER_FLOOR_SIDE_SCALE,
     1.54 * preciseBoardScale,
-    '#666666'
+    PYRAMID_WALL_LIGHT
   );
   addLayer(
     levelDimensions[2].sizeX * 0.62 * UPPER_FLOOR_SIDE_SCALE,
     0.24 * preciseBoardScale,
     levelDimensions[2].sizeZ * 0.44 * UPPER_FLOOR_SIDE_SCALE,
     2.22 * preciseBoardScale,
-    '#7b7b7b'
+    PYRAMID_CONCRETE_ACCENT
   );
+  const spiralPathMaterial = new THREE.MeshStandardMaterial({
+    color: SPIRAL_PATH_COLOR,
+    roughness: 0.42,
+    metalness: 0.38,
+    emissive: SPIRAL_PATH_EMISSIVE,
+    emissiveIntensity: 0.2,
+    transparent: true,
+    opacity: 0.82
+  });
+  const milestoneRingMaterial = new THREE.MeshStandardMaterial({
+    color: MILESTONE_RING_COLOR,
+    roughness: 0.24,
+    metalness: 0.5,
+    emissive: new THREE.Color('#f59e0b'),
+    emissiveIntensity: 0.18
+  });
+  platformMeshes.push({ material: spiralPathMaterial }, { material: milestoneRingMaterial });
+
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
@@ -4422,6 +4502,43 @@ function buildSnakeBoard(
     const label = createTileLabel(tileSpec.id);
     label.position.set(tileSpec.x, topPosition.y + TILE_LABEL_OFFSET, tileSpec.z);
     labelGroup.add(label);
+  });
+
+  for (let tileId = 1; tileId < TOTAL_BOARD_TILES; tileId += 1) {
+    const from = indexToPosition.get(tileId);
+    const to = indexToPosition.get(tileId + 1);
+    if (!from || !to) continue;
+    const delta = to.clone().sub(from);
+    const planarLength = Math.hypot(delta.x, delta.z);
+    if (planarLength < 1e-5) continue;
+    const connector = new THREE.Mesh(
+      new THREE.BoxGeometry(planarLength, tileHeight * 0.08, TILE_SIZE * 0.16),
+      spiralPathMaterial
+    );
+    connector.position.set((from.x + to.x) / 2, (from.y + to.y) / 2 + TILE_LABEL_OFFSET * 0.7, (from.z + to.z) / 2);
+    connector.rotation.y = -Math.atan2(delta.z, delta.x);
+    connector.castShadow = false;
+    connector.receiveShadow = true;
+    connector.renderOrder = 4;
+    tileGroup.add(connector);
+    platformMeshes.push(connector);
+  }
+
+  preciseTiles.forEach((tileSpec) => {
+    if (tileSpec.id % 5 !== 0 && tileSpec.id !== 1 && tileSpec.id !== TOTAL_BOARD_TILES) return;
+    const topPosition = indexToPosition.get(tileSpec.id);
+    if (!topPosition) return;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(tileSpec.size * 0.36, tileHeight * 0.025, 8, 36),
+      milestoneRingMaterial
+    );
+    ring.position.set(tileSpec.x, topPosition.y + TILE_LABEL_OFFSET * 1.4, tileSpec.z);
+    ring.rotation.x = -Math.PI / 2;
+    ring.castShadow = false;
+    ring.receiveShadow = true;
+    ring.renderOrder = 6;
+    tileGroup.add(ring);
+    platformMeshes.push(ring);
   });
 
   const levelPlacements = [
@@ -5894,11 +6011,6 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
           TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
         );
         model.position.set(0, 0, 0);
-        const parkedRotation =
-          parkingPose === 'horizontal' ? FIREARM_CATALOG_PARKED_ROTATION_BY_ID[catalogWeaponType] : null;
-        if (parkedRotation) {
-          model.rotation.set(parkedRotation.x, parkedRotation.y, parkedRotation.z);
-        }
         applyFlatTableWeaponParkingPose(model, parkingPose);
         holder.add(model);
       })
