@@ -409,6 +409,7 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
+const PORTRAIT_CAMERA_LOOK_UP_LIFT = 0.12 * MODEL_SCALE;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.82;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
@@ -658,6 +659,8 @@ const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
 const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18;
 const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.24;
+const TEXAS_CHARACTER_TABLE_INWARD_NUDGE = 0.18 * MODEL_SCALE;
+const TEXAS_CHAIR_TABLE_OUTWARD_NUDGE = 0.1 * MODEL_SCALE;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.14;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
@@ -1465,7 +1468,11 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     seatRoot.position.set(
       0,
       baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET - humanLowerOffset,
-      baseSeatOffsetZ - 0.03 - TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET - humanTableInwardOffset
+      baseSeatOffsetZ -
+        0.03 -
+        TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET -
+        humanTableInwardOffset -
+        TEXAS_CHARACTER_TABLE_INWARD_NUDGE
     );
     seatRoot.add(instance);
     seatGroup.group.add(seatRoot);
@@ -4691,6 +4698,7 @@ function TexasHoldemArena({ search }) {
               chairMeshes.push(obj);
             }
           });
+          clone.position.z += TEXAS_CHAIR_TABLE_OUTWARD_NUDGE;
           group.add(clone);
           seat.chairMeshes = chairMeshes;
         });
@@ -5219,7 +5227,9 @@ function TexasHoldemArena({ search }) {
         railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
         focus.copy(potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND));
       }
-      if (!portrait) {
+      if (portrait) {
+        focus.y += PORTRAIT_CAMERA_LOOK_UP_LIFT;
+      } else {
         focus.y += CAMERA_LANDSCAPE_LOOK_UP_LIFT;
         focus.addScaledVector(humanSeat.right, CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT);
       }
@@ -5348,6 +5358,7 @@ function TexasHoldemArena({ search }) {
             chairMeshes.push(obj);
           }
         });
+        chairModel.position.z += TEXAS_CHAIR_TABLE_OUTWARD_NUDGE;
         group.add(chairModel);
         arenaGroup.add(group);
 
