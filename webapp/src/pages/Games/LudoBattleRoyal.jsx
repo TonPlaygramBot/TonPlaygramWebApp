@@ -787,7 +787,7 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
 });
 // Keep FPS gun and Shotgun Blast visually matched in hand.
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
-const FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
+const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
@@ -803,17 +803,6 @@ const FIREARM_BROADCAST_PROFILE = Object.freeze({
   ...LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile
 });
 const FIREARM_TARGET_RETICLE_SIZE = 0.04;
-const FIREARM_CINEMATIC_CAMERA = Object.freeze({
-  weaponRearDistance: 0.18,
-  weaponSideOffset: 0.07,
-  weaponLift: 0.072,
-  bulletRearDistance: 0.13,
-  bulletSideOffset: 0.038,
-  bulletLift: 0.054,
-  impactRearDistance: 0.22,
-  impactLift: 0.105,
-  lookAhead: 0.26
-});
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
@@ -916,44 +905,6 @@ function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = 
   audio.currentTime = 0;
   audio.play().catch(() => {});
   return true;
-}
-
-function removeAk47RearWoodStock(root) {
-  if (!root?.isObject3D) return;
-  root.updateMatrixWorld?.(true);
-  const rootBox = new THREE.Box3().setFromObject(root);
-  const rootCenter = rootBox.getCenter(new THREE.Vector3());
-  const rootSize = rootBox.getSize(new THREE.Vector3());
-  const rootCenterLocal = root.worldToLocal(rootCenter.clone());
-  const meshBox = new THREE.Box3();
-  const meshCenter = new THREE.Vector3();
-  const meshSize = new THREE.Vector3();
-  const brownish = (material) => {
-    const color = material?.color;
-    if (!color?.isColor) return false;
-    const hsl = { h: 0, s: 0, l: 0 };
-    color.getHSL(hsl);
-    return hsl.h >= 0.035 && hsl.h <= 0.16 && hsl.s > 0.18 && hsl.l < 0.58;
-  };
-  root.traverse((node) => {
-    if (!node?.isMesh) return;
-    const name = `${node.name || ''}`.toLowerCase();
-    if (/grip|handle|trigger|mag|magazine|handguard|fore/.test(name)) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    const hasWoodMaterial = materials.some(brownish);
-    meshBox.setFromObject(node);
-    meshBox.getCenter(meshCenter);
-    meshBox.getSize(meshSize);
-    const localCenter = root.worldToLocal(meshCenter.clone());
-    const rearByZ = localCenter.z < rootCenterLocal.z - rootSize.z * 0.22;
-    const rearByX = localCenter.x < rootCenterLocal.x - rootSize.x * 0.28;
-    const stockName = /stock|butt/.test(name);
-    const isSmallGrip = meshSize.y > rootSize.y * 0.35 && meshSize.z < rootSize.z * 0.22;
-    if ((stockName || hasWoodMaterial) && (rearByZ || rearByX) && !isSmallGrip) {
-      node.visible = false;
-      node.userData.removedAk47RearStock = true;
-    }
-  });
 }
 
 async function loadCaptureWeaponModel(captureAnimationId) {
@@ -1081,9 +1032,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       });
       applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
-      if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
-        removeAk47RearWoodStock(root);
-      }
       return root;
     } catch (error) {
       console.warn('Capture weapon model setup failed', captureAnimationId, error);
@@ -2713,81 +2661,6 @@ function createCaptureMuzzleFx() {
   return { root, flash, smoke };
 }
 
-function spawnFirearmMuzzleParticles(scene, origin, forward, scale = 1) {
-  if (!scene || !origin?.isVector3 || !forward?.isVector3) return;
-  const dir = forward.lengthSq() > 1e-8 ? forward.clone().normalize() : new THREE.Vector3(0, 0, 1);
-  const particles = [];
-  const addParticle = ({ color, opacity, life, startScale, endScale, speed, lift, spread, additive = false }) => {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 10, 10),
-      new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-        depthWrite: false
-      })
-    );
-    mesh.scale.setScalar(startScale);
-    mesh.position.copy(origin).addScaledVector(dir, THREE.MathUtils.randFloat(0.006, 0.035) * scale);
-    mesh.position.add(new THREE.Vector3(THREE.MathUtils.randFloatSpread(spread), THREE.MathUtils.randFloatSpread(spread * 0.7), THREE.MathUtils.randFloatSpread(spread)));
-    mesh.userData.velocity = dir.clone().multiplyScalar(speed).add(new THREE.Vector3(THREE.MathUtils.randFloatSpread(spread * 0.22), lift, THREE.MathUtils.randFloatSpread(spread * 0.16)));
-    mesh.userData.life = life;
-    mesh.userData.startScale = startScale;
-    mesh.userData.endScale = endScale;
-    mesh.userData.maxOpacity = opacity;
-    scene.add(mesh);
-    particles.push(mesh);
-  };
-  for (let i = 0; i < 7; i += 1) {
-    const startScale = THREE.MathUtils.randFloat(0.012, 0.028) * scale;
-    addParticle({
-      color: i % 2 === 0 ? '#ff8a00' : '#ffd166',
-      opacity: 0.82,
-      life: THREE.MathUtils.randFloat(70, 135),
-      startScale,
-      endScale: startScale * THREE.MathUtils.randFloat(1.5, 2.3),
-      speed: THREE.MathUtils.randFloat(0.012, 0.036) * scale,
-      lift: THREE.MathUtils.randFloat(0.002, 0.008) * scale,
-      spread: 0.015 * scale,
-      additive: true
-    });
-  }
-  for (let i = 0; i < 12; i += 1) {
-    const startScale = THREE.MathUtils.randFloat(0.01, 0.024) * scale;
-    addParticle({
-      color: i % 2 === 0 ? '#6b7280' : '#9ca3af',
-      opacity: 0.34,
-      life: THREE.MathUtils.randFloat(380, 760),
-      startScale,
-      endScale: startScale * THREE.MathUtils.randFloat(4.2, 7.0),
-      speed: THREE.MathUtils.randFloat(0.004, 0.014) * scale,
-      lift: THREE.MathUtils.randFloat(0.004, 0.014) * scale,
-      spread: 0.018 * scale
-    });
-  }
-  const started = performance.now();
-  const tick = () => {
-    const age = performance.now() - started;
-    for (let i = particles.length - 1; i >= 0; i -= 1) {
-      const particle = particles[i];
-      const life = Math.max(1, particle.userData.life ?? 1);
-      const t = clamp(age / life, 0, 1);
-      particle.position.add(particle.userData.velocity || new THREE.Vector3());
-      particle.scale.setScalar(THREE.MathUtils.lerp(particle.userData.startScale, particle.userData.endScale, smoother01(t)));
-      particle.material.opacity = (particle.userData.maxOpacity ?? 0.4) * (1 - t);
-      if (t >= 1) {
-        particle.parent?.remove?.(particle);
-        particle.geometry?.dispose?.();
-        particle.material?.dispose?.();
-        particles.splice(i, 1);
-      }
-    }
-    if (particles.length) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
 function createCaptureTargetReticleFx(size = FIREARM_TARGET_RETICLE_SIZE) {
   const root = new THREE.Group();
   const ring = new THREE.Mesh(
@@ -2839,8 +2712,7 @@ function spawnTokenBreakDebris({
   impactDirection = null,
   weaponId = '',
   tableSurfaceY = 0,
-  profileScale = 1,
-  useActualTokenGeometry = false
+  profileScale = 1
 }) {
   if (!scene || !token?.isObject3D || !impactPoint?.isVector3) return;
   const baseProfile = resolveTokenBreakProfile(weaponId);
@@ -2853,53 +2725,33 @@ function spawnTokenBreakDebris({
     lingerMs: baseProfile.lingerMs * clamp(profileScale, 0.4, 1.2)
   };
   const palette = [];
-  const sourceMeshes = [];
-  token.updateMatrixWorld?.(true);
   token.traverse((node) => {
     if (!node?.isMesh) return;
     const mats = Array.isArray(node.material) ? node.material : [node.material];
     mats.forEach((mat) => {
       if (mat?.color?.isColor) palette.push(mat.color.clone());
     });
-    if (node.geometry && sourceMeshes.length < 24) {
-      sourceMeshes.push(node);
-    }
   });
   if (!palette.length) palette.push(new THREE.Color('#d1d5db'));
   const forward = impactDirection?.isVector3 && impactDirection.lengthSq() > 1e-6
     ? impactDirection.clone().normalize()
     : new THREE.Vector3(0, 0, 1);
   const worldUp = new THREE.Vector3(0, 1, 0);
-  const right = forward.clone().cross(worldUp);
-  if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
-  right.normalize();
+  const right = forward.clone().cross(worldUp).normalize();
   const chunks = [];
-  const sourcePosition = new THREE.Vector3();
-  const sourceQuaternion = new THREE.Quaternion();
-  const sourceScale = new THREE.Vector3();
   for (let i = 0; i < profile.count; i += 1) {
     const size = THREE.MathUtils.lerp(profile.sizeMin, profile.sizeMax, Math.random());
-    const sourceMesh = useActualTokenGeometry && sourceMeshes.length ? sourceMeshes[i % sourceMeshes.length] : null;
-    let chunk = null;
-    if (sourceMesh) {
-      sourceMesh.matrixWorld.decompose(sourcePosition, sourceQuaternion, sourceScale);
-      const material = Array.isArray(sourceMesh.material)
-        ? sourceMesh.material.map((mat) => mat.clone())
-        : sourceMesh.material?.clone?.() ?? new THREE.MeshStandardMaterial({ color: palette[i % palette.length].clone() });
-      chunk = new THREE.Mesh(sourceMesh.geometry.clone(), material);
-      chunk.quaternion.copy(sourceQuaternion);
-      const shrink = THREE.MathUtils.randFloat(0.13, 0.28) * clamp(profileScale, 0.55, 1.15);
-      chunk.scale.copy(sourceScale).multiplyScalar(shrink);
-    } else {
-      chunk = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(size, 0),
-        new THREE.MeshStandardMaterial({
-          color: palette[i % palette.length].clone(),
-          roughness: 0.48,
-          metalness: 0.18
-        })
-      );
-    }
+    const tokenChunkGeometry = i % 2 === 0
+      ? new THREE.CylinderGeometry(size * 0.58, size * 0.72, size * 0.48, 12)
+      : new THREE.DodecahedronGeometry(size, 0);
+    const chunk = new THREE.Mesh(
+      tokenChunkGeometry,
+      new THREE.MeshStandardMaterial({
+        color: palette[i % palette.length].clone(),
+        roughness: 0.48,
+        metalness: 0.18
+      })
+    );
     chunk.castShadow = true;
     chunk.receiveShadow = true;
     const offset = right.clone().multiplyScalar((Math.random() - 0.5) * size * 2.3)
@@ -2920,25 +2772,18 @@ function spawnTokenBreakDebris({
   }
 
   const startMs = performance.now();
-  const dustClouds = Array.from({ length: weaponId === 'missileJavelin' || weaponId === 'droneAttack' ? 18 : 10 }, (_, idx) => {
+  const dustClouds = Array.from({ length: weaponId === 'missileJavelin' || weaponId === 'droneAttack' ? 8 : 4 }, (_, idx) => {
     const dust = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 10, 10),
+      new THREE.PlaneGeometry(0.045 + idx * 0.01, 0.045 + idx * 0.01),
       new THREE.MeshBasicMaterial({
-        color: idx % 3 === 0 ? '#111827' : idx % 3 === 1 ? '#4b5563' : '#9ca3af',
+        color: idx % 2 === 0 ? '#1f2937' : '#4b5563',
         transparent: true,
-        opacity: 0.38,
+        opacity: 0.58,
         depthWrite: false
       })
     );
-    const startScale = THREE.MathUtils.randFloat(0.012, 0.032) * (profileScale > 0.5 ? 1 : 0.62);
-    dust.scale.setScalar(startScale);
-    dust.position.copy(impactPoint).add(new THREE.Vector3((Math.random() - 0.5) * 0.05, 0.008 + Math.random() * 0.018, (Math.random() - 0.5) * 0.05));
-    dust.userData.velocity = forward.clone().multiplyScalar(THREE.MathUtils.randFloat(0.012, 0.055))
-      .add(right.clone().multiplyScalar(THREE.MathUtils.randFloatSpread(0.045)))
-      .add(new THREE.Vector3(0, THREE.MathUtils.randFloat(0.006, 0.032), THREE.MathUtils.randFloatSpread(0.025)));
-    dust.userData.life = THREE.MathUtils.randFloat(650, 1450) * clamp(profileScale, 0.65, 1.25);
-    dust.userData.startScale = startScale;
-    dust.userData.endScale = startScale * THREE.MathUtils.randFloat(3.2, 6.8);
+    dust.rotation.x = -Math.PI / 2;
+    dust.position.copy(impactPoint).add(new THREE.Vector3((Math.random() - 0.5) * 0.05, 0.005, (Math.random() - 0.5) * 0.05));
     scene.add(dust);
     return dust;
   });
@@ -2980,20 +2825,13 @@ function spawnTokenBreakDebris({
       chunk.rotation.x += chunk.userData.spin.x;
       chunk.rotation.y += chunk.userData.spin.y;
       chunk.rotation.z += chunk.userData.spin.z;
-      const chunkMaterials = Array.isArray(chunk.material) ? chunk.material : [chunk.material];
-      chunkMaterials.forEach((mat) => {
-        if (!mat) return;
-        mat.opacity = 1 - fade;
-        mat.transparent = fade > 0;
-      });
+      chunk.material.opacity = 1 - fade;
+      chunk.material.transparent = fade > 0;
     });
     dustClouds.forEach((dust, idx) => {
-      const particleLife = Math.max(1, dust.userData.life ?? life);
-      const particleT = clamp(age / particleLife, 0, 1);
-      const drift = 1 + idx * 0.08;
-      dust.position.add((dust.userData.velocity || new THREE.Vector3()).clone().multiplyScalar(drift));
-      dust.material.opacity = clamp((1 - particleT) * (0.42 - idx * 0.008), 0, 0.42);
-      dust.scale.setScalar(THREE.MathUtils.lerp(dust.userData.startScale ?? 0.02, dust.userData.endScale ?? 0.12, smoother01(particleT)));
+      const drift = 1 + idx * 0.12;
+      dust.material.opacity = clamp((1 - fade) * (0.52 - idx * 0.03), 0, 0.58);
+      dust.scale.setScalar(1 + age * 0.00014 * drift);
     });
     bloodMarks.forEach((mark) => {
       mark.material.opacity = clamp(0.34 * (1 - fade * 0.45), 0.06, 0.34);
@@ -3005,11 +2843,7 @@ function spawnTokenBreakDebris({
     chunks.forEach((chunk) => {
       chunk.parent?.remove?.(chunk);
       chunk.geometry?.dispose?.();
-      if (Array.isArray(chunk.material)) {
-        chunk.material.forEach((mat) => mat?.dispose?.());
-      } else {
-        chunk.material?.dispose?.();
-      }
+      chunk.material?.dispose?.();
     });
     dustClouds.forEach((dust) => {
       dust.parent?.remove?.(dust);
@@ -3432,8 +3266,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.42 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.255 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.32 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.178 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -5701,11 +5535,6 @@ function saveBoneRig(modelRoot) {
     rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
     rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
     rightHand: findBoneByNeedle(bones, 'righthand'),
-    leftThumb: findBoneChainByNeedle(bones, 'lefthandthumb', 'leftthumb'),
-    leftIndex: findBoneChainByNeedle(bones, 'lefthandindex', 'leftindex'),
-    leftMiddle: findBoneChainByNeedle(bones, 'lefthandmiddle', 'leftmiddle'),
-    leftRing: findBoneChainByNeedle(bones, 'lefthandring', 'leftring'),
-    leftPinky: findBoneChainByNeedle(bones, 'lefthandpinky', 'leftpinky'),
     rightThumb: findBoneChainByNeedle(bones, 'righthandthumb', 'rightthumb'),
     rightIndex: findBoneChainByNeedle(bones, 'righthandindex', 'rightindex'),
     rightMiddle: findBoneChainByNeedle(bones, 'righthandmiddle', 'rightmiddle'),
@@ -5788,37 +5617,6 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   (rig.rightThumb || []).forEach((bone, index) => {
     const fold = index === 0 ? 0.38 : 0.62;
     addBoneRot(rig, bone, fold * grip, -0.36 * grip, 0.27 * grip, 1);
-  });
-}
-
-function applyLeftHandGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  const open = 1 - grip;
-  const squeeze = 0.82 + grip * 0.34;
-
-  curlFingerChain(rig, rig.leftIndex, grip * squeeze, 0.055 - 0.035 * open);
-  curlFingerChain(rig, rig.leftMiddle, grip * squeeze, 0.025);
-  curlFingerChain(rig, rig.leftRing, grip * squeeze, -0.055 + 0.03 * open);
-  curlFingerChain(rig, rig.leftPinky, grip * squeeze, -0.105 + 0.04 * open);
-
-  (rig.leftThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? 0.36 : 0.58;
-    addBoneRot(rig, bone, fold * grip, 0.34 * grip, -0.25 * grip, 1);
-  });
-}
-
-function applyFirearmTriggerGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  const triggerCurl = 0.42 + grip * 0.18;
-  curlFingerChain(rig, rig.rightIndex, triggerCurl, -0.02);
-  curlFingerChain(rig, rig.rightMiddle, grip * 1.1, -0.025);
-  curlFingerChain(rig, rig.rightRing, grip * 1.08, 0.045);
-  curlFingerChain(rig, rig.rightPinky, grip * 1.02, 0.092);
-  (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? 0.32 : 0.54;
-    addBoneRot(rig, bone, fold * grip, -0.42 * grip, 0.34 * grip, 1);
   });
 }
 
@@ -6115,7 +5913,6 @@ function applySeatedHumanPose(
   let headY = 0;
   const bodyLockedMode = mode !== 'idle';
   const isDiceReachMode = mode === 'reachDice' || mode === 'gripDice';
-  const isFirearmAimMode = String(mode).startsWith('firearmAim');
 
   if (mode === 'firearmAim') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
@@ -6319,12 +6116,7 @@ function applySeatedHumanPose(
   addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ, 1);
   addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ, 1);
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ, 1);
-  if (isFirearmAimMode) {
-    applyFirearmTriggerGrip(rig, handGrip);
-    applyLeftHandGrip(rig, Math.max(0.82, handGrip * 0.96));
-  } else {
-    applyRightHandGrip(rig, handGrip);
-  }
+  applyRightHandGrip(rig, handGrip);
 }
 
 function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
@@ -7203,8 +6995,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
   const cameraSeatLockPositionRef = useRef(null);
-  const dynamicFirearmCameraRef = useRef(false);
-  const firearmCinematicPoseRef = useRef(null);
   const lockUserTurnSeatViewRef = useRef(false);
   const preserveUserTurnCameraRef = useRef(false);
   const cameraTurnStateRef = useRef({
@@ -10203,15 +9993,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         setSeatAnchors([]);
       }
 
-      if (!isCamera2d && camera && controls && dynamicFirearmCameraRef.current && firearmCinematicPoseRef.current) {
-        const pose = firearmCinematicPoseRef.current;
-        if (pose.position?.isVector3 && pose.target?.isVector3) {
-          camera.position.lerp(pose.position, pose.positionLerp ?? 0.38);
-          controls.target.lerp(pose.target, pose.targetLerp ?? 0.42);
-          camera.lookAt(controls.target);
-          cameraTurnStateRef.current.currentTarget = controls.target.clone();
-        }
-      } else if (
+      if (
         !isCamera2d &&
         cameraTurnStateRef.current.followObject?.isObject3D &&
         controls &&
@@ -10230,7 +10012,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
-      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED && !dynamicFirearmCameraRef.current) {
+      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
         const gameplayTarget = boardLookTargetRef.current?.isVector3
           ? boardLookTargetRef.current.clone()
@@ -10584,8 +10366,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
-          dynamicFirearmCameraRef.current = true;
-          firearmCinematicPoseRef.current = null;
           const directorWeaponType =
             LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[resolvedCaptureAnimationId] ?? 'Rifle';
           const attackerEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === attackerPlayer);
@@ -10653,45 +10433,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           });
           const targetReticle = createCaptureTargetReticleFx();
           const shellStates = shells.map(() => ({ landed: false, settledAt: 0 }));
-          const cinematicUp = new THREE.Vector3(0, 1, 0);
-          const cinematicDir = new THREE.Vector3();
-          const cinematicSide = new THREE.Vector3();
-          const setFirearmCinematicPose = ({ focusPoint, targetPoint, mode = 'weapon' }) => {
-            if (!focusPoint?.isVector3 || !targetPoint?.isVector3) return;
-            cinematicDir.copy(targetPoint).sub(focusPoint);
-            if (cinematicDir.lengthSq() < 1e-8) return;
-            cinematicDir.normalize();
-            cinematicSide.crossVectors(cinematicDir, cinematicUp);
-            if (cinematicSide.lengthSq() < 1e-8) cinematicSide.set(1, 0, 0);
-            cinematicSide.normalize();
-            const sideSign = attackerPlayer % 2 === 0 ? 1 : -1;
-            const rearDistance = mode === 'bullet'
-              ? FIREARM_CINEMATIC_CAMERA.bulletRearDistance
-              : mode === 'impact'
-                ? FIREARM_CINEMATIC_CAMERA.impactRearDistance
-                : FIREARM_CINEMATIC_CAMERA.weaponRearDistance;
-            const sideOffset = mode === 'bullet'
-              ? FIREARM_CINEMATIC_CAMERA.bulletSideOffset
-              : FIREARM_CINEMATIC_CAMERA.weaponSideOffset;
-            const lift = mode === 'bullet'
-              ? FIREARM_CINEMATIC_CAMERA.bulletLift
-              : mode === 'impact'
-                ? FIREARM_CINEMATIC_CAMERA.impactLift
-                : FIREARM_CINEMATIC_CAMERA.weaponLift;
-            const targetLead = mode === 'bullet'
-              ? FIREARM_CINEMATIC_CAMERA.lookAhead * 1.3
-              : FIREARM_CINEMATIC_CAMERA.lookAhead;
-            firearmCinematicPoseRef.current = {
-              position: focusPoint
-                .clone()
-                .addScaledVector(cinematicDir, -rearDistance)
-                .addScaledVector(cinematicSide, sideOffset * sideSign)
-                .addScaledVector(cinematicUp, lift),
-              target: focusPoint.clone().addScaledVector(cinematicDir, targetLead),
-              positionLerp: mode === 'bullet' ? 0.58 : 0.34,
-              targetLerp: mode === 'bullet' ? 0.64 : 0.42
-            };
-          };
           scene.add(muzzleFx.root);
           tracers.forEach((entry) => scene.add(entry.root));
           shells.forEach((entry) => scene.add(entry));
@@ -10774,18 +10515,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             const cameraMid = muzzleOrigin.clone().lerp(muzzleTarget, FIREARM_CAMERA_FOCUS_BLEND);
             const aimDir = muzzleTarget.clone().sub(muzzleOrigin);
-            setFirearmCinematicPose({
-              focusPoint: muzzleOrigin.clone(),
-              targetPoint: muzzleTarget.clone(),
-              mode: elapsed >= preFireLeadMs ? 'weapon' : 'weapon'
-            });
             const followOffset =
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(singleShotFirearm ? -FIREARM_BROADCAST_PROFILE.aimRearPullback * 0.82 : -FIREARM_BROADCAST_PROFILE.aimRearPullback * 1.12)
-                    .add(new THREE.Vector3(0, singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.42 : FIREARM_BROADCAST_PROFILE.aimLift * 1.18, 0))
-                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, -FIREARM_BROADCAST_PROFILE.aimRearPullback);
+                    .multiplyScalar(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimRearPullback * 0.62 : FIREARM_BROADCAST_PROFILE.aimRearPullback)
+                    .setY(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.28 : FIREARM_BROADCAST_PROFILE.aimLift)
+                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, FIREARM_BROADCAST_PROFILE.aimRearPullback);
             setCameraFocus({
               target: cameraMid,
               object: handWeaponAttachment?.weapon,
@@ -10807,8 +10543,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             targetReticle.vertical.material.opacity = clamp(0.5 + reticlePulse * 0.4, 0, 1);
             if (elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs) {
               if (elapsedShooting % cadenceMs < 16) {
-                const muzzleForward = muzzleTarget.clone().sub(muzzleOrigin).normalize();
-                spawnFirearmMuzzleParticles(scene, muzzleOrigin.clone(), muzzleForward, singleShotFirearm ? 1.2 : 0.82);
                 playFirearmShotSound();
                 playFirearmShellSound();
                 playCaptureWeaponSourceSound(resolvedCaptureAnimationId, {
@@ -10847,8 +10581,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             });
             let leadBulletPos = null;
             let leadBulletMesh = null;
-            let liveBulletImpactPoint = null;
-            let liveBulletImpactDir = null;
             bullets.forEach((bulletMesh, idx) => {
               const spawnAt = Number(bulletMesh.userData?.spawnAt ?? 0);
               const life = elapsed - spawnAt;
@@ -10856,25 +10588,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.visible = false;
                 return;
               }
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * 0.62;
-              const shotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * 0.82), 0, 1);
+              const shotProgress = clamp((life * mergedBallistics.bulletSpeed) / Math.max(24, cadenceMs * 0.72), 0, 1);
               const start = muzzleOrigin.clone();
               const end = muzzleTarget.clone();
               const bulletPos = start.lerp(end, shotProgress);
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (shotProgress >= 0.995) {
-                if (!bulletMesh.userData.completed && !liveBulletImpactPoint) {
-                  liveBulletImpactPoint = end.clone();
-                  liveBulletImpactDir = end.clone().sub(start).normalize();
-                }
                 bulletMesh.userData.completed = true;
                 bulletMesh.visible = false;
               }
               if (
                 !leadBulletPos &&
                 shotProgress > FIREARM_BROADCAST_PROFILE.bulletFollowStart &&
-                shotProgress < 0.995
+                shotProgress < FIREARM_BROADCAST_PROFILE.bulletFollowEnd
               ) {
                 leadBulletPos = bulletPos.clone();
                 leadBulletMesh = bulletMesh;
@@ -10883,11 +10610,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (leadBulletPos?.isVector3) {
               const pullback = muzzleTarget.clone().sub(muzzleOrigin).normalize().multiplyScalar(-FIREARM_BROADCAST_PROFILE.bulletFollowRearPullback);
               const bulletFocusTarget = leadBulletPos.clone().lerp(muzzleTarget, FIREARM_BROADCAST_PROFILE.bulletTargetBlend);
-              setFirearmCinematicPose({
-                focusPoint: leadBulletPos.clone(),
-                targetPoint: muzzleTarget.clone(),
-                mode: 'bullet'
-              });
               setCameraFocus({
                 target: bulletFocusTarget,
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
@@ -10958,32 +10680,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 impactDirection: shotDir,
                 weaponId: resolvedCaptureAnimationId,
                 tableSurfaceY,
-                profileScale: 0.32,
-                useActualTokenGeometry: true
+                profileScale: 0.32
               });
             }
-            if (!shatterDone && (liveBulletImpactPoint?.isVector3 || impactPhase >= 0.92)) {
+            if (!shatterDone && impactPhase >= 0.92) {
               shatterDone = true;
               playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
-              const shotDir = liveBulletImpactDir?.isVector3 ? liveBulletImpactDir : muzzleTarget.clone().sub(muzzleOrigin).normalize();
-              const resolvedBulletImpact = liveBulletImpactPoint?.isVector3 ? liveBulletImpactPoint : muzzleTarget.clone();
+              const shotDir = muzzleTarget.clone().sub(muzzleOrigin);
               spawnTokenBreakDebris({
                 scene,
                 token: hideTarget,
-                impactPoint: resolvedBulletImpact.clone(),
+                impactPoint: muzzleTarget.clone(),
                 impactDirection: shotDir,
                 weaponId: resolvedCaptureAnimationId,
-                tableSurfaceY,
-                useActualTokenGeometry: true
-              });
-              setFirearmCinematicPose({
-                focusPoint: resolvedBulletImpact.clone(),
-                targetPoint: resolvedBulletImpact.clone().add(shotDir.clone().normalize()),
-                mode: 'impact'
+                tableSurfaceY
               });
               setCameraFocus({
-                target: (liveBulletImpactPoint?.isVector3 ? liveBulletImpactPoint : muzzleTarget).clone(),
+                target: muzzleTarget.clone(),
                 object: leadBulletMesh?.isObject3D ? leadBulletMesh : handWeaponAttachment?.weapon,
                 follow: true,
                 priority: 11,
@@ -11004,8 +10718,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             bulletGeometry.dispose();
             bulletMaterial.dispose();
             handWeaponAttachment?.release?.();
-            dynamicFirearmCameraRef.current = false;
-            firearmCinematicPoseRef.current = null;
             if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
             seatedHumanActionRef.current = {
@@ -11724,8 +11436,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
           requestAnimationFrame(tick);
         } catch (error) {
-          dynamicFirearmCameraRef.current = false;
-          firearmCinematicPoseRef.current = null;
           stopCaptureVehicleSounds();
           if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = true;
           if (isDroneAttack && parkedDronePayload?.isObject3D) {
@@ -11822,7 +11532,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       ? cameraSeatLockPositionRef.current
       : null;
     const destinationPosition =
-      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition && !dynamicFirearmCameraRef.current
+      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition
         ? lockedSeatPosition.clone()
         : toPosition?.isVector3
           ? toPosition.clone()
@@ -11932,13 +11642,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       1,
       Math.abs(focusTarget.x - boardLookTarget.x) / Math.max(BOARD_CLOTH_HALF * 0.75, 0.01)
     );
-    const dynamicBlend = dynamicFirearmCameraRef.current
-      ? 1
-      : THREE.MathUtils.lerp(
-        CAMERA_BROADCAST_TARGET_BLEND,
-        CAMERA_BROADCAST_SIDE_BLEND,
-        sideDistance
-      );
+    const dynamicBlend = THREE.MathUtils.lerp(
+      CAMERA_BROADCAST_TARGET_BLEND,
+      CAMERA_BROADCAST_SIDE_BLEND,
+      sideDistance
+    );
     const target = boardLookTarget.clone().lerp(focusTarget, dynamicBlend);
     target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
 
@@ -12087,8 +11795,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       const controls = controlsRef.current;
       if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-      if (state.turn === 0 && lockUserTurnSeatViewRef.current && !focus.force && !dynamicFirearmCameraRef.current) return;
-      if (!focus.force && !dynamicFirearmCameraRef.current && shouldRespectUserCamera(state.turn)) return;
+      if (state.turn === 0 && lockUserTurnSeatViewRef.current) return;
+      if (!focus.force && shouldRespectUserCamera(state.turn)) return;
       const {
         object,
         target,
