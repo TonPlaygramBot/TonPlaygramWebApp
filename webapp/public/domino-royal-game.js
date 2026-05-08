@@ -7168,13 +7168,172 @@ const OPENING_SHUFFLE_ANIM_DURATION = 620;
 const OPENING_DEAL_ANIM_DURATION = 560;
 const OPENING_DEAL_STEP_DELAY = 76;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = OPENING_DEAL_ANIM_DURATION;
-const PLACE_ANIM_ARC = 0.05;
+// Slower, tactile placement so the player can clearly see the right hand
+// touch the selected domino, pinch it with visible fingers, carry it, and release it.
+const PLACE_ANIM_DURATION = 1420;
+const PLACE_ANIM_ARC = 0.075;
+const PLACE_HAND_APPROACH_RATIO = 0.18;
+const PLACE_HAND_GRAB_RATIO = 0.32;
+const PLACE_HAND_CARRY_RATIO = 0.78;
+const PLACE_HAND_SETTLE_RATIO = 0.92;
+const PLACE_HAND_RELEASE_RATIO = 1;
+const PLACE_HAND_HOVER = DOMINO_WIDTH * 0.78;
+const PLACE_HAND_APPROACH_OFFSET = DOMINO_WIDTH * 1.15;
+const PLACE_HAND_TOUCH_DROP = DOMINO_WIDTH * 0.34;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
 const TMP_WORLD_QUAT = new THREE.Quaternion();
 const TMP_WORLD_SCALE = new THREE.Vector3();
+
+
+const precisePlacementHandMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf0c6a4,
+  roughness: 0.74,
+  metalness: 0.02
+});
+const precisePlacementNailMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffeadf,
+  roughness: 0.68,
+  metalness: 0.01
+});
+
+function createPrecisePlacementHand() {
+  const hand = new THREE.Group();
+  hand.name = 'preciseRightHandDominoPlacement';
+  hand.userData.isPlacementHand = true;
+  hand.userData.fingers = [];
+
+  const palm = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      DOMINO_WIDTH * 1.05,
+      DOMINO_WIDTH * 0.24,
+      DOMINO_LENGTH * 0.62
+    ),
+    precisePlacementHandMaterial.clone()
+  );
+  palm.position.set(0, DOMINO_WIDTH * 0.18, -DOMINO_LENGTH * 0.42);
+  palm.rotation.x = THREE.MathUtils.degToRad(-8);
+  palm.castShadow = true;
+  hand.add(palm);
+
+  const makeFinger = (name, x, z, length, radius, isThumb = false) => {
+    const finger = new THREE.Group();
+    finger.name = name;
+    finger.userData.isThumb = isThumb;
+    finger.userData.openX = x;
+    finger.userData.closedX = isThumb ? x * 0.46 : x * 0.72;
+    finger.userData.openZ = z;
+    finger.userData.closedZ = z + (isThumb ? DOMINO_LENGTH * 0.12 : DOMINO_LENGTH * 0.18);
+    finger.userData.openRotZ = THREE.MathUtils.degToRad(
+      isThumb ? -34 : Math.sign(x || 0.01) * -14
+    );
+    finger.userData.closedRotZ = THREE.MathUtils.degToRad(
+      isThumb ? -12 : Math.sign(x || 0.01) * -6
+    );
+    finger.userData.openRotX = THREE.MathUtils.degToRad(isThumb ? 22 : 12);
+    finger.userData.closedRotX = THREE.MathUtils.degToRad(isThumb ? 58 : 66);
+    finger.position.set(x, DOMINO_WIDTH * 0.02, z);
+
+    const segment = new THREE.Mesh(
+      new THREE.CapsuleGeometry(radius, length, 5, 10),
+      precisePlacementHandMaterial.clone()
+    );
+    segment.rotation.x = THREE.MathUtils.degToRad(86);
+    segment.position.y = -DOMINO_WIDTH * 0.05;
+    segment.castShadow = true;
+    finger.add(segment);
+
+    const tip = new THREE.Mesh(
+      new THREE.SphereGeometry(radius * 1.12, 10, 8),
+      precisePlacementHandMaterial.clone()
+    );
+    tip.position.set(0, -DOMINO_WIDTH * 0.16, length * 0.5);
+    tip.castShadow = true;
+    finger.add(tip);
+
+    const nail = new THREE.Mesh(
+      new THREE.BoxGeometry(radius * 1.35, radius * 0.2, radius * 0.72),
+      precisePlacementNailMaterial.clone()
+    );
+    nail.position.set(0, -DOMINO_WIDTH * 0.17, length * 0.5 + radius * 0.25);
+    nail.rotation.x = THREE.MathUtils.degToRad(8);
+    finger.add(nail);
+
+    hand.userData.fingers.push(finger);
+    hand.add(finger);
+    return finger;
+  };
+
+  makeFinger(
+    'rightThumbPinch',
+    -DOMINO_WIDTH * 0.42,
+    -DOMINO_LENGTH * 0.15,
+    DOMINO_WIDTH * 0.78,
+    DOMINO_WIDTH * 0.105,
+    true
+  );
+  makeFinger(
+    'rightIndexFingerPinch',
+    -DOMINO_WIDTH * 0.2,
+    DOMINO_LENGTH * 0.02,
+    DOMINO_WIDTH * 0.92,
+    DOMINO_WIDTH * 0.088
+  );
+  makeFinger(
+    'rightMiddleFingerPinch',
+    DOMINO_WIDTH * 0.02,
+    DOMINO_LENGTH * 0.04,
+    DOMINO_WIDTH * 0.96,
+    DOMINO_WIDTH * 0.092
+  );
+  makeFinger(
+    'rightRingFingerPinch',
+    DOMINO_WIDTH * 0.24,
+    DOMINO_LENGTH * 0.0,
+    DOMINO_WIDTH * 0.82,
+    DOMINO_WIDTH * 0.078
+  );
+  makeFinger(
+    'rightLittleFingerPinch',
+    DOMINO_WIDTH * 0.42,
+    -DOMINO_LENGTH * 0.04,
+    DOMINO_WIDTH * 0.66,
+    DOMINO_WIDTH * 0.064
+  );
+
+  setPlacementHandGrip(hand, 0);
+  hand.renderOrder = 8;
+  hand.traverse((child) => {
+    if (child.isMesh) child.renderOrder = 8;
+  });
+  return hand;
+}
+
+function setPlacementHandGrip(hand, grip = 0) {
+  const amount = THREE.MathUtils.clamp(Number.isFinite(grip) ? grip : 0, 0, 1);
+  const fingers = hand?.userData?.fingers || [];
+  fingers.forEach((finger) => {
+    const data = finger.userData || {};
+    finger.position.x = THREE.MathUtils.lerp(data.openX || 0, data.closedX || 0, amount);
+    finger.position.z = THREE.MathUtils.lerp(data.openZ || 0, data.closedZ || 0, amount);
+    finger.rotation.x = THREE.MathUtils.lerp(data.openRotX || 0, data.closedRotX || 0, amount);
+    finger.rotation.z = THREE.MathUtils.lerp(data.openRotZ || 0, data.closedRotZ || 0, amount);
+  });
+}
+
+function getPlacementRightHandApproachVector(sourceSeat = human) {
+  const [seatX, seatZ] = layoutSeat(sourceSeat);
+  const seatLen = Math.hypot(seatX, seatZ) || 1;
+  // Tangent points to the seated player's right hand; for the bottom human seat
+  // this is visual right in portrait, matching touch-screen directions.
+  return new THREE.Vector3(-seatZ / seatLen, 0, seatX / seatLen).normalize();
+}
+
+function smoothstep01(value) {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+}
 
 function disposeDominoMesh(mesh) {
   if (!mesh) return;
@@ -8532,11 +8691,24 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
   const now = performance.now();
   const base = rig.seatedPose;
   const reach = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-13) },
-    rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
-    rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
-    rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
-    head: { x: THREE.MathUtils.degToRad(-8) }
+    spine: { x: THREE.MathUtils.degToRad(-14) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(-72), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-24) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(-28) },
+    rightHand: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-14) },
+    head: { x: THREE.MathUtils.degToRad(-9) }
+  });
+  const pinch = makeDominoPose(base, {
+    spine: { x: THREE.MathUtils.degToRad(-10) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(-48), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-23) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(4), y: THREE.MathUtils.degToRad(-5) },
+    rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-10) },
+    head: { x: THREE.MathUtils.degToRad(-7) }
+  });
+  const carry = makeDominoPose(base, {
+    spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -6 : 2) },
+    rightUpperArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -28 : 18), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-20) },
+    rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 28 : 42), y: THREE.MathUtils.degToRad(-3) },
+    rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 18), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-6) }
   });
   const place = makeDominoPose(base, {
     spine: { x: THREE.MathUtils.degToRad(type === 'PASS' ? -8 : 10) },
@@ -8544,10 +8716,13 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
     rightForeArm: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 34 : 54) },
     rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 16), y: THREE.MathUtils.degToRad(-6) }
   });
+  const isPlay = type === 'PLAY';
   dominoCharacterActions.push(
-    { start: now, duration: 180, update: (t) => applyDominoRigPose(rig, reach, t) },
-    { start: now + 180, duration: 240, update: (t) => applyDominoRigPose(rig, place, t) },
-    { start: now + 420, duration: 280, update: (t) => applyDominoRigPose(rig, base, t) }
+    { start: now, duration: isPlay ? 260 : 180, update: (t) => applyDominoRigPose(rig, reach, t) },
+    { start: now + (isPlay ? 260 : 180), duration: isPlay ? 210 : 190, update: (t) => applyDominoRigPose(rig, pinch, t) },
+    { start: now + (isPlay ? 470 : 370), duration: isPlay ? 520 : 220, update: (t) => applyDominoRigPose(rig, carry, t) },
+    { start: now + (isPlay ? 990 : 590), duration: isPlay ? 260 : 180, update: (t) => applyDominoRigPose(rig, place, t) },
+    { start: now + (isPlay ? 1250 : 770), duration: isPlay ? 360 : 240, update: (t) => applyDominoRigPose(rig, base, t) }
   );
 }
 
@@ -9590,9 +9765,19 @@ function spawnPlacementAnimation(
   const orientTarget = new THREE.Object3D();
   orientDominoFlat(orientTarget, segment.rot ?? 0);
   const endQuat = orientTarget.quaternion.clone();
+  const hand = createPrecisePlacementHand();
+  const approachVector = getPlacementRightHandApproachVector(sourceSeat);
+  const handYaw = Math.atan2(approachVector.z, approachVector.x) - Math.PI / 2;
+  hand.rotation.set(THREE.MathUtils.degToRad(-5), handYaw, THREE.MathUtils.degToRad(-2));
+  hand.position.copy(start)
+    .addScaledVector(approachVector, PLACE_HAND_APPROACH_OFFSET)
+    .add(new THREE.Vector3(0, PLACE_HAND_HOVER + PLACE_HAND_TOUCH_DROP, 0));
+  piecesG.add(hand);
 
   placementAnimations.push({
     mesh,
+    hand,
+    approachVector,
     start,
     end,
     startQuat,
@@ -11551,22 +11736,40 @@ function updatePlacementAnimations(now) {
     const elapsed = timestamp - anim.startTime;
     const duration = anim.duration || PLACE_ANIM_DURATION;
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
-    const ease = 1 - Math.pow(1 - t, 3);
+    const grabT = smoothstep01(t / PLACE_HAND_GRAB_RATIO);
+    const settleT = smoothstep01((t - PLACE_HAND_CARRY_RATIO) / (PLACE_HAND_SETTLE_RATIO - PLACE_HAND_CARRY_RATIO));
+    const releaseT = smoothstep01((t - PLACE_HAND_SETTLE_RATIO) / (PLACE_HAND_RELEASE_RATIO - PLACE_HAND_SETTLE_RATIO));
+    const travelT = t < PLACE_HAND_GRAB_RATIO ? 0 : smoothstep01((t - PLACE_HAND_GRAB_RATIO) / (PLACE_HAND_SETTLE_RATIO - PLACE_HAND_GRAB_RATIO));
 
-    const pos = anim.start.clone().lerp(anim.end, ease);
-    if (anim.arc) {
-      pos.y += Math.sin(Math.PI * ease) * anim.arc;
-    }
+    const pos = anim.start.clone().lerp(anim.end, travelT);
+    const lift = Math.sin(Math.PI * THREE.MathUtils.clamp(travelT, 0, 1)) * (anim.arc || 0);
+    const pickLift = grabT * (1 - settleT) * PLACE_HAND_TOUCH_DROP;
+    pos.y += lift + pickLift;
     anim.mesh.position.copy(pos);
 
     if (anim.endQuat && anim.startQuat) {
-      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, travelT);
       anim.mesh.quaternion.copy(quat);
     }
 
     if (anim.endScale && anim.startScale) {
-      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
+      const scale = anim.startScale.clone().lerp(anim.endScale, travelT);
       anim.mesh.scale.copy(scale);
+    }
+
+    if (anim.hand) {
+      const approach = anim.approachVector || new THREE.Vector3(1, 0, 0);
+      const approachEase = smoothstep01(t / PLACE_HAND_APPROACH_RATIO);
+      const releaseOffset = releaseT * PLACE_HAND_APPROACH_OFFSET * 0.72;
+      const handOffset = PLACE_HAND_APPROACH_OFFSET * (1 - approachEase) + releaseOffset;
+      const hoverDrop = PLACE_HAND_TOUCH_DROP * (approachEase * (1 - releaseT));
+      const handPos = pos.clone()
+        .addScaledVector(approach, handOffset)
+        .add(new THREE.Vector3(0, PLACE_HAND_HOVER + PLACE_HAND_TOUCH_DROP - hoverDrop, 0));
+      anim.hand.position.copy(handPos);
+      const grip = t < PLACE_HAND_SETTLE_RATIO ? grabT : 1 - releaseT;
+      setPlacementHandGrip(anim.hand, grip);
+      anim.hand.visible = t < 0.995;
     }
 
     if (t >= 1) {
@@ -11574,6 +11777,9 @@ function updatePlacementAnimations(now) {
         anim.segment.animating = false;
       }
       disposeDominoMesh(anim.mesh);
+      if (anim.hand) {
+        disposeDominoMesh(anim.hand);
+      }
       placementAnimations.splice(i, 1);
       renderChain();
     }
