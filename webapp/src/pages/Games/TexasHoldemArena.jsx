@@ -254,8 +254,8 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 );
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const HUMAN_CHAIR_PULLBACK = 0.2 * MODEL_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.78;
+const HUMAN_CHAIR_PULLBACK = -0.08 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -264,7 +264,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
-const AI_CHAIR_GAP = CARD_W * 1.15;
+const AI_CHAIR_GAP = CARD_W * 0.62;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
@@ -395,8 +395,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(46);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 1.34 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.38, landscape: 0.64 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.82, landscape: 1.02 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.22, landscape: 0.58 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.16;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -660,15 +660,15 @@ const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
 const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
 const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.28;
-const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.12;
-const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 2.02;
+const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.28;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 2.18;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.24;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
 const texasDominoCharacterTextureCache = new Map();
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
+const LABEL_SIZE = Object.freeze({ width: 1.12 * MODEL_SCALE, height: 0.54 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.52 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
@@ -1366,6 +1366,116 @@ function enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex) {
   });
 }
 
+function createChestAvatarTexture(source) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  const drawPatch = (image = null, flag = '') => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = 104;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.fill();
+    ctx.setLineDash([10, 8]);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.9)';
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+    if (image) {
+      ctx.drawImage(image, cx - radius, cy - radius, radius * 2, radius * 2);
+    } else if (flag) {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      ctx.font = '700 108px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(flag, cx, cy + 6);
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, '#38bdf8');
+      gradient.addColorStop(1, '#0f172a');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    for (let y = 42; y <= 214; y += 14) {
+      ctx.beginPath();
+      ctx.moveTo(42, y);
+      ctx.lineTo(214, y + 10);
+      ctx.stroke();
+    }
+    ctx.restore();
+    texture.needsUpdate = true;
+  };
+  drawPatch();
+  const raw = String(source || '').trim();
+  const isFlag = /[\u{1F1E6}-\u{1F1FF}]{2}/u.test(raw);
+  if (isFlag) {
+    drawPatch(null, raw);
+  } else {
+    const url = getAvatarUrl(raw);
+    if (url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => drawPatch(img);
+      img.onerror = () => drawPatch();
+      img.src = url;
+    }
+  }
+  return texture;
+}
+
+function updateTexasChestAvatarEmblem(seatGroup, avatarSource) {
+  const characterRoot = seatGroup?.character?.root;
+  if (!characterRoot) return;
+  const source = avatarSource || (seatGroup.player?.isHuman ? seatGroup.player?.avatar : seatGroup.player?.flag || seatGroup.player?.avatar);
+  if (!source) return;
+  if (seatGroup.character.emblemSource === source && seatGroup.character.emblem) return;
+  if (seatGroup.character.emblem) {
+    seatGroup.character.emblem.userData?.dispose?.();
+    seatGroup.character.emblem.parent?.remove(seatGroup.character.emblem);
+  }
+  const texture = createChestAvatarTexture(source);
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    transparent: true,
+    roughness: 0.92,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  });
+  const geometry = new THREE.CircleGeometry(0.115 * MODEL_SCALE, 40);
+  const emblem = new THREE.Mesh(geometry, material);
+  emblem.name = 'texas-right-chest-embroidered-avatar';
+  emblem.position.set(0.17 * MODEL_SCALE, 1.34 * MODEL_SCALE, 0.275 * MODEL_SCALE);
+  emblem.rotation.set(THREE.MathUtils.degToRad(-4), 0, THREE.MathUtils.degToRad(-5));
+  emblem.renderOrder = 18;
+  emblem.userData.dispose = () => {
+    texture.dispose();
+    material.dispose();
+    geometry.dispose();
+  };
+  characterRoot.add(emblem);
+  seatGroup.character.emblem = emblem;
+  seatGroup.character.emblemSource = source;
+}
+
 async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
   const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
   const cacheKey = `${theme?.id || 'fallback'}:${urls.join('|')}`;
@@ -1479,6 +1589,7 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     seatGroup.group.add(seatRoot);
     const rig = createTexasCharacterRig(instance, seatRoot, seatIndex);
     seatGroup.character = { root: seatRoot, rig, theme };
+    updateTexasChestAvatarEmblem(seatGroup);
     return seatGroup.character;
   };
 
@@ -2747,8 +2858,8 @@ function makeNameplate(name, chips, renderer, avatar) {
     panelGradient.addColorStop(0.42, 'rgba(30,41,59,0.93)');
     panelGradient.addColorStop(1, 'rgba(2,6,23,0.88)');
     ctx.fillStyle = panelGradient;
-    ctx.strokeStyle = highlight ? 'rgba(34,211,238,0.94)' : 'rgba(148,163,184,0.7)';
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = highlight ? 'rgba(34,211,238,0.82)' : 'rgba(148,163,184,0.28)';
+    ctx.lineWidth = highlight ? 5 : 2;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
@@ -2765,7 +2876,7 @@ function makeNameplate(name, chips, renderer, avatar) {
     roundRect(ctx, panelX + 12, panelY + 10, panelW - 24, panelH * 0.44, panelRadius * 0.7);
     ctx.fill();
 
-    const avatarSize = 146;
+    const avatarSize = 94;
     const avatarX = panelX + 22;
     const avatarY = panelY + (panelH - avatarSize) / 2;
     const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
@@ -2777,14 +2888,14 @@ function makeNameplate(name, chips, renderer, avatar) {
     ctx.closePath();
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fill();
-    ctx.lineWidth = highlight ? 10 : 8;
+    ctx.lineWidth = highlight ? 5 : 0;
     ctx.strokeStyle = ringGradient;
-    ctx.stroke();
+    if (highlight) ctx.stroke();
     if (avatarState.flag) {
       ctx.save();
       ctx.clip();
       ctx.fillStyle = '#e2e8f0';
-      ctx.font = '700 86px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.font = '700 58px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(avatarState.flag, avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 4);
@@ -2797,11 +2908,11 @@ function makeNameplate(name, chips, renderer, avatar) {
     }
     ctx.restore();
 
-    const textX = avatarX + avatarSize + 30;
+    const textX = avatarX + avatarSize + 24;
     const textY = panelY + 30;
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 62px "Inter", system-ui, sans-serif';
+    ctx.font = '700 56px "Inter", system-ui, sans-serif';
     ctx.fillText(playerName, textX, textY);
 
     const balanceY = textY + 84;
@@ -2831,7 +2942,7 @@ function makeNameplate(name, chips, renderer, avatar) {
     const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
     const timerPercent = Number.isFinite(timerProgress) ? Math.max(0, Math.min(1, timerProgress)) : null;
     if (timerValue !== null && timerPercent !== null) {
-      const ringRadius = avatarSize / 2 + 22;
+      const ringRadius = avatarSize / 2 + 12;
       const startAngle = -Math.PI / 2;
       ctx.save();
       ctx.lineWidth = 14;
@@ -3045,36 +3156,59 @@ function createRailTextSprite(initialLines = [], options = {}) {
 }
 
 
-function createFoldBadgeSprite() {
+function createActionBadgeSprite(initialLabel = 'FOLD') {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 768;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(120, 0, 0, 0.24)';
-  ctx.strokeStyle = '#ef4444';
-  ctx.lineWidth = 28;
-  roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 44);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = '#fca5a5';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '700 130px "Inter", system-ui, sans-serif';
-  ctx.fillText('FOLD', canvas.width / 2, canvas.height / 2);
+  const palette = {
+    FOLD: { fill: 'rgba(120, 0, 0, 0.24)', stroke: '#ef4444', text: '#fca5a5' },
+    CHECK: { fill: 'rgba(14, 116, 144, 0.24)', stroke: '#22d3ee', text: '#a5f3fc' },
+    CALL: { fill: 'rgba(30, 64, 175, 0.24)', stroke: '#60a5fa', text: '#bfdbfe' },
+    BET: { fill: 'rgba(22, 101, 52, 0.24)', stroke: '#22c55e', text: '#bbf7d0' },
+    RAISE: { fill: 'rgba(146, 64, 14, 0.25)', stroke: '#f59e0b', text: '#fde68a' },
+    'ALL-IN': { fill: 'rgba(136, 19, 55, 0.28)', stroke: '#fb7185', text: '#ffe4e6' }
+  };
+
+  const draw = (label = initialLabel) => {
+    const normalized = String(label || '').trim().toUpperCase() || 'FOLD';
+    const colors = palette[normalized] || palette.RAISE;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = colors.fill;
+    ctx.strokeStyle = colors.stroke;
+    ctx.lineWidth = 28;
+    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 44);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = colors.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSize = normalized.length > 5 ? 104 : 130;
+    ctx.font = `700 ${fontSize}px "Inter", system-ui, sans-serif`;
+    ctx.fillText(normalized, canvas.width / 2, canvas.height / 2);
+  };
+  draw(initialLabel);
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(CARD_W * 1.08, CARD_H * 1.08, 1);
+  sprite.scale.set(CARD_W * 0.98, CARD_H * 0.98, 1);
   sprite.visible = false;
   sprite.renderOrder = 24;
+  sprite.userData.update = (nextLabel) => {
+    draw(nextLabel);
+    texture.needsUpdate = true;
+  };
   sprite.userData.dispose = () => {
     texture.dispose();
     material.dispose();
   };
   return sprite;
+}
+
+function createFoldBadgeSprite() {
+  return createActionBadgeSprite('FOLD');
 }
 
 function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
@@ -5446,6 +5580,7 @@ function TexasHoldemArena({ search }) {
           stoolAnchor: seat.stoolAnchor,
           stoolHeight: seat.stoolHeight,
           isHuman: seat.isHuman,
+          player: seat.player || null,
           cardMeshes,
           chipStack,
           betStack,
@@ -6066,6 +6201,10 @@ function TexasHoldemArena({ search }) {
             seat.foldBadge.userData?.dispose?.();
             seat.foldBadge.parent?.remove(seat.foldBadge);
           }
+          if (seat.character?.emblem) {
+            seat.character.emblem.userData?.dispose?.();
+            seat.character.emblem.parent?.remove(seat.character.emblem);
+          }
           seat.group?.parent?.remove(seat.group);
         });
         community.forEach((mesh) => {
@@ -6289,10 +6428,16 @@ function TexasHoldemArena({ search }) {
       }
 
       if (seat.foldBadge) {
-        if (player.folded && !state.showdown) {
-          const foldBadgePos = seat.cardRailAnchor.clone();
-          foldBadgePos.y += CARD_D * 0.6;
-          seat.foldBadge.position.copy(foldBadgePos);
+        const badgeLabel = player.folded
+          ? 'Fold'
+          : ['Check', 'Call', 'Bet', 'Raise', 'All-in'].includes(player.status)
+            ? player.status
+            : '';
+        if (badgeLabel && !state.showdown) {
+          const actionBadgePos = seat.cardRailAnchor.clone();
+          actionBadgePos.y += CARD_D * 0.6;
+          seat.foldBadge.position.copy(actionBadgePos);
+          seat.foldBadge.userData?.update?.(badgeLabel);
           seat.foldBadge.visible = true;
         } else {
           seat.foldBadge.visible = false;
@@ -6389,6 +6534,8 @@ function TexasHoldemArena({ search }) {
       }
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
+      seat.player = player;
+      updateTexasChestAvatarEmblem(seat, player.isHuman ? player.avatar : player.flag || player.avatar);
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
@@ -6849,6 +6996,8 @@ function TexasHoldemArena({ search }) {
       const label = seat.nameplate;
       const player = gameState.players?.[idx];
       if (!label?.userData?.update || !player) return;
+      seat.player = player;
+      updateTexasChestAvatarEmblem(seat, player.isHuman ? player.avatar : player.flag || player.avatar);
       const highlight =
         gameState.stage !== 'showdown' && idx === actionIdx && !player.folded && !player.allIn && Number.isFinite(actionIdx);
       const labelAvatar = player.isHuman ? player.avatar || seat.lastAvatar : player.flag || player.avatar || seat.lastAvatar;
@@ -6879,12 +7028,12 @@ function TexasHoldemArena({ search }) {
             padding: Math.max(2, size * 0.08)
           }}
         >
-          <div className="absolute inset-[10%] rounded-full bg-black/80" />
+          <div className="absolute inset-[16%] rounded-md bg-black/70" />
           {avatarSrc ? (
             <img
               src={avatarSrc}
               alt="player avatar"
-              className="relative h-full w-full rounded-full object-cover border border-white/25 shadow-inner"
+              className="relative h-full w-full rounded-md object-cover shadow-inner"
             />
           ) : (
             <div className="relative h-full w-full rounded-full bg-slate-600/50" />
@@ -7213,9 +7362,9 @@ function TexasHoldemArena({ search }) {
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
-              renderAvatarTimer(humanPlayer.avatar, 44)
+              renderAvatarTimer(humanPlayer.avatar, 34)
             ) : (
-              <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
+              <img src={humanPlayer.avatar} alt="player avatar" className="h-7 w-7 rounded-md object-cover" />
             ))}
           <div className="flex flex-col leading-tight text-white text-center">
             <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
