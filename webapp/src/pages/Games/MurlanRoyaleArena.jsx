@@ -2839,11 +2839,13 @@ const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const AI_HAND_CARD_SCALE = 0.96;
-const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.16 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.02 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.1 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 0.18 * MODEL_SCALE;
 const AI_SIDE_HAND_UP_SHIFT_Y = 0.11 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = 0.07 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.05 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 0.18 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
@@ -4364,14 +4366,20 @@ export default function MurlanRoyaleArena({ search }) {
             : 0;
         const aiPalmLateralShift = aiHandVariant === 'side'
           ? (forward?.x ?? 0) < 0
-            ? -AI_SIDE_HAND_LATERAL_PALM_SHIFT
-            : AI_SIDE_HAND_LATERAL_PALM_SHIFT
+            ? AI_SIDE_HAND_LATERAL_PALM_SHIFT
+            : -AI_SIDE_HAND_LATERAL_PALM_SHIFT
           : aiHandVariant === 'top'
             ? AI_TOP_HAND_LATERAL_PALM_SHIFT
             : 0;
+        const aiSideTopwardShift = aiHandVariant === 'side'
+          ? (forward?.x ?? 0) < 0
+            ? AI_SIDE_HAND_TOPWARD_SHIFT
+            : -AI_SIDE_HAND_TOPWARD_SHIFT
+          : 0;
+        const aiSideOutwardPush = aiHandVariant === 'side' ? AI_SIDE_HAND_EXTRA_OUTWARD_PUSH : 0;
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
-        target.addScaledVector(forward, -(HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull));
-        target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift);
+        target.addScaledVector(forward, aiSideOutwardPush - (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull));
+        target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift + aiSideTopwardShift);
         target.y =
           baseHeight +
           centerWeight * fanArcLift +
