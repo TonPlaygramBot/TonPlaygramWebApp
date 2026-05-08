@@ -6697,7 +6697,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SHRINK_FACTOR = 1;
 const DOMINO_EXTRA_SHRINK_FACTOR = 0.67;
-const DOMINO_SIZE_BOOST = 2.03;
+const DOMINO_SIZE_BOOST = 1.86;
 const DOMINO_SCALE =
   1.5 *
   1.26 *
@@ -6712,12 +6712,12 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.18;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.5;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.45;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.85;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.9;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.25;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.05;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 2.76;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.4;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 3.3;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
@@ -8260,10 +8260,10 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.22 * MODEL_SCALE;
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.28 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.46 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.58 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 0.32 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.38 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.58 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.72 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
@@ -8273,7 +8273,7 @@ function createHeldDominoRack(seatIndex, handTiles = []) {
   tiles.forEach((tile, index) => {
     const mini = makeDomino(tile.a ?? 0, tile.b ?? 0, { flat: false, faceUp: true });
     const centered = index - (tiles.length - 1) / 2;
-    mini.scale.setScalar(0.34);
+    mini.scale.setScalar(0.3);
     mini.position.set(centered * 0.12 * MODEL_SCALE, (1.42 + Math.abs(centered) * 0.014) * MODEL_SCALE, 0.5 * MODEL_SCALE + index * 0.006);
     mini.rotation.set(THREE.MathUtils.degToRad(-74), THREE.MathUtils.degToRad(centered * -7), THREE.MathUtils.degToRad(centered * 10));
     rack.add(mini);
@@ -8287,7 +8287,7 @@ function createHeldDominoRack(seatIndex, handTiles = []) {
     (isBottom ? -0.2 * MODEL_SCALE : -1.66 * MODEL_SCALE) - outwardOffset
   );
   rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
-  rack.scale.setScalar(isBottom ? 1.28 : 1.1);
+  rack.scale.setScalar(isBottom ? 1.18 : 1.02);
   rack.userData.signature = desiredSignature;
   rack.userData.dispose = () => {};
   return rack;
