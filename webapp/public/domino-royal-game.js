@@ -8306,6 +8306,52 @@ function refreshAllDominoCharacterRacks() {
   });
 }
 
+const DOMINO_CHARACTER_WORLD_VECTOR = new THREE.Vector3();
+const DOMINO_CHARACTER_WORLD_ORIGIN = new THREE.Vector3();
+const DOMINO_CHARACTER_WORLD_TARGET = new THREE.Vector3();
+const DOMINO_CHARACTER_LOCAL_ORIGIN = new THREE.Vector3();
+const DOMINO_CHARACTER_LOCAL_TARGET = new THREE.Vector3();
+
+function resolveDominoCharacterOutwardLocalSign(chair) {
+  if (!chair?.isObject3D) return 1;
+  chair.updateWorldMatrix(true, false);
+  chair.getWorldPosition(DOMINO_CHARACTER_WORLD_ORIGIN);
+  DOMINO_CHARACTER_WORLD_VECTOR
+    .copy(DOMINO_CHARACTER_WORLD_ORIGIN)
+    .setY(0);
+  if (DOMINO_CHARACTER_WORLD_VECTOR.lengthSq() <= 1e-6) return 1;
+  DOMINO_CHARACTER_WORLD_VECTOR.normalize();
+  DOMINO_CHARACTER_WORLD_TARGET
+    .copy(DOMINO_CHARACTER_WORLD_ORIGIN)
+    .add(DOMINO_CHARACTER_WORLD_VECTOR);
+  DOMINO_CHARACTER_LOCAL_ORIGIN.copy(DOMINO_CHARACTER_WORLD_ORIGIN);
+  DOMINO_CHARACTER_LOCAL_TARGET.copy(DOMINO_CHARACTER_WORLD_TARGET);
+  chair.worldToLocal(DOMINO_CHARACTER_LOCAL_ORIGIN);
+  chair.worldToLocal(DOMINO_CHARACTER_LOCAL_TARGET);
+  return DOMINO_CHARACTER_LOCAL_TARGET.z >= DOMINO_CHARACTER_LOCAL_ORIGIN.z ? 1 : -1;
+}
+
+function resolveDominoCharacterSeatPosition(chair, theme, isHumanSeat, scaleDelta) {
+  const visibleSeatLift = Number.isFinite(chair?.userData?.dominoCharacterSeatLift)
+    ? chair.userData.dominoCharacterSeatLift
+    : 0;
+  const outwardDistance =
+    (theme.seatOffsetZ ?? 0.52) -
+    0.03 +
+    DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET : 0);
+  return new THREE.Vector3(
+    0,
+    visibleSeatLift +
+      (theme.seatOffsetY ?? -0.4) -
+      0.22 -
+      scaleDelta * 0.08 -
+      DOMINO_CHARACTER_EXTRA_LOWER_OFFSET +
+      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0),
+    outwardDistance * resolveDominoCharacterOutwardLocalSign(chair)
+  );
+}
+
 function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   const theme = getDominoCharacterThemeForSeat(seatIndex);
   const instance = cloneSkeleton(template);
@@ -8329,19 +8375,8 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   const seatScale = (theme.scale || 1) * characterScale;
   const scaleDelta = Math.max(0, characterScale - 1);
   seatRoot.scale.setScalar(seatScale);
-  const visibleSeatLift = Number.isFinite(chair?.userData?.dominoCharacterSeatLift)
-    ? chair.userData.dominoCharacterSeatLift
-    : 0;
-  seatRoot.position.set(
-    0,
-    visibleSeatLift +
-      (theme.seatOffsetY ?? -0.4) -
-      0.22 -
-      scaleDelta * 0.08 -
-      DOMINO_CHARACTER_EXTRA_LOWER_OFFSET +
-      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0),
-    (theme.seatOffsetZ ?? 0.52) - 0.03 + DOMINO_CHARACTER_EXTRA_OUTWARD_OFFSET +
-      (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET : 0)
+  seatRoot.position.copy(
+    resolveDominoCharacterSeatPosition(chair, theme, isHumanSeat, scaleDelta)
   );
   seatRoot.add(instance);
   const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
