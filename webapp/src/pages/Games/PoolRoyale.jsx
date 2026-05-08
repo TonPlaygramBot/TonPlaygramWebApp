@@ -12847,89 +12847,6 @@ function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finis
   return clone;
 }
 
-function retunePoolRoyaleExternalTableVerticalBalance(model, tableModel = null) {
-  if (!model) return;
-  const railTrimAmount = Number(tableModel?.upperRailBottomTrim) || 0;
-  const baseRaiseAmount = Number(tableModel?.baseHeightCompensation) || 0;
-  if (railTrimAmount <= MICRO_EPS && baseRaiseAmount <= MICRO_EPS) return;
-
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const fullHeight = Math.max(MICRO_EPS, fullBox.max.y - fullBox.min.y);
-  const upperCutoff = fullBox.min.y + fullHeight * 0.54;
-  const baseCutoff = fullBox.min.y + fullHeight * 0.52;
-  const worldBox = new THREE.Box3();
-  const localVertex = new THREE.Vector3();
-  const worldVertex = new THREE.Vector3();
-
-  model.traverse((child) => {
-    if (!child?.isMesh || !child.geometry?.attributes?.position) return;
-    const material = Array.isArray(child.material) ? child.material[0] : child.material;
-    const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    if (role !== 'wood') return;
-
-    worldBox.setFromObject(child);
-    if (worldBox.isEmpty()) return;
-    const position = child.geometry.attributes.position;
-    const childWorldInverse = new THREE.Matrix4().copy(child.matrixWorld).invert();
-    let changed = false;
-
-    if (railTrimAmount > MICRO_EPS && worldBox.max.y >= upperCutoff) {
-      const meshHeight = Math.max(MICRO_EPS, worldBox.max.y - worldBox.min.y);
-      const lowerBandTop = worldBox.min.y + meshHeight * 0.46;
-      const trimTop = Math.min(worldBox.max.y - MICRO_EPS, lowerBandTop + railTrimAmount);
-      for (let i = 0; i < position.count; i += 1) {
-        localVertex.fromBufferAttribute(position, i);
-        worldVertex.copy(localVertex).applyMatrix4(child.matrixWorld);
-        if (worldVertex.y <= lowerBandTop + MICRO_EPS) {
-          worldVertex.y = Math.min(trimTop, worldVertex.y + railTrimAmount);
-          localVertex.copy(worldVertex).applyMatrix4(childWorldInverse);
-          position.setXYZ(i, localVertex.x, localVertex.y, localVertex.z);
-          changed = true;
-        }
-      }
-    } else if (baseRaiseAmount > MICRO_EPS && worldBox.max.y <= baseCutoff) {
-      const meshHeight = Math.max(MICRO_EPS, worldBox.max.y - worldBox.min.y);
-      for (let i = 0; i < position.count; i += 1) {
-        localVertex.fromBufferAttribute(position, i);
-        worldVertex.copy(localVertex).applyMatrix4(child.matrixWorld);
-        const verticalT = THREE.MathUtils.clamp((worldVertex.y - worldBox.min.y) / meshHeight, 0, 1);
-        worldVertex.y += baseRaiseAmount * verticalT;
-        localVertex.copy(worldVertex).applyMatrix4(childWorldInverse);
-        position.setXYZ(i, localVertex.x, localVertex.y, localVertex.z);
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      position.needsUpdate = true;
-      child.geometry.computeBoundingBox?.();
-      child.geometry.computeBoundingSphere?.();
-      child.userData = {
-        ...(child.userData || {}),
-        poolRoyaleShowoodVerticalBalance: {
-          railTrimAmount,
-          baseRaiseAmount,
-          preservesFittedTableTopHeight: true
-        }
-      };
-    }
-  });
-
-  model.updateMatrixWorld(true);
-  const retunedBox = new THREE.Box3().setFromObject(model);
-  const floorDelta = retunedBox.isEmpty() ? 0 : fullBox.min.y - retunedBox.min.y;
-  if (Math.abs(floorDelta) > MICRO_EPS) {
-    model.position.y += floorDelta;
-    model.updateMatrixWorld(true);
-  }
-  model.userData = {
-    ...(model.userData || {}),
-    poolRoyaleVerticalBalanceRetuned: true
-  };
-}
-
 async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
   if (!tableModel?.assetUrl) return null;
   if (poolRoyaleExternalTableTemplates.has(tableModel.id)) {
@@ -13133,7 +13050,6 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      retunePoolRoyaleExternalTableVerticalBalance(model, tableModel);
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -13829,14 +13745,9 @@ function mountPoolRoyaleExternalTableModel({
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
-      const showExternalPocketHolders = Boolean(
-        externalTableModelForMount?.showGeneratedPocketHoldersOnExternal &&
-          object.userData?.externalTableKeepVisible
-      );
       if (
         !visible &&
         (
-          showExternalPocketHolders ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
@@ -25890,14 +25801,13 @@ const shotPowerRef = useRef(0);
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. The torso now bends
-            // from the table-facing yaw instead of the cue reference sign so the upper body no
-            // longer folds to the opposite side on portrait/mobile camera angles.
+            // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
+            // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
-            shootBendTowardCueStick: false,
-            shootCounterLeanSide: 1,
-            shootUpperBodyCounterLean: 0.58,
-            shootForwardBendScale: 0.76,
+            shootBendTowardCueStick: true,
+            shootCounterLeanSide: -1,
+            shootUpperBodyCounterLean: 0.72,
+            shootForwardBendScale: 0.62,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
