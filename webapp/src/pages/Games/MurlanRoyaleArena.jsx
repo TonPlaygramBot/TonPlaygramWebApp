@@ -2034,9 +2034,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
   const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
   const rightIndexFinger = findBoneByHints(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']);
-  const rightThumb = findBoneByHints(instance, ['rightthumb', 'thumb.r', 'thumb_01_r', 'r_thumb']);
-  const rightMiddleFinger = findBoneByHints(instance, ['rightmiddle', 'middle.r', 'middle_01_r', 'r_middle']);
-  const rightRingFinger = findBoneByHints(instance, ['rightring', 'ring.r', 'ring_01_r', 'r_ring']);
   const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
   const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
@@ -2083,9 +2080,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightForeArm,
       rightHand,
       rightIndexFinger,
-      rightThumb,
-      rightMiddleFinger,
-      rightRingFinger,
       leftUpperArm,
       leftForeArm,
       leftHand,
@@ -2101,10 +2095,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightUpperArm: captureBoneRotation(rightUpperArm),
       rightForeArm: captureBoneRotation(rightForeArm),
       rightHand: captureBoneRotation(rightHand),
-      rightIndexFinger: captureBoneRotation(rightIndexFinger),
-      rightThumb: captureBoneRotation(rightThumb),
-      rightMiddleFinger: captureBoneRotation(rightMiddleFinger),
-      rightRingFinger: captureBoneRotation(rightRingFinger),
       leftUpperArm: captureBoneRotation(leftUpperArm),
       leftForeArm: captureBoneRotation(leftForeArm),
       leftHand: captureBoneRotation(leftHand),
@@ -2145,10 +2135,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightUpperArm: captureBoneRotation(rightUpperArm),
     rightForeArm: captureBoneRotation(rightForeArm),
     rightHand: captureBoneRotation(rightHand),
-    rightIndexFinger: captureBoneRotation(rightIndexFinger),
-    rightThumb: captureBoneRotation(rightThumb),
-    rightMiddleFinger: captureBoneRotation(rightMiddleFinger),
-    rightRingFinger: captureBoneRotation(rightRingFinger),
     leftUpperArm: captureBoneRotation(leftUpperArm),
     leftForeArm: captureBoneRotation(leftForeArm),
     leftHand: captureBoneRotation(leftHand),
@@ -2232,19 +2218,6 @@ function applyRigPoseLerp(rig, targetPose, alpha = 1) {
   });
 }
 
-function applyRigPoseBlend(rig, fromPose, targetPose, alpha = 1) {
-  if (!rig || !targetPose) return;
-  const seated = rig.seatedPose || {};
-  Object.entries(rig.bones || {}).forEach(([key, bone]) => {
-    if (!bone) return;
-    const fallback = seated[key] || rig.defaults?.[key];
-    const from = fromPose?.[key] || fallback;
-    const to = targetPose[key] || fallback;
-    if (!from || !to) return;
-    lerpBoneToPose(bone, from, to, alpha);
-  });
-}
-
 function buildPoseVariant(basePose, overrides = {}) {
   const out = { ...basePose };
   Object.entries(overrides).forEach(([key, delta]) => {
@@ -2271,23 +2244,6 @@ function createThrownCardMesh(color = '#f8fafc') {
     material.dispose();
   };
   return card;
-}
-
-function createThrownCardStack(color = '#f8fafc', cardCount = 1) {
-  const stack = new THREE.Group();
-  const safeCount = THREE.MathUtils.clamp(Math.round(Number(cardCount) || 1), 1, 5);
-  const stackSpacing = 0.012 * MODEL_SCALE;
-  for (let idx = 0; idx < safeCount; idx += 1) {
-    const card = createThrownCardMesh(color);
-    const centered = idx - (safeCount - 1) / 2;
-    card.position.set(centered * stackSpacing, idx * 0.002 * MODEL_SCALE, Math.abs(centered) * 0.004 * MODEL_SCALE);
-    card.rotation.z = centered * THREE.MathUtils.degToRad(2.1);
-    stack.add(card);
-  }
-  stack.userData.dispose = () => {
-    stack.children.forEach((child) => child.userData?.dispose?.());
-  };
-  return stack;
 }
 
 function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme, cardTextureSize = null }) {
@@ -2380,58 +2336,39 @@ function runCharacterAction(store, rig, action) {
   }
 
   if (action.type === 'PLAY') {
-    const fingerOpen = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(2) },
-      rightThumb: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(-8) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(2) },
-      rightRingFinger: { x: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(1) }
-    };
-    const fingerPinch = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(4) },
-      rightThumb: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(18), z: THREE.MathUtils.degToRad(-14) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(22), z: THREE.MathUtils.degToRad(3) },
-      rightRingFinger: { x: THREE.MathUtils.degToRad(12), z: THREE.MathUtils.degToRad(2) }
-    };
     const throwPrep = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-58), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-18) },
-      rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-10) },
-      head: { x: THREE.MathUtils.degToRad(-7) },
-      ...fingerOpen
+      spine: { x: THREE.MathUtils.degToRad(-12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-62), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-15) },
+      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-8) },
+      head: { x: THREE.MathUtils.degToRad(-8) }
     });
     const throwPinchPickup = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-14) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-70), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-22) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-26) },
-      rightHand: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-13) },
-      head: { x: THREE.MathUtils.degToRad(-10) },
-      ...fingerPinch
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-68), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-21) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-22) },
+      rightHand: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-10) }
     });
     const throwCarry = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-2) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-20) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(18) },
-      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-8) },
-      ...fingerPinch
-    });
-    const throwPlace = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(7) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(26), y: THREE.MathUtils.degToRad(-23), z: THREE.MathUtils.degToRad(-21) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(45) },
-      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-4) },
-      ...fingerPinch
+      spine: { x: THREE.MathUtils.degToRad(2) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-20) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(24) },
+      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-8) }
     });
     const throwRelease = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-20) },
+      spine: { x: THREE.MathUtils.degToRad(10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(30), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(48) },
-      rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-6) },
-      ...fingerOpen
+      rightHand: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-8) }
+    });
+    const throwPlace = buildPoseVariant(basePose, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(36), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(54) },
+      rightHand: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-6) }
     });
 
-    const playedCards = Array.isArray(action.cards) ? action.cards : [];
-    const thrown = createThrownCardStack(cardsColor, playedCards.length || 1);
+    const thrown = createThrownCardMesh(cardsColor);
     store.scene?.add(thrown);
 
     const handPos = new THREE.Vector3();
@@ -2450,107 +2387,78 @@ function runCharacterAction(store, rig, action) {
       rightFingerPos.add((rig.seatConfig?.forward || new THREE.Vector3(0, 0, -1)).clone().multiplyScalar(0.04 * MODEL_SCALE));
     }
 
-    const firstPlayedCardId = playedCards.find((card) => card?.id)?.id;
-    const selectedCardMesh = firstPlayedCardId ? store.cardMap?.get(firstPlayedCardId)?.mesh : null;
+    const selectedCardMesh = action.cardId ? store.cardMap?.get(action.cardId)?.mesh : null;
     const pickupPos = handPos.clone();
     if (selectedCardMesh) {
       selectedCardMesh.getWorldPosition(pickupPos);
-      pickupPos.y += 0.012 * MODEL_SCALE;
+      pickupPos.y += 0.01 * MODEL_SCALE;
     }
 
     const target = (store.tableAnchor || new THREE.Vector3()).clone();
-    target.y += 0.085 * MODEL_SCALE;
+    target.y += 0.08 * MODEL_SCALE;
     target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
 
-    const contactPickupPos = pickupPos.clone().lerp(rightFingerPos, 0.78);
-    const clampPos = pickupPos.clone().lerp(rightFingerPos, 0.94);
-    const carryPos = rightFingerPos.clone().lerp(target, 0.44);
-    carryPos.y += 0.105 * MODEL_SCALE;
-    const placeHoverPos = target.clone();
-    placeHoverPos.y += 0.035 * MODEL_SCALE;
+    const contactPickupPos = pickupPos.clone().lerp(rightFingerPos, 0.9);
+    const carryPos = handPos.clone().lerp(target, 0.42);
+    carryPos.y += 0.05 * MODEL_SCALE;
     thrown.position.copy(contactPickupPos);
     thrown.lookAt(target.clone().setY(handPos.y));
 
-    const prepMs = 360;
-    const pinchMs = 360;
-    const clampHoldMs = 180;
-    const carryMs = 560;
-    const placeMs = 420;
-    const releaseMs = 260;
-    const recoverMs = 520;
-    const prepAt = now;
-    const pinchAt = prepAt + prepMs;
-    const holdAt = pinchAt + pinchMs;
-    const carryAt = holdAt + clampHoldMs;
-    const placeAt = carryAt + carryMs;
-    const releaseAt = placeAt + placeMs;
-    const recoverAt = releaseAt + releaseMs;
-
     list.push({
-      start: prepAt,
-      duration: prepMs,
-      update: (t) => {
-        applyRigPoseBlend(rig, basePose, throwPrep, t);
-        thrown.position.lerpVectors(contactPickupPos, pickupPos, easeInOutCubic(t));
-      }
+      start: now,
+      duration: 170,
+      update: (t) => applyRigPoseLerp(rig, throwPrep, t)
     });
     list.push({
-      start: pinchAt,
-      duration: pinchMs,
+      start: now + 170,
+      duration: 160,
       update: (t) => {
-        applyRigPoseBlend(rig, throwPrep, throwPinchPickup, t);
+        applyRigPoseLerp(rig, throwPinchPickup, t);
         const eased = easeInOutCubic(t);
-        thrown.position.lerpVectors(pickupPos, clampPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.08, eased);
+        thrown.position.lerpVectors(contactPickupPos, rightFingerPos, eased);
       }
     });
     list.push({
-      start: holdAt,
-      duration: clampHoldMs,
+      start: now + 330,
+      duration: 200,
       update: (t) => {
-        applyRigPoseLerp(rig, throwPinchPickup, 1);
-        thrown.position.lerpVectors(clampPos, rightFingerPos, easeInOutCubic(t));
-      }
-    });
-    list.push({
-      start: carryAt,
-      duration: carryMs,
-      update: (t) => {
-        applyRigPoseBlend(rig, throwPinchPickup, throwCarry, t);
+        applyRigPoseLerp(rig, throwCarry, t);
         const eased = easeInOutCubic(t);
         thrown.position.lerpVectors(rightFingerPos, carryPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.08, -Math.PI * 0.28, eased);
+        thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.2, eased);
       }
     });
     list.push({
-      start: placeAt,
-      duration: placeMs,
-      update: (t) => {
-        applyRigPoseBlend(rig, throwCarry, throwPlace, t);
-        const eased = easeInOutCubic(t);
-        thrown.position.lerpVectors(carryPos, placeHoverPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.28, -Math.PI * 0.5, eased);
-      }
-    });
-    list.push({
-      start: releaseAt,
-      duration: releaseMs,
-      update: (t) => {
-        applyRigPoseBlend(rig, throwPlace, throwRelease, t);
-        thrown.position.lerpVectors(placeHoverPos, target, easeInOutCubic(t));
-        thrown.rotation.x = -Math.PI * 0.5;
-      },
+      start: now + 530,
+      duration: 210,
+      update: (t) => applyRigPoseLerp(rig, throwRelease, t),
       complete: () => {
-        thrown.userData?.dispose?.();
-        store.scene?.remove(thrown);
+        const flightStart = performance.now();
+        list.push({
+          start: flightStart,
+          duration: 260,
+          update: (t) => {
+            const eased = easeInOutCubic(t);
+            thrown.position.lerpVectors(carryPos, target, eased);
+            thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.2, -Math.PI * 0.54, eased);
+          },
+          complete: () => {
+            thrown.userData?.dispose?.();
+            store.scene?.remove(thrown);
+          }
+        });
       }
     });
     list.push({
-      start: recoverAt,
-      duration: recoverMs,
-      update: (t) => applyRigPoseBlend(rig, throwRelease, basePose, t)
+      start: now + 740,
+      duration: 170,
+      update: (t) => applyRigPoseLerp(rig, throwPlace, t)
     });
-
+    list.push({
+      start: now + 910,
+      duration: 280,
+      update: (t) => applyRigPoseLerp(rig, basePose, t)
+    });
   }
 }
 
@@ -2895,8 +2803,7 @@ const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
 const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
-const TABLE_PLAY_LIFT_ARC = 0.085 * MODEL_SCALE;
-const AI_PRECISE_PLAY_CARD_DURATION_MS = 1380;
+const TABLE_PLAY_LIFT_ARC = 0.058 * MODEL_SCALE;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const DEAL_SHUFFLE_LEAD_IN_MS = 220;
@@ -2914,7 +2821,7 @@ const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
-const AI_CARD_PRE_LIFT_PORTION = 0.42;
+const AI_CARD_PRE_LIFT_PORTION = 0.32;
 const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.4 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
@@ -4492,8 +4399,7 @@ export default function MurlanRoyaleArena({ search }) {
         {
           liftArc: !immediate && wasInAnyHand ? TABLE_PLAY_LIFT_ARC : 0,
           preLift: shouldPreLiftForAiPlay ? AI_CARD_PRE_LIFT : 0,
-          preLiftPortion: shouldPreLiftForAiPlay ? AI_CARD_PRE_LIFT_PORTION : 0,
-          duration: shouldPreLiftForAiPlay ? AI_PRECISE_PLAY_CARD_DURATION_MS : undefined
+          preLiftPortion: shouldPreLiftForAiPlay ? AI_CARD_PRE_LIFT_PORTION : 0
         }
       );
     });
@@ -7185,7 +7091,7 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
     lookTarget: orientTarget,
     orientation: orientOptions,
     start: performance.now() + Math.max(0, delayMs),
-    duration: Math.max(1, Number(motion?.duration) || CARD_ANIMATION_DURATION),
+    duration: CARD_ANIMATION_DURATION,
     liftArc: Math.max(0, Number(motion?.liftArc) || 0),
     preLift: Math.max(0, Number(motion?.preLift) || 0),
     preLiftPortion: THREE.MathUtils.clamp(
