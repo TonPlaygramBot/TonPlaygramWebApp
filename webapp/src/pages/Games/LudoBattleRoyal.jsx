@@ -787,7 +787,7 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
 });
 // Keep FPS gun and Shotgun Blast visually matched in hand.
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
-const FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
+const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
@@ -905,44 +905,6 @@ function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = 
   audio.currentTime = 0;
   audio.play().catch(() => {});
   return true;
-}
-
-function removeAk47RearWoodStock(root) {
-  if (!root?.isObject3D) return;
-  root.updateMatrixWorld?.(true);
-  const rootBox = new THREE.Box3().setFromObject(root);
-  const rootCenter = rootBox.getCenter(new THREE.Vector3());
-  const rootSize = rootBox.getSize(new THREE.Vector3());
-  const rootCenterLocal = root.worldToLocal(rootCenter.clone());
-  const meshBox = new THREE.Box3();
-  const meshCenter = new THREE.Vector3();
-  const meshSize = new THREE.Vector3();
-  const brownish = (material) => {
-    const color = material?.color;
-    if (!color?.isColor) return false;
-    const hsl = { h: 0, s: 0, l: 0 };
-    color.getHSL(hsl);
-    return hsl.h >= 0.035 && hsl.h <= 0.16 && hsl.s > 0.18 && hsl.l < 0.58;
-  };
-  root.traverse((node) => {
-    if (!node?.isMesh) return;
-    const name = `${node.name || ''}`.toLowerCase();
-    if (/grip|handle|trigger|mag|magazine|handguard|fore/.test(name)) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    const hasWoodMaterial = materials.some(brownish);
-    meshBox.setFromObject(node);
-    meshBox.getCenter(meshCenter);
-    meshBox.getSize(meshSize);
-    const localCenter = root.worldToLocal(meshCenter.clone());
-    const rearByZ = localCenter.z < rootCenterLocal.z - rootSize.z * 0.22;
-    const rearByX = localCenter.x < rootCenterLocal.x - rootSize.x * 0.28;
-    const stockName = /stock|butt/.test(name);
-    const isSmallGrip = meshSize.y > rootSize.y * 0.35 && meshSize.z < rootSize.z * 0.22;
-    if ((stockName || hasWoodMaterial) && (rearByZ || rearByX) && !isSmallGrip) {
-      node.visible = false;
-      node.userData.removedAk47RearStock = true;
-    }
-  });
 }
 
 async function loadCaptureWeaponModel(captureAnimationId) {
@@ -1070,9 +1032,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       });
       applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
-      if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
-        removeAk47RearWoodStock(root);
-      }
       return root;
     } catch (error) {
       console.warn('Capture weapon model setup failed', captureAnimationId, error);
@@ -3307,8 +3266,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.42 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.255 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.32 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.178 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -7036,7 +6995,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
   const cameraSeatLockPositionRef = useRef(null);
-  const dynamicFirearmCameraRef = useRef(false);
   const lockUserTurnSeatViewRef = useRef(false);
   const preserveUserTurnCameraRef = useRef(false);
   const cameraTurnStateRef = useRef({
@@ -10039,8 +9997,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         !isCamera2d &&
         cameraTurnStateRef.current.followObject?.isObject3D &&
         controls &&
-        (!LUDO_CAMERA_SEAT_LOCK_ENABLED || dynamicFirearmCameraRef.current) &&
-        (!cameraLookStateRef.current.active || dynamicFirearmCameraRef.current)
+        !LUDO_CAMERA_SEAT_LOCK_ENABLED &&
+        !cameraLookStateRef.current.active
       ) {
         const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
@@ -10054,7 +10012,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
-      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED && !dynamicFirearmCameraRef.current) {
+      if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
         const gameplayTarget = boardLookTargetRef.current?.isVector3
           ? boardLookTargetRef.current.clone()
@@ -10408,7 +10366,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
-          dynamicFirearmCameraRef.current = true;
           const directorWeaponType =
             LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[resolvedCaptureAnimationId] ?? 'Rifle';
           const attackerEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === attackerPlayer);
@@ -10562,9 +10519,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               aimDir.lengthSq() > 1e-7
                 ? aimDir
                     .normalize()
-                    .multiplyScalar(singleShotFirearm ? -FIREARM_BROADCAST_PROFILE.aimRearPullback * 0.82 : -FIREARM_BROADCAST_PROFILE.aimRearPullback * 1.12)
-                    .add(new THREE.Vector3(0, singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.42 : FIREARM_BROADCAST_PROFILE.aimLift * 1.18, 0))
-                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, -FIREARM_BROADCAST_PROFILE.aimRearPullback);
+                    .multiplyScalar(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimRearPullback * 0.62 : FIREARM_BROADCAST_PROFILE.aimRearPullback)
+                    .setY(singleShotFirearm ? FIREARM_BROADCAST_PROFILE.aimLift * 1.28 : FIREARM_BROADCAST_PROFILE.aimLift)
+                : new THREE.Vector3(0, FIREARM_BROADCAST_PROFILE.aimLift, FIREARM_BROADCAST_PROFILE.aimRearPullback);
             setCameraFocus({
               target: cameraMid,
               object: handWeaponAttachment?.weapon,
@@ -10631,8 +10588,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.visible = false;
                 return;
               }
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * 0.62;
-              const shotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * 0.82), 0, 1);
+              const shotProgress = clamp((life * mergedBallistics.bulletSpeed) / Math.max(24, cadenceMs * 0.72), 0, 1);
               const start = muzzleOrigin.clone();
               const end = muzzleTarget.clone();
               const bulletPos = start.lerp(end, shotProgress);
@@ -10762,7 +10718,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             bulletGeometry.dispose();
             bulletMaterial.dispose();
             handWeaponAttachment?.release?.();
-            dynamicFirearmCameraRef.current = false;
             if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
             seatedHumanActionRef.current = {
@@ -11481,7 +11436,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
           requestAnimationFrame(tick);
         } catch (error) {
-          dynamicFirearmCameraRef.current = false;
           stopCaptureVehicleSounds();
           if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = true;
           if (isDroneAttack && parkedDronePayload?.isObject3D) {
@@ -11578,7 +11532,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       ? cameraSeatLockPositionRef.current
       : null;
     const destinationPosition =
-      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition && !dynamicFirearmCameraRef.current
+      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition
         ? lockedSeatPosition.clone()
         : toPosition?.isVector3
           ? toPosition.clone()
@@ -11688,13 +11642,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       1,
       Math.abs(focusTarget.x - boardLookTarget.x) / Math.max(BOARD_CLOTH_HALF * 0.75, 0.01)
     );
-    const dynamicBlend = dynamicFirearmCameraRef.current
-      ? 1
-      : THREE.MathUtils.lerp(
-        CAMERA_BROADCAST_TARGET_BLEND,
-        CAMERA_BROADCAST_SIDE_BLEND,
-        sideDistance
-      );
+    const dynamicBlend = THREE.MathUtils.lerp(
+      CAMERA_BROADCAST_TARGET_BLEND,
+      CAMERA_BROADCAST_SIDE_BLEND,
+      sideDistance
+    );
     const target = boardLookTarget.clone().lerp(focusTarget, dynamicBlend);
     target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
 
@@ -11843,8 +11795,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       const controls = controlsRef.current;
       if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-      if (state.turn === 0 && lockUserTurnSeatViewRef.current && !focus.force && !dynamicFirearmCameraRef.current) return;
-      if (!focus.force && !dynamicFirearmCameraRef.current && shouldRespectUserCamera(state.turn)) return;
+      if (state.turn === 0 && lockUserTurnSeatViewRef.current) return;
+      if (!focus.force && shouldRespectUserCamera(state.turn)) return;
       const {
         object,
         target,
