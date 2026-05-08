@@ -3728,8 +3728,8 @@ const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
   dark_wood: 2,
   rosewood_veneer_01: 2.4
 });
-const LT_TABLE_WOOD_TEXTURE_ID = 'rosewood_veneer_01';
-const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01;
+const LT_TABLE_WOOD_TEXTURE_ID = 'fabric_083';
+const LT_TABLE_WOOD_REPEAT_SCALE = 1;
 
 function applyFinishWoodTint(material, finish) {
   if (!material?.color || !finish?.preserveFinishTintOnWood) return;
@@ -3914,81 +3914,9 @@ const TABLE_FINISHES = Object.freeze({
     preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
-  carbonFiberSnakeChalk: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalk',
-    label: 'LT Black Snake',
-    rail: 0x242b36,
-    base: 0x242b36,
-    trim: 0x242b36,
-    woodTextureId: 'plastic_monoblock_lt_black_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberSnakeChalkGrey: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalkGrey',
-    label: 'LT Grey Snake',
-    rail: 0xb3bcc8,
-    base: 0xb3bcc8,
-    trim: 0xb3bcc8,
-    woodTextureId: 'plastic_monoblock_lt_grey_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberSnakeChalkBeige: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalkBeige',
-    label: 'LT Dark Grey Snake',
-    rail: 0x687381,
-    base: 0x687381,
-    trim: 0x687381,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberSnakeChalkDarkBlue: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalkDarkBlue',
-    label: 'LT Burgundy Snake',
-    rail: 0xa95b60,
-    base: 0xa95b60,
-    trim: 0xa95b60,
-    woodTextureId: 'plastic_monoblock_lt_burgundy_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberSnakeChalkWhite: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalkWhite',
-    label: 'LT Milk Cream Snake',
-    rail: 0xf6ead7,
-    base: 0xf6ead7,
-    trim: 0xf6ead7,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberSnakeChalkDarkGreen: createStandardWoodFinish({
-    id: 'carbonFiberSnakeChalkDarkGreen',
-    label: 'LT Dark Green Snake',
-    rail: 0x4b7958,
-    base: 0x4b7958,
-    trim: 0x4b7958,
-    woodTextureId: 'plastic_monoblock_lt_dark_green_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
   carbonFiberAlligatorOlive: createStandardWoodFinish({
     id: 'carbonFiberAlligatorOlive',
-    label: 'LT Olive Alligator',
+    label: 'LT Olive Fabric',
     rail: 0x556b3f,
     base: 0x556b3f,
     trim: 0x556b3f,
@@ -4001,7 +3929,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberAlligatorSwamp: createStandardWoodFinish({
     id: 'carbonFiberAlligatorSwamp',
-    label: 'LT Swamp Alligator',
+    label: 'LT Swamp Fabric',
     rail: 0x3f5a3c,
     base: 0x3f5a3c,
     trim: 0x3f5a3c,
@@ -4014,7 +3942,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberAlligatorClay: createStandardWoodFinish({
     id: 'carbonFiberAlligatorClay',
-    label: 'LT Clay Alligator',
+    label: 'LT Clay Fabric',
     rail: 0x6f5b45,
     base: 0x6f5b45,
     trim: 0x6f5b45,
@@ -4027,7 +3955,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberAlligatorSand: createStandardWoodFinish({
     id: 'carbonFiberAlligatorSand',
-    label: 'LT Sand Alligator',
+    label: 'LT Sand Fabric',
     rail: 0x8a7b5e,
     base: 0x8a7b5e,
     trim: 0x8a7b5e,
@@ -4040,7 +3968,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberAlligatorMoss: createStandardWoodFinish({
     id: 'carbonFiberAlligatorMoss',
-    label: 'LT Moss Alligator',
+    label: 'LT Moss Fabric',
     rail: 0x4f6048,
     base: 0x4f6048,
     trim: 0x4f6048,
@@ -4053,7 +3981,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberAlligatorNight: createStandardWoodFinish({
     id: 'carbonFiberAlligatorNight',
-    label: 'LT Night Alligator',
+    label: 'LT Night Fabric',
     rail: 0x2f3c32,
     base: 0x2f3c32,
     trim: 0x2f3c32,

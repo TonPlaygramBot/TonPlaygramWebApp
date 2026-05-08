@@ -325,6 +325,19 @@ const polyHavenTextureSet = (assetId) => {
   };
 };
 
+
+const AMBIENTCG_SURFACE_PREVIEW_BASE =
+  'https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview';
+
+const ambientCgFabricTextureSet = (assetId) => {
+  const base = `${AMBIENTCG_SURFACE_PREVIEW_BASE}/${assetId}/${assetId}_SQ`;
+  return {
+    mapUrl: `${base}_Color.jpg`,
+    roughnessMapUrl: `${base}_Roughness.jpg`,
+    normalMapUrl: `${base}_NormalGL.jpg`
+  };
+};
+
 const svgDataUrl = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
 const makeInlineOakVeneerPattern = ({
@@ -556,6 +569,23 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'fabric_083',
+    label: 'Fabric 083',
+    source: 'ambientCG — Fabric 083 (CC0)',
+    rail: {
+      repeat: { x: 3.2, y: 3.2 },
+      rotation: 0,
+      textureSize: 1024,
+      ...ambientCgFabricTextureSet('Fabric083')
+    },
+    frame: {
+      repeat: { x: 3.2, y: 3.2 },
+      rotation: 0,
+      textureSize: 1024,
+      ...ambientCgFabricTextureSet('Fabric083')
     }
   }),
   Object.freeze({
