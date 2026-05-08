@@ -9,7 +9,7 @@ import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 type AnimName = 'Idle' | 'Walk' | 'Run';
 type ShotState = 'aim' | 'runup' | 'keeperAim' | 'aiRunup' | 'flight' | 'var' | 'replay' | 'result';
 type KickSpot = 'left' | 'center' | 'right' | 'near16';
-type ActorKind = 'kicker' | 'keeper' | 'wall';
+type ActorKind = 'kicker' | 'keeper' | 'wall' | 'referee' | 'field';
 type ShotPhase = 'userShoot' | 'aiShoot' | 'finished';
 type ShotControlState = { power: number; aimX: number; aimY: number };
 type TeamKey = 'blue' | 'red';
@@ -94,6 +94,7 @@ type SwipeState = {
   endX: number;
   endY: number;
   mode?: 'shot' | 'camera' | 'keeper';
+  technique?: string;
   moved?: boolean;
   viewportW?: number;
   viewportH?: number;
@@ -177,8 +178,9 @@ const MIN_KEEPER_SWIPE_PX = 22;
 const KEEPER_DIVE_DURATION = 0.62;
 const KEEPER_DIVE_REACH_BOOST = 1.16;
 const REPLAY_SLOWDOWN = 0.48;
-const SPECTATOR_ROWS_FILLED = 5;
-const SPECTATORS_PER_ROW_TARGET = 18;
+const SPECTATOR_ROWS_FILLED = 6;
+const SPECTATORS_PER_ROW_TARGET = 22;
+const AMBIENT_FIELD_PLAYER_COUNT = 22;
 const SPECTATOR_SCALE = 0.78;
 const SPECTATOR_FALLBACK_SCALE = 0.86;
 const SPECTATOR_SEAT_Y = 0.09;
@@ -748,7 +750,7 @@ function tintModel(
 ) {
   const kit = kitForTeam(team);
   const color =
-    kind === 'keeper'
+    kind === 'keeper' || kind === 'referee'
       ? new THREE.Color(0x111111)
       : new THREE.Color(kitColor ?? kit.primary);
   const fabricMap = polyhavenTexture(teamTexture(team), 5);
@@ -764,16 +766,19 @@ function tintModel(
         if (surface === 'skin') {
           m.color.lerp(new THREE.Color(index % 3 ? 0xd6a06f : 0xf1d6bd), 0.12);
         } else if (surface === 'hair') {
-          m.color.lerp(new THREE.Color(index % 2 ? 0x2b170f : 0x111111), 0.2);
+          const hairPalette = [0x111111, 0x2b170f, 0x8b5a2b, 0xd6b37a, 0x64748b];
+          m.color.lerp(new THREE.Color(hairPalette[index % hairPalette.length]), 0.42);
         } else if (surface === 'eye') {
-          m.color.lerp(new THREE.Color(0x050505), 0.35);
+          const eyePalette = [0x050505, 0x1e3a8a, 0x166534, 0x78350f];
+          m.color.lerp(new THREE.Color(eyePalette[index % eyePalette.length]), 0.45);
         } else if (surface === 'shoe') {
           m.color.lerp(new THREE.Color(kit.shoes), 0.55);
           m.map = shoeMap;
         } else {
           m.color.copy(color);
-          m.map = fabricMap;
+          m.map = kind === 'referee' ? null : fabricMap;
           if (kind === 'wall') m.color.lerp(new THREE.Color(kit.secondary), 0.16);
+          if (kind === 'referee') m.color.lerp(new THREE.Color(0x020617), 0.36);
         }
       }
       m.roughness = Math.max(m.roughness ?? 0.5, 0.62);
@@ -785,7 +790,10 @@ function tintModel(
 function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamKey = index % 2 ? 'red' : 'blue') {
   const group = new THREE.Group();
   const teamKit = kitForTeam(team);
-  const kit = kind === 'keeper' ? 0x111111 : (kitColor ?? teamKit.primary);
+  const kit = kind === 'keeper' || kind === 'referee' ? 0x111111 : (kitColor ?? teamKit.primary);
+  const skinPalette = [0xf1d6bd, 0xd6a06f, 0x9a6248, 0x6b3f2a, 0xffdfc4];
+  const hairPalette = [0x111111, 0x2b170f, 0x8b5a2b, 0xd6b37a, 0x64748b];
+  const eyePalette = [0x050505, 0x1e3a8a, 0x166534, 0x78350f];
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.19, 0.72, 8, 14),
     texturedMaterial(kit, teamTexture(team), 4)
@@ -800,7 +808,7 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
   stripe.position.set(0, 1.25, -0.16);
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.13, 18, 12),
-    texturedMaterial(index % 3 ? 0xd6a06f : 0xf1d6bd, POLYHAVEN_TEXTURES.fabricBlue, 7)
+    texturedMaterial(skinPalette[index % skinPalette.length], POLYHAVEN_TEXTURES.fabricBlue, 7)
   );
   head.name = 'head';
   head.position.y = 1.62;
@@ -822,16 +830,25 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
   rightArm.name = 'rightArm';
   leftArm.position.set(-0.25, 1.05, 0.01);
   rightArm.position.set(0.25, 1.05, 0.01);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), material(index % 2 ? 0x2b170f : 0x111111));
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), material(hairPalette[index % hairPalette.length]));
   hair.name = 'hair';
   hair.position.set(0, 1.7, -0.01);
-  const eyeMat = material(0x050505, 0.38, 0.02);
+  const eyeMat = material(eyePalette[index % eyePalette.length], 0.38, 0.02);
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), eyeMat);
   leftEye.name = 'leftEye';
   const rightEye = leftEye.clone();
   rightEye.name = 'rightEye';
   leftEye.position.set(-0.045, 1.635, -0.118);
   rightEye.position.set(0.045, 1.635, -0.118);
+  const browMat = material(hairPalette[index % hairPalette.length], 0.5, 0.01);
+  const leftBrow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.012), browMat);
+  leftBrow.name = 'leftEyebrow';
+  const rightBrow = leftBrow.clone();
+  rightBrow.name = 'rightEyebrow';
+  leftBrow.position.set(-0.047, 1.666, -0.123);
+  rightBrow.position.set(0.047, 1.666, -0.123);
+  leftBrow.rotation.z = -0.12;
+  rightBrow.rotation.z = 0.12;
   const shoeMat = texturedMaterial(teamKit.shoes, POLYHAVEN_TEXTURES.shoeLeather, 4, 0.52, 0.05);
   const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.055, 0.22), shoeMat);
   leftShoe.name = 'leftShoe';
@@ -850,6 +867,8 @@ function makeFallback(kind: ActorKind, index = 0, kitColor?: number, team: TeamK
     shadow(hair),
     shadow(leftEye),
     shadow(rightEye),
+    shadow(leftBrow),
+    shadow(rightBrow),
     shadow(leftShoe),
     shadow(rightShoe)
   );
@@ -1154,7 +1173,10 @@ function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
 
   const teamKit = kitForTeam(team);
   const shirt = texturedMaterial(color, teamTexture(team), 4, 0.72, 0.02);
-  const skin = material(0xf1d6bd, 0.7, 0.02);
+  const spectatorTone = team === 'blue' ? 0xf1d6bd : 0xd6a06f;
+  const spectatorHair = team === 'blue' ? 0x171717 : 0x6b3f2a;
+  const spectatorEyes = team === 'blue' ? 0x1e3a8a : 0x166534;
+  const skin = material(spectatorTone, 0.7, 0.02);
   const dark = texturedMaterial(teamKit.shorts, teamTexture(team), 4, 0.68, 0.03);
   const sleeve = texturedMaterial(teamKit.primary, teamTexture(team), 4, 0.68, 0.02);
   const torso = new THREE.Mesh(
@@ -1204,14 +1226,21 @@ function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
   );
   const hair = new THREE.Mesh(
     new THREE.SphereGeometry(0.136, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48),
-    material(0x171717)
+    material(spectatorHair)
   );
   hair.position.set(0, 1.3, -0.11);
-  const eyeMat = material(0x050505, 0.38, 0.02);
+  const eyeMat = material(spectatorEyes, 0.38, 0.02);
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeMat);
   const rightEye = leftEye.clone();
   leftEye.position.set(-0.043, 1.23, -0.213);
   rightEye.position.set(0.043, 1.23, -0.213);
+  const browMat = material(spectatorHair, 0.5, 0.01);
+  const leftBrow = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.007, 0.012), browMat);
+  const rightBrow = leftBrow.clone();
+  leftBrow.position.set(-0.045, 1.258, -0.217);
+  rightBrow.position.set(0.045, 1.258, -0.217);
+  leftBrow.rotation.z = -0.1;
+  rightBrow.rotation.z = 0.1;
   const shoeMat = texturedMaterial(teamKit.shoes, POLYHAVEN_TEXTURES.shoeLeather, 4, 0.52, 0.05);
   const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.05, 0.2), shoeMat);
   const rightShoe = leftShoe.clone();
@@ -1229,6 +1258,8 @@ function createSeatedFallbackSpectator(color: number, team: TeamKey = 'blue') {
     shadow(hair),
     shadow(leftEye),
     shadow(rightEye),
+    shadow(leftBrow),
+    shadow(rightBrow),
     shadow(leftShoe),
     shadow(rightShoe)
   );
@@ -1961,6 +1992,177 @@ function makeChair(color: number) {
   return chair;
 }
 
+
+function makeReserveBench(team: TeamKey, x: number, z: number, rotationY = 0) {
+  const bench = new THREE.Group();
+  bench.position.set(x, 0, z);
+  bench.rotation.y = rotationY;
+  const kit = kitForTeam(team);
+  const frameMat = material(0x1f2937, 0.48, 0.28);
+  const seatMat = texturedMaterial(kit.primary, teamTexture(team), 5, 0.62, 0.04);
+  const canopyMat = new THREE.MeshStandardMaterial({
+    color: kit.primary,
+    roughness: 0.42,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.82
+  });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.12, 0.68), frameMat);
+  base.position.y = 0.16;
+  bench.add(shadow(base));
+  for (let i = 0; i < 5; i++) {
+    const seat = makeChair(i % 2 ? kit.secondary : kit.primary);
+    seat.position.set((i - 2) * 0.62, 0.18, 0.02);
+    seat.scale.setScalar(0.86);
+    bench.add(seat);
+  }
+  const back = new THREE.Mesh(new THREE.BoxGeometry(3.7, 1.05, 0.08), seatMat);
+  back.position.set(0, 0.82, 0.38);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.12, 1.0), canopyMat);
+  roof.position.set(0, 1.38, -0.02);
+  roof.rotation.x = -0.1;
+  bench.add(shadow(back), shadow(roof));
+  [-1.72, 1.72].forEach((px) => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.15, 10), frameMat);
+    post.position.set(px, 0.72, 0.32);
+    bench.add(shadow(post));
+  });
+  return bench;
+}
+
+function addPerimeterNetAndLampPosts(scene: THREE.Scene) {
+  const fence = new THREE.Group();
+  const fenceMat = new THREE.LineBasicMaterial({ color: 0xdbeafe, transparent: true, opacity: 0.32 });
+  const postMat = material(0x94a3b8, 0.48, 0.22);
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xbfdbfe, emissiveIntensity: 1.85, roughness: 0.24 });
+  const left = -FIELD_W / 2 - 1.35;
+  const right = FIELD_W / 2 + 1.35;
+  const near = HALF_H / 2 + 1.2;
+  const far = GOAL_LINE_Z - GOAL_D - 3.2;
+  const posts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const x = THREE.MathUtils.lerp(left, right, i / 10);
+    posts.push(new THREE.Vector3(x, 0, near), new THREE.Vector3(x, 0, far));
+  }
+  for (let i = 1; i < 8; i++) {
+    const z = THREE.MathUtils.lerp(far, near, i / 8);
+    posts.push(new THREE.Vector3(left, 0, z), new THREE.Vector3(right, 0, z));
+  }
+  posts.forEach((pnt, index) => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 2.05, 8), postMat);
+    post.position.set(pnt.x, 1.02, pnt.z);
+    fence.add(shadow(post));
+    if (index % 5 === 0) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.2), lampMat);
+      lamp.position.set(pnt.x, 2.18, pnt.z);
+      lamp.lookAt(0, 0.9, GOAL_LINE_Z + 4);
+      fence.add(lamp);
+    }
+  });
+  const addFenceLine = (a: THREE.Vector3, b: THREE.Vector3, y: number) => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(a.x, y, a.z),
+      new THREE.Vector3(b.x, y, b.z)
+    ]);
+    fence.add(new THREE.Line(geometry, fenceMat));
+  };
+  const addFenceVertical = (x: number, z: number) => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, 0.55, z),
+      new THREE.Vector3(x, 2.0, z)
+    ]);
+    fence.add(new THREE.Line(geometry, fenceMat));
+  };
+  const corners = [
+    new THREE.Vector3(left, 0, far),
+    new THREE.Vector3(right, 0, far),
+    new THREE.Vector3(right, 0, near),
+    new THREE.Vector3(left, 0, near)
+  ];
+  for (let i = 0; i < corners.length; i++) {
+    const a = corners[i];
+    const b = corners[(i + 1) % corners.length];
+    for (let y = 0.55; y <= 2.0; y += 0.36) addFenceLine(a, b, y);
+    const segments = i % 2 === 0 ? 22 : 16;
+    for (let j = 1; j < segments; j++) {
+      const u = j / segments;
+      const p1 = a.clone().lerp(b, u);
+      addFenceVertical(p1.x, p1.z);
+    }
+  }
+  scene.add(fence);
+}
+
+
+function addSideGrandstands(scene: THREE.Scene) {
+  const concrete = material(0x8491a3, 0.9, 0.02);
+  const aisleMat = material(0xe2e8f0, 0.78, 0.02);
+  const railMat = material(0xf8fafc, 0.38, 0.2);
+  const chairColors = [0x1d4ed8, 0xffffff, 0xdc2626];
+  const rows = 5;
+  const rowDepth = 0.76;
+  const rowRise = 0.28;
+  [-1, 1].forEach((side) => {
+    const stand = new THREE.Group();
+    stand.position.set(side * (FIELD_W / 2 + 3.0), 0, 0.5);
+    stand.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    for (let row = 0; row < rows; row++) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(HALF_H + 2.4, 0.13, rowDepth), concrete);
+      tread.position.set(0, 0.16 + row * rowRise, -row * rowDepth);
+      stand.add(shadow(tread));
+      for (let col = 0; col < 22; col++) {
+        if (col === 7 || col === 14) continue;
+        const chair = makeChair(chairColors[(row + col) % chairColors.length]);
+        chair.position.set(-HALF_H / 2 + 1.5 + col * 1.45, 0.31 + row * rowRise, -row * rowDepth + 0.05);
+        chair.scale.setScalar(0.78);
+        stand.add(chair);
+      }
+    }
+    [-HALF_H / 2 + 8.8, 0, HALF_H / 2 - 8.8].forEach((x) => {
+      for (let row = 0; row < rows; row++) {
+        const stair = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.1, rowDepth * 0.74), aisleMat);
+        stair.position.set(x, 0.3 + row * rowRise, -row * rowDepth + 0.02);
+        stand.add(shadow(stair));
+      }
+    });
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(HALF_H + 2.8, 0.07, 0.07), railMat);
+    rail.position.set(0, 0.88, 0.54);
+    stand.add(shadow(rail));
+    scene.add(stand);
+  });
+}
+
+function addCornerStairConnections(scene: THREE.Scene) {
+  const cornerMat = material(0x7c8796, 0.88, 0.03);
+  const aisleMat = material(0xe2e8f0, 0.78, 0.02);
+  const railMat = material(0xf8fafc, 0.38, 0.2);
+  const rows = 7;
+  const rowDepth = 0.82;
+  const rowRise = 0.32;
+  const width = 4.4;
+  const placements = [
+    [-FIELD_W / 2 - 2.0, GOAL_LINE_Z - GOAL_D - 2.2, Math.PI / 9],
+    [FIELD_W / 2 + 2.0, GOAL_LINE_Z - GOAL_D - 2.2, -Math.PI / 9],
+    [-FIELD_W / 2 - 2.0, HALF_H / 2 + 1.25, Math.PI - Math.PI / 9],
+    [FIELD_W / 2 + 2.0, HALF_H / 2 + 1.25, Math.PI + Math.PI / 9]
+  ];
+  placements.forEach(([x, z, rot]) => {
+    const corner = new THREE.Group();
+    corner.position.set(x, 0, z);
+    corner.rotation.y = rot;
+    for (let row = 0; row < rows; row++) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(width, 0.14, rowDepth), cornerMat);
+      tread.position.set(0, 0.18 + row * rowRise, -row * rowDepth);
+      const stair = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, rowDepth * 0.76), aisleMat);
+      stair.position.set(0, 0.32 + row * rowRise, -row * rowDepth + 0.02);
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.035, 0.05), railMat);
+      nose.position.set(0, 0.4 + row * rowRise, -row * rowDepth + rowDepth * 0.38);
+      corner.add(shadow(tread), shadow(stair), shadow(nose));
+    }
+    scene.add(corner);
+  });
+}
+
 function makeBillboardsAndStands(
   scene: THREE.Scene,
   loader: GLTFLoader
@@ -2210,6 +2412,21 @@ function makeHalfField(
     new THREE.Vector3(-w, 0, -h)
   ]);
   addLine(scene, [new THREE.Vector3(-w, 0, h), new THREE.Vector3(w, 0, h)]);
+  const centerCirclePts = new THREE.EllipseCurve(0, h, 3.2, 3.2, Math.PI, Math.PI * 2)
+    .getPoints(72)
+    .map((p) => new THREE.Vector3(p.x, 0, p.y));
+  addLine(scene, centerCirclePts, 0xffffff, 0.72);
+  [
+    [-w, -h, 0, Math.PI / 2],
+    [w, -h, Math.PI / 2, Math.PI],
+    [-w, h, -Math.PI / 2, 0],
+    [w, h, Math.PI, Math.PI * 1.5]
+  ].forEach(([cx, cz, start, end]) => {
+    const arc = new THREE.EllipseCurve(cx, cz, 0.9, 0.9, start, end)
+      .getPoints(24)
+      .map((p) => new THREE.Vector3(p.x, 0, p.y));
+    addLine(scene, arc, 0xffffff, 0.82);
+  });
   addRect(scene, -PENALTY_W / 2, PENALTY_W / 2, -h, -h + PENALTY_D);
   addRect(scene, -GOAL_AREA_W / 2, GOAL_AREA_W / 2, -h, -h + GOAL_AREA_D);
   const penaltySpot = new THREE.Mesh(
@@ -2234,6 +2451,11 @@ function makeHalfField(
     .map((p) => new THREE.Vector3(p.x, 0, p.y));
   addLine(scene, arcPts);
   makeGoal(scene, netRig);
+  scene.add(makeReserveBench('blue', -FIELD_W / 2 - 2.25, GOAL_LINE_Z + 11.8, Math.PI / 2));
+  scene.add(makeReserveBench('red', FIELD_W / 2 + 2.25, GOAL_LINE_Z + 11.8, -Math.PI / 2));
+  addPerimeterNetAndLampPosts(scene);
+  addSideGrandstands(scene);
+  addCornerStairConnections(scene);
   return makeBillboardsAndStands(scene, loader);
 }
 
@@ -2383,10 +2605,39 @@ function controlToShotSwipe(
   return swipe;
 }
 
-function randomAiShotSwipe(viewportW = 390, viewportH = 780) {
-  const targetX = THREE.MathUtils.randFloatSpread(GOAL_W - 0.75);
-  const targetY = THREE.MathUtils.randFloat(0.55, GOAL_H - 0.18);
-  return makeSwipeForTarget(targetX, targetY, viewportW, viewportH, THREE.MathUtils.randFloat(0.4, 1.1));
+const AI_SHOT_TECHNIQUES = Object.freeze([
+  Object.freeze({ name: 'whipped top-left curl', x: -GOAL_W / 2 + 0.34, y: GOAL_H - 0.22, power: 1.28, spin: -54 }),
+  Object.freeze({ name: 'whipped top-right curl', x: GOAL_W / 2 - 0.34, y: GOAL_H - 0.22, power: 1.28, spin: 54 }),
+  Object.freeze({ name: 'driven bottom-left skidder', x: -GOAL_W / 2 + 0.48, y: 0.42, power: 0.92, spin: -24 }),
+  Object.freeze({ name: 'driven bottom-right skidder', x: GOAL_W / 2 - 0.48, y: 0.42, power: 0.92, spin: 24 }),
+  Object.freeze({ name: 'dipping central knuckle', x: 0.15, y: GOAL_H - 0.36, power: 1.48, spin: THREE.MathUtils.randFloatSpread(18) })
+]);
+
+function randomAiShotSwipe(viewportW = 390, viewportH = 780, ballPos = new THREE.Vector3(0, BALL_R, GOAL_LINE_Z + 23), spot: KickSpot = 'center') {
+  const goalSideBias = ballPos.x > 1.2 ? -1 : ballPos.x < -1.2 ? 1 : Math.random() > 0.5 ? 1 : -1;
+  const wallAware = AI_SHOT_TECHNIQUES.filter((tech) => {
+    if (spot === 'near16') return tech.y > 1.65 || tech.y < 0.65;
+    if (ballPos.x < -1.2) return tech.x >= -0.15 || tech.x < -GOAL_W / 2 + 0.6;
+    if (ballPos.x > 1.2) return tech.x <= 0.15 || tech.x > GOAL_W / 2 - 0.6;
+    return true;
+  });
+  const technique = wallAware[Math.floor(Math.random() * wallAware.length)] ?? AI_SHOT_TECHNIQUES[0];
+  const cornerNoiseX = THREE.MathUtils.randFloatSpread(0.22);
+  const cornerNoiseY = THREE.MathUtils.randFloatSpread(0.14);
+  const targetX = THREE.MathUtils.clamp(
+    technique.x + cornerNoiseX,
+    -GOAL_W / 2 + 0.24,
+    GOAL_W / 2 - 0.24
+  );
+  const targetY = THREE.MathUtils.clamp(technique.y + cornerNoiseY, 0.32, GOAL_H - 0.14);
+  const swipe = makeSwipeForTarget(targetX, targetY, viewportW, viewportH, technique.power);
+  // AI now varies shot technique: extra end-point spin creates visible curve while keeping
+  // the final aim tucked inside top/bottom corners rather than random central shots.
+  const spinDirection = Math.sign(technique.spin || goalSideBias) || goalSideBias;
+  swipe.endX += technique.spin + spinDirection * THREE.MathUtils.randFloat(6, 18);
+  swipe.endY += technique.y < 0.75 ? THREE.MathUtils.randFloat(10, 24) : -THREE.MathUtils.randFloat(4, 18);
+  swipe.technique = technique.name;
+  return swipe;
 }
 
 function setKeeperDiveFromSwipe(keeper: Actor, swipe: SwipeState) {
@@ -2472,6 +2723,78 @@ function placeWall(wall: Actor[], spot: KickSpot, ballPos: THREE.Vector3) {
     actor.jumpTime = 0;
   });
 }
+
+function ambientPlayerPosition(index: number) {
+  const formation = [
+    [-8.4, -11.2], [-4.2, -10.8], [0, -11.4], [4.2, -10.8], [8.4, -11.2],
+    [-7.2, -3.9], [-2.3, -4.7], [2.3, -4.7], [7.2, -3.9], [-3.2, 4.0], [3.2, 4.0],
+    [-8.4, 13.7], [-4.2, 13.1], [0, 13.9], [4.2, 13.1], [8.4, 13.7],
+    [-7.2, 7.3], [-2.3, 8.2], [2.3, 8.2], [7.2, 7.3], [-3.2, -0.4], [3.2, -0.4]
+  ];
+  const [x, z] = formation[index % formation.length];
+  return new THREE.Vector3(x, GROUND_Y, z);
+}
+
+function createAmbientMatchActors(
+  scene: THREE.Scene,
+  loader: GLTFLoader,
+  modelUrlForIndex: (index: number) => string
+) {
+  const actors = Array.from({ length: AMBIENT_FIELD_PLAYER_COUNT }, (_, index) => {
+    const team: TeamKey = index < AMBIENT_FIELD_PLAYER_COUNT / 2 ? 'blue' : 'red';
+    const actor = createActor(
+      scene,
+      loader,
+      'field',
+      ambientPlayerPosition(index),
+      40 + index,
+      kitForTeam(team).primary,
+      modelUrlForIndex(index + 9),
+      team
+    );
+    actor.dir.set(index < AMBIENT_FIELD_PLAYER_COUNT / 2 ? 0.12 : -0.12, 0, index < AMBIENT_FIELD_PLAYER_COUNT / 2 ? -1 : 1).normalize();
+    actor.root.scale.setScalar(0.92);
+    return actor;
+  });
+  const referee = createActor(
+    scene,
+    loader,
+    'referee',
+    new THREE.Vector3(-1.35, GROUND_Y, GOAL_LINE_Z + 15.2),
+    99,
+    0x111111,
+    modelUrlForIndex(31),
+    'blue'
+  );
+  referee.dir.set(0.15, 0, -1).normalize();
+  referee.root.scale.setScalar(0.96);
+  return { fieldPlayers: actors, referee };
+}
+
+function updateAmbientMatchActors(fieldPlayers: Actor[], referee: Actor, dt: number, cheerTime = 0) {
+  const now = performance.now() * 0.001;
+  fieldPlayers.forEach((actor, index) => {
+    const base = ambientPlayerPosition(index);
+    actor.pos.x = base.x + Math.sin(now * 0.55 + index) * 0.1;
+    actor.pos.z = base.z + Math.cos(now * 0.45 + index * 0.7) * 0.08;
+    actor.speed = cheerTime > 0 ? 0.45 : 0.04;
+    actor.dir.set(Math.sin(now * 0.4 + index) * 0.2, 0, index < fieldPlayers.length / 2 ? -1 : 1).normalize();
+    updateActorBase(actor, dt);
+    if (cheerTime > 0 && actor.bones.leftArm && actor.bones.rightArm) {
+      const wave = Math.sin(now * 9 + index) * 0.35;
+      actor.bones.leftArm.rotation.x += -0.45 + wave;
+      actor.bones.rightArm.rotation.x += -0.45 - wave;
+    }
+  });
+  referee.pos.x = -1.35 + Math.sin(now * 0.35) * 0.18;
+  referee.pos.z = GOAL_LINE_Z + 15.2 + Math.cos(now * 0.3) * 0.12;
+  referee.speed = 0.05;
+  referee.dir.set(0.15, 0, -1).normalize();
+  updateActorBase(referee, dt);
+  if (referee.bones.leftArm) referee.bones.leftArm.rotation.x += -0.28;
+  if (referee.bones.rightArm) referee.bones.rightArm.rotation.x += -0.18;
+}
+
 function resetShot(
   ball: BallState,
   kicker: Actor,
@@ -3042,6 +3365,7 @@ export default function FreeKickGame() {
         'red'
       )
     );
+    const { fieldPlayers, referee } = createAmbientMatchActors(scene, loader, actorModelUrl);
     let spot: KickSpot = 'center';
     let state: ShotState = 'aim';
     let resultTimer = 0;
@@ -3244,11 +3568,11 @@ export default function FreeKickGame() {
         aiShotTimer -= dt;
         if (aiShotTimer <= 0) {
           activeShooter = 'ai';
-          swipeRef.current = randomAiShotSwipe(host.clientWidth, host.clientHeight);
+          swipeRef.current = randomAiShotSwipe(host.clientWidth, host.clientHeight, ball.object.position, spot);
           kicker.kickTime = 0;
           wall.forEach((w) => (w.jumpTime = 0));
           state = 'aiRunup';
-          setHud((h) => ({ ...h, state: `AI shot ${match.aiShots + 1}/5 incoming — swipe where to jump` }));
+          setHud((h) => ({ ...h, state: `AI ${swipeRef.current.technique ?? 'free kick'} ${match.aiShots + 1}/5 — swipe where to jump` }));
         }
       }
       if (state === 'aim' && match.phase === 'aiShoot') {
@@ -3480,6 +3804,7 @@ export default function FreeKickGame() {
           applyWallPose(w);
           if (w.jumpTime > 0) w.jumpTime = Math.max(0, w.jumpTime - dt);
         });
+        updateAmbientMatchActors(fieldPlayers, referee, dt, stadium.cheerTime);
         if (kicker.kickTime > 0)
           kicker.kickTime = Math.max(0, kicker.kickTime - dt);
         if (keeper.diveTime > 0)
