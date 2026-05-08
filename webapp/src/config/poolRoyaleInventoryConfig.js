@@ -615,33 +615,30 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
   }))
 );
 
+const FABRIC_083_THUMBNAIL =
+  'https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/2048-WEBP/Fabric083.webp';
+
 const TABLE_FINISH_THUMBNAILS = Object.freeze({
   peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: swatchThumbnail(['#242b36', '#3b4452', '#576274']),
-  carbonFiberChalkGrey: swatchThumbnail(['#717b88', '#99a4b2', '#ced5df']),
-  carbonFiberChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
-  carbonFiberChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
-  carbonFiberChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878']),
-  carbonFiberChalkDarkYellow: swatchThumbnail(['#987330', '#b38a3e', '#ceaa5a']),
-  carbonFiberChalkDarkBrown: swatchThumbnail(['#684633', '#815843', '#9c7057']),
-  carbonFiberChalkDarkRed: swatchThumbnail(['#7a2f2f', '#9b4343', '#b75a5a']),
-  carbonFiberSnakeChalk: swatchThumbnail(['#242b36', '#3b4452', '#576274']),
-  carbonFiberSnakeChalkGrey: swatchThumbnail(['#717b88', '#99a4b2', '#ced5df']),
-  carbonFiberSnakeChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
-  carbonFiberSnakeChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
-  carbonFiberSnakeChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
-  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878']),
-  carbonFiberAlligatorOlive: swatchThumbnail(['#45573a', '#62774f', '#87996d']),
-  carbonFiberAlligatorSwamp: swatchThumbnail(['#2e4733', '#3f5f46', '#5f7c64']),
-  carbonFiberAlligatorClay: swatchThumbnail(['#5c4939', '#7a624d', '#a3876d']),
-  carbonFiberAlligatorSand: swatchThumbnail(['#786850', '#98856a', '#bba88a']),
-  carbonFiberAlligatorMoss: swatchThumbnail(['#3f4f3c', '#5a6b54', '#7f9075']),
-  carbonFiberAlligatorNight: swatchThumbnail(['#253128', '#36443a', '#566258'])
+  carbonFiberChalk: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkGrey: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkBeige: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkDarkBlue: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkWhite: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkDarkGreen: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkDarkYellow: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkDarkBrown: FABRIC_083_THUMBNAIL,
+  carbonFiberChalkDarkRed: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorOlive: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorSwamp: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorClay: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorSand: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorMoss: FABRIC_083_THUMBNAIL,
+  carbonFiberAlligatorNight: FABRIC_083_THUMBNAIL
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -750,12 +747,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberChalkDarkYellow: 'LT Dark Yellow',
     carbonFiberChalkDarkBrown: 'LT Dark Brown',
     carbonFiberChalkDarkRed: 'LT Dark Red',
-    carbonFiberAlligatorOlive: 'LT Olive Alligator',
-    carbonFiberAlligatorSwamp: 'LT Swamp Alligator',
-    carbonFiberAlligatorClay: 'LT Clay Alligator',
-    carbonFiberAlligatorSand: 'LT Sand Alligator',
-    carbonFiberAlligatorMoss: 'LT Moss Alligator',
-    carbonFiberAlligatorNight: 'LT Night Alligator'
+    carbonFiberAlligatorOlive: 'LT Olive Fabric',
+    carbonFiberAlligatorSwamp: 'LT Swamp Fabric',
+    carbonFiberAlligatorClay: 'LT Clay Fabric',
+    carbonFiberAlligatorSand: 'LT Sand Fabric',
+    carbonFiberAlligatorMoss: 'LT Moss Fabric',
+    carbonFiberAlligatorNight: 'LT Night Fabric'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -853,7 +850,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalk',
     name: 'LT Black Finish',
     price: 1160,
-    description: 'Black LT carbon-fiber weave finish with a brighter charcoal tone.',
+    description: 'Black LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
@@ -862,7 +859,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkGrey',
     name: 'LT Grey Finish',
     price: 1170,
-    description: 'Grey LT carbon-fiber weave finish tuned a touch brighter for clarity.',
+    description: 'Grey LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
   },
   {
@@ -871,7 +868,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkBeige',
     name: 'LT Dark Grey Finish',
     price: 1180,
-    description: 'Dark-grey LT carbon-fiber weave finish with a slightly brighter lift.',
+    description: 'Dark-grey LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
   },
   {
@@ -880,7 +877,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkBlue',
     name: 'LT Burgundy Finish',
     price: 1190,
-    description: 'Burgundy LT finish shifted to rosewood-brown warmth.',
+    description: 'Burgundy LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
   },
   {
@@ -889,7 +886,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkWhite',
     name: 'LT Milk Cream Finish',
     price: 1200,
-    description: 'Milk-cream LT carbon-fiber weave finish with a deeper cream tone.',
+    description: 'Milk-cream LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
   },
   {
@@ -898,7 +895,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkGreen',
     name: 'LT Dark Green Finish',
     price: 1210,
-    description: 'Dark-green LT carbon-fiber weave finish with rich forest depth.',
+    description: 'Dark-green LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkGreen
   },
   {
@@ -907,7 +904,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkYellow',
     name: 'LT Dark Yellow Finish',
     price: 1220,
-    description: 'Dark-yellow LT carbon-fiber weave finish with mustard-gold warmth.',
+    description: 'Dark-yellow LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkYellow
   },
   {
@@ -916,7 +913,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkBrown',
     name: 'LT Dark Brown Finish',
     price: 1230,
-    description: 'Dark-brown LT carbon-fiber weave finish with earthy depth.',
+    description: 'Dark-brown LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBrown
   },
   {
@@ -925,61 +922,61 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkRed',
     name: 'LT Dark Red Finish',
     price: 1240,
-    description: 'Dark-red LT carbon-fiber weave finish with deep crimson character.',
+    description: 'Dark-red LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
   },
   {
     id: 'finish-carbonFiberAlligatorOlive',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorOlive',
-    name: 'LT Olive Alligator Finish',
+    name: 'LT Olive Fabric Finish',
     price: 1310,
-    description: 'Olive LT alligator-scale texture with natural reptile tone transitions.',
+    description: 'Olive LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorOlive
   },
   {
     id: 'finish-carbonFiberAlligatorSwamp',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorSwamp',
-    name: 'LT Swamp Alligator Finish',
+    name: 'LT Swamp Fabric Finish',
     price: 1320,
-    description: 'Swamp-green LT alligator texture tuned to deep marsh tones.',
+    description: 'Swamp-green LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSwamp
   },
   {
     id: 'finish-carbonFiberAlligatorClay',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorClay',
-    name: 'LT Clay Alligator Finish',
+    name: 'LT Clay Fabric Finish',
     price: 1330,
-    description: 'Clay-brown LT alligator pattern with warm hide-inspired contrast.',
+    description: 'Clay-brown LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorClay
   },
   {
     id: 'finish-carbonFiberAlligatorSand',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorSand',
-    name: 'LT Sand Alligator Finish',
+    name: 'LT Sand Fabric Finish',
     price: 1340,
-    description: 'Sand LT alligator scales with brighter khaki highlights.',
+    description: 'Sand LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSand
   },
   {
     id: 'finish-carbonFiberAlligatorMoss',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorMoss',
-    name: 'LT Moss Alligator Finish',
+    name: 'LT Moss Fabric Finish',
     price: 1350,
-    description: 'Moss LT alligator texture balancing olive and slate greens.',
+    description: 'Moss LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorMoss
   },
   {
     id: 'finish-carbonFiberAlligatorNight',
     type: 'tableFinish',
     optionId: 'carbonFiberAlligatorNight',
-    name: 'LT Night Alligator Finish',
+    name: 'LT Night Fabric Finish',
     price: 1360,
-    description: 'Night LT alligator scales with muted charcoal-green depth.',
+    description: 'Night LT finish using the Fabric 083 woven textile texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorNight
   },
   {
