@@ -950,8 +950,9 @@ const LEGACY_TABLE_SIZE_REDUCTION_FACTOR = 1;
 const TABLE_SHRINK_FACTOR = 1;
 const TABLE_AND_CHAIR_SHRINK_FACTOR = 1;
 const TABLE_SIZE_REDUCTION_FACTOR = 1;
-const TABLE_RADIUS_SCALE = 0.83;
+const TABLE_RADIUS_SCALE = 0.78;
 const TABLE_HEIGHT_SCALE = 1;
+const TABLE_LEFT_RIGHT_SHRINK_FACTOR = 0.9;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -996,11 +997,12 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ]);
+const SIDE_TABLE_RADIUS_DELTA = TABLE_RADIUS * (1 - TABLE_LEFT_RIGHT_SHRINK_FACTOR);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK + SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK,
+  CHAIR_RADIUS - SIDE_TABLE_RADIUS_DELTA + CHAIR_GLOBAL_PUSHBACK,
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
-  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
-  CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK
+  CHAIR_RADIUS - SIDE_TABLE_RADIUS_DELTA + CHAIR_GLOBAL_PUSHBACK
 ]);
 
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
@@ -5093,11 +5095,13 @@ arenaG.add(tableG);
 tableG.rotation.y = 0;
 const proceduralTableG = new THREE.Group();
 proceduralTableG.rotation.y = TABLE_OCTAGON_ROTATION;
+proceduralTableG.scale.x = TABLE_LEFT_RIGHT_SHRINK_FACTOR;
 tableG.add(proceduralTableG);
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
 const tableThemeG = new THREE.Group();
 tableThemeG.rotation.y = TABLE_OCTAGON_ROTATION;
+tableThemeG.scale.x = TABLE_LEFT_RIGHT_SHRINK_FACTOR;
 arenaG.add(tableThemeG);
 
 /* ---------- Arena Dressings (Carpet & Walls) ---------- */
@@ -6696,7 +6700,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SHRINK_FACTOR = 1;
-const DOMINO_EXTRA_SHRINK_FACTOR = 0.67;
+const DOMINO_EXTRA_SHRINK_FACTOR = 0.62;
 const DOMINO_SIZE_BOOST = 1.86;
 const DOMINO_SCALE =
   1.5 *
@@ -6712,12 +6716,13 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.25;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.1;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 8.1;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 8.65;
+const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.9;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.15;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.25;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 2.35;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.2;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.85;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 3.45;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
@@ -9136,10 +9141,12 @@ refreshConfigUI();
 function layoutSeat(idx) {
   const EDGE = CLOTH_RADIUS;
   const MARGIN = EDGE * 0.16;
+  const horizontalEdge = EDGE * TABLE_LEFT_RIGHT_SHRINK_FACTOR;
+  const horizontalMargin = MARGIN * TABLE_LEFT_RIGHT_SHRINK_FACTOR;
   const south = [0, EDGE - MARGIN, 0];
-  const east = [EDGE - MARGIN, 0, Math.PI / 2];
+  const east = [horizontalEdge - horizontalMargin, 0, Math.PI / 2];
   const north = [0, -(EDGE - MARGIN), Math.PI];
-  const west = [-(EDGE - MARGIN), 0, -Math.PI / 2];
+  const west = [-(horizontalEdge - horizontalMargin), 0, -Math.PI / 2];
   const seats = [south, east, north, west];
   return seats[idx % seats.length];
 }
@@ -9166,8 +9173,11 @@ function computeHandSlotPosition(
   const safeCount = Math.max(1, handCount | 0);
   const safeSlot = THREE.MathUtils.clamp(slotIndex | 0, 0, safeCount - 1);
   const seatLength = Math.hypot(x0, z0) || 1;
-  const outwardX = (x0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
-  const outwardZ = (z0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
+  const handOutwardOffset = isHuman && !openFlat
+    ? HUMAN_PLAYER_HAND_OUTWARD_OFFSET
+    : PLAYER_HAND_OUTWARD_OFFSET;
+  const outwardX = (x0 / seatLength) * handOutwardOffset;
+  const outwardZ = (z0 / seatLength) * handOutwardOffset;
 
   let span = 0;
   let gap = 0;
