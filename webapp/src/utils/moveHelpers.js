@@ -8,22 +8,41 @@ export function flashHighlight(cell, type, ctx, times = 1, done = () => {}) {
 }
 
 export function moveSeq(seq, type, ctx, done = () => {}, dir = 'forward') {
-  const stepMove = (idx) => {
+  const stepMove = (idx, fromCell = ctx.currentPosition ?? 0) => {
     if (idx >= seq.length) return done();
     const next = seq[idx];
-    ctx.updatePosition(next);
-    if (ctx.moveSoundRef?.current) {
-      ctx.moveSoundRef.current.currentTime = 0;
-      if (!ctx.muted) ctx.moveSoundRef.current.play().catch(() => {});
-    }
-    if (typeof ctx.onStepSfx === 'function') {
-      ctx.onStepSfx();
-    }
     const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
-    ctx.setHighlight({ cell: next, type: hType });
-    ctx.setTrail((t) => [...t, { cell: next, type: hType }]);
-    if (idx === seq.length - 2 && ctx.hahaSoundRef?.current) ctx.hahaSoundRef.current.pause();
-    setTimeout(() => stepMove(idx + 1), 700);
+
+    const finishStep = () => {
+      ctx.updatePosition(next);
+      if (ctx.moveSoundRef?.current) {
+        ctx.moveSoundRef.current.currentTime = 0;
+        if (!ctx.muted) ctx.moveSoundRef.current.play().catch(() => {});
+      }
+      if (typeof ctx.onStepSfx === 'function') {
+        ctx.onStepSfx();
+      }
+      ctx.setHighlight({ cell: next, type: hType });
+      ctx.setTrail((t) => [...t, { cell: next, type: hType }]);
+      if (idx === seq.length - 2 && ctx.hahaSoundRef?.current) ctx.hahaSoundRef.current.pause();
+      setTimeout(() => stepMove(idx + 1, next), 80);
+    };
+
+    if (
+      typeof ctx.startStepAnimation === 'function' &&
+      ctx.startStepAnimation({
+        playerIndex: ctx.playerIndex ?? 0,
+        from: fromCell,
+        to: next,
+        type: hType,
+        duration: Number.isFinite(ctx.stepDurationMs) ? ctx.stepDurationMs : 430,
+        onComplete: finishStep
+      })
+    ) {
+      return;
+    }
+
+    finishStep();
   };
   stepMove(0);
 }

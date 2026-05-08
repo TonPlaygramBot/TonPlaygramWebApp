@@ -1481,7 +1481,7 @@ export default function SnakeAndLadder() {
 
 
   const requestSlideAnimation = useCallback(
-    ({ playerIndex, from, to, type, onComplete }) => {
+    ({ playerIndex, from, to, type, duration, onComplete }) => {
       if (slideStateRef.current) return false;
       slideIdRef.current += 1;
       const payload = {
@@ -1490,6 +1490,7 @@ export default function SnakeAndLadder() {
         from,
         to,
         type,
+        duration,
         onComplete
       };
       slideStateRef.current = payload;
@@ -2784,6 +2785,17 @@ export default function SnakeAndLadder() {
           }),
         FINAL_TILE,
         playerIndex: 0,
+        currentPosition: current,
+        stepDurationMs: 430,
+        startStepAnimation: ({ from, to, type, duration, onComplete }) =>
+          requestSlideAnimation({
+            playerIndex: 0,
+            from,
+            to,
+            type,
+            duration,
+            onComplete
+          }),
         startSlide: ({ from, to, type, onComplete }) =>
           requestSlideAnimation({
             playerIndex: 0,
@@ -3007,6 +3019,17 @@ export default function SnakeAndLadder() {
       muted,
       FINAL_TILE,
       playerIndex: index,
+      currentPosition: current,
+      stepDurationMs: 430,
+      startStepAnimation: ({ from, to, type, duration, onComplete }) =>
+        requestSlideAnimation({
+          playerIndex: index,
+          from,
+          to,
+          type,
+          duration,
+          onComplete
+        }),
       startSlide: ({ from, to, type, onComplete }) =>
         requestSlideAnimation({
           playerIndex: index,
