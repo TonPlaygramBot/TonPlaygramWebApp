@@ -7168,11 +7168,8 @@ const OPENING_SHUFFLE_ANIM_DURATION = 620;
 const OPENING_DEAL_ANIM_DURATION = 560;
 const OPENING_DEAL_STEP_DELAY = 76;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 1680;
-const PLACE_ANIM_ARC = DOMINO_WIDTH * 0.62;
-const PLACE_GRAB_PHASE = 0.2;
-const PLACE_SETDOWN_PHASE = 0.84;
-const PLACE_RELEASE_PHASE = 0.93;
+const PLACE_ANIM_DURATION = OPENING_DEAL_ANIM_DURATION;
+const PLACE_ANIM_ARC = 0.05;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
@@ -7231,9 +7228,6 @@ function clearExistingDominoMeshes() {
   });
   drawAnimations.length = 0;
   placementAnimations.forEach((anim) => {
-    if (anim?.hand) {
-      disposePrecisionHandMesh(anim.hand);
-    }
     if (anim?.mesh) {
       disposeDominoMesh(anim.mesh);
     }
@@ -8551,9 +8545,9 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
     rightHand: { x: THREE.MathUtils.degToRad(type === 'PASS' ? 12 : 16), y: THREE.MathUtils.degToRad(-6) }
   });
   dominoCharacterActions.push(
-    { start: now, duration: 420, update: (t) => applyDominoRigPose(rig, reach, t) },
-    { start: now + 420, duration: 760, update: (t) => applyDominoRigPose(rig, place, t) },
-    { start: now + 1180, duration: 500, update: (t) => applyDominoRigPose(rig, base, t) }
+    { start: now, duration: 180, update: (t) => applyDominoRigPose(rig, reach, t) },
+    { start: now + 180, duration: 240, update: (t) => applyDominoRigPose(rig, place, t) },
+    { start: now + 420, duration: 280, update: (t) => applyDominoRigPose(rig, base, t) }
   );
 }
 
@@ -9500,171 +9494,6 @@ function showWinnerHighlight(index) {
   winnerHighlightStart = performance.now();
 }
 
-
-const PRECISION_HAND_SKIN_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0xe8b487,
-  roughness: 0.68,
-  metalness: 0.02
-});
-const PRECISION_HAND_NAIL_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0xf8d7c4,
-  roughness: 0.72,
-  metalness: 0.01
-});
-
-function createPrecisionRightHandMesh() {
-  const hand = new THREE.Group();
-  hand.name = 'precision-domino-right-hand';
-  hand.userData.precisionPlacementHand = true;
-
-  const palm = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 18, 12),
-    PRECISION_HAND_SKIN_MATERIAL
-  );
-  palm.name = 'precision-domino-palm';
-  palm.scale.set(DOMINO_WIDTH * 0.78, DOMINO_LENGTH * 0.52, DOMINO_WIDTH * 0.22);
-  palm.position.set(DOMINO_WIDTH * 0.18, -DOMINO_LENGTH * 0.18, DOMINO_WIDTH * 0.92);
-  hand.add(palm);
-
-  const fingers = [];
-  const fingerOffsets = [-0.42, -0.14, 0.14, 0.42];
-  fingerOffsets.forEach((offset, index) => {
-    const finger = new THREE.Group();
-    finger.name = `precision-domino-finger-${index}`;
-    finger.position.set(
-      DOMINO_WIDTH * offset,
-      DOMINO_LENGTH * 0.18,
-      DOMINO_WIDTH * 0.82
-    );
-
-    const upper = new THREE.Mesh(
-      new THREE.CylinderGeometry(DOMINO_WIDTH * 0.052, DOMINO_WIDTH * 0.065, DOMINO_LENGTH * 0.28, 10),
-      PRECISION_HAND_SKIN_MATERIAL
-    );
-    upper.position.y = DOMINO_LENGTH * 0.12;
-    finger.add(upper);
-
-    const tip = new THREE.Mesh(
-      new THREE.SphereGeometry(DOMINO_WIDTH * 0.07, 10, 8),
-      PRECISION_HAND_SKIN_MATERIAL
-    );
-    tip.position.y = DOMINO_LENGTH * 0.27;
-    finger.add(tip);
-
-    const nail = new THREE.Mesh(
-      new THREE.SphereGeometry(DOMINO_WIDTH * 0.034, 8, 6),
-      PRECISION_HAND_NAIL_MATERIAL
-    );
-    nail.scale.set(1.2, 0.58, 0.22);
-    nail.position.set(0, DOMINO_LENGTH * 0.315, DOMINO_WIDTH * 0.035);
-    finger.add(nail);
-
-    finger.userData.homePosition = finger.position.clone();
-    fingers.push(finger);
-    hand.add(finger);
-  });
-
-  const thumb = new THREE.Group();
-  thumb.name = 'precision-domino-thumb';
-  thumb.position.set(DOMINO_WIDTH * 0.63, -DOMINO_LENGTH * 0.03, DOMINO_WIDTH * 0.72);
-  thumb.rotation.z = THREE.MathUtils.degToRad(-57);
-  thumb.userData.homePosition = thumb.position.clone();
-  const thumbBone = new THREE.Mesh(
-    new THREE.CylinderGeometry(DOMINO_WIDTH * 0.062, DOMINO_WIDTH * 0.076, DOMINO_LENGTH * 0.24, 10),
-    PRECISION_HAND_SKIN_MATERIAL
-  );
-  thumbBone.position.y = DOMINO_LENGTH * 0.1;
-  thumb.add(thumbBone);
-  const thumbTip = new THREE.Mesh(
-    new THREE.SphereGeometry(DOMINO_WIDTH * 0.084, 10, 8),
-    PRECISION_HAND_SKIN_MATERIAL
-  );
-  thumbTip.position.y = DOMINO_LENGTH * 0.22;
-  thumb.add(thumbTip);
-  hand.add(thumb);
-
-  hand.userData.fingers = fingers;
-  hand.userData.thumb = thumb;
-  hand.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-      child.renderOrder = 7;
-    }
-  });
-  return hand;
-}
-
-function setPrecisionHandGrip(hand, grip = 0) {
-  if (!hand?.userData) return;
-  const closed = THREE.MathUtils.clamp(grip, 0, 1);
-  const fingers = hand.userData.fingers || [];
-  fingers.forEach((finger, index) => {
-    const home = finger.userData.homePosition;
-    const spread = (index - 1.5) * DOMINO_WIDTH * 0.018 * (1 - closed);
-    if (home) {
-      finger.position.copy(home);
-      finger.position.x += spread;
-    }
-    finger.rotation.x = THREE.MathUtils.degToRad(-8 - closed * 54);
-    finger.rotation.z = THREE.MathUtils.degToRad((index - 1.5) * (2.2 - closed * 0.8));
-    finger.position.z = DOMINO_WIDTH * (0.88 - closed * 0.38);
-  });
-  const thumb = hand.userData.thumb;
-  if (thumb) {
-    const home = thumb.userData.homePosition;
-    if (home) {
-      thumb.position.copy(home);
-    }
-    thumb.rotation.z = THREE.MathUtils.degToRad(-57 + closed * 22);
-    thumb.rotation.x = THREE.MathUtils.degToRad(-closed * 28);
-    thumb.position.z = DOMINO_WIDTH * (0.76 - closed * 0.27);
-  }
-}
-
-function disposePrecisionHandMesh(hand) {
-  if (!hand) return;
-  hand.parent?.remove(hand);
-}
-
-function createPrecisionPlacementHand() {
-  const hand = createPrecisionRightHandMesh();
-  hand.scale.setScalar(1.04);
-  piecesG.add(hand);
-  return hand;
-}
-
-function smoothstep01(value) {
-  const t = THREE.MathUtils.clamp(value, 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-function getPlacementMotionT(t) {
-  if (t <= PLACE_GRAB_PHASE) return 0;
-  if (t >= PLACE_SETDOWN_PHASE) return 1;
-  return smoothstep01((t - PLACE_GRAB_PHASE) / (PLACE_SETDOWN_PHASE - PLACE_GRAB_PHASE));
-}
-
-function getPlacementGripT(t) {
-  if (t < PLACE_GRAB_PHASE) return smoothstep01(t / PLACE_GRAB_PHASE);
-  if (t < PLACE_RELEASE_PHASE) return 1;
-  return 1 - smoothstep01((t - PLACE_RELEASE_PHASE) / Math.max(0.001, 1 - PLACE_RELEASE_PHASE));
-}
-
-function updatePrecisionHandForPlacement(anim, t, tilePos, tileQuat) {
-  if (!anim?.hand) return;
-  const grip = getPlacementGripT(t);
-  const settle = t > PLACE_SETDOWN_PHASE
-    ? smoothstep01((t - PLACE_SETDOWN_PHASE) / Math.max(0.001, PLACE_RELEASE_PHASE - PLACE_SETDOWN_PHASE))
-    : 0;
-  anim.hand.quaternion.copy(tileQuat);
-  anim.hand.position.copy(tilePos);
-  anim.hand.translateX(DOMINO_WIDTH * (0.32 + (1 - grip) * 0.2));
-  anim.hand.translateY(-DOMINO_LENGTH * 0.08);
-  anim.hand.translateZ(DOMINO_WIDTH * (1.05 + (1 - grip) * 0.75 - settle * 0.26));
-  setPrecisionHandGrip(anim.hand, grip);
-}
-
 function attachMeshPreserveWorld(mesh) {
   if (!mesh) {
     return;
@@ -9773,8 +9602,7 @@ function spawnPlacementAnimation(
     startTime: performance.now(),
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
-    segment,
-    hand: createPrecisionPlacementHand()
+    segment
   });
 }
 
@@ -11723,38 +11551,28 @@ function updatePlacementAnimations(now) {
     const elapsed = timestamp - anim.startTime;
     const duration = anim.duration || PLACE_ANIM_DURATION;
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
-    const motionT = getPlacementMotionT(t);
-    const carryEase = 1 - Math.pow(1 - motionT, 3);
+    const ease = 1 - Math.pow(1 - t, 3);
 
-    const pos = anim.start.clone().lerp(anim.end, carryEase);
+    const pos = anim.start.clone().lerp(anim.end, ease);
     if (anim.arc) {
-      pos.y += Math.sin(Math.PI * carryEase) * anim.arc;
-    }
-    if (t < PLACE_GRAB_PHASE) {
-      pos.y += Math.sin(Math.PI * smoothstep01(t / PLACE_GRAB_PHASE)) * DOMINO_WIDTH * 0.08;
-    } else if (t > PLACE_SETDOWN_PHASE) {
-      pos.y += Math.sin(Math.PI * smoothstep01((t - PLACE_SETDOWN_PHASE) / Math.max(0.001, 1 - PLACE_SETDOWN_PHASE))) * DOMINO_WIDTH * 0.018;
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
     anim.mesh.position.copy(pos);
 
-    let quat = anim.mesh.quaternion;
     if (anim.endQuat && anim.startQuat) {
-      quat = anim.startQuat.clone().slerp(anim.endQuat, carryEase);
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
       anim.mesh.quaternion.copy(quat);
     }
 
     if (anim.endScale && anim.startScale) {
-      const scale = anim.startScale.clone().lerp(anim.endScale, carryEase);
+      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
       anim.mesh.scale.copy(scale);
     }
-
-    updatePrecisionHandForPlacement(anim, t, pos, quat);
 
     if (t >= 1) {
       if (anim.segment) {
         anim.segment.animating = false;
       }
-      disposePrecisionHandMesh(anim.hand);
       disposeDominoMesh(anim.mesh);
       placementAnimations.splice(i, 1);
       renderChain();
