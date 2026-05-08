@@ -264,7 +264,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
-const AI_CHAIR_GAP = CARD_W * 1.15;
+const AI_CHAIR_GAP = CARD_W * 0.44;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
@@ -395,8 +395,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(46);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 1.34 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.38, landscape: 0.64 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.46, landscape: 1.62 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.22, landscape: 0.58 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.16;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -404,7 +404,7 @@ const CAMERA_PORTRAIT_MIN_LOOK_UP = THREE.MathUtils.degToRad(34);
 const CAMERA_PORTRAIT_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(46);
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(30);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(44);
-const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.24, landscape: -CARD_W * 0.55 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -1.08, landscape: -CARD_W * 1.05 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -658,12 +658,16 @@ const TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
 const TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0;
 const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
 const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
-const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
+const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.58;
 const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.28;
-const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.12;
-const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 2.02;
+const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.38;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 2.26;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.24;
 const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.36 * MODEL_SCALE;
+const TEXAS_CHARACTER_CHEST_EMBLEM_SIZE = 0.18 * MODEL_SCALE;
+const TEXAS_CHARACTER_CHEST_EMBLEM_RIGHT_OFFSET = 0.16 * MODEL_SCALE;
+const TEXAS_CHARACTER_CHEST_EMBLEM_HEIGHT = 1.52 * MODEL_SCALE;
+const TEXAS_CHARACTER_CHEST_EMBLEM_FORWARD = 0.3 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
 const texasDominoCharacterTextureCache = new Map();
 
@@ -1408,6 +1412,119 @@ async function loadAnyTexasDominoCharacterTemplate(preferredTheme, renderer = nu
   throw lastError || new Error('Texas Holdem GLTF character model unavailable for every fallback theme');
 }
 
+
+function resolveTexasAvatarSource(candidate) {
+  if (!candidate) return { image: '/assets/icons/profile.svg', flag: '' };
+  const raw = String(candidate).trim();
+  const isFlag = /[\u{1F1E6}-\u{1F1FF}]{2}/u.test(raw);
+  if (isFlag) return { image: '', flag: raw };
+  return { image: getAvatarUrl(raw) || '/assets/icons/profile.svg', flag: '' };
+}
+
+function createTexasChestEmblem(avatar) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const source = resolveTexasAvatarSource(avatar);
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+
+  const drawBase = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const r = 94;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15,23,42,0.42)';
+    ctx.fill();
+    ctx.setLineDash([9, 7]);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(248,250,252,0.78)';
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    if (source.flag) {
+      ctx.fillStyle = 'rgba(226,232,240,0.92)';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.font = '700 102px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(source.flag, cx, cy + 4);
+    } else if (image.complete && image.naturalWidth > 0) {
+      ctx.drawImage(image, cx - r, cy - r, r * 2, r * 2);
+    } else {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '800 96px "Inter", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', cx, cy + 2);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(15,23,42,0.72)';
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  drawBase();
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2
+  });
+  const size = TEXAS_CHARACTER_CHEST_EMBLEM_SIZE;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+  mesh.renderOrder = 28;
+  mesh.userData.dispose = () => {
+    texture.dispose();
+    material.dispose();
+    mesh.geometry.dispose();
+  };
+  if (source.image) {
+    image.onload = () => {
+      drawBase();
+      texture.needsUpdate = true;
+    };
+    image.onerror = () => {
+      drawBase();
+      texture.needsUpdate = true;
+    };
+    image.src = source.image;
+  }
+  return mesh;
+}
+
+function attachTexasChestEmblem(seatGroup, avatar) {
+  const seatRoot = seatGroup?.character?.root;
+  if (!seatRoot || !avatar) return null;
+  const emblem = createTexasChestEmblem(avatar);
+  emblem.position.set(
+    TEXAS_CHARACTER_CHEST_EMBLEM_RIGHT_OFFSET,
+    TEXAS_CHARACTER_CHEST_EMBLEM_HEIGHT,
+    TEXAS_CHARACTER_CHEST_EMBLEM_FORWARD
+  );
+  emblem.rotation.x = -THREE.MathUtils.degToRad(8);
+  seatRoot.add(emblem);
+  seatGroup.character.emblem = emblem;
+  return emblem;
+}
+
 function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   const bones = {
     hips: findTexasCharacterBone(instance, ['hips', 'pelvis']),
@@ -1452,6 +1569,7 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     if (replace && seatGroup.character?.root?.parent) {
       const prior = seatGroup.character.root;
       seatGroup.character.rig?.actionFrame && cancelAnimationFrame(seatGroup.character.rig.actionFrame);
+      seatGroup.character.emblem?.userData?.dispose?.();
       prior.parent.remove(prior);
     }
     const instance = sourceInstance;
@@ -1479,6 +1597,8 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     seatGroup.group.add(seatRoot);
     const rig = createTexasCharacterRig(instance, seatRoot, seatIndex);
     seatGroup.character = { root: seatRoot, rig, theme };
+    const emblemAvatar = seatGroup.player?.isHuman ? seatGroup.player?.avatar : seatGroup.player?.flag || seatGroup.player?.avatar;
+    attachTexasChestEmblem(seatGroup, emblemAvatar);
     return seatGroup.character;
   };
 
@@ -2765,26 +2885,23 @@ function makeNameplate(name, chips, renderer, avatar) {
     roundRect(ctx, panelX + 12, panelY + 10, panelW - 24, panelH * 0.44, panelRadius * 0.7);
     ctx.fill();
 
-    const avatarSize = 146;
-    const avatarX = panelX + 22;
+    const avatarSize = 92;
+    const avatarX = panelX + 28;
     const avatarY = panelY + (panelH - avatarSize) / 2;
     const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
-    ringGradient.addColorStop(0, 'rgba(56,189,248,0.98)');
-    ringGradient.addColorStop(1, 'rgba(14,165,233,0.5)');
+    ringGradient.addColorStop(0, 'rgba(56,189,248,0)');
+    ringGradient.addColorStop(1, 'rgba(14,165,233,0)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
     ctx.fill();
-    ctx.lineWidth = highlight ? 10 : 8;
-    ctx.strokeStyle = ringGradient;
-    ctx.stroke();
     if (avatarState.flag) {
       ctx.save();
       ctx.clip();
       ctx.fillStyle = '#e2e8f0';
-      ctx.font = '700 86px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.font = '700 54px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(avatarState.flag, avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 4);
@@ -2797,7 +2914,7 @@ function makeNameplate(name, chips, renderer, avatar) {
     }
     ctx.restore();
 
-    const textX = avatarX + avatarSize + 30;
+    const textX = avatarX + avatarSize + 24;
     const textY = panelY + 30;
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#f8fafc';
@@ -3045,23 +3162,33 @@ function createRailTextSprite(initialLines = [], options = {}) {
 }
 
 
-function createFoldBadgeSprite() {
+function createActionBadgeSprite(initialLabel = 'FOLD') {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 768;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(120, 0, 0, 0.24)';
-  ctx.strokeStyle = '#ef4444';
-  ctx.lineWidth = 28;
-  roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 44);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = '#fca5a5';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '700 130px "Inter", system-ui, sans-serif';
-  ctx.fillText('FOLD', canvas.width / 2, canvas.height / 2);
+  const draw = (label = 'FOLD') => {
+    const normalized = String(label || 'FOLD').toUpperCase();
+    const palette = normalized === 'FOLD'
+      ? { fill: 'rgba(120, 0, 0, 0.24)', stroke: '#ef4444', text: '#fca5a5' }
+      : normalized === 'CHECK'
+        ? { fill: 'rgba(14, 116, 144, 0.24)', stroke: '#22d3ee', text: '#a5f3fc' }
+        : { fill: 'rgba(120, 53, 15, 0.25)', stroke: '#f59e0b', text: '#fde68a' };
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = palette.fill;
+    ctx.strokeStyle = palette.stroke;
+    ctx.lineWidth = 28;
+    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 44);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSize = normalized.length > 5 ? 98 : 126;
+    ctx.font = `800 ${fontSize}px "Inter", system-ui, sans-serif`;
+    ctx.fillText(normalized, canvas.width / 2, canvas.height / 2);
+  };
+  draw(initialLabel);
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
@@ -3070,11 +3197,19 @@ function createFoldBadgeSprite() {
   sprite.scale.set(CARD_W * 1.08, CARD_H * 1.08, 1);
   sprite.visible = false;
   sprite.renderOrder = 24;
+  sprite.userData.update = (label) => {
+    draw(label);
+    texture.needsUpdate = true;
+  };
   sprite.userData.dispose = () => {
     texture.dispose();
     material.dispose();
   };
   return sprite;
+}
+
+function createFoldBadgeSprite() {
+  return createActionBadgeSprite('FOLD');
 }
 
 function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
@@ -5462,6 +5597,7 @@ function TexasHoldemArena({ search }) {
           lastStatus: '',
           tableInfo,
           isBottomSideOpponent: Boolean(seat.isBottomSideOpponent),
+          player: seat.player,
           potDropPiles: [],
           potDropCount: 0
         };
@@ -6289,10 +6425,16 @@ function TexasHoldemArena({ search }) {
       }
 
       if (seat.foldBadge) {
-        if (player.folded && !state.showdown) {
-          const foldBadgePos = seat.cardRailAnchor.clone();
-          foldBadgePos.y += CARD_D * 0.6;
-          seat.foldBadge.position.copy(foldBadgePos);
+        const actionLabel = player.folded
+          ? 'Fold'
+          : /^(Check|Raise|Bet)$/i.test(player.status || '')
+            ? player.status
+            : '';
+        if (actionLabel && !state.showdown) {
+          const badgePos = seat.cardRailAnchor.clone();
+          badgePos.y += CARD_D * 0.6;
+          seat.foldBadge.position.copy(badgePos);
+          seat.foldBadge.userData?.update?.(actionLabel);
           seat.foldBadge.visible = true;
         } else {
           seat.foldBadge.visible = false;
