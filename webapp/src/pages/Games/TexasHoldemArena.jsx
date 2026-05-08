@@ -390,8 +390,8 @@ const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(175);
-const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(42);
-const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(46);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(21);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(23);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
@@ -400,10 +400,10 @@ const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.32, landscape: 0.62
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.48;
 const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.54;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
-const CAMERA_PORTRAIT_MIN_LOOK_UP = THREE.MathUtils.degToRad(34);
-const CAMERA_PORTRAIT_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(46);
-const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(30);
-const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(44);
+const CAMERA_PORTRAIT_MIN_LOOK_UP = THREE.MathUtils.degToRad(17);
+const CAMERA_PORTRAIT_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(23);
+const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(15);
+const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(22);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.25, landscape: -CARD_W * 0.55 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -663,7 +663,7 @@ const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.28;
 const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.12;
 const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 0.92;
 const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.24;
-const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.42 * MODEL_SCALE;
+const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.12 * MODEL_SCALE;
 const texasDominoCharacterTemplateCache = new Map();
 const texasDominoCharacterTextureCache = new Map();
 
@@ -1428,12 +1428,12 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   addTexasBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addTexasBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addTexasBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
-  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
-  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
-  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
-  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
-  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-70), THREE.MathUtils.degToRad(-11), THREE.MathUtils.degToRad(-4));
+  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
+  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-4));
+  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-72), THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(4));
+  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(4));
   addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
@@ -1505,12 +1505,12 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
     cards: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(-12) },
       head: { x: THREE.MathUtils.degToRad(-7) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) },
-      leftHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(8) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(10) }
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-3) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(0) },
+      leftHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-6) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(3) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(0) },
+      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(6) }
     }),
     fold: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(8) },
@@ -1593,10 +1593,24 @@ function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
   const character = seatGroup?.character;
   if (!character?.root || !seatGroup?.cardMeshes?.length) return;
   const visibleCards = seatGroup.cardMeshes.filter((mesh) => mesh?.visible);
-  if (!visibleCards.length) return;
-  const center = visibleCards.reduce((sum, mesh) => sum.add(mesh.position), new THREE.Vector3()).multiplyScalar(1 / visibleCards.length);
-  const leftHandWorld = center.clone().addScaledVector(seatGroup.right, -HOLE_SPACING * 0.68).add(new THREE.Vector3(0, TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase, 0));
-  const rightHandWorld = center.clone().addScaledVector(seatGroup.right, HOLE_SPACING * 0.68).add(new THREE.Vector3(0, TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase, 0));
+  if (!visibleCards.length) {
+    ['leftHandTarget', 'rightHandTarget'].forEach((key) => {
+      if (character[key]) character[key].visible = false;
+    });
+    return;
+  }
+  const cardForHand = (handIndex) => visibleCards[Math.min(handIndex, visibleCards.length - 1)];
+  const contactLift = CARD_SURFACE_OFFSET * 0.24 + TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase;
+  const leftHandWorld = cardForHand(0).position
+    .clone()
+    .addScaledVector(seatGroup.right, -CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
+  const rightHandWorld = cardForHand(1).position
+    .clone()
+    .addScaledVector(seatGroup.right, CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
   [
     ['leftHandTarget', leftHandWorld],
     ['rightHandTarget', rightHandWorld]
@@ -1604,17 +1618,18 @@ function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
     let marker = character[key];
     if (!marker) {
       marker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.025 * MODEL_SCALE, 10, 8),
+        new THREE.SphereGeometry(0.032 * MODEL_SCALE, 12, 8),
         new THREE.MeshStandardMaterial({ color: 0xd9a27d, roughness: 0.5 })
       );
       marker.name = key;
       marker.castShadow = true;
-      marker.visible = false;
+      marker.scale.set(1.35, 0.28, 0.85);
       character.root.add(marker);
       character[key] = marker;
     }
     character.root.worldToLocal(world);
     marker.position.copy(world);
+    marker.visible = true;
   });
 }
 
