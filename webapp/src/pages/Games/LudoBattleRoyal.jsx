@@ -788,15 +788,6 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
 // Keep FPS gun and Shotgun Blast visually matched in hand.
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
 const FIREARM_VOLLEY_SLOW_FACTOR = 1.72;
-const FIREARM_CINEMATIC_TIMING = Object.freeze({
-  pickupLeadMs: 430,
-  chamberLeadMs: 260,
-  aimLeadMs: 420,
-  settleHoldMs: 860
-});
-const FIREARM_AIM_SLERP_PRECISE = 0.58;
-const FIREARM_AIM_SLERP_LOCKED = 0.82;
-const FIREARM_RECOIL_ROTATION_RAD = 0.045;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
@@ -3236,13 +3227,13 @@ const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET = new Set([
   'placeToken'
 ]);
 const SEATED_HUMAN_DICE_CONTACT_MODE_SET = new Set(['reachDice', 'gripDice', 'holdDice']);
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.036 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.057 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.112 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.009 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.006 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.003 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.012 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.019 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_HOLD = 0.034 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_HOLD = 0.005 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_HOLD = 0.056 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_HOLD = 0.011 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
 const SEATED_DICE_THROW_VERTICAL_NUDGE = -0.01;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
@@ -3253,9 +3244,6 @@ const SEATED_HELPER_UP_TOKEN_PLACE = -0.004 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_RIGHT = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_UP = -0.014 * MODEL_SCALE;
 const SEATED_HELPER_CONTACT_FORWARD = 0.102 * MODEL_SCALE;
-const SEATED_HELPER_DICE_CONTACT_RIGHT = -0.008 * MODEL_SCALE;
-const SEATED_HELPER_DICE_CONTACT_UP = -0.004 * MODEL_SCALE;
-const SEATED_HELPER_DICE_CONTACT_FORWARD = 0.058 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 // Keep the floating player badge on the torso instead of the face so portrait players can track
 // characters without the head/idle animation causing the UI to shimmer over facial details.
@@ -3271,10 +3259,10 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.335 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.168 * MODEL_SCALE;
-const SEATED_CONTACT_IK_ITERATIONS = 9;
-const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.255 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.118 * MODEL_SCALE;
+const SEATED_CONTACT_IK_ITERATIONS = 7;
+const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.3;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.016;
 const SEATED_CONTACT_TOKEN_Y_OFFSET = 0.007;
 const SEATED_CONTACT_TOKEN_RADIUS = 0.028;
@@ -5977,39 +5965,39 @@ function applySeatedHumanPose(
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     headX = THREE.MathUtils.lerp(headX, -0.18, t);
   } else if (mode === 'reachDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.22, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.26, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.34, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.34, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.76, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.02, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.38, t);
-    headX = THREE.MathUtils.lerp(headX, -0.22, t);
-  } else if (mode === 'gripDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.24, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.16, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.14, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.3, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.36, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.06, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.84, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.01, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.26, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.44, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.58, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.42, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
     headX = THREE.MathUtils.lerp(headX, -0.2, t);
+  } else if (mode === 'gripDice') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.12, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.28, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.2, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.62, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
+    headX = THREE.MathUtils.lerp(headX, -0.18, t);
   } else if (mode === 'holdDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.62, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.22, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.44, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.2, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.3, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.72, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.02, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.08, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.34, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.56, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.06, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.14, t);
   } else if (mode === 'windUp') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.38, t);
@@ -6102,11 +6090,11 @@ function applySeatedHumanPose(
   }
 
   if (SEATED_HUMAN_DICE_CONTACT_MODE_SET.has(mode)) {
-    wristX = THREE.MathUtils.lerp(wristX, -0.96, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.02, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.08, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.3, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.04, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.82, t);
+    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.12, t);
   }
 
   if (bodyLockedMode && !isDiceReachMode) {
@@ -6190,12 +6178,6 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_CONTACT_RIGHT,
       SEATED_HELPER_CONTACT_UP,
       SEATED_HELPER_CONTACT_FORWARD
-    ),
-    diceContactEffector: createHelper(
-      'diceContactEffectorHelper',
-      SEATED_HELPER_DICE_CONTACT_RIGHT,
-      SEATED_HELPER_DICE_CONTACT_UP,
-      SEATED_HELPER_DICE_CONTACT_FORWARD
     ),
     faceCamera: (() => {
       if (!faceRoot?.isObject3D) return null;
@@ -9883,17 +9865,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (!hasContactTarget) {
             const captureAttackId =
               actorState?.capturePlayer === playerIndex ? actorState?.captureAnimationId : null;
-            if (captureAttackId && FIREARM_CAPTURE_ANIMATION_IDS.has(captureAttackId) && entry?.activeCaptureAimTarget?.isVector3) {
-              handContactTarget.copy(entry.activeCaptureAimTarget);
-              hasContactTarget = true;
-            } else {
-              const parkedEntry = captureAttackId ? parkedCaptureVehiclesRef.current.get(playerIndex) : null;
-              const isCaptureAirAttack =
-                captureAttackId && (CAPTURE_AIR_ATTACK_ID_SET.has(captureAttackId) || captureAttackId === 'missileJavelin');
-              const captureTargetObject = isCaptureAirAttack ? parkedEntry?.actionButton : parkedEntry?.weaponHolder;
-              if (captureTargetObject?.isObject3D) {
-                hasContactTarget = sampleSeatedObjectContactTarget(entry, captureTargetObject, 'token', handContactTarget);
-              }
+            const parkedEntry = captureAttackId ? parkedCaptureVehiclesRef.current.get(playerIndex) : null;
+            const isCaptureAirAttack =
+              captureAttackId && (CAPTURE_AIR_ATTACK_ID_SET.has(captureAttackId) || captureAttackId === 'missileJavelin');
+            const captureTargetObject = isCaptureAirAttack ? parkedEntry?.actionButton : parkedEntry?.weaponHolder;
+            if (captureTargetObject?.isObject3D) {
+              hasContactTarget = sampleSeatedObjectContactTarget(entry, captureTargetObject, 'token', handContactTarget);
             }
           }
           if (!hasContactTarget) {
@@ -9916,10 +9893,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               followThrough: 1
             };
             const contactWeight = contactWeightByMode[pose.mode] ?? 1;
-            const effectorKey = SEATED_HUMAN_DICE_CONTACT_MODE_SET.has(pose.mode)
-              ? 'diceContactEffector'
-              : 'contactEffector';
-            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, effectorKey);
+            solveSeatedRightArmContactIK(entry, handContactTarget, contactWeight, 'contactEffector');
           }
         });
       }
@@ -10369,12 +10343,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const shellBase = new THREE.Vector3();
           const shooterRoot = attackerEntry?.actorRoot;
           const handWeaponAttachment = await attachFirearmToRightHand(attackerEntry, resolvedCaptureAnimationId);
-          if (attackerEntry && handWeaponAttachment) {
-            attackerEntry.activeCaptureWeaponAttachment = handWeaponAttachment;
-          }
-          const pickupLeadMs = FIREARM_CINEMATIC_TIMING.pickupLeadMs;
-          const reloadLeadMs = FIREARM_CINEMATIC_TIMING.chamberLeadMs;
-          const aimLeadMs = FIREARM_CINEMATIC_TIMING.aimLeadMs;
+          const pickupLeadMs = 280;
+          const reloadLeadMs = 320;
+          const aimLeadMs = 240;
           const rackWorld = new THREE.Vector3();
           parkedEntry?.weaponHolder?.getWorldPosition?.(rackWorld);
           if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = false;
@@ -10404,11 +10375,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const cadenceMs = (resolvedCaptureAnimationId === 'sniperShotAttack' ? 125 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
-          const durationMs = preFireLeadMs + shots * cadenceMs + FIREARM_CINEMATIC_TIMING.settleHoldMs;
-          seatedHumanActionRef.current = {
-            ...seatedHumanActionRef.current,
-            captureEndMs: Math.max(seatedHumanActionRef.current.captureEndMs || 0, volleyStart + durationMs)
-          };
+          const durationMs = preFireLeadMs + shots * cadenceMs + 760;
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
@@ -10466,14 +10433,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             });
             if (liveTarget?.isVector3) {
               muzzleTarget.copy(liveTarget).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
-              if (attackerEntry) attackerEntry.activeCaptureAimTarget = muzzleTarget.clone();
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
               const parent = handWeaponAttachment.weapon.parent;
               const targetLocal = parent.worldToLocal(muzzleTarget.clone());
-              if (elapsed >= pickupLeadMs) {
-                const aimPhase = clamp((elapsed - pickupLeadMs) / Math.max(1, reloadLeadMs + aimLeadMs), 0, 1);
-                const lockBlend = smoother01(aimPhase);
+              if (elapsed >= pickupLeadMs + reloadLeadMs) {
                 const lookMatrix = new THREE.Matrix4().lookAt(
                   handWeaponAttachment.weapon.position,
                   targetLocal,
@@ -10482,21 +10446,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 const targetQuat = new THREE.Quaternion()
                   .setFromRotationMatrix(lookMatrix)
                   .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
-                const recoilPhase = elapsedShooting > 0 && cadenceMs > 0
-                  ? 1 - ((elapsedShooting % cadenceMs) / cadenceMs)
-                  : 0;
-                const recoilQuat = new THREE.Quaternion().setFromEuler(
-                  new THREE.Euler(-FIREARM_RECOIL_ROTATION_RAD * recoilPhase * lockBlend, 0, 0)
-                );
-                targetQuat.multiply(recoilQuat);
-                handWeaponAttachment.weapon.quaternion.slerp(
-                  targetQuat,
-                  THREE.MathUtils.lerp(FIREARM_AIM_SLERP_PRECISE, FIREARM_AIM_SLERP_LOCKED, lockBlend)
-                );
+                handWeaponAttachment.weapon.quaternion.slerp(targetQuat, 0.24);
               } else {
-                const pickupRock = Math.sin(elapsed * 0.018) * 0.008;
-                handWeaponAttachment.weapon.rotation.x += pickupRock;
-                handWeaponAttachment.weapon.rotation.z += pickupRock * 0.45;
+                handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.02) * 0.006;
               }
             }
             if (handWeaponAttachment?.twoHanded && handWeaponAttachment?.offhandTarget?.isObject3D) {
@@ -10709,10 +10661,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             bulletGeometry.dispose();
             bulletMaterial.dispose();
             handWeaponAttachment?.release?.();
-            if (attackerEntry) {
-              attackerEntry.activeCaptureWeaponAttachment = null;
-              attackerEntry.activeCaptureAimTarget = null;
-            }
             if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
             seatedHumanActionRef.current = {
