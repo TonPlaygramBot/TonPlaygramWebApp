@@ -428,6 +428,11 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
+const TEXAS_CHARACTER_REST_HAND_Y = SEAT_THICKNESS + CARD_D * 2.35;
+const TEXAS_CHARACTER_ARMREST_HAND_SIDE = SEAT_WIDTH * 0.38;
+const TEXAS_CHARACTER_ARMREST_HAND_FORWARD = -SEAT_DEPTH * 0.05;
+const TEXAS_CHARACTER_CARD_TOUCH_LIFT = CARD_D * 0.08;
+const TEXAS_CHARACTER_CHIP_TOUCH_LIFT = CARD_D * 0.16;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_DROP = CARD_H * 0.16;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES = new Set(['classicOctagon', 'grandOval', 'diamondEdge']);
 const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
@@ -1428,12 +1433,13 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   addTexasBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addTexasBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addTexasBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-70), THREE.MathUtils.degToRad(-11), THREE.MathUtils.degToRad(-4));
-  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
-  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-4));
-  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-72), THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(4));
-  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
-  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(4));
+  // Resting pose: keep both arms relaxed down the sides with hands laid on the chair arm rests.
+  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-48), THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(-10));
+  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(28), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(7));
+  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-8));
+  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-50), THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(10));
+  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(28), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-7));
+  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(8));
   addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
@@ -1502,15 +1508,25 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
   const now = performance.now();
   const base = rig.seatedPose;
   const poses = {
-    cards: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-12) },
-      head: { x: THREE.MathUtils.degToRad(-7) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-3) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(0) },
-      leftHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-6) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(3) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(0) },
-      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(6) }
+    cardsReach: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-15) },
+      head: { x: THREE.MathUtils.degToRad(-8) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(2) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-2) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(8) }
+    }),
+    cardsFlip: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-18) },
+      head: { x: THREE.MathUtils.degToRad(-10) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-44), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(1) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(1), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-44), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-1) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(12) }
     }),
     fold: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(8) },
@@ -1520,18 +1536,24 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
       head: { x: THREE.MathUtils.degToRad(-4) }
     }),
     chipGrab: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-15) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-72), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-14) },
+      spine: { x: THREE.MathUtils.degToRad(-16) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(0) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(1), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-8) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-36), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-10) },
       head: { x: THREE.MathUtils.degToRad(-9) }
     }),
     chipPlace: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-18) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-86), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-10) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
-      head: { x: THREE.MathUtils.degToRad(-10) }
+      spine: { x: THREE.MathUtils.degToRad(-20) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(0) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-32), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-52), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-4) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-46), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-8) },
+      head: { x: THREE.MathUtils.degToRad(-11) }
     }),
     checkLift: makeTexasCharacterPose(base, {
       spine: { x: THREE.MathUtils.degToRad(-10) },
@@ -1565,14 +1587,24 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
           { at: 380, duration: 120, pose: poses.checkTap },
           { at: 500, duration: 260, pose: base }
         ]
-        : [{ at: 0, duration: 240, pose: poses.cards }, { at: 240, duration: 900, pose: poses.cards }, { at: 1140, duration: 260, pose: base }];
+        : [
+          { at: 0, duration: 180, pose: poses.cardsReach },
+          { at: 180, duration: 360, pose: poses.cardsFlip },
+          { at: 540, duration: 520, pose: poses.cardsFlip },
+          { at: 1060, duration: 300, pose: base }
+        ];
   const tick = (time) => {
     const elapsed = time - now;
     let active = false;
     for (const step of sequence) {
       if (elapsed < step.at || elapsed > step.at + step.duration) continue;
       const localT = Math.min(1, Math.max(0, (elapsed - step.at) / Math.max(1, step.duration)));
-      applyTexasCharacterPose(rig, step.pose, 1 - Math.pow(1 - localT, 3));
+      const easedPose = 1 - Math.pow(1 - localT, 3);
+      applyTexasCharacterPose(rig, step.pose, easedPose);
+      if (type === 'CHIP') {
+        const chipPhase = step.pose === poses.chipGrab ? localT * 0.35 : 0.35 + localT * 0.65;
+        updateTexasCharacterChipHands(seatGroup, chipPhase);
+      }
       active = true;
       break;
     }
@@ -1580,6 +1612,7 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
       rig.actionFrame = requestAnimationFrame(tick);
     } else {
       applyTexasCharacterPose(rig, base, 1);
+      updateTexasCharacterRestingHands(seatGroup);
       rig.actionFrame = null;
     }
     if (!active && elapsed >= 0 && elapsed < sequence[sequence.length - 1].at) {
@@ -1589,32 +1622,11 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
   rig.actionFrame = requestAnimationFrame(tick);
 }
 
-function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
+function setTexasCharacterHandContactMarkers(seatGroup, targets = []) {
   const character = seatGroup?.character;
-  if (!character?.root || !seatGroup?.cardMeshes?.length) return;
-  const visibleCards = seatGroup.cardMeshes.filter((mesh) => mesh?.visible);
-  if (!visibleCards.length) {
-    ['leftHandTarget', 'rightHandTarget'].forEach((key) => {
-      if (character[key]) character[key].visible = false;
-    });
-    return;
-  }
-  const cardForHand = (handIndex) => visibleCards[Math.min(handIndex, visibleCards.length - 1)];
-  const contactLift = CARD_SURFACE_OFFSET * 0.24 + TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase;
-  const leftHandWorld = cardForHand(0).position
-    .clone()
-    .addScaledVector(seatGroup.right, -CARD_W * 0.08)
-    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
-    .add(new THREE.Vector3(0, contactLift, 0));
-  const rightHandWorld = cardForHand(1).position
-    .clone()
-    .addScaledVector(seatGroup.right, CARD_W * 0.08)
-    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
-    .add(new THREE.Vector3(0, contactLift, 0));
-  [
-    ['leftHandTarget', leftHandWorld],
-    ['rightHandTarget', rightHandWorld]
-  ].forEach(([key, world]) => {
+  if (!character?.root) return;
+  ['leftHandTarget', 'rightHandTarget'].forEach((key, index) => {
+    const target = targets[index];
     let marker = character[key];
     if (!marker) {
       marker = new THREE.Mesh(
@@ -1627,10 +1639,68 @@ function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
       character.root.add(marker);
       character[key] = marker;
     }
-    character.root.worldToLocal(world);
-    marker.position.copy(world);
+    if (!target?.isVector3) {
+      marker.visible = false;
+      return;
+    }
+    const localTarget = target.clone();
+    character.root.worldToLocal(localTarget);
+    marker.position.copy(localTarget);
     marker.visible = true;
   });
+}
+
+function updateTexasCharacterRestingHands(seatGroup) {
+  const anchor = (seatGroup?.stoolAnchor ?? seatGroup?.seatPos)?.clone?.();
+  if (!anchor || !seatGroup?.right || !seatGroup?.forward) return;
+  const restBase = anchor
+    .clone()
+    .addScaledVector(seatGroup.forward, TEXAS_CHARACTER_ARMREST_HAND_FORWARD)
+    .add(new THREE.Vector3(0, TEXAS_CHARACTER_REST_HAND_Y, 0));
+  setTexasCharacterHandContactMarkers(seatGroup, [
+    restBase.clone().addScaledVector(seatGroup.right, -TEXAS_CHARACTER_ARMREST_HAND_SIDE),
+    restBase.clone().addScaledVector(seatGroup.right, TEXAS_CHARACTER_ARMREST_HAND_SIDE)
+  ]);
+}
+
+function updateTexasCharacterChipHands(seatGroup, phase = 0) {
+  if (!seatGroup?.right || !seatGroup?.forward) return;
+  const pickup = (seatGroup.chipRailAnchor ?? seatGroup.chipAnchor ?? seatGroup.seatPos)?.clone?.();
+  const place = (seatGroup.betAnchor ?? seatGroup.previewAnchor ?? seatGroup.chipAnchor ?? pickup)?.clone?.();
+  if (!pickup || !place) return;
+  const contact = pickup.lerp(place, THREE.MathUtils.clamp(phase, 0, 1));
+  contact.y += TEXAS_CHARACTER_CHIP_TOUCH_LIFT;
+  setTexasCharacterHandContactMarkers(seatGroup, [
+    contact.clone().addScaledVector(seatGroup.right, -CARD_W * 0.12),
+    contact.clone().addScaledVector(seatGroup.right, CARD_W * 0.12)
+  ]);
+}
+
+function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
+  const character = seatGroup?.character;
+  if (!character?.root || !seatGroup?.cardMeshes?.length) return;
+  const visibleCards = seatGroup.cardMeshes.filter((mesh) => mesh?.visible);
+  if (!visibleCards.length) {
+    updateTexasCharacterRestingHands(seatGroup);
+    return;
+  }
+  if (cardPhase <= 0.02) {
+    updateTexasCharacterRestingHands(seatGroup);
+    return;
+  }
+  const cardForHand = (handIndex) => visibleCards[Math.min(handIndex, visibleCards.length - 1)];
+  const contactLift = TEXAS_CHARACTER_CARD_TOUCH_LIFT + TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase;
+  const leftHandWorld = cardForHand(0).position
+    .clone()
+    .addScaledVector(seatGroup.right, -CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
+  const rightHandWorld = cardForHand(1).position
+    .clone()
+    .addScaledVector(seatGroup.right, CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
+  setTexasCharacterHandContactMarkers(seatGroup, [leftHandWorld, rightHandWorld]);
 }
 
 function cloneModelWithLocalMaterials(source) {
@@ -4446,6 +4516,9 @@ function TexasHoldemArena({ search }) {
       quaternion: mesh.quaternion.clone()
     }));
     const startTime = performance.now();
+    if (seat.isHuman) {
+      runTexasCharacterPoseAction(seat, 'CARDS');
+    }
 
     const tick = (now) => {
       const elapsed = now - startTime;
@@ -4457,9 +4530,6 @@ function TexasHoldemArena({ search }) {
         phase = 1;
       } else {
         phase = Math.max(0, 1 - (t - 0.7) / 0.3);
-      }
-      if (seat.isHuman) {
-        runTexasCharacterPoseAction(seat, 'CARDS');
       }
       cards.forEach((mesh, cardIdx) => {
         const outwardSign = cardIdx === 0 ? -1 : 1;
