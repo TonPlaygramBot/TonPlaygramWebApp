@@ -27,14 +27,14 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
     grenadeBlastAttack: 'GrenadeLauncher'
   }),
   firearmBroadcastProfile: Object.freeze({
-    aimLift: 0.064,
-    aimRearPullback: 0.124,
-    bulletFollowStart: 0.08,
+    aimLift: 0.078,
+    aimRearPullback: 0.15,
+    bulletFollowStart: 0.055,
     bulletFollowEnd: 0.998,
-    bulletTargetBlend: 0.84,
-    bulletFollowLift: 0.092,
-    bulletFollowRearPullback: 0.138,
-    impactHoldTtl: 1.85
+    bulletTargetBlend: 0.9,
+    bulletFollowLift: 0.104,
+    bulletFollowRearPullback: 0.16,
+    impactHoldTtl: 2.08
   })
 });
 

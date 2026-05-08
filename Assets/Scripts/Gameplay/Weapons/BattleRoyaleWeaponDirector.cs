@@ -89,6 +89,11 @@ namespace TonPlaygram.Gameplay.Weapons
         [Header("Camera anchors")]
         [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
         [SerializeField] private float aimPositionLerp = 20f;
+        [SerializeField] private float weaponGrabBlendSeconds = 0.18f;
+        [SerializeField] private float weaponAimLockLerp = 34f;
+        [SerializeField] private float handGripRearDistance = 0.145f;
+        [SerializeField] private float offHandForwardDistance = 0.072f;
+        [SerializeField] private float recoilKickDegrees = 2.35f;
         [SerializeField] private bool followAllBullets = true;
         [SerializeField] private bool forceAttackerAimAnchor = true;
         [SerializeField] private float bulletFollowDistance = 0.4f;
@@ -224,7 +229,7 @@ namespace TonPlaygram.Gameplay.Weapons
             Vector3 directionToTarget = (targetTokenRoot.position - muzzle.position).normalized;
             Vector3 spreadVec = UnityEngine.Random.insideUnitSphere * weapon.spread;
             Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
-            RefreshWeaponPose(shotDirection);
+            RefreshWeaponPose(shotDirection, 1f, shotIndex);
 
             SpawnProjectiles(weapon, shotDirection, isLastBullet, shotIndex, totalShots);
             SpawnShell(weapon);
@@ -383,25 +388,43 @@ namespace TonPlaygram.Gameplay.Weapons
             _cameraRoutine = StartCoroutine(AimViewRoutine(weapon));
         }
 
-        private void RefreshWeaponPose(Vector3 shotDirection)
+        private void RefreshWeaponPose(Vector3 shotDirection, float aimBlend = 1f, int recoilIndex = -1)
         {
+            float blend = Mathf.Clamp01(aimBlend);
             if (weaponRoot != null)
             {
-                weaponRoot.localPosition = _weaponRootLocalPos;
-                weaponRoot.localRotation = _weaponRootLocalRot;
+                weaponRoot.localPosition = Vector3.Lerp(weaponRoot.localPosition, _weaponRootLocalPos, blend);
+                Quaternion aimRotation = _weaponRootLocalRot;
+                if (recoilIndex >= 0)
+                {
+                    float recoil = Mathf.Sin((recoilIndex + 1) * 1.618f) * recoilKickDegrees;
+                    aimRotation *= Quaternion.Euler(-Mathf.Abs(recoil), recoil * 0.18f, 0f);
+                }
+                weaponRoot.localRotation = Quaternion.Slerp(weaponRoot.localRotation, aimRotation, blend);
             }
 
             if (rightHandGrip != null)
             {
-                rightHandGrip.position = muzzle.position - (shotDirection * 0.12f);
-                rightHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                Vector3 preciseGrip = muzzle.position - (shotDirection * handGripRearDistance);
+                rightHandGrip.position = Vector3.Lerp(rightHandGrip.position, preciseGrip, blend);
+                rightHandGrip.rotation = Quaternion.Slerp(
+                    rightHandGrip.rotation,
+                    Quaternion.LookRotation(shotDirection, Vector3.up),
+                    blend
+                );
             }
 
             if (leftHandGrip != null)
             {
-                Vector3 leftOffset = Vector3.Cross(Vector3.up, shotDirection).normalized * 0.06f;
-                leftHandGrip.position = muzzle.position - (shotDirection * 0.06f) - leftOffset;
-                leftHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                Vector3 side = Vector3.Cross(Vector3.up, shotDirection).normalized;
+                if (side.sqrMagnitude < 0.0001f) side = Vector3.right;
+                Vector3 supportGrip = muzzle.position - (shotDirection * offHandForwardDistance) - (side * 0.06f);
+                leftHandGrip.position = Vector3.Lerp(leftHandGrip.position, supportGrip, blend);
+                leftHandGrip.rotation = Quaternion.Slerp(
+                    leftHandGrip.rotation,
+                    Quaternion.LookRotation(shotDirection, Vector3.up),
+                    blend
+                );
             }
 
             if (humanHandRetargeter != null)
@@ -431,7 +454,9 @@ namespace TonPlaygram.Gameplay.Weapons
                 Vector3 aimForward = (targetWorld - muzzle.position).normalized;
                 if (aimForward.sqrMagnitude > 0.00001f)
                 {
-                    RefreshWeaponPose(aimForward);
+                    float grabBlend = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, weaponGrabBlendSeconds));
+                    float preciseBlend = Mathf.Clamp01(Time.deltaTime * Mathf.Lerp(aimPositionLerp, weaponAimLockLerp, t));
+                    RefreshWeaponPose(aimForward, Mathf.Max(grabBlend, preciseBlend));
                 }
 
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
