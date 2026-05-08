@@ -14,6 +14,15 @@ type ShotPhase = 'userShoot' | 'aiShoot' | 'finished';
 type ShotControlState = { power: number; aimX: number; aimY: number };
 type TeamKey = 'blue' | 'red';
 type Decision = 'GOAL' | 'NO GOAL' | 'SAVE' | 'BLOCKED' | 'MISS';
+type ShotFeedback = { title: string; detail: string; quality: number; xg: number };
+
+type ParticleRig = {
+  group: THREE.Group;
+  particles: THREE.Mesh[];
+  velocities: THREE.Vector3[];
+  ages: number[];
+  maxAge: number;
+};
 
 type Bones = {
   hips?: THREE.Bone;
@@ -73,6 +82,9 @@ type BallState = {
   netVel: THREE.Vector3;
   crossedGoalLine: boolean;
   hitFrame: boolean;
+  trail: THREE.Line;
+  trailPoints: THREE.Vector3[];
+  speedKmh: number;
 };
 
 type SwipeState = {
@@ -172,6 +184,12 @@ const SPECTATOR_FALLBACK_SCALE = 0.86;
 const SPECTATOR_SEAT_Y = 0.09;
 const SPECTATOR_SEAT_Z = 0.11;
 const DEFAULT_SHOT_CONTROL: ShotControlState = { power: 0.72, aimX: 0, aimY: -0.35 };
+const DEFAULT_FEEDBACK: ShotFeedback = {
+  title: 'Training ground ready',
+  detail: 'Drag the contact point: lower contact adds lift, side contact bends the ball.',
+  quality: 0.58,
+  xg: 0.31
+};
 const TEAM_KITS: Record<TeamKey, { primary: number; secondary: number; shorts: number; shoes: number; name: string }> = {
   blue: { primary: 0x1d69ff, secondary: 0xffffff, shorts: 0x102a6b, shoes: 0xffffff, name: 'Blue' },
   red: { primary: 0xdc2626, secondary: 0xfacc15, shorts: 0x7f1d1d, shoes: 0x111827, name: 'Red' }
@@ -1516,6 +1534,20 @@ function makeBall(scene: THREE.Scene): BallState {
     ballMat
   );
   object.add(shadow(ball));
+  const trailGeometry = new THREE.BufferGeometry();
+  trailGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(18 * 3), 3)
+  );
+  const trail = new THREE.Line(
+    trailGeometry,
+    new THREE.LineBasicMaterial({
+      color: 0x93c5fd,
+      transparent: true,
+      opacity: 0.74
+    })
+  );
+  scene.add(trail);
   scene.add(object);
   return {
     object,
@@ -1534,8 +1566,190 @@ function makeBall(scene: THREE.Scene): BallState {
     netAge: 0,
     netVel: new THREE.Vector3(),
     crossedGoalLine: false,
-    hitFrame: false
+    hitFrame: false,
+    trail,
+    trailPoints: [],
+    speedKmh: 0
   };
+}
+
+function updateBallTrail(ball: BallState) {
+  const attr = ball.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const points = ball.trailPoints;
+  for (let i = 0; i < attr.count; i++) {
+    const source = points[Math.max(0, points.length - 1 - i)] ?? new THREE.Vector3(99, 99, 99);
+    attr.setXYZ(i, source.x, source.y, source.z);
+  }
+  attr.needsUpdate = true;
+  ball.trail.visible = points.length > 1;
+}
+
+function rememberBallTrail(ball: BallState) {
+  if (!ball.flying || ball.netCaught) {
+    ball.trailPoints.splice(0, Math.max(0, ball.trailPoints.length - 1));
+    updateBallTrail(ball);
+    return;
+  }
+  ball.trailPoints.push(ball.object.position.clone());
+  if (ball.trailPoints.length > 18) ball.trailPoints.shift();
+  updateBallTrail(ball);
+}
+
+function createParticleRig(scene: THREE.Scene): ParticleRig {
+  const group = new THREE.Group();
+  const geometry = new THREE.SphereGeometry(0.035, 8, 6);
+  const particles = Array.from({ length: 42 }, (_, index) => {
+    const mesh = new THREE.Mesh(
+      geometry,
+      material(index % 3 === 0 ? 0xfacc15 : index % 3 === 1 ? 0xffffff : 0x22c55e, 0.5, 0.02)
+    );
+    mesh.visible = false;
+    group.add(mesh);
+    return mesh;
+  });
+  scene.add(group);
+  return {
+    group,
+    particles,
+    velocities: particles.map(() => new THREE.Vector3()),
+    ages: particles.map(() => 0),
+    maxAge: 0.86
+  };
+}
+
+function burstParticles(rig: ParticleRig, origin: THREE.Vector3, palette: number[], intensity = 1) {
+  rig.particles.forEach((particle, index) => {
+    const matRef = particle.material as THREE.MeshStandardMaterial;
+    matRef.color.set(palette[index % palette.length] ?? 0xffffff);
+    particle.position.copy(origin);
+    particle.visible = true;
+    rig.ages[index] = rig.maxAge * THREE.MathUtils.randFloat(0.58, 1.0);
+    rig.velocities[index].set(
+      THREE.MathUtils.randFloatSpread(2.5) * intensity,
+      THREE.MathUtils.randFloat(1.2, 4.4) * intensity,
+      THREE.MathUtils.randFloatSpread(1.3) - 0.7
+    );
+    particle.scale.setScalar(THREE.MathUtils.randFloat(0.65, 1.45));
+  });
+}
+
+function updateParticles(rig: ParticleRig, dt: number) {
+  rig.particles.forEach((particle, index) => {
+    if (!particle.visible) return;
+    rig.ages[index] -= dt;
+    if (rig.ages[index] <= 0) {
+      particle.visible = false;
+      return;
+    }
+    rig.velocities[index].y -= 5.4 * dt;
+    particle.position.addScaledVector(rig.velocities[index], dt);
+    const fade = THREE.MathUtils.clamp(rig.ages[index] / rig.maxAge, 0, 1);
+    particle.scale.setScalar(Math.max(0.08, fade));
+  });
+}
+
+function createGrassTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#176f35';
+  ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1800; i++) {
+    const shade = 80 + Math.floor(Math.random() * 70);
+    ctx.strokeStyle = `rgba(${shade}, ${150 + Math.floor(Math.random() * 70)}, ${shade}, .32)`;
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.random() * 8 - 4, y + Math.random() * 12 + 2);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2.2, 7.5);
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function createSponsorTexture(label: string, background: string, accent = '#ffffff') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+  const grad = ctx.createLinearGradient(0, 0, 512, 160);
+  grad.addColorStop(0, background);
+  grad.addColorStop(1, '#07111f');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.fillStyle = accent;
+  ctx.font = '900 54px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 256, 82);
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.fillRect(0, 0, 512, 10);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function rateShot(ball: BallState, decision: Decision, blocked: boolean, saved: boolean): ShotFeedback {
+  const target = ball.shotTarget;
+  const cornerDistance = Math.min(
+    new THREE.Vector2(target.x - -GOAL_W / 2, target.y - GOAL_H).length(),
+    new THREE.Vector2(target.x - GOAL_W / 2, target.y - GOAL_H).length(),
+    Math.abs(target.x) + Math.abs(target.y - 0.55) * 0.8
+  );
+  const cornerScore = THREE.MathUtils.clamp(1 - cornerDistance / 2.65, 0, 1);
+  const powerScore = THREE.MathUtils.clamp((ball.speedKmh - 54) / 55, 0, 1);
+  const bendScore = THREE.MathUtils.clamp(Math.abs(ball.curve) / 4.1, 0, 1);
+  const quality = THREE.MathUtils.clamp(cornerScore * 0.48 + powerScore * 0.32 + bendScore * 0.2, 0.05, 0.99);
+  const xg = THREE.MathUtils.clamp(0.16 + cornerScore * 0.36 + powerScore * 0.18 - (blocked ? 0.18 : 0) - (saved ? 0.12 : 0), 0.03, 0.86);
+  const title = decision === 'GOAL'
+    ? quality > 0.72 ? 'World-class finish' : 'Goal!'
+    : decision === 'SAVE'
+      ? 'Keeper read it'
+      : decision === 'BLOCKED'
+        ? 'Wall did its job'
+        : 'Close, but off target';
+  const detail = decision === 'GOAL'
+    ? `Bend ${Math.round(bendScore * 100)} · pace ${Math.round(ball.speedKmh)} km/h · xG ${xg.toFixed(2)}`
+    : blocked
+      ? 'Try more lift or aim around the outside shoulder of the wall.'
+      : saved
+        ? 'Hit farther into the corner or add more side contact to wrong-foot the keeper.'
+        : 'Lower power/contact for dip if the ball climbs, or raise contact for a driven low shot.';
+  return { title, detail, quality, xg };
+}
+
+function addFloodlightsAndAtmosphere(scene: THREE.Scene) {
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(78, 32, 16),
+    new THREE.MeshBasicMaterial({ color: 0x071827, side: THREE.BackSide })
+  );
+  scene.add(sky);
+  const mastMat = material(0x94a3b8, 0.45, 0.3);
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xbdd7ff, emissiveIntensity: 2.7, roughness: 0.25 });
+  [
+    [-12.5, GOAL_LINE_Z - 8.5],
+    [12.5, GOAL_LINE_Z - 8.5],
+    [-12.5, 11.5],
+    [12.5, 11.5]
+  ].forEach(([x, z]) => {
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 8.4, 10), mastMat);
+    mast.position.set(x, 4.2, z);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 0.42), lampMat);
+    lamp.position.set(x * 0.94, 8.55, z);
+    lamp.lookAt(0, 1.2, GOAL_LINE_Z + 3);
+    const light = new THREE.SpotLight(0xdbeafe, 2.1, 48, 0.56, 0.62, 1.1);
+    light.position.set(x, 8.35, z);
+    light.target.position.set(0, 0, GOAL_LINE_Z + 3.5);
+    light.castShadow = false;
+    scene.add(shadow(mast), lamp, light, light.target);
+  });
 }
 
 function netPoint(
@@ -1758,9 +1972,16 @@ function makeBillboardsAndStands(
   ];
   for (let i = 0; i < 6; i++) {
     const x = (i - 2.5) * 3.15;
+    const sponsorLabels = ['MURLAN', 'TON PLAY', 'FREE KICK', 'ARENA', 'SKILL+', 'GOAL CAM'];
     const board = new THREE.Mesh(
       new THREE.BoxGeometry(2.95, 0.82, 0.08),
-      material(boardColors[i], 0.5, 0.02)
+      new THREE.MeshStandardMaterial({
+        map: createSponsorTexture(sponsorLabels[i] ?? 'ARENA', `#${boardColors[i].toString(16).padStart(6, '0')}`),
+        roughness: 0.45,
+        metalness: 0.02,
+        emissive: boardColors[i],
+        emissiveIntensity: 0.08
+      })
     );
     board.position.set(x, 0.55, zBoard);
     const top = new THREE.Mesh(
@@ -1966,8 +2187,9 @@ function makeHalfField(
   netRig: NetRig,
   loader: GLTFLoader
 ): StadiumRig {
-  const grassA = material(0x1d7d39, 0.95, 0);
-  const grassB = material(0x16692e, 0.95, 0);
+  const grassTexture = createGrassTexture();
+  const grassA = new THREE.MeshStandardMaterial({ color: 0x1d7d39, map: grassTexture, roughness: 0.96 });
+  const grassB = new THREE.MeshStandardMaterial({ color: 0x16692e, map: grassTexture, roughness: 0.96 });
   for (let i = 0; i < 10; i++) {
     const stripe = new THREE.Mesh(
       new THREE.PlaneGeometry(FIELD_W, HALF_H / 10),
@@ -2271,6 +2493,9 @@ function resetShot(
   ball.netVel.set(0, 0, 0);
   ball.crossedGoalLine = false;
   ball.hitFrame = false;
+  ball.trailPoints.length = 0;
+  ball.speedKmh = 0;
+  updateBallTrail(ball);
   ball.shotStart.copy(ballPos);
   ball.shotTarget.set(0, BALL_R, GOAL_LINE_Z);
   ball.lastPos.copy(ballPos);
@@ -2371,6 +2596,7 @@ function shootBall(ball: BallState, swipe: SwipeState) {
     shot.curve * 22.0 * shot.power,
     -shot.curve * 12.0 * shot.power
   );
+  ball.speedKmh = ball.shotStart.distanceTo(ball.shotTarget) / Math.max(0.001, ball.shotDuration) * 3.6;
   ball.flying = true;
 }
 
@@ -2445,6 +2671,7 @@ function updateBall(ball: BallState, dt: number) {
   }
 
   rollBall(ball, ball.object.position.clone().sub(prev), dt);
+  rememberBallTrail(ball);
   ball.lastPos.copy(prev);
 
   if (ball.object.position.y <= BALL_R + 0.01 && ball.vel.length() < 0.18)
@@ -2750,7 +2977,8 @@ export default function FreeKickGame() {
     aiShots: 0,
     phase: 'userShoot' as ShotPhase,
     spot: 'center' as KickSpot,
-    state: 'You shoot first: set power, choose ball contact, then tap KICK'
+    state: 'You shoot first: set power, choose ball contact, then tap KICK',
+    feedback: DEFAULT_FEEDBACK
   });
   useEffect(() => {
     const host = hostRef.current;
@@ -2762,7 +2990,8 @@ export default function FreeKickGame() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x07110b, 18, 58);
+    scene.fog = new THREE.FogExp2(0x07110b, 0.025);
+    addFloodlightsAndAtmosphere(scene);
     const camera = new THREE.PerspectiveCamera(62, 1, 0.05, 140);
     scene.add(new THREE.AmbientLight(0xffffff, 0.68));
     const sun = new THREE.DirectionalLight(0xffffff, 1.35);
@@ -2771,6 +3000,7 @@ export default function FreeKickGame() {
     sun.shadow.mapSize.set(2048, 2048);
     scene.add(sun);
     const netRig: NetRig = { lines: [], shake: 0, impact: new THREE.Vector3() };
+    const particles = createParticleRig(scene);
     const loader = new GLTFLoader();
     const stadium = makeHalfField(scene, netRig, loader);
     const aimLine = makeAimLine(scene);
@@ -2855,6 +3085,8 @@ export default function FreeKickGame() {
     const recordAttempt = (decision: Decision) => {
       if (attemptRecorded) return;
       attemptRecorded = true;
+      const feedback = rateShot(ball, decision, shotBlocked, shotSaved);
+      setHud((h) => ({ ...h, feedback }));
       if (activeShooter === 'user') {
         match.userShots += 1;
         if (decision === 'GOAL') match.userGoals += 1;
@@ -3063,12 +3295,14 @@ export default function FreeKickGame() {
       }
       updateBall(ball, dt);
       updateNetShake(netRig, dt);
+      updateParticles(particles, dt);
       if (state === 'flight') {
         if (!shotBlocked && wallBlockCheck(wall, ball)) {
           shotBlocked = true;
           shotFinalized = true;
           pendingDecision = 'BLOCKED';
           audio.save();
+          burstParticles(particles, ball.object.position, [0xfacc15, 0xffffff, 0xef4444], 0.72);
           state = 'result';
           resultTimer = 0.38;
           recordAttempt('BLOCKED');
@@ -3080,6 +3314,7 @@ export default function FreeKickGame() {
           pendingDecision = 'SAVE';
           ball.flying = false;
           audio.save();
+          burstParticles(particles, ball.object.position, [0x93c5fd, 0xffffff, 0x22c55e], 0.88);
           state = 'result';
           resultTimer = 0.42;
           recordAttempt('SAVE');
@@ -3097,6 +3332,7 @@ export default function FreeKickGame() {
           reflectFromGoalFrame(ball)
         ) {
           audio.save();
+          burstParticles(particles, ball.object.position, [0xffffff, 0xfacc15, 0x94a3b8], 0.55);
           setHud((h) => ({ ...h, state: 'Off the frame · ball still live' }));
         }
         if (
@@ -3108,6 +3344,7 @@ export default function FreeKickGame() {
         ) {
           netTriggered = true;
           audio.net();
+          burstParticles(particles, ball.object.position, [0x22c55e, 0xffffff, 0xfacc15], 1.12);
           setHud((h) => ({ ...h, state: 'Net contact · checking VAR' }));
         }
         if (!ball.flying && !shotFinalized) {
@@ -3188,6 +3425,7 @@ export default function FreeKickGame() {
             goalReplayAwarded = true;
             audio.goal();
             triggerCrowdCheer(stadium);
+            burstParticles(particles, ball.object.position, [0x22c55e, 0xfacc15, 0xffffff, 0x60a5fa], 1.35);
             kicker.celebrateTime = 2.45;
             recordAttempt('GOAL');
             syncHudScore(
@@ -3398,6 +3636,44 @@ export default function FreeKickGame() {
         }}
       >
         User takes 5 shots first, then AI takes 5. Pull the power slider upward and release to shoot; set foot contact on the ball under the slider. During AI shots, the camera sits behind the goal and swipes dive the keeper in the same screen direction.
+      </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          left: 14,
+          right: 86,
+          bottom: 18,
+          maxWidth: 430,
+          padding: '12px 14px',
+          color: 'white',
+          fontFamily: 'system-ui,sans-serif',
+          pointerEvents: 'none',
+          borderRadius: 18,
+          background: 'linear-gradient(135deg, rgba(2,6,23,.74), rgba(15,23,42,.46))',
+          border: '1px solid rgba(255,255,255,.18)',
+          boxShadow: '0 18px 44px rgba(0,0,0,.38)',
+          backdropFilter: 'blur(10px)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '.02em' }}>{hud.feedback.title}</div>
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#fde68a' }}>xG {hud.feedback.xg.toFixed(2)}</div>
+        </div>
+        <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.28, color: 'rgba(255,255,255,.86)' }}>
+          {hud.feedback.detail}
+        </div>
+        <div style={{ marginTop: 9, height: 6, borderRadius: 999, background: 'rgba(255,255,255,.16)', overflow: 'hidden' }}>
+          <div
+            style={{
+              width: `${Math.round(hud.feedback.quality * 100)}%`,
+              height: '100%',
+              borderRadius: 999,
+              background: 'linear-gradient(90deg, #ef4444, #facc15, #22c55e)',
+              boxShadow: '0 0 16px rgba(250,204,21,.62)'
+            }}
+          />
+        </div>
       </div>
 
       {hud.phase === 'userShoot' && (
