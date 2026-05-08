@@ -506,6 +506,14 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
+// Portrait phone calibration: visually move only the bottom/top players' parked
+// weapons higher on the screen without changing the side players' slots.
+const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.46,
+  0,
+  TILE_SIZE * 0.46,
+  0
+]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.38;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = -TILE_SIZE * 0.08;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
@@ -5974,7 +5982,10 @@ function updateSeatWeaponDisplays(board, players = []) {
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
       }
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+      holder.position.addScaledVector(
+        BOARD_FRONT_VECTOR,
+        -(PARKING_TOP_SCREEN_WORLD_SHIFT + (WEAPON_TOP_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? 0))
+      );
       holder.position.y += PARKING_VERTICAL_LIFT;
       const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
       const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
@@ -5996,7 +6007,10 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+      holder.position.addScaledVector(
+        BOARD_FRONT_VECTOR,
+        -(PARKING_TOP_SCREEN_WORLD_SHIFT + (WEAPON_TOP_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? 0))
+      );
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
     // Child meshes carry the tabletop horizontal/vertical orientation so triggers stay beside
