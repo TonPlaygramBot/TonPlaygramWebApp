@@ -4059,7 +4059,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const fit = () => {
     const w = host.clientWidth;
     const h = host.clientHeight;
+    const isPhonePortrait = h > w;
     renderer.setSize(w, h, false);
+    camera.clearViewOffset();
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
     const tableSpan = (tableInfo.radius ?? TABLE_RADIUS) * 2.6;
@@ -4070,6 +4072,23 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+    camera.updateMatrixWorld(true);
+
+    // Phone portrait calibration: the board itself, not the lifted look target above it,
+    // must land exactly at the visual center of the screen. The computed view offset also
+    // brings the full table/chair/avatar composition slightly lower when it was reading high.
+    if (isPhonePortrait && w > 0 && h > 0) {
+      boardGroup.updateMatrixWorld(true);
+      const boardCenter = boardGroup.getWorldPosition(new THREE.Vector3());
+      const projectedCenter = boardCenter.clone().project(camera);
+      const centerOffsetX = (projectedCenter.x * 0.5 + 0.5) * w - w / 2;
+      const centerOffsetY = (0.5 - projectedCenter.y * 0.5) * h - h / 2;
+      if (Number.isFinite(centerOffsetX) && Number.isFinite(centerOffsetY)) {
+        camera.setViewOffset(w, h, centerOffsetX, centerOffsetY, w, h);
+        camera.updateProjectionMatrix();
+      }
+    }
+
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR;
     controls.update();
