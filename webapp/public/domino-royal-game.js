@@ -6714,12 +6714,10 @@ const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.65;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.46;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 0.45;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.25;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-// Bottom-seat hand placement is tuned for the portrait camera: keep the user's
-// dominoes on the front rail/fascia area instead of pushing them into the hands.
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.32;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.34;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.5;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 2.86;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const HUMAN_BOTTOM_HAND_TILE_SCALE = 0.82;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -9249,7 +9247,7 @@ function renderHands() {
       });
       m.position.copy(slotPosition);
       if (isHuman && !openFlat) {
-        m.scale.multiplyScalar(HUMAN_BOTTOM_HAND_TILE_SCALE);
+        m.scale.setScalar(HUMAN_BOTTOM_HAND_TILE_SCALE);
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if (openFlat) {
