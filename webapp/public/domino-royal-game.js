@@ -1313,6 +1313,7 @@ let turnDominoFocusUntil = 0;
 let cameraHasUserControl = false;
 let cameraLookYaw = 0;
 let cameraLookPitch = 0;
+const seatedCameraLockedPosition = new THREE.Vector3();
 controls.addEventListener('start', () => {
   cameraHasUserControl = true;
 });
@@ -1456,6 +1457,24 @@ function getDesiredCameraPosition(target = getActiveCameraTarget()) {
   return computeDesiredCameraPosition();
 }
 
+function getSeatedCameraLockedPosition() {
+  const target = getActiveCameraTarget();
+  const desiredPosition = computeDesiredCameraPosition();
+  return clampCameraPosition(desiredPosition, target);
+}
+
+function applySeatedCameraLookAtTarget(target = turnFocusTarget) {
+  if (cameraViewMode !== VIEW_MODES.threeD) {
+    return;
+  }
+  if (seatedCameraLockedPosition.lengthSq() === 0) {
+    seatedCameraLockedPosition.copy(getSeatedCameraLockedPosition());
+  }
+  camera.position.copy(seatedCameraLockedPosition);
+  controls.target.copy(target);
+  camera.lookAt(target);
+}
+
 function applyCameraConstraints() {
   const { minPolar, maxPolar, minRadius, maxRadius } =
     getActiveCameraConstraints();
@@ -1496,6 +1515,20 @@ function positionCameraForViewport({ force = false } = {}) {
   const target = getActiveCameraTarget();
   const desiredPosition = getDesiredCameraPosition(target);
   const clampedDesired = clampCameraPosition(desiredPosition, target);
+  if (cameraViewMode === VIEW_MODES.threeD) {
+    if (force || seatedCameraLockedPosition.lengthSq() === 0) {
+      seatedCameraLockedPosition.copy(clampedDesired);
+    }
+    camera.position.copy(seatedCameraLockedPosition);
+    if (force) {
+      cameraHasUserControl = false;
+    }
+    controls.target.copy(target);
+    turnFocusTarget.copy(target);
+    camera.lookAt(target);
+    return;
+  }
+
   if (!cameraHasUserControl || force) {
     camera.position.copy(clampedDesired);
     if (force) {
@@ -1522,6 +1555,7 @@ function updateTurnCameraFocus() {
   if (!Number.isInteger(current)) {
     turnFocusTarget.copy(getActiveCameraTarget());
     controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
+    applySeatedCameraLookAtTarget(controls.target);
     return;
   }
 
@@ -1563,17 +1597,22 @@ function updateTurnCameraFocus() {
   }
 
   controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
+  applySeatedCameraLookAtTarget(controls.target);
 }
 
 function enforceSeatedCameraLock() {
   if (
     cameraViewMode === VIEW_MODES.twoD ||
     entrySequenceActive ||
-    current === human
-  )
+    isGameShuttingDown
+  ) {
     return;
-  const lockedPosition = clampCameraPosition(computeDesiredCameraPosition(), getActiveCameraTarget());
-  camera.position.copy(lockedPosition);
+  }
+  if (seatedCameraLockedPosition.lengthSq() === 0) {
+    seatedCameraLockedPosition.copy(getSeatedCameraLockedPosition());
+  }
+  camera.position.copy(seatedCameraLockedPosition);
+  camera.lookAt(controls.target);
 }
 
 function queueDominoCameraFocus(segment) {
@@ -6675,10 +6714,10 @@ const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.18;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.5;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.78;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.45;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.42;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.56;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.05;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 2.76;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
@@ -8223,8 +8262,8 @@ function normalizeDominoCharacterRoot(root) {
 
 const DOMINO_HELD_RACK_HAND_LIFT = 0.22 * MODEL_SCALE;
 const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.28 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.28 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.36 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.46 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.58 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
@@ -11684,7 +11723,9 @@ function tick(now) {
     updateSeatBadgePositions();
     updateCameraLookRecentering();
     updateTurnCameraFocus();
-    controls.update(deltaSeconds);
+    if (cameraViewMode === VIEW_MODES.twoD) {
+      controls.update(deltaSeconds);
+    }
     enforceSeatedCameraLock();
     renderer.render(scene, camera);
   } catch (error) {
