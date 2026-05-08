@@ -2011,27 +2011,15 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function computeHeldCardsPose({ player, resolvedSeatIndex = 0 }) {
-  const isBottomHumanSeat = Boolean(player?.isHuman);
-  const normalizedSeatIndex = resolvedSeatIndex % CHAIR_COUNT;
-  const isSideSeat = !isBottomHumanSeat && (normalizedSeatIndex === 1 || normalizedSeatIndex === 3);
-  const isTopSeat = !isBottomHumanSeat && normalizedSeatIndex === 2;
-
-  // Lift opponent cards higher and push them outward (away from table center)
-  // so they sit closer to the avatar/chest area in portrait framing.
-  const sideSeatLift = isSideSeat ? 152.5 * MODEL_SCALE : 0;
-  const topSeatLift = isTopSeat ? 166.5 * MODEL_SCALE : 0;
-  const nonBottomOutwardPush = !isBottomHumanSeat ? -222.5 * MODEL_SCALE : 0;
-  const bottomForwardPull = isBottomHumanSeat ? -52.5 * MODEL_SCALE : 0;
-  const sideSeatLateralPull =
-    isSideSeat
-      ? (normalizedSeatIndex === 1 ? -0.08 * MODEL_SCALE : 0.08 * MODEL_SCALE)
-      : 0;
-
+function computeHeldCardsPose() {
+  // Keep every character-held helper deck in the same local hand pose as the
+  // bottom human player. Because the cards are parented to each character
+  // model, this preserves the existing fan layout while placing opponent cards
+  // between their hands instead of applying separate top/side offsets.
   return {
-    x: sideSeatLateralPull,
-    y: 1.2 * MODEL_SCALE + sideSeatLift + topSeatLift + (isBottomHumanSeat ? 1.12 * MODEL_SCALE : 1.98 * MODEL_SCALE),
-    z: 0.82 * MODEL_SCALE + nonBottomOutwardPush + bottomForwardPull
+    x: 0,
+    y: 1.2 * MODEL_SCALE + 1.12 * MODEL_SCALE,
+    z: 0.82 * MODEL_SCALE - 52.5 * MODEL_SCALE
   };
 }
 
@@ -2785,7 +2773,6 @@ const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0;
-const AI_HAND_BOTTOM_SHIFT_Y = 0.064 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
@@ -2798,9 +2785,6 @@ const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
-const AI_TOP_HAND_UP_SHIFT_Y = 0.64 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = 0.76 * MODEL_SCALE;
-const AI_TOP_SIDE_HAND_OUTWARD_PUSH = 0.76 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -2838,7 +2822,6 @@ const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
 const AI_CARD_PRE_LIFT_PORTION = 0.32;
-const AI_CARD_OUTWARD = 0.32 * MODEL_SCALE;
 const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.4 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
@@ -4258,7 +4241,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seat) return;
       const cards = player.hand;
 
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + (player.isHuman ? HUMAN_HAND_EXTRA_LIFT : 0);
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + HUMAN_HAND_EXTRA_LIFT;
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
@@ -4290,9 +4273,7 @@ export default function MurlanRoyaleArena({ search }) {
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
         const lateral = humanLineOffset;
-        const radial = player.isHuman
-          ? radius + PLAYER_HAND_OUTWARD_PUSH_ONE_CARD
-          : radius + AI_CARD_OUTWARD;
+        const radial = radius + PLAYER_HAND_OUTWARD_PUSH_ONE_CARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard
           ? HUMAN_HAND_FAN_DIRECTION
@@ -4311,23 +4292,16 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        if (!isHumanCard && (seat?.handVariant === 'top' || seat?.handVariant === 'side')) {
-          target.addScaledVector(forward, AI_TOP_SIDE_HAND_OUTWARD_PUSH);
-        }
-        target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
-        if (isHumanCard) {
-          target.addScaledVector(forward, -HUMAN_HAND_EXTRA_INWARD_PULL);
-        }
+        target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
+        target.addScaledVector(forward, -HUMAN_HAND_EXTRA_INWARD_PULL);
         target.addScaledVector(layoutAxis, isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT);
         target.y =
           baseHeight +
           centerWeight * fanArcLift +
-          (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
+          HUMAN_HAND_BOTTOM_SHIFT_Y +
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          (!isHumanCard && seat?.handVariant === 'top' ? AI_TOP_HAND_UP_SHIFT_Y : 0) +
-          (!isHumanCard && seat?.handVariant === 'side' ? AI_SIDE_HAND_UP_SHIFT_Y : 0) +
-          (isHumanCard ? PLAYER_HAND_UP_LIFT_ONE_CARD : 0);
+          PLAYER_HAND_UP_LIFT_ONE_CARD;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -5604,7 +5578,10 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: resolveSeatHandRadius(activeTableRadius, isHumanSeat),
+          // Use the same table-relative hand-card radius for every seat so
+          // opponent cards land in the matching in-hands pocket used by the
+          // bottom human player; spacing/max spread still keep each hand layout.
+          radius: resolveSeatHandRadius(activeTableRadius, true),
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING * aiSeatSpacingMultiplier,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
           stoolPosition,
