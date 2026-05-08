@@ -9918,6 +9918,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.poolRoyalePocketHolder = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -9952,6 +9953,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.poolRoyalePocketHolder = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -10016,6 +10018,7 @@ export function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       strap.userData.externalTableKeepVisible = true;
+      strap.userData.poolRoyalePocketHolder = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -12608,12 +12611,13 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  // Preserve the Showood model's own metal pocket rims/plates before pocket or wood
+  // finish assignment so the original chrome remains visible above the wooden rail.
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt|rim|cap|casting|escutcheon/.test(label)) return 'trim';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
-  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
   if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
   if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
@@ -12841,9 +12845,62 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
   });
 }
 
+
+function applyPoolRoyaleExternalTableProfileAdjustments(root, tableModel = null) {
+  if (!root || !tableModel) return;
+  const upperWoodHeightScale = Number.isFinite(tableModel.upperWoodHeightScale)
+    ? Math.max(0.35, Math.min(1.4, tableModel.upperWoodHeightScale))
+    : 1;
+  const lowerBaseHeightScale = Number.isFinite(tableModel.lowerBaseHeightScale)
+    ? Math.max(0.35, Math.min(1.8, tableModel.lowerBaseHeightScale))
+    : 1;
+  if (
+    Math.abs(upperWoodHeightScale - 1) < MICRO_EPS &&
+    Math.abs(lowerBaseHeightScale - 1) < MICRO_EPS
+  ) return;
+
+  root.updateMatrixWorld(true);
+  const fullBox = new THREE.Box3().setFromObject(root);
+  if (fullBox.isEmpty()) return;
+  const fullHeight = Math.max(MICRO_EPS, fullBox.max.y - fullBox.min.y);
+  const splitRatio = Number.isFinite(tableModel.baseProfileSplit)
+    ? Math.max(0.2, Math.min(0.85, tableModel.baseProfileSplit))
+    : 0.54;
+  const splitY = fullBox.min.y + fullHeight * splitRatio;
+  const center = new THREE.Vector3();
+
+  root.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleProfileAdjusted) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (role !== 'wood') return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    childBox.getCenter(center);
+    const isUpperRail = center.y >= splitY;
+    const scaleY = isUpperRail ? upperWoodHeightScale : lowerBaseHeightScale;
+    if (Math.abs(scaleY - 1) < MICRO_EPS) return;
+    const anchorY = isUpperRail ? fullBox.max.y : fullBox.min.y;
+    const desiredCenterY = isUpperRail
+      ? anchorY - (anchorY - center.y) * scaleY
+      : anchorY + (center.y - anchorY) * scaleY;
+    const parentScaleY = child.parent?.getWorldScale?.(new THREE.Vector3())?.y || 1;
+    child.scale.y *= scaleY;
+    child.position.y += (desiredCenterY - center.y) / Math.max(MICRO_EPS, parentScaleY);
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleProfileAdjusted: true,
+      poolRoyaleProfileRole: isUpperRail ? 'shortened-upper-rail' : 'taller-base',
+      poolRoyaleProfileScaleY: scaleY
+    };
+  });
+  root.updateMatrixWorld(true);
+}
+
 function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
+  applyPoolRoyaleExternalTableProfileAdjustments(clone, tableModel);
   return clone;
 }
 
@@ -13748,6 +13805,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
+          object.userData?.poolRoyalePocketHolder ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
@@ -25801,11 +25859,11 @@ const shotPowerRef = useRef(0);
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
-            // the shooter folding toward the table instead of bending backward away from it.
-            shootBendDirection: 1,
-            shootBendTowardCueStick: true,
-            shootCounterLeanSide: -1,
+            // as the portrait camera lowers into the ready-to-shoot view. The bend is locked
+            // to the corrected shooting side so the upper body no longer folds away from aim.
+            shootBendDirection: -1,
+            shootBendTowardCueStick: false,
+            shootCounterLeanSide: 1,
             shootUpperBodyCounterLean: 0.72,
             shootForwardBendScale: 0.62,
             plantFeetDuringShot: true,
