@@ -9902,6 +9902,7 @@ export function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
+    net.userData.poolRoyaleGeneratedPocketHolder = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -9918,6 +9919,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.poolRoyaleGeneratedPocketHolder = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -9952,6 +9954,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.poolRoyaleGeneratedPocketHolder = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -10016,6 +10019,7 @@ export function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       strap.userData.externalTableKeepVisible = true;
+      strap.userData.poolRoyaleGeneratedPocketHolder = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -12952,6 +12956,62 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function retunePoolRoyaleShowoodExternalTableModel(model, tableModel) {
+  if (!model || !tableModel) return;
+  const railScale = Number.isFinite(tableModel.upperRailVerticalScale)
+    ? THREE.MathUtils.clamp(tableModel.upperRailVerticalScale, 0.45, 1)
+    : 1;
+  const baseScale = Number.isFinite(tableModel.baseVerticalScale)
+    ? THREE.MathUtils.clamp(tableModel.baseVerticalScale, 1, 1.45)
+    : 1;
+  if (Math.abs(railScale - 1) < MICRO_EPS && Math.abs(baseScale - 1) < MICRO_EPS) return;
+
+  model.updateMatrixWorld(true);
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return;
+  const fullHeight = Math.max(MICRO_EPS, fullBox.max.y - fullBox.min.y);
+  const upperBandStart = fullBox.min.y + fullHeight * 0.48;
+  const lowerBandEnd = fullBox.min.y + fullHeight * 0.58;
+
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    const childMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, childMaterial);
+    if (role !== 'wood') return;
+    const key = `${child.name || ''} ${childMaterial?.name || ''}`.toLowerCase();
+    const centerY = (childBox.min.y + childBox.max.y) * 0.5;
+    const isLowerBase =
+      centerY <= lowerBandEnd &&
+      /leg|foot|feet|base|support|pedestal|stand/.test(key) &&
+      !/rail|cushion|cloth|pocket|trim|chrome/.test(key);
+    const isUpperFrameRail =
+      centerY >= upperBandStart &&
+      /rail|apron|cabinet|frame|wood|showood|side|end|panel|bevel/.test(key) &&
+      !/cloth|cushion|pocket|trim|chrome|leg|foot|feet/.test(key);
+
+    if (isUpperFrameRail && railScale < 1) {
+      const worldTop = childBox.max.y;
+      child.scale.y *= railScale;
+      child.position.y += (1 - railScale) * (worldTop - child.position.y);
+      child.userData = {
+        ...(child.userData || {}),
+        poolRoyaleShowoodShortenedRail: true
+      };
+    } else if (isLowerBase && baseScale > 1) {
+      const worldBottom = childBox.min.y;
+      child.scale.y *= baseScale;
+      child.position.y += (1 - baseScale) * (worldBottom - child.position.y);
+      child.userData = {
+        ...(child.userData || {}),
+        poolRoyaleShowoodTallBase: true
+      };
+    }
+  });
+  model.updateMatrixWorld(true);
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -13005,6 +13065,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
   }
   model.updateMatrixWorld(true);
+  retunePoolRoyaleShowoodExternalTableModel(model, tableModel);
 
   ({ fullBox, footprintBox } = resolvePoolRoyaleExternalTableFitBounds(model, tableModel));
   const footprintCenter = footprintBox.getCenter(new THREE.Vector3());
@@ -13024,6 +13085,74 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
       physics: 'Pool Royale playfield, pockets, cushions, and ball simulation'
     }
   };
+}
+
+function createPoolRoyaleExternalLegLevelers(model, tableModel, finishInfo) {
+  if (!model || !tableModel?.showGeneratedLegLevelersOnExternal) return null;
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  if (box.isEmpty()) return null;
+  const size = box.getSize(new THREE.Vector3());
+  const chromeSource = finishInfo?.materials?.trim || finishInfo?.materials?.rail || null;
+  const chromeMat = chromeSource?.clone
+    ? chromeSource.clone()
+    : new THREE.MeshPhysicalMaterial({
+        color: 0xd8dde8,
+        metalness: 0.92,
+        roughness: 0.18,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.28
+      });
+  enhanceChromeMaterial(chromeMat);
+  const rubberMat = new THREE.MeshStandardMaterial({
+    color: 0x070707,
+    roughness: 0.86,
+    metalness: 0.05,
+    envMapIntensity: 0.05
+  });
+  const radius = Math.max(BALL_R * 0.92, Math.min(size.x, size.z) * 0.018);
+  const levelerHeight = Math.max(BALL_R * 0.3, radius * 0.34);
+  const stemRadius = radius * LEG_LEVELER_STEM_RADIUS_SCALE;
+  const stemHeight = Math.max(BALL_R * 0.3, levelerHeight * 0.58);
+  const rubberHeight = Math.max(BALL_R * 0.08, levelerHeight * LEG_LEVELER_RUBBER_RING_HEIGHT_SCALE);
+  const levelerGeom = new THREE.CylinderGeometry(radius * 0.84, radius, levelerHeight, 42);
+  const stemGeom = new THREE.CylinderGeometry(stemRadius, stemRadius * 1.02, stemHeight, 26);
+  const rubberGeom = new THREE.CylinderGeometry(
+    radius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
+    radius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
+    rubberHeight,
+    34
+  );
+  const group = new THREE.Group();
+  group.name = `${tableModel.id || 'external'}-generated-rounded-chrome-leg-levelers`;
+  const insetX = Math.max(radius * 2.25, size.x * 0.16);
+  const insetZ = Math.max(radius * 2.25, size.z * 0.15);
+  const centers = [
+    [box.min.x + insetX, box.min.z + insetZ],
+    [box.max.x - insetX, box.min.z + insetZ],
+    [box.min.x + insetX, box.max.z - insetZ],
+    [box.max.x - insetX, box.max.z - insetZ]
+  ];
+  const levelerMidY = levelerHeight * 0.5 + rubberHeight;
+  centers.forEach(([x, z]) => {
+    const foot = new THREE.Group();
+    foot.position.set(x, box.min.y - levelerMidY, z);
+    const rubber = new THREE.Mesh(rubberGeom, rubberMat);
+    rubber.position.y = rubberHeight * 0.5;
+    rubber.receiveShadow = true;
+    const disc = new THREE.Mesh(levelerGeom, chromeMat);
+    disc.position.y = levelerHeight * 0.5 + rubberHeight;
+    disc.castShadow = true;
+    disc.receiveShadow = true;
+    const stem = new THREE.Mesh(stemGeom, chromeMat);
+    stem.position.y = levelerHeight + stemHeight * 0.5 + rubberHeight - MICRO_EPS;
+    stem.castShadow = true;
+    stem.receiveShadow = true;
+    foot.add(rubber, disc, stem);
+    foot.userData = { ...(foot.userData || {}), externalTableKeepVisible: true };
+    group.add(foot);
+  });
+  return group;
 }
 
 function mountPoolRoyaleExternalTableModel({
@@ -13052,6 +13181,8 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      const generatedLevelers = createPoolRoyaleExternalLegLevelers(model, tableModel, finishInfo);
+      if (generatedLevelers) externalRoot.add(generatedLevelers);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -13748,7 +13879,13 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
-          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          (
+            object.userData?.externalTableKeepVisible &&
+            (
+              !externalTableModelForMount?.useOriginalLayoutSurfaces ||
+              (externalTableModelForMount?.showGeneratedPocketHoldersOnExternal && object.userData?.poolRoyaleGeneratedPocketHolder)
+            )
+          ) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
       ) {
@@ -25801,13 +25938,13 @@ const shotPowerRef = useRef(0);
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
-            // the shooter folding toward the table instead of bending backward away from it.
+            // as the portrait camera lowers into the ready-to-shoot view. Lock the upper body
+            // into a forward fold toward the cue/table so the shooter never arches backward.
             shootBendDirection: 1,
-            shootBendTowardCueStick: true,
+            shootBendTowardCueStick: false,
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 0.72,
-            shootForwardBendScale: 0.62,
+            shootUpperBodyCounterLean: 0.54,
+            shootForwardBendScale: 0.84,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
