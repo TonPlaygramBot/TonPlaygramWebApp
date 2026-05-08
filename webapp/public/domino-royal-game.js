@@ -6712,13 +6712,14 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const PLAYER_HAND_GAP_SCALE = 0.56;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 8.35;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.35;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 9.25;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.65;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.46;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.25;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 2.9;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.3;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.5;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 2.86;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
+const HUMAN_BOTTOM_HAND_TILE_SCALE = 0.82;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE * DOMINO_HEIGHT_ADJUST;
@@ -8260,10 +8261,10 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.5 * MODEL_SCALE;
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.62 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.78 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.98 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 0.22 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.28 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.42 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.62 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
@@ -9245,6 +9246,9 @@ function renderHands() {
         isTopDown
       });
       m.position.copy(slotPosition);
+      if (isHuman && !openFlat) {
+        m.scale.setScalar(HUMAN_BOTTOM_HAND_TILE_SCALE);
+      }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if (openFlat) {
         const yaw = isHuman ? Math.PI / 2 : yawTowardCenter;
