@@ -12045,6 +12045,11 @@ export function Table3D(
       mesh.rotation.y = rotation;
       mesh.castShadow = false;
       mesh.receiveShadow = false;
+      mesh.userData = {
+        ...(mesh.userData || {}),
+        isRailMarker: true,
+        externalTableKeepVisible: true
+      };
       mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
       registerRailMarkerMesh(mesh);
     };
@@ -12869,6 +12874,13 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   return 'wood';
 }
 
+function isPoolRoyaleExternalRailMarkerSurface(child, material) {
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  return /diamond|sight|marker|rail[_\s-]*dot|rail[_\s-]*spot/.test(label);
+}
+
 function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
   if (!texture) return null;
   const clone = texture.clone ? texture.clone() : texture;
@@ -13074,6 +13086,9 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
+        child.visible = false;
+      }
+      if (tableModel?.hideOriginalRailMarkers && isPoolRoyaleExternalRailMarkerSurface(child, material)) {
         child.visible = false;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
@@ -14043,6 +14058,7 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          (externalTableModelForMount?.keepGeneratedRailMarkers && object.userData?.isRailMarker) ||
           (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
       ) {
