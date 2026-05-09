@@ -34,13 +34,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: [],
-    tintOriginalTrimGold: false,
-    allowChromeColorOnOriginalTrim: true,
+    preserveOriginalSurfaceRoles: ['trim'],
+    tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
-    disablePocketNetsAndHolders: true,
-    hidePottedBallDropVisuals: true,
-    hideSurfaceNamePattern: 'net|basket|drop|holder|wire|cradle|catch|tray',
     hideSurfaceRoles: []
   }
 ]);
