@@ -24,7 +24,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1.08,
+    fitScale: 1.02,
+    lowerBaseHeightScale: 1.16,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -33,13 +34,15 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: [],
-    forceGeneratedChromePlates: true,
-    hideSurfaceRoles: ['trim']
+    preserveOriginalSurfaceRoles: ['trim'],
+    tintOriginalTrimGold: true,
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: []
   }
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
   POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
