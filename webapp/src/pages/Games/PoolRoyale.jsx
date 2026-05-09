@@ -4494,7 +4494,8 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
 
 const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
-  { id: 'diamond', label: 'Diamonds' }
+  { id: 'diamond', label: 'Diamonds' },
+  { id: 'circle', label: 'Circles' }
 ]);
 const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
@@ -12045,10 +12046,6 @@ export function Table3D(
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
-      mesh.userData = {
-        ...(mesh.userData || {}),
-        isGeneratedRailMarker: true
-      };
       registerRailMarkerMesh(mesh);
     };
     [1, 2, 3, 5, 6, 7].forEach((step) => {
@@ -14046,8 +14043,7 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome)) ||
-          (object.userData?.isGeneratedRailMarker && forceGeneratedChrome)
+          (object.userData?.isChromePlate && (chromePlateStyle.showGeneratedOnExternal || forceGeneratedChrome))
         )
       ) {
         object.visible = true;
