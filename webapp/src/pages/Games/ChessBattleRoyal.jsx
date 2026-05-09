@@ -436,6 +436,11 @@ const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(20); // high diagonal angle close to 2D while still showing depth toward the opponent.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
+const CAMERA_LOCKED_3D_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOCKED_3D_LOOK_PITCH_UP_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOCKED_3D_LOOK_PITCH_DOWN_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOCKED_3D_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOCKED_3D_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -7667,27 +7672,9 @@ function Chess3D({
     [chessInventory]
   );
   const QUICK_SWAP_WEAPON_IDS = useMemo(
-    () =>
-      [
-        'polyShotgun01Attack',
-        'polyAssaultRifle01Attack',
-        'polyPistol01Attack',
-        'polyRevolver01Attack',
-        'polySawedOff01Attack',
-        'polyRevolver02Attack',
-        'polyShotgun02Attack',
-        'polyShotgun03Attack',
-        'polySmg01Attack',
-        'ak47VolleyAttack',
-        'krsvBurstAttack',
-        'smithSidearmAttack',
-        'mosinMarksmanAttack',
-        'uziSprayAttack',
-        'sigsauerTacticalAttack',
-        'sniperShotAttack',
-        'compactCarbineAttack',
-        'fpsGunAttack'
-      ],
+    () => CAPTURE_ANIMATION_OPTIONS
+      .map((option) => option.id)
+      .filter((id) => FIREARM_CAPTURE_ANIMATION_IDS.has(id)),
     []
   );
   const quickSwapWeapons = useMemo(() => {
@@ -9813,7 +9800,7 @@ function Chess3D({
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = true;
+        controls.enableRotate = false;
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9833,17 +9820,29 @@ function Chess3D({
           CAMERA_3D_MIN_RADIUS,
           CAMERA_3D_MAX_RADIUS
         );
-        const lockedRadius = clamp(CAMERA_2D_MAX_RADIUS * CAMERA_LOCKED_3D_RADIUS_SCALE, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+        const lockedRadius = clamp(
+          CAMERA_2D_MAX_RADIUS * CAMERA_LOCKED_3D_RADIUS_SCALE * CAMERA_CAPTURE_VIEW_RADIUS_SCALE,
+          CAMERA_3D_MIN_RADIUS,
+          CAMERA_3D_MAX_RADIUS
+        );
+        const lockedPhi = clamp(
+          CAMERA_LOCKED_3D_PHI - CAMERA_CAPTURE_VIEW_UPWARD_BIAS,
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
         const target = new THREE.Spherical(
           isForcedCapture3dView ? targetRadius : lockedRadius,
-          isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
+          isForcedCapture3dView ? targetPhi : lockedPhi,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
+        const targetCameraPosition = boardLookTarget.clone().add(new THREE.Vector3().setFromSpherical(target));
+        const lookDir = boardLookTarget.clone().sub(targetCameraPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
+        locked3dViewRef.current.baseYaw = yaw;
+        locked3dViewRef.current.basePitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
         locked3dViewRef.current.targetPitch = pitch;
         locked3dViewRef.current.activeLook = !isForcedCapture3dView;
@@ -9852,11 +9851,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in locked 2D mode by default and preserve board state when customizations change.
+    // Start every match in the same locked 3D framing used by capture animations.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '2d';
-    setViewMode('2d');
-    setViewModeInternal('2d');
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -13201,7 +13200,6 @@ function Chess3D({
         locked3dViewRef.current.activeLook = true;
         locked3dViewRef.current.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
         locked3dViewRef.current.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
-        return;
       }
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
@@ -13250,8 +13248,18 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw -= movementX * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
+          const baseYaw = Number.isFinite(locked.baseYaw) ? locked.baseYaw : locked.yaw;
+          const basePitch = Number.isFinite(locked.basePitch) ? locked.basePitch : locked.pitch;
+          locked.targetYaw = clamp(
+            locked.targetYaw + movementX * CAMERA_LOCKED_3D_LOOK_YAW_DRAG_FACTOR,
+            baseYaw - CAMERA_LOCKED_3D_LOOK_YAW_LIMIT,
+            baseYaw + CAMERA_LOCKED_3D_LOOK_YAW_LIMIT
+          );
+          locked.targetPitch = clamp(
+            locked.targetPitch + movementY * CAMERA_LOCKED_3D_LOOK_PITCH_DRAG_FACTOR,
+            basePitch - CAMERA_LOCKED_3D_LOOK_PITCH_DOWN_LIMIT,
+            basePitch + CAMERA_LOCKED_3D_LOOK_PITCH_UP_LIMIT
+          );
         }
         return;
       }
