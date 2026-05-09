@@ -40,3 +40,6 @@ cache/
 # .NET build artifacts
 **/bin/
 **/obj/
+
+# Downloaded by webapp/scripts/fetch-gradle-wrapper.mjs; keep binary out of PRs.
+webapp/android/gradle/wrapper/gradle-wrapper.jar
