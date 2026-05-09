@@ -715,7 +715,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
-  chromeColor: ['gold', 'black-plastic'],
+  chromeColor: ['gold'],
   chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -756,8 +756,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
-    gold: 'Gold',
-    'black-plastic': 'Plastic Black'
+    gold: 'Gold'
   }),
   chromePlateStyle: Object.freeze({
     'royal-classic': 'Royal Classic Plates',
@@ -990,15 +989,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   {
-    id: 'chrome-blackPlastic',
-    type: 'chromeColor',
-    optionId: 'black-plastic',
-    name: 'Plastic Black Fascias',
-    price: 0,
-    description: 'Satin black plastic finish for the same pocket-plate mapped parts used by chrome and gold.',
-    thumbnail: swatchThumbnail(['#020617', '#111827', '#334155'])
-  },
-  {
     id: 'chromeStyle-showoodRounded',
     type: 'chromePlateStyle',
     optionId: 'showood-rounded',
@@ -1205,7 +1195,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: 'Wood Peeling Paint Weathered Finish'
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
-  { type: 'chromeColor', optionId: 'black-plastic', label: 'Plastic Black Plates' },
   { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
