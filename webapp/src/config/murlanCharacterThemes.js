@@ -19,8 +19,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'royalCourt',
-    royalStyle: { makeup: 'natural', ageDetail: 0.18, trimLevel: 'ornate', metalTone: 0xd6b56d },
+    clothCombo: 'royalDenim',
     hairColor: 0x24150f,
     eyeColor: 0x2f5d7c,
     skinTone: 0xd9a27d
@@ -47,8 +46,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'battleNoble',
-    royalStyle: { makeup: 'natural', ageDetail: 0.28, trimLevel: 'ornate', metalTone: 0xc9a45d },
+    clothCombo: 'casinoCheck',
     hairColor: 0x14100c,
     eyeColor: 0x5a3d2b,
     skinTone: 0xc78f68
@@ -75,8 +73,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'tailoredCommon',
-    royalStyle: { makeup: 'court', ageDetail: 0.12, trimLevel: 'clean', metalTone: 0xd8c690 },
+    clothCombo: 'linenStreet',
     hairColor: 0x2c1b12,
     eyeColor: 0x406a45,
     skinTone: 0xe0b18d
@@ -104,7 +101,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatYaw: 0,
     handLift: 1.04,
     clothCombo: 'jacquardNight',
-    royalStyle: { makeup: 'court', ageDetail: 0.22, trimLevel: 'ornate', metalTone: 0xe0b86f },
     hairColor: 0x3a2418,
     eyeColor: 0x364f7d,
     skinTone: 0xb87957
@@ -127,7 +123,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatYaw: 0,
     handLift: 1.04,
     clothCombo: 'softFleece',
-    royalStyle: { makeup: 'natural', ageDetail: 0.34, trimLevel: 'clean', metalTone: 0xb99a67 },
     hairColor: 0x120d0a,
     eyeColor: 0x33271e,
     skinTone: 0xd39a72
@@ -150,7 +145,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatYaw: 0,
     handLift: 1.04,
     clothCombo: 'patternedRed',
-    royalStyle: { makeup: 'court', ageDetail: 0.2, trimLevel: 'ornate', metalTone: 0xd2a74f },
     hairColor: 0x231915,
     eyeColor: 0x3d5f73,
     skinTone: 0xc88b64
@@ -173,7 +167,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatYaw: 0,
     handLift: 1.04,
     clothCombo: 'mixedDenim',
-    royalStyle: { makeup: 'natural', ageDetail: 0.16, trimLevel: 'clean', metalTone: 0xc7b58a },
     hairColor: 0x0f0b08,
     eyeColor: 0x4c3425,
     skinTone: 0xe3b08b
@@ -195,8 +188,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'tailoredCommon',
-    royalStyle: { makeup: 'natural', ageDetail: 0.3, trimLevel: 'clean', metalTone: 0xb99158 },
+    clothCombo: 'linenStreet',
     hairColor: 0x160f0a,
     eyeColor: 0x334d5f,
     skinTone: 0xd09a73
@@ -218,8 +210,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'battleNoble',
-    royalStyle: { makeup: 'natural', ageDetail: 0.26, trimLevel: 'ornate', metalTone: 0xd6b56d },
+    clothCombo: 'casinoCheck',
     hairColor: 0x111111,
     eyeColor: 0x2f4b5f,
     skinTone: 0xc9906e
