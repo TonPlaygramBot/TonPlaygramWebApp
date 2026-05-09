@@ -1,5 +1,14 @@
 const gamesCatalog = [
   {
+    name: 'Urban Ops FPS',
+    route: '/games/mobile-urban-fps',
+    slug: 'mobile-urban-fps',
+    image: '/assets/icons/mobile-urban-fps.svg',
+    description:
+      'Mobile-first portrait FPS prototype with touch aiming, rifle recoil, city cover, and enemy AI.'
+  },
+
+  {
     name: 'The Maze Battle Royal',
     route: '/games/runman',
     slug: 'runman',
