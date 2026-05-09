@@ -128,14 +128,6 @@ namespace TonPlaygram.Gameplay.Weapons
             SnapWeaponToHumanGrip();
         }
 
-        public void SetWeaponGripOffsets(Vector3 positionOffset, Vector3 eulerOffset)
-        {
-            weaponGripPositionOffset = positionOffset;
-            weaponGripEulerOffset = eulerOffset;
-            _weaponGripRotationOffset = Quaternion.Euler(weaponGripEulerOffset);
-            SnapToMappedPose();
-        }
-
         [ContextMenu("Hide Original FPS Hands")]
         public void HideOriginalFpsHands()
         {
