@@ -18,7 +18,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
-      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, original plastic pocket liners, and TonPlaygram diamond rail markers.',
+      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, pockets, and preserved Showood chrome plates.',
     tableSizeId: '9ft',
     assetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
@@ -33,10 +33,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood'],
-    preserveOriginalSurfaceRoles: ['trim', 'pocket'],
-    hideOriginalRailMarkers: true,
-    keepGeneratedRailMarkers: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
+    preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
