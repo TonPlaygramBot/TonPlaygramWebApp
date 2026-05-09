@@ -2677,11 +2677,12 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 38;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 54;
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 30; // larger portrait-readable side tables set away from the pool table.
+const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 78; // taller/larger dining chairs so seated players map clearly onto the cushion.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 54;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 72;
+const POOL_ROYALE_LOUNGE_CHAIR_SEAT_PULL_TO_TABLE = BALL_R * 8.5;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
 const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
@@ -4386,6 +4387,16 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.5,
     clearcoatRoughness: 0.06,
     envMapIntensity: 0.72
+  },
+  {
+    id: 'plastic-black',
+    label: 'Plastic Black',
+    color: 0x050505,
+    metalness: 0.04,
+    roughness: 0.62,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.24
   }
 ]);
 
@@ -9280,6 +9291,10 @@ export function Table3D(
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
+  const disablePocketNetsAndHolders =
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.disablePocketNetsAndHolders === true;
+  const hidePottedBallDropVisuals =
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.hidePottedBallDropVisuals === true;
   const externalPlayfieldVisualLift =
     usesExternalTableModel &&
     !externalTableUsesOriginalLayout &&
@@ -9921,7 +9936,7 @@ export function Table3D(
   const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketEdgeStopY =
     (PLYWOOD_ENABLED ? plywoodTopY : pocketTopY) - POCKET_EDGE_STOP_EXTRA_DROP;
-  const pocketCutStripes = POCKET_EDGE_SLEEVES_ENABLED
+  const pocketCutStripes = POCKET_EDGE_SLEEVES_ENABLED && !disablePocketNetsAndHolders
     ? addPocketCuts(
         table,
         cloth.position.y,
@@ -10131,6 +10146,7 @@ export function Table3D(
   );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
+  table.userData.hidePottedBallDropVisuals = hidePottedBallDropVisuals;
   resolveTablePocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
@@ -10143,6 +10159,7 @@ export function Table3D(
     pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
     pocketMeshes.push(pocket);
+    if (disablePocketNetsAndHolders) return;
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
     net.position.set(
       p.x,
@@ -13073,8 +13090,16 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
-      if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
+      const hideNamePattern = tableModel?.hideSurfaceNamePattern
+        ? new RegExp(tableModel.hideSurfaceNamePattern, 'i')
+        : null;
+      const surfaceLabel = `${child?.name || ''} ${material?.name || ''}`;
+      if (
+        (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) ||
+        (hideNamePattern && hideNamePattern.test(surfaceLabel))
+      ) {
         child.visible = false;
+        child.userData.poolRoyaleHiddenByTableModel = true;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
@@ -14057,10 +14082,14 @@ function mountPoolRoyaleExternalTableModel({
       ? {
           ...resolvedTableOptions.tableModel,
           preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
-            ? Array.from(new Set([
-                ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
-                'trim'
-              ]))
+            ? (resolvedTableOptions.tableModel.allowChromeColorOnOriginalTrim
+                ? (resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []).filter(
+                    (role) => role !== 'trim'
+                  )
+                : Array.from(new Set([
+                    ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
+                    'trim'
+                  ])))
             : chromePlateStyle.preserveExternalTrim
               ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
               : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
@@ -26184,14 +26213,14 @@ const shotPowerRef = useRef(0);
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 23.6, BALL_R * 24.2, BALL_R * 1.85, 64), woodMat);
         tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
+        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.6, BALL_R * 3.55, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
-        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
-        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
-        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
+        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 25.4, BALL_R * 2.65, BALL_R * 21.8), seatMat);
+        chairSeat.position.set(0, BALL_R * 5.65, zSign * BALL_R * 47.0);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 25.4, BALL_R * 20.5, BALL_R * 2.65), seatMat);
+        chairBack.position.set(0, BALL_R * 14.2, zSign * BALL_R * 58.2);
         [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
@@ -26252,9 +26281,10 @@ const shotPowerRef = useRef(0);
 
         const serviceProps = createWaterServiceProps(tableTopY);
         group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        const chairSeatZ = z + chairLocalZ - zSign * POOL_ROYALE_LOUNGE_CHAIR_SEAT_PULL_TO_TABLE;
+        group.userData.chairRoot = new THREE.Vector3(x, floorY, chairSeatZ);
         group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY + BALL_R * 5.65, chairSeatZ);
         group.userData.glass = serviceProps.userData.glass;
         group.userData.glassBase = serviceProps.userData.glassBase.clone();
         return group;
@@ -34675,7 +34705,10 @@ const shotPowerRef = useRef(0);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
-              if (!isCueBall) {
+              if (!isCueBall && table?.userData?.hidePottedBallDropVisuals) {
+                removePocketDropEntry(b.id);
+                if (b.mesh) b.mesh.visible = false;
+              } else if (!isCueBall) {
                 const dropEntry = {
                   start: dropStart,
                   fromY: BALL_CENTER_Y,
