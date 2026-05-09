@@ -608,7 +608,7 @@ const FIREARM_SHOTGUN_IDS = new Set([
   'polySawedOff01Attack'
 ]);
 const FIREARM_MARKSMAN_IDS = new Set(['sniperShotAttack', 'mosinMarksmanAttack', 'marksmanDmrAttack']);
-const FIREARM_PELLET_IDS = new Set(['fpsGunAttack', ...FIREARM_SHOTGUN_IDS]);
+const FIREARM_SCATTER_PROJECTILE_IDS = new Set([...FIREARM_SHOTGUN_IDS]);
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   mrtkGunAttack: 22,
   pistolHolsterAttack: 14,
@@ -648,13 +648,13 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polyTank01Attack: 1
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
-  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletSpeed: 0.2, shellRadius: 0.0028 }),
-  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042, bulletRadius: 0.0034, bulletSpeed: 0.21, shellRadius: 0.0026 }),
-  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058, bulletRadius: 0.0033, bulletSpeed: 0.23, shellRadius: 0.0025 }),
-  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054, bulletRadius: 0.0038, bulletSpeed: 0.26, shellRadius: 0.003 }),
-  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036, bulletRadius: 0.0042, bulletSpeed: 0.29, shellRadius: 0.0032 }),
-  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061, bulletRadius: 0.0048, bulletSpeed: 0.17, shellRadius: 0.004 }),
-  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03, bulletRadius: 0.0058, bulletSpeed: 0.14, shellRadius: 0.0046 })
+  default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletLength: 0.032, bulletSpeed: 0.2, shellRadius: 0.0028, shellLength: 0.016, projectileKind: 'jacketed-round', caliberLabel: 'generic battle round' }),
+  pistol: Object.freeze({ tracerSpread: 0.013, shellDriftX: 0.00022, shellDriftZ: -0.00016, shellArc: 0.042, bulletRadius: 0.0034, bulletLength: 0.027, bulletSpeed: 0.21, shellRadius: 0.0026, shellLength: 0.014, projectileKind: 'pistol-round', caliberLabel: '9mm sidearm round' }),
+  smg: Object.freeze({ tracerSpread: 0.022, shellDriftX: 0.00031, shellDriftZ: -0.00025, shellArc: 0.058, bulletRadius: 0.0032, bulletLength: 0.028, bulletSpeed: 0.23, shellRadius: 0.0025, shellLength: 0.014, projectileKind: 'smg-round', caliberLabel: '9mm SMG round' }),
+  rifle: Object.freeze({ tracerSpread: 0.016, shellDriftX: 0.00027, shellDriftZ: -0.00022, shellArc: 0.054, bulletRadius: 0.0038, bulletLength: 0.041, bulletSpeed: 0.26, shellRadius: 0.003, shellLength: 0.021, projectileKind: 'rifle-round', caliberLabel: '5.56 rifle round' }),
+  marksman: Object.freeze({ tracerSpread: 0.01, shellDriftX: 0.0002, shellDriftZ: -0.00014, shellArc: 0.036, bulletRadius: 0.0042, bulletLength: 0.052, bulletSpeed: 0.29, shellRadius: 0.0032, shellLength: 0.024, projectileKind: 'marksman-round', caliberLabel: '7.62 marksman round' }),
+  shotgun: Object.freeze({ tracerSpread: 0.026, shellDriftX: 0.00034, shellDriftZ: -0.00026, shellArc: 0.061, bulletRadius: 0.0032, bulletLength: 0.013, bulletSpeed: 0.17, shellRadius: 0.004, shellLength: 0.023, projectileKind: 'buckshot-pellet', caliberLabel: '12-gauge buckshot' }),
+  explosive: Object.freeze({ tracerSpread: 0.03, shellDriftX: 0.00018, shellDriftZ: -0.00012, shellArc: 0.03, bulletRadius: 0.0064, bulletLength: 0.046, bulletSpeed: 0.14, shellRadius: 0.0046, shellLength: 0.03, projectileKind: 'explosive-warhead', caliberLabel: 'explosive warhead' })
 });
 const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   glockSidearmAttack: 'pistol',
@@ -694,23 +694,39 @@ const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   polyRobotFlyingGunAttack: 'smg'
 });
 const FIREARM_CALIBER_BY_ID = Object.freeze({
-  glockSidearmAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
-  smithSidearmAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
-  sigsauerTacticalAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
-  uziSprayAttack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
-  smgBurstAttack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
-  polySmg01Attack: { bulletRadius: 0.0031, shellRadius: 0.0022, bulletSpeed: 0.24 },
-  assaultRifleAttack: { bulletRadius: 0.0038, shellRadius: 0.0029, bulletSpeed: 0.27 },
-  ak47VolleyAttack: { bulletRadius: 0.0039, shellRadius: 0.003, bulletSpeed: 0.27 },
-  fpsGunAttack: { bulletRadius: 0.0038, shellRadius: 0.0029, bulletSpeed: 0.27 },
-  sniperShotAttack: { bulletRadius: 0.0045, shellRadius: 0.0034, bulletSpeed: 0.3 },
-  mosinMarksmanAttack: { bulletRadius: 0.0044, shellRadius: 0.0033, bulletSpeed: 0.3 },
-  shotgunBlastAttack: { bulletRadius: 0.0052, shellRadius: 0.0042, bulletSpeed: 0.18 },
-  polyShotgun01Attack: { bulletRadius: 0.005, shellRadius: 0.0041, bulletSpeed: 0.18 },
-  grenadeBlastAttack: { bulletRadius: 0.0062, shellRadius: 0.0047, bulletSpeed: 0.14 },
-  polyBazooka01Attack: { bulletRadius: 0.0072, shellRadius: 0.0052, bulletSpeed: 0.13 },
-  polyGrenadeLauncher01Attack: { bulletRadius: 0.0068, shellRadius: 0.005, bulletSpeed: 0.135 },
-  polyTank01Attack: { bulletRadius: 0.0075, shellRadius: 0.0054, bulletSpeed: 0.12 }
+  glockSidearmAttack: { caliberLabel: '9×19mm Glock round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.027, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 },
+  smithSidearmAttack: { caliberLabel: '.38 revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0034, bulletLength: 0.029, shellRadius: 0.0025, shellLength: 0.016, bulletSpeed: 0.215 },
+  sigsauerTacticalAttack: { caliberLabel: '9×19mm tactical round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.028, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 },
+  polyPistol01Attack: { caliberLabel: '9×19mm low-poly round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.027, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 },
+  polyRevolver01Attack: { caliberLabel: '.38 heavy revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0035, bulletLength: 0.03, shellRadius: 0.0026, shellLength: 0.017, bulletSpeed: 0.21 },
+  polyRevolver02Attack: { caliberLabel: '.38 silver revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0035, bulletLength: 0.03, shellRadius: 0.0026, shellLength: 0.017, bulletSpeed: 0.21 },
+  uziSprayAttack: { caliberLabel: '9×19mm Uzi round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 },
+  smgBurstAttack: { caliberLabel: '9×19mm SMG burst round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 },
+  polySmg01Attack: { caliberLabel: '9×19mm low-poly SMG round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 },
+  assaultRifleAttack: { caliberLabel: '5.56×45mm rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 },
+  ak47VolleyAttack: { caliberLabel: '7.62×39mm AK round', projectileKind: 'rifle-round', bulletRadius: 0.004, bulletLength: 0.045, shellRadius: 0.0031, shellLength: 0.023, bulletSpeed: 0.265 },
+  fpsGunAttack: { caliberLabel: '5.56×45mm tactical rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 },
+  krsvBurstAttack: { caliberLabel: '5.56×45mm KRSV round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 },
+  compactCarbineAttack: { caliberLabel: '5.56×45mm carbine round', projectileKind: 'rifle-round', bulletRadius: 0.0037, bulletLength: 0.039, shellRadius: 0.0028, shellLength: 0.02, bulletSpeed: 0.265 },
+  polyAssaultRifle01Attack: { caliberLabel: '5.56×45mm low-poly rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 },
+  sniperShotAttack: { caliberLabel: '.338 sniper round', projectileKind: 'sniper-round', bulletRadius: 0.0045, bulletLength: 0.058, shellRadius: 0.0034, shellLength: 0.027, bulletSpeed: 0.3 },
+  mosinMarksmanAttack: { caliberLabel: '7.62×54mmR marksman round', projectileKind: 'marksman-round', bulletRadius: 0.0044, bulletLength: 0.055, shellRadius: 0.0033, shellLength: 0.026, bulletSpeed: 0.3 },
+  marksmanDmrAttack: { caliberLabel: '7.62×51mm DMR round', projectileKind: 'marksman-round', bulletRadius: 0.0042, bulletLength: 0.052, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.292 },
+  shotgunBlastAttack: { caliberLabel: '12-gauge buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0034, bulletLength: 0.014, shellRadius: 0.0042, shellLength: 0.024, bulletSpeed: 0.18 },
+  polyShotgun01Attack: { caliberLabel: '12-gauge buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0033, bulletLength: 0.014, shellRadius: 0.0041, shellLength: 0.024, bulletSpeed: 0.18 },
+  polyShotgun02Attack: { caliberLabel: '12-gauge long-shell buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0034, bulletLength: 0.014, shellRadius: 0.0042, shellLength: 0.025, bulletSpeed: 0.18 },
+  polyShotgun03Attack: { caliberLabel: '12-gauge pump buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0034, bulletLength: 0.014, shellRadius: 0.0042, shellLength: 0.025, bulletSpeed: 0.18 },
+  polySawedOff01Attack: { caliberLabel: '12-gauge sawed-off buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0036, bulletLength: 0.013, shellRadius: 0.0044, shellLength: 0.023, bulletSpeed: 0.17 },
+  grenadeBlastAttack: { caliberLabel: '40mm grenade shell', projectileKind: 'explosive-warhead', bulletRadius: 0.0062, bulletLength: 0.046, shellRadius: 0.0047, shellLength: 0.03, bulletSpeed: 0.14 },
+  polyBazooka01Attack: { caliberLabel: '60mm rocket warhead', projectileKind: 'rocket-warhead', bulletRadius: 0.0072, bulletLength: 0.06, shellRadius: 0.0052, shellLength: 0.034, bulletSpeed: 0.13 },
+  polyGrenadeLauncher01Attack: { caliberLabel: '40mm launcher grenade', projectileKind: 'explosive-warhead', bulletRadius: 0.0068, bulletLength: 0.049, shellRadius: 0.005, shellLength: 0.032, bulletSpeed: 0.135 },
+  polyDynamiteBomb01Attack: { caliberLabel: 'dynamite charge', projectileKind: 'explosive-charge', bulletRadius: 0.0064, bulletLength: 0.05, shellRadius: 0.0048, shellLength: 0.03, bulletSpeed: 0.13 },
+  polyMolotov01Attack: { caliberLabel: 'molotov bottle', projectileKind: 'incendiary-bottle', bulletRadius: 0.0065, bulletLength: 0.052, shellRadius: 0.0048, shellLength: 0.03, bulletSpeed: 0.128 },
+  polyGasTank01Attack: { caliberLabel: 'gas-tank explosive canister', projectileKind: 'explosive-canister', bulletRadius: 0.007, bulletLength: 0.058, shellRadius: 0.0051, shellLength: 0.033, bulletSpeed: 0.125 },
+  polyHandGrenade01Attack: { caliberLabel: 'fragmentation hand grenade', projectileKind: 'frag-grenade', bulletRadius: 0.0066, bulletLength: 0.044, shellRadius: 0.0049, shellLength: 0.031, bulletSpeed: 0.132 },
+  polyTank01Attack: { caliberLabel: 'tank cannon shell', projectileKind: 'cannon-shell', bulletRadius: 0.0075, bulletLength: 0.068, shellRadius: 0.0054, shellLength: 0.036, bulletSpeed: 0.12 },
+  polyRobotLargeGunAttack: { caliberLabel: 'heavy robot rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0042, bulletLength: 0.047, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.255 },
+  polyRobotFlyingGunAttack: { caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 }
 });
 const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
@@ -3004,6 +3020,90 @@ function createCaptureShellCasingFx() {
   );
   root.castShadow = true;
   root.receiveShadow = true;
+  root.visible = false;
+  return root;
+}
+
+function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
+  const kind = profile.projectileKind || 'jacketed-round';
+  const radius = profile.bulletRadius || 0.0036;
+  const length = profile.bulletLength || radius * 9;
+  const metalMaterial = new THREE.MeshStandardMaterial({
+    color: kind.includes('sniper') || kind.includes('marksman') ? '#b87333' : kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? '#556b2f' : '#d9dde2',
+    metalness: kind.includes('buckshot') ? 0.72 : 0.95,
+    roughness: kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? 0.34 : 0.16
+  });
+  const root = new THREE.Group();
+  root.name = `caliber-projectile-${kind}`;
+  if (kind.includes('buckshot')) {
+    const pellet = new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 10), metalMaterial);
+    root.add(pellet);
+  } else if (kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister')) {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 0.82, length, 12), metalMaterial);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.08, length * 0.34, 12), metalMaterial);
+    const band = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 1.08, radius * 0.16, 6, 16),
+      new THREE.MeshStandardMaterial({ color: '#f59e0b', metalness: 0.82, roughness: 0.22 })
+    );
+    nose.position.y = length * 0.67;
+    band.position.y = -length * 0.18;
+    root.add(body, nose, band);
+  } else {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.84, radius, length * 0.72, 12), metalMaterial);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.02, length * 0.28, 12), metalMaterial);
+    const jacket = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 0.92, radius * 0.1, 6, 16),
+      new THREE.MeshStandardMaterial({ color: '#f6c453', metalness: 0.92, roughness: 0.18 })
+    );
+    nose.position.y = length * 0.5;
+    jacket.position.y = -length * 0.22;
+    root.add(body, nose, jacket);
+  }
+  root.userData.dispose = () => {
+    root.traverse((node) => {
+      if (!node?.isMesh) return;
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) node.material.forEach((mat) => mat?.dispose?.());
+      else node.material?.dispose?.();
+    });
+  };
+  root.visible = false;
+  return root;
+}
+
+function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
+  const root = new THREE.Mesh(
+    new THREE.CylinderGeometry(profile.shellRadius || 0.004, (profile.shellRadius || 0.004) * 0.92, profile.shellLength || 0.016, 12),
+    new THREE.MeshStandardMaterial({
+      color: (profile.projectileKind || '').includes('shotgun') || (profile.projectileKind || '').includes('buckshot') ? '#b91c1c' : '#d4a64a',
+      metalness: 0.88,
+      roughness: 0.22
+    })
+  );
+  root.name = `caliber-shell-${profile.caliberLabel || 'round'}`;
+  root.castShadow = true;
+  root.receiveShadow = true;
+  root.visible = false;
+  return root;
+}
+
+function createBulletAerodynamicRingsFx() {
+  const root = new THREE.Group();
+  const rings = Array.from({ length: 4 }, (_, idx) => {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.018 + idx * 0.006, 0.00085, 8, 42),
+      new THREE.MeshBasicMaterial({
+        color: idx % 2 === 0 ? '#dbeafe' : '#ffffff',
+        transparent: true,
+        opacity: 0.34 - idx * 0.055,
+        depthWrite: false
+      })
+    );
+    ring.position.y = -idx * 0.018;
+    root.add(ring);
+    return ring;
+  });
+  root.userData.rings = rings;
   root.visible = false;
   return root;
 }
@@ -10928,20 +11028,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           };
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
-          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaptureShellCasingFx());
-          const bulletGeometry = new THREE.SphereGeometry(mergedBallistics.bulletRadius, 10, 10);
-          const bulletMaterial = new THREE.MeshStandardMaterial({
-            color: FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId) ? '#b87333' : '#d9dde2',
-            metalness: 0.95,
-            roughness: 0.16
-          });
-          const pelletsPerShot = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? (FIREARM_SHOTGUN_IDS.has(resolvedCaptureAnimationId) ? 14 : 8) : 1;
+          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaliberShellCasingFx(mergedBallistics));
+          const pelletsPerShot = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? 14 : 1;
           const projectileCount = shots * pelletsPerShot;
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
-            const mesh = new THREE.Mesh(bulletGeometry, bulletMaterial.clone());
-            mesh.visible = false;
+            const mesh = createCaliberProjectileFx(mergedBallistics);
             mesh.castShadow = false;
             mesh.receiveShadow = false;
+            mesh.userData.caliberLabel = mergedBallistics.caliberLabel;
+            mesh.userData.projectileKind = mergedBallistics.projectileKind;
             mesh.userData.shotIndex = Math.floor(index / pelletsPerShot);
             mesh.userData.pelletIndex = index % pelletsPerShot;
             mesh.userData.spawnAt = preFireLeadMs + mesh.userData.shotIndex * cadenceMs;
@@ -10959,7 +11054,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           let chipDamageDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
           const singleShotFirearm = shots <= 1 || FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId);
-          const bulletFollowStartIndex = Math.max(0, projectileCount - (singleShotFirearm || FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? pelletsPerShot : 3));
+          const bulletFollowStartIndex = Math.max(0, projectileCount - (singleShotFirearm || FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? pelletsPerShot : 3));
+          const finalProjectileStartIndex = Math.max(0, projectileCount - pelletsPerShot);
+          const aerodynamicRings = createBulletAerodynamicRingsFx();
+          scene.add(aerodynamicRings);
+          let finalImpactDone = false;
           const aimUp = new THREE.Vector3(0, 1, 0);
           const cameraWorldUp = new THREE.Vector3(0, 1, 0);
           const cinematicAimDir = new THREE.Vector3();
@@ -11096,7 +11195,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               targetReticle.root.visible = false;
             }
             tracers.forEach((entry, idx) => {
-              const active = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId) ? idx < Math.min(tracers.length, pelletsPerShot) && shotIdx === 0 : idx <= shotIdx && idx > shotIdx - 2;
+              const active = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? idx < Math.min(tracers.length, pelletsPerShot) && shotIdx === 0 : idx <= shotIdx && idx > shotIdx - 2;
               entry.root.visible = active;
               if (!active) return;
               const spread = new THREE.Vector3(
@@ -11120,11 +11219,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 bulletMesh.visible = false;
                 return;
               }
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * 0.42;
-              const shotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * 0.82), 0, 1);
+              const isFinalProjectile = idx >= finalProjectileStartIndex;
+              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? 0.27 : 0.42);
+              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 1.08 : 0.82)), 0, 1);
+              const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
               const start = muzzleOrigin.clone();
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
-              const pelletOffset = FIREARM_PELLET_IDS.has(resolvedCaptureAnimationId)
+              const pelletOffset = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId)
                 ? new THREE.Vector3(
                   Math.cos(pelletIndex * 2.399) * mergedBallistics.tracerSpread * 0.72,
                   Math.sin(pelletIndex * 2.399) * mergedBallistics.tracerSpread * 0.36,
@@ -11133,8 +11234,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 : new THREE.Vector3();
               const end = muzzleTarget.clone().add(pelletOffset);
               const bulletPos = start.lerp(end, shotProgress);
-              bulletMesh.rotation.x += singleShotFirearm ? 0.42 : 0.22;
-              bulletMesh.rotation.y += singleShotFirearm ? 0.36 : 0.18;
+              const projectileDir = end.clone().sub(muzzleOrigin);
+              if (projectileDir.lengthSq() < 1e-7) projectileDir.set(0, 1, 0);
+              projectileDir.normalize();
+              bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
+              bulletMesh.rotateY(life * (isFinalProjectile ? 0.022 : 0.014));
+              bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
@@ -11149,6 +11254,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   tableSurfaceY,
                   profileScale: 0.38
                 });
+              }
+              if (isFinalProjectile && !finalImpactDone && shotProgress >= 0.985) {
+                finalImpactDone = true;
               }
               if (shotProgress >= 0.995) {
                 bulletMesh.userData.completed = true;
@@ -11178,6 +11286,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               cinematicPosition.addScaledVector(cameraWorldUp, singleShotFirearm ? 0.07 : 0.082);
               cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, 0.34);
               setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.72);
+              if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
+                aerodynamicRings.visible = true;
+                aerodynamicRings.position.copy(leadBulletPos);
+                aerodynamicRings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bulletDir);
+                const ringPulse = 0.82 + Math.sin(elapsed * 0.028) * 0.18;
+                aerodynamicRings.userData.rings?.forEach((ring, ringIdx) => {
+                  ring.rotation.z += 0.08 + ringIdx * 0.018;
+                  ring.scale.setScalar(ringPulse + ringIdx * 0.08);
+                  ring.material.opacity = clamp((0.34 - ringIdx * 0.055) * (1 - Math.max(0, (elapsedShooting - shots * cadenceMs) / 420)), 0, 0.42);
+                });
+              } else {
+                aerodynamicRings.visible = false;
+              }
+            } else {
+              aerodynamicRings.visible = false;
             }
             shells.forEach((shell, idx) => {
               const shellState = shellStates[idx];
@@ -11213,7 +11336,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               shell.rotation.z += 0.28;
             });
             const impactPhase = clamp((elapsedShooting - shots * cadenceMs * 0.72) / Math.max(140, shots * cadenceMs * 0.28), 0, 1);
-            if (!shatterDone && impactPhase >= 0.92) {
+            if (!shatterDone && (finalImpactDone || impactPhase >= 0.98)) {
               shatterDone = true;
               playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
@@ -11245,11 +11368,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, targetReticle.root, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
+            [muzzleFx.root, targetReticle.root, aerodynamicRings, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
-            bulletGeometry.dispose();
-            bulletMaterial.dispose();
+            bullets.forEach((bullet) => bullet?.userData?.dispose?.());
             handWeaponAttachment?.release?.();
             dynamicFirearmCameraRef.current = false;
             firearmCinematicCameraPoseRef.current = null;
