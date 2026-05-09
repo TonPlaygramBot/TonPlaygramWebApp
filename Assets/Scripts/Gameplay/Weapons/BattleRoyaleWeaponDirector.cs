@@ -32,7 +32,8 @@ namespace TonPlaygram.Gameplay.Weapons
         Rocket,
         Missile,
         Grenade,
-        Pellet
+        Pellet,
+        Explosion
     }
 
     [Serializable]
@@ -74,6 +75,12 @@ namespace TonPlaygram.Gameplay.Weapons
         public float roundsPerSecond = 10f;
         public float muzzleVelocity = 220f;
         public float spread = 0.012f;
+        [Tooltip("Clear player-facing ammo label for this weapon, e.g. 7.62x39mm rifle round or 40mm HE grenade.")]
+        public string ammoLabel;
+        [Tooltip("Clear player-facing casing/shell label ejected by this weapon.")]
+        public string spentCasingLabel;
+        [Tooltip("Short descriptor used by VFX/debug UI to distinguish bullets, pellets, missiles, and explosive payloads.")]
+        public string impactDescriptor;
         public float bulletScale = 1f;
         public float shellScale = 1f;
         public bool usesPellets = false;
@@ -86,6 +93,19 @@ namespace TonPlaygram.Gameplay.Weapons
         public GameObject shellPrefab;
         public AudioClip shotSfx;
         public bool requiresAerialStrike;
+        [Tooltip("Optional authored impact or explosion prefab. Explosive weapons get a procedural fallback if empty.")]
+        public GameObject impactVfxPrefab;
+        [Tooltip("Explosion radius used for grenades, missiles, rockets, aircraft strikes, and procedural fallback VFX.")]
+        public float explosionRadius = 0f;
+        [Tooltip("Speed multiplier only for the final projectile so the kill shot reads clearly on portrait mobile.")]
+        [Range(0.15f, 1f)] public float finalShotSpeedMultiplier = 0.46f;
+        [Tooltip("Final projectile spin, in degrees per second, to expose the bullet breaking the air.")]
+        public float finalShotSpinDegreesPerSecond = 1320f;
+        [Tooltip("Optional ring prefab spawned around the final bullet. If empty, a lightweight procedural line ring is used.")]
+        public GameObject finalShotAirRingPrefab;
+        public float finalShotAirRingInterval = 0.045f;
+        public float finalShotAirRingLifetime = 0.18f;
+        public float finalShotAirRingRadius = 0.055f;
         public ProjectileVisualRole projectileRole = ProjectileVisualRole.Bullet;
         public ProjectileVisualRole spentCasingRole = ProjectileVisualRole.Shell;
         public WeaponGripPoseProfile gripPose = new WeaponGripPoseProfile();
@@ -239,6 +259,74 @@ namespace TonPlaygram.Gameplay.Weapons
             return true;
         }
 
+        private static void ApplyWeaponAmmoDefaults(WeaponBallisticsProfile weapon)
+        {
+            if (weapon == null)
+                return;
+
+            switch (weapon.weaponType)
+            {
+                case LudoWeaponType.Pistol:
+                    SetAmmoDefaults(weapon, "9x19mm pistol round", "9x19mm brass casing", "compact pistol bullet", ProjectileVisualRole.Bullet, ProjectileVisualRole.Shell, false, 1, 0f, 0.82f, 0.78f, 0.52f);
+                    break;
+                case LudoWeaponType.SMG:
+                    SetAmmoDefaults(weapon, "9x19mm SMG round", "9x19mm brass casing", "fast SMG bullet", ProjectileVisualRole.Bullet, ProjectileVisualRole.Shell, false, 1, 0f, 0.78f, 0.74f, 0.48f);
+                    break;
+                case LudoWeaponType.Rifle:
+                    SetAmmoDefaults(weapon, "7.62x39mm rifle round", "7.62 rifle brass casing", "rifle bullet", ProjectileVisualRole.Bullet, ProjectileVisualRole.Shell, false, 1, 0f, 1f, 1f, 0.44f);
+                    break;
+                case LudoWeaponType.Sniper:
+                    SetAmmoDefaults(weapon, ".308 sniper round", ".308 long brass casing", "heavy sniper bullet", ProjectileVisualRole.Bullet, ProjectileVisualRole.Shell, false, 1, 0f, 1.18f, 1.15f, 0.38f);
+                    break;
+                case LudoWeaponType.Shotgun:
+                    SetAmmoDefaults(weapon, "12 gauge buckshot", "12 gauge red hull", "separate buckshot pellets", ProjectileVisualRole.Pellet, ProjectileVisualRole.Shell, true, Mathf.Max(8, weapon.pelletsPerShot), 0f, 0.22f, 1.25f, 0.5f);
+                    weapon.pelletSpread = Mathf.Max(weapon.pelletSpread, 0.045f);
+                    break;
+                case LudoWeaponType.GrenadeLauncher:
+                    SetAmmoDefaults(weapon, "40mm HE grenade", "40mm launcher shell", "grenade explosion", ProjectileVisualRole.Grenade, ProjectileVisualRole.Shell, false, 1, Mathf.Max(1.6f, weapon.explosionRadius), 1.35f, 1.2f, 0.42f);
+                    break;
+                case LudoWeaponType.SideMissile:
+                    SetAmmoDefaults(weapon, "guided side missile", "missile launch tube", "missile explosion", ProjectileVisualRole.Missile, ProjectileVisualRole.Rocket, false, 1, Mathf.Max(2.4f, weapon.explosionRadius), 1.7f, 1.5f, 0.4f);
+                    break;
+                case LudoWeaponType.StrikeDrone:
+                    SetAmmoDefaults(weapon, "drone micro missile", "drone launch pod", "drone missile blast", ProjectileVisualRole.Missile, ProjectileVisualRole.Rocket, false, 1, Mathf.Max(2.1f, weapon.explosionRadius), 1.45f, 1.25f, 0.4f);
+                    break;
+                case LudoWeaponType.AttackHelicopter:
+                    SetAmmoDefaults(weapon, "70mm helicopter rocket", "rocket pod exhaust", "helicopter rocket blast", ProjectileVisualRole.Rocket, ProjectileVisualRole.Rocket, false, 1, Mathf.Max(2.8f, weapon.explosionRadius), 1.65f, 1.35f, 0.42f);
+                    break;
+                case LudoWeaponType.StrikeJet:
+                    SetAmmoDefaults(weapon, "air-to-ground missile", "jet hardpoint release", "jet strike explosion", ProjectileVisualRole.Missile, ProjectileVisualRole.Rocket, false, 1, Mathf.Max(3.2f, weapon.explosionRadius), 1.9f, 1.45f, 0.38f);
+                    break;
+            }
+        }
+
+        private static void SetAmmoDefaults(WeaponBallisticsProfile weapon, string ammoLabel, string casingLabel, string impactDescriptor, ProjectileVisualRole projectileRole, ProjectileVisualRole casingRole, bool usesPellets, int pelletsPerShot, float explosionRadius, float bulletScale, float shellScale, float finalSpeedMultiplier)
+        {
+            if (string.IsNullOrWhiteSpace(weapon.ammoLabel))
+            {
+                weapon.ammoLabel = ammoLabel;
+            }
+
+            if (string.IsNullOrWhiteSpace(weapon.spentCasingLabel))
+            {
+                weapon.spentCasingLabel = casingLabel;
+            }
+
+            if (string.IsNullOrWhiteSpace(weapon.impactDescriptor))
+            {
+                weapon.impactDescriptor = impactDescriptor;
+            }
+
+            weapon.projectileRole = projectileRole;
+            weapon.spentCasingRole = casingRole;
+            weapon.usesPellets = usesPellets;
+            weapon.pelletsPerShot = usesPellets ? Mathf.Max(1, pelletsPerShot) : 1;
+            weapon.explosionRadius = Mathf.Max(weapon.explosionRadius, explosionRadius);
+            weapon.bulletScale = Mathf.Approximately(weapon.bulletScale, 1f) ? bulletScale : weapon.bulletScale;
+            weapon.shellScale = Mathf.Approximately(weapon.shellScale, 1f) ? shellScale : weapon.shellScale;
+            weapon.finalShotSpeedMultiplier = Mathf.Clamp(weapon.finalShotSpeedMultiplier <= 0f ? finalSpeedMultiplier : Mathf.Min(weapon.finalShotSpeedMultiplier, finalSpeedMultiplier), 0.15f, 1f);
+        }
+
         private static void PlayWeaponEquipAnimation(WeaponBallisticsProfile weapon)
         {
             WeaponGripPoseProfile gripPose = weapon != null ? weapon.gripPose : null;
@@ -314,8 +402,10 @@ namespace TonPlaygram.Gameplay.Weapons
 
                 bool isLeadPellet = pelletIndex == 0;
                 bool shouldFollowBullet = isLeadPellet && (followAllBullets || isLastBullet || weapon.usesPellets);
-                bullet.Initialize(pelletDirection * weapon.muzzleVelocity, this, weapon.weaponType, shotIndex, pelletIndex, isLastBullet, shouldFollowBullet, weapon.impactFollowSeconds);
-                BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, pelletDirection * weapon.muzzleVelocity);
+                float velocityMultiplier = isLastBullet && isLeadPellet ? Mathf.Clamp(weapon.finalShotSpeedMultiplier, 0.15f, 1f) : 1f;
+                Vector3 projectileVelocity = pelletDirection * weapon.muzzleVelocity * velocityMultiplier;
+                bullet.Initialize(projectileVelocity, this, weapon.weaponType, weapon.projectileRole, shotIndex, pelletIndex, isLastBullet && isLeadPellet, shouldFollowBullet, weapon.impactFollowSeconds, weapon.finalShotSpinDegreesPerSecond, weapon.finalShotAirRingPrefab, weapon.finalShotAirRingInterval, weapon.finalShotAirRingLifetime, weapon.finalShotAirRingRadius);
+                BroadcastProjectileSpawned(weapon.weaponType, shotIndex, pelletIndex, muzzle.position, projectileVelocity);
                 if (shouldFollowBullet)
                 {
                     StartBulletFollowCamera(bullet.transform, shotIndex == totalShots - 1 ? weapon.impactFollowSeconds : Mathf.Min(weapon.impactFollowSeconds, 0.35f));
@@ -405,20 +495,78 @@ namespace TonPlaygram.Gameplay.Weapons
 
         public void OnBulletImpact(Vector3 point, bool isLastBullet)
         {
-            OnBulletImpact(point, Vector3.zero, isLastBullet);
+            OnBulletImpact(_activeWeapon != null ? _activeWeapon.weaponType : startingWeapon, point, Vector3.zero, isLastBullet);
         }
 
         public void OnBulletImpact(Vector3 point, Vector3 incomingVelocity, bool isLastBullet)
         {
+            OnBulletImpact(_activeWeapon != null ? _activeWeapon.weaponType : startingWeapon, point, incomingVelocity, isLastBullet);
+        }
+
+        public void OnBulletImpact(LudoWeaponType weaponType, Vector3 point, Vector3 incomingVelocity, bool isLastBullet)
+        {
+            _profiles.TryGetValue(weaponType, out var impactWeapon);
             ApplyProgressiveDamage(point, incomingVelocity, isLastBullet);
+            SpawnImpactEffect(impactWeapon, point, incomingVelocity);
             if (isLastBullet)
             {
                 StartFinalImpactCamera(point);
                 for (int i = 0; i < _eventListeners.Length; i++)
                 {
-                    _eventListeners[i].OnFinalImpact(_activeWeapon.weaponType, point);
+                    if (impactWeapon != null)
+                    {
+                        _eventListeners[i].OnFinalImpact(impactWeapon.weaponType, point);
+                    }
                 }
             }
+        }
+
+        private void SpawnImpactEffect(WeaponBallisticsProfile weapon, Vector3 point, Vector3 incomingVelocity)
+        {
+            if (weapon == null)
+                return;
+
+            bool explosive = IsExplosiveProjectile(weapon.projectileRole) || weapon.explosionRadius > 0.01f;
+            if (!explosive && weapon.impactVfxPrefab == null)
+                return;
+
+            Quaternion rotation = incomingVelocity.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(-incomingVelocity.normalized, Vector3.up)
+                : Quaternion.identity;
+
+            if (weapon.impactVfxPrefab != null)
+            {
+                GameObject impact = Instantiate(weapon.impactVfxPrefab, point, rotation);
+                Destroy(impact, Mathf.Max(0.4f, weapon.impactFollowSeconds));
+                return;
+            }
+
+            GameObject proceduralBlast = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            proceduralBlast.name = $"BR_{weapon.weaponType}_{weapon.ammoLabel}_Explosion";
+            proceduralBlast.transform.position = point;
+            float radius = Mathf.Max(0.6f, weapon.explosionRadius);
+            proceduralBlast.transform.localScale = Vector3.one * radius;
+            Collider blastCollider = proceduralBlast.GetComponent<Collider>();
+            if (blastCollider != null)
+            {
+                Destroy(blastCollider);
+            }
+
+            Renderer renderer = proceduralBlast.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                renderer.material.color = new Color(1f, 0.52f, 0.08f, 0.45f);
+            }
+
+            Destroy(proceduralBlast, 0.22f);
+        }
+
+        private static bool IsExplosiveProjectile(ProjectileVisualRole role)
+        {
+            return role == ProjectileVisualRole.Grenade
+                || role == ProjectileVisualRole.Missile
+                || role == ProjectileVisualRole.Rocket
+                || role == ProjectileVisualRole.Explosion;
         }
 
         public void BroadcastProjectileUpdated(LudoWeaponType weaponType, int shotIndex, int pelletIndex, Vector3 position, Vector3 velocity)
@@ -723,6 +871,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 if (profile == null)
                     continue;
 
+                ApplyWeaponAmmoDefaults(profile);
                 _profiles[profile.weaponType] = profile;
             }
         }
@@ -793,27 +942,46 @@ namespace TonPlaygram.Gameplay.Weapons
         private float _life;
         private bool _isLastBullet;
         private LudoWeaponType _weaponType;
+        private ProjectileVisualRole _projectileRole;
         private int _shotIndex;
         private int _pelletIndex;
         private bool _impactSent;
         private BattleRoyaleWeaponDirector _director;
         private float _broadcastTick;
+        private float _spinDegreesPerSecond;
+        private GameObject _airRingPrefab;
+        private float _airRingInterval;
+        private float _airRingLifetime;
+        private float _airRingRadius;
+        private float _airRingTick;
 
-        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, LudoWeaponType weaponType, int shotIndex, int pelletIndex, bool isLastBullet, bool _followByCamera, float followSeconds)
+        public void Initialize(Vector3 velocity, BattleRoyaleWeaponDirector director, LudoWeaponType weaponType, ProjectileVisualRole projectileRole, int shotIndex, int pelletIndex, bool isLastBullet, bool _followByCamera, float followSeconds, float spinDegreesPerSecond, GameObject airRingPrefab, float airRingInterval, float airRingLifetime, float airRingRadius)
         {
             _velocity = velocity;
             _director = director;
             _weaponType = weaponType;
+            _projectileRole = projectileRole;
             _shotIndex = shotIndex;
             _pelletIndex = pelletIndex;
             _isLastBullet = isLastBullet;
             _life = Mathf.Max(1.2f, followSeconds + 0.55f);
             _broadcastTick = 0f;
+            _spinDegreesPerSecond = spinDegreesPerSecond;
+            _airRingPrefab = airRingPrefab;
+            _airRingInterval = Mathf.Max(0.02f, airRingInterval);
+            _airRingLifetime = Mathf.Max(0.05f, airRingLifetime);
+            _airRingRadius = Mathf.Max(0.01f, airRingRadius);
         }
 
         private void Update()
         {
             transform.position += _velocity * Time.deltaTime;
+            if (_isLastBullet)
+            {
+                transform.Rotate(Vector3.forward, _spinDegreesPerSecond * Time.deltaTime, Space.Self);
+                SpawnAirBreakRing();
+            }
+
             _broadcastTick += Time.deltaTime;
             if (_broadcastTick >= 0.033f)
             {
@@ -827,6 +995,41 @@ namespace TonPlaygram.Gameplay.Weapons
             }
         }
 
+        private void SpawnAirBreakRing()
+        {
+            _airRingTick += Time.deltaTime;
+            if (_airRingTick < _airRingInterval)
+                return;
+
+            _airRingTick = 0f;
+            if (_airRingPrefab != null)
+            {
+                GameObject ring = Instantiate(_airRingPrefab, transform.position, transform.rotation);
+                ring.transform.localScale *= _airRingRadius;
+                Destroy(ring, _airRingLifetime);
+                return;
+            }
+
+            GameObject ringObj = new GameObject($"BR_{_weaponType}_{_projectileRole}_AirRing");
+            ringObj.transform.position = transform.position;
+            ringObj.transform.rotation = transform.rotation;
+            LineRenderer line = ringObj.AddComponent<LineRenderer>();
+            line.loop = true;
+            line.useWorldSpace = false;
+            line.positionCount = 24;
+            line.widthMultiplier = 0.006f;
+            line.material = new Material(Shader.Find("Sprites/Default"));
+            line.startColor = new Color(0.74f, 0.92f, 1f, 0.58f);
+            line.endColor = new Color(0.74f, 0.92f, 1f, 0.04f);
+            for (int i = 0; i < line.positionCount; i++)
+            {
+                float angle = (Mathf.PI * 2f * i) / line.positionCount;
+                line.SetPosition(i, new Vector3(Mathf.Cos(angle) * _airRingRadius, Mathf.Sin(angle) * _airRingRadius, 0f));
+            }
+
+            Destroy(ringObj, _airRingLifetime);
+        }
+
         private void OnTriggerEnter(Collider other)
         {
             if (_impactSent)
@@ -834,7 +1037,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
             _impactSent = true;
             _director?.BroadcastProjectileImpact(_weaponType, _shotIndex, _pelletIndex, transform.position);
-            _director?.OnBulletImpact(transform.position, _velocity, _isLastBullet);
+            _director?.OnBulletImpact(_weaponType, transform.position, _velocity, _isLastBullet);
             Destroy(gameObject);
         }
     }
