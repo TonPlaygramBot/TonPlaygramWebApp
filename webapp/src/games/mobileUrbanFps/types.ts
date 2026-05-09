@@ -1,6 +1,7 @@
 import type { Vector3 } from 'three';
 
 export type GamePhase = 'playing' | 'won' | 'lost';
+export type VehicleMode = 'onFoot' | 'helicopter';
 export type EnemyAiState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
 
 export type TouchInputState = {
