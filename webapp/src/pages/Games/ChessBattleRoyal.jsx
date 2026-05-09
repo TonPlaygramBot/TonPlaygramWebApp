@@ -406,8 +406,8 @@ const CHAIR_SCALE = 0.96 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.1; // Slightly widen/deepen chairs so they read larger in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.5 * MODEL_SCALE; // Pull local bottom chair/human closer toward the table for portrait readability.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.34 * MODEL_SCALE; // Pull opponent chair/human closer toward the table too.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.38 * MODEL_SCALE; // Pull local bottom chair/human closer to the table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = -0.24 * MODEL_SCALE; // Pull opponent chair/human closer to the table too.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -434,10 +434,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(22); // keep portrait 3D camera higher while still showing depth toward the table.
-const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 1.25; // aim higher so the 3D camera looks up across avatars and weapons.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 1.12; // widen portrait 3D view so table, chairs, avatars, board, and pieces stay visible.
-const CAMERA_PORTRAIT_3D_FOV_BOOST = 8; // extra mobile portrait width without changing 2D framing.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(20); // high diagonal angle close to 2D while still showing depth toward the opponent.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -2646,10 +2644,10 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 12.5; // keep parked weapons visible but closer to human scale.
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.9; // keep parked weapons on visible parking pads near the table.
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.55; // keep parking slots readable without pushing weapons too far apart.
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
 
 function getTableHeightForShape(shapeId) {
@@ -7731,25 +7729,16 @@ function Chess3D({
       if (!optionId) return;
       const targetKind = weaponSwapTargetKind;
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
-      const optionKind = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[optionId] || (FIREARM_CAPTURE_ANIMATION_IDS.has(optionId) ? 'firearm' : null);
-      const optionGroup = optionKind ? PIECE_GROUP_BY_PARKED_KIND[optionKind] : null;
-      setCaptureAnimationByPieceGroup((prev) => {
-        if (targetGroup) return { ...prev, [targetGroup]: optionId };
-        if (optionGroup) return { ...prev, [optionGroup]: optionId };
-        return {
-          ...prev,
-          kingQueen: optionId,
-          bishopRook: optionId,
-          knight: optionId,
-          pawn: optionId
-        };
-      });
-      setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
-      setInventoryVersion((version) => version + 1);
+      if (targetGroup) {
+        setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
+      }
+      if (optionId !== selectedCaptureAnimationId) {
+        setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
+      }
       setWeaponSwapOpen(false);
       setWeaponSwapTargetKind(null);
     },
-    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, weaponSwapTargetKind]
+    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
   );
   const quickSwapWeaponList = useMemo(() => {
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
@@ -7844,8 +7833,7 @@ function Chess3D({
     targetPitch: -0.28,
     fixedPosition: null,
     lastPointerX: null,
-    lastPointerY: null,
-    pointerStartedOnBoard: false
+    lastPointerY: null
   });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -9778,19 +9766,11 @@ function Chess3D({
       cameraTweenRef.current = requestAnimationFrame(tick);
     };
 
-    const syncCameraProjectionForView = () => {
-      const portrait = host.clientHeight > host.clientWidth;
-      camera.fov = CAM.fov + (portrait && viewModeRef.current === '3d' ? CAMERA_PORTRAIT_3D_FOV_BOOST : 0);
-      camera.updateProjectionMatrix();
-    };
-
     const cameraMemory = { last3d: null };
 
     const setViewModeInternal = (mode) => {
       if (!controls) return;
       const requestedMode = mode;
-      viewModeRef.current = requestedMode;
-      syncCameraProjectionForView();
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
@@ -9859,20 +9839,14 @@ function Chess3D({
           isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        const targetPosition = boardLookTarget.clone().add(new THREE.Vector3().setFromSpherical(target));
-        const lockedLookTarget = boardLookTarget
-          .clone()
-          .addScaledVector(WORLD_UP, isForcedCapture3dView ? 0 : CAMERA_LOCKED_3D_LOOK_TARGET_LIFT);
-        const lookDir = lockedLookTarget.sub(targetPosition).normalize();
+        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
         locked3dViewRef.current.targetPitch = pitch;
-        locked3dViewRef.current.fixedPosition = isForcedCapture3dView ? null : targetPosition;
-        locked3dViewRef.current.activeLook = false;
-        locked3dViewRef.current.pointerStartedOnBoard = false;
+        locked3dViewRef.current.activeLook = !isForcedCapture3dView;
         animateCameraTo(target, 420);
       }
     };
@@ -9892,7 +9866,7 @@ function Chess3D({
       const renderH = Math.max(1, Math.round(h * renderScale));
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
-      syncCameraProjectionForView();
+      camera.updateProjectionMatrix();
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       if (viewModeRef.current === '2d') {
@@ -11695,15 +11669,9 @@ function Chess3D({
 
     const airPadGroup = new THREE.Group();
     boardVisualGroup.add(airPadGroup);
-    const addAirPadMarker = (position, label = 'J', parkedWeaponKind = null, isWhiteSide = true) => {
+    const addAirPadMarker = (position, label = 'J') => {
       const marker = new THREE.Group();
       marker.position.copy(position);
-      marker.userData = {
-        type: 'parkedWeapon',
-        parkedWeaponKind,
-        parkedIsWhite: isWhiteSide,
-        isParkingPad: true
-      };
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(tile * 0.32, tile * 0.036, 10, 36),
         new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.45, roughness: 0.34 })
@@ -11716,14 +11684,6 @@ function Chess3D({
       );
       plate.rotation.x = -Math.PI / 2;
       marker.add(plate);
-      const hitPad = new THREE.Mesh(
-        new THREE.CircleGeometry(tile * 0.56, 28),
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
-      );
-      hitPad.rotation.x = -Math.PI / 2;
-      hitPad.position.y = tile * 0.035;
-      hitPad.userData = marker.userData;
-      marker.add(hitPad);
       const spriteCanvas = document.createElement('canvas');
       spriteCanvas.width = 128;
       spriteCanvas.height = 128;
@@ -11746,14 +11706,14 @@ function Chess3D({
       marker.add(text);
       airPadGroup.add(marker);
     };
-    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J', 'jet', true);
-    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D', 'drone', true);
-    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H', 'helicopter', true);
-    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T', 'truck', true);
-    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J', 'jet', false);
-    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D', 'drone', false);
-    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H', 'helicopter', false);
-    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T', 'truck', false);
+    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
+    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
     // Tiles
     const tiles = [];
@@ -13232,43 +13192,16 @@ function Chess3D({
       return null;
     };
 
-    const pickParkedWeaponFromPointer = (event) => {
-      setPointer(event);
-      ray.setFromCamera(pointer, camera);
-      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
-      for (const hit of parkedIntersects) {
-        let node = hit.object;
-        while (node) {
-          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
-            return {
-              object: node,
-              point: hit.point,
-              parkedWeaponKind: node.userData.parkedWeaponKind
-            };
-          }
-          node = node.parent;
-        }
-      }
-      return null;
-    };
-
     const onPointerDown = (event) => {
       if (viewModeRef.current === 'fpv') {
         firstPersonViewRef.current.activeLook = true;
         return;
       }
-      if (viewModeRef.current === '3d') {
-        const locked = locked3dViewRef.current;
-        const parkedHit = pickParkedWeaponFromPointer(event);
-        const boardHit = pickBoardObject(event);
-        locked.pointerStartedOnBoard = Boolean(boardHit || parkedHit);
-        if (!locked.pointerStartedOnBoard) {
-          locked.activeLook = true;
-          locked.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
-          locked.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
-          if (controls) controls.enabled = false;
-          return;
-        }
+      if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
+        locked3dViewRef.current.activeLook = true;
+        locked3dViewRef.current.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
+        locked3dViewRef.current.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
+        return;
       }
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
@@ -13333,12 +13266,10 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
-      locked3dViewRef.current.activeLook = false;
+      locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
       locked3dViewRef.current.lastPointerX = null;
       locked3dViewRef.current.lastPointerY = null;
-      const locked3dPointerStartedOnBoard = locked3dViewRef.current.pointerStartedOnBoard;
-      locked3dViewRef.current.pointerStartedOnBoard = false;
-      if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && !locked3dPointerStartedOnBoard)) return;
+      if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
       if (!dragState.active) return;
@@ -13404,15 +13335,21 @@ function Chess3D({
     onClick = function onClick(e) {
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
-      const parkedWeaponHit = pickParkedWeaponFromPointer(e);
-      if (parkedWeaponHit?.parkedWeaponKind) {
-        setWeaponSwapTargetKind(parkedWeaponHit.parkedWeaponKind);
-        setWeaponSwapOpen(true);
-        return;
-      }
       if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
+      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
+      for (const hit of parkedIntersects) {
+        let node = hit.object;
+        while (node) {
+          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
+            setWeaponSwapTargetKind(node.userData.parkedWeaponKind);
+            setWeaponSwapOpen(true);
+            return;
+          }
+          node = node.parent;
+        }
+      }
       const intersects = ray.intersectObjects(boardGroup.children, true);
       let obj = null;
       for (const i of intersects) {
@@ -14207,7 +14144,7 @@ function Chess3D({
           mesh.visible = true;
         });
       }
-      const locked3dEnabled = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
+      const locked3dEnabled = viewModeRef.current === '3d' && locked3dViewRef.current.activeLook;
       if (locked3dEnabled) {
         const locked = locked3dViewRef.current;
         if (!locked.fixedPosition) {
@@ -14224,9 +14161,7 @@ function Chess3D({
         camera.lookAt(camera.position.clone().add(dir.multiplyScalar(8)));
         controls.enabled = false;
       } else if (controls && !fpvEnabled) {
-        if (viewModeRef.current !== '3d') {
-          locked3dViewRef.current.fixedPosition = null;
-        }
+        locked3dViewRef.current.fixedPosition = null;
         controls.enabled = true;
       }
 
@@ -14408,18 +14343,6 @@ function Chess3D({
         </div>
         <div className="fixed right-3 bottom-[10.4rem] z-50 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-2">
-            {!weaponSwapOpen && (
-              <button
-                type="button"
-                onClick={() => {
-                  setWeaponSwapTargetKind(null);
-                  setWeaponSwapOpen(true);
-                }}
-                className="rounded-full border border-sky-300/40 bg-sky-500/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-sky-100 shadow-xl backdrop-blur transition hover:border-sky-200/70 hover:bg-sky-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
-              >
-                Weapons
-              </button>
-            )}
             {weaponSwapOpen && (
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <div className="flex items-center justify-between px-2 pb-2">
