@@ -8,31 +8,288 @@
     "weapons": "https://poly.pizza/search/weapon"
   },
   "tankCandidates": [
-    { "name": "Tank", "creator": "Zsky", "sourceUrl": "https://poly.pizza/m/7GG1xDtc8l", "license": "Creative Commons Attribution", "format": "FBX/GLTF" },
-    { "name": "Tank", "creator": "KolosStudios", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Tank", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Tank", "creator": "Poly by Google", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Tank", "creator": "Zayn", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Light Tank", "creator": "Zsky", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Tank", "creator": "SomeoneUnknown", "sourceUrl": "https://poly.pizza/search/tank" },
-    { "name": "Pickup Tank", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/search/tank" }
+    {
+      "name": "Tank",
+      "creator": "Zsky",
+      "sourceUrl": "https://poly.pizza/m/7GG1xDtc8l",
+      "license": "Creative Commons Attribution",
+      "format": "FBX/GLTF"
+    },
+    {
+      "name": "Tank",
+      "creator": "KolosStudios",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Tank",
+      "creator": "Quaternius",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Tank",
+      "creator": "Poly by Google",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Tank",
+      "creator": "Zayn",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Light Tank",
+      "creator": "Zsky",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Tank",
+      "creator": "SomeoneUnknown",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    },
+    {
+      "name": "Pickup Tank",
+      "creator": "Quaternius",
+      "sourceUrl": "https://poly.pizza/search/tank"
+    }
   ],
   "projectileCandidates": [
-    { "name": "Bullet", "creator": "Poly by Google", "role": "Bullet", "weaponTypes": ["Rifle", "SMG", "Sniper"] },
-    { "name": "7.62x39mm", "creator": "J-Toastie", "role": "Bullet", "weaponTypes": ["Rifle"] },
-    { "name": "9x19mm", "creator": "J-Toastie", "role": "Bullet", "weaponTypes": ["Pistol", "SMG"] },
-    { "name": "Shotgun rounds", "creator": "Poly by Google", "role": "Shell", "weaponTypes": ["Shotgun"] },
-    { "name": "Bullet Cartridge (Glock)", "creator": "Reprdev", "role": "Shell", "weaponTypes": ["Pistol"] },
-    { "name": "Pistol Ammo", "creator": "CreativeTrio", "role": "Shell", "weaponTypes": ["Pistol"] },
-    { "name": "Missile", "creator": "Poly by Google", "role": "Missile", "weaponTypes": ["SideMissile", "StrikeJet", "AttackHelicopter"] },
-    { "name": "Ammo Grenade Launcher", "creator": "CreativeTrio", "role": "Grenade", "weaponTypes": ["GrenadeLauncher"] }
+    {
+      "name": "Bullet",
+      "creator": "Poly by Google",
+      "role": "Bullet",
+      "weaponTypes": [
+        "Rifle",
+        "SMG",
+        "Sniper"
+      ]
+    },
+    {
+      "name": "7.62x39mm",
+      "creator": "J-Toastie",
+      "role": "Bullet",
+      "weaponTypes": [
+        "Rifle"
+      ]
+    },
+    {
+      "name": "9x19mm",
+      "creator": "J-Toastie",
+      "role": "Bullet",
+      "weaponTypes": [
+        "Pistol",
+        "SMG"
+      ]
+    },
+    {
+      "name": "Shotgun rounds",
+      "creator": "Poly by Google",
+      "role": "Shell",
+      "weaponTypes": [
+        "Shotgun"
+      ]
+    },
+    {
+      "name": "Bullet Cartridge (Glock)",
+      "creator": "Reprdev",
+      "role": "Shell",
+      "weaponTypes": [
+        "Pistol"
+      ]
+    },
+    {
+      "name": "Pistol Ammo",
+      "creator": "CreativeTrio",
+      "role": "Shell",
+      "weaponTypes": [
+        "Pistol"
+      ]
+    },
+    {
+      "name": "Missile",
+      "creator": "Poly by Google",
+      "role": "Missile",
+      "weaponTypes": [
+        "SideMissile",
+        "StrikeJet",
+        "AttackHelicopter"
+      ]
+    },
+    {
+      "name": "Ammo Grenade Launcher",
+      "creator": "CreativeTrio",
+      "role": "Grenade",
+      "weaponTypes": [
+        "GrenadeLauncher"
+      ]
+    }
   ],
   "animationCandidates": [
-    { "name": "Fps Rig AKM", "creator": "J-Toastie", "weaponTypes": ["Rifle", "SMG"] },
-    { "name": "Fps Rig", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun"] },
-    { "name": "Rigged Fps Arms", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun", "Sniper"] },
-    { "name": "Animated Pistol", "creator": "Quaternius", "weaponTypes": ["Pistol"] },
-    { "name": "Rigged Glock", "creator": "J-Toastie", "weaponTypes": ["Pistol"] },
-    { "name": "Rigged Desert Eagle", "creator": "PuKkBuMXDD", "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX", "weaponTypes": ["Pistol"] }
-  ]
+    {
+      "name": "Fps Rig AKM",
+      "creator": "J-Toastie",
+      "weaponTypes": [
+        "Rifle",
+        "SMG"
+      ]
+    },
+    {
+      "name": "Fps Rig",
+      "creator": "J-Toastie",
+      "weaponTypes": [
+        "Rifle",
+        "Pistol",
+        "Shotgun"
+      ]
+    },
+    {
+      "name": "Rigged Fps Arms",
+      "creator": "J-Toastie",
+      "weaponTypes": [
+        "Rifle",
+        "Pistol",
+        "Shotgun",
+        "Sniper"
+      ]
+    },
+    {
+      "name": "Animated Pistol",
+      "creator": "Quaternius",
+      "weaponTypes": [
+        "Pistol"
+      ]
+    },
+    {
+      "name": "Rigged Glock",
+      "creator": "J-Toastie",
+      "weaponTypes": [
+        "Pistol"
+      ]
+    },
+    {
+      "name": "Rigged Desert Eagle",
+      "creator": "PuKkBuMXDD",
+      "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX",
+      "weaponTypes": [
+        "Pistol"
+      ]
+    }
+  ],
+  "handgunGripReference": {
+    "name": "Fps Rig",
+    "creator": "J-Toastie",
+    "sourceUrl": "https://poly.pizza/m/uxko5LkGia",
+    "license": "Creative Commons Attribution",
+    "usage": "Hidden reference only; visible mesh is not spawned. Use right/left wrist anchors and handgun orientation to calibrate human hands for sidearms."
+  },
+  "requestedWeaponStoreImports": [
+    {
+      "name": "Assault Rifle",
+      "creator": "Quaternius",
+      "sourceUrl": "https://poly.pizza/m/Bgvuu4CUMV",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Rifle"
+    },
+    {
+      "name": "Rigged Glock 19",
+      "creator": "PuKkBuMXDD",
+      "sourceUrl": "https://poly.pizza/m/gDhOo5jkNX",
+      "license": "Creative Commons Attribution",
+      "weaponType": "Pistol"
+    },
+    {
+      "name": "Rigged Desert Eagle",
+      "creator": "PuKkBuMXDD",
+      "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX",
+      "license": "Creative Commons Attribution",
+      "weaponType": "Pistol"
+    },
+    {
+      "name": "Sniper Rifle",
+      "creator": "Quaternius",
+      "sourceUrl": "https://poly.pizza/m/i65hEldsw6",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Sniper"
+    },
+    {
+      "name": "Rifle",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/zBATGslN2h",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Rifle"
+    },
+    {
+      "name": "Submachine Gun",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/fQmBw1vNsl",
+      "license": "Public Domain (CC0)",
+      "weaponType": "SMG"
+    },
+    {
+      "name": "Hand Grenade",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/YWhHlmKOtx",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Grenade"
+    },
+    {
+      "name": "Shotgun",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/CkSFaW2d7m",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Shotgun"
+    },
+    {
+      "name": "Shotgun Double Barrel",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/k0fA37Awl8",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Shotgun"
+    },
+    {
+      "name": "Gasoline Bomb",
+      "creator": "CreativeTrio",
+      "sourceUrl": "https://poly.pizza/m/ew5DpDJJja",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Incendiary"
+    },
+    {
+      "name": "Rifle",
+      "creator": "Quaternius",
+      "sourceUrl": "https://poly.pizza/m/cCAgiMOQow",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Rifle"
+    },
+    {
+      "name": "Rifle Assault East",
+      "creator": "Pichuliru",
+      "sourceUrl": "https://poly.pizza/m/xrJfQgAuDL",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Rifle"
+    },
+    {
+      "name": "Smg West",
+      "creator": "Pichuliru",
+      "sourceUrl": "https://poly.pizza/m/7Dh5JSbZcp",
+      "license": "Public Domain (CC0)",
+      "weaponType": "SMG"
+    },
+    {
+      "name": "Frag Grenade East",
+      "creator": "Pichuliru",
+      "sourceUrl": "https://poly.pizza/m/C4ZrgKsmLq",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Grenade"
+    },
+    {
+      "name": "Scarh",
+      "creator": "AdamKokrito",
+      "sourceUrl": "https://poly.pizza/m/aBnHdYKj5K",
+      "license": "Public Domain (CC0)",
+      "weaponType": "Rifle"
+    }
+  ],
+  "textureReferences": {
+    "blackMetal": "https://polyhaven.com/a/metal_plate",
+    "wood": "https://polyhaven.com/a/wooden_planks",
+    "license": "CC0; runtime keeps original GLTF UV mapping and swaps realistic material maps procedurally when remote texture packs are unavailable."
+  }
 }

@@ -170,6 +170,21 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'polyMolotov01Attack',
   'polyGasTank01Attack',
   'polyHandGrenade01Attack',
+  'polyAssaultRifleBgvuuAttack',
+  'polyRiggedGlock19Attack',
+  'polyRiggedDesertEagleAttack',
+  'polySniperRifleI65Attack',
+  'polyCreativeRifleAttack',
+  'polyCreativeSmgAttack',
+  'polyCreativeHandGrenadeAttack',
+  'polyCreativeShotgunAttack',
+  'polyCreativeDoubleBarrelAttack',
+  'polyCreativeGasolineBombAttack',
+  'polyQuaterniusRifleCcaAttack',
+  'polyPichuliruAssaultEastAttack',
+  'polyPichuliruSmgWestAttack',
+  'polyPichuliruFragEastAttack',
+  'polyAdamScarhAttack',
   'polyTank01Attack'
 ]);
 const LARGE_RACK_FIREARM_IDS = new Set([
@@ -187,7 +202,15 @@ const LARGE_RACK_FIREARM_IDS = new Set([
   'polyRobotFlyingGunAttack',
   'polyBazooka01Attack',
   'polyGrenadeLauncher01Attack',
-  'polyTank01Attack'
+  'polyTank01Attack',
+  'polyAssaultRifleBgvuuAttack',
+  'polySniperRifleI65Attack',
+  'polyCreativeRifleAttack',
+  'polyCreativeShotgunAttack',
+  'polyCreativeDoubleBarrelAttack',
+  'polyQuaterniusRifleCcaAttack',
+  'polyPichuliruAssaultEastAttack',
+  'polyAdamScarhAttack'
 ]);
 const FIREARM_TWO_HANDED_IDS = new Set([
   'fpsGunAttack',
@@ -207,7 +230,17 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'polyRobotFlyingGunAttack',
   'polyBazooka01Attack',
   'polyGrenadeLauncher01Attack',
-  'polyTank01Attack'
+  'polyTank01Attack',
+  'polyAssaultRifleBgvuuAttack',
+  'polySniperRifleI65Attack',
+  'polyCreativeRifleAttack',
+  'polyCreativeSmgAttack',
+  'polyCreativeShotgunAttack',
+  'polyCreativeDoubleBarrelAttack',
+  'polyQuaterniusRifleCcaAttack',
+  'polyPichuliruAssaultEastAttack',
+  'polyPichuliruSmgWestAttack',
+  'polyAdamScarhAttack'
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'glockSidearmAttack',
@@ -223,7 +256,12 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polyDynamiteBomb01Attack',
   'polyMolotov01Attack',
   'polyGasTank01Attack',
-  'polyHandGrenade01Attack'
+  'polyHandGrenade01Attack',
+  'polyRiggedGlock19Attack',
+  'polyRiggedDesertEagleAttack',
+  'polyCreativeHandGrenadeAttack',
+  'polyCreativeGasolineBombAttack',
+  'polyPichuliruFragEastAttack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
@@ -254,7 +292,53 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyMolotov01Attack: 0.92,
   polyGasTank01Attack: 1.28,
   polyHandGrenade01Attack: 0.48,
-  polyTank01Attack: 2.3
+  polyTank01Attack: 2.3,
+  polyAssaultRifleBgvuuAttack: 2.15,
+  polyRiggedGlock19Attack: 1.02,
+  polyRiggedDesertEagleAttack: 1.1,
+  polySniperRifleI65Attack: 2.8,
+  polyCreativeRifleAttack: 2.0,
+  polyCreativeSmgAttack: 1.55,
+  polyCreativeHandGrenadeAttack: 0.48,
+  polyCreativeShotgunAttack: 2.05,
+  polyCreativeDoubleBarrelAttack: 1.62,
+  polyCreativeGasolineBombAttack: 0.92,
+  polyQuaterniusRifleCcaAttack: 2.0,
+  polyPichuliruAssaultEastAttack: 2.05,
+  polyPichuliruSmgWestAttack: 1.55,
+  polyPichuliruFragEastAttack: 0.48,
+  polyAdamScarhAttack: 2.12
+});
+
+
+const HIDDEN_HANDGUN_GRIP_REFERENCE = Object.freeze({
+  sourceUrl: 'https://poly.pizza/m/uxko5LkGia',
+  label: 'Fps Rig by J-Toastie',
+  license: 'Creative Commons Attribution',
+  visible: false,
+  rightWristNeedles: ['r_wrist', 'right_wrist', 'hand_r', 'r_hand'],
+  leftWristNeedles: ['l_wrist', 'left_wrist', 'hand_l', 'l_hand'],
+  handgunPose: Object.freeze({
+    position: [0.017, 0.001, 0.081],
+    rotation: [-1.535, -0.025, -1.585],
+    muzzleOffset: [0, 0.012, 0.188]
+  })
+});
+const POLYHAVEN_WEAPON_MATERIAL_REFERENCE = Object.freeze({
+  metal: {
+    name: 'Poly Haven Metal Plate CC0',
+    sourceUrl: 'https://polyhaven.com/a/metal_plate',
+    color: '#111827',
+    roughness: 0.36,
+    metalness: 0.9
+  },
+  wood: {
+    name: 'Poly Haven Wooden Planks CC0',
+    sourceUrl: 'https://polyhaven.com/a/wooden_planks',
+    color: '#7c4a24',
+    roughness: 0.62,
+    metalness: 0.02
+  }
 });
 
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
@@ -597,6 +681,114 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     label: 'Quaternius Battle Tank',
     urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
     scale: 0.125
+  },
+  polyAssaultRifleBgvuuAttack: {
+    label: 'Quaternius Assault Rifle CC0',
+    urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
+    sourceUrl: 'https://poly.pizza/m/Bgvuu4CUMV',
+    fallbackCaptureAnimationId: 'polyAssaultRifle01Attack',
+    scale: 0.208,
+    materialPreset: 'quaterniusWeaponPbr'
+  },
+  polyRiggedGlock19Attack: {
+    label: 'Rigged Glock 19',
+    urls: ['https://poly.pizza/m/gDhOo5jkNX'],
+    sourceUrl: 'https://poly.pizza/m/gDhOo5jkNX',
+    fallbackCaptureAnimationId: 'glockSidearmAttack',
+    scale: 0.12
+  },
+  polyRiggedDesertEagleAttack: {
+    label: 'Rigged Desert Eagle',
+    urls: ['https://poly.pizza/m/e9k4dwOzCX'],
+    sourceUrl: 'https://poly.pizza/m/e9k4dwOzCX',
+    fallbackCaptureAnimationId: 'polyRevolver01Attack',
+    scale: 0.13
+  },
+  polySniperRifleI65Attack: {
+    label: 'Quaternius Sniper Rifle',
+    urls: ['https://poly.pizza/m/i65hEldsw6'],
+    sourceUrl: 'https://poly.pizza/m/i65hEldsw6',
+    fallbackCaptureAnimationId: 'sniperShotAttack',
+    scale: 0.27,
+    materialPreset: 'quaterniusWeaponPbr'
+  },
+  polyCreativeRifleAttack: {
+    label: 'CreativeTrio Rifle',
+    urls: ['https://poly.pizza/m/zBATGslN2h'],
+    sourceUrl: 'https://poly.pizza/m/zBATGslN2h',
+    fallbackCaptureAnimationId: 'compactCarbineAttack',
+    scale: 0.2
+  },
+  polyCreativeSmgAttack: {
+    label: 'CreativeTrio Submachine Gun',
+    urls: ['https://poly.pizza/m/fQmBw1vNsl'],
+    sourceUrl: 'https://poly.pizza/m/fQmBw1vNsl',
+    fallbackCaptureAnimationId: 'polySmg01Attack',
+    scale: 0.16
+  },
+  polyCreativeHandGrenadeAttack: {
+    label: 'CreativeTrio Hand Grenade Alt',
+    urls: ['https://poly.pizza/m/YWhHlmKOtx'],
+    sourceUrl: 'https://poly.pizza/m/YWhHlmKOtx',
+    fallbackCaptureAnimationId: 'polyHandGrenade01Attack',
+    scale: 0.075
+  },
+  polyCreativeShotgunAttack: {
+    label: 'CreativeTrio Shotgun',
+    urls: ['https://poly.pizza/m/CkSFaW2d7m'],
+    sourceUrl: 'https://poly.pizza/m/CkSFaW2d7m',
+    fallbackCaptureAnimationId: 'polyShotgun03Attack',
+    scale: 0.2
+  },
+  polyCreativeDoubleBarrelAttack: {
+    label: 'CreativeTrio Double Barrel',
+    urls: ['https://poly.pizza/m/k0fA37Awl8'],
+    sourceUrl: 'https://poly.pizza/m/k0fA37Awl8',
+    fallbackCaptureAnimationId: 'polySawedOff01Attack',
+    scale: 0.17
+  },
+  polyCreativeGasolineBombAttack: {
+    label: 'CreativeTrio Gasoline Bomb',
+    urls: ['https://poly.pizza/m/ew5DpDJJja'],
+    sourceUrl: 'https://poly.pizza/m/ew5DpDJJja',
+    fallbackCaptureAnimationId: 'polyMolotov01Attack',
+    scale: 0.095
+  },
+  polyQuaterniusRifleCcaAttack: {
+    label: 'Quaternius Rifle CC0',
+    urls: ['https://poly.pizza/m/cCAgiMOQow'],
+    sourceUrl: 'https://poly.pizza/m/cCAgiMOQow',
+    fallbackCaptureAnimationId: 'polyAssaultRifle01Attack',
+    scale: 0.2,
+    materialPreset: 'quaterniusWeaponPbr'
+  },
+  polyPichuliruAssaultEastAttack: {
+    label: 'Pichuliru Assault East',
+    urls: ['https://poly.pizza/m/xrJfQgAuDL'],
+    sourceUrl: 'https://poly.pizza/m/xrJfQgAuDL',
+    fallbackCaptureAnimationId: 'ak47VolleyAttack',
+    scale: 0.2
+  },
+  polyPichuliruSmgWestAttack: {
+    label: 'Pichuliru SMG West',
+    urls: ['https://poly.pizza/m/7Dh5JSbZcp'],
+    sourceUrl: 'https://poly.pizza/m/7Dh5JSbZcp',
+    fallbackCaptureAnimationId: 'smgBurstAttack',
+    scale: 0.16
+  },
+  polyPichuliruFragEastAttack: {
+    label: 'Pichuliru Frag Grenade East',
+    urls: ['https://poly.pizza/m/C4ZrgKsmLq'],
+    sourceUrl: 'https://poly.pizza/m/C4ZrgKsmLq',
+    fallbackCaptureAnimationId: 'polyHandGrenade01Attack',
+    scale: 0.075
+  },
+  polyAdamScarhAttack: {
+    label: 'AdamKokrito Scar-H',
+    urls: ['https://poly.pizza/m/aBnHdYKj5K'],
+    sourceUrl: 'https://poly.pizza/m/aBnHdYKj5K',
+    fallbackCaptureAnimationId: 'polyAssaultRifle01Attack',
+    scale: 0.205
   }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
@@ -627,6 +819,97 @@ function applyModelQualityToObject(root) {
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((material) => {
       if (!material) return;
+      normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+      material.needsUpdate = true;
+    });
+  });
+}
+
+const WEAPON_PBR_TEXTURE_CACHE = new Map();
+
+function createWeaponPbrTexture(kind = 'metal') {
+  const cacheKey = `weapon:${kind}`;
+  if (WEAPON_PBR_TEXTURE_CACHE.has(cacheKey)) return WEAPON_PBR_TEXTURE_CACHE.get(cacheKey);
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    WEAPON_PBR_TEXTURE_CACHE.set(cacheKey, fallback);
+    return fallback;
+  }
+  const isWood = kind === 'wood';
+  ctx.fillStyle = isWood ? POLYHAVEN_WEAPON_MATERIAL_REFERENCE.wood.color : POLYHAVEN_WEAPON_MATERIAL_REFERENCE.metal.color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (isWood) {
+    for (let y = 0; y < canvas.height; y += 9) {
+      ctx.fillStyle = y % 18 === 0 ? 'rgba(45, 24, 11, 0.28)' : 'rgba(245, 181, 96, 0.18)';
+      ctx.fillRect(0, y, canvas.width, 2);
+    }
+    for (let x = 0; x < canvas.width; x += 42) {
+      ctx.strokeStyle = 'rgba(35, 18, 9, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(x + 16, 72 + (x % 96), 18, 7, 0.25, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.16)');
+    gradient.addColorStop(0.5, 'rgba(0,0,0,0.06)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0.08)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < 34; i += 1) {
+      const x = (i * 47) % canvas.width;
+      const y = (i * 83) % canvas.height;
+      ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 32, y + 6);
+      ctx.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(isWood ? 2.2 : 3.2, isWood ? 1.2 : 3.2);
+  texture.anisotropy = activeModelTextureAnisotropy;
+  texture.needsUpdate = true;
+  WEAPON_PBR_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function materialLooksWooden(material, meshName = '') {
+  const name = `${meshName} ${material?.name || ''}`.toLowerCase();
+  if (/wood|stock|handle|grip|fore|butt|pump/.test(name)) return true;
+  const color = material?.color;
+  if (!color?.isColor) return false;
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  return hsl.h >= 0.035 && hsl.h <= 0.17 && hsl.s > 0.22 && hsl.l < 0.62;
+}
+
+function applyRealisticWeaponMaterialPreset(root, config = {}) {
+  if (!root?.isObject3D) return;
+  const shouldApply = config.materialPreset === 'quaterniusWeaponPbr' || /quaternius/i.test(config.label || '');
+  if (!shouldApply) return;
+  const metalTexture = createWeaponPbrTexture('metal');
+  const woodTexture = createWeaponPbrTexture('wood');
+  root.userData.weaponMaterialReference = POLYHAVEN_WEAPON_MATERIAL_REFERENCE;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      const useWood = materialLooksWooden(material, node.name);
+      const ref = useWood ? POLYHAVEN_WEAPON_MATERIAL_REFERENCE.wood : POLYHAVEN_WEAPON_MATERIAL_REFERENCE.metal;
+      material.map = useWood ? woodTexture : metalTexture;
+      material.color?.set?.(ref.color);
+      material.roughness = ref.roughness;
+      material.metalness = ref.metalness;
+      material.envMapIntensity = useWood ? 0.55 : 1.22;
       normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
       material.needsUpdate = true;
     });
@@ -678,7 +961,22 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polyMolotov01Attack: 1,
   polyGasTank01Attack: 1,
   polyHandGrenade01Attack: 1,
-  polyTank01Attack: 1
+  polyTank01Attack: 1,
+  polyAssaultRifleBgvuuAttack: 30,
+  polyRiggedGlock19Attack: 17,
+  polyRiggedDesertEagleAttack: 7,
+  polySniperRifleI65Attack: 1,
+  polyCreativeRifleAttack: 30,
+  polyCreativeSmgAttack: 28,
+  polyCreativeHandGrenadeAttack: 1,
+  polyCreativeShotgunAttack: 1,
+  polyCreativeDoubleBarrelAttack: 1,
+  polyCreativeGasolineBombAttack: 1,
+  polyQuaterniusRifleCcaAttack: 30,
+  polyPichuliruAssaultEastAttack: 30,
+  polyPichuliruSmgWestAttack: 28,
+  polyPichuliruFragEastAttack: 1,
+  polyAdamScarhAttack: 20
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
   default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletLength: 0.032, bulletSpeed: 0.2, shellRadius: 0.0028, shellLength: 0.016, projectileKind: 'jacketed-round', caliberLabel: 'generic battle round' }),
@@ -723,6 +1021,21 @@ const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   polyBazooka01Attack: 'explosive',
   polyGrenadeLauncher01Attack: 'explosive',
   polyTank01Attack: 'explosive',
+  polyAssaultRifleBgvuuAttack: 'rifle',
+  polyRiggedGlock19Attack: 'pistol',
+  polyRiggedDesertEagleAttack: 'pistol',
+  polySniperRifleI65Attack: 'marksman',
+  polyCreativeRifleAttack: 'rifle',
+  polyCreativeSmgAttack: 'smg',
+  polyCreativeHandGrenadeAttack: 'explosive',
+  polyCreativeShotgunAttack: 'shotgun',
+  polyCreativeDoubleBarrelAttack: 'shotgun',
+  polyCreativeGasolineBombAttack: 'explosive',
+  polyQuaterniusRifleCcaAttack: 'rifle',
+  polyPichuliruAssaultEastAttack: 'rifle',
+  polyPichuliruSmgWestAttack: 'smg',
+  polyPichuliruFragEastAttack: 'explosive',
+  polyAdamScarhAttack: 'rifle',
   polyRobotLargeGunAttack: 'rifle',
   polyRobotFlyingGunAttack: 'smg'
 });
@@ -778,7 +1091,22 @@ const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
   polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
   polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
+  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyAssaultRifleBgvuuAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  polyRiggedGlock19Attack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  polyRiggedDesertEagleAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  polySniperRifleI65Attack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
+  polyCreativeRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  polyCreativeSmgAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  polyCreativeHandGrenadeAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyCreativeShotgunAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
+  polyCreativeDoubleBarrelAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
+  polyCreativeGasolineBombAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyQuaterniusRifleCcaAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  polyPichuliruAssaultEastAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  polyPichuliruSmgWestAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  polyPichuliruFragEastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyAdamScarhAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3'
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
@@ -917,6 +1245,32 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     position: [0.04, -0.005, 0.148],
     rotation: [-1.38, -0.04, -1.58],
     muzzleOffset: [0, 0.015, 0.278]
+  },
+  polyRiggedGlock19Attack: HIDDEN_HANDGUN_GRIP_REFERENCE.handgunPose,
+  polyRiggedDesertEagleAttack: {
+    ...HIDDEN_HANDGUN_GRIP_REFERENCE.handgunPose,
+    position: [0.019, 0.0, 0.085],
+    muzzleOffset: [0, 0.012, 0.202]
+  },
+  polyAssaultRifleBgvuuAttack: {
+    position: [0.035, -0.004, 0.124],
+    rotation: [-1.43, -0.04, -1.555],
+    muzzleOffset: [0, 0.014, 0.246]
+  },
+  polySniperRifleI65Attack: {
+    position: [0.04, -0.005, 0.148],
+    rotation: [-1.38, -0.04, -1.58],
+    muzzleOffset: [0, 0.015, 0.278]
+  },
+  polyCreativeSmgAttack: {
+    position: [0.024, -0.003, 0.101],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.223]
+  },
+  polyPichuliruSmgWestAttack: {
+    position: [0.024, -0.003, 0.101],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.223]
   }
 });
 const FIREARM_UNIFIED_DIRECTION_ROTATION =
@@ -952,7 +1306,19 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   polyRevolver02Attack: 1.17,
   polyShotgun02Attack: 1.34,
   polyShotgun03Attack: 1.28,
-  polySmg01Attack: 1.22
+  polySmg01Attack: 1.22,
+  polyAssaultRifleBgvuuAttack: 1.28,
+  polyRiggedGlock19Attack: 1.16,
+  polyRiggedDesertEagleAttack: 1.18,
+  polySniperRifleI65Attack: 5.2,
+  polyCreativeRifleAttack: 1.26,
+  polyCreativeSmgAttack: 1.22,
+  polyCreativeShotgunAttack: 1.28,
+  polyCreativeDoubleBarrelAttack: 1.2,
+  polyQuaterniusRifleCcaAttack: 1.26,
+  polyPichuliruAssaultEastAttack: 1.28,
+  polyPichuliruSmgWestAttack: 1.22,
+  polyAdamScarhAttack: 1.3
 });
 // Keep FPS gun and Shotgun Blast visually matched in hand.
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
@@ -1442,6 +1808,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           material.needsUpdate = true;
         });
       });
+      applyRealisticWeaponMaterialPreset(root, config);
       applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
       if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
@@ -1458,9 +1825,14 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   if (resolved) return resolved;
 
   CAPTURE_WEAPON_MODEL_FAILURE.add(normalizedCaptureAnimationId);
-  const fallbackId = Array.from(FIREARM_CAPTURE_ANIMATION_IDS).find(
-    (id) => id !== normalizedCaptureAnimationId && !CAPTURE_WEAPON_MODEL_FAILURE.has(id)
-  );
+  const configuredFallbackId = config?.fallbackCaptureAnimationId;
+  const fallbackId =
+    (configuredFallbackId && configuredFallbackId !== normalizedCaptureAnimationId && !CAPTURE_WEAPON_MODEL_FAILURE.has(configuredFallbackId)
+      ? configuredFallbackId
+      : null) ||
+    Array.from(FIREARM_CAPTURE_ANIMATION_IDS).find(
+      (id) => id !== normalizedCaptureAnimationId && !CAPTURE_WEAPON_MODEL_FAILURE.has(id)
+    );
   if (!fallbackId) return null;
   CAPTURE_WEAPON_MODEL_REDIRECT.set(captureAnimationId, fallbackId);
   return loadCaptureWeaponModel(fallbackId);
