@@ -248,7 +248,9 @@ const BASE_CFG = {
   shootForwardBendScale: 1,
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
-  forceTableFacingAim: true
+  forceTableFacingAim: true,
+  forceBendTowardTable: false,
+  shotBendSignMultiplier: 1
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -284,6 +286,36 @@ function resolveTableFacingForward(rawForward, root, frameData, cfg) {
   // If caller math ever supplies the opposite cue axis, flip it here so every
   // downstream torso, bridge hand, grip hand and foot basis bends toward the cloth.
   return forward.dot(rootToTable) < 0 ? forward.multiplyScalar(-1) : forward;
+}
+
+function resolveShotBendSign(root, facingForward, frameData, cfg) {
+  if (!cfg.forceBendTowardTable || !root || !facingForward) return 0;
+  const bendReference =
+    frameData.bridgeTarget ||
+    frameData.cueTip ||
+    frameData.cueBack ||
+    frameData.gripTarget ||
+    null;
+  if (!bendReference) return 0;
+
+  const forward = facingForward.clone();
+  forward.y = 0;
+  if (forward.lengthSq() < 1e-8) return 0;
+  forward.normalize();
+
+  const rootToTable = bendReference.clone().sub(root);
+  rootToTable.y = 0;
+  if (rootToTable.lengthSq() < 1e-8) return 0;
+  rootToTable.normalize();
+
+  // In this rig local -Z is the direction the player is facing. Convert the
+  // table/cue-ball vector into that local Z sign, then bend toward it. This
+  // guard prevents the common portrait-orientation bug where the avatar faces
+  // the table but folds visually backward away from the shot.
+  const localZTowardTable = -rootToTable.dot(forward);
+  if (Math.abs(localZTowardTable) < 0.05) return 0;
+  const multiplier = cfg.shotBendSignMultiplier < 0 ? -1 : 1;
+  return Math.sign(localZTowardTable) * multiplier;
 }
 
 function scaleVectorConfig(cfg) {
@@ -471,78 +503,89 @@ export function createHumanRig(scene, opts = {}) {
   scene.add(human.root, human.modelRoot);
 
   const { loader, modelUrl = HUMAN_URL, onStatus } = opts;
+  const modelUrls = Array.isArray(opts.modelUrls) && opts.modelUrls.length > 0
+    ? opts.modelUrls.filter((url) => typeof url === 'string' && url.trim().length > 0)
+    : [modelUrl];
   if (!loader) return human;
   loader.setCrossOrigin?.('anonymous');
   onStatus?.('Loading original skeleton human logic…');
-  loader.load(
-    modelUrl,
-    (gltf) => {
-      const model = gltf?.scene;
-      if (!model) return;
-      normalizeHuman(model, cfg);
-      model.traverse((obj) => {
-        if (!obj?.isMesh) return;
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        obj.frustumCulled = false;
-        const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
-        if (Array.isArray(obj.material)) obj.material = mats;
-        else if (mats[0]) obj.material = mats[0];
-        mats.forEach((mat) => {
-          if (mat.map) {
-            mat.map.colorSpace = THREE.SRGBColorSpace;
-            mat.map.flipY = false;
-            mat.map.needsUpdate = true;
-          }
-          applyRealisticHumanMaterialFallback(obj, mat);
-          applyPolyhavenHumanClothingMaterial(obj, mat);
-          mat.depthWrite = true;
-          mat.depthTest = true;
-          mat.needsUpdate = true;
+  const loadModelAt = (urlIndex = 0) => {
+    const activeUrl = modelUrls[urlIndex] || HUMAN_URL;
+    loader.load(
+      activeUrl,
+      (gltf) => {
+        const model = gltf?.scene;
+        if (!model) return;
+        normalizeHuman(model, cfg);
+        model.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          obj.frustumCulled = false;
+          const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+          const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
+          if (Array.isArray(obj.material)) obj.material = mats;
+          else if (mats[0]) obj.material = mats[0];
+          mats.forEach((mat) => {
+            if (mat.map) {
+              mat.map.colorSpace = THREE.SRGBColorSpace;
+              mat.map.flipY = false;
+              mat.map.needsUpdate = true;
+            }
+            applyRealisticHumanMaterialFallback(obj, mat);
+            applyPolyhavenHumanClothingMaterial(obj, mat);
+            mat.depthWrite = true;
+            mat.depthTest = true;
+            mat.needsUpdate = true;
+          });
         });
-      });
-      human.mixer = new THREE.AnimationMixer(model);
-      const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
-      const aliases = {
-        Idle: ['idle'],
-        Walk: ['walk', 'walking'],
-        Run: ['run', 'running']
-      };
-      Object.entries(aliases).forEach(([name, names]) => {
-        const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
-        if (!clip) return;
-        const action = human.mixer.clipAction(clip);
-        action.enabled = true;
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.clampWhenFinished = false;
-        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
-        action.play();
-        human.actions[name] = action;
-      });
-      human.bones = buildAvatarBones(model);
-      human.leftFingers = collectFingerBones(human.bones.leftHand);
-      human.rightFingers = collectFingerBones(human.bones.rightHand);
-      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
-        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
-      });
-      createHumanFaceDetails(human);
-      const b = human.bones;
-      human.activeGlb = Boolean(
-        b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
-        b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
-      );
-      human.model = model;
-      human.modelRoot.add(model);
-      human.modelRoot.visible = human.activeGlb;
-      onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
-    },
-    undefined,
-    (error) => {
-      console.warn('ReadyPlayer human failed', error);
-      onStatus?.('ReadyPlayer GLTF human failed');
-    }
-  );
+        human.mixer = new THREE.AnimationMixer(model);
+        const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
+        const aliases = {
+          Idle: ['idle'],
+          Walk: ['walk', 'walking'],
+          Run: ['run', 'running']
+        };
+        Object.entries(aliases).forEach(([name, names]) => {
+          const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
+          if (!clip) return;
+          const action = human.mixer.clipAction(clip);
+          action.enabled = true;
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          action.clampWhenFinished = false;
+          action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
+          action.play();
+          human.actions[name] = action;
+        });
+        human.bones = buildAvatarBones(model);
+        human.leftFingers = collectFingerBones(human.bones.leftHand);
+        human.rightFingers = collectFingerBones(human.bones.rightHand);
+        [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
+          if (bone) human.restQuats.set(bone, bone.quaternion.clone());
+        });
+        createHumanFaceDetails(human);
+        const b = human.bones;
+        human.activeGlb = Boolean(
+          b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
+          b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
+        );
+        human.model = model;
+        human.modelRoot.add(model);
+        human.modelRoot.visible = human.activeGlb;
+        onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
+      },
+      undefined,
+      (error) => {
+        console.warn('ReadyPlayer human failed', { url: activeUrl, error });
+        if (urlIndex + 1 < modelUrls.length) {
+          loadModelAt(urlIndex + 1);
+          return;
+        }
+        onStatus?.('ReadyPlayer GLTF human failed');
+      }
+    );
+  };
+  loadModelAt(0);
   return human;
 }
 
@@ -841,7 +884,13 @@ export function updateHumanPose(human, dt, frameData) {
     ? cueBendReference.clone().sub(human.root.position).applyAxisAngle(Y_AXIS, -human.yaw).z
     : 0;
   const cueBendSign = Math.abs(cueBendLocalZ) > 1e-5 ? Math.sign(cueBendLocalZ) : 0;
+  const tableBendSign = activeState === 'idle'
+    ? 0
+    : resolveShotBendSign(human.root.position, facingForward, frameData, cfg);
   const shotBendZ = (value) => {
+    if (tableBendSign !== 0) {
+      return Math.abs(value) * tableBendSign * forwardBendScale;
+    }
     if (cfg.shootBendTowardCueStick && cueBendSign !== 0) {
       return Math.abs(value) * cueBendSign * forwardBendScale;
     }
