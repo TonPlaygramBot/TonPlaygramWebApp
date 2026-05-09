@@ -431,15 +431,12 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
+const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
+const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(34); // lower portrait 3D camera angle so the board feels more eye-level while preserving depth.
 const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 0.9; // aim a little higher so the lower camera looks up across the arena.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
-const CAMERA_LOCKED_3D_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26); // match Domino Royal: look left/right without moving the seated camera too far.
-const CAMERA_LOCKED_3D_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16); // match Domino Royal: limited up/down look so the table stays framed.
-const CAMERA_LOCKED_3D_LOOK_YAW_DRAG_FACTOR = -0.0055;
-const CAMERA_LOCKED_3D_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const STANDARD_TABLE_LAYOUT_OFFSET = Object.freeze({ x: 0, z: TABLE_BOTTOM_PLAYER_BIAS_Z });
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -503,11 +500,9 @@ function positionChessBattleChairRing(chairs = [], tableInfo = null) {
     resolveChairDistanceForDirection(tableInfo, new THREE.Vector2(0, -1), SEAT_DEPTH) +
     OPPONENT_CHAIR_EXTRA_CLEARANCE;
   if (chairs[0]?.group) {
-    chairs[0].group.position.x = 0;
     chairs[0].group.position.z = playerChairDistance;
   }
   if (chairs[1]?.group) {
-    chairs[1].group.position.x = 0;
     chairs[1].group.position.z = -opponentChairDistance;
   }
   return { playerChairDistance, opponentChairDistance };
@@ -2529,25 +2524,31 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
   return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
 }
 
-function applyStandardChessBattleLayout(groups = [], offset = STANDARD_TABLE_LAYOUT_OFFSET) {
-  const layoutOffset = new THREE.Vector3(offset?.x || 0, 0, offset?.z || 0);
+function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, preferredShiftZ = 0) {
+  const box = new THREE.Box3();
+  let hasObject = false;
   groups.forEach((obj) => {
     if (!obj) return;
-    const baseX = Number.isFinite(obj.userData?.standardLayoutBaseX)
-      ? obj.userData.standardLayoutBaseX
-      : obj.position.x;
-    const baseZ = Number.isFinite(obj.userData?.standardLayoutBaseZ)
-      ? obj.userData.standardLayoutBaseZ
-      : obj.position.z;
-    obj.userData = {
-      ...(obj.userData || {}),
-      standardLayoutBaseX: baseX,
-      standardLayoutBaseZ: baseZ
-    };
-    obj.position.x = baseX + layoutOffset.x;
-    obj.position.z = baseZ + layoutOffset.z;
+    box.expandByObject(obj);
+    hasObject = true;
   });
-  return layoutOffset;
+  if (!hasObject) return new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const minShiftX = -roomHalfWidth - box.min.x;
+  const maxShiftX = roomHalfWidth - box.max.x;
+  const minShiftZ = -roomHalfDepth - box.min.z;
+  const maxShiftZ = roomHalfDepth - box.max.z;
+  const shiftX = clamp(-center.x, minShiftX, maxShiftX);
+  const shiftZ = clamp(-center.z + preferredShiftZ, minShiftZ, maxShiftZ);
+  if (Math.abs(shiftX) > 1e-4 || Math.abs(shiftZ) > 1e-4) {
+    groups.forEach((obj) => {
+      if (!obj) return;
+      obj.position.x += shiftX;
+      obj.position.z += shiftZ;
+    });
+  }
+  return new THREE.Vector3(shiftX, 0, shiftZ);
 }
 
 function groundArenaGroups(groups = [], floorY = 0) {
@@ -7666,10 +7667,37 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const quickSwapWeapons = useMemo(
-    () => (ownedCaptureAnimations || []).filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)),
-    [ownedCaptureAnimations]
+  const QUICK_SWAP_WEAPON_IDS = useMemo(
+    () =>
+      [
+        'polyShotgun01Attack',
+        'polyAssaultRifle01Attack',
+        'polyPistol01Attack',
+        'polyRevolver01Attack',
+        'polySawedOff01Attack',
+        'polyRevolver02Attack',
+        'polyShotgun02Attack',
+        'polyShotgun03Attack',
+        'polySmg01Attack',
+        'ak47VolleyAttack',
+        'krsvBurstAttack',
+        'smithSidearmAttack',
+        'mosinMarksmanAttack',
+        'uziSprayAttack',
+        'sigsauerTacticalAttack',
+        'sniperShotAttack',
+        'compactCarbineAttack',
+        'fpsGunAttack'
+      ],
+    []
   );
+  const quickSwapWeapons = useMemo(() => {
+    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
+    return QUICK_SWAP_WEAPON_IDS
+      .filter((id) => ownedIds.has(id))
+      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
+      .filter(Boolean);
+  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7807,9 +7835,7 @@ function Chess3D({
     fixedPosition: null,
     lastPointerX: null,
     lastPointerY: null,
-    pointerStartedOnBoard: false,
-    baseYaw: 0,
-    basePitch: -0.28
+    pointerStartedOnBoard: false
   });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -8807,13 +8833,13 @@ function Chess3D({
         positionChessBattleChairRing(arena.chairs || [], nextTable);
         (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
         // Preserve original room layout when table/chair options change so gameplay framing stays stable.
-        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3(STANDARD_TABLE_LAYOUT_OFFSET.x, 0, STANDARD_TABLE_LAYOUT_OFFSET.z);
-        const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
-        arena.tablePlacementOffset = applyStandardChessBattleLayout(arenaGroups, placementOffset);
+        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
+        arena.tablePlacementOffset = placementOffset.clone();
         if (arena.boardLookTarget) {
-          arena.boardLookTarget.x = arena.tablePlacementOffset.x;
-          arena.boardLookTarget.z = arena.tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS;
+          arena.boardLookTarget.x = placementOffset.x;
+          arena.boardLookTarget.z = placementOffset.z;
         }
+        const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
         groundArenaGroups(arenaGroups, arenaFloorY);
         const updatedFloorY = computeGroupFloorY(arenaGroups);
         environmentFloorRef.current = updatedFloorY;
@@ -9524,9 +9550,11 @@ function Chess3D({
       console.warn('Chess Battle Royal: unable to attach seated human actors', error);
     }
 
-    const tablePlacementOffset = applyStandardChessBattleLayout(
+    const tablePlacementOffset = alignArenaContentsToRoom(
       [tableInfo?.group, chairA.group, chairB.group],
-      STANDARD_TABLE_LAYOUT_OFFSET
+      roomHalfWidth,
+      roomHalfDepth,
+      TABLE_BOTTOM_PLAYER_BIAS_Z
     );
     arena.tablePlacementOffset = tablePlacementOffset.clone();
 
@@ -9750,6 +9778,8 @@ function Chess3D({
       );
       const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
+      const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
+
       const initialRadius = currentRadius;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
@@ -9795,16 +9825,26 @@ function Chess3D({
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
+        const targetPhi = clamp(
+          restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        const targetRadius = clamp(
+          restore.radius * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          CAMERA_3D_MIN_RADIUS,
+          CAMERA_3D_MAX_RADIUS
+        );
         const lockedRadius = clamp(CAMERA_2D_MAX_RADIUS * CAMERA_LOCKED_3D_RADIUS_SCALE, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
         const target = new THREE.Spherical(
-          lockedRadius,
-          CAMERA_LOCKED_3D_PHI,
+          isForcedCapture3dView ? targetRadius : lockedRadius,
+          isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
         const targetPosition = boardLookTarget.clone().add(new THREE.Vector3().setFromSpherical(target));
         const lockedLookTarget = boardLookTarget
           .clone()
-          .addScaledVector(WORLD_UP, CAMERA_LOCKED_3D_LOOK_TARGET_LIFT);
+          .addScaledVector(WORLD_UP, isForcedCapture3dView ? 0 : CAMERA_LOCKED_3D_LOOK_TARGET_LIFT);
         const lookDir = lockedLookTarget.sub(targetPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
@@ -9812,9 +9852,7 @@ function Chess3D({
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
         locked3dViewRef.current.targetPitch = pitch;
-        locked3dViewRef.current.baseYaw = yaw;
-        locked3dViewRef.current.basePitch = pitch;
-        locked3dViewRef.current.fixedPosition = targetPosition;
+        locked3dViewRef.current.fixedPosition = isForcedCapture3dView ? null : targetPosition;
         locked3dViewRef.current.activeLook = false;
         locked3dViewRef.current.pointerStartedOnBoard = false;
         animateCameraTo(target, 420);
@@ -9822,11 +9860,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in the same locked 3D framing used by capture animations.
+    // Start every match in locked 2D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '3d';
-    setViewMode('3d');
-    setViewModeInternal('3d');
+    viewModeRef.current = '2d';
+    setViewMode('2d');
+    setViewModeInternal('2d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -13247,16 +13285,8 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw = clamp(
-            locked.targetYaw + movementX * CAMERA_LOCKED_3D_LOOK_YAW_DRAG_FACTOR,
-            locked.baseYaw - CAMERA_LOCKED_3D_LOOK_YAW_LIMIT,
-            locked.baseYaw + CAMERA_LOCKED_3D_LOOK_YAW_LIMIT
-          );
-          locked.targetPitch = clamp(
-            locked.targetPitch + movementY * CAMERA_LOCKED_3D_LOOK_PITCH_DRAG_FACTOR,
-            locked.basePitch - CAMERA_LOCKED_3D_LOOK_PITCH_LIMIT,
-            locked.basePitch + CAMERA_LOCKED_3D_LOOK_PITCH_LIMIT
-          );
+          locked.targetYaw -= movementX * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
         }
         return;
       }

@@ -722,7 +722,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CAPTURE_ANIMATION_OPTIONS.map((option, idx) => ({
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
     id: `chess-capture-animation-${option.id}`,
     type: 'captureAnimation',
     optionId: option.id,
