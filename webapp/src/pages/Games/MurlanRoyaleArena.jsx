@@ -1149,8 +1149,42 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
+const CARD_ACTION_ANIMATION_STORAGE_KEY = 'murlanCardActionAnimation';
 const COMMENTARY_PRESET_STORAGE_KEY = 'murlanRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'murlanRoyaleCommentaryMute';
+
+const CARD_ACTION_ANIMATION_OPTIONS = Object.freeze([
+  {
+    id: 'precisionLift',
+    label: 'Precision Lift',
+    description: 'Hand pinches, lifts, carries, then places flat with the safest orientation.'
+  },
+  {
+    id: 'lowArcDeal',
+    label: 'Low Arc',
+    description: 'A compact curved carry that keeps cards close to the table.'
+  },
+  {
+    id: 'straightSlide',
+    label: 'Slide Place',
+    description: 'A controlled forward slide with a short pickup and soft release.'
+  },
+  {
+    id: 'flipSettle',
+    label: 'Flip Settle',
+    description: 'A small wrist flip before settling into the same final orientation.'
+  },
+  {
+    id: 'springSnap',
+    label: 'Spring Snap',
+    description: 'A faster spring-style placement with a tiny overshoot correction.'
+  }
+]);
+const DEFAULT_CARD_ACTION_ANIMATION_ID = CARD_ACTION_ANIMATION_OPTIONS[0].id;
+
+function resolveCardActionAnimationOption(id) {
+  return CARD_ACTION_ANIMATION_OPTIONS.find((option) => option.id === id) ?? CARD_ACTION_ANIMATION_OPTIONS[0];
+}
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 900;
 const COMMENTARY_MAX_LATENCY_MS = 2200;
@@ -2123,12 +2157,12 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-2));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2));
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-57), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(44), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-49), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-3));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(49), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-3));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-3));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(3));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(53), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(3));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -2316,12 +2350,38 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
 }
 
 
+
+function resolveCharacterActionAnimationProfile(styleId) {
+  switch (styleId) {
+    case 'lowArcDeal':
+      return { reach: 0.9, pinch: 0.82, hold: 0.65, carry: 0.86, hover: 0.8, contact: 0.76, release: 0.72, recover: 0.82, pickupLift: 0.034, carryLift: 0.07, tableHover: 0.058, carryBlend: 0.55, wristFlip: 0.08, spring: 0 };
+    case 'straightSlide':
+      return { reach: 0.78, pinch: 0.7, hold: 0.45, carry: 0.72, hover: 0.62, contact: 0.64, release: 0.62, recover: 0.76, pickupLift: 0.018, carryLift: 0.028, tableHover: 0.03, carryBlend: 0.5, wristFlip: 0.02, spring: 0 };
+    case 'flipSettle':
+      return { reach: 1, pinch: 0.9, hold: 0.55, carry: 0.9, hover: 0.9, contact: 0.86, release: 0.78, recover: 0.88, pickupLift: 0.052, carryLift: 0.14, tableHover: 0.082, carryBlend: 0.44, wristFlip: 0.42, spring: 0 };
+    case 'springSnap':
+      return { reach: 0.7, pinch: 0.62, hold: 0.35, carry: 0.58, hover: 0.48, contact: 0.5, release: 0.52, recover: 0.7, pickupLift: 0.042, carryLift: 0.1, tableHover: 0.07, carryBlend: 0.5, wristFlip: 0.16, spring: 0.055 };
+    case 'precisionLift':
+    default:
+      return { reach: 1, pinch: 1, hold: 1, carry: 1, hover: 1, contact: 1, release: 1, recover: 1, pickupLift: 0.045, carryLift: 0.12, tableHover: 0.085, carryBlend: 0.48, wristFlip: 0.22, spring: 0 };
+  }
+}
+
+function orientThrownActionCard(card, styleId, progress = 0, finalYaw = 0) {
+  if (!card) return;
+  const profile = resolveCharacterActionAnimationProfile(styleId);
+  const flip = Math.sin(THREE.MathUtils.clamp(progress, 0, 1) * Math.PI) * profile.wristFlip;
+  card.rotation.set(-Math.PI / 2 + COMMUNITY_CARD_TOP_TILT * 0.35 + flip, finalYaw, 0);
+}
+
 function runCharacterAction(store, rig, action) {
   if (!store || !rig || !action) return;
   const now = performance.now();
   const list = store.characterActionAnimations || (store.characterActionAnimations = []);
   const basePose = rig.seatedPose;
   const cardsColor = PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
+  const actionAnimationStyle = store.cardActionAnimationStyle ?? DEFAULT_CARD_ACTION_ANIMATION_ID;
+  const actionAnimationProfile = resolveCharacterActionAnimationProfile(actionAnimationStyle);
 
   if (action.type === 'PASS') {
     const knockPose = buildPoseVariant(basePose, {
@@ -2429,85 +2489,109 @@ function runCharacterAction(store, rig, action) {
     target.y += 0.08 * MODEL_SCALE;
     target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
 
-    const pickupHoverPos = pickupPos.clone().add(new THREE.Vector3(0, 0.045 * MODEL_SCALE, 0));
-    const carryPos = pickupHoverPos.clone().lerp(target, 0.48);
-    carryPos.y += 0.12 * MODEL_SCALE;
-    const tableHoverPos = target.clone().add(new THREE.Vector3(0, 0.085 * MODEL_SCALE, 0));
+    const pickupHoverPos = pickupPos.clone().add(new THREE.Vector3(0, actionAnimationProfile.pickupLift * MODEL_SCALE, 0));
+    const carryPos = pickupHoverPos.clone().lerp(target, actionAnimationProfile.carryBlend);
+    carryPos.y += actionAnimationProfile.carryLift * MODEL_SCALE;
+    const tableHoverPos = target.clone().add(new THREE.Vector3(0, actionAnimationProfile.tableHover * MODEL_SCALE, 0));
     const tableContactPos = target.clone().add(new THREE.Vector3(0, 0.012 * MODEL_SCALE, 0));
     thrown.position.copy(pickupPos);
-    thrown.lookAt(target.clone().setY(handPos.y));
+    const finalCardYaw = Math.atan2(rig.seatConfig?.forward?.x ?? 0, rig.seatConfig?.forward?.z ?? 1);
+    orientThrownActionCard(thrown, actionAnimationStyle, 0, finalCardYaw);
+
+    const dReach = Math.round(320 * actionAnimationProfile.reach);
+    const dPinch = Math.round(360 * actionAnimationProfile.pinch);
+    const dHold = Math.round(180 * actionAnimationProfile.hold);
+    const dCarry = Math.round(520 * actionAnimationProfile.carry);
+    const dHover = Math.round(360 * actionAnimationProfile.hover);
+    const dContact = Math.round(420 * actionAnimationProfile.contact);
+    const dRelease = Math.round(280 * actionAnimationProfile.release);
+    const dRecover = Math.round(560 * actionAnimationProfile.recover);
+    let cursor = now;
 
     list.push({
-      start: now,
-      duration: 320,
+      start: cursor,
+      duration: dReach,
       update: (t) => {
         applyRigPoseLerp(rig, reachToCards, t);
         thrown.position.copy(pickupPos);
+        orientThrownActionCard(thrown, actionAnimationStyle, 0, finalCardYaw);
       }
     });
+    cursor += dReach;
     list.push({
-      start: now + 320,
-      duration: 360,
+      start: cursor,
+      duration: dPinch,
       update: (t) => {
         applyRigPoseLerp(rig, pinchPickup, t);
         const eased = easeInOutCubic(t);
         thrown.position.lerpVectors(pickupPos, pickupHoverPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(0, -Math.PI * 0.08, eased);
+        orientThrownActionCard(thrown, actionAnimationStyle, eased * 0.18, finalCardYaw);
       }
     });
+    cursor += dPinch;
     list.push({
-      start: now + 680,
-      duration: 180,
+      start: cursor,
+      duration: dHold,
       update: (t) => {
         applyRigPoseLerp(rig, pinchPickup, t);
         thrown.position.copy(pickupHoverPos);
+        orientThrownActionCard(thrown, actionAnimationStyle, 0.18, finalCardYaw);
       }
     });
+    cursor += dHold;
     list.push({
-      start: now + 860,
-      duration: 520,
+      start: cursor,
+      duration: dCarry,
       update: (t) => {
         applyRigPoseLerp(rig, controlledCarry, t);
         const eased = easeInOutCubic(t);
         thrown.position.lerpVectors(pickupHoverPos, carryPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.08, -Math.PI * 0.22, eased);
+        if (actionAnimationProfile.spring > 0) {
+          thrown.position.addScaledVector(rig.seatConfig?.forward ?? new THREE.Vector3(), Math.sin(eased * Math.PI) * actionAnimationProfile.spring * MODEL_SCALE);
+        }
+        orientThrownActionCard(thrown, actionAnimationStyle, 0.18 + eased * 0.36, finalCardYaw);
       }
     });
+    cursor += dCarry;
     list.push({
-      start: now + 1380,
-      duration: 360,
+      start: cursor,
+      duration: dHover,
       update: (t) => {
         applyRigPoseLerp(rig, hoverAboveTable, t);
         const eased = easeInOutCubic(t);
         thrown.position.lerpVectors(carryPos, tableHoverPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.22, -Math.PI * 0.42, eased);
+        orientThrownActionCard(thrown, actionAnimationStyle, 0.54 + eased * 0.22, finalCardYaw);
       }
     });
+    cursor += dHover;
     list.push({
-      start: now + 1740,
-      duration: 420,
+      start: cursor,
+      duration: dContact,
       update: (t) => {
         applyRigPoseLerp(rig, tableContact, t);
         const eased = easeInOutCubic(t);
         thrown.position.lerpVectors(tableHoverPos, tableContactPos, eased);
-        thrown.rotation.x = THREE.MathUtils.lerp(-Math.PI * 0.42, -Math.PI * 0.5, eased);
+        orientThrownActionCard(thrown, actionAnimationStyle, 0.76 + eased * 0.2, finalCardYaw);
       }
     });
+    cursor += dContact;
     list.push({
-      start: now + 2160,
-      duration: 280,
+      start: cursor,
+      duration: dRelease,
       update: (t) => {
         applyRigPoseLerp(rig, releaseOnTable, t);
         thrown.position.copy(tableContactPos);
+        orientThrownActionCard(thrown, actionAnimationStyle, 1, finalCardYaw);
       },
       complete: () => {
         thrown.userData?.dispose?.();
         store.scene?.remove(thrown);
       }
     });
+    cursor += dRelease;
     list.push({
-      start: now + 2440,
-      duration: 560,
+      start: cursor,
+      duration: dRecover,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
   }
@@ -2838,14 +2922,15 @@ const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
-const AI_HAND_CARD_SCALE = 0.96;
-const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.02 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.1 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 0.34 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = 0.11 * MODEL_SCALE;
-const AI_TOP_HAND_UP_SHIFT_Y = 0.07 * MODEL_SCALE;
+const AI_HAND_CARD_SCALE = 0.82;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 0.58 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 0.42 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = 0.16 * MODEL_SCALE;
+const AI_TOP_HAND_UP_SHIFT_Y = 0.1 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 0.3 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 0.56 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
@@ -3343,6 +3428,26 @@ export default function MurlanRoyaleArena({ search }) {
     }
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
+  const [cardActionAnimationId, setCardActionAnimationId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(CARD_ACTION_ANIMATION_STORAGE_KEY);
+      if (stored && CARD_ACTION_ANIMATION_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CARD_ACTION_ANIMATION_ID;
+  });
+  const activeCardActionAnimation = useMemo(
+    () => resolveCardActionAnimationOption(cardActionAnimationId),
+    [cardActionAnimationId]
+  );
+  const cardActionAnimationRef = useRef(cardActionAnimationId);
+  useEffect(() => {
+    cardActionAnimationRef.current = cardActionAnimationId;
+    if (threeStateRef.current) {
+      threeStateRef.current.cardActionAnimationStyle = cardActionAnimationId;
+    }
+  }, [cardActionAnimationId]);
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
@@ -3885,6 +3990,15 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, [frameRateId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(CARD_ACTION_ANIMATION_STORAGE_KEY, cardActionAnimationId);
+    } catch (error) {
+      console.warn('Failed to persist card action animation option', error);
+    }
+  }, [cardActionAnimationId]);
+
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
   const humanTurnRef = useRef(false);
@@ -3929,6 +4043,7 @@ export default function MurlanRoyaleArena({ search }) {
     characterInstances: [],
     characterRigs: new Map(),
     characterActionAnimations: [],
+    cardActionAnimationStyle: DEFAULT_CARD_ACTION_ANIMATION_ID,
     decorPlants: [],
     decorGroup: null,
     outfitParts: [],
@@ -4376,9 +4491,13 @@ export default function MurlanRoyaleArena({ search }) {
             ? AI_SIDE_HAND_TOPWARD_SHIFT
             : -AI_SIDE_HAND_TOPWARD_SHIFT
           : 0;
-        const aiSideOutwardPush = aiHandVariant === 'side' ? AI_SIDE_HAND_EXTRA_OUTWARD_PUSH : 0;
+        const aiExtraOutwardPush = aiHandVariant === 'side'
+          ? AI_SIDE_HAND_EXTRA_OUTWARD_PUSH
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_EXTRA_OUTWARD_PUSH
+            : 0;
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
-        target.addScaledVector(forward, aiSideOutwardPush - (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull));
+        target.addScaledVector(forward, aiExtraOutwardPush - (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull));
         target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift + aiSideTopwardShift);
         target.y =
           baseHeight +
@@ -6094,6 +6213,7 @@ export default function MurlanRoyaleArena({ search }) {
         characterInstances: [],
         characterRigs: new Map(),
         characterActionAnimations: [],
+        cardActionAnimationStyle: cardActionAnimationRef.current,
         decorPlants: [],
         decorGroup: null,
         outfitParts: [],
@@ -6347,6 +6467,37 @@ export default function MurlanRoyaleArena({ search }) {
                   </button>
                 </div>
                 <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-sky-300/20 bg-sky-400/10 p-3 space-y-2">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-sky-100">Card Action Animation</p>
+                      <p className="mt-1 text-[0.7rem] text-white/65">
+                        Active: {activeCardActionAnimation.label}. Choose how characters pick, carry, and place cards.
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
+                      {CARD_ACTION_ANIMATION_OPTIONS.map((option) => {
+                        const active = option.id === cardActionAnimationId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setCardActionAnimationId(option.id)}
+                            aria-pressed={active}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                            }`}
+                          >
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/55">
+                              {option.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
