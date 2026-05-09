@@ -6715,6 +6715,7 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
+// May 8, 2026 16:00 visual baseline: preserve the hand/domino rack positions users approved.
 const PLAYER_HAND_GAP_SCALE = 0.56;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 8.65;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.9;
@@ -7174,6 +7175,18 @@ const PLACE_ANIM_LIFT_END = 0.34;
 const PLACE_ANIM_CARRY_END = 0.74;
 const PLACE_ANIM_LOWER_END = 0.92;
 const PLACE_ANIM_ARC = 0.075;
+const PLACE_CONTACT_PRESS_DEPTH = 0.0048;
+const PLACE_CONTACT_PAD_CLEARANCE = DOMINO_WIDTH * 0.2;
+const PLACE_CONTACT_RELEASE_LIFT = DOMINO_WIDTH * 0.72;
+const PLACE_CONTACT_SKIN_COLORS = Object.freeze([
+  0xd9a27d,
+  0xc78f68,
+  0xe0b18d,
+  0xb87957,
+  0xd39a72,
+  0xc88b64,
+  0xe3b08b
+]);
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
@@ -7232,6 +7245,7 @@ function clearExistingDominoMeshes() {
   });
   drawAnimations.length = 0;
   placementAnimations.forEach((anim) => {
+    disposeDominoContactHandRig(anim?.contactRig);
     if (anim?.mesh) {
       disposeDominoMesh(anim.mesh);
     }
@@ -9562,6 +9576,176 @@ function takeTileMeshForAnimation(tile) {
   return mesh;
 }
 
+function createDominoContactHandRig(sourceSeat = human) {
+  const skinColor =
+    PLACE_CONTACT_SKIN_COLORS[sourceSeat % PLACE_CONTACT_SKIN_COLORS.length] ??
+    0xd9a27d;
+  const skin = new THREE.MeshStandardMaterial({
+    color: skinColor,
+    roughness: 0.68,
+    metalness: 0.015
+  });
+  const nail = new THREE.MeshStandardMaterial({
+    color: 0xf7d7c4,
+    roughness: 0.55,
+    metalness: 0.01
+  });
+  const shadow = new THREE.MeshBasicMaterial({
+    color: 0x1f2937,
+    transparent: true,
+    opacity: 0.16,
+    depthWrite: false
+  });
+  const group = new THREE.Group();
+  group.userData.dispose = () => {
+    [skin, nail, shadow].forEach((mat) => {
+      try {
+        mat.dispose?.();
+      } catch {}
+    });
+  };
+
+  const palm = new THREE.Mesh(
+    new RoundedBoxGeometry(
+      DOMINO_LENGTH * 0.64,
+      DOMINO_WIDTH * 0.26,
+      DOMINO_WIDTH * 0.34,
+      5,
+      DOMINO_WIDTH * 0.11
+    ),
+    skin
+  );
+  palm.position.set(
+    -DOMINO_LENGTH * 0.04,
+    PLACE_CONTACT_PAD_CLEARANCE + DOMINO_WIDTH * 0.16,
+    -DOMINO_WIDTH * 0.12
+  );
+  palm.rotation.x = THREE.MathUtils.degToRad(-7);
+  palm.castShadow = true;
+  group.add(palm);
+
+  const thumb = new THREE.Mesh(
+    new RoundedBoxGeometry(
+      DOMINO_LENGTH * 0.3,
+      DOMINO_WIDTH * 0.18,
+      DOMINO_WIDTH * 0.22,
+      5,
+      DOMINO_WIDTH * 0.08
+    ),
+    skin
+  );
+  thumb.position.set(
+    -DOMINO_LENGTH * 0.19,
+    PLACE_CONTACT_PAD_CLEARANCE + DOMINO_WIDTH * 0.055,
+    DOMINO_WIDTH * 0.58
+  );
+  thumb.rotation.set(THREE.MathUtils.degToRad(-8), 0, THREE.MathUtils.degToRad(-22));
+  thumb.castShadow = true;
+  group.add(thumb);
+
+  [-0.24, 0.02, 0.28].forEach((x, index) => {
+    const finger = new THREE.Mesh(
+      new RoundedBoxGeometry(
+        DOMINO_LENGTH * 0.24,
+        DOMINO_WIDTH * 0.15,
+        DOMINO_WIDTH * 0.2,
+        5,
+        DOMINO_WIDTH * 0.065
+      ),
+      skin
+    );
+    finger.position.set(
+      DOMINO_LENGTH * x,
+      PLACE_CONTACT_PAD_CLEARANCE + DOMINO_WIDTH * (0.048 + index * 0.004),
+      -DOMINO_WIDTH * 0.61
+    );
+    finger.rotation.set(
+      THREE.MathUtils.degToRad(-11 - index * 2),
+      0,
+      THREE.MathUtils.degToRad(8 - index * 5)
+    );
+    finger.castShadow = true;
+    group.add(finger);
+
+    const fingertip = new THREE.Mesh(
+      new THREE.SphereGeometry(DOMINO_WIDTH * 0.09, 14, 10),
+      nail
+    );
+    fingertip.scale.z = 0.54;
+    fingertip.position.set(
+      DOMINO_LENGTH * (x + 0.085),
+      PLACE_CONTACT_PAD_CLEARANCE + DOMINO_WIDTH * 0.032,
+      -DOMINO_WIDTH * 0.73
+    );
+    fingertip.castShadow = true;
+    group.add(fingertip);
+  });
+
+  const contactShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(DOMINO_LENGTH * 0.42, 36),
+    shadow
+  );
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.set(0, -PLACE_CONTACT_PAD_CLEARANCE * 0.8, 0);
+  contactShadow.scale.z = 0.34;
+  contactShadow.renderOrder = 12;
+  group.add(contactShadow);
+  group.visible = false;
+  piecesG.add(group);
+  return group;
+}
+
+function disposeDominoContactHandRig(rig) {
+  if (!rig) return;
+  rig.parent?.remove?.(rig);
+  rig.userData?.dispose?.();
+  rig.traverse?.((child) => {
+    try {
+      child.geometry?.dispose?.();
+    } catch {}
+  });
+}
+
+function updateDominoContactHandRig(anim, t) {
+  const rig = anim?.contactRig;
+  if (!rig || !anim?.mesh) return;
+  const showT = smoothPlacementStep(0.03, PLACE_ANIM_PICK_HOLD * 0.82, t);
+  const releaseT = smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t);
+  rig.visible = t < 0.985 && showT > 0.015;
+  if (!rig.visible) return;
+
+  const pressT = t < PLACE_ANIM_PICK_HOLD
+    ? Math.sin(smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t) * Math.PI)
+    : 0;
+  const lowerT = t >= PLACE_ANIM_CARRY_END
+    ? smoothPlacementStep(PLACE_ANIM_CARRY_END, PLACE_ANIM_LOWER_END, t)
+    : 0;
+  const hoverLift = THREE.MathUtils.lerp(PLACE_CONTACT_RELEASE_LIFT, 0, lowerT);
+  const releaseLift = PLACE_CONTACT_RELEASE_LIFT * releaseT;
+
+  rig.position.copy(anim.mesh.position);
+  rig.position.y +=
+    PLACE_CONTACT_PAD_CLEARANCE +
+    hoverLift +
+    releaseLift -
+    pressT * PLACE_CONTACT_PRESS_DEPTH;
+  rig.quaternion.copy(anim.mesh.quaternion);
+  rig.rotateX(THREE.MathUtils.degToRad(-8 + releaseT * 17));
+  rig.rotateZ(
+    THREE.MathUtils.degToRad((anim.sourceSeat === human ? -2 : 2) + releaseT * 8)
+  );
+
+  const squeeze =
+    1 - Math.sin(Math.PI * Math.min(1, t / PLACE_ANIM_LIFT_END)) * 0.035;
+  rig.scale.set(1.02 - releaseT * 0.06, squeeze, 1.02 + releaseT * 0.08);
+  rig.traverse((child) => {
+    if (child?.material?.opacity != null && child.material.transparent) {
+      child.material.opacity = THREE.MathUtils.lerp(0.16, 0.02, releaseT);
+      child.material.needsUpdate = true;
+    }
+  });
+}
+
 function spawnPlacementAnimation(
   tile,
   segment,
@@ -9640,7 +9824,12 @@ function spawnPlacementAnimation(
     startTime: performance.now(),
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
-    segment
+    segment,
+    sourceSeat,
+    contactRig:
+      cameraViewMode === VIEW_MODES.twoD
+        ? null
+        : createDominoContactHandRig(sourceSeat)
   });
 }
 
@@ -11639,6 +11828,7 @@ function updatePlacementAnimations(now) {
     const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
 
     anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
+    updateDominoContactHandRig(anim, t);
 
     if (anim.endQuat && anim.startQuat) {
       const quat = anim.startQuat.clone().slerp(anim.endQuat, rotateT);
@@ -11654,6 +11844,7 @@ function updatePlacementAnimations(now) {
       if (anim.segment) {
         anim.segment.animating = false;
       }
+      disposeDominoContactHandRig(anim.contactRig);
       disposeDominoMesh(anim.mesh);
       placementAnimations.splice(i, 1);
       renderChain();
