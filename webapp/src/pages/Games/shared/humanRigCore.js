@@ -471,89 +471,78 @@ export function createHumanRig(scene, opts = {}) {
   scene.add(human.root, human.modelRoot);
 
   const { loader, modelUrl = HUMAN_URL, onStatus } = opts;
-  const modelUrls = Array.isArray(opts.modelUrls) && opts.modelUrls.length > 0
-    ? opts.modelUrls.filter((url) => typeof url === 'string' && url.trim().length > 0)
-    : [modelUrl];
   if (!loader) return human;
   loader.setCrossOrigin?.('anonymous');
   onStatus?.('Loading original skeleton human logic…');
-  const loadModelAt = (urlIndex = 0) => {
-    const activeUrl = modelUrls[urlIndex] || HUMAN_URL;
-    loader.load(
-      activeUrl,
-      (gltf) => {
-        const model = gltf?.scene;
-        if (!model) return;
-        normalizeHuman(model, cfg);
-        model.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-          obj.frustumCulled = false;
-          const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-          const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
-          if (Array.isArray(obj.material)) obj.material = mats;
-          else if (mats[0]) obj.material = mats[0];
-          mats.forEach((mat) => {
-            if (mat.map) {
-              mat.map.colorSpace = THREE.SRGBColorSpace;
-              mat.map.flipY = false;
-              mat.map.needsUpdate = true;
-            }
-            applyRealisticHumanMaterialFallback(obj, mat);
-            applyPolyhavenHumanClothingMaterial(obj, mat);
-            mat.depthWrite = true;
-            mat.depthTest = true;
-            mat.needsUpdate = true;
-          });
+  loader.load(
+    modelUrl,
+    (gltf) => {
+      const model = gltf?.scene;
+      if (!model) return;
+      normalizeHuman(model, cfg);
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
+        if (Array.isArray(obj.material)) obj.material = mats;
+        else if (mats[0]) obj.material = mats[0];
+        mats.forEach((mat) => {
+          if (mat.map) {
+            mat.map.colorSpace = THREE.SRGBColorSpace;
+            mat.map.flipY = false;
+            mat.map.needsUpdate = true;
+          }
+          applyRealisticHumanMaterialFallback(obj, mat);
+          applyPolyhavenHumanClothingMaterial(obj, mat);
+          mat.depthWrite = true;
+          mat.depthTest = true;
+          mat.needsUpdate = true;
         });
-        human.mixer = new THREE.AnimationMixer(model);
-        const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
-        const aliases = {
-          Idle: ['idle'],
-          Walk: ['walk', 'walking'],
-          Run: ['run', 'running']
-        };
-        Object.entries(aliases).forEach(([name, names]) => {
-          const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
-          if (!clip) return;
-          const action = human.mixer.clipAction(clip);
-          action.enabled = true;
-          action.setLoop(THREE.LoopRepeat, Infinity);
-          action.clampWhenFinished = false;
-          action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
-          action.play();
-          human.actions[name] = action;
-        });
-        human.bones = buildAvatarBones(model);
-        human.leftFingers = collectFingerBones(human.bones.leftHand);
-        human.rightFingers = collectFingerBones(human.bones.rightHand);
-        [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
-          if (bone) human.restQuats.set(bone, bone.quaternion.clone());
-        });
-        createHumanFaceDetails(human);
-        const b = human.bones;
-        human.activeGlb = Boolean(
-          b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
-          b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
-        );
-        human.model = model;
-        human.modelRoot.add(model);
-        human.modelRoot.visible = human.activeGlb;
-        onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
-      },
-      undefined,
-      (error) => {
-        console.warn('ReadyPlayer human failed', { url: activeUrl, error });
-        if (urlIndex + 1 < modelUrls.length) {
-          loadModelAt(urlIndex + 1);
-          return;
-        }
-        onStatus?.('ReadyPlayer GLTF human failed');
-      }
-    );
-  };
-  loadModelAt(0);
+      });
+      human.mixer = new THREE.AnimationMixer(model);
+      const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
+      const aliases = {
+        Idle: ['idle'],
+        Walk: ['walk', 'walking'],
+        Run: ['run', 'running']
+      };
+      Object.entries(aliases).forEach(([name, names]) => {
+        const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
+        if (!clip) return;
+        const action = human.mixer.clipAction(clip);
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
+        action.play();
+        human.actions[name] = action;
+      });
+      human.bones = buildAvatarBones(model);
+      human.leftFingers = collectFingerBones(human.bones.leftHand);
+      human.rightFingers = collectFingerBones(human.bones.rightHand);
+      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
+        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
+      });
+      createHumanFaceDetails(human);
+      const b = human.bones;
+      human.activeGlb = Boolean(
+        b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
+        b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
+      );
+      human.model = model;
+      human.modelRoot.add(model);
+      human.modelRoot.visible = human.activeGlb;
+      onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
+    },
+    undefined,
+    (error) => {
+      console.warn('ReadyPlayer human failed', error);
+      onStatus?.('ReadyPlayer GLTF human failed');
+    }
+  );
   return human;
 }
 
