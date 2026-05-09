@@ -6,11 +6,12 @@ import {
   CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_TABLE_FINISH_OPTIONS
 } from '../webapp/src/config/chessBattleInventoryConfig.js';
+import { CAPTURE_ANIMATION_OPTIONS } from '../webapp/src/config/ludoBattleOptions.js';
 
 describe('chess battle inventory config', () => {
-  test('defaults to octagon table for battle royal', () => {
-    expect(CHESS_BATTLE_TABLE_OPTIONS[0]?.id).toBe('murlan-default');
-    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.tables[0]).toBe('murlan-default');
+  test('defaults to Coffee Table 01 for battle royal', () => {
+    expect(CHESS_BATTLE_TABLE_OPTIONS[0]?.id).toBe('CoffeeTable_01');
+    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.tables[0]).toBe('CoffeeTable_01');
   });
 
   test('store includes octagon, hexagon, and oval table shapes', () => {
@@ -28,9 +29,21 @@ describe('chess battle inventory config', () => {
       CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableFinish').map((item) => item.optionId)
     );
 
-    ['carbonFiberChalk', 'carbonFiberSnakeChalk', 'carbonFiberAlligatorNight'].forEach((id) => {
+    ['carbonFiberChalk', 'carbonFiberChalkDarkGreen', 'carbonFiberAlligatorNight'].forEach((id) => {
       expect(finishIds.has(id)).toBe(true);
       expect(storeFinishIds.has(id)).toBe(true);
+    });
+  });
+
+
+  test('sells every Ludo capture animation weapon for Chess Battle Royal', () => {
+    const storeCaptureIds = new Set(
+      CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'captureAnimation').map((item) => item.optionId)
+    );
+    const purchasableLudoCaptureIds = CAPTURE_ANIMATION_OPTIONS.slice(1).map((option) => option.id);
+
+    purchasableLudoCaptureIds.forEach((id) => {
+      expect(storeCaptureIds.has(id)).toBe(true);
     });
   });
 
