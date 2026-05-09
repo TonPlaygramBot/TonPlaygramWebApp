@@ -311,7 +311,7 @@ export const CHESS_TABLE_OPTIONS = Object.freeze([
 ]);
 
 const CHESS_BATTLE_REMOVED_TABLE_IDS = new Set(['diamondEdge']);
-const CHESS_BATTLE_DEFAULT_TABLE_ID = 'CoffeeTable_01';
+const CHESS_BATTLE_DEFAULT_TABLE_ID = 'murlan-default';
 
 export const CHESS_BATTLE_TABLE_OPTIONS = Object.freeze(
   CHESS_TABLE_OPTIONS
