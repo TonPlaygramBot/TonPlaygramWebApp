@@ -1,7 +1,6 @@
 import type { Vector3 } from 'three';
 
 export type GamePhase = 'playing' | 'won' | 'lost';
-export type VehicleMode = 'onFoot' | 'helicopter';
 export type EnemyAiState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
 
 export type TouchInputState = {
@@ -11,8 +10,6 @@ export type TouchInputState = {
   lookY: number;
   firing: boolean;
   reloading: boolean;
-  ascend: number;
-  descend: number;
 };
 
 export type WeaponStats = {
