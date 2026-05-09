@@ -434,14 +434,9 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = CAMERA_PULL_FORWARD_MIN; // match the forced 3D capture-animation framing for normal 3D play.
-const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = 0; // keep 3D and capture cameras aimed at the same board target.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 1.04; // mirror the wide animation framing while keeping the camera locked in place.
-const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
-const CAMERA_LOOK_MIN_PITCH = -CAMERA_LOOK_PITCH_LIMIT;
-const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
-const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(34); // lower portrait 3D camera angle so the board feels more eye-level while preserving depth.
+const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 0.9; // aim a little higher so the lower camera looks up across the arena.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -486,13 +481,9 @@ const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
-const CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS = TABLE_RADIUS;
-
-function resolveChairDistanceForDirection(_tableInfo, ...layoutArgs) {
+function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
   const seatDepth = Number.isFinite(layoutArgs[1]) ? layoutArgs[1] : SEAT_DEPTH;
-  // CoffeeTable_01 is the canonical Chess Battle Royal layout reference.
-  // All table skins use this same radius so chairs, humans, board, pieces, and side weapons stay fixed.
-  const tableRadius = CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS;
+  const tableRadius = Number.isFinite(tableInfo?.radius) ? tableInfo.radius : TABLE_RADIUS;
   const clearance = clamp(
     CHAIR_CLEARANCE + seatDepth * 0.1 + CHAIR_HUMAN_LEG_GAP,
     CHAIR_TABLE_GAP_MIN,
@@ -7837,8 +7828,6 @@ function Chess3D({
   });
   const locked3dViewRef = useRef({
     activeLook: false,
-    baseYaw: 0,
-    basePitch: -0.28,
     yaw: 0,
     pitch: -0.28,
     targetYaw: 0,
@@ -9826,7 +9815,7 @@ function Chess3D({
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = false;
+        controls.enableRotate = true;
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9859,8 +9848,6 @@ function Chess3D({
         const lookDir = lockedLookTarget.sub(targetPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
-        locked3dViewRef.current.baseYaw = yaw;
-        locked3dViewRef.current.basePitch = pitch;
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
@@ -9873,11 +9860,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in locked 3D with the same framing used by capture animations.
+    // Start every match in locked 2D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '3d';
-    setViewMode('3d');
-    setViewModeInternal('3d');
+    viewModeRef.current = '2d';
+    setViewMode('2d');
+    setViewModeInternal('2d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -12461,8 +12448,7 @@ function Chess3D({
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
         setProceduralBoardVisible,
-        usingProceduralBoard: proceduralBoardVisible,
-        syncParkedWeaponSwaps
+        usingProceduralBoard: proceduralBoardVisible
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -13299,16 +13285,8 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw = clamp(
-            locked.targetYaw + movementX * CAMERA_LOOK_YAW_DRAG_FACTOR,
-            locked.baseYaw - CAMERA_LOOK_YAW_LIMIT,
-            locked.baseYaw + CAMERA_LOOK_YAW_LIMIT
-          );
-          locked.targetPitch = clamp(
-            locked.targetPitch + movementY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-            locked.basePitch + CAMERA_LOOK_MIN_PITCH,
-            locked.basePitch + CAMERA_LOOK_PITCH_LIMIT
-          );
+          locked.targetYaw -= movementX * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
         }
         return;
       }
