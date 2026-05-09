@@ -72,6 +72,9 @@ import TableTennis from './pages/Games/TableTennis.tsx';
 import TennisLobby from './pages/Games/TennisLobby.jsx';
 import BowlingRealistic from './pages/Games/BowlingRealistic.tsx';
 import FreeKickArena from './pages/Games/FreeKickArena.tsx';
+const MobileUrbanFps = React.lazy(
+  () => import('./games/mobileUrbanFps/MobileUrbanFps.tsx')
+);
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
 import Layout from './components/Layout.jsx';
@@ -168,6 +171,22 @@ export default function App() {
             />
             <Route path="/games" element={<Games />} />
             <Route path="/games/transactions" element={<GameTransactions />} />
+            <Route
+              path="/games/mobile-urban-fps"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="p-4 text-center">
+                      Loading Urban Ops FPS…
+                    </div>
+                  }
+                >
+                  <GameLiveAvatarOverlay gameSlug="mobile-urban-fps">
+                    <MobileUrbanFps />
+                  </GameLiveAvatarOverlay>
+                </Suspense>
+              }
+            />
             <Route
               path="/games/runman"
               element={
