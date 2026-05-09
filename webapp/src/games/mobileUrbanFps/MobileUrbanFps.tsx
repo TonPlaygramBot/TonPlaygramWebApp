@@ -1,12 +1,14 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent } from 'react';
 import * as THREE from 'three';
 import { mobileUrbanFpsAssets, assetSourceNotes } from './assetConfig';
 import {
   DISPLAY_ITEMS,
   FIRST_PERSON_WEAPON,
   FPS_HAND_DONOR,
+  FPS_WEAPON_OPTIONS,
   TOTAL_ITEMS,
   type DisplayEntry
 } from './assetCatalog';
@@ -32,19 +34,19 @@ const enemySeed: Array<[number, number, number]> = [
   [-4, 0.9, -11],
   [3.8, 0.9, -14],
   [-1.2, 0.9, -19],
-  [5.5, 0.9, -24],
-  [-5.5, 0.9, -27],
-  [0.6, 0.9, -33]
+  [5.5, 0.9, -27],
+  [-5.5, 0.9, -34],
+  [0.6, 0.9, -43]
 ];
 
 const colliders = [
-  new THREE.Box3(new THREE.Vector3(-8, -1, -36), new THREE.Vector3(8, 4, -35)),
+  new THREE.Box3(new THREE.Vector3(-8, -1, -56), new THREE.Vector3(8, 4, -55)),
   new THREE.Box3(new THREE.Vector3(-8, -1, 1), new THREE.Vector3(8, 4, 2)),
   new THREE.Box3(
-    new THREE.Vector3(-8.5, -1, -36),
+    new THREE.Vector3(-8.5, -1, -56),
     new THREE.Vector3(-7.5, 4, 2)
   ),
-  new THREE.Box3(new THREE.Vector3(7.5, -1, -36), new THREE.Vector3(8.5, 4, 2)),
+  new THREE.Box3(new THREE.Vector3(7.5, -1, -56), new THREE.Vector3(8.5, 4, 2)),
   new THREE.Box3(
     new THREE.Vector3(-2.4, -1, -9),
     new THREE.Vector3(0.4, 2, -7.8)
@@ -61,7 +63,7 @@ const colliders = [
 
 function clampPlayer(position: THREE.Vector3) {
   position.x = THREE.MathUtils.clamp(position.x, -6.8, 6.8);
-  position.z = THREE.MathUtils.clamp(position.z, -34, -0.5);
+  position.z = THREE.MathUtils.clamp(position.z, -54, -0.5);
   const playerBox = new THREE.Box3().setFromCenterAndSize(
     position,
     new THREE.Vector3(0.7, 1.7, 0.7)
@@ -191,50 +193,214 @@ function Building({
   );
 }
 
+const districtBlocks = [-6, -13, -21, -30, -40, -50];
+const crossStreets = [-10, -24, -38, -50];
+
+function RoadMarkings({ material }: { material: THREE.Material }) {
+  return (
+    <group>
+      {Array.from({ length: 16 }, (_, i) => -2.5 - i * 3.2).map((z) => (
+        <mesh
+          key={`lane-${z}`}
+          position={[0, 0.026, z]}
+          rotation-x={-Math.PI / 2}
+          material={material}
+        >
+          <planeGeometry args={[0.18, 1.25]} />
+        </mesh>
+      ))}
+      {crossStreets.map((z) => (
+        <group key={`crosswalk-${z}`} position={[0, 0.029, z]}>
+          {[-2.7, -1.8, -0.9, 0, 0.9, 1.8, 2.7].map((x) => (
+            <mesh
+              key={`${z}-${x}`}
+              position={[x, 0, 0]}
+              rotation-x={-Math.PI / 2}
+              material={material}
+            >
+              <planeGeometry args={[0.38, 2.35]} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function StreetLight({ x, z }: { x: number; z: number }) {
+  const mats = PbrMaterials();
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 1.85, 0]} material={mats.metal} castShadow>
+        <cylinderGeometry args={[0.045, 0.06, 3.7, 8]} />
+      </mesh>
+      <mesh position={[x < 0 ? 0.32 : -0.32, 3.55, 0]} material={mats.metal}>
+        <boxGeometry args={[0.62, 0.06, 0.08]} />
+      </mesh>
+      <pointLight
+        position={[x < 0 ? 0.42 : -0.42, 3.42, 0]}
+        intensity={1.65}
+        distance={10}
+        color="#ffe2a3"
+      />
+      <mesh position={[x < 0 ? 0.46 : -0.46, 3.38, 0]} material={mats.glass}>
+        <sphereGeometry args={[0.14, 12, 8]} />
+      </mesh>
+    </group>
+  );
+}
+
+function TrafficSignal({ x, z }: { x: number; z: number }) {
+  const mats = PbrMaterials();
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 1.6, 0]} material={mats.metal}>
+        <cylinderGeometry args={[0.035, 0.045, 3.2, 8]} />
+      </mesh>
+      <mesh position={[0, 3.05, 0]} material={mats.metal} castShadow>
+        <boxGeometry args={[0.28, 0.72, 0.18]} />
+      </mesh>
+      {[
+        ['#ff3b30', 3.24],
+        ['#ffd60a', 3.05],
+        ['#30d158', 2.86]
+      ].map(([color, y]) => (
+        <mesh key={color} position={[0, Number(y), -0.095]}>
+          <sphereGeometry args={[0.055, 10, 8]} />
+          <meshBasicMaterial color={String(color)} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BusStop({ x, z }: { x: number; z: number }) {
+  const mats = PbrMaterials();
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 1.15, 0]} material={mats.glass}>
+        <boxGeometry args={[1.25, 1.7, 0.05]} />
+      </mesh>
+      <mesh position={[0, 2.08, 0]} material={mats.metal} castShadow>
+        <boxGeometry args={[1.5, 0.12, 0.72]} />
+      </mesh>
+      <mesh position={[0, 0.42, -0.25]} material={mats.metal} castShadow>
+        <boxGeometry args={[1.08, 0.16, 0.28]} />
+      </mesh>
+      <mesh position={[0, 1.5, -0.33]} material={mats.metal}>
+        <boxGeometry args={[0.72, 0.34, 0.04]} />
+      </mesh>
+    </group>
+  );
+}
+
 function UrbanArena() {
   const mats = PbrMaterials();
-  const lampPositions = [-4, 4];
+  const markings = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: '#f8fafc',
+        transparent: true,
+        opacity: 0.76
+      }),
+    []
+  );
+  const park = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#256d3c',
+        roughness: 0.9,
+        metalness: 0.02
+      }),
+    []
+  );
   const cover = [
     [-1, 0.55, -8.6, 2.8, 1.1, 1],
     [4.1, 0.55, -16.4, 3.4, 1.1, 1.1],
-    [-5, 0.55, -21.5, 2.8, 1.1, 1.4]
+    [-5, 0.55, -28.5, 2.8, 1.1, 1.4],
+    [2.2, 0.55, -39, 2.6, 1.1, 1.2]
   ];
   return (
     <group>
-      <fog attach="fog" args={['#111827', 18, 48]} />
-      <mesh rotation-x={-Math.PI / 2} material={mats.road} receiveShadow>
-        <planeGeometry args={[16, 40]} />
+      <fog attach="fog" args={['#aab8c9', 42, 86]} />
+      <hemisphereLight args={['#f7fbff', '#9aa07f', 1.55]} />
+      <directionalLight
+        position={[-6, 12, 5]}
+        intensity={2.6}
+        color="#fff3d6"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <mesh
+        position={[0, 0, -27]}
+        rotation-x={-Math.PI / 2}
+        material={mats.road}
+        receiveShadow
+      >
+        <planeGeometry args={[16, 58]} />
       </mesh>
       <mesh
-        position={[-5.2, 0.012, -17]}
+        position={[-5.2, 0.012, -27]}
         rotation-x={-Math.PI / 2}
         material={mats.concrete}
         receiveShadow
       >
-        <planeGeometry args={[4.2, 38]} />
+        <planeGeometry args={[4.2, 56]} />
       </mesh>
       <mesh
-        position={[5.2, 0.012, -17]}
+        position={[5.2, 0.012, -27]}
         rotation-x={-Math.PI / 2}
         material={mats.concrete}
         receiveShadow
       >
-        <planeGeometry args={[4.2, 38]} />
+        <planeGeometry args={[4.2, 56]} />
       </mesh>
+      <RoadMarkings material={markings} />
+      {crossStreets.map((z) => (
+        <mesh
+          key={`avenue-${z}`}
+          position={[0, 0.018, z]}
+          rotation-x={-Math.PI / 2}
+          material={mats.road}
+          receiveShadow
+        >
+          <planeGeometry args={[15.5, 2.8]} />
+        </mesh>
+      ))}
       {[-7.1, 7.1].map((x) =>
-        [-5, -12, -20, -29].map((z, i) => (
+        districtBlocks.map((z, i) => (
           <Building
             key={`${x}-${z}`}
             x={x}
             z={z}
-            width={2.2 + (i % 2)}
-            depth={2.8}
-            height={5 + i * 0.9}
+            width={2.1 + ((i + (x > 0 ? 1 : 0)) % 3) * 0.55}
+            depth={2.6 + (i % 2) * 0.4}
+            height={5.4 + i * 0.72 + (x > 0 ? 0.55 : 0)}
             material={i % 2 ? mats.brick : mats.concrete}
             glass={mats.glass}
           />
         ))
       )}
+      <mesh
+        position={[-5.15, 0.035, -43.8]}
+        rotation-x={-Math.PI / 2}
+        material={park}
+        receiveShadow
+      >
+        <planeGeometry args={[3.7, 6.4]} />
+      </mesh>
+      {[-6.2, -5, -4.1].map((x, i) => (
+        <group key={`tree-${i}`} position={[x, 0, -42 - i * 1.55]}>
+          <mesh position={[0, 0.72, 0]} material={mats.brick} castShadow>
+            <cylinderGeometry args={[0.08, 0.12, 1.35, 8]} />
+          </mesh>
+          <mesh position={[0, 1.55, 0]} castShadow>
+            <sphereGeometry args={[0.52, 12, 10]} />
+            <meshStandardMaterial color="#1f7a3f" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
       {cover.map(([x, y, z, w, h, d], i) => (
         <mesh
           key={i}
@@ -246,7 +412,7 @@ function UrbanArena() {
           <boxGeometry args={[w, h, d]} />
         </mesh>
       ))}
-      {[-12, -18, -26].map((z) => (
+      {[-12, -18, -26, -36, -46].map((z) => (
         <group key={z} position={[0, 0, z]}>
           <mesh
             position={[-2.8, 0.45, 0]}
@@ -266,24 +432,26 @@ function UrbanArena() {
           </mesh>
         </group>
       ))}
-      {lampPositions.map((x) =>
-        [-6, -18, -30].map((z) => (
-          <group key={`${x}-${z}`} position={[x, 0, z]}>
-            <mesh position={[0, 1.8, 0]} material={mats.metal} castShadow>
-              <cylinderGeometry args={[0.045, 0.06, 3.6, 8]} />
-            </mesh>
-            <pointLight
-              position={[0, 3.4, 0]}
-              intensity={1.2}
-              distance={8}
-              color="#f4c982"
-            />
-            <mesh position={[0, 3.38, 0]} material={mats.glass}>
-              <sphereGeometry args={[0.15, 12, 8]} />
-            </mesh>
-          </group>
+      {[-4.25, 4.25].map((x) =>
+        [-6, -14, -22, -30, -38, -48].map((z) => (
+          <StreetLight key={`${x}-${z}`} x={x} z={z} />
         ))
       )}
+      {crossStreets.flatMap((z) => [
+        <TrafficSignal key={`tl-${z}-l`} x={-3.65} z={z + 1.25} />,
+        <TrafficSignal key={`tl-${z}-r`} x={3.65} z={z - 1.25} />
+      ])}
+      <BusStop x={-5.45} z={-18.5} />
+      <BusStop x={5.45} z={-34.5} />
+      {[-12, -32, -46].map((z, i) => (
+        <mesh
+          key={`utility-${z}`}
+          position={[i % 2 ? 5.35 : -5.35, 2.15, z]}
+          material={mats.metal}
+        >
+          <boxGeometry args={[0.08, 4.2, 0.08]} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -475,9 +643,11 @@ function AssetArmory() {
 
 function FirstPersonWeaponAsset({
   visible,
+  selectedWeapon,
   onReady
 }: {
   visible: boolean;
+  selectedWeapon: DisplayEntry;
   onReady: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -493,11 +663,7 @@ function FirstPersonWeaponAsset({
     async function loadFirstPersonRig() {
       try {
         const [weaponResult, donorResult] = await Promise.allSettled([
-          loadModelByUrls(
-            FIRST_PERSON_WEAPON.name,
-            FIRST_PERSON_WEAPON.urls,
-            14000
-          ),
+          loadModelByUrls(selectedWeapon.name, selectedWeapon.urls, 14000),
           loadModelByUrls('FPS donor hands', FPS_HAND_DONOR.urls, 14000)
         ]);
         if (disposed || weaponResult.status !== 'fulfilled') return;
@@ -518,7 +684,7 @@ function FirstPersonWeaponAsset({
         normalizeObject(weapon, 0.86);
         weapon.position.set(0, 0.02, 0);
         weapon.rotation.set(-0.04, Math.PI, 0);
-        attachHandsToWeapon(FIRST_PERSON_WEAPON, weapon, donorScene, gl);
+        attachHandsToWeapon(selectedWeapon, weapon, donorScene, gl);
         root = weapon;
         liveGroup.add(weapon);
         onReady();
@@ -539,7 +705,7 @@ function FirstPersonWeaponAsset({
         disposeObject(root);
       }
     };
-  }, [gl, onReady]);
+  }, [gl, onReady, selectedWeapon]);
 
   useFrame(() => {
     if (!groupRef.current) return;
@@ -559,7 +725,16 @@ function FirstPersonWeaponAsset({
 }
 
 function WeaponView() {
+  const selectedWeaponId = useMobileFpsStore((state) => state.selectedWeaponId);
+  const selectedWeapon =
+    FPS_WEAPON_OPTIONS.find((entry) => entry.id === selectedWeaponId) ??
+    FIRST_PERSON_WEAPON;
   const [assetReady, setAssetReady] = useState(false);
+  const handleWeaponReady = useCallback(() => setAssetReady(true), []);
+
+  useEffect(() => {
+    setAssetReady(false);
+  }, [selectedWeapon.id]);
   const muzzleFlashUntil = useMobileFpsStore((state) => state.muzzleFlashUntil);
   const now = performance.now();
   const rifleMetal = useMemo(
@@ -592,8 +767,10 @@ function WeaponView() {
   return (
     <>
       <FirstPersonWeaponAsset
+        key={selectedWeapon.id}
         visible={assetReady}
-        onReady={() => setAssetReady(true)}
+        selectedWeapon={selectedWeapon}
+        onReady={handleWeaponReady}
       />
       <group
         visible={!assetReady}
@@ -955,8 +1132,13 @@ function TouchHud() {
   const enemiesAlive = useMobileFpsStore((state) => state.enemiesAlive);
   const phase = useMobileFpsStore((state) => state.phase);
   const hitMarkerUntil = useMobileFpsStore((state) => state.hitMarkerUntil);
+  const selectedWeaponId = useMobileFpsStore((state) => state.selectedWeaponId);
+  const cycleWeapon = useMobileFpsStore((state) => state.cycleWeapon);
   const setInput = useMobileFpsStore((state) => state.setInput);
   const reset = useMobileFpsStore((state) => state.reset);
+  const selectedWeapon =
+    FPS_WEAPON_OPTIONS.find((entry) => entry.id === selectedWeaponId) ??
+    FIRST_PERSON_WEAPON;
   const stick = useRef<HTMLDivElement>(null);
   const joystickId = useRef<number | null>(null);
   const lookId = useRef<number | null>(null);
@@ -966,6 +1148,25 @@ function TouchHud() {
     joystickId.current = null;
     setInput({ moveX: 0, moveY: 0 });
     if (stick.current) stick.current.style.transform = 'translate(0px, 0px)';
+  };
+
+  const updateJoystick = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dx = event.clientX - (rect.left + rect.width / 2);
+    const dy = event.clientY - (rect.top + rect.height / 2);
+    const maxRadius = rect.width * 0.42;
+    const rawLength = Math.hypot(dx, dy);
+    const len = Math.min(maxRadius, rawLength);
+    const angle = Math.atan2(dy, dx);
+    const x = Math.cos(angle) * len;
+    const y = Math.sin(angle) * len;
+    const normalized = rawLength < 8 ? 0 : len / maxRadius;
+    setInput({
+      moveX: Math.cos(angle) * normalized,
+      moveY: -Math.sin(angle) * normalized
+    });
+    if (stick.current)
+      stick.current.style.transform = `translate(${x}px, ${y}px)`;
   };
 
   return (
@@ -995,19 +1196,11 @@ function TouchHud() {
         onPointerDown={(event) => {
           joystickId.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
+          updateJoystick(event);
         }}
         onPointerMove={(event) => {
           if (joystickId.current !== event.pointerId) return;
-          const rect = event.currentTarget.getBoundingClientRect();
-          const dx = event.clientX - (rect.left + rect.width / 2);
-          const dy = event.clientY - (rect.top + rect.height / 2);
-          const len = Math.min(48, Math.hypot(dx, dy));
-          const angle = Math.atan2(dy, dx);
-          const x = Math.cos(angle) * len;
-          const y = Math.sin(angle) * len;
-          setInput({ moveX: x / 48, moveY: -y / 48 });
-          if (stick.current)
-            stick.current.style.transform = `translate(${x}px, ${y}px)`;
+          updateJoystick(event);
         }}
         onPointerCancel={resetStick}
         onPointerUp={resetStick}
@@ -1027,8 +1220,8 @@ function TouchHud() {
           const dy = event.clientY - lookLast.current.y;
           lookLast.current = { x: event.clientX, y: event.clientY };
           setInput({
-            lookX: THREE.MathUtils.clamp(dx / 44, -1, 1),
-            lookY: THREE.MathUtils.clamp(dy / 44, -1, 1)
+            lookX: THREE.MathUtils.clamp(dx / 58, -0.82, 0.82),
+            lookY: THREE.MathUtils.clamp(dy / 58, -0.82, 0.82)
           });
         }}
         onPointerUp={() => {
@@ -1054,8 +1247,26 @@ function TouchHud() {
       >
         FIRE
       </button>
+      <div className="mobile-fps-weapon-switch">
+        <button
+          type="button"
+          onPointerDown={() => cycleWeapon(-1)}
+          aria-label="Previous weapon"
+        >
+          ◀
+        </button>
+        <span>{selectedWeapon.shortName}</span>
+        <button
+          type="button"
+          onPointerDown={() => cycleWeapon(1)}
+          aria-label="Next weapon"
+        >
+          ▶
+        </button>
+      </div>
       <div className="mobile-fps-status">
-        Left thumb moves · right drag aims · {TOTAL_ITEMS} loaded asset slots
+        Smooth joystick · right drag aims · {TOTAL_ITEMS} open-source GLB/GLTF
+        slots
       </div>
       {phase !== 'playing' && (
         <div className="mobile-fps-modal">
