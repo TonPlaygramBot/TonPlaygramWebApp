@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { FIRST_PERSON_WEAPON, FPS_WEAPON_OPTIONS } from './assetCatalog';
 import type {
   BulletTracer,
   GamePhase,
@@ -34,6 +35,9 @@ type GameStore = {
   input: TouchInputState;
   tracers: BulletTracer[];
   impacts: ImpactFx[];
+  selectedWeaponId: string;
+  selectWeapon: (id: string) => void;
+  cycleWeapon: (direction: 1 | -1) => void;
   setInput: (patch: Partial<TouchInputState>) => void;
   damagePlayer: (amount: number) => void;
   setEnemiesAlive: (count: number) => void;
@@ -73,6 +77,22 @@ export const useMobileFpsStore = create<GameStore>((set, get) => ({
   input: initialInput,
   tracers: [],
   impacts: [],
+  selectedWeaponId: FIRST_PERSON_WEAPON.id,
+  selectWeapon: (id) => {
+    if (FPS_WEAPON_OPTIONS.some((entry) => entry.id === id))
+      set({ selectedWeaponId: id });
+  },
+  cycleWeapon: (direction) =>
+    set((state) => {
+      const currentIndex = FPS_WEAPON_OPTIONS.findIndex(
+        (entry) => entry.id === state.selectedWeaponId
+      );
+      const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex =
+        (safeIndex + direction + FPS_WEAPON_OPTIONS.length) %
+        FPS_WEAPON_OPTIONS.length;
+      return { selectedWeaponId: FPS_WEAPON_OPTIONS[nextIndex].id };
+    }),
   setInput: (patch) =>
     set((state) => ({ input: { ...state.input, ...patch } })),
   damagePlayer: (amount) =>
@@ -136,6 +156,7 @@ export const useMobileFpsStore = create<GameStore>((set, get) => ({
       hitMarkerUntil: 0,
       muzzleFlashUntil: 0,
       recoil: 0,
+      selectedWeaponId: FIRST_PERSON_WEAPON.id,
       input: initialInput,
       tracers: [],
       impacts: []
