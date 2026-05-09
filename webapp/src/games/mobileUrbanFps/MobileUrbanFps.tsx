@@ -1,14 +1,12 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, useGLTF } from '@react-three/drei';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
+import { useGLTF } from '@react-three/drei';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { mobileUrbanFpsAssets, assetSourceNotes } from './assetConfig';
 import {
   DISPLAY_ITEMS,
   FIRST_PERSON_WEAPON,
   FPS_HAND_DONOR,
-  FPS_WEAPON_OPTIONS,
   TOTAL_ITEMS,
   type DisplayEntry
 } from './assetCatalog';
@@ -30,229 +28,45 @@ import {
 } from './systems/AssetLoader';
 import './MobileUrbanFps.css';
 
-const CITY_BOUNDS = {
-  minX: -24,
-  maxX: 24,
-  minZ: -162,
-  maxZ: 8
-} as const;
-
-const PLAYER_STANDING_Y = 1.55;
-const HELIPAD_POSITION = new THREE.Vector3(0, 12.45, -70);
-
 const enemySeed: Array<[number, number, number]> = [
-  [-5, 0.9, -18],
-  [6, 0.9, -31],
-  [-11, 0.9, -48],
-  [10, 0.9, -66],
-  [-6, 0.9, -91],
-  [7, 0.9, -118],
-  [-12, 0.9, -139],
-  [12, 0.9, -152]
+  [-4, 0.9, -11],
+  [3.8, 0.9, -14],
+  [-1.2, 0.9, -19],
+  [5.5, 0.9, -24],
+  [-5.5, 0.9, -27],
+  [0.6, 0.9, -33]
 ];
 
-type BuildingSpec = {
-  id: string;
-  x: number;
-  z: number;
-  width: number;
-  depth: number;
-  height: number;
-  material: 'concrete' | 'brick' | 'metal' | 'mall';
-  label?: string;
-  mall?: boolean;
-};
-
-type CityCollider = {
-  box: THREE.Box3;
-  roofHeight: number;
-};
-
-type StairSpec = {
-  id: string;
-  x: number;
-  z: number;
-  width: number;
-  depth: number;
-  height: number;
-  side: -1 | 1;
-};
-
-const districtBlocks = Array.from(
-  { length: 13 },
-  (_, index) => -8 - index * 12
-);
-const crossStreets = [-16, -40, -64, -88, -112, -136, -156];
-
-const TONPLAYGRAM_MALL: BuildingSpec = {
-  id: 'tonplaygram-mall',
-  x: 0,
-  z: -70,
-  width: 17,
-  depth: 22,
-  height: 10.8,
-  material: 'mall',
-  label: 'TonPlaygram Mall',
-  mall: true
-};
-
-const generatedBuildings: BuildingSpec[] = districtBlocks.flatMap((z, row) =>
-  [-1, 1].flatMap((side) => {
-    const nearMall = z < -56 && z > -84;
-    const frontX = side * (9.8 + (row % 2) * 0.8);
-    const backX = side * (18.2 + (row % 3) * 0.45);
-    const baseHeight = 8 + ((row * 1.7 + (side > 0 ? 2 : 0)) % 7);
-    return [
-      {
-        id: `tower-${side}-${row}-front`,
-        x: nearMall ? side * 19 : frontX,
-        z,
-        width: 4.8 + (row % 3) * 0.7,
-        depth: 5.6,
-        height: baseHeight,
-        material: row % 2 ? 'brick' : 'concrete'
-      },
-      {
-        id: `tower-${side}-${row}-rear`,
-        x: backX,
-        z: z - 3.2,
-        width: 4.4 + ((row + 1) % 3) * 0.65,
-        depth: 5.2,
-        height: baseHeight + 2.6,
-        material: row % 2 ? 'concrete' : 'brick'
-      }
-    ] as BuildingSpec[];
-  })
-);
-
-const cityBuildings: BuildingSpec[] = [TONPLAYGRAM_MALL, ...generatedBuildings];
-
-const roofStairs: StairSpec[] = cityBuildings.map((building) => {
-  const side = building.x >= 0 ? 1 : -1;
-  const width = building.mall ? 3.8 : 1.35;
-  const depth = building.mall ? 9.8 : 5.2;
-  return {
-    id: `${building.id}-roof-stairs`,
-    x: building.x + side * (building.width / 2 + width / 2 + 0.22),
-    z: building.z + building.depth * 0.12,
-    width,
-    depth,
-    height: building.height,
-    side
-  };
-});
-
-function makeCollider(building: BuildingSpec): CityCollider {
-  return {
-    box: new THREE.Box3(
-      new THREE.Vector3(
-        building.x - building.width / 2,
-        -1,
-        building.z - building.depth / 2
-      ),
-      new THREE.Vector3(
-        building.x + building.width / 2,
-        building.height + 1.4,
-        building.z + building.depth / 2
-      )
-    ),
-    roofHeight: building.height
-  };
-}
-
-const cityColliders: CityCollider[] = [
-  {
-    box: new THREE.Box3(
-      new THREE.Vector3(CITY_BOUNDS.minX - 3, -1, CITY_BOUNDS.minZ - 3),
-      new THREE.Vector3(CITY_BOUNDS.maxX + 3, 20, CITY_BOUNDS.minZ)
-    ),
-    roofHeight: 99
-  },
-  ...cityBuildings.map(makeCollider)
+const colliders = [
+  new THREE.Box3(new THREE.Vector3(-8, -1, -36), new THREE.Vector3(8, 4, -35)),
+  new THREE.Box3(new THREE.Vector3(-8, -1, 1), new THREE.Vector3(8, 4, 2)),
+  new THREE.Box3(
+    new THREE.Vector3(-8.5, -1, -36),
+    new THREE.Vector3(-7.5, 4, 2)
+  ),
+  new THREE.Box3(new THREE.Vector3(7.5, -1, -36), new THREE.Vector3(8.5, 4, 2)),
+  new THREE.Box3(
+    new THREE.Vector3(-2.4, -1, -9),
+    new THREE.Vector3(0.4, 2, -7.8)
+  ),
+  new THREE.Box3(
+    new THREE.Vector3(2.4, -1, -17),
+    new THREE.Vector3(5.8, 2, -15.8)
+  ),
+  new THREE.Box3(
+    new THREE.Vector3(-6.4, -1, -22),
+    new THREE.Vector3(-3.6, 2, -20.6)
+  )
 ];
 
-function isInsideRect(
-  x: number,
-  z: number,
-  centerX: number,
-  centerZ: number,
-  width: number,
-  depth: number
-) {
-  return (
-    x >= centerX - width / 2 &&
-    x <= centerX + width / 2 &&
-    z >= centerZ - depth / 2 &&
-    z <= centerZ + depth / 2
-  );
-}
-
-function navigationHeight(position: THREE.Vector3) {
-  let targetY = PLAYER_STANDING_Y;
-
-  for (const stair of roofStairs) {
-    if (
-      !isInsideRect(
-        position.x,
-        position.z,
-        stair.x,
-        stair.z,
-        stair.width,
-        stair.depth
-      )
-    )
-      continue;
-    const localZ = THREE.MathUtils.clamp(
-      (position.z - (stair.z - stair.depth / 2)) / stair.depth,
-      0,
-      1
-    );
-    targetY = Math.max(targetY, PLAYER_STANDING_Y + localZ * stair.height);
-  }
-
-  for (const building of cityBuildings) {
-    const onRoof = isInsideRect(
-      position.x,
-      position.z,
-      building.x,
-      building.z,
-      building.width + 0.6,
-      building.depth + 0.6
-    );
-    if (onRoof && position.y >= building.height - 0.4) {
-      targetY = Math.max(targetY, building.height + PLAYER_STANDING_Y);
-    }
-  }
-
-  return targetY;
-}
-
-function clampPlayer(position: THREE.Vector3, vehicleMode = false) {
-  position.x = THREE.MathUtils.clamp(
-    position.x,
-    CITY_BOUNDS.minX,
-    CITY_BOUNDS.maxX
-  );
-  position.z = THREE.MathUtils.clamp(
-    position.z,
-    CITY_BOUNDS.minZ,
-    CITY_BOUNDS.maxZ
-  );
-
-  if (vehicleMode) {
-    position.y = THREE.MathUtils.clamp(position.y, 6, 42);
-    return;
-  }
-
-  position.y = navigationHeight(position);
+function clampPlayer(position: THREE.Vector3) {
+  position.x = THREE.MathUtils.clamp(position.x, -6.8, 6.8);
+  position.z = THREE.MathUtils.clamp(position.z, -34, -0.5);
   const playerBox = new THREE.Box3().setFromCenterAndSize(
     position,
     new THREE.Vector3(0.7, 1.7, 0.7)
   );
-
-  for (const collider of cityColliders) {
-    if (position.y > collider.roofHeight + 0.9) continue;
-    const box = collider.box;
+  for (const box of colliders) {
     if (playerBox.intersectsBox(box)) {
       const left = Math.abs(playerBox.max.x - box.min.x);
       const right = Math.abs(box.max.x - playerBox.min.x);
@@ -265,12 +79,6 @@ function clampPlayer(position: THREE.Vector3, vehicleMode = false) {
       else position.z += back;
     }
   }
-
-  position.y = navigationHeight(position);
-}
-
-function isNearHelipad(position: THREE.Vector3) {
-  return position.distanceTo(HELIPAD_POSITION) < 5.5;
 }
 
 function AssetLoader() {
@@ -383,626 +191,99 @@ function Building({
   );
 }
 
-function RoadMarkings({ material }: { material: THREE.Material }) {
+function UrbanArena() {
+  const mats = PbrMaterials();
+  const lampPositions = [-4, 4];
+  const cover = [
+    [-1, 0.55, -8.6, 2.8, 1.1, 1],
+    [4.1, 0.55, -16.4, 3.4, 1.1, 1.1],
+    [-5, 0.55, -21.5, 2.8, 1.1, 1.4]
+  ];
   return (
     <group>
-      {Array.from({ length: 50 }, (_, i) => 4 - i * 3.3).map((z) => (
-        <mesh
-          key={`lane-${z}`}
-          position={[0, 0.026, z]}
-          rotation-x={-Math.PI / 2}
-          material={material}
-        >
-          <planeGeometry args={[0.18, 1.25]} />
-        </mesh>
-      ))}
-      {crossStreets.map((z) => (
-        <group key={`crosswalk-${z}`} position={[0, 0.029, z]}>
-          {[-3.7, -2.5, -1.25, 0, 1.25, 2.5, 3.7].map((x) => (
-            <mesh
-              key={`${z}-${x}`}
-              position={[x, 0, 0]}
-              rotation-x={-Math.PI / 2}
-              material={material}
-            >
-              <planeGeometry args={[0.38, 2.35]} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
-}
-
-function StreetLight({ x, z }: { x: number; z: number }) {
-  const mats = PbrMaterials();
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 1.85, 0]} material={mats.metal} castShadow>
-        <cylinderGeometry args={[0.045, 0.06, 3.7, 8]} />
+      <fog attach="fog" args={['#111827', 18, 48]} />
+      <mesh rotation-x={-Math.PI / 2} material={mats.road} receiveShadow>
+        <planeGeometry args={[16, 40]} />
       </mesh>
-      <mesh position={[x < 0 ? 0.32 : -0.32, 3.55, 0]} material={mats.metal}>
-        <boxGeometry args={[0.62, 0.06, 0.08]} />
+      <mesh
+        position={[-5.2, 0.012, -17]}
+        rotation-x={-Math.PI / 2}
+        material={mats.concrete}
+        receiveShadow
+      >
+        <planeGeometry args={[4.2, 38]} />
       </mesh>
-      <pointLight
-        position={[x < 0 ? 0.42 : -0.42, 3.42, 0]}
-        intensity={1.65}
-        distance={10}
-        color="#ffe2a3"
-      />
-      <mesh position={[x < 0 ? 0.46 : -0.46, 3.38, 0]} material={mats.glass}>
-        <sphereGeometry args={[0.14, 12, 8]} />
+      <mesh
+        position={[5.2, 0.012, -17]}
+        rotation-x={-Math.PI / 2}
+        material={mats.concrete}
+        receiveShadow
+      >
+        <planeGeometry args={[4.2, 38]} />
       </mesh>
-    </group>
-  );
-}
-
-function TrafficSignal({ x, z }: { x: number; z: number }) {
-  const mats = PbrMaterials();
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 1.6, 0]} material={mats.metal}>
-        <cylinderGeometry args={[0.035, 0.045, 3.2, 8]} />
-      </mesh>
-      <mesh position={[0, 3.05, 0]} material={mats.metal} castShadow>
-        <boxGeometry args={[0.28, 0.72, 0.18]} />
-      </mesh>
-      {[
-        ['#ff3b30', 3.24],
-        ['#ffd60a', 3.05],
-        ['#30d158', 2.86]
-      ].map(([color, y]) => (
-        <mesh key={color} position={[0, Number(y), -0.095]}>
-          <sphereGeometry args={[0.055, 10, 8]} />
-          <meshBasicMaterial color={String(color)} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function BusStop({ x, z }: { x: number; z: number }) {
-  const mats = PbrMaterials();
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 1.15, 0]} material={mats.glass}>
-        <boxGeometry args={[1.25, 1.7, 0.05]} />
-      </mesh>
-      <mesh position={[0, 2.08, 0]} material={mats.metal} castShadow>
-        <boxGeometry args={[1.5, 0.12, 0.72]} />
-      </mesh>
-      <mesh position={[0, 0.42, -0.25]} material={mats.metal} castShadow>
-        <boxGeometry args={[1.08, 0.16, 0.28]} />
-      </mesh>
-      <mesh position={[0, 1.5, -0.33]} material={mats.metal}>
-        <boxGeometry args={[0.72, 0.34, 0.04]} />
-      </mesh>
-    </group>
-  );
-}
-
-const mallGameSections = [
-  'Urban Ops FPS',
-  'Pool Royale',
-  'Domino Royal',
-  'Texas Holdem',
-  'Chess Battle',
-  'Goal Rush',
-  'Air Hockey',
-  'Snake & Ladder',
-  'Murlan Royale',
-  'Snooker Royal',
-  'Tennis',
-  'Bowling'
-];
-
-function BuildingBlock({ building }: { building: BuildingSpec }) {
-  const mats = PbrMaterials();
-  const material =
-    building.material === 'brick'
-      ? mats.brick
-      : building.material === 'metal'
-        ? mats.metal
-        : building.material === 'mall'
-          ? mats.glass
-          : mats.concrete;
-  return (
-    <group>
-      <Building
-        x={building.x}
-        z={building.z}
-        width={building.width}
-        depth={building.depth}
-        height={building.height}
-        material={material}
-        glass={mats.glass}
-      />
-      {building.mall && (
-        <>
-          <Text
-            position={[
-              building.x,
-              building.height + 0.62,
-              building.z + building.depth / 2 + 0.08
-            ]}
-            rotation={[0, Math.PI, 0]}
-            fontSize={0.72}
-            color="#f8fafc"
-            anchorX="center"
-            anchorY="middle"
-          >
-            TONPLAYGRAM MALL
-          </Text>
-          <mesh
-            position={[building.x, building.height + 0.16, building.z]}
-            material={mats.metal}
-          >
-            <boxGeometry args={[7.2, 0.12, 7.2]} />
-          </mesh>
-          <mesh
-            position={[
-              HELIPAD_POSITION.x,
-              building.height + 0.24,
-              HELIPAD_POSITION.z
-            ]}
-            rotation-x={-Math.PI / 2}
-          >
-            <ringGeometry args={[1.7, 2.35, 32]} />
-            <meshBasicMaterial color="#f8fafc" transparent opacity={0.82} />
-          </mesh>
-        </>
+      {[-7.1, 7.1].map((x) =>
+        [-5, -12, -20, -29].map((z, i) => (
+          <Building
+            key={`${x}-${z}`}
+            x={x}
+            z={z}
+            width={2.2 + (i % 2)}
+            depth={2.8}
+            height={5 + i * 0.9}
+            material={i % 2 ? mats.brick : mats.concrete}
+            glass={mats.glass}
+          />
+        ))
       )}
-    </group>
-  );
-}
-
-function RooftopStair({ stair }: { stair: StairSpec }) {
-  const mats = PbrMaterials();
-  const stepCount = 8;
-  return (
-    <group>
-      {Array.from({ length: stepCount }, (_, i) => {
-        const t = (i + 0.5) / stepCount;
-        return (
+      {cover.map(([x, y, z, w, h, d], i) => (
+        <mesh
+          key={i}
+          position={[x, y, z]}
+          material={i === 1 ? mats.metal : mats.concrete}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[w, h, d]} />
+        </mesh>
+      ))}
+      {[-12, -18, -26].map((z) => (
+        <group key={z} position={[0, 0, z]}>
           <mesh
-            key={`${stair.id}-${i}`}
-            position={[
-              stair.x,
-              0.12 + t * stair.height * 0.5,
-              stair.z - stair.depth / 2 + t * stair.depth
-            ]}
-            material={mats.concrete}
+            position={[-2.8, 0.45, 0]}
+            material={mats.metal}
             castShadow
             receiveShadow
           >
-            <boxGeometry
-              args={[
-                stair.width,
-                0.24 + t * stair.height,
-                stair.depth / stepCount
-              ]}
-            />
+            <boxGeometry args={[1, 0.9, 1.2]} />
           </mesh>
-        );
-      })}
-      <mesh
-        position={[stair.x, stair.height + 0.05, stair.z + stair.depth / 2]}
-        material={mats.metal}
-        receiveShadow
-      >
-        <boxGeometry args={[stair.width * 1.15, 0.1, 1.2]} />
-      </mesh>
-    </group>
-  );
-}
-
-function TonPlaygramMallInterior() {
-  const mats = PbrMaterials();
-  return (
-    <group position={[0, 0.06, -70]}>
-      <mesh position={[0, 0.03, 0]} rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[13.8, 17.5]} />
-        <meshStandardMaterial
-          color="#d8c8a4"
-          roughness={0.58}
-          metalness={0.08}
-        />
-      </mesh>
-      {mallGameSections.map((name, index) => {
-        const side = index % 2 === 0 ? -1 : 1;
-        const row = Math.floor(index / 2);
-        const z = -7 + row * 2.55;
-        return (
-          <group
-            key={name}
-            position={[side * 4.7, 0, z]}
-            rotation={[0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0]}
+          <mesh
+            position={[2.2, 0.35, 0.7]}
+            material={mats.brick}
+            castShadow
+            receiveShadow
           >
-            <mesh position={[0, 1.55, 0]} material={mats.metal} castShadow>
-              <boxGeometry args={[2.7, 1.7, 0.16]} />
+            <boxGeometry args={[1.2, 0.7, 1.2]} />
+          </mesh>
+        </group>
+      ))}
+      {lampPositions.map((x) =>
+        [-6, -18, -30].map((z) => (
+          <group key={`${x}-${z}`} position={[x, 0, z]}>
+            <mesh position={[0, 1.8, 0]} material={mats.metal} castShadow>
+              <cylinderGeometry args={[0.045, 0.06, 3.6, 8]} />
             </mesh>
-            <mesh position={[0, 1.57, -0.09]}>
-              <planeGeometry args={[2.35, 1.26]} />
-              <meshBasicMaterial
-                color={
-                  index % 3 === 0
-                    ? '#2563eb'
-                    : index % 3 === 1
-                      ? '#7c3aed'
-                      : '#059669'
-                }
-              />
-            </mesh>
-            <Text
-              position={[0, 1.58, -0.105]}
-              fontSize={0.18}
-              color="#ffffff"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {name}
-            </Text>
-            <mesh
-              position={[-0.55, 0.48, -0.42]}
-              material={mats.concrete}
-              castShadow
-            >
-              <capsuleGeometry args={[0.16, 0.55, 5, 8]} />
-            </mesh>
-            <mesh
-              position={[0.55, 0.48, -0.42]}
-              material={mats.brick}
-              castShadow
-            >
-              <capsuleGeometry args={[0.16, 0.55, 5, 8]} />
+            <pointLight
+              position={[0, 3.4, 0]}
+              intensity={1.2}
+              distance={8}
+              color="#f4c982"
+            />
+            <mesh position={[0, 3.38, 0]} material={mats.glass}>
+              <sphereGeometry args={[0.15, 12, 8]} />
             </mesh>
           </group>
-        );
-      })}
-      <mesh position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[1.2, 1.45, 0.16, 32]} />
-        <meshStandardMaterial
-          color="#6ee7b7"
-          roughness={0.36}
-          metalness={0.12}
-        />
-      </mesh>
-      <pointLight
-        position={[0, 4.8, 0]}
-        intensity={1.7}
-        distance={18}
-        color="#bde7ff"
-      />
-    </group>
-  );
-}
-
-function ParkAndCourts() {
-  return (
-    <group>
-      <mesh
-        position={[-14.5, 0.035, -96]}
-        rotation-x={-Math.PI / 2}
-        receiveShadow
-      >
-        <planeGeometry args={[8.2, 15]} />
-        <meshStandardMaterial color="#237a3f" roughness={0.9} />
-      </mesh>
-      <mesh
-        position={[14.5, 0.04, -96]}
-        rotation-x={-Math.PI / 2}
-        receiveShadow
-      >
-        <planeGeometry args={[8.2, 15]} />
-        <meshStandardMaterial color="#3454d1" roughness={0.76} />
-      </mesh>
-      <mesh position={[14.5, 0.052, -96]} rotation-x={-Math.PI / 2}>
-        <ringGeometry args={[3.2, 3.26, 4]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
-      </mesh>
-      {[-17, -14.5, -12].map((x, i) => (
-        <group key={`park-tree-${i}`} position={[x, 0, -91 - i * 3.8]}>
-          <mesh position={[0, 0.72, 0]} castShadow>
-            <cylinderGeometry args={[0.11, 0.16, 1.4, 8]} />
-            <meshStandardMaterial color="#6b3f23" roughness={0.86} />
-          </mesh>
-          <mesh position={[0, 1.66, 0]} castShadow>
-            <sphereGeometry args={[0.72, 14, 10]} />
-            <meshStandardMaterial color="#1f7a3f" roughness={0.9} />
-          </mesh>
-        </group>
-      ))}
-      <mesh position={[0, 0.08, -118]} receiveShadow>
-        <cylinderGeometry args={[2.5, 2.8, 0.16, 36]} />
-        <meshStandardMaterial
-          color="#9bd4ff"
-          roughness={0.22}
-          metalness={0.02}
-        />
-      </mesh>
-      <pointLight
-        position={[0, 2.4, -118]}
-        intensity={0.65}
-        distance={10}
-        color="#9bd4ff"
-      />
-      <mesh position={[0, 0.06, -145]} rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[17, 10]} />
-        <meshStandardMaterial color="#1e7a42" roughness={0.84} />
-      </mesh>
-      <Text
-        position={[0, 0.12, -145]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={1.1}
-        color="#f8fafc"
-        anchorX="center"
-      >
-        TONPLAYGRAM STADIUM
-      </Text>
-    </group>
-  );
-}
-
-function CityTraffic() {
-  const vehicles = useMemo(
-    () => [
-      {
-        id: 'police',
-        color: '#1d4ed8',
-        z: -18,
-        lane: -1.8,
-        speed: 7.5,
-        light: '#ef4444'
-      },
-      {
-        id: 'ambulance',
-        color: '#f8fafc',
-        z: -54,
-        lane: 1.8,
-        speed: 6.5,
-        light: '#60a5fa'
-      },
-      {
-        id: 'fire',
-        color: '#dc2626',
-        z: -94,
-        lane: -1.8,
-        speed: 5.4,
-        light: '#f97316'
-      },
-      {
-        id: 'taxi',
-        color: '#facc15',
-        z: -130,
-        lane: 1.8,
-        speed: 6.8,
-        light: '#fde68a'
-      }
-    ],
-    []
-  );
-  const refs = useRef<Array<THREE.Group | null>>([]);
-
-  useFrame((_, dt) => {
-    refs.current.forEach((ref, index) => {
-      if (!ref) return;
-      const config = vehicles[index];
-      ref.position.z -= config.speed * dt;
-      if (ref.position.z < CITY_BOUNDS.minZ + 5)
-        ref.position.z = CITY_BOUNDS.maxZ - 4;
-    });
-  });
-
-  return (
-    <group>
-      {vehicles.map((vehicle, index) => (
-        <group
-          key={vehicle.id}
-          ref={(ref) => {
-            refs.current[index] = ref;
-          }}
-          position={[vehicle.lane, 0.38, vehicle.z]}
-        >
-          <mesh castShadow receiveShadow>
-            <boxGeometry
-              args={[1.35, 0.55, vehicle.id === 'fire' ? 2.4 : 1.9]}
-            />
-            <meshStandardMaterial
-              color={vehicle.color}
-              roughness={0.48}
-              metalness={0.18}
-            />
-          </mesh>
-          <mesh position={[0, 0.42, -0.18]}>
-            <boxGeometry args={[0.82, 0.12, 0.24]} />
-            <meshBasicMaterial color={vehicle.light} />
-          </mesh>
-          <pointLight
-            position={[0, 0.75, -0.3]}
-            intensity={0.45}
-            distance={4}
-            color={vehicle.light}
-          />
-        </group>
-      ))}
-    </group>
-  );
-}
-
-function FarCitySkyline() {
-  const skyline = useMemo(
-    () =>
-      Array.from({ length: 34 }, (_, index) => ({
-        x: -48 + index * 3,
-        h: 8 + ((index * 7) % 19),
-        z: -188 - (index % 5) * 3,
-        w: 1.6 + (index % 4) * 0.6
-      })),
-    []
-  );
-  return (
-    <group>
-      {skyline.map((tower, index) => (
-        <mesh
-          key={`skyline-${index}`}
-          position={[tower.x, tower.h / 2 - 1, tower.z]}
-        >
-          <boxGeometry args={[tower.w, tower.h, 2.2]} />
-          <meshBasicMaterial color="#172033" transparent opacity={0.56} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function ParkedHelicopter({ active }: { active: boolean }) {
-  const rotor = useRef<THREE.Mesh>(null);
-  useFrame((_, dt) => {
-    if (rotor.current) rotor.current.rotation.y += dt * (active ? 28 : 3.2);
-  });
-  return (
-    <group
-      position={[
-        HELIPAD_POSITION.x,
-        HELIPAD_POSITION.y + 0.65,
-        HELIPAD_POSITION.z
-      ]}
-      scale={2.15}
-    >
-      <mesh castShadow>
-        <capsuleGeometry args={[0.32, 1.45, 8, 16]} />
-        <meshStandardMaterial
-          color="#52616b"
-          roughness={0.58}
-          metalness={0.35}
-        />
-      </mesh>
-      <mesh position={[0, 0.13, -0.9]} castShadow>
-        <boxGeometry args={[0.14, 0.12, 1.5]} />
-        <meshStandardMaterial
-          color="#2d3742"
-          roughness={0.62}
-          metalness={0.35}
-        />
-      </mesh>
-      <mesh ref={rotor} position={[0, 0.55, 0]}>
-        <boxGeometry args={[2.5, 0.025, 0.11]} />
-        <meshStandardMaterial color="#111827" roughness={0.5} metalness={0.4} />
-      </mesh>
-      <mesh position={[0.36, 0.08, 0.34]}>
-        <sphereGeometry args={[0.22, 14, 10]} />
-        <meshStandardMaterial
-          color="#9bd4ff"
-          roughness={0.18}
-          transparent
-          opacity={0.62}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-function UrbanArena() {
-  const mats = PbrMaterials();
-  const vehicleMode = useMobileFpsStore((state) => state.vehicleMode);
-  const markings = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: '#f8fafc',
-        transparent: true,
-        opacity: 0.76
-      }),
-    []
-  );
-  return (
-    <group>
-      <color attach="background" args={['#8fc8ff']} />
-      <fog attach="fog" args={['#b7d9f4', 76, 225]} />
-      <hemisphereLight args={['#f7fbff', '#70906f', 1.9]} />
-      <directionalLight
-        position={[-20, 35, 18]}
-        intensity={3.1}
-        color="#fff1cf"
-        castShadow
-        shadow-mapSize-width={1536}
-        shadow-mapSize-height={1536}
-      />
-      <mesh position={[0, -0.08, -78]} rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[190, 230]} />
-        <meshStandardMaterial
-          color="#1d6fa3"
-          roughness={0.32}
-          metalness={0.02}
-          transparent
-          opacity={0.88}
-        />
-      </mesh>
-      <mesh position={[0, 0, -78]} rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[50, 176]} />
-        <meshStandardMaterial
-          color="#64735e"
-          roughness={0.88}
-          metalness={0.02}
-        />
-      </mesh>
-      <mesh
-        position={[0, 0.02, -78]}
-        rotation-x={-Math.PI / 2}
-        material={mats.road}
-        receiveShadow
-      >
-        <planeGeometry args={[8.6, 168]} />
-      </mesh>
-      <mesh
-        position={[-6.8, 0.032, -78]}
-        rotation-x={-Math.PI / 2}
-        material={mats.concrete}
-        receiveShadow
-      >
-        <planeGeometry args={[3.2, 168]} />
-      </mesh>
-      <mesh
-        position={[6.8, 0.032, -78]}
-        rotation-x={-Math.PI / 2}
-        material={mats.concrete}
-        receiveShadow
-      >
-        <planeGeometry args={[3.2, 168]} />
-      </mesh>
-      <RoadMarkings material={markings} />
-      {crossStreets.map((z) => (
-        <mesh
-          key={`avenue-${z}`}
-          position={[0, 0.038, z]}
-          rotation-x={-Math.PI / 2}
-          material={mats.road}
-          receiveShadow
-        >
-          <planeGeometry args={[47, 4.2]} />
-        </mesh>
-      ))}
-      {cityBuildings.map((building) => (
-        <BuildingBlock key={building.id} building={building} />
-      ))}
-      {roofStairs.map((stair) => (
-        <RooftopStair key={stair.id} stair={stair} />
-      ))}
-      <TonPlaygramMallInterior />
-      <ParkAndCourts />
-      <CityTraffic />
-      <ParkedHelicopter active={vehicleMode === 'helicopter'} />
-      {[-5.2, 5.2, -20, 20].map((x) =>
-        Array.from({ length: 18 }, (_, i) => -4 - i * 9).map((z) => (
-          <StreetLight key={`${x}-${z}`} x={x} z={z} />
         ))
       )}
-      {crossStreets.flatMap((z) => [
-        <TrafficSignal key={`tl-${z}-l`} x={-4.9} z={z + 1.9} />,
-        <TrafficSignal key={`tl-${z}-r`} x={4.9} z={z - 1.9} />
-      ])}
-      <BusStop x={-7.9} z={-30} />
-      <BusStop x={7.9} z={-104} />
-      <FarCitySkyline />
     </group>
   );
 }
@@ -1194,11 +475,9 @@ function AssetArmory() {
 
 function FirstPersonWeaponAsset({
   visible,
-  selectedWeapon,
   onReady
 }: {
   visible: boolean;
-  selectedWeapon: DisplayEntry;
   onReady: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -1214,7 +493,11 @@ function FirstPersonWeaponAsset({
     async function loadFirstPersonRig() {
       try {
         const [weaponResult, donorResult] = await Promise.allSettled([
-          loadModelByUrls(selectedWeapon.name, selectedWeapon.urls, 14000),
+          loadModelByUrls(
+            FIRST_PERSON_WEAPON.name,
+            FIRST_PERSON_WEAPON.urls,
+            14000
+          ),
           loadModelByUrls('FPS donor hands', FPS_HAND_DONOR.urls, 14000)
         ]);
         if (disposed || weaponResult.status !== 'fulfilled') return;
@@ -1235,7 +518,7 @@ function FirstPersonWeaponAsset({
         normalizeObject(weapon, 0.86);
         weapon.position.set(0, 0.02, 0);
         weapon.rotation.set(-0.04, Math.PI, 0);
-        attachHandsToWeapon(selectedWeapon, weapon, donorScene, gl);
+        attachHandsToWeapon(FIRST_PERSON_WEAPON, weapon, donorScene, gl);
         root = weapon;
         liveGroup.add(weapon);
         onReady();
@@ -1256,7 +539,7 @@ function FirstPersonWeaponAsset({
         disposeObject(root);
       }
     };
-  }, [gl, onReady, selectedWeapon]);
+  }, [gl, onReady]);
 
   useFrame(() => {
     if (!groupRef.current) return;
@@ -1276,17 +559,7 @@ function FirstPersonWeaponAsset({
 }
 
 function WeaponView() {
-  const vehicleMode = useMobileFpsStore((state) => state.vehicleMode);
-  const selectedWeaponId = useMobileFpsStore((state) => state.selectedWeaponId);
-  const selectedWeapon =
-    FPS_WEAPON_OPTIONS.find((entry) => entry.id === selectedWeaponId) ??
-    FIRST_PERSON_WEAPON;
   const [assetReady, setAssetReady] = useState(false);
-  const handleWeaponReady = useCallback(() => setAssetReady(true), []);
-
-  useEffect(() => {
-    setAssetReady(false);
-  }, [selectedWeapon.id]);
   const muzzleFlashUntil = useMobileFpsStore((state) => state.muzzleFlashUntil);
   const now = performance.now();
   const rifleMetal = useMemo(
@@ -1316,14 +589,11 @@ function WeaponView() {
       }),
     []
   );
-  if (vehicleMode === 'helicopter') return null;
   return (
     <>
       <FirstPersonWeaponAsset
-        key={selectedWeapon.id}
         visible={assetReady}
-        selectedWeapon={selectedWeapon}
-        onReady={handleWeaponReady}
+        onReady={() => setAssetReady(true)}
       />
       <group
         visible={!assetReady}
@@ -1379,46 +649,6 @@ function WeaponView() {
         />
       )}
     </>
-  );
-}
-
-function HelicopterCockpit() {
-  const vehicleMode = useMobileFpsStore((state) => state.vehicleMode);
-  const rotor = useRef<THREE.Mesh>(null);
-  useFrame((_, dt) => {
-    if (rotor.current) rotor.current.rotation.y += dt * 34;
-  });
-  if (vehicleMode !== 'helicopter') return null;
-  return (
-    <group position={[0, -0.52, -1.35]} rotation={[0.02, 0, 0]}>
-      <mesh position={[0, 0.08, -0.18]}>
-        <boxGeometry args={[1.35, 0.42, 0.68]} />
-        <meshStandardMaterial
-          color="#1f2937"
-          roughness={0.52}
-          metalness={0.35}
-        />
-      </mesh>
-      <mesh position={[0, 0.44, -0.58]}>
-        <boxGeometry args={[1.55, 0.42, 0.05]} />
-        <meshPhysicalMaterial
-          color="#8bd3ff"
-          transparent
-          opacity={0.28}
-          roughness={0.06}
-        />
-      </mesh>
-      <mesh ref={rotor} position={[0, 1.18, -0.42]}>
-        <boxGeometry args={[3.2, 0.025, 0.1]} />
-        <meshBasicMaterial color="#0f172a" transparent opacity={0.6} />
-      </mesh>
-      <pointLight
-        position={[0, 0.4, -0.9]}
-        intensity={0.75}
-        distance={3.5}
-        color="#8bd3ff"
-      />
-    </group>
   );
 }
 
@@ -1576,21 +806,20 @@ function CameraController({ enemies }: { enemies: EnemyRuntime[] }) {
     state.recoverRecoil(rifleStats.recoilRecovery * dt * 0.02);
     if (state.phase !== 'playing') return;
 
-    const lookSensitivity = state.vehicleMode === 'helicopter' ? 3.2 : 4.35;
+    const lookSensitivity = 2.45;
     yaw.current -= state.input.lookX * lookSensitivity * dt;
     pitch.current = THREE.MathUtils.clamp(
-      pitch.current - state.input.lookY * lookSensitivity * dt,
-      -1.28,
-      1.18
+      pitch.current - state.input.lookY * lookSensitivity * dt - state.recoil,
+      -1.1,
+      1.05
     );
     state.setInput({ lookX: 0, lookY: 0 });
 
     fixedAccumulator.current += Math.min(dt, 0.05);
     while (fixedAccumulator.current >= stableStep) {
-      const flying = state.vehicleMode === 'helicopter';
       const forward = new THREE.Vector3(
         Math.sin(yaw.current),
-        flying ? Math.sin(-pitch.current) * 0.55 : 0,
+        0,
         Math.cos(yaw.current) * -1
       );
       const right = new THREE.Vector3(
@@ -1602,22 +831,15 @@ function CameraController({ enemies }: { enemies: EnemyRuntime[] }) {
         .multiplyScalar(state.input.moveY)
         .add(right.multiplyScalar(state.input.moveX));
       if (move.lengthSq() > 1) move.normalize();
-      player.current.addScaledVector(move, (flying ? 18 : 8.6) * stableStep);
-      if (flying)
-        player.current.y +=
-          state.input.moveY * Math.sin(-pitch.current) * 5.5 * stableStep;
-      clampPlayer(player.current, flying);
-      state.setCanBoardHelicopter(!flying && isNearHelipad(player.current));
+      player.current.addScaledVector(move, 4.2 * stableStep);
+      clampPlayer(player.current);
       updateEnemies(enemies, player.current, stableStep);
       fixedAccumulator.current -= stableStep;
     }
 
     const alive = enemies.filter((enemy) => enemy.state !== 'dead').length;
     state.setEnemiesAlive(alive);
-    camera.position.lerp(
-      player.current,
-      state.vehicleMode === 'helicopter' ? 0.34 : 0.78
-    );
+    camera.position.lerp(player.current, 0.72);
     camera.rotation.set(pitch.current, yaw.current, 0);
     shootAction.update(
       performance.now(),
@@ -1640,7 +862,6 @@ function CameraController({ enemies }: { enemies: EnemyRuntime[] }) {
       ))}
       <primitive object={camera}>
         <WeaponView />
-        <HelicopterCockpit />
       </primitive>
     </>
   );
@@ -1734,18 +955,8 @@ function TouchHud() {
   const enemiesAlive = useMobileFpsStore((state) => state.enemiesAlive);
   const phase = useMobileFpsStore((state) => state.phase);
   const hitMarkerUntil = useMobileFpsStore((state) => state.hitMarkerUntil);
-  const selectedWeaponId = useMobileFpsStore((state) => state.selectedWeaponId);
-  const vehicleMode = useMobileFpsStore((state) => state.vehicleMode);
-  const canBoardHelicopter = useMobileFpsStore(
-    (state) => state.canBoardHelicopter
-  );
-  const setVehicleMode = useMobileFpsStore((state) => state.setVehicleMode);
-  const cycleWeapon = useMobileFpsStore((state) => state.cycleWeapon);
   const setInput = useMobileFpsStore((state) => state.setInput);
   const reset = useMobileFpsStore((state) => state.reset);
-  const selectedWeapon =
-    FPS_WEAPON_OPTIONS.find((entry) => entry.id === selectedWeaponId) ??
-    FIRST_PERSON_WEAPON;
   const stick = useRef<HTMLDivElement>(null);
   const joystickId = useRef<number | null>(null);
   const lookId = useRef<number | null>(null);
@@ -1755,25 +966,6 @@ function TouchHud() {
     joystickId.current = null;
     setInput({ moveX: 0, moveY: 0 });
     if (stick.current) stick.current.style.transform = 'translate(0px, 0px)';
-  };
-
-  const updateJoystick = (event: PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dx = event.clientX - (rect.left + rect.width / 2);
-    const dy = event.clientY - (rect.top + rect.height / 2);
-    const maxRadius = rect.width * 0.42;
-    const rawLength = Math.hypot(dx, dy);
-    const len = Math.min(maxRadius, rawLength);
-    const angle = Math.atan2(dy, dx);
-    const x = Math.cos(angle) * len;
-    const y = Math.sin(angle) * len;
-    const normalized = rawLength < 8 ? 0 : len / maxRadius;
-    setInput({
-      moveX: Math.cos(angle) * normalized,
-      moveY: -Math.sin(angle) * normalized
-    });
-    if (stick.current)
-      stick.current.style.transform = `translate(${x}px, ${y}px)`;
   };
 
   return (
@@ -1803,11 +995,19 @@ function TouchHud() {
         onPointerDown={(event) => {
           joystickId.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
-          updateJoystick(event);
         }}
         onPointerMove={(event) => {
           if (joystickId.current !== event.pointerId) return;
-          updateJoystick(event);
+          const rect = event.currentTarget.getBoundingClientRect();
+          const dx = event.clientX - (rect.left + rect.width / 2);
+          const dy = event.clientY - (rect.top + rect.height / 2);
+          const len = Math.min(48, Math.hypot(dx, dy));
+          const angle = Math.atan2(dy, dx);
+          const x = Math.cos(angle) * len;
+          const y = Math.sin(angle) * len;
+          setInput({ moveX: x / 48, moveY: -y / 48 });
+          if (stick.current)
+            stick.current.style.transform = `translate(${x}px, ${y}px)`;
         }}
         onPointerCancel={resetStick}
         onPointerUp={resetStick}
@@ -1827,8 +1027,8 @@ function TouchHud() {
           const dy = event.clientY - lookLast.current.y;
           lookLast.current = { x: event.clientX, y: event.clientY };
           setInput({
-            lookX: THREE.MathUtils.clamp(dx / 58, -0.82, 0.82),
-            lookY: THREE.MathUtils.clamp(dy / 58, -0.82, 0.82)
+            lookX: THREE.MathUtils.clamp(dx / 44, -1, 1),
+            lookY: THREE.MathUtils.clamp(dy / 44, -1, 1)
           });
         }}
         onPointerUp={() => {
@@ -1846,18 +1046,6 @@ function TouchHud() {
       >
         RELOAD
       </button>
-      {(canBoardHelicopter || vehicleMode === 'helicopter') && (
-        <button
-          className="mobile-fps-button mobile-fps-heli"
-          onPointerDown={() =>
-            setVehicleMode(
-              vehicleMode === 'helicopter' ? 'onFoot' : 'helicopter'
-            )
-          }
-        >
-          {vehicleMode === 'helicopter' ? 'EXIT HELI' : 'FLY HELI'}
-        </button>
-      )}
       <button
         className="mobile-fps-button mobile-fps-shoot"
         onPointerDown={() => setInput({ firing: true })}
@@ -1866,27 +1054,8 @@ function TouchHud() {
       >
         FIRE
       </button>
-      <div className="mobile-fps-weapon-switch">
-        <button
-          type="button"
-          onPointerDown={() => cycleWeapon(-1)}
-          aria-label="Previous weapon"
-        >
-          ◀
-        </button>
-        <span>{selectedWeapon.shortName}</span>
-        <button
-          type="button"
-          onPointerDown={() => cycleWeapon(1)}
-          aria-label="Next weapon"
-        >
-          ▶
-        </button>
-      </div>
       <div className="mobile-fps-status">
-        {vehicleMode === 'helicopter'
-          ? 'Helicopter mode · joystick flies · right drag turns fast'
-          : `Fast joystick · responsive aim · ${TOTAL_ITEMS} open-source GLB/GLTF slots`}
+        Left thumb moves · right drag aims · {TOTAL_ITEMS} loaded asset slots
       </div>
       {phase !== 'playing' && (
         <div className="mobile-fps-modal">
@@ -1936,7 +1105,7 @@ export default function MobileUrbanFps() {
           shadows
           dpr={[1, 1.65]}
           gl={{ antialias: false, powerPreference: 'high-performance' }}
-          camera={{ fov: 70, near: 0.08, far: 260, position: [0, 1.55, -1.2] }}
+          camera={{ fov: 68, near: 0.08, far: 58, position: [0, 1.55, -1.2] }}
         >
           <Scene />
         </Canvas>
