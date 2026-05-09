@@ -934,36 +934,213 @@ const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
-const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
-  missileJavelin: '🚀',
-  droneAttack: '🛸',
-  fighterJetAttack: '✈️',
-  helicopterAttack: '🚁',
-  fpsGunAttack: '🪖',
-  glockSidearmAttack: '🔫',
-  assaultRifleAttack: '🦾',
-  uziSprayAttack: '🔫',
-  ak47VolleyAttack: '🦾',
-  krsvBurstAttack: '🦾',
-  smithSidearmAttack: '🔫',
-  mosinMarksmanAttack: '🎯',
-  sigsauerTacticalAttack: '🔫',
-  grenadeBlastAttack: '💣',
-  shotgunBlastAttack: '🧨',
-  sniperShotAttack: '🎯',
-  smgBurstAttack: '🔫',
-  compactCarbineAttack: '🦾',
-  marksmanDmrAttack: '🎯',
-  polyShotgun01Attack: '🧨',
-  polyAssaultRifle01Attack: '🦾',
-  polyPistol01Attack: '🔫',
-  polyRevolver01Attack: '🔫',
-  polySawedOff01Attack: '🧨',
-  polyRevolver02Attack: '🔫',
-  polyShotgun02Attack: '🧨',
-  polyShotgun03Attack: '🧨',
-  polySmg01Attack: '🔫'
+const QUICK_SWAP_WEAPON_ICON_KIND_BY_ID = Object.freeze({
+  missileJavelin: 'rocket',
+  droneAttack: 'drone',
+  fighterJetAttack: 'jet',
+  helicopterAttack: 'helicopter',
+  fpsGunAttack: 'rifle',
+  glockSidearmAttack: 'pistol',
+  pistolSidearmAttack: 'pistol',
+  pistolHolsterAttack: 'pistol',
+  assaultRifleAttack: 'rifle',
+  uziSprayAttack: 'smg',
+  ak47VolleyAttack: 'rifle',
+  krsvBurstAttack: 'rifle',
+  smithSidearmAttack: 'pistol',
+  mosinMarksmanAttack: 'marksman',
+  sigsauerTacticalAttack: 'pistol',
+  grenadeBlastAttack: 'grenade',
+  shotgunBlastAttack: 'shotgun',
+  sniperShotAttack: 'marksman',
+  smgBurstAttack: 'smg',
+  compactCarbineAttack: 'rifle',
+  marksmanDmrAttack: 'marksman',
+  polyShotgun01Attack: 'shotgun',
+  polyAssaultRifle01Attack: 'rifle',
+  polyPistol01Attack: 'pistol',
+  polyRevolver01Attack: 'revolver',
+  polySawedOff01Attack: 'sawedOff',
+  polyRevolver02Attack: 'revolver',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySmg01Attack: 'smg',
+  polyRobotLargeGunAttack: 'rifle',
+  polyRobotFlyingGunAttack: 'drone',
+  polyBazooka01Attack: 'launcher',
+  polyGrenadeLauncher01Attack: 'launcher',
+  polyDynamiteBomb01Attack: 'dynamite',
+  polyMolotov01Attack: 'molotov',
+  polyGasTank01Attack: 'gasTank',
+  polyHandGrenade01Attack: 'grenade',
+  polyTank01Attack: 'tank'
 });
+
+const QUICK_SWAP_WEAPON_DISPLAY_NAME_OVERRIDES = Object.freeze({
+  droneAttack: 'Drone',
+  fighterJetAttack: 'Fighter Jet',
+  helicopterAttack: 'Helicopter',
+  polyRevolver02Attack: 'Silver Revolver',
+  polyRobotLargeGunAttack: 'Robot Large Gun',
+  polyRobotFlyingGunAttack: 'Robot Flying Gun',
+  polyDynamiteBomb01Attack: 'Dynamite Bomb',
+  polyGasTank01Attack: 'Gas Tank',
+  polyHandGrenade01Attack: 'Hand Grenade',
+  polyTank01Attack: 'Battle Tank'
+});
+
+function resolveQuickSwapWeaponDisplayName(option) {
+  if (QUICK_SWAP_WEAPON_DISPLAY_NAME_OVERRIDES[option?.id]) {
+    return QUICK_SWAP_WEAPON_DISPLAY_NAME_OVERRIDES[option.id];
+  }
+  return `${option?.label || 'Weapon'}`
+    .replace(/^(Quaternius|CreativeTrio|Poly Pizza)\s+/i, '')
+    .replace(/\s+(Attack|Strike|Volley|Spray|Burst|Blast|Shot)$/i, '')
+    .replace(/^Javelin\s+Missile$/i, 'Javelin')
+    .trim();
+}
+
+
+function QuickSwapWeaponIcon({ id, selected = false }) {
+  const kind = QUICK_SWAP_WEAPON_ICON_KIND_BY_ID[id] || 'rifle';
+  const metal = selected ? '#f8fafc' : '#d8e2ee';
+  const dark = selected ? '#475569' : '#64748b';
+  const grip = selected ? '#92400e' : '#7c2d12';
+  const accent = selected ? '#38bdf8' : '#94a3b8';
+  const shell = selected ? '#fbbf24' : '#f59e0b';
+  const common = { vectorEffect: 'non-scaling-stroke', strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+  const renderIcon = () => {
+    switch (kind) {
+      case 'pistol':
+        return (
+          <>
+            <path d="M9 14.2h24.5l5.2 3.4h8.8c2.6 0 4.7 1.7 5.6 4.4H27.8l-2.5 4.7h-7.7l2.4-4.7H9z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M26.8 22h8.3l3.8 12.1h-7.5z" fill={grip} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M14 17.2h15.4M41.8 20.1h6" stroke={dark} strokeWidth="1.6" {...common} />
+          </>
+        );
+      case 'revolver':
+        return (
+          <>
+            <path d="M8.5 15.4h21l4.6 3h15.8c2.5 0 4.5 1.4 5.5 3.8H32.8l-2.3 4.4H18.8l2.6-4.4H8.5z" fill={metal} stroke="#111827" strokeWidth="1.45" {...common} />
+            <circle cx="29.5" cy="21" r="5.3" fill={dark} stroke="#111827" strokeWidth="1.4" />
+            <circle cx="29.5" cy="21" r="2" fill={accent} opacity="0.65" />
+            <path d="M24.8 25.1 31 34.2h7l-3.6-11.4" fill={grip} stroke="#111827" strokeWidth="1.45" {...common} />
+          </>
+        );
+      case 'smg':
+        return (
+          <>
+            <path d="M7 14.8h35.5l4 2.3h8.8v5.3H24.8l-4 4.9H12l4-4.9H7z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M29 22.5h8.2l1.3 11.2h-7.2zM15.8 22.3l-2 9.7h6.5l3-9.7z" fill={grip} stroke="#111827" strokeWidth="1.4" {...common} />
+            <path d="M11 17.6h26M47 19.8h6.2" stroke={dark} strokeWidth="1.5" {...common} />
+          </>
+        );
+      case 'shotgun':
+      case 'sawedOff':
+        return (
+          <>
+            <path d={kind === 'sawedOff' ? 'M7.5 15.8h33l7.2 3.1h9.5v4.5H28.7l-8.9 6.8H9.7l10.4-7H7.5z' : 'M5.5 15.4h47.2l6.3 3.1v4.3H26.5l-10.2 7.5H6.8l11.6-7.5H5.5z'} fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M11 18.5h36M50.5 20.6h7" stroke={dark} strokeWidth="1.6" {...common} />
+            <path d="M20.8 22.8h9.8l2.2 3.2h-15z" fill={grip} stroke="#111827" strokeWidth="1.2" {...common} />
+          </>
+        );
+      case 'marksman':
+      case 'rifle':
+        return (
+          <>
+            <path d="M4.5 15h43.8l3.8 2.3h7.8v4.8H28.4l-6.8 6.8H11.3l8.3-6.8H4.5z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M11.5 12.2h17.8v3.3H11.5z" fill={dark} stroke="#111827" strokeWidth="1.2" {...common} />
+            <path d="M35 22.2h8.2l1.6 11.5h-7.6zM50.4 17.6h9.5" stroke={dark} strokeWidth="1.6" {...common} />
+            {kind === 'marksman' && <path d="M19 11.8h14.5M23.5 9.6h5.2" stroke={accent} strokeWidth="1.5" {...common} />}
+          </>
+        );
+      case 'launcher':
+        return (
+          <>
+            <path d="M5 13.4h46.8l7.4 4.6-7.4 4.7H5z" fill={metal} stroke="#111827" strokeWidth="1.55" {...common} />
+            <path d="M16 23h9.2l-4 8.5h-7.8zM35 22.9h7.6l3.1 7.5h-7z" fill={grip} stroke="#111827" strokeWidth="1.3" {...common} />
+            <path d="M11 17.8h39M52 15.8l5.2 2.2-5.2 2.3" stroke={dark} strokeWidth="1.7" {...common} />
+          </>
+        );
+      case 'grenade':
+        return (
+          <>
+            <path d="M28 8h8v5h-8z" fill={dark} stroke="#111827" strokeWidth="1.4" {...common} />
+            <path d="M26.2 13h11.6l5.2 7.3-2.6 11.3H23.6L21 20.3z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M25 21h14M26.2 27h11.6M32 14v17" stroke={dark} strokeWidth="1.35" {...common} />
+            <path d="M36 10.4c5.8-2.4 9.3-.6 10.4 4.4" fill="none" stroke={shell} strokeWidth="2" {...common} />
+          </>
+        );
+      case 'dynamite':
+        return (
+          <>
+            <path d="M14 14h28v6H14zM18 20h28v6H18zM12 26h28v6H12z" fill="#b91c1c" stroke="#111827" strokeWidth="1.3" {...common} />
+            <path d="M32 11c5-5 10.2-3.9 14 3.2" fill="none" stroke={shell} strokeWidth="2" {...common} />
+            <path d="M16 17h24M20 23h24M14 29h24" stroke="#fecaca" strokeWidth="1" opacity="0.8" {...common} />
+          </>
+        );
+      case 'molotov':
+        return (
+          <>
+            <path d="M30 8h7l1.2 9.2 7.3 11.8-4.5 4.8H25.5L21 29l7.8-11.8z" fill="#86efac" stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M30 8h7l.5 5.4h-8z" fill={grip} stroke="#111827" strokeWidth="1.2" {...common} />
+            <path d="M38 10.2c5-5.2 9.2-1.9 7.1 3.9 4.3-1.2 6.5 3.3 2.1 6.8" fill={shell} stroke="#7c2d12" strokeWidth="1" {...common} />
+          </>
+        );
+      case 'gasTank':
+        return (
+          <>
+            <path d="M23 10h18v6H23zM18 16h28v18H18z" fill="#ef4444" stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M25 20h14M25 25h14M28 10c.2-5.2 7.8-5.2 8 0" fill="none" stroke={dark} strokeWidth="1.5" {...common} />
+          </>
+        );
+      case 'tank':
+        return (
+          <>
+            <path d="M10 20h33l5 4.2-5 5.8H11.5L6 25z" fill={dark} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M20 12h17l5.5 8H14.5z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M39 16.5h19" stroke={metal} strokeWidth="3" {...common} />
+            <path d="M14 25h28M16.5 25a2.3 2.3 0 1 0 0 .1M25 25a2.3 2.3 0 1 0 0 .1M33.5 25a2.3 2.3 0 1 0 0 .1" stroke="#111827" strokeWidth="1.4" {...common} />
+          </>
+        );
+      case 'drone':
+        return (
+          <>
+            <path d="M24 14h16l4 5-4 5H24l-4-5z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M20 19H9M44 19h11M32 14V6M32 24v8" stroke={dark} strokeWidth="2" {...common} />
+            <circle cx="8" cy="19" r="5" fill="none" stroke={accent} strokeWidth="1.6" /><circle cx="56" cy="19" r="5" fill="none" stroke={accent} strokeWidth="1.6" /><circle cx="32" cy="6" r="4.5" fill="none" stroke={accent} strokeWidth="1.6" /><circle cx="32" cy="32" r="4.5" fill="none" stroke={accent} strokeWidth="1.6" />
+          </>
+        );
+      case 'jet':
+        return <path d="M5 20 31 6l7 10 20 3-20 3-7 10zM30 17H15M30 23H15" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />;
+      case 'helicopter':
+        return (
+          <>
+            <path d="M18 17h23l6 5-6 5H18l-6-5z" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />
+            <path d="M41 21h15l3-3M30 17v-6M16 27l-4 5h24" stroke={dark} strokeWidth="1.7" {...common} />
+            <path d="M14 11h32M30 8v6" stroke={accent} strokeWidth="1.8" {...common} />
+          </>
+        );
+      case 'rocket':
+      default:
+        return <path d="M8 23 38 7l15 3-5 14-31 6 6-8zM38 7l-3 12 13 5M17 30l-8 3 5-7" fill={metal} stroke="#111827" strokeWidth="1.5" {...common} />;
+    }
+  };
+
+  return (
+    <svg viewBox="0 0 64 40" role="img" aria-hidden="true" className="h-8 w-12 drop-shadow-[0_2px_3px_rgba(0,0,0,0.55)]">
+      <defs>
+        <linearGradient id={`quickSwapMetal-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
+          <stop offset="100%" stopColor={metal} />
+        </linearGradient>
+      </defs>
+      {renderIcon()}
+    </svg>
+  );
+}
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
@@ -1109,29 +1286,33 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       const normalized = `${url}`.split('?')[0].split('#')[0].toLowerCase();
       return normalized.endsWith('.gltf');
     };
+    const isPolyPizzaAssetUrl = (url = '') => /^https?:\/\/static\.poly\.pizza\//i.test(`${url}`);
+    const assignLoadedGltf = (gltf) => {
+      const root = gltf?.scene || gltf?.scenes?.[0] || null;
+      if (root && Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
+        root.userData.animationClips = gltf.animations;
+      }
+      return root;
+    };
     for (let i = 0; i < candidateUrls.length; i += 1) {
+      const candidateUrl = candidateUrls[i];
       try {
-        if (isGltfAssetUrl(candidateUrls[i])) {
+        if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
+          // Poly Pizza GLBs already ship with their own material/texture data. Load them
+          // directly first so GLTFLoader can keep the exact embedded PBR texture bindings.
           // eslint-disable-next-line no-await-in-loop
-          const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
-          const root = gltf?.scene || gltf?.scenes?.[0] || null;
-          if (root) {
-            if (Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
-              root.userData.animationClips = gltf.animations;
-            }
-            loadedRoot = root;
-            break;
-          }
-          continue;
+          loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+          if (loadedRoot) break;
+          if (isGltfAssetUrl(candidateUrl)) continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrls[i]));
+        const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
         if (!rawBuffer) continue;
         // eslint-disable-next-line no-await-in-loop
         const patchedBuffer = await patchGlbImagesToDataUris(
           rawBuffer,
           'fighter',
-          candidateUrls[i],
+          candidateUrl,
           candidateUrls,
           imageCache
         );
@@ -1143,14 +1324,11 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       if (loadedRoot) break;
       try {
         // eslint-disable-next-line no-await-in-loop
-        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrls[i]));
-        loadedRoot = gltf?.scene || gltf?.scenes?.[0] || null;
-        if (loadedRoot && Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
-          loadedRoot.userData.animationClips = gltf.animations;
-        }
+        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
+        loadedRoot = assignLoadedGltf(gltf);
       } catch (error) {
         if (i === candidateUrls.length - 1) {
-          console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrls[i], error);
+          console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
         }
       }
       if (loadedRoot) break;
@@ -12996,22 +13174,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
-                const shape = QUICK_SWAP_WEAPON_SHAPE_BY_ID[option.id] || '▭';
+                const displayName = resolveQuickSwapWeaponDisplayName(option);
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-xl border p-1 text-[8px] font-semibold ${
+                    className={`overflow-hidden rounded-xl border p-1.5 text-[8px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
                     }`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
-                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[13px] leading-none text-slate-100">
-                      {shape}
+                    <div className="mx-auto mb-1 flex h-9 w-12 items-center justify-center rounded-lg border border-white/20 bg-gradient-to-br from-slate-950/85 to-slate-800/75">
+                      <QuickSwapWeaponIcon id={option.id} selected={selected} />
                     </div>
-                    <div className="px-0.5 pb-0.5 leading-tight">{option.label}</div>
+                    <div className="px-0.5 pb-0.5 leading-tight">{displayName}</div>
                   </button>
                 );
               })}
