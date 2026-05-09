@@ -434,7 +434,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(20); // high diagonal angle close to 2D while still showing depth toward the opponent.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(34); // lower portrait 3D camera angle so the board feels more eye-level while preserving depth.
+const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 0.9; // aim a little higher so the lower camera looks up across the arena.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
@@ -7833,7 +7834,8 @@ function Chess3D({
     targetPitch: -0.28,
     fixedPosition: null,
     lastPointerX: null,
-    lastPointerY: null
+    lastPointerY: null,
+    pointerStartedOnBoard: false
   });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -9839,14 +9841,20 @@ function Chess3D({
           isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
+        const targetPosition = boardLookTarget.clone().add(new THREE.Vector3().setFromSpherical(target));
+        const lockedLookTarget = boardLookTarget
+          .clone()
+          .addScaledVector(WORLD_UP, isForcedCapture3dView ? 0 : CAMERA_LOCKED_3D_LOOK_TARGET_LIFT);
+        const lookDir = lockedLookTarget.sub(targetPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
         locked3dViewRef.current.targetPitch = pitch;
-        locked3dViewRef.current.activeLook = !isForcedCapture3dView;
+        locked3dViewRef.current.fixedPosition = isForcedCapture3dView ? null : targetPosition;
+        locked3dViewRef.current.activeLook = false;
+        locked3dViewRef.current.pointerStartedOnBoard = false;
         animateCameraTo(target, 420);
       }
     };
@@ -13192,16 +13200,43 @@ function Chess3D({
       return null;
     };
 
+    const pickParkedWeaponFromPointer = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
+      for (const hit of parkedIntersects) {
+        let node = hit.object;
+        while (node) {
+          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
+            return {
+              object: node,
+              point: hit.point,
+              parkedWeaponKind: node.userData.parkedWeaponKind
+            };
+          }
+          node = node.parent;
+        }
+      }
+      return null;
+    };
+
     const onPointerDown = (event) => {
       if (viewModeRef.current === 'fpv') {
         firstPersonViewRef.current.activeLook = true;
         return;
       }
-      if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
-        locked3dViewRef.current.activeLook = true;
-        locked3dViewRef.current.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
-        locked3dViewRef.current.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
-        return;
+      if (viewModeRef.current === '3d') {
+        const locked = locked3dViewRef.current;
+        const parkedHit = pickParkedWeaponFromPointer(event);
+        const boardHit = pickBoardObject(event);
+        locked.pointerStartedOnBoard = Boolean(boardHit || parkedHit);
+        if (!locked.pointerStartedOnBoard) {
+          locked.activeLook = true;
+          locked.lastPointerX = event.clientX ?? event.touches?.[0]?.clientX ?? null;
+          locked.lastPointerY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
+          if (controls) controls.enabled = false;
+          return;
+        }
       }
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
@@ -13266,10 +13301,12 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
-      locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
+      locked3dViewRef.current.activeLook = false;
       locked3dViewRef.current.lastPointerX = null;
       locked3dViewRef.current.lastPointerY = null;
-      if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
+      const locked3dPointerStartedOnBoard = locked3dViewRef.current.pointerStartedOnBoard;
+      locked3dViewRef.current.pointerStartedOnBoard = false;
+      if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && !locked3dPointerStartedOnBoard)) return;
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
       if (!dragState.active) return;
@@ -13335,21 +13372,15 @@ function Chess3D({
     onClick = function onClick(e) {
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
+      const parkedWeaponHit = pickParkedWeaponFromPointer(e);
+      if (parkedWeaponHit?.parkedWeaponKind) {
+        setWeaponSwapTargetKind(parkedWeaponHit.parkedWeaponKind);
+        setWeaponSwapOpen(true);
+        return;
+      }
       if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
-      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
-      for (const hit of parkedIntersects) {
-        let node = hit.object;
-        while (node) {
-          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
-            setWeaponSwapTargetKind(node.userData.parkedWeaponKind);
-            setWeaponSwapOpen(true);
-            return;
-          }
-          node = node.parent;
-        }
-      }
       const intersects = ray.intersectObjects(boardGroup.children, true);
       let obj = null;
       for (const i of intersects) {
@@ -14144,7 +14175,7 @@ function Chess3D({
           mesh.visible = true;
         });
       }
-      const locked3dEnabled = viewModeRef.current === '3d' && locked3dViewRef.current.activeLook;
+      const locked3dEnabled = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
       if (locked3dEnabled) {
         const locked = locked3dViewRef.current;
         if (!locked.fixedPosition) {
@@ -14161,7 +14192,9 @@ function Chess3D({
         camera.lookAt(camera.position.clone().add(dir.multiplyScalar(8)));
         controls.enabled = false;
       } else if (controls && !fpvEnabled) {
-        locked3dViewRef.current.fixedPosition = null;
+        if (viewModeRef.current !== '3d') {
+          locked3dViewRef.current.fixedPosition = null;
+        }
         controls.enabled = true;
       }
 
