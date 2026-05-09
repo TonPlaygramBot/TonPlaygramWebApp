@@ -715,7 +715,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
-  chromeColor: ['gold', 'plastic-black'],
+  chromeColor: ['gold'],
   chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -756,8 +756,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
-    gold: 'Gold',
-    'plastic-black': 'Plastic Black'
+    gold: 'Gold'
   }),
   chromePlateStyle: Object.freeze({
     'royal-classic': 'Royal Classic Plates',
@@ -990,15 +989,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   {
-    id: 'chrome-plasticBlack',
-    type: 'chromeColor',
-    optionId: 'plastic-black',
-    name: 'Plastic Black Fascias',
-    price: 360,
-    description: 'Glossy black plastic pocket plates for Showood and Royal Original tables.',
-    thumbnail: swatchThumbnail(['#050507', '#1f2937', '#111827'])
-  },
-  {
     id: 'chromeStyle-showoodRounded',
     type: 'chromePlateStyle',
     optionId: 'showood-rounded',
@@ -1205,7 +1195,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: 'Wood Peeling Paint Weathered Finish'
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
-  { type: 'chromeColor', optionId: 'plastic-black', label: 'Plastic Black Plates' },
   { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
