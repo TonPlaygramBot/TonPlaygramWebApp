@@ -37,6 +37,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
+    hidePocketHolderVisuals: true,
+    hidePottedBallHolderVisuals: true,
+    hiddenMeshNamePatterns: ['net', 'basket', 'holder', 'collect', 'return', 'ball_tray'],
     hideSurfaceRoles: []
   }
 ]);
