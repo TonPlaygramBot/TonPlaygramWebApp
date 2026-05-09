@@ -1,0 +1,38 @@
+{
+  "checkedAtUtc": "2026-05-09T00:00:00Z",
+  "note": "Use Poly Pizza source pages/search pages to download GLB/GLTF/FBX manually, verify the exact model license, then fill importedPrefab or AnimationClip fields in PolyPizzaBattleRoyaleAssetCatalog before shipping.",
+  "searchPages": {
+    "tanks": "https://poly.pizza/search/tank",
+    "bulletsAndShells": "https://poly.pizza/search/bullet",
+    "weaponAnimations": "https://poly.pizza/search/gun%20animation",
+    "weapons": "https://poly.pizza/search/weapon"
+  },
+  "tankCandidates": [
+    { "name": "Tank", "creator": "Zsky", "sourceUrl": "https://poly.pizza/m/7GG1xDtc8l", "license": "Creative Commons Attribution", "format": "FBX/GLTF" },
+    { "name": "Tank", "creator": "KolosStudios", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Tank", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Tank", "creator": "Poly by Google", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Tank", "creator": "Zayn", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Light Tank", "creator": "Zsky", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Tank", "creator": "SomeoneUnknown", "sourceUrl": "https://poly.pizza/search/tank" },
+    { "name": "Pickup Tank", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/search/tank" }
+  ],
+  "projectileCandidates": [
+    { "name": "Bullet", "creator": "Poly by Google", "role": "Bullet", "weaponTypes": ["Rifle", "SMG", "Sniper"] },
+    { "name": "7.62x39mm", "creator": "J-Toastie", "role": "Bullet", "weaponTypes": ["Rifle"] },
+    { "name": "9x19mm", "creator": "J-Toastie", "role": "Bullet", "weaponTypes": ["Pistol", "SMG"] },
+    { "name": "Shotgun rounds", "creator": "Poly by Google", "role": "Shell", "weaponTypes": ["Shotgun"] },
+    { "name": "Bullet Cartridge (Glock)", "creator": "Reprdev", "role": "Shell", "weaponTypes": ["Pistol"] },
+    { "name": "Pistol Ammo", "creator": "CreativeTrio", "role": "Shell", "weaponTypes": ["Pistol"] },
+    { "name": "Missile", "creator": "Poly by Google", "role": "Missile", "weaponTypes": ["SideMissile", "StrikeJet", "AttackHelicopter"] },
+    { "name": "Ammo Grenade Launcher", "creator": "CreativeTrio", "role": "Grenade", "weaponTypes": ["GrenadeLauncher"] }
+  ],
+  "animationCandidates": [
+    { "name": "Fps Rig AKM", "creator": "J-Toastie", "weaponTypes": ["Rifle", "SMG"] },
+    { "name": "Fps Rig", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun"] },
+    { "name": "Rigged Fps Arms", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun", "Sniper"] },
+    { "name": "Animated Pistol", "creator": "Quaternius", "weaponTypes": ["Pistol"] },
+    { "name": "Rigged Glock", "creator": "J-Toastie", "weaponTypes": ["Pistol"] },
+    { "name": "Rigged Desert Eagle", "creator": "PuKkBuMXDD", "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX", "weaponTypes": ["Pistol"] }
+  ]
+}

@@ -25,6 +25,46 @@ namespace TonPlaygram.Gameplay.Weapons
         StrikeJet
     }
 
+    public enum ProjectileVisualRole
+    {
+        Bullet,
+        Shell,
+        Rocket,
+        Missile,
+        Grenade,
+        Pellet
+    }
+
+    [Serializable]
+    public sealed class WeaponGripPoseProfile
+    {
+        [Tooltip("Visible right-hand grip socket offset for this weapon, in muzzle/local aim space.")]
+        public Vector3 rightGripBackOffset = new Vector3(0f, 0f, -0.12f);
+
+        [Tooltip("Visible left/support-hand grip socket offset for this weapon, in muzzle/local aim space.")]
+        public Vector3 leftGripBackOffset = new Vector3(-0.06f, 0f, -0.06f);
+
+        [Tooltip("Extra rotation applied to both visible grip sockets after aiming at the token.")]
+        public Vector3 gripEulerOffset;
+
+        [Tooltip("Animator that owns the imported weapon or FPS-rig animation states for this specific weapon.")]
+        public Animator animator;
+
+        [Tooltip("Optional state to play when the weapon is equipped, e.g. Rifle_Equip.")]
+        public string equipStateName;
+
+        [Tooltip("Optional trigger fired for every shot, e.g. Fire, Pump, Bolt, ReloadShell.")]
+        public string fireTriggerName = "Fire";
+
+        [Tooltip("Optional state to cross-fade while the player aims, e.g. Rifle_AimPose.")]
+        public string aimStateName;
+
+        [Tooltip("Cross-fade time for authored open-source weapon/hand animation states.")]
+        public float animationFadeSeconds = 0.04f;
+
+        public Quaternion GripRotationOffset => Quaternion.Euler(gripEulerOffset);
+    }
+
     [Serializable]
     public sealed class WeaponBallisticsProfile
     {
@@ -46,6 +86,9 @@ namespace TonPlaygram.Gameplay.Weapons
         public GameObject shellPrefab;
         public AudioClip shotSfx;
         public bool requiresAerialStrike;
+        public ProjectileVisualRole projectileRole = ProjectileVisualRole.Bullet;
+        public ProjectileVisualRole spentCasingRole = ProjectileVisualRole.Shell;
+        public WeaponGripPoseProfile gripPose = new WeaponGripPoseProfile();
     }
 
     public interface ILudoWeaponEvents
@@ -160,6 +203,7 @@ namespace TonPlaygram.Gameplay.Weapons
             }
 
             _activeWeapon = profile;
+            PlayWeaponEquipAnimation(profile);
             for (int i = 0; i < _eventListeners.Length; i++)
             {
                 _eventListeners[i].OnWeaponEquipped(weaponType);
@@ -195,6 +239,15 @@ namespace TonPlaygram.Gameplay.Weapons
             return true;
         }
 
+        private static void PlayWeaponEquipAnimation(WeaponBallisticsProfile weapon)
+        {
+            WeaponGripPoseProfile gripPose = weapon != null ? weapon.gripPose : null;
+            if (gripPose == null || gripPose.animator == null || string.IsNullOrWhiteSpace(gripPose.equipStateName))
+                return;
+
+            gripPose.animator.CrossFadeInFixedTime(gripPose.equipStateName, Mathf.Max(0f, gripPose.animationFadeSeconds));
+        }
+
         private IEnumerator FireRoutine(WeaponBallisticsProfile weapon)
         {
             int shots = weapon.fireMode == WeaponFireMode.Single ? 1 : Mathf.Max(1, weapon.magazineSize);
@@ -226,8 +279,9 @@ namespace TonPlaygram.Gameplay.Weapons
             Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
             RefreshWeaponPose(shotDirection);
 
+            PlayWeaponFireAnimation(weapon);
             SpawnProjectiles(weapon, shotDirection, isLastBullet, shotIndex, totalShots);
-            SpawnShell(weapon);
+            SpawnShell(weapon, shotDirection);
             PlayShotSfx(weapon);
 
             for (int i = 0; i < _eventListeners.Length; i++)
@@ -284,7 +338,7 @@ namespace TonPlaygram.Gameplay.Weapons
             return weapon.bulletScale;
         }
 
-        private void SpawnShell(WeaponBallisticsProfile weapon)
+        private void SpawnShell(WeaponBallisticsProfile weapon, Vector3 shotDirection)
         {
             if (weapon.shellPrefab == null || shellEject == null)
                 return;
@@ -298,10 +352,47 @@ namespace TonPlaygram.Gameplay.Weapons
                 rb = shellObj.AddComponent<Rigidbody>();
             }
 
-            rb.mass = 0.02f;
-            rb.velocity = (shellEject.right * UnityEngine.Random.Range(1.8f, 3.1f)) + (Vector3.up * UnityEngine.Random.Range(0.8f, 1.3f));
+            Vector3 side = shellEject.right.sqrMagnitude > 0.0001f ? shellEject.right : Vector3.Cross(Vector3.up, shotDirection).normalized;
+            rb.mass = ResolveShellMass(weapon.spentCasingRole);
+            rb.velocity = (side * UnityEngine.Random.Range(1.8f, 3.1f)) + (Vector3.up * UnityEngine.Random.Range(0.8f, 1.3f)) - (shotDirection * 0.25f);
             rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 13f;
             Destroy(shellObj, 5f);
+        }
+
+        private static float ResolveShellMass(ProjectileVisualRole spentCasingRole)
+        {
+            switch (spentCasingRole)
+            {
+                case ProjectileVisualRole.Rocket:
+                case ProjectileVisualRole.Missile:
+                case ProjectileVisualRole.Grenade:
+                    return 0.12f;
+                case ProjectileVisualRole.Pellet:
+                    return 0.008f;
+                default:
+                    return 0.02f;
+            }
+        }
+
+        private static void PlayWeaponAimPose(WeaponBallisticsProfile weapon)
+        {
+            WeaponGripPoseProfile gripPose = weapon != null ? weapon.gripPose : null;
+            if (gripPose == null || gripPose.animator == null || string.IsNullOrWhiteSpace(gripPose.aimStateName))
+                return;
+
+            gripPose.animator.CrossFadeInFixedTime(gripPose.aimStateName, Mathf.Max(0f, gripPose.animationFadeSeconds));
+        }
+
+        private static void PlayWeaponFireAnimation(WeaponBallisticsProfile weapon)
+        {
+            WeaponGripPoseProfile gripPose = weapon != null ? weapon.gripPose : null;
+            if (gripPose == null || gripPose.animator == null)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(gripPose.fireTriggerName))
+            {
+                gripPose.animator.SetTrigger(gripPose.fireTriggerName);
+            }
         }
 
         private void PlayShotSfx(WeaponBallisticsProfile weapon)
@@ -314,7 +405,12 @@ namespace TonPlaygram.Gameplay.Weapons
 
         public void OnBulletImpact(Vector3 point, bool isLastBullet)
         {
-            ApplyProgressiveDamage(isLastBullet);
+            OnBulletImpact(point, Vector3.zero, isLastBullet);
+        }
+
+        public void OnBulletImpact(Vector3 point, Vector3 incomingVelocity, bool isLastBullet)
+        {
+            ApplyProgressiveDamage(point, incomingVelocity, isLastBullet);
             if (isLastBullet)
             {
                 StartFinalImpactCamera(point);
@@ -349,25 +445,68 @@ namespace TonPlaygram.Gameplay.Weapons
             }
         }
 
-        private void ApplyProgressiveDamage(bool isLastBullet)
+        private void ApplyProgressiveDamage(Vector3 impactPoint, Vector3 incomingVelocity, bool isLastBullet)
         {
             if (_tokenPieces.Count == 0)
                 return;
+
+            SortTokenPiecesByImpact(impactPoint);
+            Vector3 impactDirection = incomingVelocity.sqrMagnitude > 0.0001f ? incomingVelocity.normalized : ResolveFallbackImpactDirection();
 
             if (isLastBullet)
             {
                 for (int i = 0; i < _tokenPieces.Count; i++)
                 {
-                    _tokenPieces[i].BreakCompletely();
+                    if (_tokenPieces[i] != null)
+                    {
+                        _tokenPieces[i].BreakCompletely(impactPoint, impactDirection, true);
+                    }
                 }
                 return;
             }
 
+            int detached = 0;
             int maxPieces = Mathf.Clamp(minorPiecesPerNonFinalShot, 1, _tokenPieces.Count);
-            for (int i = 0; i < maxPieces; i++)
+            for (int i = 0; i < _tokenPieces.Count && detached < maxPieces; i++)
             {
-                _tokenPieces[i].DamageMinor();
+                TokenPieceHealth piece = _tokenPieces[i];
+                if (piece == null || piece.IsDetached)
+                    continue;
+
+                piece.DamageMinor(impactPoint, impactDirection);
+                detached++;
             }
+        }
+
+        private Vector3 ResolveFallbackImpactDirection()
+        {
+            if (targetTokenRoot != null && muzzle != null)
+            {
+                Vector3 fromMuzzle = targetTokenRoot.position - muzzle.position;
+                if (fromMuzzle.sqrMagnitude > 0.0001f)
+                {
+                    return fromMuzzle.normalized;
+                }
+            }
+
+            return Vector3.forward;
+        }
+
+        private void SortTokenPiecesByImpact(Vector3 impactPoint)
+        {
+            _tokenPieces.Sort((a, b) =>
+            {
+                if (a == null && b == null)
+                    return 0;
+                if (a == null)
+                    return 1;
+                if (b == null)
+                    return -1;
+
+                float aDistance = (a.transform.position - impactPoint).sqrMagnitude;
+                float bDistance = (b.transform.position - impactPoint).sqrMagnitude;
+                return aDistance.CompareTo(bDistance);
+            });
         }
 
         private void BeginAimCamera(WeaponBallisticsProfile weapon)
@@ -380,6 +519,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 StopCoroutine(_cameraRoutine);
             }
 
+            PlayWeaponAimPose(weapon);
             _cameraRoutine = StartCoroutine(AimViewRoutine(weapon));
         }
 
@@ -391,17 +531,22 @@ namespace TonPlaygram.Gameplay.Weapons
                 weaponRoot.localRotation = _weaponRootLocalRot;
             }
 
+            WeaponGripPoseProfile gripPose = _activeWeapon != null ? _activeWeapon.gripPose : null;
+            Quaternion aimRotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+            Quaternion gripRotation = aimRotation * (gripPose != null ? gripPose.GripRotationOffset : Quaternion.identity);
+
             if (rightHandGrip != null)
             {
-                rightHandGrip.position = muzzle.position - (shotDirection * 0.12f);
-                rightHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                Vector3 rightOffset = gripPose != null ? gripPose.rightGripBackOffset : new Vector3(0f, 0f, -0.12f);
+                rightHandGrip.position = muzzle.position + aimRotation * rightOffset;
+                rightHandGrip.rotation = gripRotation;
             }
 
             if (leftHandGrip != null)
             {
-                Vector3 leftOffset = Vector3.Cross(Vector3.up, shotDirection).normalized * 0.06f;
-                leftHandGrip.position = muzzle.position - (shotDirection * 0.06f) - leftOffset;
-                leftHandGrip.rotation = Quaternion.LookRotation(shotDirection, Vector3.up);
+                Vector3 leftOffset = gripPose != null ? gripPose.leftGripBackOffset : new Vector3(-0.06f, 0f, -0.06f);
+                leftHandGrip.position = muzzle.position + aimRotation * leftOffset;
+                leftHandGrip.rotation = gripRotation;
             }
 
             if (humanHandRetargeter != null)
@@ -689,7 +834,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
             _impactSent = true;
             _director?.BroadcastProjectileImpact(_weaponType, _shotIndex, _pelletIndex, transform.position);
-            _director?.OnBulletImpact(transform.position, _isLastBullet);
+            _director?.OnBulletImpact(transform.position, _velocity, _isLastBullet);
             Destroy(gameObject);
         }
     }
@@ -698,8 +843,16 @@ namespace TonPlaygram.Gameplay.Weapons
     {
         [SerializeField] private int minorHitsToDetach = 2;
         [SerializeField] private Rigidbody rb;
+        [SerializeField] private Collider pieceCollider;
+        [SerializeField] private float nonFinalImpulse = 3.2f;
+        [SerializeField] private float finalImpulse = 9.5f;
+        [SerializeField] private float upwardImpulse = 0.35f;
+        [SerializeField] private float torqueImpulse = 5.5f;
 
         private int _minorHits;
+        private bool _detached;
+
+        public bool IsDetached => _detached;
 
         private void Awake()
         {
@@ -707,25 +860,60 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 rb = GetComponent<Rigidbody>();
             }
+
+            if (pieceCollider == null)
+            {
+                pieceCollider = GetComponent<Collider>();
+            }
         }
 
         public void DamageMinor()
         {
+            DamageMinor(transform.position, Vector3.forward);
+        }
+
+        public void DamageMinor(Vector3 impactPoint, Vector3 impactDirection)
+        {
+            if (_detached)
+                return;
+
             _minorHits++;
             if (_minorHits >= minorHitsToDetach)
             {
-                BreakCompletely();
+                BreakCompletely(impactPoint, impactDirection, false);
             }
         }
 
         public void BreakCompletely()
         {
+            BreakCompletely(transform.position, Vector3.forward, true);
+        }
+
+        public void BreakCompletely(Vector3 impactPoint, Vector3 impactDirection, bool isFinalBreak)
+        {
+            if (_detached && !isFinalBreak)
+                return;
+
+            _detached = true;
+            transform.SetParent(null, true);
+
             if (rb == null)
                 return;
 
             rb.isKinematic = false;
-            rb.AddExplosionForce(8f, transform.position + Vector3.back, 2f, 0.3f, ForceMode.Impulse);
-            rb.AddTorque(UnityEngine.Random.insideUnitSphere * 5.5f, ForceMode.Impulse);
+            rb.detectCollisions = true;
+            if (pieceCollider != null)
+            {
+                pieceCollider.enabled = true;
+            }
+
+            Vector3 awayFromImpact = (transform.position - impactPoint).sqrMagnitude > 0.0001f
+                ? (transform.position - impactPoint).normalized
+                : impactDirection.normalized;
+            Vector3 forceDirection = (awayFromImpact + impactDirection.normalized + (Vector3.up * upwardImpulse)).normalized;
+            float impulse = isFinalBreak ? finalImpulse : nonFinalImpulse;
+            rb.AddForceAtPosition(forceDirection * impulse, impactPoint, ForceMode.Impulse);
+            rb.AddTorque(UnityEngine.Random.insideUnitSphere * torqueImpulse, ForceMode.Impulse);
         }
     }
 }
