@@ -74,6 +74,11 @@ const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
   dynamite: 'polyDynamiteBomb01Attack',
   gasTank: 'polyGasTank01Attack',
   handGrenade: 'polyHandGrenade01Attack',
+  requestedHandgun: 'polyRiggedGlock19Attack',
+  requestedRifle: 'polyAdamScarhAttack',
+  requestedSmg: 'polyPichuliruSmgWestAttack',
+  requestedShotgun: 'polyCreativeShotgunAttack',
+  requestedGrenade: 'polyPichuliruFragEastAttack',
   incendiary: 'polyMolotov01Attack',
   armor: 'polyTank01Attack',
   robotLargeGun: 'polyRobotLargeGunAttack',
@@ -115,7 +120,23 @@ const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
   polyMolotov01Attack: 'incendiary',
   polyTank01Attack: 'armor',
   polyRobotLargeGunAttack: 'robotLargeGun',
-  polyRobotFlyingGunAttack: 'robotFlyingGun'
+  polyRobotFlyingGunAttack: 'robotFlyingGun',
+
+  polyAssaultRifleBgvuuAttack: 'assaultRifle',
+  polyRiggedGlock19Attack: 'requestedHandgun',
+  polyRiggedDesertEagleAttack: 'requestedHandgun',
+  polySniperRifleI65Attack: 'marksman',
+  polyCreativeRifleAttack: 'requestedRifle',
+  polyCreativeSmgAttack: 'requestedSmg',
+  polyCreativeHandGrenadeAttack: 'requestedGrenade',
+  polyCreativeShotgunAttack: 'requestedShotgun',
+  polyCreativeDoubleBarrelAttack: 'requestedShotgun',
+  polyCreativeGasolineBombAttack: 'incendiary',
+  polyQuaterniusRifleCcaAttack: 'requestedRifle',
+  polyPichuliruAssaultEastAttack: 'requestedRifle',
+  polyPichuliruSmgWestAttack: 'requestedSmg',
+  polyPichuliruFragEastAttack: 'requestedGrenade',
+  polyAdamScarhAttack: 'requestedRifle',
 });
 
 const shouldShowCaptureAnimationInStore = (optionId) => {
