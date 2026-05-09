@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Mobile Urban FPS">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#172554"/><stop offset="1" stop-color="#020617"/></linearGradient>
+    <linearGradient id="fire" x1="0" x2="1"><stop stop-color="#fde68a"/><stop offset="1" stop-color="#ef4444"/></linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#sky)"/>
+  <path d="M33 205h190v25H33z" fill="#111827"/>
+  <path d="M43 80h43v125H43zM94 50h54v155H94zM158 92h54v113h-54z" fill="#374151"/>
+  <path d="M53 96h18v18H53zm0 35h18v18H53zm54-59h18v18h-18zm0 36h18v18h-18zm64 4h18v18h-18zm0 35h18v18h-18z" fill="#93c5fd" opacity=".65"/>
+  <path d="M62 174h80l55 25-5 15-73-15H62z" fill="#1f2937"/>
+  <path d="M126 165h79v18h-79z" fill="#020617"/>
+  <path d="M206 166l32 8-32 9z" fill="url(#fire)"/>
+  <circle cx="128" cy="119" r="34" fill="none" stroke="#f8fafc" stroke-width="7" opacity=".9"/>
+  <path d="M128 73v92M82 119h92" stroke="#f8fafc" stroke-width="5" stroke-linecap="round"/>
+</svg>
