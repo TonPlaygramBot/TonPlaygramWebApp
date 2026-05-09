@@ -5,7 +5,7 @@ import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
 import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
-import { chatBeep as inviteBeep } from '../assets/soundData.js';
+import { chatBeep as inviteBeep } from '../assets/coreSoundData.js';
 import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
 import InvitePopup from './InvitePopup.jsx';
 

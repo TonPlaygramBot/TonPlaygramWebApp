@@ -22,7 +22,7 @@ import { applyTableMaterials, createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from
 import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
 import { createCardGeometry } from '../../utils/cards3d.js';
-import { chatBeep, bombSound } from '../../assets/soundData.js';
+import { chatBeep, bombSound } from '../../assets/coreSoundData.js';
 import {
   getMurlanInventory,
   isMurlanOptionUnlocked,

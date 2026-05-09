@@ -4,11 +4,9 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: NODE_OPTIONS=--max-old-space-size=3072 npm install && NODE_OPTIONS=--max-old-space-size=3072 npm --prefix ../webapp install && NODE_OPTIONS=--max-old-space-size=3072 npm --prefix ../webapp run build
+    buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=3072
       - key: MONGO_URI
         fromSecret: MONGO_URI
       - key: BOT_TOKEN

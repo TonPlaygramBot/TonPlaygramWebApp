@@ -34,7 +34,7 @@ import {
   chatBeep,
   bombSound,
   cheerSound
-} from '../../assets/soundData.js';
+} from '../../assets/coreSoundData.js';
 import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';

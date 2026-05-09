@@ -39,7 +39,7 @@ import {
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
-import { chatBeep } from '../../assets/soundData.js';
+import { chatBeep } from '../../assets/coreSoundData.js';
 import {
   buildCommentaryLine,
   POOL_ROYALE_SPEAKERS

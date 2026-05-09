@@ -97,7 +97,7 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
-import { chatBeep } from '../../assets/soundData.js';
+import { chatBeep } from '../../assets/coreSoundData.js';
 import {
   clampToUnitCircle,
   computeQuantizedOffsetScaled,
