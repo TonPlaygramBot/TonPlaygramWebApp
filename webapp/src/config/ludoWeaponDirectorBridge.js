@@ -11,6 +11,7 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
     uziSprayAttack: 'SMG',
     smgBurstAttack: 'SMG',
     polySmg01Attack: 'SMG',
+    polyFlareGun01Attack: 'Pistol',
     assaultRifleAttack: 'Rifle',
     ak47VolleyAttack: 'Rifle',
     fpsGunAttack: 'Rifle',
@@ -24,7 +25,19 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
     polyShotgun02Attack: 'Shotgun',
     polyShotgun03Attack: 'Shotgun',
     polySawedOff01Attack: 'Shotgun',
-    grenadeBlastAttack: 'GrenadeLauncher'
+    grenadeBlastAttack: 'GrenadeLauncher',
+    polyRpgLauncher01Attack: 'GrenadeLauncher',
+    polyBazooka01Attack: 'GrenadeLauncher',
+    polyRocketLauncher01Attack: 'GrenadeLauncher',
+    polyGrenadeLauncher01Attack: 'GrenadeLauncher',
+    polyScifiGrenadeLauncher01Attack: 'GrenadeLauncher',
+    polyGrenade01Attack: 'GrenadeLauncher',
+    polyScifiGrenade01Attack: 'GrenadeLauncher',
+    polyFireGrenade01Attack: 'GrenadeLauncher',
+    polyLandmine01Attack: 'GrenadeLauncher',
+    polyGasTank01Attack: 'GrenadeLauncher',
+    polyTurretGun01Attack: 'GrenadeLauncher',
+    polyCombatTank01Attack: 'GrenadeLauncher'
   }),
   firearmBroadcastProfile: Object.freeze({
     aimLift: 0.064,

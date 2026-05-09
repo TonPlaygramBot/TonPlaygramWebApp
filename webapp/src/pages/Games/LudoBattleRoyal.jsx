@@ -161,7 +161,20 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'polyRevolver02Attack',
   'polyShotgun02Attack',
   'polyShotgun03Attack',
-  'polySmg01Attack'
+  'polySmg01Attack',
+  'polyRpgLauncher01Attack',
+  'polyBazooka01Attack',
+  'polyRocketLauncher01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyScifiGrenadeLauncher01Attack',
+  'polyFlareGun01Attack',
+  'polyGrenade01Attack',
+  'polyScifiGrenade01Attack',
+  'polyFireGrenade01Attack',
+  'polyLandmine01Attack',
+  'polyGasTank01Attack',
+  'polyTurretGun01Attack',
+  'polyCombatTank01Attack'
 ]);
 const LARGE_RACK_FIREARM_IDS = new Set([
   'ak47VolleyAttack',
@@ -173,7 +186,14 @@ const LARGE_RACK_FIREARM_IDS = new Set([
   'polyShotgun01Attack',
   'polyAssaultRifle01Attack',
   'polyShotgun02Attack',
-  'polyShotgun03Attack'
+  'polyShotgun03Attack',
+  'polyRpgLauncher01Attack',
+  'polyBazooka01Attack',
+  'polyRocketLauncher01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyScifiGrenadeLauncher01Attack',
+  'polyTurretGun01Attack',
+  'polyCombatTank01Attack'
 ]);
 const FIREARM_TWO_HANDED_IDS = new Set([
   'fpsGunAttack',
@@ -188,7 +208,14 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'polyAssaultRifle01Attack',
   'polyShotgun02Attack',
   'polyShotgun03Attack',
-  'polySmg01Attack'
+  'polySmg01Attack',
+  'polyRpgLauncher01Attack',
+  'polyBazooka01Attack',
+  'polyRocketLauncher01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyScifiGrenadeLauncher01Attack',
+  'polyTurretGun01Attack',
+  'polyCombatTank01Attack'
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'glockSidearmAttack',
@@ -200,7 +227,13 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polyPistol01Attack',
   'polyRevolver01Attack',
   'polySawedOff01Attack',
-  'polyRevolver02Attack'
+  'polyRevolver02Attack',
+  'polyFlareGun01Attack',
+  'polyGrenade01Attack',
+  'polyScifiGrenade01Attack',
+  'polyFireGrenade01Attack',
+  'polyLandmine01Attack',
+  'polyGasTank01Attack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
@@ -222,7 +255,20 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyRevolver02Attack: 1.08,
   polyShotgun02Attack: 2.22,
   polyShotgun03Attack: 2.1,
-  polySmg01Attack: 1.68
+  polySmg01Attack: 1.68,
+  polyRpgLauncher01Attack: 2.55,
+  polyBazooka01Attack: 2.42,
+  polyRocketLauncher01Attack: 2.35,
+  polyGrenadeLauncher01Attack: 2.1,
+  polyScifiGrenadeLauncher01Attack: 2.18,
+  polyFlareGun01Attack: 1.08,
+  polyGrenade01Attack: 0.62,
+  polyScifiGrenade01Attack: 0.66,
+  polyFireGrenade01Attack: 0.68,
+  polyLandmine01Attack: 0.7,
+  polyGasTank01Attack: 0.82,
+  polyTurretGun01Attack: 1.9,
+  polyCombatTank01Attack: 1.85
 });
 
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
@@ -487,6 +533,73 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     label: 'Quaternius Submachine Gun',
     urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
     scale: 0.17
+
+  },
+  polyRpgLauncher01Attack: {
+    label: 'Poly Pizza RPG Launcher',
+    urls: ['https://static.poly.pizza/07fbe965-5ca5-4d46-8198-fbbe27c23a00.glb'],
+    scale: 0.245
+  },
+  polyBazooka01Attack: {
+    label: 'Poly Pizza Bazooka',
+    urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'],
+    scale: 0.235
+  },
+  polyRocketLauncher01Attack: {
+    label: 'Quaternius Rocket Launcher',
+    urls: ['https://static.poly.pizza/4b445cbf-38b6-43f3-afd6-32d88e8f074b.glb'],
+    scale: 0.23
+  },
+  polyGrenadeLauncher01Attack: {
+    label: 'Quaternius Grenade Launcher',
+    urls: ['https://static.poly.pizza/bcbc44eb-76f2-4282-8817-7c81fa0d5eb4.glb'],
+    scale: 0.205
+  },
+  polyScifiGrenadeLauncher01Attack: {
+    label: 'Quaternius Scifi Grenade Launcher',
+    urls: ['https://static.poly.pizza/56c40fc2-5927-4c6b-ae60-7145d5055e34.glb'],
+    scale: 0.215
+  },
+  polyFlareGun01Attack: {
+    label: 'Quaternius Flare Gun',
+    urls: ['https://static.poly.pizza/9ec52cda-c918-43f0-b7af-354e7fe96c37.glb'],
+    scale: 0.125
+  },
+  polyGrenade01Attack: {
+    label: 'Quaternius Grenade',
+    urls: ['https://static.poly.pizza/d3a086a7-e545-4cc0-a279-7cd2da2020b8.glb'],
+    scale: 0.112
+  },
+  polyScifiGrenade01Attack: {
+    label: 'Quaternius Scifi Grenade',
+    urls: ['https://static.poly.pizza/a9a3bdc1-1fca-4b91-a079-ee3d459864d6.glb'],
+    scale: 0.118
+  },
+  polyFireGrenade01Attack: {
+    label: 'Quaternius Fire Grenade',
+    urls: ['https://static.poly.pizza/cb8c6260-26b1-43ac-9a8d-093e75f6d934.glb'],
+    scale: 0.118
+  },
+  polyLandmine01Attack: {
+    label: 'Quaternius Landmine',
+    urls: ['https://static.poly.pizza/81a6a677-60f1-4e24-ae34-ac4e78dcb0e0.glb'],
+    scale: 0.12
+  },
+  polyGasTank01Attack: {
+    label: 'Quaternius Gas Tank',
+    urls: ['https://static.poly.pizza/d9365b08-bd46-4f01-9c60-697bcacf784d.glb'],
+    scale: 0.15
+  },
+  polyTurretGun01Attack: {
+    label: 'Quaternius Turret Gun',
+    urls: ['https://static.poly.pizza/730a54af-3785-4d23-8efc-1560ed61e0d3.glb'],
+    scale: 0.19
+  },
+  polyCombatTank01Attack: {
+    label: 'Quaternius Combat Tank',
+    urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
+    scale: 0.185
+
   }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
@@ -559,7 +672,20 @@ const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   polyRevolver02Attack: 8,
   polyShotgun02Attack: 1,
   polyShotgun03Attack: 1,
-  polySmg01Attack: 28
+  polySmg01Attack: 28,
+  polyRpgLauncher01Attack: 1,
+  polyBazooka01Attack: 1,
+  polyRocketLauncher01Attack: 1,
+  polyGrenadeLauncher01Attack: 1,
+  polyScifiGrenadeLauncher01Attack: 1,
+  polyFlareGun01Attack: 1,
+  polyGrenade01Attack: 1,
+  polyScifiGrenade01Attack: 1,
+  polyFireGrenade01Attack: 1,
+  polyLandmine01Attack: 1,
+  polyGasTank01Attack: 1,
+  polyTurretGun01Attack: 1,
+  polyCombatTank01Attack: 1
 });
 const FIREARM_BALLISTICS_PROFILE = Object.freeze({
   default: Object.freeze({ tracerSpread: 0.018, shellDriftX: 0.00026, shellDriftZ: -0.00021, shellArc: 0.052, bulletRadius: 0.0036, bulletSpeed: 0.2, shellRadius: 0.0028 }),
@@ -596,7 +722,20 @@ const FIREARM_BALLISTICS_PROFILE_BY_ID = Object.freeze({
   polyShotgun02Attack: 'shotgun',
   polyShotgun03Attack: 'shotgun',
   polySawedOff01Attack: 'shotgun',
-  grenadeBlastAttack: 'explosive'
+  grenadeBlastAttack: 'explosive',
+  polyRpgLauncher01Attack: 'explosive',
+  polyBazooka01Attack: 'explosive',
+  polyRocketLauncher01Attack: 'explosive',
+  polyGrenadeLauncher01Attack: 'explosive',
+  polyScifiGrenadeLauncher01Attack: 'explosive',
+  polyFlareGun01Attack: 'explosive',
+  polyGrenade01Attack: 'explosive',
+  polyScifiGrenade01Attack: 'explosive',
+  polyFireGrenade01Attack: 'explosive',
+  polyLandmine01Attack: 'explosive',
+  polyGasTank01Attack: 'explosive',
+  polyTurretGun01Attack: 'explosive',
+  polyCombatTank01Attack: 'explosive'
 });
 const FIREARM_CALIBER_BY_ID = Object.freeze({
   glockSidearmAttack: { bulletRadius: 0.0032, shellRadius: 0.0024, bulletSpeed: 0.22 },
@@ -612,7 +751,14 @@ const FIREARM_CALIBER_BY_ID = Object.freeze({
   mosinMarksmanAttack: { bulletRadius: 0.0044, shellRadius: 0.0033, bulletSpeed: 0.3 },
   shotgunBlastAttack: { bulletRadius: 0.0052, shellRadius: 0.0042, bulletSpeed: 0.18 },
   polyShotgun01Attack: { bulletRadius: 0.005, shellRadius: 0.0041, bulletSpeed: 0.18 },
-  grenadeBlastAttack: { bulletRadius: 0.0062, shellRadius: 0.0047, bulletSpeed: 0.14 }
+  grenadeBlastAttack: { bulletRadius: 0.0062, shellRadius: 0.0047, bulletSpeed: 0.14 },
+  polyRpgLauncher01Attack: { bulletRadius: 0.007, shellRadius: 0.005, bulletSpeed: 0.13 },
+  polyBazooka01Attack: { bulletRadius: 0.0068, shellRadius: 0.0049, bulletSpeed: 0.13 },
+  polyRocketLauncher01Attack: { bulletRadius: 0.0068, shellRadius: 0.0049, bulletSpeed: 0.13 },
+  polyGrenadeLauncher01Attack: { bulletRadius: 0.0064, shellRadius: 0.0048, bulletSpeed: 0.14 },
+  polyScifiGrenadeLauncher01Attack: { bulletRadius: 0.0065, shellRadius: 0.0048, bulletSpeed: 0.145 },
+  polyTurretGun01Attack: { bulletRadius: 0.0063, shellRadius: 0.0047, bulletSpeed: 0.15 },
+  polyCombatTank01Attack: { bulletRadius: 0.0072, shellRadius: 0.0051, bulletSpeed: 0.12 }
 });
 const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
@@ -624,7 +770,14 @@ const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
   sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
   shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
-  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
+  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyRpgLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyRocketLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyScifiGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyTurretGun01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyCombatTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
 });
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
@@ -754,6 +907,72 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     rotation: [-1.46, -0.04, -1.56],
     muzzleOffset: [0, 0.014, 0.223]
   },
+
+  polyRpgLauncher01Attack: {
+    position: [0.04, -0.005, 0.148],
+    rotation: [-1.37, -0.04, -1.58],
+    muzzleOffset: [0, 0.016, 0.292]
+  },
+  polyBazooka01Attack: {
+    position: [0.039, -0.005, 0.144],
+    rotation: [-1.38, -0.04, -1.58],
+    muzzleOffset: [0, 0.016, 0.284]
+  },
+  polyRocketLauncher01Attack: {
+    position: [0.038, -0.005, 0.14],
+    rotation: [-1.39, -0.04, -1.575],
+    muzzleOffset: [0, 0.016, 0.278]
+  },
+  polyGrenadeLauncher01Attack: {
+    position: [0.035, -0.005, 0.126],
+    rotation: [-1.42, -0.04, -1.565],
+    muzzleOffset: [0, 0.015, 0.252]
+  },
+  polyScifiGrenadeLauncher01Attack: {
+    position: [0.036, -0.005, 0.13],
+    rotation: [-1.41, -0.04, -1.565],
+    muzzleOffset: [0, 0.015, 0.258]
+  },
+  polyFlareGun01Attack: {
+    position: [0.02, -0.001, 0.086],
+    rotation: [-1.5, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.2]
+  },
+  polyGrenade01Attack: {
+    position: [0.018, -0.002, 0.078],
+    rotation: [-1.5, -0.02, -1.56],
+    muzzleOffset: [0, 0.012, 0.16]
+  },
+  polyScifiGrenade01Attack: {
+    position: [0.018, -0.002, 0.078],
+    rotation: [-1.5, -0.02, -1.56],
+    muzzleOffset: [0, 0.012, 0.16]
+  },
+  polyFireGrenade01Attack: {
+    position: [0.018, -0.002, 0.078],
+    rotation: [-1.5, -0.02, -1.56],
+    muzzleOffset: [0, 0.012, 0.16]
+  },
+  polyLandmine01Attack: {
+    position: [0.018, -0.002, 0.078],
+    rotation: [-1.5, -0.02, -1.56],
+    muzzleOffset: [0, 0.012, 0.16]
+  },
+  polyGasTank01Attack: {
+    position: [0.02, -0.002, 0.084],
+    rotation: [-1.49, -0.02, -1.56],
+    muzzleOffset: [0, 0.013, 0.17]
+  },
+  polyTurretGun01Attack: {
+    position: [0.034, -0.005, 0.12],
+    rotation: [-1.42, -0.04, -1.565],
+    muzzleOffset: [0, 0.015, 0.238]
+  },
+  polyCombatTank01Attack: {
+    position: [0.032, -0.005, 0.116],
+    rotation: [-1.42, -0.04, -1.565],
+    muzzleOffset: [0, 0.015, 0.23]
+  },
   shotgunBlastAttack: {
     position: [0.036, -0.006, 0.129],
     rotation: [-1.4, -0.05, -1.56],
@@ -798,7 +1017,20 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   polyRevolver02Attack: 1.17,
   polyShotgun02Attack: 1.34,
   polyShotgun03Attack: 1.28,
-  polySmg01Attack: 1.22
+  polySmg01Attack: 1.22,
+  polyRpgLauncher01Attack: 1.42,
+  polyBazooka01Attack: 1.38,
+  polyRocketLauncher01Attack: 1.36,
+  polyGrenadeLauncher01Attack: 1.28,
+  polyScifiGrenadeLauncher01Attack: 1.3,
+  polyFlareGun01Attack: 1.12,
+  polyGrenade01Attack: 0.62,
+  polyScifiGrenade01Attack: 0.66,
+  polyFireGrenade01Attack: 0.66,
+  polyLandmine01Attack: 0.7,
+  polyGasTank01Attack: 0.8,
+  polyTurretGun01Attack: 1.18,
+  polyCombatTank01Attack: 1.12
 });
 // Keep FPS gun and Shotgun Blast visually matched in hand.
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
@@ -857,7 +1089,20 @@ const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
   polyRevolver02Attack: '🔫',
   polyShotgun02Attack: '🧨',
   polyShotgun03Attack: '🧨',
-  polySmg01Attack: '🔫'
+  polySmg01Attack: '🔫',
+  polyRpgLauncher01Attack: '🚀',
+  polyBazooka01Attack: '🚀',
+  polyRocketLauncher01Attack: '🚀',
+  polyGrenadeLauncher01Attack: '💣',
+  polyScifiGrenadeLauncher01Attack: '💣',
+  polyFlareGun01Attack: '🔫',
+  polyGrenade01Attack: '💣',
+  polyScifiGrenade01Attack: '💣',
+  polyFireGrenade01Attack: '🧨',
+  polyLandmine01Attack: '💣',
+  polyGasTank01Attack: '🧨',
+  polyTurretGun01Attack: '🛡️',
+  polyCombatTank01Attack: '🛡️'
 });
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
