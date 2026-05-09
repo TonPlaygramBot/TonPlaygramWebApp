@@ -286,6 +286,39 @@ const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   position: [0.086, 0.008, -0.02],
   minSurfaceY: 0
 });
+
+const FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
+  // Gunify's AK-47 GLTF imports with the stock/muzzle reversed after the flat-table
+  // bounding-box solve. Rotate only the displayed model so the parked rifle remains
+  // flat while its barrel points visually upward toward the opponent on portrait screens.
+  ak47VolleyAttack: Math.PI,
+  krsvBurstAttack: Math.PI
+});
+const FIREARM_BARREL_RADIUS_BY_ID = Object.freeze({
+  glockSidearmAttack: 0.0032,
+  pistolSidearmAttack: 0.0032,
+  pistolHolsterAttack: 0.0032,
+  smithSidearmAttack: 0.0034,
+  sigsauerTacticalAttack: 0.0032,
+  uziSprayAttack: 0.0031,
+  smgBurstAttack: 0.0031,
+  assaultRifleAttack: 0.0038,
+  ak47VolleyAttack: 0.004,
+  fpsGunAttack: 0.0038,
+  krsvBurstAttack: 0.0038,
+  compactCarbineAttack: 0.0037,
+  mosinMarksmanAttack: 0.0042,
+  sniperShotAttack: 0.0044,
+  shotgunBlastAttack: 0.004,
+  polyAssaultRifle01Attack: 0.0038,
+  polyPistol01Attack: 0.0032,
+  polyRevolver01Attack: 0.0034,
+  polyRevolver02Attack: 0.0034,
+  polyShotgun01Attack: 0.004,
+  polyShotgun02Attack: 0.004,
+  polyShotgun03Attack: 0.004,
+  polySmg01Attack: 0.0031
+});
 const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   // Small sidearms sit tight next to the token on its right-hand side.
   small: Object.freeze({
@@ -1219,6 +1252,17 @@ function resolveFirearmBallisticsProfile(captureAnimationId = '') {
   return FIREARM_BALLISTICS_PROFILE[profileKey] || FIREARM_BALLISTICS_PROFILE.default;
 }
 
+function matchProjectileDiameterToBarrel(profile = FIREARM_BALLISTICS_PROFILE.default, captureAnimationId = '') {
+  const barrelRadius = FIREARM_BARREL_RADIUS_BY_ID[captureAnimationId] ?? profile.bulletRadius ?? FIREARM_BALLISTICS_PROFILE.default.bulletRadius;
+  return {
+    ...profile,
+    bulletRadius: barrelRadius,
+    // The shell casing uses the same visual diameter as the visible barrel/bore so bullets,
+    // ejected brass and muzzle opening read as one caliber during the close-up camera shot.
+    shellRadius: barrelRadius
+  };
+}
+
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
   if (muted) return false;
   const config = CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
@@ -1694,6 +1738,8 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
   alignFirearmRackFlatByBounds(clone, displayRotation);
+  const muzzleYawCorrection = FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID[captureAnimationId] ?? 0;
+  if (muzzleYawCorrection) clone.rotateY(muzzleYawCorrection);
   alignFirearmRackGripAnchor(clone);
   clone.updateMatrixWorld?.(true);
   const stabilizedBounds = new THREE.Box3().setFromObject(clone);
@@ -3029,7 +3075,7 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
   const radius = profile.bulletRadius || 0.0036;
   const length = profile.bulletLength || radius * 9;
   const metalMaterial = new THREE.MeshStandardMaterial({
-    color: kind.includes('sniper') || kind.includes('marksman') ? '#b87333' : kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? '#556b2f' : '#d9dde2',
+    color: kind.includes('sniper') || kind.includes('marksman') || kind.includes('rifle') || kind.includes('smg') || kind.includes('pistol') || kind.includes('revolver') ? '#b87333' : kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? '#556b2f' : '#d9dde2',
     metalness: kind.includes('buckshot') ? 0.72 : 0.95,
     roughness: kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? 0.34 : 0.16
   });
@@ -11015,9 +11061,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               ? { tracerSpread: 0.022 }
               : {};
           const caliberProfile = FIREARM_CALIBER_BY_ID[resolvedCaptureAnimationId] ?? null;
-          const mergedBallistics = caliberProfile
-            ? { ...ballisticsProfile, ...bridgeBallisticsBias, ...caliberProfile }
-            : { ...ballisticsProfile, ...bridgeBallisticsBias };
+          const mergedBallistics = matchProjectileDiameterToBarrel(
+            caliberProfile
+              ? { ...ballisticsProfile, ...bridgeBallisticsBias, ...caliberProfile }
+              : { ...ballisticsProfile, ...bridgeBallisticsBias },
+            resolvedCaptureAnimationId
+          );
           const cadenceMs = (FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId) ? 155 : FIREARM_SHOTGUN_IDS.has(resolvedCaptureAnimationId) ? 92 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
@@ -11155,9 +11204,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             // over-weapon angle so the hand, weapon and target line stay readable without table shrink.
             cinematicPosition
               .copy(muzzleOrigin)
-              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.36 : 0.46))
-              .addScaledVector(cinematicSide, singleShotFirearm ? 0.09 : 0.13)
-              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.12, singleShotFirearm ? 0.16 : 0.18, shoulderCameraBlend));
+              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.28 : 0.34))
+              .addScaledVector(cinematicSide, singleShotFirearm ? 0.06 : 0.082)
+              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.085, singleShotFirearm ? 0.125 : 0.14, shoulderCameraBlend));
             cinematicTarget
               .copy(muzzleOrigin)
               .lerp(muzzleTarget, THREE.MathUtils.lerp(0.42, 0.72, shoulderCameraBlend))
@@ -11220,8 +11269,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return;
               }
               const isFinalProjectile = idx >= finalProjectileStartIndex;
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? 0.27 : 0.42);
-              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 1.08 : 0.82)), 0, 1);
+              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? 0.18 : 0.42);
+              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 1.45 : 0.82)), 0, 1);
               const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
               const start = muzzleOrigin.clone();
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
@@ -11238,7 +11287,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (projectileDir.lengthSq() < 1e-7) projectileDir.set(0, 1, 0);
               projectileDir.normalize();
               bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
-              bulletMesh.rotateY(life * (isFinalProjectile ? 0.022 : 0.014));
+              bulletMesh.rotateY(life * (isFinalProjectile ? 0.052 : 0.032));
               bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
@@ -11279,13 +11328,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               cinematicSide.copy(cameraWorldUp).cross(bulletDir);
               if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
               cinematicSide.normalize();
+              const followingFinalBullet = leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1;
               cinematicPosition
                 .copy(leadBulletPos)
-                .addScaledVector(bulletDir, -0.15)
-                .addScaledVector(cinematicSide, singleShotFirearm ? 0.018 : 0.03);
-              cinematicPosition.addScaledVector(cameraWorldUp, singleShotFirearm ? 0.07 : 0.082);
-              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, 0.34);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.72);
+                .addScaledVector(bulletDir, followingFinalBullet ? -0.075 : -0.15)
+                .addScaledVector(cinematicSide, followingFinalBullet ? 0.014 : singleShotFirearm ? 0.018 : 0.03);
+              cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? 0.046 : singleShotFirearm ? 0.07 : 0.082);
+              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.18 : 0.34);
+              setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.84 : 0.72);
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
