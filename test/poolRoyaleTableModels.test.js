@@ -6,8 +6,8 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the native Royal Original table', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'royal-original');
+  test('defaults to the Showood GLB table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
     assert.equal(resolvePoolRoyaleTableModel(null).id, 'royal-original');
     assert.equal(resolvePoolRoyaleTableModel('unknown').id, 'royal-original');
   });
@@ -20,11 +20,12 @@ describe('Pool Royale table models', () => {
     assert.ok(showood, 'Showood table model must be configured');
     assert.equal(showood.kind, 'gltf');
     assert.equal(showood.useOriginalLayoutSurfaces, true);
-    assert.equal(showood.fitScale, 1.08);
+    assert.equal(showood.fitScale, 1.02);
     assert.equal(showood.clothRepeatScale, 5.25);
-    assert.deepEqual(showood.hideSurfaceRoles, ['trim']);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
-    assert.equal(showood.forceGeneratedChromePlates, true);
+    assert.deepEqual(showood.hideSurfaceRoles, []);
+    assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['trim']);
+    assert.equal(showood.tintOriginalTrimGold, true);
+    assert.equal(showood.forceGeneratedChromePlates, false);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
       'cushion',
