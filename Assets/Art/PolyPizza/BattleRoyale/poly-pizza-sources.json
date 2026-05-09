@@ -1,41 +1,11 @@
 {
   "checkedAtUtc": "2026-05-09T00:00:00Z",
-  "note": "Poly Pizza source pages list FBX/GLTF availability. Download source models manually when Cloudflare/API access permits, preserve original textures, verify per-page license, and assign imported prefabs/clips in PolyPizzaBattleRoyaleAssetCatalog before shipping.",
-  "handPoseReference": {
-    "name": "Fps Rig",
-    "creator": "J-Toastie",
-    "sourceUrl": "https://poly.pizza/m/uxko5LkGia",
-    "license": "Creative Commons Attribution",
-    "usage": "Import as a hidden logic/reference rig only. Hide its renderers, map its Glock/arms bones and muzzle to FpsGunHumanHandRetargeter, and use it to drive visible human hand pose and handgun orientation."
-  },
+  "note": "Use Poly Pizza source pages/search pages to download GLB/GLTF/FBX manually, verify the exact model license, then fill importedPrefab or AnimationClip fields in PolyPizzaBattleRoyaleAssetCatalog before shipping.",
   "searchPages": {
     "tanks": "https://poly.pizza/search/tank",
     "bulletsAndShells": "https://poly.pizza/search/bullet",
     "weaponAnimations": "https://poly.pizza/search/gun%20animation",
-    "weapons": "https://poly.pizza/search/weapon",
-    "polyhavenTextures": "https://polyhaven.com/textures"
-  },
-  "weaponStoreCandidates": [
-    { "storeId": "poly-pizza-assault-rifle-quaternius", "name": "Assault Rifle", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/m/Bgvuu4CUMV", "weaponType": "Rifle", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-rigged-glock-19", "name": "Rigged Glock 19", "creator": "PuKkBuMXDD", "sourceUrl": "https://poly.pizza/m/gDhOo5jkNX", "weaponType": "Pistol", "holdStyle": "TwoHandPistol", "license": "Creative Commons Attribution", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-rigged-desert-eagle", "name": "Rigged Desert Eagle", "creator": "PuKkBuMXDD", "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX", "weaponType": "Pistol", "holdStyle": "TwoHandPistol", "license": "Creative Commons Attribution", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-sniper-rifle-quaternius", "name": "Sniper Rifle", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/m/i65hEldsw6", "weaponType": "Sniper", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-rifle-creativetrio", "name": "Rifle", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/zBATGslN2h", "weaponType": "Rifle", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-submachine-gun-creativetrio", "name": "Submachine Gun", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/fQmBw1vNsl", "weaponType": "SMG", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-hand-grenade-creativetrio", "name": "Hand Grenade", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/YWhHlmKOtx", "weaponType": "HandGrenade", "holdStyle": "Throwable", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-shotgun-creativetrio", "name": "Shotgun", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/CkSFaW2d7m", "weaponType": "Shotgun", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-shotgun-double-barrel", "name": "Shotgun Double Barrel", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/k0fA37Awl8", "weaponType": "Shotgun", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-gasoline-bomb-creativetrio", "name": "Gasoline Bomb", "creator": "CreativeTrio", "sourceUrl": "https://poly.pizza/m/ew5DpDJJja", "weaponType": "GasolineBomb", "holdStyle": "Throwable", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-rifle-quaternius", "name": "Rifle", "creator": "Quaternius", "sourceUrl": "https://poly.pizza/m/cCAgiMOQow", "weaponType": "Rifle", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-rifle-assault-east", "name": "Rifle Assault East", "creator": "Pichuliru", "sourceUrl": "https://poly.pizza/m/xrJfQgAuDL", "weaponType": "Rifle", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-smg-west", "name": "Smg West", "creator": "Pichuliru", "sourceUrl": "https://poly.pizza/m/7Dh5JSbZcp", "weaponType": "SMG", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-frag-grenade-east", "name": "Frag Grenade East", "creator": "Pichuliru", "sourceUrl": "https://poly.pizza/m/C4ZrgKsmLq", "weaponType": "HandGrenade", "holdStyle": "Throwable", "license": "Public Domain (CC0)", "preserveOriginalTextures": true },
-    { "storeId": "poly-pizza-scarh-adamkokrito", "name": "Scarh", "creator": "AdamKokrito", "sourceUrl": "https://poly.pizza/m/aBnHdYKj5K", "weaponType": "Rifle", "holdStyle": "TwoHandLongGun", "license": "Public Domain (CC0)", "preserveOriginalTextures": true }
-  ],
-  "quaterniusTextureUpgrade": {
-    "rule": "Keep the original GLTF mesh, UVs, renderer hierarchy, and material slot mapping. Replace only flat material assets on metal/wood slots with open-source PBR materials.",
-    "blackMetal": { "preferredSource": "Poly Haven", "sourceUrl": "https://polyhaven.com/textures", "usage": "Receivers, barrels, magazines, scopes, black-painted metal." },
-    "wood": { "preferredSource": "Poly Haven or CC0 fallback", "sourceUrl": "https://polyhaven.com/textures", "usage": "Stocks, pistol grips, shotgun foregrips, wooden accents." }
+    "weapons": "https://poly.pizza/search/weapon"
   },
   "tankCandidates": [
     { "name": "Tank", "creator": "Zsky", "sourceUrl": "https://poly.pizza/m/7GG1xDtc8l", "license": "Creative Commons Attribution", "format": "FBX/GLTF" },
@@ -56,5 +26,13 @@
     { "name": "Pistol Ammo", "creator": "CreativeTrio", "role": "Shell", "weaponTypes": ["Pistol"] },
     { "name": "Missile", "creator": "Poly by Google", "role": "Missile", "weaponTypes": ["SideMissile", "StrikeJet", "AttackHelicopter"] },
     { "name": "Ammo Grenade Launcher", "creator": "CreativeTrio", "role": "Grenade", "weaponTypes": ["GrenadeLauncher"] }
+  ],
+  "animationCandidates": [
+    { "name": "Fps Rig AKM", "creator": "J-Toastie", "weaponTypes": ["Rifle", "SMG"] },
+    { "name": "Fps Rig", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun"] },
+    { "name": "Rigged Fps Arms", "creator": "J-Toastie", "weaponTypes": ["Rifle", "Pistol", "Shotgun", "Sniper"] },
+    { "name": "Animated Pistol", "creator": "Quaternius", "weaponTypes": ["Pistol"] },
+    { "name": "Rigged Glock", "creator": "J-Toastie", "weaponTypes": ["Pistol"] },
+    { "name": "Rigged Desert Eagle", "creator": "PuKkBuMXDD", "sourceUrl": "https://poly.pizza/m/e9k4dwOzCX", "weaponTypes": ["Pistol"] }
   ]
 }

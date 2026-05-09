@@ -71,7 +71,6 @@ namespace TonPlaygram.Gameplay.Weapons
 
         [Header("Original FPS rig visibility")]
         [SerializeField] private Transform[] originalFpsHandVisualRoots = Array.Empty<Transform>();
-        [SerializeField] private Transform[] hiddenReferenceAssetRoots = Array.Empty<Transform>();
         [SerializeField] private Renderer[] extraOriginalHandRenderers = Array.Empty<Renderer>();
         [SerializeField] private bool hideOriginalFpsHandsOnAwake = true;
         [SerializeField] private bool includeInactiveHandRenderers = true;
@@ -83,19 +82,10 @@ namespace TonPlaygram.Gameplay.Weapons
         [Header("Weapon grip")]
         [SerializeField] private Transform weaponRoot;
         [SerializeField] private Transform originalFpsRightGrip;
-        [SerializeField] private Transform originalFpsLeftGrip;
-        [SerializeField] private Transform originalFpsMuzzleForward;
         [SerializeField] private Transform humanRightGrip;
-        [SerializeField] private Transform humanLeftGrip;
         [SerializeField] private bool keepWeaponOnHumanRightGrip = true;
-        [SerializeField] private bool orientWeaponFromHiddenHandgunLogic = true;
         [SerializeField] private Vector3 weaponGripPositionOffset;
         [SerializeField] private Vector3 weaponGripEulerOffset;
-
-        [Header("Handgun source pose")]
-        [SerializeField] private string sourcePoseUrl = "https://poly.pizza/m/uxko5LkGia";
-        [SerializeField] private string sourcePoseCredit = "Fps Rig by J-Toastie, Creative Commons Attribution";
-        [SerializeField] private bool hideReferenceWeaponMesh = true;
 
         private readonly List<Renderer> _hiddenOriginalHandRenderers = new List<Renderer>();
         private Quaternion _weaponGripRotationOffset;
@@ -144,7 +134,6 @@ namespace TonPlaygram.Gameplay.Weapons
             _hiddenOriginalHandRenderers.Clear();
             AddExtraOriginalHandRenderers();
             AddRenderersFromOriginalHandRoots();
-            AddRenderersFromReferenceAssetRoots();
 
             for (int i = 0; i < _hiddenOriginalHandRenderers.Count; i++)
             {
@@ -196,45 +185,13 @@ namespace TonPlaygram.Gameplay.Weapons
 
             if (_hasOriginalGripToWeapon)
             {
-                Quaternion gripRotation = CalculateHumanGripRotation();
-                weaponRoot.rotation = gripRotation * _originalGripToWeaponRotation * _weaponGripRotationOffset;
-                weaponRoot.position = humanRightGrip.position + (gripRotation * (_originalGripToWeaponPosition + weaponGripPositionOffset));
+                weaponRoot.rotation = humanRightGrip.rotation * _originalGripToWeaponRotation * _weaponGripRotationOffset;
+                weaponRoot.position = humanRightGrip.position + (humanRightGrip.rotation * (_originalGripToWeaponPosition + weaponGripPositionOffset));
                 return;
             }
 
-            Quaternion fallbackGripRotation = CalculateHumanGripRotation();
-            weaponRoot.position = humanRightGrip.position + (fallbackGripRotation * weaponGripPositionOffset);
-            weaponRoot.rotation = fallbackGripRotation * _weaponGripRotationOffset;
-        }
-
-        private Quaternion CalculateHumanGripRotation()
-        {
-            if (!orientWeaponFromHiddenHandgunLogic || humanRightGrip == null || humanLeftGrip == null || originalFpsRightGrip == null || originalFpsLeftGrip == null)
-            {
-                return humanRightGrip != null ? humanRightGrip.rotation : Quaternion.identity;
-            }
-
-            Vector3 sourceSupport = originalFpsLeftGrip.position - originalFpsRightGrip.position;
-            Vector3 humanSupport = humanLeftGrip.position - humanRightGrip.position;
-            if (sourceSupport.sqrMagnitude < 0.0001f || humanSupport.sqrMagnitude < 0.0001f)
-            {
-                return humanRightGrip.rotation;
-            }
-
-            Quaternion supportDelta = Quaternion.FromToRotation(sourceSupport.normalized, humanSupport.normalized);
-            Quaternion rotation = supportDelta * originalFpsRightGrip.rotation;
-
-            if (originalFpsMuzzleForward != null)
-            {
-                Vector3 sourceForward = originalFpsMuzzleForward.forward;
-                Vector3 adjustedForward = supportDelta * sourceForward;
-                if (adjustedForward.sqrMagnitude > 0.0001f)
-                {
-                    rotation = Quaternion.LookRotation(adjustedForward.normalized, rotation * Vector3.up);
-                }
-            }
-
-            return rotation;
+            weaponRoot.position = humanRightGrip.TransformPoint(weaponGripPositionOffset);
+            weaponRoot.rotation = humanRightGrip.rotation * _weaponGripRotationOffset;
         }
 
         private void AddExtraOriginalHandRenderers()
@@ -247,28 +204,13 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void AddRenderersFromOriginalHandRoots()
         {
-            AddRenderersFromRoots(originalFpsHandVisualRoots);
-        }
-
-        private void AddRenderersFromReferenceAssetRoots()
-        {
-            if (!hideReferenceWeaponMesh)
+            for (int i = 0; i < originalFpsHandVisualRoots.Length; i++)
             {
-                return;
-            }
-
-            AddRenderersFromRoots(hiddenReferenceAssetRoots);
-        }
-
-        private void AddRenderersFromRoots(Transform[] roots)
-        {
-            for (int i = 0; i < roots.Length; i++)
-            {
-                Transform root = roots[i];
-                if (root == null)
+                Transform handRoot = originalFpsHandVisualRoots[i];
+                if (handRoot == null)
                     continue;
 
-                Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveHandRenderers);
+                Renderer[] renderers = handRoot.GetComponentsInChildren<Renderer>(includeInactiveHandRenderers);
                 for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
                 {
                     AddHiddenRenderer(renderers[rendererIndex]);
