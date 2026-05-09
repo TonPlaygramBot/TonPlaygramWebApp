@@ -123,12 +123,6 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
-  POOL_ROYALE_HUMAN_STORAGE_KEY,
-  applyPoolRoyaleHumanAiProfile,
-  choosePoolRoyaleHumanPlan,
-  resolvePoolRoyaleHumanPlayer
-} from '../../config/poolRoyaleHumanPlayers.js';
-import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
   chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
   updateBilardoHumanPose as sharedUpdateBilardoHumanPose
@@ -14180,8 +14174,7 @@ function PoolRoyaleGame({
   playerAvatar,
   opponentName,
   opponentAvatar,
-  initialTrainingLevel = null,
-  humanPlayerId = ''
+  initialTrainingLevel = null
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14189,10 +14182,6 @@ function PoolRoyaleGame({
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
-  const selectedHumanPlayer = useMemo(
-    () => resolvePoolRoyaleHumanPlayer(humanPlayerId),
-    [humanPlayerId]
-  );
   const tournamentMode = playType === 'tournament';
   const tournamentPlayers = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -18117,9 +18106,6 @@ const shotPowerRef = useRef(0);
   );
   const aiFlag = useMemo(() => {
     const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('aiFlag');
-    if (requested && FLAG_EMOJIS.includes(requested)) return requested;
     if (tournamentMode && typeof window !== 'undefined') {
       try {
         const stored = window.localStorage.getItem(tournamentAiFlagStorageKey);
@@ -18139,7 +18125,7 @@ const shotPowerRef = useRef(0);
       }
     }
     return selected;
-  }, [location.search, tournamentAiFlagStorageKey, tournamentMode]);
+  }, [tournamentAiFlagStorageKey, tournamentMode]);
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
 
   const resolveFallbackPlayerLabel = useCallback(
@@ -25738,7 +25724,7 @@ const shotPowerRef = useRef(0);
         const makeRig = (seat, x, z, yaw) => {
           const human = createBilardoHumanRig(world, {
             loader: new GLTFLoader(),
-            modelUrl: selectedHumanPlayer?.modelUrl || BILARDO_SHQIP_HUMAN_URL,
+            modelUrl: BILARDO_SHQIP_HUMAN_URL,
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
             humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
@@ -28896,8 +28882,7 @@ const shotPowerRef = useRef(0);
           const maxRemaining = Math.max(0, AI_MAX_SHOT_TIME_MS - elapsed);
           const targetRemaining = duration - elapsed;
           const desiredWindow = Math.max(AI_MIN_AIM_PREVIEW_MS, targetRemaining);
-          const profileScale = selectedHumanPlayer?.ai?.previewDelayScale ?? 1;
-          return Math.min(maxRemaining, desiredWindow * profileScale);
+          return Math.min(maxRemaining, desiredWindow);
         };
         const scheduleEarlyAiShot = (plan) => {
           if (!plan || plan.type !== 'pot') {
@@ -30930,9 +30915,7 @@ const shotPowerRef = useRef(0);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(
-              choosePoolRoyaleHumanPlan(options, selectedHumanPlayer)
-            );
+            let plan = normalizeAiPlanAim(options.bestPot ?? null);
             if (!plan) {
               const liveBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball.id).toLowerCase() !== 'cue'
@@ -30988,11 +30971,6 @@ const shotPowerRef = useRef(0);
               };
             }
             plan = refineAiPotAimLine(plan);
-            plan = applyPoolRoyaleHumanAiProfile(
-              plan,
-              selectedHumanPlayer,
-              aiTurnShotCountRef.current
-            );
             const frameSnapshot = frameRef.current ?? frameState;
             const breakState = frameSnapshot?.meta?.state ?? null;
             const variantBreakInProgress = Boolean(
@@ -37465,17 +37443,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
-  const humanPlayerId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('humanPlayer');
-    if (requested) return resolvePoolRoyaleHumanPlayer(requested).id;
-    try {
-      return resolvePoolRoyaleHumanPlayer(
-        window.localStorage?.getItem(POOL_ROYALE_HUMAN_STORAGE_KEY)
-      ).id;
-    } catch {}
-    return resolvePoolRoyaleHumanPlayer().id;
-  }, [location.search]);
   return (
     <PoolRoyaleErrorBoundary>
       <PoolRoyaleGame
@@ -37492,7 +37459,6 @@ export default function PoolRoyale() {
         opponentName={opponentName}
         opponentAvatar={opponentAvatar}
         initialTrainingLevel={initialTrainingLevel}
-        humanPlayerId={humanPlayerId}
       />
     </PoolRoyaleErrorBoundary>
   );
