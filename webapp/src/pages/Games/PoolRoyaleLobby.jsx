@@ -23,11 +23,6 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon, getVariantThumbnail } from '../../config/gameAssets.js';
-import {
-  POOL_ROYALE_HUMAN_PLAYERS,
-  POOL_ROYALE_HUMAN_STORAGE_KEY,
-  resolvePoolRoyaleHumanPlayer
-} from '../../config/poolRoyaleHumanPlayers.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import {
   TRAINING_LEVEL_COUNT,
@@ -79,14 +74,6 @@ export default function PoolRoyaleLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
-  const [humanPlayerId, setHumanPlayerId] = useState(() => {
-    try {
-      return resolvePoolRoyaleHumanPlayer(
-        window.localStorage?.getItem(POOL_ROYALE_HUMAN_STORAGE_KEY)
-      ).id;
-    } catch {}
-    return resolvePoolRoyaleHumanPlayer().id;
-  });
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
@@ -137,7 +124,6 @@ export default function PoolRoyaleLobby() {
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const selectedHumanPlayer = resolvePoolRoyaleHumanPlayer(humanPlayerId);
 
   useEffect(() => {
     try {
@@ -220,7 +206,6 @@ export default function PoolRoyaleLobby() {
       params.set('ballSet', 'american');
     }
     params.set('tableModel', selectedTableModel.id);
-    params.set('humanPlayer', selectedHumanPlayer.id);
     params.set('type', playType);
     params.set('mode', 'online');
     params.set('tableId', startedId);
@@ -272,10 +257,6 @@ export default function PoolRoyaleLobby() {
           selectedTableModel.baseId
         );
       }
-      window.localStorage?.setItem(
-        POOL_ROYALE_HUMAN_STORAGE_KEY,
-        selectedHumanPlayer.id
-      );
     } catch {}
 
     if (isOnlineMatch) {
@@ -347,7 +328,6 @@ export default function PoolRoyaleLobby() {
     }
     params.set('tableSize', tableSize);
     params.set('tableModel', selectedTableModel.id);
-    params.set('humanPlayer', selectedHumanPlayer.id);
     params.set(
       'type',
       effectivePlayType === 'friendly' ? 'regular' : effectivePlayType
@@ -583,55 +563,6 @@ export default function PoolRoyaleLobby() {
           badge={`${onlinePlayers.length} online`}
         />
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Choose Human Player</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              5 AI logic styles
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {POOL_ROYALE_HUMAN_PLAYERS.map((player) => {
-              const active = selectedHumanPlayer.id === player.id;
-              return (
-                <button
-                  key={player.id}
-                  type="button"
-                  onClick={() => setHumanPlayerId(player.id)}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  }`}
-                  title={player.description}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/25 via-sky-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner overflow-hidden">
-                      {player.thumbnail ? (
-                        <img
-                          src={player.thumbnail}
-                          alt={player.label}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-2xl">🧍</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{player.menuLabel}</p>
-                    <p className="lobby-option-subtitle">{player.role}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-white/60">
-            Selected: {selectedHumanPlayer.label}. Pool Royal reuses the Murlan
-            human model and applies its own pool-player shot logic.
-          </p>
-        </div>
-
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
           <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">
             Player Profile
@@ -735,8 +666,7 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            New GLB tables replace the in-game table visually while Pool Royale
-            keeps the matched playfield, pockets, cushions, and ball physics.
+            New GLB tables replace the in-game table visually while Pool Royale keeps the matched playfield, pockets, cushions, and ball physics.
           </p>
         </div>
 
@@ -885,9 +815,7 @@ export default function PoolRoyaleLobby() {
             </div>
           )}
 
-        {playType !== 'training' &&
-          playType !== 'career' &&
-          !hasActiveTournament && (
+        {playType !== 'training' && playType !== 'career' && !hasActiveTournament && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-white">Game Variant</h3>
@@ -933,68 +861,68 @@ export default function PoolRoyaleLobby() {
           )}
 
         {playType !== 'career' && !hasActiveTournament && variant === 'uk' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Ball Colors</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                Visuals
-              </span>
-            </div>
-            <p className="text-xs text-white/60">
-              Keep UK yellow/red sets or switch to solids &amp; stripes visuals
-              while retaining 8Ball rules.
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'uk', label: 'Yellow & Red' },
-                { id: 'american', label: 'Solids & Stripes' }
-              ].map(({ id, label }) => {
-                const active = ukBallSet === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setUkBallSet(id)}
-                    className={`lobby-option-card ${
-                      active
-                        ? 'lobby-option-card-active'
-                        : 'lobby-option-card-inactive'
-                    }`}
-                  >
-                    <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
-                      <div className="lobby-option-thumb-inner">
-                        <OptionIcon
-                          src={getLobbyIcon('poolroyale', `ball-${id}`)}
-                          alt={label}
-                          fallback={id === 'uk' ? '🟡' : '🔵'}
-                          className="lobby-option-icon"
-                        />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">Ball Colors</h3>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                  Visuals
+                </span>
+              </div>
+              <p className="text-xs text-white/60">
+                Keep UK yellow/red sets or switch to solids &amp; stripes
+                visuals while retaining 8Ball rules.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'uk', label: 'Yellow & Red' },
+                  { id: 'american', label: 'Solids & Stripes' }
+                ].map(({ id, label }) => {
+                  const active = ukBallSet === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setUkBallSet(id)}
+                      className={`lobby-option-card ${
+                        active
+                          ? 'lobby-option-card-active'
+                          : 'lobby-option-card-inactive'
+                      }`}
+                    >
+                      <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                        <div className="lobby-option-thumb-inner">
+                          <OptionIcon
+                            src={getLobbyIcon('poolroyale', `ball-${id}`)}
+                            alt={label}
+                            fallback={id === 'uk' ? '🟡' : '🔵'}
+                            className="lobby-option-icon"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="lobby-option-label">{label}</p>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="text-center">
+                        <p className="lobby-option-label">{label}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
             <div>
               <h3 className="font-semibold text-white">Free Practice</h3>
               <p className="text-xs text-white/60">
-                Practice is open-table mode: no AI and no rule penalties. Choose
-                any variant, set your preferred ball colors, then start and
+                Practice is open-table mode: no AI and no rule penalties.
+                Choose any variant, set your preferred ball colors, then start and
                 practice shots freely.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
-              <p>
-                All guided practice tasks were moved to Career mode as
-                progression stages.
+                <p>
+                All guided practice tasks were moved to Career mode as progression
+                stages.
               </p>
               <p className="mt-1 text-white/60">
                 Open Career when you want structured objectives and rewards.
@@ -1009,8 +937,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Career Roadmap</h3>
                 <p className="text-xs text-white/60">
-                  Mixed drills, match tasks, and tournaments with detailed phase
-                  progression.
+                  Mixed drills, match tasks, and tournaments with detailed phase progression.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1045,9 +972,7 @@ export default function PoolRoyaleLobby() {
                     <p className="text-sm font-semibold text-white">
                       {nextCareerTask.icon} {nextCareerTask.title}
                     </p>
-                    <p className="mt-1 text-white/75">
-                      {nextCareerTask.objective}
-                    </p>
+                    <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -1360,18 +1285,18 @@ export default function PoolRoyaleLobby() {
         )}
 
         {playType !== 'career' && !hasActiveTournament && (
-          <button
-            onClick={startGame}
-            className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
-            disabled={mode === 'online' && (isSearching || matching)}
-          >
-            {mode === 'online'
-              ? matching
-                ? 'Waiting for opponent…'
-                : 'START ONLINE'
-              : 'START'}
-          </button>
-        )}
+            <button
+              onClick={startGame}
+              className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
+              disabled={mode === 'online' && (isSearching || matching)}
+            >
+              {mode === 'online'
+                ? matching
+                  ? 'Waiting for opponent…'
+                  : 'START ONLINE'
+                : 'START'}
+            </button>
+          )}
 
         <FlagPickerModal
           open={showFlagPicker}
