@@ -68,7 +68,16 @@ const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
   marksman: 'sniperShotAttack',
   shotgun: 'shotgunBlastAttack',
   revolver: 'polyRevolver02Attack',
-  explosive: 'grenadeBlastAttack'
+  explosive: 'grenadeBlastAttack',
+  bazooka: 'polyBazooka01Attack',
+  grenadeLauncher: 'polyGrenadeLauncher01Attack',
+  dynamite: 'polyDynamiteBomb01Attack',
+  gasTank: 'polyGasTank01Attack',
+  handGrenade: 'polyHandGrenade01Attack',
+  incendiary: 'polyMolotov01Attack',
+  armor: 'polyTank01Attack',
+  robotLargeGun: 'polyRobotLargeGunAttack',
+  robotFlyingGun: 'polyRobotFlyingGunAttack'
 });
 
 const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
@@ -97,7 +106,16 @@ const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
   polySawedOff01Attack: 'shotgun',
   polyRevolver01Attack: 'revolver',
   polyRevolver02Attack: 'revolver',
-  grenadeBlastAttack: 'explosive'
+  grenadeBlastAttack: 'explosive',
+  polyHandGrenade01Attack: 'handGrenade',
+  polyGrenadeLauncher01Attack: 'grenadeLauncher',
+  polyBazooka01Attack: 'bazooka',
+  polyDynamiteBomb01Attack: 'dynamite',
+  polyGasTank01Attack: 'gasTank',
+  polyMolotov01Attack: 'incendiary',
+  polyTank01Attack: 'armor',
+  polyRobotLargeGunAttack: 'robotLargeGun',
+  polyRobotFlyingGunAttack: 'robotFlyingGun'
 });
 
 const shouldShowCaptureAnimationInStore = (optionId) => {
