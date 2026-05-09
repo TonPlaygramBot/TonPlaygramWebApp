@@ -434,9 +434,14 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(34); // lower portrait 3D camera angle so the board feels more eye-level while preserving depth.
-const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 0.9; // aim a little higher so the lower camera looks up across the arena.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
+const CAMERA_LOCKED_3D_PHI = CAMERA_PULL_FORWARD_MIN; // match the forced 3D capture-animation framing for normal 3D play.
+const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = 0; // keep 3D and capture cameras aimed at the same board target.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 1.04; // mirror the wide animation framing while keeping the camera locked in place.
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_MIN_PITCH = -CAMERA_LOOK_PITCH_LIMIT;
+const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -481,9 +486,13 @@ const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
-function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
+const CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS = TABLE_RADIUS;
+
+function resolveChairDistanceForDirection(_tableInfo, ...layoutArgs) {
   const seatDepth = Number.isFinite(layoutArgs[1]) ? layoutArgs[1] : SEAT_DEPTH;
-  const tableRadius = Number.isFinite(tableInfo?.radius) ? tableInfo.radius : TABLE_RADIUS;
+  // CoffeeTable_01 is the canonical Chess Battle Royal layout reference.
+  // All table skins use this same radius so chairs, humans, board, pieces, and side weapons stay fixed.
+  const tableRadius = CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS;
   const clearance = clamp(
     CHAIR_CLEARANCE + seatDepth * 0.1 + CHAIR_HUMAN_LEG_GAP,
     CHAIR_TABLE_GAP_MIN,
@@ -2650,6 +2659,7 @@ const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much f
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
+const SIDE_PARKED_FIREARM_JET_SIZE_MULTIPLIER = 1.45; // swapped user firearms should read at the same parking footprint as the jet.
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7660,6 +7670,13 @@ function Chess3D({
   useEffect(() => {
     selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
   }, [selectedParkedWeaponKind]);
+  const isLocalPlayerWhiteSide = useCallback(
+    (isWhiteSide) => {
+      const localSide = onlineRef.current.side || normalizedInitialSide;
+      return Boolean(isWhiteSide) === (localSide !== 'black');
+    },
+    [normalizedInitialSide]
+  );
   const ownedCaptureAnimations = useMemo(
     () =>
       (chessInventory?.captureAnimation || [])
@@ -7693,34 +7710,43 @@ function Chess3D({
   );
   const quickSwapWeapons = useMemo(() => {
     const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
-    return QUICK_SWAP_WEAPON_IDS
+    const preferred = QUICK_SWAP_WEAPON_IDS
       .filter((id) => ownedIds.has(id))
       .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
       .filter(Boolean);
+    const preferredIds = new Set(preferred.map((option) => option.id));
+    return [
+      ...preferred,
+      ...(ownedCaptureAnimations || []).filter((option) => !preferredIds.has(option.id))
+    ];
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
+  const [weaponSwapTargetIsWhite, setWeaponSwapTargetIsWhite] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
     jet: 'kingQueen',
     helicopter: 'bishopRook',
     drone: 'knight',
     truck: 'pawn'
   }), []);
-  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
+  const DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP = useMemo(() => ({
     kingQueen: 'fighterJetAttack',
     bishopRook: 'helicopterAttack',
     knight: 'droneAttack',
     pawn: 'missileJavelin'
+  }), []);
+  const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
+    ...DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP
   }));
   const captureAnimationByPieceGroupRef = useRef(captureAnimationByPieceGroup);
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
-      kingQueen: prev.kingQueen || 'fighterJetAttack',
-      bishopRook: prev.bishopRook || 'helicopterAttack',
-      knight: prev.knight || 'droneAttack',
-      pawn: prev.pawn || 'missileJavelin'
+      kingQueen: prev.kingQueen || DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP.kingQueen,
+      bishopRook: prev.bishopRook || DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP.bishopRook,
+      knight: prev.knight || DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP.knight,
+      pawn: prev.pawn || DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP.pawn
     }));
-  }, []);
+  }, [DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP]);
   useEffect(() => {
     captureAnimationByPieceGroupRef.current = captureAnimationByPieceGroup;
     arenaRef.current?.syncParkedWeaponSwaps?.(captureAnimationByPieceGroup);
@@ -7738,6 +7764,7 @@ function Chess3D({
       }
       setWeaponSwapOpen(false);
       setWeaponSwapTargetKind(null);
+      setWeaponSwapTargetIsWhite(null);
     },
     [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
   );
@@ -7745,21 +7772,11 @@ function Chess3D({
     const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
     if (!weaponSwapTargetKind) return pool;
 
-    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // Keep full firearm inventory visible when player taps one of those parked vehicles.
-    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmOnly = pool.filter((option) =>
-        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
-      );
-      if (firearmOnly.length) return firearmOnly;
-    }
-
-    const filtered = pool.filter((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
-    });
-    if (filtered.length) return filtered;
-    return pool;
+    // Show every owned Ludo weapon in Chess quick swap. Keep the matching vehicle family first,
+    // then list the rest so purchased firearms/explosives are always available for this game.
+    const matching = pool.filter((option) => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind);
+    const matchingIds = new Set(matching.map((option) => option.id));
+    return [...matching, ...pool.filter((option) => !matchingIds.has(option.id))];
   }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
   useEffect(() => {
     const handler = (event) => {
@@ -7828,6 +7845,8 @@ function Chess3D({
   });
   const locked3dViewRef = useRef({
     activeLook: false,
+    baseYaw: 0,
+    basePitch: -0.28,
     yaw: 0,
     pitch: -0.28,
     targetYaw: 0,
@@ -9815,7 +9834,7 @@ function Chess3D({
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = true;
+        controls.enableRotate = false;
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9848,6 +9867,8 @@ function Chess3D({
         const lookDir = lockedLookTarget.sub(targetPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
+        locked3dViewRef.current.baseYaw = yaw;
+        locked3dViewRef.current.basePitch = pitch;
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
@@ -9860,11 +9881,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in locked 2D mode by default and preserve board state when customizations change.
+    // Start every match in locked 3D with the same framing used by capture animations.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '2d';
-    setViewMode('2d');
-    setViewModeInternal('2d');
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -10623,7 +10644,7 @@ function Chess3D({
       root.userData.muzzle = muzzle;
       root.userData.animationPhase = Math.random() * Math.PI * 2;
       root.userData.recoil = 0;
-      root.scale.setScalar(tile * (isLongGun ? 0.54 : 0.48));
+      root.scale.setScalar(tile * SIDE_PARKED_FIREARM_JET_SIZE_MULTIPLIER * (isLongGun ? 1 : 0.9));
       root.rotation.set(-Math.PI * 0.5, isWhiteSide ? -Math.PI * 0.5 : Math.PI * 0.5, 0);
       root.userData = {
         ...(root.userData || {}),
@@ -10639,8 +10660,11 @@ function Chess3D({
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
         const group = PIECE_GROUP_BY_PARKED_KIND_LOCAL[unit.kind];
-        const selectedId = mapping?.[group];
-        const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId);
+        const localUserUnit = isLocalPlayerWhiteSide(unit.isWhite);
+        const selectedId = localUserUnit
+          ? mapping?.[group]
+          : DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP[group];
+        const showFirearm = localUserUnit && FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId);
         if (showFirearm) {
           if (!unit.firearmRoot || unit.firearmRoot.userData?.captureAnimationId !== selectedId) {
             unit.firearmRoot?.parent?.remove?.(unit.firearmRoot);
@@ -11373,10 +11397,12 @@ function Chess3D({
       return 'pawn';
     };
 
-    const resolveCaptureSelectionForPiece = (pieceType) => {
+    const resolveCaptureSelectionForPiece = (pieceType, isWhiteSide = true) => {
       const group = resolvePieceGroupFromType(pieceType);
       const liveMapping = captureAnimationByPieceGroupRef.current || captureAnimationByPieceGroup;
-      const selectedId = liveMapping[group] || selectedCaptureAnimationId;
+      const selectedId = isLocalPlayerWhiteSide(isWhiteSide)
+        ? liveMapping[group] || selectedCaptureAnimationId
+        : DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP[group] || selectedCaptureAnimationId;
       const parkedKind = PARKED_KIND_BY_PIECE_GROUP[group] || 'truck';
       const captureKind = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)
         ? 'firearm'
@@ -11401,7 +11427,8 @@ function Chess3D({
         }
         return timing;
       };
-      const captureSelection = resolveCaptureSelectionForPiece(movingType);
+      const movingIsWhiteSide = Boolean(movingMesh?.userData?.w);
+      const captureSelection = resolveCaptureSelectionForPiece(movingType, movingIsWhiteSide);
       const { captureKind, selectedId: selectedPieceCaptureAnimationId, parkedKind: selectedParkedKind } = captureSelection;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
@@ -12448,7 +12475,8 @@ function Chess3D({
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
         setProceduralBoardVisible,
-        usingProceduralBoard: proceduralBoardVisible
+        usingProceduralBoard: proceduralBoardVisible,
+        syncParkedWeaponSwaps
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -13211,7 +13239,8 @@ function Chess3D({
             return {
               object: node,
               point: hit.point,
-              parkedWeaponKind: node.userData.parkedWeaponKind
+              parkedWeaponKind: node.userData.parkedWeaponKind,
+              parkedIsWhite: node.userData.parkedIsWhite
             };
           }
           node = node.parent;
@@ -13285,8 +13314,16 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw -= movementX * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
+          locked.targetYaw = clamp(
+            locked.targetYaw + movementX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+            locked.baseYaw - CAMERA_LOOK_YAW_LIMIT,
+            locked.baseYaw + CAMERA_LOOK_YAW_LIMIT
+          );
+          locked.targetPitch = clamp(
+            locked.targetPitch + movementY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+            locked.basePitch + CAMERA_LOOK_MIN_PITCH,
+            locked.basePitch + CAMERA_LOOK_PITCH_LIMIT
+          );
         }
         return;
       }
@@ -13374,7 +13411,9 @@ function Chess3D({
       if (isMoveInteractionLocked()) return;
       const parkedWeaponHit = pickParkedWeaponFromPointer(e);
       if (parkedWeaponHit?.parkedWeaponKind) {
+        if (!isLocalPlayerWhiteSide(parkedWeaponHit.parkedIsWhite)) return;
         setWeaponSwapTargetKind(parkedWeaponHit.parkedWeaponKind);
+        setWeaponSwapTargetIsWhite(Boolean(parkedWeaponHit.parkedIsWhite));
         setWeaponSwapOpen(true);
         return;
       }
@@ -14380,13 +14419,14 @@ function Chess3D({
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <div className="flex items-center justify-between px-2 pb-2">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                    Quick Weapon Swap {weaponSwapTargetKind ? `• ${weaponSwapTargetKind}` : ''}
+                    Quick Weapon Swap {weaponSwapTargetKind ? `• ${weaponSwapTargetIsWhite ? 'white' : 'black'} ${weaponSwapTargetKind}` : ''}
                   </p>
                   <button
                     type="button"
                     onClick={() => {
                       setWeaponSwapOpen(false);
                       setWeaponSwapTargetKind(null);
+                      setWeaponSwapTargetIsWhite(null);
                     }}
                     className="rounded-md border border-white/20 px-1.5 py-0.5 text-[10px] text-white/75 hover:border-white/40 hover:text-white"
                   >
