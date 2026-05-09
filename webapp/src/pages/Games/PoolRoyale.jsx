@@ -85,6 +85,7 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
+import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -2367,6 +2368,232 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
+const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
+const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
+  'rpm-current',
+  'rpm-67d411',
+  'rpm-67f433',
+  'rpm-67e1b5',
+  'webgl-vietnam-human',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1'
+]);
+const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
+  'rpm-current': Object.freeze({
+    label: 'Classic Pro',
+    summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.32,
+    edgeMargin: 0.68,
+    stanceWidth: 0.52,
+    bridgeBack: 0.072,
+    bridgeSide: -0.024,
+    bridgeLift: 0.006,
+    gripFromBack: 0.58,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.46,
+    rightElbowBack: -0.78,
+    forearmOutward: 0.36,
+    forearmBack: 0.44,
+    forearmDown: 0.48,
+    strokePull: 0.42,
+    strokePush: 0.18,
+    practiceStroke: 0.035,
+    cueGap: 0.012,
+    strikeMs: 120,
+    walkSpeed: 4.0,
+    shootForwardBendScale: 0.62,
+    shootUpperBodyCounterLean: 0.72
+  }),
+  'rpm-67d411': Object.freeze({
+    label: 'Sniper Rail',
+    summary: 'Forward bend: lower chin, longer bridge, slower feather strokes for precision aiming.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.44,
+    edgeMargin: 0.74,
+    stanceWidth: 0.58,
+    bridgeBack: 0.092,
+    bridgeSide: -0.018,
+    bridgeLift: 0.004,
+    gripFromBack: 0.64,
+    rightElbowRise: 0.14,
+    rightElbowSide: -0.40,
+    rightElbowBack: -0.86,
+    forearmOutward: 0.31,
+    forearmBack: 0.5,
+    forearmDown: 0.52,
+    strokePull: 0.5,
+    strokePush: 0.14,
+    practiceStroke: 0.018,
+    cueGap: 0.009,
+    strikeMs: 150,
+    walkSpeed: 3.2,
+    shootForwardBendScale: 0.76,
+    shootUpperBodyCounterLean: 0.56
+  }),
+  'rpm-67f433': Object.freeze({
+    label: 'Power Breaker',
+    summary: 'Forward bend: wide planted feet, deeper backswing and strong forward punch.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.5,
+    edgeMargin: 0.8,
+    stanceWidth: 0.68,
+    bridgeBack: 0.064,
+    bridgeSide: -0.03,
+    bridgeLift: 0.012,
+    gripFromBack: 0.52,
+    rightElbowRise: 0.28,
+    rightElbowSide: -0.54,
+    rightElbowBack: -0.92,
+    forearmOutward: 0.44,
+    forearmBack: 0.58,
+    forearmDown: 0.43,
+    strokePull: 0.62,
+    strokePush: 0.3,
+    practiceStroke: 0.044,
+    cueGap: 0.016,
+    strikeMs: 95,
+    walkSpeed: 4.8,
+    shootForwardBendScale: 0.52,
+    shootUpperBodyCounterLean: 0.9
+  }),
+  'rpm-67e1b5': Object.freeze({
+    label: 'Safety Artist',
+    summary: 'Forward upper-body bend: compact body shape, soft touch and reduced cue travel for defensive control.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.24,
+    edgeMargin: 0.64,
+    stanceWidth: 0.46,
+    bridgeBack: 0.052,
+    bridgeSide: -0.016,
+    bridgeLift: 0.008,
+    gripFromBack: 0.7,
+    rightElbowRise: 0.11,
+    rightElbowSide: -0.34,
+    rightElbowBack: -0.62,
+    forearmOutward: 0.25,
+    forearmBack: 0.34,
+    forearmDown: 0.55,
+    strokePull: 0.28,
+    strokePush: 0.1,
+    practiceStroke: 0.012,
+    cueGap: 0.007,
+    strikeMs: 185,
+    walkSpeed: 2.8,
+    shootForwardBendScale: 0.68,
+    shootUpperBodyCounterLean: 0.42
+  }),
+  'webgl-vietnam-human': Object.freeze({
+    label: 'Natural Shooter',
+    summary: 'Forward upper-body bend: asymmetric bridge hand, quick walk-up and lifelike rehearsal strokes.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.36,
+    edgeMargin: 0.7,
+    stanceWidth: 0.54,
+    bridgeBack: 0.08,
+    bridgeSide: -0.038,
+    bridgeLift: 0.01,
+    gripFromBack: 0.56,
+    rightElbowRise: 0.2,
+    rightElbowSide: -0.5,
+    rightElbowBack: -0.7,
+    forearmOutward: 0.39,
+    forearmBack: 0.42,
+    forearmDown: 0.46,
+    strokePull: 0.46,
+    strokePush: 0.22,
+    practiceStroke: 0.052,
+    cueGap: 0.013,
+    strikeMs: 125,
+    walkSpeed: 4.4,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.58,
+    shootUpperBodyCounterLean: 0.82
+  }),
+  'webgl-ai-teacher': Object.freeze({
+    label: 'Teacher Coach',
+    summary: 'Forward upper-body bend: upright coach stance with a measured cue pull and high elbow.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.4,
+    edgeMargin: 0.72,
+    stanceWidth: 0.5,
+    bridgeBack: 0.075,
+    bridgeSide: -0.026,
+    bridgeLift: 0.009,
+    gripFromBack: 0.62,
+    rightElbowRise: 0.24,
+    rightElbowSide: -0.42,
+    rightElbowBack: -0.74,
+    forearmOutward: 0.34,
+    forearmBack: 0.46,
+    forearmDown: 0.44,
+    strokePull: 0.4,
+    strokePush: 0.16,
+    practiceStroke: 0.026,
+    cueGap: 0.011,
+    strikeMs: 145,
+    walkSpeed: 3.6,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.64,
+    shootUpperBodyCounterLean: 0.68
+  }),
+  'webgl-ai-teacher-1': Object.freeze({
+    label: 'Teacher Smooth',
+    summary: 'Forward upper-body bend: smooth coach stance with grounded feet and a soft bridge.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.38,
+    edgeMargin: 0.72,
+    stanceWidth: 0.56,
+    bridgeBack: 0.085,
+    bridgeSide: -0.02,
+    bridgeLift: 0.007,
+    gripFromBack: 0.66,
+    rightElbowRise: 0.16,
+    rightElbowSide: -0.38,
+    rightElbowBack: -0.82,
+    forearmOutward: 0.3,
+    forearmBack: 0.5,
+    forearmDown: 0.5,
+    strokePull: 0.34,
+    strokePush: 0.12,
+    practiceStroke: 0.02,
+    cueGap: 0.01,
+    strikeMs: 165,
+    walkSpeed: 3.3,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.72,
+    shootUpperBodyCounterLean: 0.52
+  })
+});
+const withPoolRoyaleHumanModelFallbacks = (theme = {}) => {
+  const urls = Array.isArray(theme.modelUrls) && theme.modelUrls.length > 0
+    ? theme.modelUrls
+    : theme.url
+      ? [theme.url]
+      : [];
+  return Array.from(new Set([...urls, BILARDO_SHQIP_HUMAN_URL]));
+};
+const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
+  POOL_ROYALE_HUMAN_CHARACTER_IDS.map((id) => {
+    const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id) || {};
+    const logic = POOL_ROYALE_HUMAN_LOGIC_PROFILES[id] || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
+    const modelUrls = withPoolRoyaleHumanModelFallbacks(theme);
+    return Object.freeze({
+      ...theme,
+      id,
+      label: theme.label || logic.label,
+      logicLabel: logic.label,
+      summary: logic.summary,
+      bendMode: logic.bendMode || 'forward',
+      modelUrl: modelUrls[0] || BILARDO_SHQIP_HUMAN_URL,
+      modelUrls,
+      logic
+    });
+  })
+);
+const resolvePoolRoyaleHumanCharacter = (id) =>
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id === id) ||
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
@@ -14531,6 +14758,19 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_BASE_ID
     );
   });
+  const [humanCharacterId, setHumanCharacterId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
+      if (stored && POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
+  });
+  const activeHumanCharacter = useMemo(
+    () => resolvePoolRoyaleHumanCharacter(humanCharacterId),
+    [humanCharacterId]
+  );
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -16292,6 +16532,11 @@ function PoolRoyaleGame({
   }, [tableBaseId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
+    }
+  }, [humanCharacterId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -16358,6 +16603,8 @@ function PoolRoyaleGame({
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
   const playerCharacterRigsRef = useRef([]);
+  const spawnPlayerCharactersRef = useRef(() => {});
+  const activeHumanCharacterRef = useRef(activeHumanCharacter);
   const activeHumanCueViewRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
@@ -16374,6 +16621,10 @@ function PoolRoyaleGame({
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
+  useEffect(() => {
+    activeHumanCharacterRef.current = activeHumanCharacter;
+    spawnPlayerCharactersRef.current?.();
+  }, [activeHumanCharacter]);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -25722,20 +25973,24 @@ const shotPowerRef = useRef(0);
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const makeRig = (seat, x, z, yaw) => {
+          const selectedCharacter = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
+          const behavior = selectedCharacter?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
           const human = createBilardoHumanRig(world, {
             loader: new GLTFLoader(),
-            modelUrl: BILARDO_SHQIP_HUMAN_URL,
+            modelUrl: selectedCharacter?.modelUrl || selectedCharacter?.modelUrls?.[0] || BILARDO_SHQIP_HUMAN_URL,
+            modelUrls: selectedCharacter?.modelUrls || [selectedCharacter?.modelUrl || BILARDO_SHQIP_HUMAN_URL],
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
-            humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER,
-            humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
+            humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (selectedCharacter?.scale || 1),
+            humanVisualYawFix: behavior.visualYawFix ?? POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
             // as the portrait camera lowers into the ready-to-shoot view. Positive bend keeps
             // the shooter folding toward the table instead of bending backward away from it.
             shootBendDirection: 1,
             shootBendTowardCueStick: true,
+            shootBendMode: behavior.bendMode || 'forward',
             shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: 0.72,
-            shootForwardBendScale: 0.62,
+            shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
+            shootForwardBendScale: behavior.shootForwardBendScale,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: true,
             forceTableFacingAim: true,
@@ -25749,28 +26004,28 @@ const shotPowerRef = useRef(0);
             tableW: PLAY_W,
             tableL: PLAY_H,
             perimeterWalk: true,
-            perimeterWalkSpeed: 4.0 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            stanceWidth: 0.52 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: 0.006 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            desiredShootDistance: 1.32 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            edgeMargin: 0.68 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: 0.072 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: -0.024 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            desiredShootDistance: behavior.desiredShootDistance * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            edgeMargin: behavior.edgeMargin * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandBackFromBall: behavior.bridgeBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeHandSide: behavior.bridgeSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotRise: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotSide: -0.46 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotBack: -0.78 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmOutward: 0.36 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmBack: 0.44 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmDown: 0.48 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightElbowShotRise: behavior.rightElbowRise * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightElbowShotSide: behavior.rightElbowSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightElbowShotBack: behavior.rightElbowBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightForearmOutward: behavior.forearmOutward * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightForearmBack: behavior.forearmBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightForearmDown: behavior.forearmDown * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePull: 0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePush: 0.18 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightStrokePull: behavior.strokePull * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightStrokePush: behavior.strokePush * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -25781,12 +26036,20 @@ const shotPowerRef = useRef(0);
           });
           human.root.position.set(x, floorY, z);
           human.yaw = yaw;
+          human.userData = {
+            ...(human.userData || {}),
+            poolRoyaleCharacterId: selectedCharacter?.id,
+            poolRoyaleCharacterLabel: selectedCharacter?.label,
+            poolRoyaleLogicLabel: selectedCharacter?.logicLabel,
+            poolRoyaleLogic: behavior
+          };
           return { seat, human };
         };
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0)
         ];
       };
+      spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
         const rigs = playerCharacterRigsRef.current;
@@ -25910,13 +26173,14 @@ const shotPowerRef = useRef(0);
           if (anim) anim.mode = mode;
 
           if (human) {
+            const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
             const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
             const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
             const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
               tableW: TABLE.W,
               tableL: TABLE.H,
-              edgeMargin: HUMAN_EDGE_MARGIN,
-              desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE
+              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
+              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
             }).setY(floorY);
             const perimeterRoot = clampToWalkPerimeter(desiredRoot);
             if (isInsideTableBlocker(perimeterRoot)) {
@@ -25929,7 +26193,7 @@ const shotPowerRef = useRef(0);
             const humanLoopDelta =
               THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
             const humanMaxStepT =
-              (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) /
+              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
               (4 * (walkHalfX + walkHalfZ));
             human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
               human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
@@ -25942,23 +26206,23 @@ const shotPowerRef = useRef(0);
             const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
             const activePower = state === 'dragging' ? draggingPower : strikingPower;
             const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const pull = 0.42 * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
+            const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
             const practiceStroke =
               state === 'dragging'
-                ? Math.sin(nowMs * 0.012) * 0.035 * humanUnitScale * (0.25 + activePower * 0.75)
+                ? Math.sin(nowMs * 0.012) * (behavior.practiceStroke ?? 0.035) * humanUnitScale * (0.25 + activePower * 0.75)
                 : 0;
-            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / 120, 0, 1) : 0;
-            let cueBallGap = 0.012 * humanUnitScale;
+            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / (behavior.strikeMs ?? 120), 0, 1) : 0;
+            let cueBallGap = (behavior.cueGap ?? 0.012) * humanUnitScale;
             if (state === 'dragging') cueBallGap += pull + practiceStroke;
             else if (state === 'striking') {
               cueBallGap = THREE.MathUtils.lerp(
-                0.012 * humanUnitScale + pull,
-                0.0012 * humanUnitScale,
+                (behavior.cueGap ?? 0.012) * humanUnitScale + pull,
+                Math.max(0.001, (behavior.cueGap ?? 0.012) * 0.1) * humanUnitScale,
                 1 - Math.pow(1 - strikeNorm, 3)
               );
             }
-            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? 0.072 * humanUnitScale;
-            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? -0.024 * humanUnitScale;
+            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
+            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
             const bridgeTarget = cueWorld
               .clone()
               // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
@@ -25979,7 +26243,7 @@ const shotPowerRef = useRef(0);
             const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
             const shootGripTarget = cueBackShoot
               .clone()
-              .addScaledVector(cueShootDir, 0.58 * humanUnitScale);
+              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
@@ -35757,6 +36021,37 @@ const shotPowerRef = useRef(0);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Human Pool Player
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
+                    const active = option.id === humanCharacterId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setHumanCharacterId(option.id)}
+                        aria-pressed={active}
+                        title={`${option.label} • ${option.summary}`}
+                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
+                          {index + 1}. {option.logicLabel}
+                        </span>
+                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
+                          upper body forward • faces table
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
