@@ -1,5 +1,4 @@
 import { TOKEN_TYPE_SEQUENCE } from '../utils/ludoTokenConstants.js';
-import { LUDO_POLY_PIZZA_TANK_ASSETS } from './ludoBattleAssetCatalog.js';
 
 export const HEAD_PRESET_OPTIONS = Object.freeze([
   {
@@ -363,14 +362,12 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     description: 'CC0 Poly Pizza hand grenade model added alongside the existing grenade fallback.',
     thumbnail: 'https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp'
   },
-  ...LUDO_POLY_PIZZA_TANK_ASSETS.map((tank) => ({
-    id: tank.attackId,
-    label: tank.label,
-    description: `${tank.license} Poly Pizza tank with dedicated ${tank.ammoVisualType.toLowerCase()} projectile visuals and grip offsets.`,
-    thumbnail: tank.preview,
-    assetId: tank.id,
-    sourcePage: tank.sourcePage
-  }))
+  {
+    id: 'polyTank01Attack',
+    label: 'Quaternius Battle Tank',
+    description: 'CC0 Poly Pizza tank model for heavy battle-royal capture strike cosmetics.',
+    thumbnail: 'https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp'
+  }
 
 ]);
 

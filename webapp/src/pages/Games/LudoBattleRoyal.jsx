@@ -54,7 +54,6 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
-import { LUDO_POLY_PIZZA_TANK_ASSETS } from '../../config/ludoBattleAssetCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -138,7 +137,6 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   drone: 1.2
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
-const POLY_PIZZA_TANK_ATTACK_IDS = LUDO_POLY_PIZZA_TANK_ASSETS.map((tank) => tank.attackId);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'fpsGunAttack',
@@ -172,7 +170,7 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'polyMolotov01Attack',
   'polyGasTank01Attack',
   'polyHandGrenade01Attack',
-  ...POLY_PIZZA_TANK_ATTACK_IDS
+  'polyTank01Attack'
 ]);
 const LARGE_RACK_FIREARM_IDS = new Set([
   'ak47VolleyAttack',
@@ -189,7 +187,7 @@ const LARGE_RACK_FIREARM_IDS = new Set([
   'polyRobotFlyingGunAttack',
   'polyBazooka01Attack',
   'polyGrenadeLauncher01Attack',
-  ...POLY_PIZZA_TANK_ATTACK_IDS
+  'polyTank01Attack'
 ]);
 const FIREARM_TWO_HANDED_IDS = new Set([
   'fpsGunAttack',
@@ -209,7 +207,7 @@ const FIREARM_TWO_HANDED_IDS = new Set([
   'polyRobotFlyingGunAttack',
   'polyBazooka01Attack',
   'polyGrenadeLauncher01Attack',
-  ...POLY_PIZZA_TANK_ATTACK_IDS
+  'polyTank01Attack'
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'glockSidearmAttack',
@@ -256,10 +254,7 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyMolotov01Attack: 0.92,
   polyGasTank01Attack: 1.28,
   polyHandGrenade01Attack: 0.48,
-  polyTank01Attack: 2.3,
-  polyTank02Attack: 2.45,
-  polyTank03Attack: 2.35,
-  polyTank04Attack: 2.55
+  polyTank01Attack: 2.3
 });
 
 const FIREARM_RACK_DISPLAY_TUNING = Object.freeze({
