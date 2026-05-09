@@ -1,9 +1,12 @@
 import { create } from 'zustand';
+import { FIRST_PERSON_WEAPON, FPS_WEAPON_OPTIONS } from './assetCatalog';
+import { recoverWeaponRecoil, recoilConfig } from './systems/RecoilSystem';
 import type {
   BulletTracer,
   GamePhase,
   ImpactFx,
   TouchInputState,
+  VehicleMode,
   WeaponStats
 } from './types';
 
@@ -14,8 +17,8 @@ export const rifleStats: WeaponStats = {
   reloadMs: 1450,
   damage: 34,
   spread: 0.013,
-  recoilKick: 0.035,
-  recoilRecovery: 8,
+  recoilKick: 0.026,
+  recoilRecovery: 12,
   falloffStart: 12,
   falloffEnd: 42
 };
@@ -31,9 +34,18 @@ type GameStore = {
   hitMarkerUntil: number;
   muzzleFlashUntil: number;
   recoil: number;
+  aimSensitivity: number;
   input: TouchInputState;
   tracers: BulletTracer[];
   impacts: ImpactFx[];
+  selectedWeaponId: string;
+  vehicleMode: VehicleMode;
+  canBoardHelicopter: boolean;
+  setVehicleMode: (mode: VehicleMode) => void;
+  setCanBoardHelicopter: (canBoard: boolean) => void;
+  setAimSensitivity: (value: number) => void;
+  selectWeapon: (id: string) => void;
+  cycleWeapon: (direction: 1 | -1) => void;
   setInput: (patch: Partial<TouchInputState>) => void;
   damagePlayer: (amount: number) => void;
   setEnemiesAlive: (count: number) => void;
@@ -56,7 +68,8 @@ const initialInput: TouchInputState = {
   lookX: 0,
   lookY: 0,
   firing: false,
-  reloading: false
+  reloading: false,
+  lift: 0
 };
 
 export const useMobileFpsStore = create<GameStore>((set, get) => ({
@@ -70,9 +83,37 @@ export const useMobileFpsStore = create<GameStore>((set, get) => ({
   hitMarkerUntil: 0,
   muzzleFlashUntil: 0,
   recoil: 0,
+  aimSensitivity: 0.72,
   input: initialInput,
   tracers: [],
   impacts: [],
+  selectedWeaponId: FIRST_PERSON_WEAPON.id,
+  vehicleMode: 'onFoot',
+  canBoardHelicopter: false,
+  setVehicleMode: (mode) => set({ vehicleMode: mode }),
+  setCanBoardHelicopter: (canBoard) =>
+    set((state) =>
+      state.canBoardHelicopter === canBoard
+        ? state
+        : { canBoardHelicopter: canBoard }
+    ),
+  setAimSensitivity: (value) =>
+    set({ aimSensitivity: Math.min(1, Math.max(0, value)) }),
+  selectWeapon: (id) => {
+    if (FPS_WEAPON_OPTIONS.some((entry) => entry.id === id))
+      set({ selectedWeaponId: id });
+  },
+  cycleWeapon: (direction) =>
+    set((state) => {
+      const currentIndex = FPS_WEAPON_OPTIONS.findIndex(
+        (entry) => entry.id === state.selectedWeaponId
+      );
+      const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex =
+        (safeIndex + direction + FPS_WEAPON_OPTIONS.length) %
+        FPS_WEAPON_OPTIONS.length;
+      return { selectedWeaponId: FPS_WEAPON_OPTIONS[nextIndex].id };
+    }),
   setInput: (patch) =>
     set((state) => ({ input: { ...state.input, ...patch } })),
   damagePlayer: (amount) =>
@@ -107,9 +148,13 @@ export const useMobileFpsStore = create<GameStore>((set, get) => ({
       };
     }),
   addRecoil: (amount) =>
-    set((state) => ({ recoil: Math.min(0.18, state.recoil + amount) })),
+    set((state) => ({
+      recoil: Math.min(recoilConfig.maxWeaponRecoil, state.recoil + amount)
+    })),
   recoverRecoil: (amount) =>
-    set((state) => ({ recoil: Math.max(0, state.recoil - amount) })),
+    set((state) => ({
+      recoil: recoverWeaponRecoil(state.recoil, amount, 1)
+    })),
   showHitMarker: () => set({ hitMarkerUntil: performance.now() + 120 }),
   showMuzzleFlash: () => set({ muzzleFlashUntil: performance.now() + 70 }),
   addTracer: (tracer) =>
@@ -136,6 +181,10 @@ export const useMobileFpsStore = create<GameStore>((set, get) => ({
       hitMarkerUntil: 0,
       muzzleFlashUntil: 0,
       recoil: 0,
+      aimSensitivity: 0.72,
+      selectedWeaponId: FIRST_PERSON_WEAPON.id,
+      vehicleMode: 'onFoot',
+      canBoardHelicopter: false,
       input: initialInput,
       tracers: [],
       impacts: []
