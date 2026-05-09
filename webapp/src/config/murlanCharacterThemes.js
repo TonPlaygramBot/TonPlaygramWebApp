@@ -19,7 +19,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     seatPitch: 0,
     seatYaw: 0,
     handLift: 1.04,
-    clothCombo: 'royalDenim',
+    clothCombo: 'tailoredRoyal',
     hairColor: 0x24150f,
     eyeColor: 0x2f5d7c,
     skinTone: 0xd9a27d
