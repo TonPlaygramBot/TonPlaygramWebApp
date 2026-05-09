@@ -15,27 +15,59 @@ import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
 import Exchange from './pages/Exchange.jsx';
+import Layout from './components/Layout.jsx';
+import TonConnectSync from './components/TonConnectSync.jsx';
+import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
+import useTelegramAuth from './hooks/useTelegramAuth.js';
+import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
+import useMobileFullscreen from './hooks/useMobileFullscreen.js';
+import useReferralClaim from './hooks/useReferralClaim.js';
+import useNativePushNotifications from './hooks/useNativePushNotifications.js';
+import { BOT_USERNAME } from './utils/constants.js';
+import { isTelegramWebView } from './utils/telegram.js';
 
-import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
-import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
-import SnakeResults from './pages/Games/SnakeResults.jsx';
-import Lobby from './pages/Games/Lobby.jsx';
-import Games from './pages/Games.jsx';
-import GameTransactions from './pages/GameTransactions.jsx';
-import MiningTransactions from './pages/MiningTransactions.jsx';
-import SpinPage from './pages/spin.tsx';
-import GoalRush from './pages/Games/GoalRush.jsx';
-import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
-import AirHockey from './pages/Games/AirHockey.jsx';
-import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
-import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
-import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
-import LudoBattleRoyal from './pages/Games/LudoBattleRoyal.jsx';
-import LudoBattleRoyalLobby from './pages/Games/LudoBattleRoyalLobby.jsx';
-import TexasHoldem from './pages/Games/TexasHoldem.jsx';
-import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
-import DominoRoyal from './pages/Games/DominoRoyal.jsx';
-import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
+const SnakeAndLadder = React.lazy(
+  () => import('./pages/Games/SnakeAndLadder.jsx')
+);
+const SnakeMultiplayer = React.lazy(
+  () => import('./pages/Games/SnakeMultiplayer.jsx')
+);
+const SnakeResults = React.lazy(() => import('./pages/Games/SnakeResults.jsx'));
+const Lobby = React.lazy(() => import('./pages/Games/Lobby.jsx'));
+const Games = React.lazy(() => import('./pages/Games.jsx'));
+const GameTransactions = React.lazy(
+  () => import('./pages/GameTransactions.jsx')
+);
+const MiningTransactions = React.lazy(
+  () => import('./pages/MiningTransactions.jsx')
+);
+const SpinPage = React.lazy(() => import('./pages/spin.tsx'));
+const GoalRush = React.lazy(() => import('./pages/Games/GoalRush.jsx'));
+const GoalRushLobby = React.lazy(
+  () => import('./pages/Games/GoalRushLobby.jsx')
+);
+const AirHockey = React.lazy(() => import('./pages/Games/AirHockey.jsx'));
+const AirHockeyLobby = React.lazy(
+  () => import('./pages/Games/AirHockeyLobby.jsx')
+);
+const MurlanRoyale = React.lazy(() => import('./pages/Games/MurlanRoyale.jsx'));
+const MurlanRoyaleLobby = React.lazy(
+  () => import('./pages/Games/MurlanRoyaleLobby.jsx')
+);
+const LudoBattleRoyal = React.lazy(
+  () => import('./pages/Games/LudoBattleRoyal.jsx')
+);
+const LudoBattleRoyalLobby = React.lazy(
+  () => import('./pages/Games/LudoBattleRoyalLobby.jsx')
+);
+const TexasHoldem = React.lazy(() => import('./pages/Games/TexasHoldem.jsx'));
+const TexasHoldemLobby = React.lazy(
+  () => import('./pages/Games/TexasHoldemLobby.jsx')
+);
+const DominoRoyal = React.lazy(() => import('./pages/Games/DominoRoyal.jsx'));
+const DominoRoyalLobby = React.lazy(
+  () => import('./pages/Games/DominoRoyalLobby.jsx')
+);
 
 const ChessBattleRoyal = React.lazy(
   () => import('./pages/Games/ChessBattleRoyal.jsx')
@@ -62,31 +94,32 @@ const TavullBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
 );
 const RunMan = React.lazy(() => import('./pages/Games/RunMan.tsx'));
-import PoolRoyale from './pages/Games/PoolRoyale.jsx';
-import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
-import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
-import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
-import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
-import Tennis from './pages/Games/Tennis.tsx';
-import TableTennis from './pages/Games/TableTennis.tsx';
-import TennisLobby from './pages/Games/TennisLobby.jsx';
-import BowlingRealistic from './pages/Games/BowlingRealistic.tsx';
-import FreeKickArena from './pages/Games/FreeKickArena.tsx';
+const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
+const PoolRoyaleLobby = React.lazy(
+  () => import('./pages/Games/PoolRoyaleLobby.jsx')
+);
+const PoolRoyaleCareer = React.lazy(
+  () => import('./pages/Games/PoolRoyaleCareer.jsx')
+);
+const SnookerRoyal = React.lazy(() => import('./pages/Games/SnookerRoyal.jsx'));
+const SnookerRoyalLobby = React.lazy(
+  () => import('./pages/Games/SnookerRoyalLobby.jsx')
+);
+const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
+const TableTennis = React.lazy(() => import('./pages/Games/TableTennis.tsx'));
+const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
+const BowlingRealistic = React.lazy(
+  () => import('./pages/Games/BowlingRealistic.tsx')
+);
+const FreeKickArena = React.lazy(
+  () => import('./pages/Games/FreeKickArena.tsx')
+);
 const MobileUrbanFps = React.lazy(
   () => import('./games/mobileUrbanFps/MobileUrbanFps.tsx')
 );
-import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
-
-import Layout from './components/Layout.jsx';
-import TonConnectSync from './components/TonConnectSync.jsx';
-import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
-import useTelegramAuth from './hooks/useTelegramAuth.js';
-import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
-import useMobileFullscreen from './hooks/useMobileFullscreen.js';
-import useReferralClaim from './hooks/useReferralClaim.js';
-import useNativePushNotifications from './hooks/useNativePushNotifications.js';
-import { BOT_USERNAME } from './utils/constants.js';
-import { isTelegramWebView } from './utils/telegram.js';
+const StoreThumbnailStudioPoolRoyale = React.lazy(
+  () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
+);
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -162,336 +195,340 @@ export default function App() {
       >
         <TonConnectSync />
         <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/mining" element={<Mining />} />
-            <Route
-              path="/mining/transactions"
-              element={<MiningTransactions />}
-            />
-            <Route path="/games" element={<Games />} />
-            <Route path="/games/transactions" element={<GameTransactions />} />
-            <Route
-              path="/games/mobile-urban-fps"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Urban Ops FPS…
-                    </div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="mobile-urban-fps">
-                    <MobileUrbanFps />
+          <Suspense
+            fallback={
+              <div className="p-4 text-center">Loading TonPlaygram…</div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/mining" element={<Mining />} />
+              <Route
+                path="/mining/transactions"
+                element={<MiningTransactions />}
+              />
+              <Route path="/games" element={<Games />} />
+              <Route
+                path="/games/transactions"
+                element={<GameTransactions />}
+              />
+              <Route
+                path="/games/mobile-urban-fps"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Urban Ops FPS…
+                      </div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="mobile-urban-fps">
+                      <MobileUrbanFps />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/runman"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">Loading RunMan…</div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="runman">
+                      <RunMan />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/runman/lobby"
+                element={<Navigate to="/games/runman" replace />}
+              />
+              <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route
+                path="/games/snake"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="snake">
+                    <SnakeAndLadder />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/runman"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">Loading RunMan…</div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="runman">
-                    <RunMan />
+                }
+              />
+              <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
+              <Route path="/games/snake/results" element={<SnakeResults />} />
+              <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
+              <Route
+                path="/games/goalrush"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="goalrush">
+                    <GoalRush />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/runman/lobby"
-              element={<Navigate to="/games/runman" replace />}
-            />
-            <Route path="/games/:game/lobby" element={<Lobby />} />
-            <Route
-              path="/games/snake"
-              element={
-                <GameLiveAvatarOverlay gameSlug="snake">
-                  <SnakeAndLadder />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
-            <Route path="/games/snake/results" element={<SnakeResults />} />
-            <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
-            <Route
-              path="/games/goalrush"
-              element={
-                <GameLiveAvatarOverlay gameSlug="goalrush">
-                  <GoalRush />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
-            <Route path="/games/airhockey" element={<AirHockey />} />
-
-            <Route
-              path="/games/freekickarena"
-              element={<FreeKickArena />}
-            />
-
-            <Route
-              path="/games/chessbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">Loading Chess Lobby…</div>
-                  }
-                >
-                  <ChessBattleRoyalLobby />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/chessbattleroyal"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Chess Battle Royal…
-                    </div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="chessbattleroyal">
-                    <ChessBattleRoyal />
+                }
+              />
+              <Route
+                path="/games/airhockey/lobby"
+                element={<AirHockeyLobby />}
+              />
+              <Route path="/games/airhockey" element={<AirHockey />} />
+              <Route path="/games/freekickarena" element={<FreeKickArena />} />
+              <Route
+                path="/games/chessbattleroyal/lobby"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Chess Lobby…
+                      </div>
+                    }
+                  >
+                    <ChessBattleRoyalLobby />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/chessbattleroyal"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Chess Battle Royal…
+                      </div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="chessbattleroyal">
+                      <ChessBattleRoyal />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/checkersbattleroyal/lobby"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Checkers Lobby…
+                      </div>
+                    }
+                  >
+                    <CheckersBattleRoyalLobby />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/checkersbattleroyal"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Checkers Battle Royal…
+                      </div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="checkersbattleroyal">
+                      <CheckersBattleRoyal />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/fourinrowroyale/lobby"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading 4 in a Row Lobby…
+                      </div>
+                    }
+                  >
+                    <FourInRowRoyalLobby />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/fourinrowroyale"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">Loading 4 in a Row…</div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="fourinrowroyale">
+                      <FourInRowRoyal />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/tavullbattleroyal/lobby"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Backgammon Lobby…
+                      </div>
+                    }
+                  >
+                    <TavullBattleRoyalLobby />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/tavullbattleroyal"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-center">
+                        Loading Backgammon Royal…
+                      </div>
+                    }
+                  >
+                    <GameLiveAvatarOverlay gameSlug="tavullbattleroyal">
+                      <TavullBattleRoyal />
+                    </GameLiveAvatarOverlay>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/games/ludobattleroyal/lobby"
+                element={<LudoBattleRoyalLobby />}
+              />
+              <Route
+                path="/games/ludobattleroyal"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="ludobattleroyal">
+                    <LudoBattleRoyal />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-
-            <Route
-              path="/games/checkersbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Checkers Lobby…
-                    </div>
-                  }
-                >
-                  <CheckersBattleRoyalLobby />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/checkersbattleroyal"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Checkers Battle Royal…
-                    </div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="checkersbattleroyal">
-                    <CheckersBattleRoyal />
+                }
+              />
+              <Route
+                path="/games/texasholdem/lobby"
+                element={<TexasHoldemLobby />}
+              />
+              <Route
+                path="/games/texasholdem"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="texasholdem">
+                    <TexasHoldem />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-
-            <Route
-              path="/games/fourinrowroyale/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading 4 in a Row Lobby…
-                    </div>
-                  }
-                >
-                  <FourInRowRoyalLobby />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/fourinrowroyale"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">Loading 4 in a Row…</div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="fourinrowroyale">
-                    <FourInRowRoyal />
+                }
+              />
+              <Route
+                path="/games/domino-royal/lobby"
+                element={<DominoRoyalLobby />}
+              />
+              <Route
+                path="/games/domino-royal"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="domino-royal">
+                    <DominoRoyal />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-
-            <Route
-              path="/games/tavullbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Backgammon Lobby…
-                    </div>
-                  }
-                >
-                  <TavullBattleRoyalLobby />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/tavullbattleroyal"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Backgammon Royal…
-                    </div>
-                  }
-                >
-                  <GameLiveAvatarOverlay gameSlug="tavullbattleroyal">
-                    <TavullBattleRoyal />
+                }
+              />
+              <Route
+                path="/games/murlanroyale/lobby"
+                element={<MurlanRoyaleLobby />}
+              />
+              <Route
+                path="/games/murlanroyale"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="murlanroyale">
+                    <MurlanRoyale />
                   </GameLiveAvatarOverlay>
-                </Suspense>
-              }
-            />
-            <Route
-              path="/games/ludobattleroyal/lobby"
-              element={<LudoBattleRoyalLobby />}
-            />
-            <Route
-              path="/games/ludobattleroyal"
-              element={
-                <GameLiveAvatarOverlay gameSlug="ludobattleroyal">
-                  <LudoBattleRoyal />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route
-              path="/games/texasholdem/lobby"
-              element={<TexasHoldemLobby />}
-            />
-            <Route
-              path="/games/texasholdem"
-              element={
-                <GameLiveAvatarOverlay gameSlug="texasholdem">
-                  <TexasHoldem />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route
-              path="/games/domino-royal/lobby"
-              element={<DominoRoyalLobby />}
-            />
-            <Route
-              path="/games/domino-royal"
-              element={
-                <GameLiveAvatarOverlay gameSlug="domino-royal">
-                  <DominoRoyal />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-            <Route
-              path="/games/murlanroyale/lobby"
-              element={<MurlanRoyaleLobby />}
-            />
-            <Route
-              path="/games/murlanroyale"
-              element={
-                <GameLiveAvatarOverlay gameSlug="murlanroyale">
-                  <MurlanRoyale />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route
-              path="/games/poolroyale/lobby"
-              element={<PoolRoyaleLobby />}
-            />
-            <Route
-              path="/games/poolroyale/career"
-              element={<PoolRoyaleCareer />}
-            />
-            <Route
-              path="/games/poolroyale"
-              element={
-                <GameLiveAvatarOverlay gameSlug="poolroyale">
-                  <PoolRoyale />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-            <Route
-              path="/games/tennis/lobby"
-              element={<TennisLobby />}
-            />
-            <Route
-              path="/games/tennis"
-              element={
-                <GameLiveAvatarOverlay gameSlug="tennis">
-                  <Tennis />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-            <Route
-              path="/games/table-tennis"
-              element={
-                <GameLiveAvatarOverlay gameSlug="table-tennis">
-                  <TableTennis />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-
-            <Route
-              path="/games/bowling"
-              element={
-                <GameLiveAvatarOverlay gameSlug="bowling">
-                  <BowlingRealistic />
-                </GameLiveAvatarOverlay>
-              }
-            />
-
-            <Route
-              path="/games/snookerroyale/lobby"
-              element={<SnookerRoyalLobby />}
-            />            <Route
-              path="/games/snookerroyale"
-              element={
-                <GameLiveAvatarOverlay gameSlug="snookerroyale">
-                  <SnookerRoyal />
-                </GameLiveAvatarOverlay>
-              }
-            />
-            <Route
-              path="/games/pollroyale/lobby"
-              element={<Navigate to="/games/poolroyale/lobby" replace />}
-            />
-            <Route
-              path="/games/pollroyale"
-              element={<Navigate to="/games/poolroyale" replace />}
-            />
-            <Route path="/spin" element={<SpinPage />} />
-            <Route path="/admin/influencer" element={<InfluencerAdmin />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route
-              path="/store"
-              element={<Navigate to="/store/all" replace />}
-            />
-            <Route path="/store/:gameSlug" element={<Store />} />
-            <Route path="/referral" element={<Referral />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/trending" element={<Navigate to="/messages" replace />} />
-            <Route path="/account" element={<MyAccount />} />
-            <Route path="/nfts" element={<Nfts />} />
-            <Route path="/platform-stats" element={<PlatformStatsDetails />} />
-            <Route path="/exchange" element={<Exchange />} />
-            {/* Internal tools (used for automated store thumbnail generation) */}
-            <Route
-              path="/tools/store-thumb/poolroyale/table-finish/:finishId"
-              element={<StoreThumbnailStudioPoolRoyale />}
-            />
-          </Routes>
+                }
+              />
+              <Route
+                path="/games/poolroyale/lobby"
+                element={<PoolRoyaleLobby />}
+              />
+              <Route
+                path="/games/poolroyale/career"
+                element={<PoolRoyaleCareer />}
+              />
+              <Route
+                path="/games/poolroyale"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="poolroyale">
+                    <PoolRoyale />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route path="/games/tennis/lobby" element={<TennisLobby />} />
+              <Route
+                path="/games/tennis"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="tennis">
+                    <Tennis />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/table-tennis"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="table-tennis">
+                    <TableTennis />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/bowling"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="bowling">
+                    <BowlingRealistic />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/snookerroyale/lobby"
+                element={<SnookerRoyalLobby />}
+              />{' '}
+              <Route
+                path="/games/snookerroyale"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="snookerroyale">
+                    <SnookerRoyal />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/pollroyale/lobby"
+                element={<Navigate to="/games/poolroyale/lobby" replace />}
+              />
+              <Route
+                path="/games/pollroyale"
+                element={<Navigate to="/games/poolroyale" replace />}
+              />
+              <Route path="/spin" element={<SpinPage />} />
+              <Route path="/admin/influencer" element={<InfluencerAdmin />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route
+                path="/store"
+                element={<Navigate to="/store/all" replace />}
+              />
+              <Route path="/store/:gameSlug" element={<Store />} />
+              <Route path="/referral" element={<Referral />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route
+                path="/trending"
+                element={<Navigate to="/messages" replace />}
+              />
+              <Route path="/account" element={<MyAccount />} />
+              <Route path="/nfts" element={<Nfts />} />
+              <Route
+                path="/platform-stats"
+                element={<PlatformStatsDetails />}
+              />
+              <Route path="/exchange" element={<Exchange />} />
+              {/* Internal tools (used for automated store thumbnail generation) */}
+              <Route
+                path="/tools/store-thumb/poolroyale/table-finish/:finishId"
+                element={<StoreThumbnailStudioPoolRoyale />}
+              />
+            </Routes>
+          </Suspense>
         </Layout>
       </TonConnectUIProvider>
     </BrowserRouter>

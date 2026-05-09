@@ -42,7 +42,7 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { bombSound } from '../../assets/soundData.js';
+import { bombSound } from '../../assets/coreSoundData.js';
 import coinConfetti from '../../utils/coinConfetti';
 import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';

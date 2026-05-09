@@ -23,7 +23,7 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
+import { bombSound, chatBeep, timerBeep } from '../../assets/coreSoundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import {
   buildChessCommentaryLine,

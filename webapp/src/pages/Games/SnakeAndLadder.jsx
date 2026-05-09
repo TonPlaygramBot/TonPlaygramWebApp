@@ -5,7 +5,7 @@ import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   chatBeep
-} from "../../assets/soundData.js";
+} from "../../assets/coreSoundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
