@@ -243,7 +243,6 @@ const BASE_CFG = {
   // Z sign that may read as backwards after table/camera orientation changes.
   shootBendDirection: -1,
   shootBendTowardCueStick: false,
-  shootBendMode: 'forward',
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
   shootForwardBendScale: 1,
@@ -265,10 +264,6 @@ const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
 const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 
-function resolveTableReference(frameData) {
-  return frameData.bridgeTarget || frameData.cueTip || frameData.gripTarget || frameData.cueBack || null;
-}
-
 function resolveTableFacingForward(rawForward, root, frameData, cfg) {
   const forward = rawForward?.clone?.() ?? new THREE.Vector3(0, 0, -1);
   forward.y = 0;
@@ -277,7 +272,7 @@ function resolveTableFacingForward(rawForward, root, frameData, cfg) {
 
   if (!cfg.forceTableFacingAim) return forward;
 
-  const cueReference = resolveTableReference(frameData);
+  const cueReference = frameData.bridgeTarget || frameData.cueTip || frameData.cueBack || frameData.gripTarget;
   if (!cueReference || !root) return forward;
 
   const rootToTable = cueReference.clone().sub(root);
@@ -289,36 +284,6 @@ function resolveTableFacingForward(rawForward, root, frameData, cfg) {
   // If caller math ever supplies the opposite cue axis, flip it here so every
   // downstream torso, bridge hand, grip hand and foot basis bends toward the cloth.
   return forward.dot(rootToTable) < 0 ? forward.multiplyScalar(-1) : forward;
-}
-
-function resolveShootBendSign(human, frameData, cfg) {
-  const fallbackSign = cfg.shootBendDirection >= 0 ? 1 : -1;
-  if (!cfg.shootBendTowardCueStick) return fallbackSign;
-  const cueReference = resolveTableReference(frameData);
-  if (!cueReference || !human?.root) return fallbackSign;
-  const rootToTableLocal = cueReference
-    .clone()
-    .sub(human.root.position)
-    .applyAxisAngle(Y_AXIS, -human.yaw);
-  // Local -Z is the direction the rig is facing. Always fold the belly/chest/head
-  // side toward the cue ball/table; feet and hips stay planted by the pose solver.
-  return Math.abs(rootToTableLocal.z) > 1e-5
-    ? (rootToTableLocal.z <= 0 ? -1 : 1)
-    : -1;
-}
-
-function ensureHumanFacingTable(human, frameData, cfg) {
-  if (!cfg.forceTableFacingAim || !human?.root) return;
-  const cueReference = resolveTableReference(frameData);
-  if (!cueReference) return;
-  const rootToTable = cueReference.clone().sub(human.root.position);
-  rootToTable.y = 0;
-  if (rootToTable.lengthSq() < 1e-8) return;
-  rootToTable.normalize();
-  const liveForward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize();
-  if (liveForward.dot(rootToTable) < -0.05) {
-    human.yaw = yawFromForward(rootToTable);
-  }
 }
 
 function scaleVectorConfig(cfg) {
@@ -506,89 +471,78 @@ export function createHumanRig(scene, opts = {}) {
   scene.add(human.root, human.modelRoot);
 
   const { loader, modelUrl = HUMAN_URL, onStatus } = opts;
-  const modelUrls = Array.isArray(opts.modelUrls) && opts.modelUrls.length > 0
-    ? opts.modelUrls.filter((url) => typeof url === 'string' && url.trim().length > 0)
-    : [modelUrl];
   if (!loader) return human;
   loader.setCrossOrigin?.('anonymous');
   onStatus?.('Loading original skeleton human logic…');
-  const loadModelAt = (urlIndex = 0) => {
-    const activeUrl = modelUrls[urlIndex] || HUMAN_URL;
-    loader.load(
-      activeUrl,
-      (gltf) => {
-        const model = gltf?.scene;
-        if (!model) return;
-        normalizeHuman(model, cfg);
-        model.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-          obj.frustumCulled = false;
-          const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-          const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
-          if (Array.isArray(obj.material)) obj.material = mats;
-          else if (mats[0]) obj.material = mats[0];
-          mats.forEach((mat) => {
-            if (mat.map) {
-              mat.map.colorSpace = THREE.SRGBColorSpace;
-              mat.map.flipY = false;
-              mat.map.needsUpdate = true;
-            }
-            applyRealisticHumanMaterialFallback(obj, mat);
-            applyPolyhavenHumanClothingMaterial(obj, mat);
-            mat.depthWrite = true;
-            mat.depthTest = true;
-            mat.needsUpdate = true;
-          });
+  loader.load(
+    modelUrl,
+    (gltf) => {
+      const model = gltf?.scene;
+      if (!model) return;
+      normalizeHuman(model, cfg);
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const sourceMats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        const mats = sourceMats.map((mat) => (mat?.clone ? mat.clone() : mat));
+        if (Array.isArray(obj.material)) obj.material = mats;
+        else if (mats[0]) obj.material = mats[0];
+        mats.forEach((mat) => {
+          if (mat.map) {
+            mat.map.colorSpace = THREE.SRGBColorSpace;
+            mat.map.flipY = false;
+            mat.map.needsUpdate = true;
+          }
+          applyRealisticHumanMaterialFallback(obj, mat);
+          applyPolyhavenHumanClothingMaterial(obj, mat);
+          mat.depthWrite = true;
+          mat.depthTest = true;
+          mat.needsUpdate = true;
         });
-        human.mixer = new THREE.AnimationMixer(model);
-        const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
-        const aliases = {
-          Idle: ['idle'],
-          Walk: ['walk', 'walking'],
-          Run: ['run', 'running']
-        };
-        Object.entries(aliases).forEach(([name, names]) => {
-          const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
-          if (!clip) return;
-          const action = human.mixer.clipAction(clip);
-          action.enabled = true;
-          action.setLoop(THREE.LoopRepeat, Infinity);
-          action.clampWhenFinished = false;
-          action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
-          action.play();
-          human.actions[name] = action;
-        });
-        human.bones = buildAvatarBones(model);
-        human.leftFingers = collectFingerBones(human.bones.leftHand);
-        human.rightFingers = collectFingerBones(human.bones.rightHand);
-        [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
-          if (bone) human.restQuats.set(bone, bone.quaternion.clone());
-        });
-        createHumanFaceDetails(human);
-        const b = human.bones;
-        human.activeGlb = Boolean(
-          b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
-          b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
-        );
-        human.model = model;
-        human.modelRoot.add(model);
-        human.modelRoot.visible = human.activeGlb;
-        onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
-      },
-      undefined,
-      (error) => {
-        console.warn('ReadyPlayer human failed', { url: activeUrl, error });
-        if (urlIndex + 1 < modelUrls.length) {
-          loadModelAt(urlIndex + 1);
-          return;
-        }
-        onStatus?.('ReadyPlayer GLTF human failed');
-      }
-    );
-  };
-  loadModelAt(0);
+      });
+      human.mixer = new THREE.AnimationMixer(model);
+      const clipByName = new Map((gltf.animations || []).map((clip) => [String(clip.name || '').toLowerCase(), clip]));
+      const aliases = {
+        Idle: ['idle'],
+        Walk: ['walk', 'walking'],
+        Run: ['run', 'running']
+      };
+      Object.entries(aliases).forEach(([name, names]) => {
+        const clip = names.map((alias) => clipByName.get(alias)).find(Boolean);
+        if (!clip) return;
+        const action = human.mixer.clipAction(clip);
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
+        action.play();
+        human.actions[name] = action;
+      });
+      human.bones = buildAvatarBones(model);
+      human.leftFingers = collectFingerBones(human.bones.leftHand);
+      human.rightFingers = collectFingerBones(human.bones.rightHand);
+      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
+        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
+      });
+      createHumanFaceDetails(human);
+      const b = human.bones;
+      human.activeGlb = Boolean(
+        b.hips && b.spine && b.head && b.rightUpperArm && b.rightLowerArm && b.rightHand &&
+        b.leftUpperLeg && b.leftLowerLeg && b.leftFoot && b.rightUpperLeg && b.rightLowerLeg && b.rightFoot
+      );
+      human.model = model;
+      human.modelRoot.add(model);
+      human.modelRoot.visible = human.activeGlb;
+      onStatus?.(human.activeGlb ? 'Original human skeleton logic restored' : 'Human loaded, skeleton aliases incomplete');
+    },
+    undefined,
+    (error) => {
+      console.warn('ReadyPlayer human failed', error);
+      onStatus?.('ReadyPlayer GLTF human failed');
+    }
+  );
   return human;
 }
 
@@ -858,7 +812,6 @@ export function updateHumanPose(human, dt, frameData) {
   human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
   const facingForward = resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
   human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(facingForward), cfg.rotLambda, dt);
-  ensureHumanFacingTable(human, frameData, cfg);
 
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
@@ -872,7 +825,7 @@ export function updateHumanPose(human, dt, frameData) {
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = (frameData.power || 0) * t;
-  const bendDirection = resolveShootBendSign(human, frameData, cfg);
+  const bendDirection = cfg.shootBendDirection >= 0 ? 1 : -1;
   const counterLeanSide = cfg.shootCounterLeanSide >= 0 ? 1 : -1;
   const upperBodyCounterLean = Number.isFinite(cfg.shootUpperBodyCounterLean)
     ? Math.max(0, cfg.shootUpperBodyCounterLean)
@@ -881,7 +834,19 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootForwardBendScale)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => Math.abs(value) * bendDirection * forwardBendScale;
+  const cueBendReference = cfg.shootBendTowardCueStick
+    ? frameData.bridgeTarget || frameData.cueTip || frameData.gripTarget || null
+    : null;
+  const cueBendLocalZ = cueBendReference
+    ? cueBendReference.clone().sub(human.root.position).applyAxisAngle(Y_AXIS, -human.yaw).z
+    : 0;
+  const cueBendSign = Math.abs(cueBendLocalZ) > 1e-5 ? Math.sign(cueBendLocalZ) : 0;
+  const shotBendZ = (value) => {
+    if (cfg.shootBendTowardCueStick && cueBendSign !== 0) {
+      return Math.abs(value) * cueBendSign * forwardBendScale;
+    }
+    return value * bendDirection * forwardBendScale;
+  };
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
