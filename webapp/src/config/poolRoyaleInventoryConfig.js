@@ -715,7 +715,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
-  chromeColor: ['gold', 'plastic-black'],
+  chromeColor: ['gold'],
   chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -756,8 +756,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
-    gold: 'Gold',
-    'plastic-black': 'Plastic Black'
+    gold: 'Gold'
   }),
   chromePlateStyle: Object.freeze({
     'royal-classic': 'Royal Classic Plates',
@@ -988,15 +987,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 360,
     description: 'Polished chrome plates to swap in for the fascia set.',
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
-  },
-  {
-    id: 'chrome-plastic-black',
-    type: 'chromeColor',
-    optionId: 'plastic-black',
-    name: 'Plastic Black Fascias',
-    price: 0,
-    description: 'Matte black plastic trim for Showood mapped pocket plates and Royal fascias.',
-    thumbnail: swatchThumbnail(['#030712', '#111827', '#2f2418'])
   },
   {
     id: 'chromeStyle-showoodRounded',
