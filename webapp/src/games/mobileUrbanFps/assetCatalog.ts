@@ -428,13 +428,12 @@ export const DISPLAY_ITEMS: DisplayEntry[] = [
   ...EQUIPMENT
 ];
 
+export const FIRST_PERSON_WEAPON =
+  EXTRA_WEAPONS.find((entry) => entry.id === 'slot-10-ak47-gltf') ??
+  DISPLAY_ITEMS[0];
 export const FPS_HAND_DONOR =
   EXTRA_WEAPONS.find((entry) => entry.id === 'slot-18-fps-gun-gltf') ??
   DISPLAY_ITEMS[0];
-export const FIRST_PERSON_WEAPON = FPS_HAND_DONOR;
-export const FPS_WEAPON_OPTIONS = DISPLAY_ITEMS.filter(
-  (entry) => entry.kind === 'weapon'
-);
 
 export const GRIP_PROFILES: Record<GripPreset, GripProfile> = {
   pistol: {
