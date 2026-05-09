@@ -9,15 +9,6 @@ const gamesCatalog = [
   },
 
   {
-    name: 'The Maze Battle Royal',
-    route: '/games/runman',
-    slug: 'runman',
-    image: '/assets/icons/runman.svg',
-    description:
-      'Fast portrait maze battle: fight human rivals, break wooden boxes, grab weapons, and survive.'
-  },
-
-  {
     name: 'Real Bowling',
     route: '/games/bowling/lobby',
     slug: 'bowling',
