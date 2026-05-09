@@ -225,6 +225,27 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polyGasTank01Attack',
   'polyHandGrenade01Attack'
 ]);
+
+const POLY_PIZZA_CAPTURE_WEAPON_IDS = new Set([
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyPistol01Attack',
+  'polyRevolver01Attack',
+  'polySawedOff01Attack',
+  'polyRevolver02Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polySmg01Attack',
+  'polyRobotLargeGunAttack',
+  'polyRobotFlyingGunAttack',
+  'polyBazooka01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyDynamiteBomb01Attack',
+  'polyMolotov01Attack',
+  'polyGasTank01Attack',
+  'polyHandGrenade01Attack',
+  'polyTank01Attack'
+]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
@@ -476,92 +497,92 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.23
   },
   polyShotgun01Attack: {
-    label: 'Quaternius Shotgun',
+    label: 'Shotgun',
     urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'],
     scale: 0.205
   },
   polyAssaultRifle01Attack: {
-    label: 'Quaternius Assault Rifle',
+    label: 'Assault Rifle',
     urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
     scale: 0.208
   },
   polyPistol01Attack: {
-    label: 'Quaternius Pistol',
+    label: 'Pistol',
     urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'],
     scale: 0.122
   },
   polyRevolver01Attack: {
-    label: 'Quaternius Heavy Revolver',
+    label: 'Heavy Revolver',
     urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'],
     scale: 0.13
   },
   polySawedOff01Attack: {
-    label: 'Quaternius Sawed-Off Shotgun',
+    label: 'Sawed-Off Shotgun',
     urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'],
     scale: 0.175
   },
   polyRevolver02Attack: {
-    label: 'Quaternius Revolver Silver',
+    label: 'Silver Revolver',
     urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'],
     scale: 0.13
   },
   polyShotgun02Attack: {
-    label: 'Quaternius Long Shotgun',
+    label: 'Long Shotgun',
     urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'],
     scale: 0.215
   },
   polyShotgun03Attack: {
-    label: 'Quaternius Pump Shotgun',
+    label: 'Pump Shotgun',
     urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'],
     scale: 0.21
   },
   polySmg01Attack: {
-    label: 'Quaternius Submachine Gun',
+    label: 'Submachine Gun',
     urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
     scale: 0.17
   },
   polyRobotLargeGunAttack: {
-    label: 'Quaternius Robot Large Gun',
+    label: 'Robot Large Gun',
     urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'],
     scale: 0.17
   },
   polyRobotFlyingGunAttack: {
-    label: 'Quaternius Robot Flying Gun',
+    label: 'Robot Flying Gun',
     urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'],
     scale: 0.16
   },
   polyBazooka01Attack: {
-    label: 'CreativeTrio Bazooka',
+    label: 'Bazooka',
     urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'],
     scale: 0.22
   },
   polyGrenadeLauncher01Attack: {
-    label: 'CreativeTrio Grenade Launcher',
+    label: 'Grenade Launcher',
     urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
     scale: 0.2
   },
   polyDynamiteBomb01Attack: {
-    label: 'CreativeTrio Dynamite Bomb',
+    label: 'Dynamite Bomb',
     urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'],
     scale: 0.12
   },
   polyMolotov01Attack: {
-    label: 'CreativeTrio Molotov',
+    label: 'Molotov',
     urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'],
     scale: 0.095
   },
   polyGasTank01Attack: {
-    label: 'Quaternius Gas Tank',
+    label: 'Gas Tank',
     urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'],
     scale: 0.12
   },
   polyHandGrenade01Attack: {
-    label: 'CreativeTrio Hand Grenade',
+    label: 'Hand Grenade',
     urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'],
     scale: 0.075
   },
   polyTank01Attack: {
-    label: 'Quaternius Battle Tank',
+    label: 'Battle Tank',
     urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
     scale: 0.125
   }
@@ -934,36 +955,114 @@ const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
 const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
 const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
-const QUICK_SWAP_WEAPON_SHAPE_BY_ID = Object.freeze({
-  missileJavelin: '🚀',
-  droneAttack: '🛸',
-  fighterJetAttack: '✈️',
-  helicopterAttack: '🚁',
-  fpsGunAttack: '🪖',
-  glockSidearmAttack: '🔫',
-  assaultRifleAttack: '🦾',
-  uziSprayAttack: '🔫',
-  ak47VolleyAttack: '🦾',
-  krsvBurstAttack: '🦾',
-  smithSidearmAttack: '🔫',
-  mosinMarksmanAttack: '🎯',
-  sigsauerTacticalAttack: '🔫',
-  grenadeBlastAttack: '💣',
-  shotgunBlastAttack: '🧨',
-  sniperShotAttack: '🎯',
-  smgBurstAttack: '🔫',
-  compactCarbineAttack: '🦾',
-  marksmanDmrAttack: '🎯',
-  polyShotgun01Attack: '🧨',
-  polyAssaultRifle01Attack: '🦾',
-  polyPistol01Attack: '🔫',
-  polyRevolver01Attack: '🔫',
-  polySawedOff01Attack: '🧨',
-  polyRevolver02Attack: '🔫',
-  polyShotgun02Attack: '🧨',
-  polyShotgun03Attack: '🧨',
-  polySmg01Attack: '🔫'
+const QUICK_SWAP_WEAPON_ICON_KIND_BY_ID = Object.freeze({
+  missileJavelin: 'missile',
+  droneAttack: 'drone',
+  fighterJetAttack: 'jet',
+  helicopterAttack: 'helicopter',
+  fpsGunAttack: 'rifle',
+  glockSidearmAttack: 'pistol',
+  assaultRifleAttack: 'rifle',
+  uziSprayAttack: 'smg',
+  ak47VolleyAttack: 'rifle',
+  krsvBurstAttack: 'rifle',
+  smithSidearmAttack: 'revolver',
+  mosinMarksmanAttack: 'sniper',
+  sigsauerTacticalAttack: 'pistol',
+  grenadeBlastAttack: 'grenade',
+  shotgunBlastAttack: 'shotgun',
+  sniperShotAttack: 'sniper',
+  smgBurstAttack: 'smg',
+  compactCarbineAttack: 'rifle',
+  marksmanDmrAttack: 'sniper',
+  polyShotgun01Attack: 'shotgun',
+  polyAssaultRifle01Attack: 'rifle',
+  polyPistol01Attack: 'pistol',
+  polyRevolver01Attack: 'revolver',
+  polySawedOff01Attack: 'sawedOff',
+  polyRevolver02Attack: 'revolver',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySmg01Attack: 'smg',
+  polyRobotLargeGunAttack: 'robotGun',
+  polyRobotFlyingGunAttack: 'droneGun',
+  polyBazooka01Attack: 'launcher',
+  polyGrenadeLauncher01Attack: 'launcher',
+  polyDynamiteBomb01Attack: 'dynamite',
+  polyMolotov01Attack: 'molotov',
+  polyGasTank01Attack: 'gasTank',
+  polyHandGrenade01Attack: 'grenade',
+  polyTank01Attack: 'tank'
 });
+
+
+function getQuickSwapWeaponLabel(option = {}) {
+  const configLabel = CAPTURE_WEAPON_MODEL_CONFIG[option.id]?.label || option.label || 'Weapon';
+  return configLabel
+    .replace(/^(Quaternius|CreativeTrio)\s+/i, '')
+    .replace(/\s+Attack$/i, '')
+    .replace(/\s+Blast$/i, '')
+    .trim();
+}
+
+function WeaponSwapSilhouetteIcon({ kind = 'rifle', selected = false }) {
+  const stroke = selected ? '#e0f2fe' : '#dbeafe';
+  const fill = selected ? 'rgba(14,165,233,0.24)' : 'rgba(148,163,184,0.18)';
+  const common = {
+    vectorEffect: 'non-scaling-stroke',
+    stroke,
+    strokeWidth: 1.8,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round'
+  };
+  const shape = (() => {
+    switch (kind) {
+      case 'pistol':
+        return <><path {...common} d="M5 10.5h8.3l2.1 1.4h3.1v2.2h-6.3l-1.3 4.1H8.3l.8-4.1H5z" fill={fill} /><path {...common} d="M15.5 11.9l1.6-2.2h3" /></>;
+      case 'revolver':
+        return <><path {...common} d="M4.7 10.4h7.9l2 1.5h4.6v2.1h-6.7l-1.2 4.4H8.7l.8-4.3H4.7z" fill={fill} /><circle {...common} cx="11.2" cy="12.2" r="1.8" fill="rgba(15,23,42,0.48)" /></>;
+      case 'smg':
+        return <><path {...common} d="M3.9 10.4h10.9l1.7 1.6h3.6v2.1h-8.6l-1.1 4.1H7.8l.6-4.1H3.9z" fill={fill} /><path {...common} d="M8.1 14.3v3.2M14.2 14.1l.9 2.8" /></>;
+      case 'shotgun':
+        return <><path {...common} d="M2.7 10.5h14.2l3.9 1.8-3.9 1.8H6.6l-2.7 2.8H2.7l1.8-4.5z" fill={fill} /><path {...common} d="M7.4 10.5l-2.6-2H2.9M12 14.2l1.5 2.4" /></>;
+      case 'sawedOff':
+        return <><path {...common} d="M4 10.6h10.8l3.4 1.7-3.4 1.7H7.1l-2.4 2.6H3.4l1.6-4.2z" fill={fill} /><path {...common} d="M8.7 14.1l1.3 2.1" /></>;
+      case 'sniper':
+        return <><path {...common} d="M2.5 10.8h15.6l3.4 1.3-3.4 1.3H6.2l-2.5 3.1H2.5l1.7-4.1z" fill={fill} /><path {...common} d="M8 9.1h6.8M10.6 8.2v1.8M15.8 13.7l1.4 2.9" /></>;
+      case 'launcher':
+        return <><path {...common} d="M3 9.4h13.5l4.4 2.6-4.4 2.6H3z" fill={fill} /><path {...common} d="M8.1 14.7l-1.4 3.1M13.2 14.7l1.1 2.5" /></>;
+      case 'grenade':
+        return <><path {...common} d="M9 7.7h5.8l1.1 2.8-.8 6.1-2.9 2.6-3.3-1.4-1.7-4.2z" fill={fill} /><path {...common} d="M11 7.4l.4-2.1h4.3M14.8 6.1l2.3 1.8M9 11.2h6.4M8.5 14h6.8" /></>;
+      case 'dynamite':
+        return <><path {...common} d="M6.4 8.5h8.5v9H6.4z" fill={fill} /><path {...common} d="M9.2 8.5v9M12 8.5v9M14.9 9.5c2-1.9 3.4-1.8 4.2.2" /></>;
+      case 'molotov':
+        return <><path {...common} d="M10 7.2h3.8l.6 3.5 1.6 2.9-1 4.5-3.2 1.3-3.2-1.3-1-4.5 1.7-2.9z" fill={fill} /><path {...common} d="M10.2 7.2l-.7-2h4.6l-.6 2M15.3 5.4c2.1 1.1 2.5 2.7 1.2 4.5" /></>;
+      case 'gasTank':
+        return <><path {...common} d="M8 6.5h7.5l1.4 2.3v8.8l-1.4 1.8H8l-1.4-1.8V8.8z" fill={fill} /><path {...common} d="M9.8 6.4V4.8h3.8v1.6M8.8 10.2h5.9" /></>;
+      case 'tank':
+        return <><path {...common} d="M4.4 13.2h11.9l3.7 1.3v2.2H5.2l-2.1-1.8z" fill={fill} /><path {...common} d="M8 13.1l2.3-2.7h4.6l1.7 2.7M15.2 11.2h6.4M6.3 17.1h10.8" /></>;
+      case 'jet':
+        return <><path {...common} d="M3 12.3l17.8-6.1-5.3 6.1 5.3 6.1z" fill={fill} /><path {...common} d="M8.7 10.3l-3.6-3M8.7 14.3l-3.6 3" /></>;
+      case 'helicopter':
+        return <><path {...common} d="M7 11h7.8l2.5 2.1-2.5 2H7l-2-2z" fill={fill} /><path {...common} d="M11 10.9V7.2M5.4 7.2h11.2M15.4 12.2h4.4l1.6-1.3M9.4 15.4v2.2h5.2" /></>;
+      case 'drone':
+      case 'droneGun':
+        return <><path {...common} d="M8.3 10.3h7.4l1.4 3.5-2.4 2.1H9.3l-2.4-2.1z" fill={fill} /><path {...common} d="M6.4 10.4L3.7 8.3M17.6 10.4l2.7-2.1M6.4 15.2l-2.7 2M17.6 15.2l2.7 2" /></>;
+      case 'missile':
+        return <><path {...common} d="M4 13.2l10.8-6.8 5.2 5.2-6.8 10.8-2.1-6.2z" fill={fill} /><path {...common} d="M5.2 12.5L2.7 10M11.8 19.1l2.5 2.5" /></>;
+      case 'robotGun':
+        return <><path {...common} d="M3.4 10h12.2l1.9 1.7h3v2.4H8.8l-1.4 3.5H4.8l.8-3.5H3.4z" fill={fill} /><path {...common} d="M9.4 9.7V7.5h4.7v2.2M15 14.4l1.5 2.6" /></>;
+      case 'rifle':
+      default:
+        return <><path {...common} d="M2.8 10.5h13.7l4.4 1.8-4.4 1.8H7.1l-2.6 3.1H3.2l1.8-4.8z" fill={fill} /><path {...common} d="M7.5 10.5L5.2 8.2H3.5M12.5 14.2l1.3 2.8" /></>;
+    }
+  })();
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+      {shape}
+    </svg>
+  );
+}
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
@@ -1190,20 +1289,12 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           node.visible = false;
           return;
         }
-        node.castShadow = true;
-        node.receiveShadow = true;
-        node.frustumCulled = false;
-        node.visible = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
-          if (material?.map) applySRGBColorSpace(material.map);
           if (!material?.map && textureOverride) material.map = textureOverride;
-          if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-          material.transparent = false;
-          material.opacity = 1;
-          material.needsUpdate = true;
         });
       });
+      enhanceCaptureWeaponMaterials(root, normalizedCaptureAnimationId);
       applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
       if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
@@ -1226,6 +1317,107 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   if (!fallbackId) return null;
   CAPTURE_WEAPON_MODEL_REDIRECT.set(captureAnimationId, fallbackId);
   return loadCaptureWeaponModel(fallbackId);
+}
+
+
+const CAPTURE_WEAPON_FALLBACK_TEXTURE_CACHE = new Map();
+
+function resolveFallbackWeaponTexturePalette(captureAnimationId = '', material = null) {
+  const id = `${captureAnimationId}`.toLowerCase();
+  const base = material?.color?.isColor ? `#${material.color.getHexString()}` : '#6b7280';
+  if (id.includes('tank') || id.includes('gas')) return ['#334155', '#64748b', '#111827'];
+  if (id.includes('molotov') || id.includes('dynamite')) return ['#78350f', '#f97316', '#1f2937'];
+  if (id.includes('grenade') || id.includes('bazooka') || id.includes('launcher')) return ['#3f3f46', '#94a3b8', '#18181b'];
+  if (id.includes('revolver') || id.includes('pistol')) return ['#1f2937', '#cbd5e1', '#020617'];
+  if (id.includes('shotgun') || id.includes('smg') || id.includes('assault')) return ['#172033', '#94a3b8', '#020617'];
+  return [base, '#cbd5e1', '#111827'];
+}
+
+function getCaptureWeaponFallbackTexture(captureAnimationId = '', material = null) {
+  if (typeof document === 'undefined') return null;
+  const palette = resolveFallbackWeaponTexturePalette(captureAnimationId, material);
+  const cacheKey = `${captureAnimationId}:${palette.join(':')}`;
+  if (CAPTURE_WEAPON_FALLBACK_TEXTURE_CACHE.has(cacheKey)) return CAPTURE_WEAPON_FALLBACK_TEXTURE_CACHE.get(cacheKey);
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const gradient = ctx.createLinearGradient(0, 0, 128, 128);
+  gradient.addColorStop(0, palette[1]);
+  gradient.addColorStop(0.32, palette[0]);
+  gradient.addColorStop(1, palette[2]);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#ffffff';
+  for (let x = -128; x < 180; x += 24) {
+    ctx.fillRect(x, 0, 6, 128);
+  }
+  ctx.globalAlpha = 0.32;
+  ctx.strokeStyle = '#020617';
+  ctx.lineWidth = 4;
+  for (let y = 18; y < 128; y += 28) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(128, y + 18);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1.75, 1.75);
+  texture.anisotropy = activeModelTextureAnisotropy;
+  texture.needsUpdate = true;
+  CAPTURE_WEAPON_FALLBACK_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function enhanceCaptureWeaponMaterials(root, captureAnimationId = '') {
+  if (!root?.isObject3D) return;
+  const shouldAddFallbackTexture = POLY_PIZZA_CAPTURE_WEAPON_IDS.has(captureAnimationId);
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    node.castShadow = true;
+    node.receiveShadow = true;
+    node.frustumCulled = false;
+    node.visible = true;
+    const sourceMaterials = Array.isArray(node.material) ? node.material : [node.material];
+    const enhancedMaterials = sourceMaterials.map((material) => {
+      if (!material) return material;
+      let target = material;
+      const needsStandardMaterial = !material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial;
+      if (needsStandardMaterial) {
+        target = new THREE.MeshStandardMaterial({
+          color: material.color?.isColor ? material.color.clone() : new THREE.Color(0xffffff),
+          map: material.map || null,
+          normalMap: material.normalMap || null,
+          roughnessMap: material.roughnessMap || null,
+          metalnessMap: material.metalnessMap || null,
+          emissiveMap: material.emissiveMap || null,
+          vertexColors: !!material.vertexColors,
+          roughness: typeof material.roughness === 'number' ? material.roughness : 0.54,
+          metalness: typeof material.metalness === 'number' ? material.metalness : 0.18
+        });
+      }
+      if (shouldAddFallbackTexture && !target.map && !target.vertexColors) {
+        target.map = getCaptureWeaponFallbackTexture(captureAnimationId, target);
+        target.roughness = Math.min(target.roughness ?? 0.58, 0.5);
+        target.metalness = Math.max(target.metalness ?? 0.16, 0.22);
+      }
+      if (target.map) applySRGBColorSpace(target.map);
+      if (target.emissiveMap) applySRGBColorSpace(target.emissiveMap);
+      target.transparent = false;
+      target.opacity = 1;
+      target.side = THREE.DoubleSide;
+      normalizeMaterialTextures(target, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
+      target.needsUpdate = true;
+      return target;
+    });
+    node.material = Array.isArray(node.material) ? enhancedMaterials : enhancedMaterials[0];
+  });
 }
 
 function startCaptureWeaponAnimation({
@@ -12996,7 +13188,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
-                const shape = QUICK_SWAP_WEAPON_SHAPE_BY_ID[option.id] || '▭';
+                const iconKind = QUICK_SWAP_WEAPON_ICON_KIND_BY_ID[option.id] || 'rifle';
+                const menuLabel = getQuickSwapWeaponLabel(option);
                 return (
                   <button
                     key={option.id}
@@ -13008,10 +13201,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
-                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded border border-white/20 bg-slate-900/70 text-[13px] leading-none text-slate-100">
-                      {shape}
+                    <div className="mx-auto mb-1 flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-slate-100 shadow-inner">
+                      <WeaponSwapSilhouetteIcon kind={iconKind} selected={selected} />
                     </div>
-                    <div className="px-0.5 pb-0.5 leading-tight">{option.label}</div>
+                    <div className="px-0.5 pb-0.5 leading-tight">{menuLabel}</div>
                   </button>
                 );
               })}
