@@ -169,38 +169,6 @@ const MURLAN_CHARACTER_CLOTH_MATERIALS = Object.freeze({
     normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
     roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
     tint: 0xc44f42
-  },
-  jersey: {
-    source: 'Poly Haven cotton_jersey 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/cotton_jersey/cotton_jersey_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_rough_1k.jpg',
-    tint: 0xe6edf7
-  },
-  herringbone: {
-    source: 'Poly Haven poly_wool_herringbone 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/poly_wool_herringbone/poly_wool_herringbone_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_rough_1k.jpg',
-    tint: 0x3f4656
-  },
-  leather: {
-    source: 'Poly Haven brown_leather 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/brown_leather/brown_leather_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_rough_1k.jpg',
-    tint: 0x6b4328
-  },
-  whiteLeather: {
-    source: 'Poly Haven leather_white 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/leather_white/leather_white_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_rough_1k.jpg',
-    tint: 0xdfe5ea
   }
 });
 const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
@@ -237,14 +205,7 @@ const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
   mixedDenim: {
     upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
     lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
-    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 },
-    shoes: { material: 'whiteLeather', tint: 0xe8edf2, repeat: 2.0 }
-  },
-  tailoredRoyal: {
-    upper: { material: 'jersey', tint: 0xf1f5f9, repeat: 3.8 },
-    lower: { material: 'herringbone', tint: 0x2f3748, repeat: 4.2 },
-    accent: { material: 'leather', tint: 0x7b4d2f, repeat: 2.6 },
-    shoes: { material: 'whiteLeather', tint: 0xdfe5ea, repeat: 2.0 }
+    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
   }
 });
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
@@ -1026,63 +987,6 @@ function loadMurlanCharacterTexture(url, { isColor = false, repeat = 3.5, maxAni
   return texture;
 }
 
-function createMurlanSkinDetailTexture(theme, maxAnisotropy = 8) {
-  const skinHex = Number(theme?.skinTone ?? 0xd2a07c).toString(16).padStart(6, '0');
-  const cacheKey = `skin:${skinHex}:${maxAnisotropy}`;
-  if (MURLAN_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return MURLAN_CHARACTER_TEXTURE_CACHE.get(cacheKey);
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  const base = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
-  const light = base.clone().lerp(new THREE.Color(0xffead8), 0.45).getStyle();
-  const mid = base.getStyle();
-  const deep = base.clone().lerp(new THREE.Color(0x4b2418), 0.42).getStyle();
-  const blush = base.clone().lerp(new THREE.Color(0xc96d6d), 0.34).getStyle();
-  const gradient = ctx.createRadialGradient(size * 0.4, size * 0.28, size * 0.08, size * 0.52, size * 0.56, size * 0.78);
-  gradient.addColorStop(0, light);
-  gradient.addColorStop(0.58, mid);
-  gradient.addColorStop(1, deep);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 920; i += 1) {
-    const x = (i * 137) % size;
-    const y = (i * 197) % size;
-    const r = 0.38 + ((i * 17) % 6) * 0.18;
-    ctx.globalAlpha = 0.022 + (i % 7) * 0.006;
-    ctx.fillStyle = i % 6 === 0 ? 'rgba(77,34,21,0.64)' : 'rgba(255,239,216,0.72)';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = blush;
-  ctx.beginPath();
-  ctx.ellipse(size * 0.34, size * 0.38, size * 0.1, size * 0.045, -0.18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.66, size * 0.38, size * 0.1, size * 0.045, 0.18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1);
-  texture.flipY = false;
-  texture.anisotropy = maxAnisotropy;
-  texture.userData = { ...(texture.userData || {}), murlanSkinDetailTexture: true };
-  texture.needsUpdate = true;
-  MURLAN_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
-  return texture;
-}
-
 function isNearlyWhiteCharacterMaterial(mat) {
   if (!mat?.color) return false;
   return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
@@ -1134,121 +1038,16 @@ function applyMurlanCharacterClothMaterial(mat, cloth, maxAnisotropy = 8) {
   mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
 }
 
-function addMurlanMakeupAndTailoringDetails(instance, theme, seatIndex = 0) {
-  if (!instance?.isObject3D) return;
-  instance.updateMatrixWorld(true);
-  const headBounds = new THREE.Box3();
-  const torsoBounds = new THREE.Box3();
-  let hasHead = false;
-  let hasTorso = false;
-
-  instance.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const surface = mats.map((mat) => classifyMurlanHumanSurface(obj, mat)).find(Boolean);
-    if (surface === 'skin' || surface === 'hair' || surface === 'eye') {
-      headBounds.expandByObject(obj);
-      hasHead = true;
-    }
-    if (surface === 'upperCloth' || surface === 'accentCloth') {
-      torsoBounds.expandByObject(obj);
-      hasTorso = true;
-    }
-  });
-
-  const detailGroup = new THREE.Group();
-  detailGroup.name = `MurlanRoyalMakeupTailoring_${seatIndex}`;
-  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
-  const buttonColor = new THREE.Color(seatIndex % 2 ? 0xead7b7 : 0x1f2937);
-  const browMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.82, metalness: 0.02, side: THREE.DoubleSide });
-  const lashMat = new THREE.MeshStandardMaterial({ color: hairColor.clone().lerp(new THREE.Color(0x000000), 0.36), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
-  const buttonMat = new THREE.MeshStandardMaterial({ color: buttonColor, roughness: 0.34, metalness: 0.18, envMapIntensity: 0.6 });
-  const highlightMat = new THREE.MeshStandardMaterial({ color: eyeColor.clone().lerp(new THREE.Color(0xffffff), 0.3), roughness: 0.16, metalness: 0, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
-
-  if (hasHead && !headBounds.isEmpty()) {
-    const size = headBounds.getSize(new THREE.Vector3());
-    const center = headBounds.getCenter(new THREE.Vector3());
-    const frontZ = headBounds.max.z + Math.max(size.z * 0.018, 0.006);
-    const browY = center.y + size.y * 0.14;
-    const eyeY = center.y + size.y * 0.07;
-    const browGeo = new THREE.PlaneGeometry(size.x * 0.16, size.y * 0.025);
-    const lashGeo = new THREE.PlaneGeometry(size.x * 0.12, size.y * 0.012);
-    const catchGeo = new THREE.CircleGeometry(Math.max(size.x * 0.022, 0.006), 12);
-    [-1, 1].forEach((side) => {
-      const brow = new THREE.Mesh(browGeo, browMat);
-      brow.position.set(center.x + side * size.x * 0.17, browY, frontZ);
-      brow.rotation.set(0, 0, side * -0.12);
-      detailGroup.add(brow);
-
-      const lash = new THREE.Mesh(lashGeo, lashMat);
-      lash.position.set(center.x + side * size.x * 0.17, eyeY, frontZ + 0.002);
-      lash.rotation.set(0, 0, side * -0.18);
-      detailGroup.add(lash);
-
-      const catchlight = new THREE.Mesh(catchGeo, highlightMat);
-      catchlight.position.set(center.x + side * size.x * 0.16, eyeY + size.y * 0.006, frontZ + 0.003);
-      detailGroup.add(catchlight);
-    });
-
-    if (seatIndex % 3 === 1) {
-      const mustacheGeo = new THREE.CapsuleGeometry(Math.max(size.x * 0.055, 0.01), Math.max(size.x * 0.12, 0.025), 4, 12);
-      const mustacheLeft = new THREE.Mesh(mustacheGeo, browMat);
-      const mustacheRight = new THREE.Mesh(mustacheGeo, browMat);
-      const mouthY = center.y - size.y * 0.13;
-      mustacheLeft.position.set(center.x - size.x * 0.055, mouthY, frontZ + 0.002);
-      mustacheRight.position.set(center.x + size.x * 0.055, mouthY, frontZ + 0.002);
-      mustacheLeft.rotation.set(0, 0, Math.PI / 2 - 0.22);
-      mustacheRight.rotation.set(0, 0, Math.PI / 2 + 0.22);
-      detailGroup.add(mustacheLeft, mustacheRight);
-    }
-  }
-
-  if (hasTorso && !torsoBounds.isEmpty()) {
-    const size = torsoBounds.getSize(new THREE.Vector3());
-    const center = torsoBounds.getCenter(new THREE.Vector3());
-    const frontZ = torsoBounds.max.z + Math.max(size.z * 0.018, 0.006);
-    const buttonGeo = new THREE.CylinderGeometry(Math.max(size.x * 0.018, 0.008), Math.max(size.x * 0.018, 0.008), Math.max(size.z * 0.012, 0.004), 18);
-    for (let i = 0; i < 4; i += 1) {
-      const button = new THREE.Mesh(buttonGeo, buttonMat);
-      button.position.set(center.x, torsoBounds.max.y - size.y * (0.22 + i * 0.14), frontZ);
-      button.rotation.x = Math.PI / 2;
-      detailGroup.add(button);
-    }
-  }
-
-  if (!detailGroup.children.length) {
-    [browMat, lashMat, buttonMat, highlightMat].forEach((material) => material.dispose());
-    return;
-  }
-  detailGroup.traverse((obj) => {
-    if (obj?.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  detailGroup.userData.dispose = () => {
-    detailGroup.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.geometry?.dispose?.();
-    });
-    [browMat, lashMat, buttonMat, highlightMat].forEach((material) => material.dispose());
-  };
-  instance.add(detailGroup);
-}
-
 function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, renderer = null) {
   const maxAnisotropy = getMurlanCharacterAnisotropyCap(renderer);
   const clothSlots = {
     upperCloth: resolveMurlanCharacterClothSlot(theme, 'upper', seatIndex),
     lowerCloth: resolveMurlanCharacterClothSlot(theme, 'lower', seatIndex),
-    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex),
-    shoe: resolveMurlanCharacterClothSlot(theme, 'shoes', seatIndex)
+    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex)
   };
   const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
   const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
   const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
-  const skinDetailTexture = createMurlanSkinDetailTexture(theme, maxAnisotropy);
 
   instance.traverse((obj) => {
     if (!obj?.isMesh) return;
@@ -1272,7 +1071,6 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
         mat.metalness = 0;
         mat.envMapIntensity = 1.1;
       } else if (surface === 'skin') {
-        mat.map = skinDetailTexture || mat.map || null;
         if (isLowSaturationLightCharacterMaterial(mat) || isNearlyWhiteCharacterMaterial(mat)) {
           mat.color = skinColor.clone();
         } else if (mat.color) {
@@ -1280,11 +1078,8 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
         }
         mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
         mat.metalness = 0;
-        mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.22, 0.22);
       } else if (surface === 'shoe') {
-        if (clothSlots.shoe) {
-          applyMurlanCharacterClothMaterial(mat, clothSlots.shoe, maxAnisotropy);
-        } else if (isLowSaturationLightCharacterMaterial(mat)) {
+        if (isLowSaturationLightCharacterMaterial(mat)) {
           mat.color = new THREE.Color(0x111827);
         }
         mat.roughness = 0.78;
@@ -2520,7 +2315,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     });
   });
   enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
-  addMurlanMakeupAndTailoringDetails(instance, characterTheme, playerIndex);
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
@@ -2540,7 +2334,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   seatRoot.userData.dispose = () => {
     const rig = seatConfig?.characterRig;
     rig?.heldCards?.userData?.dispose?.();
-    instance.traverse((obj) => obj?.userData?.dispose?.());
   };
 
   const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize);
