@@ -51,12 +51,6 @@ import {
   BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS as TABLE_THEMES
 } from '../../config/battleRoyaleSharedInventory.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
-import {
-  MURLAN_TRIM_MATERIALS,
-  resolveMurlanGarment,
-  resolveMurlanMaterial,
-  resolveMurlanStyleProfile
-} from '../../config/murlanCharacterRealism.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
@@ -127,8 +121,93 @@ const HUMAN_CARD_HAND_DEBUG_HELPERS =
 const MURLAN_CHARACTER_TEXTURE_LOADER = new THREE.TextureLoader();
 MURLAN_CHARACTER_TEXTURE_LOADER.setCrossOrigin?.('anonymous');
 const MURLAN_CHARACTER_TEXTURE_CACHE = new Map();
-// Character material styling is centralized in config/murlanCharacterRealism.js so
-// every avatar shares the same open-source PBR source catalog and royal-fantasy styling rules.
+const MURLAN_CHARACTER_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: 'Poly Haven denim_fabric 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    tint: 0x314d86
+  },
+  check: {
+    source: 'Poly Haven gingham_check 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    tint: 0x9f3651
+  },
+  hessian: {
+    source: 'Poly Haven hessian_230 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    tint: 0xa27445
+  },
+  floral: {
+    source: 'Poly Haven floral_jacquard 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    tint: 0x6d3f7f
+  },
+  fleece: {
+    source: 'Poly Haven knitted_fleece 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    tint: 0x4b5563
+  },
+  picnic: {
+    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    tint: 0xc44f42
+  }
+});
+const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: {
+    upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
+    lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 },
+    accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 }
+  },
+  casinoCheck: {
+    upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
+    lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 },
+    accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 }
+  },
+  linenStreet: {
+    upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 },
+    lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
+    accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 }
+  },
+  jacquardNight: {
+    upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 },
+    lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 },
+    accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 }
+  },
+  softFleece: {
+    upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
+    lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 },
+    accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 }
+  },
+  patternedRed: {
+    upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
+    lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
+    accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 }
+  },
+  mixedDenim: {
+    upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
+    lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
+    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
+  }
+});
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
@@ -908,144 +987,6 @@ function loadMurlanCharacterTexture(url, { isColor = false, repeat = 3.5, maxAni
   return texture;
 }
 
-function createMurlanSkinDetailTexture(theme, maxAnisotropy = 8) {
-  const skinHex = Number(theme?.skinTone ?? 0xd2a07c).toString(16).padStart(6, '0');
-  const cacheKey = `skin:${skinHex}:${maxAnisotropy}`;
-  if (MURLAN_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return MURLAN_CHARACTER_TEXTURE_CACHE.get(cacheKey);
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  const base = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
-  const light = base.clone().lerp(new THREE.Color(0xffead8), 0.45).getStyle();
-  const mid = base.getStyle();
-  const deep = base.clone().lerp(new THREE.Color(0x4b2418), 0.42).getStyle();
-  const blush = base.clone().lerp(new THREE.Color(0xc96d6d), 0.34).getStyle();
-  const gradient = ctx.createRadialGradient(size * 0.4, size * 0.28, size * 0.08, size * 0.52, size * 0.56, size * 0.78);
-  gradient.addColorStop(0, light);
-  gradient.addColorStop(0.58, mid);
-  gradient.addColorStop(1, deep);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 920; i += 1) {
-    const x = (i * 137) % size;
-    const y = (i * 197) % size;
-    const r = 0.38 + ((i * 17) % 6) * 0.18;
-    ctx.globalAlpha = 0.022 + (i % 7) * 0.006;
-    ctx.fillStyle = i % 6 === 0 ? 'rgba(77,34,21,0.64)' : 'rgba(255,239,216,0.72)';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = blush;
-  ctx.beginPath();
-  ctx.ellipse(size * 0.34, size * 0.38, size * 0.1, size * 0.045, -0.18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.66, size * 0.38, size * 0.1, size * 0.045, 0.18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1);
-  texture.flipY = false;
-  texture.anisotropy = maxAnisotropy;
-  texture.userData = { ...(texture.userData || {}), murlanSkinDetailTexture: true };
-  texture.needsUpdate = true;
-  MURLAN_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
-  return texture;
-}
-
-function createMurlanMicroDetailTexture(kind = 'woven', maxAnisotropy = 8, { repeat = 4 } = {}) {
-  const cacheKey = `micro:${kind}:${repeat}:${maxAnisotropy}`;
-  if (MURLAN_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return MURLAN_CHARACTER_TEXTURE_CACHE.get(cacheKey);
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  ctx.fillStyle = 'rgb(128,128,128)';
-  ctx.fillRect(0, 0, size, size);
-  ctx.lineCap = 'round';
-
-  if (/leather/.test(kind)) {
-    for (let i = 0; i < 160; i += 1) {
-      const x = (i * 41) % size;
-      const y = (i * 67) % size;
-      ctx.globalAlpha = 0.12 + (i % 4) * 0.035;
-      ctx.strokeStyle = i % 2 ? 'rgb(94,94,94)' : 'rgb(172,172,172)';
-      ctx.lineWidth = 0.7 + (i % 3) * 0.28;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x + 12, y - 8, x + 28, y + 10, x + 44, y + ((i % 5) - 2) * 3);
-      ctx.stroke();
-    }
-  } else if (/herringbone/.test(kind)) {
-    ctx.globalAlpha = 0.28;
-    ctx.strokeStyle = 'rgb(176,176,176)';
-    ctx.lineWidth = 1;
-    for (let x = -size; x < size * 2; x += 14) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + size * 0.55, size);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + 7, size);
-      ctx.lineTo(x + size * 0.55 + 7, 0);
-      ctx.stroke();
-    }
-  } else if (/embroidered|woven-check|printed/.test(kind)) {
-    for (let y = 0; y < size; y += 12) {
-      ctx.globalAlpha = y % 24 === 0 ? 0.28 : 0.16;
-      ctx.strokeStyle = y % 24 === 0 ? 'rgb(180,180,180)' : 'rgb(92,92,92)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(size, y);
-      ctx.stroke();
-    }
-    for (let x = 0; x < size; x += 12) {
-      ctx.globalAlpha = x % 24 === 0 ? 0.24 : 0.14;
-      ctx.strokeStyle = x % 24 === 0 ? 'rgb(178,178,178)' : 'rgb(88,88,88)';
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, size);
-      ctx.stroke();
-    }
-  } else {
-    for (let i = 0; i < 220; i += 1) {
-      const x = (i * 29) % size;
-      const y = (i * 53) % size;
-      ctx.globalAlpha = 0.06 + (i % 5) * 0.025;
-      ctx.fillStyle = i % 2 ? 'rgb(92,92,92)' : 'rgb(176,176,176)';
-      ctx.fillRect(x, y, 10 + (i % 7), 1 + (i % 2));
-    }
-  }
-
-  ctx.globalAlpha = 1;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  texture.flipY = false;
-  texture.anisotropy = maxAnisotropy;
-  texture.userData = { ...(texture.userData || {}), murlanMicroDetailTexture: kind };
-  texture.needsUpdate = true;
-  MURLAN_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
-  return texture;
-}
-
 function isNearlyWhiteCharacterMaterial(mat) {
   if (!mat?.color) return false;
   return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
@@ -1074,195 +1015,39 @@ function classifyMurlanHumanSurface(obj, mat) {
 }
 
 function resolveMurlanCharacterClothSlot(theme, slot, seatIndex) {
-  const profile = resolveMurlanStyleProfile(theme, seatIndex);
-  const garment = resolveMurlanGarment(profile, slot);
-  const material = resolveMurlanMaterial(garment.material);
-  const repeatBoost = seatIndex === 0 ? 0.35 : 0;
+  const combo = MURLAN_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || MURLAN_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
+  const material = MURLAN_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || MURLAN_CHARACTER_CLOTH_MATERIALS.denim;
+  const repeatBoost = seatIndex === 0 ? 0.75 : 0;
   return {
     ...material,
-    ...garment,
-    profileId: profile.id,
-    tint: garment.tint ?? material.tint ?? 0xffffff,
-    repeat: (garment.repeat ?? material.repeat ?? 3.5) + repeatBoost,
-    trim: garment.trim,
-    stitch: garment.stitch
+    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
+    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
   };
 }
 
 function applyMurlanCharacterClothMaterial(mat, cloth, maxAnisotropy = 8) {
   mat.map = loadMurlanCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat, maxAnisotropy });
   mat.normalMap = loadMurlanCharacterTexture(cloth.normal, { repeat: cloth.repeat, maxAnisotropy });
-  mat.roughnessMap = loadMurlanCharacterTexture(cloth.roughnessMap, { repeat: cloth.repeat, maxAnisotropy });
-  mat.aoMap = cloth.aoMap ? loadMurlanCharacterTexture(cloth.aoMap, { repeat: cloth.repeat, maxAnisotropy }) : mat.aoMap || null;
-  mat.metalnessMap = cloth.metalnessMap ? loadMurlanCharacterTexture(cloth.metalnessMap, { repeat: cloth.repeat, maxAnisotropy }) : mat.metalnessMap || null;
-  mat.bumpMap = createMurlanMicroDetailTexture(cloth.microDetail || 'woven', maxAnisotropy, { repeat: cloth.repeat });
-  mat.bumpScale = cloth.microDetail === 'creased-leather' || cloth.microDetail === 'smooth-leather' ? 0.018 : 0.012;
+  mat.roughnessMap = loadMurlanCharacterTexture(cloth.roughness, { repeat: cloth.repeat, maxAnisotropy });
   mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-  mat.normalScale = new THREE.Vector2(cloth.normalScale ?? 0.28, cloth.normalScale ?? 0.28);
-  mat.roughness = cloth.roughness ?? 0.82;
-  mat.metalness = cloth.metalness ?? 0.015;
-  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, cloth.envMapIntensity ?? 0.35);
-  if ('sheen' in mat) mat.sheen = cloth.sheen ?? mat.sheen ?? 0.08;
-  if ('clearcoat' in mat) mat.clearcoat = cloth.clearcoat ?? mat.clearcoat ?? 0;
-  mat.userData = {
-    ...(mat.userData || {}),
-    murlanRealismMaterial: cloth.label || cloth.id,
-    murlanMaterialSource: cloth.source,
-    murlanMaterialLicense: cloth.license,
-    murlanMaterialUrl: cloth.sourceUrl,
-    polyhavenGltf: cloth.gltf
-  };
-}
-
-function addMurlanMakeupAndTailoringDetails(instance, theme, seatIndex = 0) {
-  if (!instance?.isObject3D) return;
-  const styleProfile = resolveMurlanStyleProfile(theme, seatIndex);
-  instance.updateMatrixWorld(true);
-  const headBounds = new THREE.Box3();
-  const torsoBounds = new THREE.Box3();
-  let hasHead = false;
-  let hasTorso = false;
-
-  instance.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const surface = mats.map((mat) => classifyMurlanHumanSurface(obj, mat)).find(Boolean);
-    if (surface === 'skin' || surface === 'hair' || surface === 'eye') {
-      headBounds.expandByObject(obj);
-      hasHead = true;
-    }
-    if (surface === 'upperCloth' || surface === 'accentCloth') {
-      torsoBounds.expandByObject(obj);
-      hasTorso = true;
-    }
-  });
-
-  const detailGroup = new THREE.Group();
-  detailGroup.name = `MurlanRoyalMakeupTailoring_${seatIndex}`;
-  const hairColor = new THREE.Color(styleProfile?.hairColor ?? theme?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(styleProfile?.eyeColor ?? theme?.eyeColor ?? 0x3f5f75);
-  const trimSpec = MURLAN_TRIM_MATERIALS[styleProfile?.jewelry] || MURLAN_TRIM_MATERIALS.antiqueGold;
-  const upperGarment = resolveMurlanGarment(styleProfile, 'upper');
-  const accentGarment = resolveMurlanGarment(styleProfile, 'accent');
-  const stitchColor = new THREE.Color(upperGarment?.stitch ?? 0xd8c08a);
-  const buttonColor = new THREE.Color(trimSpec.color);
-  const browMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.82, metalness: 0.02, side: THREE.DoubleSide });
-  const lashMat = new THREE.MeshStandardMaterial({ color: hairColor.clone().lerp(new THREE.Color(0x000000), 0.36), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
-  const buttonMat = new THREE.MeshStandardMaterial({ color: buttonColor, roughness: trimSpec.roughness, metalness: trimSpec.metalness, envMapIntensity: trimSpec.envMapIntensity });
-  const stitchMat = new THREE.MeshStandardMaterial({ color: stitchColor, roughness: 0.76, metalness: 0.02, side: THREE.DoubleSide });
-  const leatherTrimMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(accentGarment?.tint ?? 0x6b4328), roughness: 0.48, metalness: 0.04, envMapIntensity: 0.62 });
-  const highlightMat = new THREE.MeshStandardMaterial({ color: eyeColor.clone().lerp(new THREE.Color(0xffffff), 0.3), roughness: 0.16, metalness: 0, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
-
-  if (hasHead && !headBounds.isEmpty()) {
-    const size = headBounds.getSize(new THREE.Vector3());
-    const center = headBounds.getCenter(new THREE.Vector3());
-    const frontZ = headBounds.max.z + Math.max(size.z * 0.018, 0.006);
-    const browY = center.y + size.y * 0.14;
-    const eyeY = center.y + size.y * 0.07;
-    const browGeo = new THREE.PlaneGeometry(size.x * 0.16, size.y * 0.025);
-    const lashGeo = new THREE.PlaneGeometry(size.x * 0.12, size.y * 0.012);
-    const catchGeo = new THREE.CircleGeometry(Math.max(size.x * 0.022, 0.006), 12);
-    [-1, 1].forEach((side) => {
-      const brow = new THREE.Mesh(browGeo, browMat);
-      brow.position.set(center.x + side * size.x * 0.17, browY, frontZ);
-      brow.rotation.set(0, 0, side * -0.12);
-      detailGroup.add(brow);
-
-      const lash = new THREE.Mesh(lashGeo, lashMat);
-      lash.position.set(center.x + side * size.x * 0.17, eyeY, frontZ + 0.002);
-      lash.rotation.set(0, 0, side * -0.18);
-      detailGroup.add(lash);
-
-      const catchlight = new THREE.Mesh(catchGeo, highlightMat);
-      catchlight.position.set(center.x + side * size.x * 0.16, eyeY + size.y * 0.006, frontZ + 0.003);
-      detailGroup.add(catchlight);
-    });
-
-    if (styleProfile?.facialHair === 'mustache' || seatIndex % 3 === 1) {
-      const mustacheGeo = new THREE.CapsuleGeometry(Math.max(size.x * 0.055, 0.01), Math.max(size.x * 0.12, 0.025), 4, 12);
-      const mustacheLeft = new THREE.Mesh(mustacheGeo, browMat);
-      const mustacheRight = new THREE.Mesh(mustacheGeo, browMat);
-      const mouthY = center.y - size.y * 0.13;
-      mustacheLeft.position.set(center.x - size.x * 0.055, mouthY, frontZ + 0.002);
-      mustacheRight.position.set(center.x + size.x * 0.055, mouthY, frontZ + 0.002);
-      mustacheLeft.rotation.set(0, 0, Math.PI / 2 - 0.22);
-      mustacheRight.rotation.set(0, 0, Math.PI / 2 + 0.22);
-      detailGroup.add(mustacheLeft, mustacheRight);
-    }
-  }
-
-  if (hasTorso && !torsoBounds.isEmpty()) {
-    const size = torsoBounds.getSize(new THREE.Vector3());
-    const center = torsoBounds.getCenter(new THREE.Vector3());
-    const frontZ = torsoBounds.max.z + Math.max(size.z * 0.018, 0.006);
-    const buttonGeo = new THREE.CylinderGeometry(Math.max(size.x * 0.018, 0.008), Math.max(size.x * 0.018, 0.008), Math.max(size.z * 0.012, 0.004), 18);
-    for (let i = 0; i < 4; i += 1) {
-      const button = new THREE.Mesh(buttonGeo, buttonMat);
-      button.position.set(center.x, torsoBounds.max.y - size.y * (0.22 + i * 0.14), frontZ);
-      button.rotation.x = Math.PI / 2;
-      detailGroup.add(button);
-    }
-
-    const seamGeo = new THREE.BoxGeometry(Math.max(size.x * 0.008, 0.004), Math.max(size.y * 0.62, 0.08), Math.max(size.z * 0.01, 0.004));
-    [-1, 1].forEach((side) => {
-      const seam = new THREE.Mesh(seamGeo, stitchMat);
-      seam.position.set(center.x + side * size.x * 0.18, center.y + size.y * 0.03, frontZ + 0.002);
-      detailGroup.add(seam);
-    });
-
-    const beltGeo = new THREE.BoxGeometry(Math.max(size.x * 0.52, 0.12), Math.max(size.y * 0.035, 0.012), Math.max(size.z * 0.035, 0.01));
-    const belt = new THREE.Mesh(beltGeo, leatherTrimMat);
-    belt.position.set(center.x, torsoBounds.min.y + size.y * 0.26, frontZ + 0.003);
-    detailGroup.add(belt);
-
-    const buckleGeo = new THREE.TorusGeometry(Math.max(size.x * 0.055, 0.014), Math.max(size.x * 0.007, 0.003), 8, 20);
-    const buckle = new THREE.Mesh(buckleGeo, buttonMat);
-    buckle.position.set(center.x, belt.position.y, frontZ + 0.012);
-    buckle.rotation.x = Math.PI / 2;
-    detailGroup.add(buckle);
-
-    const collarGeo = new THREE.TorusGeometry(Math.max(size.x * 0.18, 0.04), Math.max(size.x * 0.008, 0.003), 8, 28, Math.PI);
-    const collar = new THREE.Mesh(collarGeo, stitchMat);
-    collar.position.set(center.x, torsoBounds.max.y - size.y * 0.13, frontZ + 0.004);
-    collar.rotation.set(Math.PI / 2, 0, Math.PI);
-    detailGroup.add(collar);
-  }
-
-  if (!detailGroup.children.length) {
-    [browMat, lashMat, buttonMat, stitchMat, leatherTrimMat, highlightMat].forEach((material) => material.dispose());
-    return;
-  }
-  detailGroup.traverse((obj) => {
-    if (obj?.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  detailGroup.userData.dispose = () => {
-    detailGroup.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.geometry?.dispose?.();
-    });
-    [browMat, lashMat, buttonMat, stitchMat, leatherTrimMat, highlightMat].forEach((material) => material.dispose());
-  };
-  instance.add(detailGroup);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, 0.35);
+  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
 }
 
 function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, renderer = null) {
   const maxAnisotropy = getMurlanCharacterAnisotropyCap(renderer);
-  const styleProfile = resolveMurlanStyleProfile(theme, seatIndex);
   const clothSlots = {
     upperCloth: resolveMurlanCharacterClothSlot(theme, 'upper', seatIndex),
     lowerCloth: resolveMurlanCharacterClothSlot(theme, 'lower', seatIndex),
-    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex),
-    shoe: resolveMurlanCharacterClothSlot(theme, 'shoes', seatIndex)
+    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex)
   };
-  const skinColor = new THREE.Color(styleProfile?.skinTone ?? theme?.skinTone ?? 0xd2a07c);
-  const hairColor = new THREE.Color(styleProfile?.hairColor ?? theme?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(styleProfile?.eyeColor ?? theme?.eyeColor ?? 0x3f5f75);
-  const lipTint = new THREE.Color(styleProfile?.lipTint ?? 0x9b5852);
-  const skinDetailTexture = createMurlanSkinDetailTexture({ ...theme, skinTone: skinColor.getHex() }, maxAnisotropy);
-  const skinMicroTexture = createMurlanMicroDetailTexture(`skin-${styleProfile?.ageDetail ?? 0.2}`, maxAnisotropy, { repeat: 1 });
+  const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
 
   instance.traverse((obj) => {
     if (!obj?.isMesh) return;
@@ -1274,12 +1059,11 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
       if (clothSlots[surface]) {
         applyMurlanCharacterClothMaterial(mat, clothSlots[surface], maxAnisotropy);
       } else if (surface === 'hair') {
+        mat.map = null;
         mat.color = hairColor.clone();
-        mat.roughness = 0.62;
-        mat.metalness = 0.015;
-        mat.bumpMap = mat.bumpMap || createMurlanMicroDetailTexture('hair-strands', maxAnisotropy, { repeat: 5 });
-        mat.bumpScale = 0.01;
-        mat.envMapIntensity = 0.32;
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
       } else if (surface === 'eye') {
         mat.map = null;
         mat.color = eyeColor.clone();
@@ -1287,24 +1071,15 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
         mat.metalness = 0;
         mat.envMapIntensity = 1.1;
       } else if (surface === 'skin') {
-        if (!mat.map || isNearlyWhiteCharacterMaterial(mat) || isLowSaturationLightCharacterMaterial(mat)) {
-          mat.map = skinDetailTexture || mat.map || null;
-        }
-        mat.bumpMap = skinMicroTexture;
-        mat.bumpScale = 0.006 + (styleProfile?.ageDetail ?? 0.2) * 0.012;
         if (isLowSaturationLightCharacterMaterial(mat) || isNearlyWhiteCharacterMaterial(mat)) {
           mat.color = skinColor.clone();
         } else if (mat.color) {
-          mat.color.lerp(skinColor, 0.18);
+          mat.color.lerp(skinColor, 0.24);
         }
-        mat.roughness = Math.min(mat.roughness ?? 0.58, 0.58);
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
         mat.metalness = 0;
-        mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.24, 0.24);
-        mat.userData = { ...(mat.userData || {}), murlanSkinShader: 'subsurface-inspired layered pores/roughness' };
       } else if (surface === 'shoe') {
-        if (clothSlots.shoe) {
-          applyMurlanCharacterClothMaterial(mat, clothSlots.shoe, maxAnisotropy);
-        } else if (isLowSaturationLightCharacterMaterial(mat)) {
+        if (isLowSaturationLightCharacterMaterial(mat)) {
           mat.color = new THREE.Color(0x111827);
         }
         mat.roughness = 0.78;
@@ -1312,12 +1087,9 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
       } else if (surface === 'mouth') {
         if (isNearlyWhiteCharacterMaterial(mat)) {
           mat.color = new THREE.Color(0xf8fafc);
-        } else if (mat.color) {
-          mat.color.lerp(lipTint, 0.3);
         }
-        mat.roughness = 0.28;
+        mat.roughness = 0.32;
         mat.metalness = 0;
-        mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, 0.35);
       } else if (isNearlyWhiteCharacterMaterial(mat)) {
         mat.color = skinColor.clone();
         mat.roughness = 0.58;
@@ -2543,7 +2315,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     });
   });
   enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
-  addMurlanMakeupAndTailoringDetails(instance, characterTheme, playerIndex);
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
@@ -2563,7 +2334,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   seatRoot.userData.dispose = () => {
     const rig = seatConfig?.characterRig;
     rig?.heldCards?.userData?.dispose?.();
-    instance.traverse((obj) => obj?.userData?.dispose?.());
   };
 
   const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize);
@@ -5813,32 +5583,25 @@ export default function MurlanRoyaleArena({ search }) {
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#030712');
-      scene.fog = new THREE.FogExp2(0x050816, 0.018);
 
-      const ambient = new THREE.HemisphereLight(0xf8fbff, 0x1f1220, 0.42);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.35);
       scene.add(ambient);
 
-      const key = new THREE.DirectionalLight(0xfff4df, 1.35);
+      const key = new THREE.DirectionalLight(0xffffff, 1.2);
       key.position.set(6, 8, 5);
       key.castShadow = true;
-      key.shadow.mapSize.set(2048, 2048);
-      key.shadow.bias = -0.00018;
-      key.shadow.normalBias = 0.018;
       scene.add(key);
 
-      const fill = new THREE.DirectionalLight(0xc9e4ff, 0.58);
+      const fill = new THREE.DirectionalLight(0xffffff, 0.65);
       fill.position.set(-5, 5.5, 3);
       scene.add(fill);
 
-      const rim = new THREE.DirectionalLight(0xd8c1ff, 1.05);
+      const rim = new THREE.DirectionalLight(0xffffff, 0.9);
       rim.position.set(0, 6, -6);
       scene.add(rim);
 
-      const spot = new THREE.SpotLight(0xfff1d4, 0.95, 0, Math.PI / 4, 0.35, 1.1);
+      const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
       spot.position.set(0, 4.2, 4.6);
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(1024, 1024);
-      spot.shadow.bias = -0.00012;
       scene.add(spot);
       const spotTarget = new THREE.Object3D();
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
