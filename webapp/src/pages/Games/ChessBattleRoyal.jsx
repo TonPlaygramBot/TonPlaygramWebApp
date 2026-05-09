@@ -434,14 +434,9 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
-const CAMERA_LOCKED_3D_PHI = CAMERA_PULL_FORWARD_MIN; // match the forced 3D capture-animation framing for normal 3D play.
-const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = 0; // keep 3D and capture cameras aimed at the same board target.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 1.04; // mirror the wide animation framing while keeping the camera locked in place.
-const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
-const CAMERA_LOOK_MIN_PITCH = -CAMERA_LOOK_PITCH_LIMIT;
-const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
-const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(34); // lower portrait 3D camera angle so the board feels more eye-level while preserving depth.
+const CAMERA_LOCKED_3D_LOOK_TARGET_LIFT = BOARD.tile * BOARD_SCALE * 0.9; // aim a little higher so the lower camera looks up across the arena.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.96; // keep 3D camera almost at 2D distance so the whole board remains visible in portrait.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -486,13 +481,9 @@ const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 
 
-const CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS = TABLE_RADIUS;
-
-function resolveChairDistanceForDirection(_tableInfo, ...layoutArgs) {
+function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
   const seatDepth = Number.isFinite(layoutArgs[1]) ? layoutArgs[1] : SEAT_DEPTH;
-  // CoffeeTable_01 is the canonical Chess Battle Royal layout reference.
-  // All table skins use this same radius so chairs, humans, board, pieces, and side weapons stay fixed.
-  const tableRadius = CHESS_COFFEE_TABLE_01_LAYOUT_RADIUS;
+  const tableRadius = Number.isFinite(tableInfo?.radius) ? tableInfo.radius : TABLE_RADIUS;
   const clearance = clamp(
     CHAIR_CLEARANCE + seatDepth * 0.1 + CHAIR_HUMAN_LEG_GAP,
     CHAIR_TABLE_GAP_MIN,
@@ -7676,16 +7667,37 @@ function Chess3D({
         .filter(Boolean),
     [chessInventory]
   );
-  const quickSwapWeapons = useMemo(
+  const QUICK_SWAP_WEAPON_IDS = useMemo(
     () =>
-      [...(ownedCaptureAnimations || [])].sort((a, b) => {
-        const aFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(a.id) ? 0 : 1;
-        const bFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(b.id) ? 0 : 1;
-        if (aFirearm !== bFirearm) return aFirearm - bFirearm;
-        return (a.label || a.id).localeCompare(b.label || b.id);
-      }),
-    [ownedCaptureAnimations]
+      [
+        'polyShotgun01Attack',
+        'polyAssaultRifle01Attack',
+        'polyPistol01Attack',
+        'polyRevolver01Attack',
+        'polySawedOff01Attack',
+        'polyRevolver02Attack',
+        'polyShotgun02Attack',
+        'polyShotgun03Attack',
+        'polySmg01Attack',
+        'ak47VolleyAttack',
+        'krsvBurstAttack',
+        'smithSidearmAttack',
+        'mosinMarksmanAttack',
+        'uziSprayAttack',
+        'sigsauerTacticalAttack',
+        'sniperShotAttack',
+        'compactCarbineAttack',
+        'fpsGunAttack'
+      ],
+    []
   );
+  const quickSwapWeapons = useMemo(() => {
+    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
+    return QUICK_SWAP_WEAPON_IDS
+      .filter((id) => ownedIds.has(id))
+      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
+      .filter(Boolean);
+  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7694,29 +7706,21 @@ function Chess3D({
     drone: 'knight',
     truck: 'pawn'
   }), []);
-  const DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP = useMemo(
-    () => ({
-      kingQueen: 'fighterJetAttack',
-      bishopRook: 'helicopterAttack',
-      knight: 'droneAttack',
-      pawn: 'missileJavelin'
-    }),
-    []
-  );
-  const isUserWhiteSide = useCallback(
-    () => (onlineRef.current.enabled ? onlineRef.current.side !== 'black' : normalizedInitialSide !== 'black'),
-    [normalizedInitialSide]
-  );
   const [captureAnimationByPieceGroup, setCaptureAnimationByPieceGroup] = useState(() => ({
-    ...DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP
+    kingQueen: 'fighterJetAttack',
+    bishopRook: 'helicopterAttack',
+    knight: 'droneAttack',
+    pawn: 'missileJavelin'
   }));
   const captureAnimationByPieceGroupRef = useRef(captureAnimationByPieceGroup);
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
-      ...DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP,
-      ...prev
+      kingQueen: prev.kingQueen || 'fighterJetAttack',
+      bishopRook: prev.bishopRook || 'helicopterAttack',
+      knight: prev.knight || 'droneAttack',
+      pawn: prev.pawn || 'missileJavelin'
     }));
-  }, [DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP]);
+  }, []);
   useEffect(() => {
     captureAnimationByPieceGroupRef.current = captureAnimationByPieceGroup;
     arenaRef.current?.syncParkedWeaponSwaps?.(captureAnimationByPieceGroup);
@@ -7824,8 +7828,6 @@ function Chess3D({
   });
   const locked3dViewRef = useRef({
     activeLook: false,
-    baseYaw: 0,
-    basePitch: -0.28,
     yaw: 0,
     pitch: -0.28,
     targetYaw: 0,
@@ -9122,12 +9124,6 @@ function Chess3D({
     let stopCameraTween = () => {};
     let onResize = null;
     let onClick = null;
-    let onPointerDown = null;
-    let onPointerMove = null;
-    let onPointerUp = null;
-    let onWheel = null;
-    let captureFxGroup = null;
-    const activeCaptureFx = [];
 
     const clearAudioStopTimeout = (audioRef = null) => {
       if (!audioRef?.current) return;
@@ -9819,7 +9815,7 @@ function Chess3D({
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = false;
+        controls.enableRotate = true;
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
@@ -9852,8 +9848,6 @@ function Chess3D({
         const lookDir = lockedLookTarget.sub(targetPosition).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
-        locked3dViewRef.current.baseYaw = yaw;
-        locked3dViewRef.current.basePitch = pitch;
         locked3dViewRef.current.yaw = yaw;
         locked3dViewRef.current.pitch = pitch;
         locked3dViewRef.current.targetYaw = yaw;
@@ -9866,11 +9860,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in locked 3D with the same framing used by capture animations.
+    // Start every match in locked 2D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '3d';
-    setViewMode('3d');
-    setViewModeInternal('3d');
+    viewModeRef.current = '2d';
+    setViewMode('2d');
+    setViewModeInternal('2d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -9901,8 +9895,9 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    captureFxGroup = new THREE.Group();
+    const captureFxGroup = new THREE.Group();
     scene.add(captureFxGroup);
+    const activeCaptureFx = [];
     let board = null;
     let pieceMeshes = null;
     const parkedAirUnits = [];
@@ -10628,8 +10623,7 @@ function Chess3D({
       root.userData.muzzle = muzzle;
       root.userData.animationPhase = Math.random() * Math.PI * 2;
       root.userData.recoil = 0;
-      // Swapped parked weapons should occupy the same visual parking footprint as the jet pad.
-      root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
+      root.scale.setScalar(tile * (isLongGun ? 0.54 : 0.48));
       root.rotation.set(-Math.PI * 0.5, isWhiteSide ? -Math.PI * 0.5 : Math.PI * 0.5, 0);
       root.userData = {
         ...(root.userData || {}),
@@ -10642,14 +10636,11 @@ function Chess3D({
       return root;
     };
     const syncParkedWeaponSwaps = (mapping = captureAnimationByPieceGroupRef.current) => {
-      const userIsWhite = isUserWhiteSide();
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
         const group = PIECE_GROUP_BY_PARKED_KIND_LOCAL[unit.kind];
-        const selectedId = unit.isWhite === userIsWhite
-          ? mapping?.[group]
-          : DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP[group];
-        const showFirearm = unit.isWhite === userIsWhite && FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId);
+        const selectedId = mapping?.[group];
+        const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId);
         if (showFirearm) {
           if (!unit.firearmRoot || unit.firearmRoot.userData?.captureAnimationId !== selectedId) {
             unit.firearmRoot?.parent?.remove?.(unit.firearmRoot);
@@ -11355,54 +11346,23 @@ function Chess3D({
       return { pos, next };
     };
 
-    const FIREARM_ANIMATION_FAMILY_BY_ID = Object.freeze({
-      glockSidearmAttack: 'pistol',
-      smithSidearmAttack: 'pistol',
-      sigsauerTacticalAttack: 'pistol',
-      polyPistol01Attack: 'pistol',
-      polyRevolver01Attack: 'pistol',
-      polyRevolver02Attack: 'pistol',
-      uziSprayAttack: 'smg',
-      smgBurstAttack: 'smg',
-      polySmg01Attack: 'smg',
-      polyRobotFlyingGunAttack: 'smg',
-      fpsGunAttack: 'rifle',
-      assaultRifleAttack: 'rifle',
-      ak47VolleyAttack: 'rifle',
-      krsvBurstAttack: 'rifle',
-      compactCarbineAttack: 'rifle',
-      polyAssaultRifle01Attack: 'rifle',
-      polyRobotLargeGunAttack: 'rifle',
-      mosinMarksmanAttack: 'marksman',
-      sniperShotAttack: 'marksman',
-      marksmanDmrAttack: 'marksman',
-      shotgunBlastAttack: 'shotgun',
-      polyShotgun01Attack: 'shotgun',
-      polyShotgun02Attack: 'shotgun',
-      polyShotgun03Attack: 'shotgun',
-      polySawedOff01Attack: 'shotgun',
-      grenadeBlastAttack: 'explosive',
-      polyHandGrenade01Attack: 'explosive',
-      polyDynamiteBomb01Attack: 'explosive',
-      polyMolotov01Attack: 'explosive',
-      polyGasTank01Attack: 'explosive',
-      polyBazooka01Attack: 'explosive',
-      polyGrenadeLauncher01Attack: 'explosive',
-      polyTank01Attack: 'explosive'
-    });
-    const FIREARM_CAPTURE_PROFILE_BY_FAMILY = Object.freeze({
-      pistol: { bulletCount: 1, duration: 0.72, impactAt: 0.96, singleShot: true },
-      smg: { bulletCount: 9, duration: 1.05, impactAt: 0.9, singleShot: false },
-      rifle: { bulletCount: 7, duration: 1.15, impactAt: 0.92, singleShot: false },
-      marksman: { bulletCount: 1, duration: 0.9, impactAt: 0.98, singleShot: true },
-      shotgun: { bulletCount: 5, duration: 0.82, impactAt: 0.9, singleShot: false },
-      explosive: { bulletCount: 1, duration: 1.24, impactAt: 0.94, singleShot: true }
-    });
+    const SINGLE_SHOT_FIREARM_IDS = new Set([
+      'polyShotgun01Attack',
+      'polyShotgun02Attack',
+      'polyShotgun03Attack',
+      'sniperShotAttack',
+      'mosinMarksmanAttack',
+      'compactCarbineAttack'
+    ]);
 
     const resolveFirearmCaptureProfile = (captureAnimationId = selectedCaptureAnimationId) => {
-      const family = FIREARM_ANIMATION_FAMILY_BY_ID[captureAnimationId] || 'rifle';
-      const profile = FIREARM_CAPTURE_PROFILE_BY_FAMILY[family] || FIREARM_CAPTURE_PROFILE_BY_FAMILY.rifle;
-      return { ...profile, family };
+      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId);
+      return {
+        bulletCount: singleShot ? 1 : 7,
+        duration: singleShot ? 0.62 : 1.15,
+        impactAt: singleShot ? 1 : 0.92,
+        singleShot
+      };
     };
 
     const resolvePieceGroupFromType = (pieceType) => {
@@ -11413,13 +11373,10 @@ function Chess3D({
       return 'pawn';
     };
 
-    const resolveCaptureSelectionForPiece = (pieceType, isWhiteSide = true) => {
+    const resolveCaptureSelectionForPiece = (pieceType) => {
       const group = resolvePieceGroupFromType(pieceType);
-      const userIsWhite = isUserWhiteSide();
-      const liveMapping = isWhiteSide === userIsWhite
-        ? captureAnimationByPieceGroupRef.current || captureAnimationByPieceGroup
-        : DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP;
-      const selectedId = liveMapping[group] || DEFAULT_CAPTURE_ANIMATION_BY_PIECE_GROUP[group] || selectedCaptureAnimationId;
+      const liveMapping = captureAnimationByPieceGroupRef.current || captureAnimationByPieceGroup;
+      const selectedId = liveMapping[group] || selectedCaptureAnimationId;
       const parkedKind = PARKED_KIND_BY_PIECE_GROUP[group] || 'truck';
       const captureKind = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)
         ? 'firearm'
@@ -11444,7 +11401,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureSelection = resolveCaptureSelectionForPiece(movingType, Boolean(movingMesh?.userData?.w));
+      const captureSelection = resolveCaptureSelectionForPiece(movingType);
       const { captureKind, selectedId: selectedPieceCaptureAnimationId, parkedKind: selectedParkedKind } = captureSelection;
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
@@ -12491,8 +12448,7 @@ function Chess3D({
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
         setProceduralBoardVisible,
-        usingProceduralBoard: proceduralBoardVisible,
-        syncParkedWeaponSwaps
+        usingProceduralBoard: proceduralBoardVisible
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -13255,8 +13211,7 @@ function Chess3D({
             return {
               object: node,
               point: hit.point,
-              parkedWeaponKind: node.userData.parkedWeaponKind,
-              parkedIsWhite: node.userData.parkedIsWhite
+              parkedWeaponKind: node.userData.parkedWeaponKind
             };
           }
           node = node.parent;
@@ -13265,7 +13220,7 @@ function Chess3D({
       return null;
     };
 
-    onPointerDown = (event) => {
+    const onPointerDown = (event) => {
       if (viewModeRef.current === 'fpv') {
         firstPersonViewRef.current.activeLook = true;
         return;
@@ -13304,7 +13259,7 @@ function Chess3D({
       if (controls) controls.enabled = false;
     };
 
-    onPointerMove = (event) => {
+    const onPointerMove = (event) => {
       if (viewModeRef.current === 'fpv') {
         const fp = firstPersonViewRef.current;
         if (fp.activeLook) {
@@ -13330,16 +13285,8 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw = clamp(
-            locked.targetYaw + movementX * CAMERA_LOOK_YAW_DRAG_FACTOR,
-            locked.baseYaw - CAMERA_LOOK_YAW_LIMIT,
-            locked.baseYaw + CAMERA_LOOK_YAW_LIMIT
-          );
-          locked.targetPitch = clamp(
-            locked.targetPitch + movementY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-            locked.basePitch + CAMERA_LOOK_MIN_PITCH,
-            locked.basePitch + CAMERA_LOOK_PITCH_LIMIT
-          );
+          locked.targetYaw -= movementX * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
         }
         return;
       }
@@ -13352,7 +13299,7 @@ function Chess3D({
       dragState.mesh.position.lerp(target, 0.35);
     };
 
-    onPointerUp = (event) => {
+    const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
       locked3dViewRef.current.activeLook = false;
       locked3dViewRef.current.lastPointerX = null;
@@ -13384,7 +13331,7 @@ function Chess3D({
       sel = null;
     };
 
-    onWheel = (event) => {
+    const onWheel = (event) => {
       if (!camera || !boardLookTarget) return;
       const isMatchedSession = onlineRef.current.enabled && ['matched', 'in-game'].includes(onlineStatus);
       if (isMatchedSession || viewModeRef.current === 'fpv') return;
@@ -13427,10 +13374,8 @@ function Chess3D({
       if (isMoveInteractionLocked()) return;
       const parkedWeaponHit = pickParkedWeaponFromPointer(e);
       if (parkedWeaponHit?.parkedWeaponKind) {
-        if (parkedWeaponHit.parkedIsWhite === isUserWhiteSide()) {
-          setWeaponSwapTargetKind(parkedWeaponHit.parkedWeaponKind);
-          setWeaponSwapOpen(true);
-        }
+        setWeaponSwapTargetKind(parkedWeaponHit.parkedWeaponKind);
+        setWeaponSwapOpen(true);
         return;
       }
       if (settingsRef.current.moveMode !== 'click') return;
@@ -14337,15 +14282,13 @@ function Chess3D({
       try {
         host.removeChild(renderer.domElement);
       } catch {}
-      if (renderer?.domElement) {
-        if (onClick) {
-          renderer.domElement.removeEventListener('click', onClick);
-          renderer.domElement.removeEventListener('touchend', onClick);
-        }
-        if (onPointerDown) renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-        if (onWheel) renderer.domElement.removeEventListener('wheel', onWheel);
-        if (onPointerMove) renderer.domElement.removeEventListener('pointermove', onPointerMove);
-        if (onPointerUp) window.removeEventListener('pointerup', onPointerUp);
+      if (renderer?.domElement && onClick) {
+        renderer.domElement.removeEventListener('click', onClick);
+        renderer.domElement.removeEventListener('touchend', onClick);
+        renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+        renderer.domElement.removeEventListener('wheel', onWheel);
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
       }
       cameraViewRef.current = null;
       controlsRef.current = null;
@@ -14382,8 +14325,8 @@ function Chess3D({
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
       activeCaptureFx.splice(0, activeCaptureFx.length);
-      captureFxGroup?.clear?.();
-      if (captureFxGroup) scene.remove(captureFxGroup);
+      captureFxGroup.clear();
+      scene.remove(captureFxGroup);
       clearAllAudioStopTimeouts();
     };
   }, []);
