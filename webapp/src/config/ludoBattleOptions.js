@@ -145,116 +145,6 @@ const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
     'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Mosin.png'
 });
 
-
-
-const REQUESTED_POLY_PIZZA_WEAPON_OPTIONS = Object.freeze([
-  {
-    id: 'polyAssaultRifleBgvuuAttack',
-    label: 'Quaternius Assault Rifle CC0',
-    description: 'Requested Poly Pizza assault rifle with original GLB materials; uses the existing Quaternius CC0 texture mapping in-game.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#172554'),
-    sourceUrl: 'https://poly.pizza/m/Bgvuu4CUMV'
-  },
-  {
-    id: 'polyRiggedGlock19Attack',
-    label: 'Rigged Glock 19',
-    description: 'PuKkBuMXDD rigged Glock 19 Poly Pizza sidearm; configured for the hidden FPS-rig handgun hand orientation.',
-    thumbnail: captureWeaponGlyphThumb('▮', '#111827'),
-    sourceUrl: 'https://poly.pizza/m/gDhOo5jkNX'
-  },
-  {
-    id: 'polyRiggedDesertEagleAttack',
-    label: 'Rigged Desert Eagle',
-    description: 'PuKkBuMXDD rigged Desert Eagle Poly Pizza hand gun with one-hand grip calibration.',
-    thumbnail: captureWeaponGlyphThumb('◖', '#78350f'),
-    sourceUrl: 'https://poly.pizza/m/e9k4dwOzCX'
-  },
-  {
-    id: 'polySniperRifleI65Attack',
-    label: 'Quaternius Sniper Rifle',
-    description: 'Requested Quaternius CC0 sniper rifle from Poly Pizza with marksman ballistics.',
-    thumbnail: captureWeaponGlyphThumb('━', '#1e293b'),
-    sourceUrl: 'https://poly.pizza/m/i65hEldsw6'
-  },
-  {
-    id: 'polyCreativeRifleAttack',
-    label: 'CreativeTrio Rifle',
-    description: 'CreativeTrio CC0 rifle from Poly Pizza for a two-hand rifle capture loadout.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#334155'),
-    sourceUrl: 'https://poly.pizza/m/zBATGslN2h'
-  },
-  {
-    id: 'polyCreativeSmgAttack',
-    label: 'CreativeTrio Submachine Gun',
-    description: 'CreativeTrio CC0 submachine gun from Poly Pizza with SMG burst behavior.',
-    thumbnail: captureWeaponGlyphThumb('▯', '#0f172a'),
-    sourceUrl: 'https://poly.pizza/m/fQmBw1vNsl'
-  },
-  {
-    id: 'polyCreativeHandGrenadeAttack',
-    label: 'CreativeTrio Hand Grenade Alt',
-    description: 'Requested CreativeTrio CC0 hand grenade Poly Pizza pickup using explosive capture timing.',
-    thumbnail: captureWeaponGlyphThumb('●', '#365314'),
-    sourceUrl: 'https://poly.pizza/m/YWhHlmKOtx'
-  },
-  {
-    id: 'polyCreativeShotgunAttack',
-    label: 'CreativeTrio Shotgun',
-    description: 'CreativeTrio CC0 shotgun from Poly Pizza with shotgun spread ballistics.',
-    thumbnail: captureWeaponGlyphThumb('▤', '#14532d'),
-    sourceUrl: 'https://poly.pizza/m/CkSFaW2d7m'
-  },
-  {
-    id: 'polyCreativeDoubleBarrelAttack',
-    label: 'CreativeTrio Double Barrel',
-    description: 'CreativeTrio CC0 double-barrel shotgun from Poly Pizza with sawed-off hand fit.',
-    thumbnail: captureWeaponGlyphThumb('▭', '#92400e'),
-    sourceUrl: 'https://poly.pizza/m/k0fA37Awl8'
-  },
-  {
-    id: 'polyCreativeGasolineBombAttack',
-    label: 'CreativeTrio Gasoline Bomb',
-    description: 'CreativeTrio CC0 gasoline bomb from Poly Pizza for incendiary explosive captures.',
-    thumbnail: captureWeaponGlyphThumb('◍', '#991b1b'),
-    sourceUrl: 'https://poly.pizza/m/ew5DpDJJja'
-  },
-  {
-    id: 'polyQuaterniusRifleCcaAttack',
-    label: 'Quaternius Rifle CC0',
-    description: 'Quaternius CC0 rifle from Poly Pizza; tuned to share realistic metal/wood material treatment.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#1e3a8a'),
-    sourceUrl: 'https://poly.pizza/m/cCAgiMOQow'
-  },
-  {
-    id: 'polyPichuliruAssaultEastAttack',
-    label: 'Pichuliru Assault East',
-    description: 'Pichuliru CC0 Rifle Assault East from Poly Pizza with rifle handling.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#312e81'),
-    sourceUrl: 'https://poly.pizza/m/xrJfQgAuDL'
-  },
-  {
-    id: 'polyPichuliruSmgWestAttack',
-    label: 'Pichuliru SMG West',
-    description: 'Pichuliru CC0 SMG West from Poly Pizza with compact SMG hand placement.',
-    thumbnail: captureWeaponGlyphThumb('▯', '#075985'),
-    sourceUrl: 'https://poly.pizza/m/7Dh5JSbZcp'
-  },
-  {
-    id: 'polyPichuliruFragEastAttack',
-    label: 'Pichuliru Frag Grenade East',
-    description: 'Pichuliru CC0 frag grenade from Poly Pizza with explosive capture behavior.',
-    thumbnail: captureWeaponGlyphThumb('●', '#4d7c0f'),
-    sourceUrl: 'https://poly.pizza/m/C4ZrgKsmLq'
-  },
-  {
-    id: 'polyAdamScarhAttack',
-    label: 'AdamKokrito Scar-H',
-    description: 'AdamKokrito CC0 Scar-H Poly Pizza rifle with separate weapon parts and rifle ballistics.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#0f172a'),
-    sourceUrl: 'https://poly.pizza/m/aBnHdYKj5K'
-  }
-]);
-
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   {
     id: 'missileJavelin',
@@ -477,8 +367,7 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     label: 'Quaternius Battle Tank',
     description: 'CC0 Poly Pizza tank model for heavy battle-royal capture strike cosmetics.',
     thumbnail: 'https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp'
-  },
-  ...REQUESTED_POLY_PIZZA_WEAPON_OPTIONS
+  }
 
 ]);
 
