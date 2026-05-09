@@ -30,10 +30,6 @@ namespace Aiming
     public class AdaptiveAimingEngine : MonoBehaviour
     {
         public AimingConfig config;
-        [Header("Pool Royal human character")]
-        [Tooltip("Top-menu selectable human. Each preset uses a different pro-player aiming method.")]
-        public PoolHumanCharacterId selectedHumanCharacter = PoolHumanCharacterId.MurlanRoyalPro;
-        [SerializeField] private PoolHumanCharacterProfile activeHumanProfile;
         public bool showDebug = true;
 
         LineRenderer lr;
@@ -44,7 +40,6 @@ namespace Aiming
         void Awake()
         {
             if (config == null) config = Resources.Load<AimingConfig>("AimingConfig");
-            SetHumanCharacter(selectedHumanCharacter);
             ghost = new Strategies.GhostBallStrategy();
             contact = new Strategies.ContactPointStrategy();
             fractional = new Strategies.FractionalStrategy();
@@ -77,14 +72,6 @@ namespace Aiming
             lr.enabled = true;
         }
 
-        public PoolHumanCharacterProfile ActiveHumanProfile => activeHumanProfile;
-
-        public void SetHumanCharacter(PoolHumanCharacterId characterId)
-        {
-            selectedHumanCharacter = characterId;
-            activeHumanProfile = PoolHumanCharacterProfile.GetPreset(characterId);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AimSolution GetAimSolution(in ShotContext ctx)
         {
@@ -114,7 +101,6 @@ namespace Aiming
             {
                 sol = BuildDefaultSolution(evalCtx, info);
             }
-            sol = ApplyHumanProfileToSolution(evalCtx, info, sol);
             sol.recommendedPower01 = RecommendPower(info.distBucket, ctx.requiresPower);
             if (ctx.highSpin)
             {
@@ -346,7 +332,7 @@ namespace Aiming
 
         AimSolution SelectBestSolution(in ShotContext ctx, in ShotInfo info)
         {
-            IAimingStrategy[] candidates = GetHumanStrategyOrder();
+            IAimingStrategy[] candidates = { ghost, contact, fractional, cte };
             const int maxCandidates = 4;
             AimSolution[] validSolutions = new AimSolution[maxCandidates];
             float[] deterministicScores = new float[maxCandidates];
@@ -364,7 +350,7 @@ namespace Aiming
                 if (!IsCuePathClear(ctx.cueBallPos, attempt.aimEnd, ctx))
                     continue;
 
-                float score = ScoreAttempt(ctx, info, attempt) + HumanStylePenalty(candidate.Name, info);
+                float score = ScoreAttempt(ctx, info, attempt);
                 if (validCount < maxCandidates)
                 {
                     attempt.strategyUsed = candidate.Name;
@@ -386,7 +372,7 @@ namespace Aiming
             if (!hasBest)
                 return default;
 
-            if (ShouldUseMonteCarloProfile() && validCount > 1 && config != null && config.enableMonteCarlo && config.monteCarloRollouts > 0)
+            if (config != null && config.enableMonteCarlo && validCount > 1 && config.monteCarloRollouts > 0)
             {
                 best = SelectWithMonteCarlo(ctx, info, validSolutions, deterministicScores, validCount);
             }
@@ -395,108 +381,11 @@ namespace Aiming
             return best;
         }
 
-
-        AimSolution ApplyHumanProfileToSolution(in ShotContext ctx, in ShotInfo info, AimSolution sol)
-        {
-            if (!sol.isValid || activeHumanProfile.displayName == null)
-                return sol;
-
-            Vector3 cueToAim = sol.aimEnd - ctx.cueBallPos;
-            if (cueToAim.sqrMagnitude > 1e-8f)
-            {
-                Vector3 lateral = MathUtil.OrthoAround(info.vOP, Vector3.up);
-                float side = Mathf.Sign(Vector3.Dot(lateral, ctx.cueBallPos - ctx.objectBallPos));
-                if (!Mathf.Approximately(side, 0f))
-                {
-                    float cutT = Mathf.Clamp01(info.angleDeg / 70f);
-                    float compensation = activeHumanProfile.cutCompensation * activeHumanProfile.skill01 * cutT * ctx.ballRadius;
-                    float pocketCheat = activeHumanProfile.pocketCheat01 * 0.18f * cutT * ctx.ballRadius;
-                    sol.aimEnd += lateral * side * (compensation + pocketCheat);
-                }
-            }
-
-            float spin = Mathf.Min(config ? config.tipOffsetMax : 0.85f, activeHumanProfile.spinComfort01 * 0.42f);
-            if (activeHumanProfile.positionPlay01 > 0.5f)
-            {
-                float outside = Mathf.Sign(Vector3.Cross(info.vOC, info.vOP).y);
-                if (!Mathf.Approximately(outside, 0f))
-                {
-                    float follow = Mathf.Lerp(0.06f, 0.28f, activeHumanProfile.positionPlay01);
-                    sol.tipOffset = new Vector2(outside * spin, follow);
-                }
-            }
-
-            sol.debugNote = $"{sol.debugNote} · {activeHumanProfile.displayName}";
-            return sol;
-        }
-
-        IAimingStrategy[] GetHumanStrategyOrder()
-        {
-            switch (activeHumanProfile.aimStyle)
-            {
-                case PoolHumanAimStyle.GhostBall:
-                    return new[] { ghost, fractional, contact, cte };
-                case PoolHumanAimStyle.Fractional:
-                    return new[] { fractional, ghost, cte, contact };
-                case PoolHumanAimStyle.ContactPoint:
-                    return new[] { contact, ghost, fractional, cte };
-                case PoolHumanAimStyle.CtePivot:
-                    return new[] { cte, ghost, fractional, contact };
-                default:
-                    return new[] { ghost, contact, fractional, cte };
-            }
-        }
-
-        IAimingStrategy GetPrimaryHumanStrategy(in ShotInfo info)
-        {
-            switch (activeHumanProfile.aimStyle)
-            {
-                case PoolHumanAimStyle.Fractional:
-                    return fractional;
-                case PoolHumanAimStyle.ContactPoint:
-                    return contact;
-                case PoolHumanAimStyle.CtePivot:
-                    return cte;
-                case PoolHumanAimStyle.MonteCarloPattern:
-                    if (info.isStraight || info.angleDeg <= 28f) return ghost;
-                    if (info.angleDeg <= 52f) return fractional;
-                    return contact;
-                default:
-                    return ghost;
-            }
-        }
-
-        bool ShouldUseMonteCarloProfile()
-        {
-            return activeHumanProfile.displayName == null ||
-                activeHumanProfile.aimStyle == PoolHumanAimStyle.MonteCarloPattern ||
-                activeHumanProfile.skill01 >= 0.92f;
-        }
-
-        float HumanStylePenalty(string strategyName, in ShotInfo info)
-        {
-            if (activeHumanProfile.displayName == null)
-                return 0f;
-
-            float offStylePenalty = Mathf.Lerp(0.34f, 0.04f, activeHumanProfile.skill01);
-            switch (activeHumanProfile.aimStyle)
-            {
-                case PoolHumanAimStyle.GhostBall:
-                    return strategyName == ghost.Name ? 0f : offStylePenalty;
-                case PoolHumanAimStyle.Fractional:
-                    return strategyName == fractional.Name ? 0f : offStylePenalty * (info.angleDeg > 24f ? 0.7f : 1.2f);
-                case PoolHumanAimStyle.ContactPoint:
-                    return strategyName == contact.Name ? 0f : offStylePenalty;
-                case PoolHumanAimStyle.CtePivot:
-                    return strategyName == cte.Name ? 0f : offStylePenalty;
-                default:
-                    return strategyName == contact.Name && info.angleDeg > 58f ? 0.02f : 0f;
-            }
-        }
-
         AimSolution BuildDefaultSolution(in ShotContext ctx, in ShotInfo info)
         {
-            IAimingStrategy fallback = GetPrimaryHumanStrategy(info);
+            IAimingStrategy fallback = info.isStraight ? ghost :
+                (info.isRailShot || info.angleDeg < 30f) ? contact :
+                (info.angleDeg <= 45f) ? ghost : fractional;
             var sol = fallback.Solve(ctx, info, config);
             sol.strategyUsed = fallback.Name;
             return sol;
@@ -523,8 +412,7 @@ namespace Aiming
         {
             float blend = Mathf.Clamp01(config.monteCarloBlend);
             int rollouts = Mathf.Max(1, config.monteCarloRollouts);
-            float profileJitter = activeHumanProfile.displayName == null ? config.monteCarloAimJitterDeg : activeHumanProfile.aimJitterDeg;
-            float jitterDeg = Mathf.Max(0f, Mathf.Min(config.monteCarloAimJitterDeg, profileJitter));
+            float jitterDeg = Mathf.Max(0f, config.monteCarloAimJitterDeg);
             float powerJitter = Mathf.Max(0f, config.monteCarloPowerJitter);
 
             float bestCost = float.MaxValue;
