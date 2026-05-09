@@ -22,7 +22,9 @@ namespace TonPlaygram.Gameplay.Weapons
         SideMissile,
         StrikeDrone,
         AttackHelicopter,
-        StrikeJet
+        StrikeJet,
+        HandGrenade,
+        GasolineBomb
     }
 
     public enum ProjectileVisualRole
