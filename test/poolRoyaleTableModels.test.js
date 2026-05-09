@@ -24,8 +24,11 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.clothRepeatScale, 5.25);
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['trim']);
-    assert.equal(showood.tintOriginalTrimGold, true);
+    assert.equal(showood.tintOriginalTrimFromChromeOption, true);
+    assert.equal(showood.tintOriginalPocketFromLinerOption, true);
     assert.equal(showood.forceGeneratedChromePlates, false);
+    assert.deepEqual(showood.hideSurfaceNamePatterns, ['net', 'basket', 'drop', 'holder', 'bar']);
+    assert.equal(showood.hideHudPottedBalls, true);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
       'cushion',
