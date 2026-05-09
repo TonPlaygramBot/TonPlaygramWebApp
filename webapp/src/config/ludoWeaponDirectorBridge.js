@@ -32,8 +32,23 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
     polyBazooka01Attack: 'GrenadeLauncher',
     polyGrenadeLauncher01Attack: 'GrenadeLauncher',
     polyTank01Attack: 'GrenadeLauncher',
+    polyTank02Attack: 'GrenadeLauncher',
+    polyTank03Attack: 'GrenadeLauncher',
+    polyTank04Attack: 'GrenadeLauncher',
     polyRobotLargeGunAttack: 'Rifle',
     polyRobotFlyingGunAttack: 'SMG'
+  }),
+  ammoVisualTypeByWeaponType: Object.freeze({
+    Pistol: 'NineMillimeter',
+    SMG: 'NineMillimeter',
+    Rifle: 'FiveFiveSixRifle',
+    Shotgun: 'ShotgunShell',
+    Sniper: 'SevenSixTwoRifle',
+    GrenadeLauncher: 'GrenadeRound',
+    SideMissile: 'Missile',
+    StrikeDrone: 'Missile',
+    AttackHelicopter: 'Missile',
+    StrikeJet: 'Missile'
   }),
   firearmBroadcastProfile: Object.freeze({
     aimLift: 0.064,
