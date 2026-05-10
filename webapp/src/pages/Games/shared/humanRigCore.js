@@ -250,7 +250,8 @@ const BASE_CFG = {
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
-  addFaceDetails: true
+  addFaceDetails: true,
+  exactOriginalPoseLogic: false
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -859,6 +860,45 @@ function driveHuman(human, frame) {
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, cfg.footLockStrength * ik);
 }
 
+
+function updateOriginalExportHumanPose(human, dt, frameData, activeState) {
+  const cfg = human.cfg;
+  const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
+  const directRootTarget = frameData.directRootTarget || activeState === 'seated';
+  if (activeState === 'striking' || directRootTarget) {
+    dampVector(human.root.position, rootGoal, directRootTarget ? cfg.moveLambda : 12, dt);
+    human.root.position.y = cfg.groundY;
+  } else {
+    moveRootAroundPerimeter(human, rootGoal, cfg, dt);
+  }
+
+  const forward = new THREE.Vector3(0, 0, -1);
+  const side = new THREE.Vector3(1, 0, 0);
+  const shotQ = makeBasisQuaternion(side, UP, forward);
+
+  human.poseT = dampScalar(human.poseT, 0, cfg.poseLambda, dt);
+  const aimForward = frameData.aimForward?.clone?.() || forward.clone();
+  aimForward.y = 0;
+  if (aimForward.lengthSq() > 1e-8) {
+    human.yaw = dampScalar(
+      human.yaw,
+      yawFromForward(aimForward.normalize()) - (cfg.humanVisualYawFix || 0),
+      cfg.rotLambda,
+      dt
+    );
+  }
+
+  human.root.visible = true;
+  if (!human.activeGlb || !human.model) return;
+  human.modelRoot.visible = true;
+  human.modelRoot.position.copy(human.root.position);
+  human.modelRoot.rotation.y = human.yaw;
+  human.modelRoot.updateMatrixWorld(true);
+  if (human.bones.head) {
+    setBoneWorldQuaternion(human.bones.head, shotQ);
+  }
+}
+
 export function updateHumanPose(human, dt, frameData) {
   if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
   const cfg = human.cfg;
@@ -875,6 +915,11 @@ export function updateHumanPose(human, dt, frameData) {
     human.strikeClock += dt;
   } else {
     human.strikeClock = 0;
+  }
+
+  if (cfg.exactOriginalPoseLogic) {
+    updateOriginalExportHumanPose(human, dt, frameData, activeState);
+    return;
   }
 
   const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
