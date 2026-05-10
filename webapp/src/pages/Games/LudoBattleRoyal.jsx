@@ -968,6 +968,9 @@ const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
 const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
+const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
+const FIREARM_FINAL_BULLET_SPIN_RATE = 0.118;
+const FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR = 0.46;
 const FIREARM_BROADCAST_PROFILE = Object.freeze({
   ...LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile
 });
@@ -3074,36 +3077,42 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
   const kind = profile.projectileKind || 'jacketed-round';
   const radius = profile.bulletRadius || 0.0036;
   const length = profile.bulletLength || radius * 9;
+  const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
+  const isLongGun = kind.includes('sniper') || kind.includes('marksman') || kind.includes('rifle') || kind.includes('smg');
   const metalMaterial = new THREE.MeshStandardMaterial({
-    color: kind.includes('sniper') || kind.includes('marksman') || kind.includes('rifle') || kind.includes('smg') || kind.includes('pistol') || kind.includes('revolver') ? '#b87333' : kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? '#556b2f' : '#d9dde2',
+    color: isExplosive ? '#556b2f' : isLongGun || kind.includes('pistol') || kind.includes('revolver') ? '#b87333' : '#d9dde2',
     metalness: kind.includes('buckshot') ? 0.72 : 0.95,
-    roughness: kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') ? 0.34 : 0.16
+    roughness: isExplosive ? 0.34 : 0.16
   });
   const root = new THREE.Group();
   root.name = `caliber-projectile-${kind}`;
   if (kind.includes('buckshot')) {
-    const pellet = new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 10), metalMaterial);
+    const pellet = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 14), metalMaterial);
     root.add(pellet);
-  } else if (kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister')) {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 0.82, length, 12), metalMaterial);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.08, length * 0.34, 12), metalMaterial);
+  } else if (isExplosive) {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 0.88, length * 0.62, 16), metalMaterial);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.1, length * 0.28, 16), metalMaterial);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.72, radius * 0.92, length * 0.18, 16), metalMaterial);
     const band = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 1.08, radius * 0.16, 6, 16),
+      new THREE.TorusGeometry(radius * 1.08, radius * 0.16, 6, 20),
       new THREE.MeshStandardMaterial({ color: '#f59e0b', metalness: 0.82, roughness: 0.22 })
     );
-    nose.position.y = length * 0.67;
-    band.position.y = -length * 0.18;
-    root.add(body, nose, band);
+    nose.position.y = length * 0.45;
+    tail.position.y = -length * 0.4;
+    band.position.y = -length * 0.12;
+    root.add(body, nose, tail, band);
   } else {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.84, radius, length * 0.72, 12), metalMaterial);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.02, length * 0.28, 12), metalMaterial);
-    const jacket = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.92, radius * 0.1, 6, 16),
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.92, radius, length * 0.58, 18), metalMaterial);
+    const ogive = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.01, length * (isLongGun ? 0.34 : 0.28), 18), metalMaterial);
+    const boatTail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.9, length * 0.14, 18), metalMaterial);
+    const cannelure = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 0.92, radius * 0.075, 6, 20),
       new THREE.MeshStandardMaterial({ color: '#f6c453', metalness: 0.92, roughness: 0.18 })
     );
-    nose.position.y = length * 0.5;
-    jacket.position.y = -length * 0.22;
-    root.add(body, nose, jacket);
+    ogive.position.y = length * 0.44;
+    boatTail.position.y = -length * 0.36;
+    cannelure.position.y = -length * 0.18;
+    root.add(body, ogive, boatTail, cannelure);
   }
   root.userData.dispose = () => {
     root.traverse((node) => {
@@ -3118,14 +3127,26 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
 }
 
 function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
-  const root = new THREE.Mesh(
-    new THREE.CylinderGeometry(profile.shellRadius || 0.004, (profile.shellRadius || 0.004) * 0.92, profile.shellLength || 0.016, 12),
-    new THREE.MeshStandardMaterial({
-      color: (profile.projectileKind || '').includes('shotgun') || (profile.projectileKind || '').includes('buckshot') ? '#b91c1c' : '#d4a64a',
-      metalness: 0.88,
-      roughness: 0.22
-    })
-  );
+  const kind = profile.projectileKind || '';
+  const radius = profile.shellRadius || 0.004;
+  const length = profile.shellLength || 0.016;
+  const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
+  const brassMaterial = new THREE.MeshStandardMaterial({
+    color: isShotgun ? '#b91c1c' : '#d4a64a',
+    metalness: isShotgun ? 0.42 : 0.9,
+    roughness: isShotgun ? 0.32 : 0.2
+  });
+  const darkMouthMaterial = new THREE.MeshStandardMaterial({ color: '#171717', metalness: 0.5, roughness: 0.36 });
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.05, length * 0.08, 16), brassMaterial);
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.91, radius * 0.075, 6, 18), brassMaterial);
+  const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, length * 0.018, 14), darkMouthMaterial);
+  body.position.y = length * 0.02;
+  rim.position.y = -length * 0.47;
+  primer.position.y = -length * 0.515;
+  mouth.position.y = length * 0.47;
+  root.add(body, rim, primer, mouth);
   root.name = `caliber-shell-${profile.caliberLabel || 'round'}`;
   root.castShadow = true;
   root.receiveShadow = true;
@@ -3225,15 +3246,36 @@ function createActualTokenSurfaceFragments({ scene, token, impactPoint, forward,
   const triC = new THREE.Vector3();
   const center = new THREE.Vector3();
   const localPositions = [];
+  const triangleCandidates = [];
   const indexForTriangleVertex = (geometry, triIndex, vertexIndex) => {
     if (geometry.index) return geometry.index.getX(triIndex * 3 + vertexIndex);
     return triIndex * 3 + vertexIndex;
   };
+  meshEntries.forEach((entry) => {
+    for (let triIndex = 0; triIndex < entry.triangleCount; triIndex += 1) {
+      const ia = indexForTriangleVertex(entry.node.geometry, triIndex, 0);
+      const ib = indexForTriangleVertex(entry.node.geometry, triIndex, 1);
+      const ic = indexForTriangleVertex(entry.node.geometry, triIndex, 2);
+      triA.fromBufferAttribute(entry.positionAttr, ia).applyMatrix4(entry.node.matrixWorld);
+      triB.fromBufferAttribute(entry.positionAttr, ib).applyMatrix4(entry.node.matrixWorld);
+      triC.fromBufferAttribute(entry.positionAttr, ic).applyMatrix4(entry.node.matrixWorld);
+      center.copy(triA).add(triB).add(triC).multiplyScalar(1 / 3);
+      const toImpact = center.distanceToSquared(impactPoint);
+      const faceNormal = triB.clone().sub(triA).cross(triC.clone().sub(triA));
+      const facingImpact = faceNormal.lengthSq() > 1e-8 ? Math.max(0.2, Math.abs(faceNormal.normalize().dot(forward))) : 0.5;
+      triangleCandidates.push({ entry, triIndex, score: toImpact / facingImpact });
+    }
+  });
+  triangleCandidates.sort((a, b) => a.score - b.score);
+  const impactCandidateLimit = Math.max(wanted * 3, Math.min(triangleCandidates.length, Math.ceil(triangleCandidates.length * 0.22)));
 
   for (let i = 0; i < wanted; i += 1) {
-    const entry = meshEntries[i % meshEntries.length];
+    const candidate = triangleCandidates.length
+      ? triangleCandidates[Math.min(triangleCandidates.length - 1, Math.floor(Math.random() * impactCandidateLimit))]
+      : null;
+    const entry = candidate?.entry ?? meshEntries[i % meshEntries.length];
     const { node, positionAttr } = entry;
-    const triIndex = Math.floor(Math.random() * entry.triangleCount);
+    const triIndex = candidate?.triIndex ?? Math.floor(Math.random() * entry.triangleCount);
     const ia = indexForTriangleVertex(node.geometry, triIndex, 0);
     const ib = indexForTriangleVertex(node.geometry, triIndex, 1);
     const ic = indexForTriangleVertex(node.geometry, triIndex, 2);
@@ -3248,6 +3290,7 @@ function createActualTokenSurfaceFragments({ scene, token, impactPoint, forward,
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(localPositions, 3));
+    geometry.setIndex([0, 1, 2]);
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
 
@@ -3279,6 +3322,51 @@ function createActualTokenSurfaceFragments({ scene, token, impactPoint, forward,
     chunks.push(chunk);
   }
   return chunks;
+}
+
+function createTokenImpactCrackDecals({ scene, impactPoint, forward, tableSurfaceY, profileScale = 1 }) {
+  if (!scene || !impactPoint?.isVector3) return [];
+  const decals = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = forward?.isVector3 ? forward.clone().cross(up) : new THREE.Vector3(1, 0, 0);
+  if (right.lengthSq() < 1e-7) right.set(1, 0, 0);
+  right.normalize();
+  const forwardFlat = forward?.isVector3 ? forward.clone().setY(0) : new THREE.Vector3(0, 0, 1);
+  if (forwardFlat.lengthSq() < 1e-7) forwardFlat.set(0, 0, 1);
+  forwardFlat.normalize();
+  const centerMaterial = new THREE.MeshBasicMaterial({
+    color: '#111827',
+    transparent: true,
+    opacity: 0.64,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  const crater = new THREE.Mesh(new THREE.RingGeometry(0.006 * profileScale, 0.017 * profileScale, 28), centerMaterial);
+  crater.rotation.x = -Math.PI / 2;
+  crater.position.copy(impactPoint);
+  crater.position.y = Math.max(tableSurfaceY + 0.006, impactPoint.y + 0.002);
+  scene.add(crater);
+  decals.push(crater);
+  const crackMaterial = new THREE.MeshBasicMaterial({
+    color: '#0f172a',
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  for (let i = 0; i < 7; i += 1) {
+    const angle = (i / 7) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.32);
+    const dir = right.clone().multiplyScalar(Math.cos(angle)).add(forwardFlat.clone().multiplyScalar(Math.sin(angle))).normalize();
+    const length = THREE.MathUtils.randFloat(0.022, 0.055) * profileScale;
+    const crack = new THREE.Mesh(new THREE.PlaneGeometry(length, 0.0025 * profileScale), crackMaterial.clone());
+    crack.rotation.x = -Math.PI / 2;
+    crack.rotation.z = -Math.atan2(dir.z, dir.x);
+    crack.position.copy(impactPoint).addScaledVector(dir, length * 0.48);
+    crack.position.y = crater.position.y + 0.001;
+    scene.add(crack);
+    decals.push(crack);
+  }
+  return decals;
 }
 
 function spawnTokenBreakDebris({
@@ -3353,6 +3441,13 @@ function spawnTokenBreakDebris({
     }
   }
 
+  const crackDecals = createTokenImpactCrackDecals({
+    scene,
+    impactPoint,
+    forward,
+    tableSurfaceY,
+    profileScale: clamp(profileScale, 0.55, 1.6)
+  });
   const startMs = performance.now();
   const dustCount = weaponId === 'missileJavelin' || weaponId === 'droneAttack' ? 18 : 12;
   const dustClouds = Array.from({ length: dustCount }, (_, idx) => {
@@ -3443,6 +3538,12 @@ function spawnTokenBreakDebris({
       mark.parent?.remove?.(mark);
       mark.geometry?.dispose?.();
       mark.material?.dispose?.();
+    });
+    crackDecals.forEach((mark) => {
+      mark.parent?.remove?.(mark);
+      mark.geometry?.dispose?.();
+      if (Array.isArray(mark.material)) mark.material.forEach((mat) => mat?.dispose?.());
+      else mark.material?.dispose?.();
     });
   };
   requestAnimationFrame(tick);
@@ -11181,6 +11282,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   recoilQuat.setFromEuler(recoilEuler);
                   handWeaponAttachment.weapon.quaternion.multiply(recoilQuat);
                 }
+                const aimSettle = elapsed >= preFireLeadMs ? 1 : smoother01(shoulderPhase);
+                handWeaponAttachment.weapon.position.z = THREE.MathUtils.lerp(
+                  handLocalReady.z,
+                  handLocalReady.z + (singleShotFirearm ? 0.018 : 0.012),
+                  aimSettle
+                );
+                handWeaponAttachment.weapon.position.y = THREE.MathUtils.lerp(
+                  handLocalReady.y,
+                  handLocalReady.y - 0.006,
+                  aimSettle
+                );
               }
               handWeaponAttachment.weapon.updateMatrixWorld?.(true);
               if (handWeaponAttachment?.muzzle?.isObject3D) {
@@ -11200,17 +11312,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
             cinematicSide.normalize();
             const shoulderCameraBlend = clamp(elapsed / Math.max(1, preFireLeadMs), 0, 1);
-            // Stable attacker-side aiming view: no dolly/zoom during the volley, just a wider
-            // over-weapon angle so the hand, weapon and target line stay readable without table shrink.
+            // FPS-style shoulder aiming view: stay just behind the hand and barrel, with the
+            // muzzle, supporting hand and target reticle all aligned in the same sight picture.
             cinematicPosition
               .copy(muzzleOrigin)
-              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.28 : 0.34))
-              .addScaledVector(cinematicSide, singleShotFirearm ? 0.06 : 0.082)
-              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.085, singleShotFirearm ? 0.125 : 0.14, shoulderCameraBlend));
+              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.18 : 0.22))
+              .addScaledVector(cinematicSide, singleShotFirearm ? 0.022 : 0.032)
+              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.048, singleShotFirearm ? 0.076 : 0.088, shoulderCameraBlend));
             cinematicTarget
               .copy(muzzleOrigin)
-              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.42, 0.72, shoulderCameraBlend))
-              .addScaledVector(cameraWorldUp, 0.018);
+              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.62, 0.86, shoulderCameraBlend))
+              .addScaledVector(cameraWorldUp, 0.012);
             setFirearmCinematicPose(cinematicPosition, cinematicTarget, elapsed < pickupLeadMs ? 0.1 : 0.18);
             muzzleFx.root.position.copy(muzzleOrigin);
             muzzleFx.root.visible = elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
@@ -11269,8 +11381,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return;
               }
               const isFinalProjectile = idx >= finalProjectileStartIndex;
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? 0.18 : 0.42);
-              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 1.45 : 0.82)), 0, 1);
+              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? FIREARM_FINAL_BULLET_SLOWMO_FACTOR : FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR);
+              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 2.18 : 0.82)), 0, 1);
               const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
               const start = muzzleOrigin.clone();
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
@@ -11287,8 +11399,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (projectileDir.lengthSq() < 1e-7) projectileDir.set(0, 1, 0);
               projectileDir.normalize();
               bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
-              bulletMesh.rotateY(life * (isFinalProjectile ? 0.052 : 0.032));
+              bulletMesh.rotateY(life * (isFinalProjectile ? FIREARM_FINAL_BULLET_SPIN_RATE : 0.032));
               bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
+              if (isFinalProjectile) bulletMesh.rotateZ(life * 0.036);
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
@@ -11331,11 +11444,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const followingFinalBullet = leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1;
               cinematicPosition
                 .copy(leadBulletPos)
-                .addScaledVector(bulletDir, followingFinalBullet ? -0.075 : -0.15)
-                .addScaledVector(cinematicSide, followingFinalBullet ? 0.014 : singleShotFirearm ? 0.018 : 0.03);
-              cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? 0.046 : singleShotFirearm ? 0.07 : 0.082);
-              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.18 : 0.34);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.84 : 0.72);
+                .addScaledVector(bulletDir, followingFinalBullet ? -0.052 : -0.15)
+                .addScaledVector(cinematicSide, followingFinalBullet ? 0.01 : singleShotFirearm ? 0.018 : 0.03);
+              cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? 0.034 : singleShotFirearm ? 0.07 : 0.082);
+              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.13 : 0.34);
+              setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.9 : 0.72);
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
