@@ -6715,18 +6715,18 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// May 9, 2026 mobile portrait tuning: compact the rack and pull hands visually inward toward the tiles.
-// May 10, 2026: shrink only player-hand dominoes and tighten their rack spacing.
+// May 10, 2026: keep player-hand dominoes compact while placing them farther
+// beyond the rail and higher above the tabletop for clearer Battle Royal seating.
 const PLAYER_HAND_TILE_SCALE = 0.9;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.4;
-const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.7;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.15;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.15;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 9.2;
+const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.4;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.4;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.3;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.22;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 3.45;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.05;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 4.7;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
@@ -8274,10 +8274,10 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.5 * MODEL_SCALE;
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.62 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.78 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.98 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 0.72 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.86 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 1.04 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.28 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
