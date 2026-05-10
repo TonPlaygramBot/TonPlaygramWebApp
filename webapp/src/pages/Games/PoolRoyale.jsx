@@ -2677,11 +2677,11 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 38;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 54;
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 28; // larger pool-side player table matching the Showood table's bigger stage presence.
+const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 18.5;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 72; // larger, taller portrait-readable chairs for each player lounge.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 52;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 64;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
 const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
@@ -12858,6 +12858,11 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const label = `${childName} ${materialName}`;
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
+  const chromeSurfaceNames = Array.isArray(child?.userData?.poolRoyaleChromeSurfaceNames)
+    ? child.userData.poolRoyaleChromeSurfaceNames
+    : [];
+  if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|rail[_\s-]*sight|railsight/.test(childName)) return 'trim';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
   if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
@@ -12974,12 +12979,14 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
     if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
-      if (originalMat.color) originalMat.color.set(0xd8b45a);
-      if ('metalness' in originalMat) originalMat.metalness = Math.max(0.88, originalMat.metalness ?? 0.88);
-      if ('roughness' in originalMat) originalMat.roughness = Math.min(0.24, originalMat.roughness ?? 0.18);
-      if ('envMapIntensity' in originalMat) originalMat.envMapIntensity = Math.max(1.15, originalMat.envMapIntensity ?? 1.15);
-      if ('clearcoat' in originalMat) originalMat.clearcoat = Math.max(0.55, originalMat.clearcoat ?? 0.55);
-      if ('clearcoatRoughness' in originalMat) originalMat.clearcoatRoughness = Math.min(0.18, originalMat.clearcoatRoughness ?? 0.12);
+      const chromeMat = finishInfo.materials?.trim;
+      if (chromeMat?.color && originalMat.color) originalMat.color.copy(chromeMat.color);
+      else if (originalMat.color) originalMat.color.set(0xd8b45a);
+      if ('metalness' in originalMat) originalMat.metalness = Math.max(chromeMat?.metalness ?? 0.88, originalMat.metalness ?? 0.88);
+      if ('roughness' in originalMat) originalMat.roughness = Math.min(chromeMat?.roughness ?? 0.24, originalMat.roughness ?? 0.18);
+      if ('envMapIntensity' in originalMat) originalMat.envMapIntensity = Math.max(chromeMat?.envMapIntensity ?? 1.15, originalMat.envMapIntensity ?? 1.15);
+      if ('clearcoat' in originalMat) originalMat.clearcoat = Math.max(chromeMat?.clearcoat ?? 0.55, originalMat.clearcoat ?? 0.55);
+      if ('clearcoatRoughness' in originalMat) originalMat.clearcoatRoughness = Math.min(chromeMat?.clearcoatRoughness ?? 0.18, originalMat.clearcoatRoughness ?? 0.12);
     }
     preparePoolRoyaleExternalTexture(originalMat.map, true);
     preparePoolRoyaleExternalTexture(originalMat.emissiveMap, true);
@@ -13069,6 +13076,14 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     child.castShadow = true;
     child.receiveShadow = true;
     child.frustumCulled = false;
+
+    const chromeSurfaceNames = Array.isArray(tableModel?.chromeMaterialSurfaceNames)
+      ? tableModel.chromeMaterialSurfaceNames
+      : [];
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleChromeSurfaceNames: chromeSurfaceNames
+    };
 
     const prepareMaterial = (material) => {
       if (!material) return material;
