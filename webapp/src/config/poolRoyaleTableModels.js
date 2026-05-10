@@ -5,28 +5,23 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'royal-original',
-    label: 'Royal Original',
-    description: 'Current TonPlaygram table with existing gameplay geometry.',
-    tableSizeId: '7ft',
-    finishId: 'peelingPaintWeathered',
-    baseId: 'classicCylinders',
-    icon: '🎱',
-    kind: 'native'
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
-      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, pockets, and preserved Showood chrome plates.',
+      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint. If the GLB cannot load, Pool Royale keeps the native procedural table as a gameplay-safe fallback.',
     tableSizeId: '7ft',
     assetUrl:
       'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1.02,
+    fitScale: 1,
+    fitFootprintScale: 1.055,
+    fitHeightScale: 1,
     lowerBaseHeightScale: 1,
+    baseHeightScale: 0.82,
+    legHeightScale: 1.18,
+    keepOriginalTextureMaps: true,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -38,8 +33,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['diamonds'],
-    blackMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideWoodApron', 'baseFoot', 'feet'],
+    blackMaterialSurfaceNames: [],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
