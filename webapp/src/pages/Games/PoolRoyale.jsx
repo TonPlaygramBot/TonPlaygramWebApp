@@ -14195,7 +14195,7 @@ function mountPoolRoyaleExternalTableModel({
 
   table.userData.applyExternalTableFallbackBase = () => {
     if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
-      applyBaseVariant(DEFAULT_PROCEDURAL_TABLE_BASE_ID);
+      applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
 
@@ -15522,8 +15522,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15600,10 +15602,10 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases[0] ??
+      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15660,8 +15662,8 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
-      setTableBaseId(DEFAULT_TABLE_BASE_ID);
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
       setClothColorId(DEFAULT_CLOTH_COLOR_ID);
@@ -17086,9 +17088,9 @@ function PoolRoyaleGame({
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
+      window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
-  }, [tableBaseId]);
+  }, []);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
@@ -25930,15 +25932,17 @@ const shotPowerRef = useRef(0);
         }
         return secondarySpacingBase;
       };
-      const secondaryTableEntry = Table3D(
-        world,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase,
-        rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
-      );
+      const secondaryTableEntry = dualTablesEnabled
+        ? Table3D(
+            world,
+            finishForScene,
+            tableSizeMeta,
+            railMarkerStyleRef.current,
+            activeTableBase,
+            rendererRef.current,
+            { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
+          )
+        : null;
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
       const resolveSnookerScale = () => {
@@ -26646,7 +26650,7 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPoolSideLounge = (seat, zSign) => {
+      const createPoolSideLounge = (seat, zSign, { includeSideTable = true } = {}) => {
         const group = new THREE.Group();
         group.userData.seat = seat;
         const z = zSign * (TABLE.H / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
@@ -26660,23 +26664,29 @@ const shotPowerRef = useRef(0);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
-        const murlanDefaultTable = new THREE.Group();
-        murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-        try {
-          createMurlanStyleTable({
-            THREE,
-            arena: murlanDefaultTable,
-            renderer,
-            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-            tableHeight: tableTopY,
-            includeBase: true
-          });
-          group.add(murlanDefaultTable);
+        if (includeSideTable) {
+          const murlanDefaultTable = new THREE.Group();
+          murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
+          try {
+            createMurlanStyleTable({
+              THREE,
+              arena: murlanDefaultTable,
+              renderer,
+              tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
+              tableHeight: tableTopY,
+              includeBase: true
+            });
+            group.add(murlanDefaultTable);
+            fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+              mesh.visible = false;
+            });
+          } catch (error) {
+            console.warn('Failed to create Pool Royale Murlan default lounge table', error);
+          }
+        } else {
           fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
             mesh.visible = false;
           });
-        } catch (error) {
-          console.warn('Failed to create Pool Royale Murlan default lounge table', error);
         }
 
         loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
@@ -26694,13 +26704,13 @@ const shotPowerRef = useRef(0);
           console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
         });
 
-        const serviceProps = createWaterServiceProps(tableTopY);
-        group.add(serviceProps);
+        const serviceProps = includeSideTable ? createWaterServiceProps(tableTopY) : null;
+        if (serviceProps) group.add(serviceProps);
         group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
         group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
         group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.glass = serviceProps.userData.glass;
-        group.userData.glassBase = serviceProps.userData.glassBase.clone();
+        group.userData.glass = serviceProps?.userData?.glass ?? null;
+        group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() ?? new THREE.Vector3();
         return group;
       };
 
@@ -26851,15 +26861,13 @@ const shotPowerRef = useRef(0);
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
         const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
+        const loungeB = createPoolSideLounge('B', 1, { includeSideTable: false });
+        world.add(loungeA, loungeB);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
           { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
+          { group: loungeB, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -37010,50 +37018,6 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
                       </button>
                     );
                   })}
