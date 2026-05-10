@@ -38,8 +38,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['diamonds'],
-    blackMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
+    chromeMaterialSurfaceNames: ['sideWoodApron', 'railSight', 'diamonds'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
