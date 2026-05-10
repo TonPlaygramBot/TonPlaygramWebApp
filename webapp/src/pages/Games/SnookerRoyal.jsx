@@ -10915,12 +10915,10 @@ function Table3D(
           { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
           { x: targetSize.x, y: targetSize.y, z: targetSize.z }
         );
-        const originalSizeScale = fit.scale.y;
-        if (Number.isFinite(originalSizeScale) && originalSizeScale > MICRO_EPS) {
-          fit.scale.x = originalSizeScale;
-          fit.scale.z = originalSizeScale;
-          fit.preservesOriginalGlbFootprint = true;
-          fit.usesProceduralHeightOnly = true;
+        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
+        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
+          fit.scale.y = upperTableScale;
+          fit.preservesOriginalUpperTableProportions = true;
         }
         model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
 
@@ -10948,10 +10946,7 @@ function Table3D(
           ...(model.userData || {}),
           isOpenSourceVisual: true,
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
-          fitToProceduralMapping: false,
-          keepsOriginalGlbFootprint: true,
-          keepsProceduralHeightForCameraView: true,
-          mappingSource: 'glb-cushion-bounds',
+          fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
@@ -21076,8 +21071,7 @@ const powerRef = useRef(hud.power);
         idleRightHandX: 0.31 * humanUnitScale,
         idleRightHandZ: -0.015 * humanUnitScale,
         idleCueGripFromBack: 0.24 * humanUnitScale,
-        rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(humanUnitScale),
-        referencePoseOnly: true
+        rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(humanUnitScale)
       });
       let lastHumanPoseTime = performance.now();
 

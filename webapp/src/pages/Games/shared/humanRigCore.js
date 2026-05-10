@@ -250,12 +250,7 @@ const BASE_CFG = {
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
-  addFaceDetails: true,
-  // Compatibility mode for games that need the exact ReadyPlayer reference
-  // pose/orientation behaviour: keep the avatar in its normalized rest pose,
-  // drive only the root yaw, and pin the head to the same world basis as the
-  // HumanOnlyExport snippet.
-  referencePoseOnly: false
+  addFaceDetails: true
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -738,26 +733,6 @@ function updateGoalRushWalkAnimation(human, dt, frame) {
   return walkWeight > 0.05 && frame.t < 0.025;
 }
 
-
-function driveReferenceHumanPose(human, rootWorld) {
-  if (!human.activeGlb || !human.model) return;
-  human.modelRoot.visible = true;
-  human.modelRoot.position.copy(rootWorld);
-  human.modelRoot.rotation.y = human.yaw;
-  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
-  human.modelRoot.updateMatrixWorld(true);
-
-  const forward = new THREE.Vector3(0, 0, -1);
-  const side = new THREE.Vector3(1, 0, 0);
-  const shotQ = makeBasisQuaternion(side, UP, forward);
-
-  if (human.bones.head) {
-    setBoneWorldQuaternion(human.bones.head, shotQ);
-  }
-
-  human.modelRoot.updateMatrixWorld(true);
-}
-
 function driveHuman(human, frame) {
   if (!human.activeGlb || !human.model) return;
   const cfg = human.cfg;
@@ -925,15 +900,6 @@ export function updateHumanPose(human, dt, frameData) {
     ? targetRootYaw
     : dampScalar(human.yaw, targetRootYaw, cfg.rotLambda, dt);
   ensureHumanFacingTable(human, frameData, cfg);
-
-  if (cfg.referencePoseOnly) {
-    human.poseT = dampScalar(human.poseT, 0, cfg.poseLambda, dt);
-    human.root.visible = true;
-    const rootWorld = human.root.position.clone();
-    rootWorld.y = cfg.groundY;
-    driveReferenceHumanPose(human, rootWorld);
-    return;
-  }
 
   const t = easeInOut(human.poseT);
   const idle = 1 - t;
