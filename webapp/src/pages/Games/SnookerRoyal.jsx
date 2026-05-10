@@ -10895,7 +10895,6 @@ function Table3D(
 
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
-    const clothUvBounds = resolveOpenSourceClothUvBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
@@ -10909,16 +10908,17 @@ function Table3D(
         model.updateMatrixWorld(true);
         const fullSourceBounds = new THREE.Box3().setFromObject(model);
         const sourceFitBounds = resolveOpenSourceUpperBounds(model, fullSourceBounds);
-        const fullSourceSize = fullSourceBounds.getSize(new THREE.Vector3());
         const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
         const fit = resolveSnookerGlbFitTransform(
           { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
           { x: targetSize.x, y: targetSize.y, z: targetSize.z }
         );
-        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
-        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
-          fit.scale.y = upperTableScale;
-          fit.preservesOriginalUpperTableProportions = true;
+        const originalSizeHeightScale = fit.scale.y;
+        if (Number.isFinite(originalSizeHeightScale) && originalSizeHeightScale > MICRO_EPS) {
+          fit.scale.x = originalSizeHeightScale;
+          fit.scale.z = originalSizeHeightScale;
+          fit.usesOriginalGlbFootprint = true;
+          fit.keepsProceduralHeight = true;
         }
         model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
 
@@ -10936,31 +10936,34 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
-        const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
-        remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
+        const glbMappingBounds = scaledFitBounds.clone();
+        remapOpenSourceClothTextureCoordinates(model, glbMappingBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
-        setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
+        setProceduralTableMeshesVisible(false, { keepProceduralBase: false });
         model.name = 'pooltool-snooker-generic-table';
         model.userData = {
           ...(model.userData || {}),
           isOpenSourceVisual: true,
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
-          fitToProceduralMapping: true,
+          fitToProceduralMapping: false,
+          fitToOriginalGlbHeight: true,
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
-          preservesOriginalTableBase: false,
-          removedOriginalBaseMeshCount,
-          usesProceduralTableBase: true,
+          preservesOriginalTableBase: true,
+          removedOriginalBaseMeshCount: 0,
+          usesProceduralTableBase: false,
           usesGlbCushionShapes: true,
-          clothUvMappedToDefaultPlayfield: true,
-          clothUvUsesProceduralWorldScale: true
+          clothUvMappedToGlbPlayfield: true,
+          clothUvUsesProceduralWorldScale: false,
+          keepsProceduralHeightWithOriginalGlbFootprint: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
         table.userData.openSourceVisualFit = fit;
         table.userData.openSourceVisualTargetBounds = targetBounds;
+        table.userData.openSourceGlbMappingBounds = glbMappingBounds;
       })
       .catch((error) => {
         setProceduralTableMeshesVisible(true);
