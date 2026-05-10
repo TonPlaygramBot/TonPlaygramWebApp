@@ -13,7 +13,6 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -77,17 +76,7 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const [tableModelId, setTableModelId] = useState(() => {
-    try {
-      const stored = window.localStorage?.getItem(
-        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY
-      );
-      return resolvePoolRoyaleTableModel(stored).id;
-    } catch {}
-    return resolvePoolRoyaleTableModel().id;
-  });
-  const [players, setPlayers] = useState(8);
-  const selectedTableModel = resolvePoolRoyaleTableModel(tableModelId);
+  const selectedTableModel = resolvePoolRoyaleTableModel();
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -624,49 +613,6 @@ export default function PoolRoyaleLobby() {
           </div>
           <p className="mt-3 text-xs text-white/60">
             Your lobby choices persist into the match intro.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Pool Table</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              GLB Arena
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
-              const active = tableModelId === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setTableModelId(option.id)}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  }`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-fuchsia-400/20 via-amber-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner text-2xl">
-                      {option.icon || '🎱'}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{option.label}</p>
-                    <p className="lobby-option-subtitle">
-                      {option.kind === 'gltf'
-                        ? `${option.tableSizeId} · original textures`
-                        : 'Current table'}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-white/60">
-            New GLB tables replace the in-game table visually while Pool Royale keeps the matched playfield, pockets, cushions, and ball physics.
           </p>
         </div>
 
