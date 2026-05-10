@@ -123,7 +123,6 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
   chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
@@ -1707,7 +1706,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -4360,34 +4359,28 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
-const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  BILARDO_SHQIP_HUMAN_URL
-]);
-
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd6d8dc,
-    metalness: 0.95,
-    roughness: 0.12,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xd7dde7,
+    metalness: 1,
+    roughness: 0.055,
+    clearcoat: 1,
+    clearcoatRoughness: 0.025,
+    envMapIntensity: 7.2
   },
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.92,
-    roughness: 0.16,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xf5d978,
+    metalness: 1,
+    roughness: 0.065,
+    clearcoat: 1,
+    clearcoatRoughness: 0.035,
+    envMapIntensity: 6.7
   }
 ]);
 
@@ -6175,8 +6168,11 @@ function projectRailUVs(geometry, bounds) {
   return target;
 }
 
-function enhanceChromeMaterial(material) {
+function enhanceChromeMaterial(material, options = {}) {
   if (!material) return;
+  const maxEnvMapIntensity = Number.isFinite(options.maxEnvMapIntensity)
+    ? options.maxEnvMapIntensity
+    : 1.02;
   const ensure = (key, value, transform) => {
     if (typeof material[key] === 'number') {
       material[key] = transform(material[key], value);
@@ -6188,7 +6184,7 @@ function enhanceChromeMaterial(material) {
   ensure('roughness', 0.1, (current, target) => Math.min(current, target));
   ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
   ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
-  ensure('envMapIntensity', 1.02, (current, target) =>
+  ensure('envMapIntensity', maxEnvMapIntensity, (current, target) =>
     THREE.MathUtils.clamp(current, 0.92, target)
   );
   if (material.side !== THREE.DoubleSide) {
@@ -11995,7 +11991,9 @@ export function Table3D(
       });
   const createBrandSideMaterial = () => {
     const mat = trimMat.clone();
-    enhanceChromeMaterial(mat);
+    enhanceChromeMaterial(mat, {
+      maxEnvMapIntensity: Math.max(chromeOption?.envMapIntensity ?? 1.02, materialProps.envMapIntensity ?? 1.02)
+    });
     mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
     mat.roughness = Math.max(0.06, (mat.roughness ?? 0.4) * 0.78);
     mat.clearcoat = Math.max(mat.clearcoat ?? 0.28, 0.42);
@@ -12961,6 +12959,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const childName = `${child?.name || ''}`.toLowerCase();
   const materialName = `${material?.name || ''}`.toLowerCase();
   const label = `${childName} ${materialName}`;
+  const compactChildName = childName.replace(/[^a-z0-9]/g, '');
+  const compactLabel = label.replace(/[^a-z0-9]/g, '');
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
   const chromeSurfaceNames = Array.isArray(child?.userData?.poolRoyaleChromeSurfaceNames)
@@ -12969,8 +12969,13 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
     ? child.userData.poolRoyaleBlackSurfaceNames
     : [];
-  if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'railSight';
+  const configuredSurfaceMatches = (names) =>
+    names.some((name) => {
+      const compactName = `${name}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return compactName && (compactChildName.includes(compactName) || compactLabel.includes(compactName));
+    });
+  if (configuredSurfaceMatches(chromeSurfaceNames)) return 'railSight';
+  if (configuredSurfaceMatches(blackSurfaceNames)) return 'railSight';
   if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
   if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
@@ -12978,6 +12983,7 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
   if (/base|corner[_\s-]*block|cabinet|lower[_\s-]*trim|underside/.test(childName)) return 'baseCornerBlock';
   if (/leg|support/.test(childName)) return 'leg';
+  if (/apron/.test(label)) return 'sideWoodApron';
   if (/rail|wood|showood|bevel/.test(childName)) return 'topWoodRail';
   if (/gold|metal|chrome|plate|trim|screw|bolt/.test(childName)) return 'railSight';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
@@ -12990,6 +12996,13 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/apron/.test(label)) return 'sideWoodApron';
   if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
   return 'wood';
+}
+
+function clearPoolRoyaleMaterialTextureMaps(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'bumpMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'lightMap', 'alphaMap'].forEach((key) => {
+    material[key] = null;
+  });
 }
 
 function isPoolRoyaleExternalBlackSurface(child) {
@@ -13123,8 +13136,8 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'railSight',
-    baseFoot: 'railSight',
+    verticalCornerRim: 'verticalCornerRim',
+    baseFoot: 'verticalCornerRim',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
   };
@@ -13172,12 +13185,18 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
       ? CHROME_COLOR_OPTIONS.find((item) => item.id === 'gold')
       : CHROME_COLOR_OPTIONS.find((item) => item.id === 'chrome');
     copyMaterialLook(materials.trim);
+    clearPoolRoyaleMaterialTextureMaps(mat);
     if (chromeOption?.color && mat.color) mat.color.set(chromeOption.color);
     ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
       const value = chromeOption?.[key] ?? materialProps[key];
       if (typeof value === 'number' && key in mat) mat[key] = value;
     });
-    enhanceChromeMaterial(mat);
+    enhanceChromeMaterial(mat, {
+      maxEnvMapIntensity: Math.max(
+        chromeOption?.envMapIntensity ?? 1.02,
+        materialProps.envMapIntensity ?? 1.02
+      )
+    });
   } else if (part === 'cloth' || part === 'cushion') {
     copyMaterialLook(part === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat);
     if (part === 'cushion') {
@@ -15300,14 +15319,7 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_FINISH_ID
     );
   });
-  const [tableBaseId, setTableBaseId] = useState(() => {
-    return resolveStoredSelection(
-      'tableBase',
-      TABLE_BASE_STORAGE_KEY,
-      (id) => POOL_ROYALE_BASE_VARIANTS.some((variant) => variant.id === id),
-      DEFAULT_TABLE_BASE_ID
-    );
-  });
+  const [tableBaseId, setTableBaseId] = useState(DEFAULT_TABLE_BASE_ID);
   const [humanCharacterId, setHumanCharacterId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
@@ -15521,11 +15533,8 @@ function PoolRoyaleGame({
     [poolInventory]
   );
   const availableTableBases = useMemo(
-    () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      ),
-    [poolInventory]
+    () => POOL_ROYALE_BASE_VARIANTS.filter((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID),
+    []
   );
   const availableChromeOptions = useMemo(
     () =>
@@ -15660,7 +15669,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== DEFAULT_TABLE_BASE_ID) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -25930,24 +25939,11 @@ const shotPowerRef = useRef(0);
         }
         return secondarySpacingBase;
       };
-      const secondaryTableEntry = Table3D(
-        world,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase,
-        rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
-      );
-      secondaryTableRef.current = secondaryTableEntry?.group ?? null;
-      secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
-      const resolveSnookerScale = () => {
-        const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
-        const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
-        if (!poolWidth || poolWidth <= 0) return 1.2;
-        return Math.max(1.15, snookerWidth / poolWidth);
-      };
-      const snookerDecorScale = resolveSnookerScale();
+      // The second full table was hidden by default but still built all procedural geometry
+      // and kicked off another Showood GLB clone. Keep the slot API inert so environments
+      // can opt out without paying that startup cost.
+      secondaryTableRef.current = null;
+      secondaryBaseSetterRef.current = null;
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -25960,144 +25956,11 @@ const shotPowerRef = useRef(0);
         }
         secondaryTableDecorRef.current = { group: null, dispose: null };
       };
-      const buildDecorGroup = ({ table, variant = 'pool' } = {}) => {
-        if (!table) return null;
-        const decorGroup = new THREE.Group();
-        decorGroup.name = `${variant}-table-decor`;
-        const disposables = [];
-        const registerDisposable = (item) => {
-          if (item && typeof item.dispose === 'function') {
-            disposables.push(item);
-          }
-        };
-        const addDecorBall = (color, number, pattern, pos, variantKey = variant === 'pool' ? 'pool' : 'snooker') => {
-          const material = getBilliardBallMaterial({
-            color,
-            pattern,
-            number,
-            variantKey
-          });
-          const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
-          mesh.position.set(pos.x ?? 0, BALL_CENTER_Y, pos.z ?? 0);
-          mesh.castShadow = false;
-          mesh.receiveShadow = true;
-          mesh.userData = { ...(mesh.userData || {}), decorative: true };
-          decorGroup.add(mesh);
-        };
-        const baseCueScale = BALL_R / 0.0525;
-        const cueScale = baseCueScale * (variant === 'snooker' ? snookerDecorScale : 1);
-        const cueLen = 1.5 * cueScale * CUE_LENGTH_MULTIPLIER;
-        const cueBodyRadius = 0.025 * cueScale;
-        const cueTipRadius = CUE_TIP_RADIUS * 0.82 * (variant === 'snooker' ? snookerDecorScale : 1);
-        const cueGeometry = new THREE.CylinderGeometry(
-          cueTipRadius,
-          cueBodyRadius,
-          cueLen,
-          32
-        );
-        const cueMaterial = new THREE.MeshPhysicalMaterial({
-          color: 0xe6c9a1,
-          roughness: 0.4,
-          metalness: 0.08,
-          clearcoat: 0.28,
-          clearcoatRoughness: 0.48
-        });
-        registerDisposable(cueGeometry);
-        registerDisposable(cueMaterial);
-        const addCueStick = (x, z, rotationY) => {
-          const cueMesh = new THREE.Mesh(cueGeometry, cueMaterial);
-          cueMesh.rotation.x = Math.PI / 2;
-          cueMesh.rotation.y = rotationY;
-          cueMesh.position.set(x, CUE_Y, z);
-          cueMesh.castShadow = false;
-          cueMesh.receiveShadow = true;
-          cueMesh.userData = { ...(cueMesh.userData || {}), decorative: true };
-          decorGroup.add(cueMesh);
-        };
-        if (variant === 'snooker') {
-          const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
-          const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
-          const snookerPalette = {
-            red: 0xb1262c,
-            yellow: 0xf7d000,
-            green: 0x0d7f46,
-            brown: 0x6a4126,
-            blue: 0x1d5fb3,
-            pink: 0xe24578,
-            black: 0x101010,
-            cue: 0xfafafa
-          };
-          rackPositions.forEach((pos, index) => {
-            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 1.6 };
-            addDecorBall(snookerPalette.red, null, 'solid', placement, 'snooker');
-          });
-          [
-            { color: snookerPalette.yellow, spot: SPOTS.yellow },
-            { color: snookerPalette.green, spot: SPOTS.green },
-            { color: snookerPalette.brown, spot: SPOTS.brown },
-            { color: snookerPalette.blue, spot: SPOTS.blue },
-            { color: snookerPalette.pink, spot: SPOTS.pink },
-            { color: snookerPalette.black, spot: SPOTS.black }
-          ].forEach(({ color, spot }) => {
-            addDecorBall(color, null, 'solid', { x: spot[0], z: spot[1] }, 'snooker');
-          });
-          addDecorBall(snookerPalette.cue, null, 'solid', { x: -BALL_R * 3, z: baulkZ - BALL_R * 5 }, 'snooker');
-          addCueStick(-PLAY_W * 0.2, rackStartZ + BALL_R * 4.2, -Math.PI * 0.04);
-          addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.2, Math.PI * 0.06);
-        } else {
-          const rackColors = AMERICAN_BALL_SET.objectColors || [];
-          const rackNumbers = AMERICAN_BALL_SET.objectNumbers || [];
-          const rackPatterns = AMERICAN_BALL_SET.objectPatterns || [];
-          const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
-          const rackPositions = generateRackPositions(
-            rackColors.length,
-            'triangle',
-            BALL_R,
-            rackStartZ
-          );
-          rackColors.forEach((color, index) => {
-            const pos =
-              rackPositions[index] ||
-              rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
-            addDecorBall(color, rackNumbers[index], rackPatterns[index], pos, 'pool');
-          });
-          addDecorBall(0xffffff, null, 'cue', { x: 0, z: baulkZ - BALL_R * 5.5 }, 'pool');
-          addCueStick(-PLAY_W * 0.18, rackStartZ + BALL_R * 4.5, -Math.PI * 0.06);
-          addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.5, Math.PI * 0.08);
-        }
-        table.add(decorGroup);
-        return {
-          group: decorGroup,
-          dispose() {
-            decorGroup.parent?.remove(decorGroup);
-            disposables.forEach((item) => {
-              try {
-                item.dispose();
-              } catch {}
-            });
-          }
-        };
-      };
-      const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
-      const refreshSecondaryDecor = () => {
-        disposeSecondaryDecor();
-        if (environmentHdriRef.current === 'abandonedHall') {
-          return;
-        }
-      };
-      refreshSecondaryTableDecorRef.current = refreshSecondaryDecor;
+      refreshSecondaryTableDecorRef.current = disposeSecondaryDecor;
       clearSecondaryTableDecorRef.current = disposeSecondaryDecor;
-      const applySecondarySlot = (slotIndex = 0, enabled = false) => {
-        const secondary = secondaryTableRef.current;
-        if (!secondary) return;
-        secondary.visible = enabled;
-        const spacing = resolveSecondarySpacing(environmentHdriRef.current);
-        const targetZ = enabled ? (slotIndex === 0 ? -spacing : spacing) : 0;
-        secondary.position.set(0, secondary.position.y, targetZ);
-      };
+      const applySecondarySlot = () => {};
       applyTableSlotRef.current = applySecondarySlot;
-      applySecondarySlot(activeTableSlotRef.current, dualTablesEnabled);
-      refreshSecondaryDecor();
+      disposeSecondaryDecor();
       const disposeDecorativeTables = () => {
         decorativeTablesRef.current.forEach((entry) => {
           entry?.decor?.dispose?.();
@@ -26107,124 +25970,11 @@ const shotPowerRef = useRef(0);
         });
         decorativeTablesRef.current = [];
       };
-      const markDecorativeTable = (tableGroup) => {
-        if (!tableGroup) return;
-        tableGroup.userData = { ...(tableGroup.userData || {}), decorative: true };
-        tableGroup.traverse((child) => {
-          child.userData = { ...(child.userData || {}), decorative: true };
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-      };
-      const createDecorativeTable = ({
-        variant = 'pool',
-        position = { x: 0, z: 0 },
-        rotationY = 0,
-        scale = null
-      } = {}) => {
-        const finishForLayout =
-          tableFinishRef.current ||
-          TABLE_FINISHES?.[DEFAULT_TABLE_FINISH_ID] ||
-          DEFAULT_TABLE_FINISH_ID;
-        const entry = Table3D(
-          world,
-          finishForLayout,
-          tableSizeMeta,
-          railMarkerStyleRef.current,
-          activeTableBase,
-          rendererRef.current
-        );
-        const tableGroup = entry?.group;
-        if (!tableGroup) return null;
-        if (scale) {
-          const targetScale = {
-            x: scale.x ?? scale,
-            y: scale.y ?? scale,
-            z: scale.z ?? scale
-          };
-          tableGroup.scale.set(
-            targetScale.x ?? 1,
-            targetScale.y ?? 1,
-            targetScale.z ?? 1
-          );
-        }
-        tableGroup.position.set(position.x ?? 0, tableGroup.position.y, position.z ?? 0);
-        tableGroup.rotation.y = rotationY;
-        markDecorativeTable(tableGroup);
-        applyTableFinishToTable(tableGroup, finishForLayout);
-        const decor = buildDecorGroup({ table: tableGroup, variant });
-        decorativeTablesRef.current.push({
-          group: tableGroup,
-          setBaseVariant: entry?.setBaseVariant ?? null,
-          decor,
-          variant
-        });
-        return tableGroup;
-      };
-      const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
+      const layoutDecorativeTables = () => {
         disposeDecorativeTables();
-        if (
-          environmentId === 'dancingHall' ||
-          environmentId === 'abandonedHall' ||
-          environmentId === 'oldHall' ||
-          environmentId === 'musicHall02'
-        ) {
-          return;
-        }
-        const spacing = resolveSecondarySpacing(environmentId);
-        const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
-        const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
-        const maxX = Math.max(0, arenaHalfWidth - placementMargin);
-        const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
-        const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
-        const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
-        const envRotationY = Number.isFinite(
-          POOL_ROYALE_HDRI_VARIANT_MAP[environmentId]?.rotationY
-        )
-          ? POOL_ROYALE_HDRI_VARIANT_MAP[environmentId].rotationY
-          : 0;
-        const placeSideLayout = () => {
-          const tableHalfWidth = (TABLE.W / 2) * TABLE_DISPLAY_SCALE;
-          const snookerHalfWidth = tableHalfWidth * snookerDecorScale;
-          const sideGap = Math.max(BALL_R * 8, spacing * 0.35);
-          const leftOffset = clampX(-(tableHalfWidth + sideGap + tableHalfWidth));
-          const rightOffset = clampX(tableHalfWidth + sideGap + snookerHalfWidth);
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: leftOffset, z: 0 },
-            rotationY: envRotationY
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: rightOffset, z: 0 },
-            rotationY: envRotationY,
-            scale: { x: snookerDecorScale, y: 1, z: snookerDecorScale }
-          });
-        };
-        if (
-          environmentId === 'oldHall' ||
-          environmentId === 'emptyPlayRoom'
-        ) {
-          placeSideLayout();
-        } else if (environmentId === 'mirroredHall') {
-          const lateralSpacing = clampX(spacing * 0.6);
-          const depthSpacing = clampZ(spacing * 0.55);
-          const rearSpacing = clampZ(spacing * 0.9);
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: -lateralSpacing, z: -depthSpacing }
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: lateralSpacing, z: depthSpacing }
-          });
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: 0, z: rearSpacing }
-          });
-        }
+        // Pool Royale now loads only the playable Showood table. Decorative side
+        // pool/snooker tables are disabled because their procedural Table3D builds
+        // were a major startup cost even outside gameplay.
       };
       updateDecorTablesRef.current = layoutDecorativeTables;
       clearDecorTablesRef.current = disposeDecorativeTables;
@@ -26588,27 +26338,6 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createWaterServiceProps = (tableTopY = BALL_R * 6.2) => {
-        const group = new THREE.Group();
-        const waterMat = new THREE.MeshPhysicalMaterial({ color: 0xbdeaff, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0, transmission: 0.35 });
-        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, roughness: 0.04, metalness: 0, transmission: 0.55 });
-        const bottle = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.62, BALL_R * 0.74, BALL_R * 3.9, 20), waterMat);
-        bottle.position.set(-BALL_R * 2.15, tableTopY + BALL_R * 2.0, -BALL_R * 0.45);
-        const glass = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.82, BALL_R * 0.68, BALL_R * 1.85, 20), glassMat);
-        glass.position.set(BALL_R * 2.0, tableTopY + BALL_R * 0.9, BALL_R * 0.55);
-        const water = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.66, BALL_R * 0.56, BALL_R * 0.88, 20), waterMat);
-        water.position.set(0, -BALL_R * 0.18, 0);
-        glass.add(water);
-        [bottle, glass].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        group.userData.glass = glass;
-        group.userData.glassBase = glass.position.clone();
-        return group;
-      };
-
       const fitAssetToSpan = (asset, targetSpan, { ground = true } = {}) => {
         if (!asset) return asset;
         const box = new THREE.Box3().setFromObject(asset);
@@ -26624,24 +26353,18 @@ const shotPowerRef = useRef(0);
         return asset;
       };
 
-      const createFallbackPoolSideFurniture = (seat, zSign, tableTopY) => {
+      const createFallbackPoolSideFurniture = (seat, zSign) => {
         const group = new THREE.Group();
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
-        tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
-        tablePedestal.position.set(0, tableTopY * 0.5, 0);
         const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
         chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
         const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
         chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
-        [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
+        [chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           group.add(mesh);
         });
-        group.userData.tableMeshes = [tableTop, tablePedestal];
         group.userData.chairMeshes = [chairSeat, chairBack];
         return group;
       };
@@ -26654,30 +26377,13 @@ const shotPowerRef = useRef(0);
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
-        const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
         const chairLocalZ = zSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign, tableTopY);
+        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
-        const murlanDefaultTable = new THREE.Group();
-        murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-        try {
-          createMurlanStyleTable({
-            THREE,
-            arena: murlanDefaultTable,
-            renderer,
-            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-            tableHeight: tableTopY,
-            includeBase: true
-          });
-          group.add(murlanDefaultTable);
-          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-            mesh.visible = false;
-          });
-        } catch (error) {
-          console.warn('Failed to create Pool Royale Murlan default lounge table', error);
-        }
+        // No lounge/player side table: keep only the chair so the rack-side furniture
+        // does not build another heavy procedural table during Pool Royale startup.
 
         loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
           if (!group.parent) return;
@@ -26694,78 +26400,12 @@ const shotPowerRef = useRef(0);
           console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
         });
 
-        const serviceProps = createWaterServiceProps(tableTopY);
-        group.add(serviceProps);
         group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
         group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
         group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.glass = serviceProps.userData.glass;
-        group.userData.glassBase = serviceProps.userData.glassBase.clone();
         return group;
       };
 
-      const createFallbackRefereeOfficial = () => {
-        const group = new THREE.Group();
-        const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.04 });
-        const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
-        const skin = new THREE.MeshStandardMaterial({ color: 0xc9906e, roughness: 0.6, metalness: 0.01 });
-        const torso = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 1.0, BALL_R * 1.15, BALL_R * 4.4, 16), white);
-        torso.position.y = BALL_R * 6.1;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 1.9, BALL_R * 3.4, BALL_R * 0.28), black);
-        vest.position.set(0, BALL_R * 6.25, -BALL_R * 0.72);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * 0.92, 18, 12), skin);
-        head.position.y = BALL_R * 8.9;
-        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.34, BALL_R * 0.38, BALL_R * 3.8, 12), black);
-        leftLeg.position.set(-BALL_R * 0.55, BALL_R * 2.8, 0);
-        const rightLeg = leftLeg.clone();
-        rightLeg.position.x = BALL_R * 0.55;
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.22, BALL_R * 0.28, BALL_R * 3.2, 10), white);
-        rightArm.position.set(BALL_R * 1.35, BALL_R * 6.0, 0);
-        rightArm.rotation.z = THREE.MathUtils.degToRad(-10);
-        [torso, vest, head, leftLeg, rightLeg, rightArm].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        return group;
-      };
-
-      const createRefereeOfficial = async () => {
-        const group = new THREE.Group();
-        const gltf = await loadFirstAvailableGltf(POOL_ROYALE_REFEREE_HUMAN_URLS).catch(() => null);
-        const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? null;
-        if (model) {
-          model.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            const key = `${child.name || ''} ${materials.map((mat) => mat?.name || '').join(' ')}`.toLowerCase();
-            const cloned = materials.map((mat) => {
-              const next = mat?.clone?.() ?? new THREE.MeshStandardMaterial();
-              if (key.includes('shirt') || key.includes('top') || key.includes('torso') || key.includes('body')) {
-                next.color?.setHex?.(0xf8fafc);
-              }
-              if (key.includes('pant') || key.includes('leg') || key.includes('shoe') || key.includes('boot')) {
-                next.color?.setHex?.(0x050505);
-              }
-              next.roughness = Math.max(next.roughness ?? 0.5, 0.46);
-              next.needsUpdate = true;
-              return next;
-            });
-            child.material = Array.isArray(child.material) ? cloned : cloned[0];
-          });
-          fitAssetToSpan(model, BALL_R * 18.5);
-          group.add(model);
-        } else {
-          group.add(createFallbackRefereeOfficial());
-        }
-        group.position.set(TABLE.W / 2 + BALL_R * 16, floorY, 0);
-        group.userData.referee = true;
-        group.userData.walkT = 0;
-        group.userData.gltfReferee = Boolean(model);
-        return group;
-      };
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
@@ -26851,15 +26491,11 @@ const shotPowerRef = useRef(0);
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
         const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
+        world.add(loungeA);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
+          { group: loungeA, lounge: true, seat: 'A' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -37010,50 +36646,6 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
                       </button>
                     );
                   })}
