@@ -33,7 +33,10 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
+import {
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  resolvePoolRoyaleTableModel
+} from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
@@ -12875,20 +12878,12 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   return 'wood';
 }
 
-function isPoolRoyaleExternalNamedSurface(child, userDataKey) {
-  const childName = `${child?.name || ''}`.toLowerCase();
-  const surfaceNames = Array.isArray(child?.userData?.[userDataKey])
-    ? child.userData[userDataKey]
-    : [];
-  return surfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()));
-}
-
 function isPoolRoyaleExternalBlackSurface(child) {
-  return isPoolRoyaleExternalNamedSurface(child, 'poolRoyaleBlackSurfaceNames');
-}
-
-function isPoolRoyaleExternalChromeControlledSurface(child) {
-  return isPoolRoyaleExternalNamedSurface(child, 'poolRoyaleChromeSurfaceNames');
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
+    ? child.userData.poolRoyaleBlackSurfaceNames
+    : [];
+  return blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()));
 }
 
 function applyPoolRoyaleBlackExternalSurfaceMaterial(material) {
@@ -13010,8 +13005,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
     ? tableModel.preserveOriginalSurfaceRoles
     : [];
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
-  const chromeControlledSurface = role === 'trim' && isPoolRoyaleExternalChromeControlledSurface(child);
-  if (!chromeControlledSurface && (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role))) {
+  if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
     if (isPoolRoyaleExternalBlackSurface(child)) {
       applyPoolRoyaleBlackExternalSurfaceMaterial(originalMat);
@@ -13074,10 +13068,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
     enhanceChromeMaterial(mat);
-    mat.userData = {
-      ...(mat.userData || {}),
-      poolRoyaleChromeControlledSurface: chromeControlledSurface
-    };
   } else if (role === 'pocket') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
   } else {
@@ -13133,10 +13123,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
-      child.userData = {
-        ...(child.userData || {}),
-        poolRoyaleExternalSurfaceRole: role
-      };
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
@@ -13168,41 +13154,6 @@ function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finis
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
   return clone;
-}
-
-function refreshPoolRoyaleExternalTableMaterials(table, finishInfo = null) {
-  const externalRoot = table?.userData?.externalTable?.group;
-  const tableModel = table?.userData?.externalTableModelForMount;
-  if (!externalRoot || !tableModel || !finishInfo) return;
-  externalRoot.traverse((child) => {
-    if (!child?.isMesh) return;
-    const previousMaterial = child.material;
-    const previousMaterials = Array.isArray(previousMaterial) ? previousMaterial : [previousMaterial];
-    child.userData = {
-      ...(child.userData || {}),
-      poolRoyaleChromeSurfaceNames: Array.isArray(tableModel.chromeMaterialSurfaceNames)
-        ? tableModel.chromeMaterialSurfaceNames
-        : [],
-      poolRoyaleBlackSurfaceNames: Array.isArray(tableModel.blackMaterialSurfaceNames)
-        ? tableModel.blackMaterialSurfaceNames
-        : []
-    };
-    const prepareMaterial = (material) => {
-      if (!material) return material;
-      const role = child.userData?.poolRoyaleExternalSurfaceRole ||
-        classifyPoolRoyaleExternalTableSurface(child, material);
-      child.userData.poolRoyaleExternalSurfaceRole = role;
-      return applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel, child);
-    };
-    child.material = Array.isArray(previousMaterial)
-      ? previousMaterial.map(prepareMaterial)
-      : prepareMaterial(previousMaterial);
-    previousMaterials.forEach((material) => {
-      if (!material) return;
-      const nextMaterials = Array.isArray(child.material) ? child.material : [child.material];
-      if (!nextMaterials.includes(material)) material.dispose?.();
-    });
-  });
 }
 
 async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
@@ -14200,7 +14151,6 @@ function mountPoolRoyaleExternalTableModel({
         })
       : null;
   table.userData.externalTable = externalTable;
-  table.userData.externalTableModelForMount = externalTableModelForMount;
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -15076,7 +15026,7 @@ function PoolRoyaleGame({
     }
     return DEFAULT_POCKET_LINER_OPTION_ID;
   });
-  const [railMarkerShapeId] = useState(() => {
+  const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
       if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
@@ -15233,6 +15183,13 @@ function PoolRoyaleGame({
     () =>
       CHROME_PLATE_STYLE_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('chromePlateStyle', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
+  const availableRailMarkerColors = useMemo(
+    () =>
+      RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -27032,16 +26989,13 @@ const shotPowerRef = useRef(0);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
-          refreshPoolRoyaleExternalTableMaterials(table, nextFinish);
         }
         if (secondaryTableRef.current && nextFinish) {
           applyTableFinishToTable(secondaryTableRef.current, nextFinish);
-          refreshPoolRoyaleExternalTableMaterials(secondaryTableRef.current, nextFinish);
         }
         decorativeTablesRef.current.forEach((entry) => {
           if (entry?.group && nextFinish) {
             applyTableFinishToTable(entry.group, nextFinish);
-            refreshPoolRoyaleExternalTableMaterials(entry.group, nextFinish);
           }
         });
       };
@@ -36960,6 +36914,58 @@ const shotPowerRef = useRef(0);
               ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Rail Markers
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerShapeId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerShapeId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableRailMarkerColors.map((option) => {
+                    const active = option.id === railMarkerColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
                 </h3>
                 <p className="mt-1 text-[0.7rem] text-white/70">
@@ -38119,6 +38125,11 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableModel');
     if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      ).id;
+    } catch {}
     return resolvePoolRoyaleTableModel().id;
   }, [location.search]);
   const mode = useMemo(() => {
