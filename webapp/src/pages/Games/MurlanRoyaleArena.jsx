@@ -2354,16 +2354,16 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
 function resolveCharacterActionAnimationProfile(styleId) {
   switch (styleId) {
     case 'lowArcDeal':
-      return { reach: 0.9, pinch: 0.82, hold: 0.65, carry: 0.86, hover: 0.8, contact: 0.76, release: 0.72, recover: 0.82, pickupLift: 0.034, carryLift: 0.07, tableHover: 0.058, carryBlend: 0.55, wristFlip: 0.08, spring: 0 };
+      return { reach: 0.9, pinch: 0.88, hold: 0.7, carry: 0.92, hover: 0.86, contact: 0.82, release: 0.76, recover: 0.86, pickupLift: 0.042, carryLift: 0.086, tableHover: 0.064, carryBlend: 0.54, wristFlip: 0.1, spring: 0 };
     case 'straightSlide':
-      return { reach: 0.78, pinch: 0.7, hold: 0.45, carry: 0.72, hover: 0.62, contact: 0.64, release: 0.62, recover: 0.76, pickupLift: 0.018, carryLift: 0.028, tableHover: 0.03, carryBlend: 0.5, wristFlip: 0.02, spring: 0 };
+      return { reach: 0.82, pinch: 0.78, hold: 0.52, carry: 0.78, hover: 0.68, contact: 0.74, release: 0.66, recover: 0.78, pickupLift: 0.024, carryLift: 0.034, tableHover: 0.036, carryBlend: 0.5, wristFlip: 0.035, spring: 0 };
     case 'flipSettle':
-      return { reach: 1, pinch: 0.9, hold: 0.55, carry: 0.9, hover: 0.9, contact: 0.86, release: 0.78, recover: 0.88, pickupLift: 0.052, carryLift: 0.14, tableHover: 0.082, carryBlend: 0.44, wristFlip: 0.42, spring: 0 };
+      return { reach: 1.06, pinch: 0.98, hold: 0.62, carry: 0.98, hover: 0.96, contact: 0.92, release: 0.84, recover: 0.92, pickupLift: 0.06, carryLift: 0.15, tableHover: 0.09, carryBlend: 0.45, wristFlip: 0.34, spring: 0 };
     case 'springSnap':
-      return { reach: 0.7, pinch: 0.62, hold: 0.35, carry: 0.58, hover: 0.48, contact: 0.5, release: 0.52, recover: 0.7, pickupLift: 0.042, carryLift: 0.1, tableHover: 0.07, carryBlend: 0.5, wristFlip: 0.16, spring: 0.055 };
+      return { reach: 0.78, pinch: 0.68, hold: 0.42, carry: 0.66, hover: 0.56, contact: 0.58, release: 0.58, recover: 0.72, pickupLift: 0.048, carryLift: 0.11, tableHover: 0.074, carryBlend: 0.5, wristFlip: 0.16, spring: 0.048 };
     case 'precisionLift':
     default:
-      return { reach: 1, pinch: 1, hold: 1, carry: 1, hover: 1, contact: 1, release: 1, recover: 1, pickupLift: 0.045, carryLift: 0.12, tableHover: 0.085, carryBlend: 0.48, wristFlip: 0.22, spring: 0 };
+      return { reach: 1.12, pinch: 1.08, hold: 0.78, carry: 1.14, hover: 1.02, contact: 0.96, release: 0.9, recover: 1.02, pickupLift: 0.064, carryLift: 0.135, tableHover: 0.09, carryBlend: 0.5, wristFlip: 0.18, spring: 0 };
   }
 }
 
@@ -2384,23 +2384,66 @@ function runCharacterAction(store, rig, action) {
   const actionAnimationProfile = resolveCharacterActionAnimationProfile(actionAnimationStyle);
 
   if (action.type === 'PASS') {
-    const knockPose = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-10) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(34) },
-      rightHand: { x: THREE.MathUtils.degToRad(12) },
-      head: { x: THREE.MathUtils.degToRad(4) }
+    const relaxedOpenHand = {
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
+    };
+    const looseKnockFist = {
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(13) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-2) }
+    };
+    const reachBeforeKnock = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(3) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(4) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-4) },
+      ...relaxedOpenHand
+    });
+    const cockedKnuckles = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(5) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-16) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-4) },
+      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
+      ...looseKnockFist
+    });
+    const tableTap = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(7) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(-15) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(54), y: THREE.MathUtils.degToRad(-4) },
+      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-5) },
+      ...looseKnockFist
+    });
+    const rebound = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(1) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(40), y: THREE.MathUtils.degToRad(-3) },
+      rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-7) },
+      ...looseKnockFist
     });
 
-    list.push({
-      start: now,
-      duration: 320,
-      update: (t) => applyRigPoseLerp(rig, knockPose, t)
-    });
-    list.push({
-      start: now + 320,
-      duration: 360,
-      update: (t) => applyRigPoseLerp(rig, basePose, t)
+    let cursor = now;
+    [
+      [reachBeforeKnock, 260],
+      [cockedKnuckles, 150],
+      [tableTap, 95],
+      [rebound, 120],
+      [tableTap, 82],
+      [rebound, 140],
+      [basePose, 420]
+    ].forEach(([pose, duration]) => {
+      list.push({
+        start: cursor,
+        duration,
+        update: (t) => applyRigPoseLerp(rig, pose, t)
+      });
+      cursor += duration;
     });
     return;
   }
@@ -2422,19 +2465,24 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(1) }
     };
     const reachToCards = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-15) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-70), y: THREE.MathUtils.degToRad(-19), z: THREE.MathUtils.degToRad(-22) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-3) },
-      rightHand: { x: THREE.MathUtils.degToRad(-7), y: THREE.MathUtils.degToRad(-19), z: THREE.MathUtils.degToRad(-13) },
-      head: { x: THREE.MathUtils.degToRad(-10) },
+      spine: { x: THREE.MathUtils.degToRad(-17), z: THREE.MathUtils.degToRad(-1) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(3) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(12), y: THREE.MathUtils.degToRad(2) },
+      leftHand: { x: THREE.MathUtils.degToRad(5), y: THREE.MathUtils.degToRad(3) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-74), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-4) },
+      rightHand: { x: THREE.MathUtils.degToRad(-11), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-14) },
+      head: { x: THREE.MathUtils.degToRad(-11), y: THREE.MathUtils.degToRad(-2) },
       ...openFingers
     });
     const pinchPickup = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-16) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-72), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-23) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-27), y: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-15) },
-      head: { x: THREE.MathUtils.degToRad(-11) },
+      spine: { x: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-1) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(2) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(2) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-76), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-31), y: THREE.MathUtils.degToRad(-5) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-16) },
+      head: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-2) },
       ...pinchFingers
     });
     const controlledCarry = buildPoseVariant(basePose, {
@@ -2445,17 +2493,18 @@ function runCharacterAction(store, rig, action) {
       ...pinchFingers
     });
     const hoverAboveTable = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(5) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-23) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(44), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-4) },
+      spine: { x: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(1) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(5) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(-25), z: THREE.MathUtils.degToRad(-22) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(46), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-6) },
       ...pinchFingers
     });
     const tableContact = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(32), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-20) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(55), y: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(13), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-2) },
+      spine: { x: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(1) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-19) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(58), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-1) },
       ...pinchFingers
     });
     const releaseOnTable = buildPoseVariant(basePose, {
@@ -2916,8 +2965,8 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 0.94;
-const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.9;
+const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.1;
+const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
@@ -2926,11 +2975,11 @@ const AI_HAND_CARD_SCALE = 0.82;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
 const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 0.58 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 0.58 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = 0.16 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 0.84 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = 0.07 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = 0.1 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 0.76 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 0.98 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
@@ -2949,9 +2998,11 @@ const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
 const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
 const TABLE_PLAY_LIFT_ARC = 0.058 * MODEL_SCALE;
-const PRECISE_CARD_PLACE_DURATION_MS = 1450;
-const PRECISE_CARD_PICKUP_LIFT = 0.048 * MODEL_SCALE;
-const PRECISE_CARD_PICKUP_PORTION = 0.42;
+const PRECISE_CARD_PLACE_DURATION_MS = 1680;
+const PRECISE_CARD_PICKUP_LIFT = 0.072 * MODEL_SCALE;
+const PRECISE_CARD_PICKUP_PORTION = 0.34;
+const PRECISE_CARD_SETTLE_SLIDE = 0.045 * MODEL_SCALE;
+const PRECISE_CARD_SETTLE_PORTION = 0.18;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const DEAL_SHUFFLE_LEAD_IN_MS = 220;
@@ -4605,7 +4656,9 @@ export default function MurlanRoyaleArena({ search }) {
           duration: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_PLACE_DURATION_MS : undefined,
           liftArc: !immediate && wasInAnyHand ? TABLE_PLAY_LIFT_ARC : 0,
           preLift: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_PICKUP_LIFT : 0,
-          preLiftPortion: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_PICKUP_PORTION : 0
+          preLiftPortion: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_PICKUP_PORTION : 0,
+          settleSlide: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_SETTLE_SLIDE : 0,
+          settlePortion: shouldPrecisionPlacePlayedCard ? PRECISE_CARD_SETTLE_PORTION : 0
         }
       );
     });
@@ -5988,6 +6041,19 @@ export default function MurlanRoyaleArena({ search }) {
             if (anim.liftArc > 0) {
               anim.mesh.position.y += Math.sin(clampedProgress * Math.PI) * anim.liftArc;
             }
+            if (anim.settleSlide > 0) {
+              const settlePortion = anim.settlePortion ?? 0.16;
+              const settleStart = Math.max(0, 1 - settlePortion);
+              if (clampedProgress >= settleStart) {
+                const settleT = easeInOutCubic((clampedProgress - settleStart) / Math.max(1e-6, settlePortion));
+                const slideDirection = anim.to.clone().sub(anim.from).setY(0);
+                if (slideDirection.lengthSq() > 1e-6) {
+                  slideDirection.normalize();
+                  anim.mesh.position.addScaledVector(slideDirection, (1 - settleT) * anim.settleSlide);
+                }
+                anim.mesh.position.y -= Math.sin(settleT * Math.PI) * 0.006 * MODEL_SCALE;
+              }
+            }
             orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
             if (clampedProgress >= 1) {
               anim.mesh.position.copy(anim.to);
@@ -7332,6 +7398,12 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
       Number.isFinite(Number(motion?.preLiftPortion)) ? Number(motion.preLiftPortion) : 0.3,
       0.1,
       0.8
+    ),
+    settleSlide: Math.max(0, Number(motion?.settleSlide) || 0),
+    settlePortion: THREE.MathUtils.clamp(
+      Number.isFinite(Number(motion?.settlePortion)) ? Number(motion.settlePortion) : 0.16,
+      0.04,
+      0.35
     ),
     cancelled: false
   };
