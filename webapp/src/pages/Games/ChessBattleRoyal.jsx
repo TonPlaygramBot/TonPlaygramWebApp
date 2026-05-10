@@ -455,9 +455,9 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28; // Lower the 3D player camera for a seated portrait view.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.22; // Aim slightly upward from the lower camera toward the pieces/opponent.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 2.75; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 3.55; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -9360,7 +9360,10 @@ function Chess3D({
         try {
           skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
           skybox.position.y = floorY + cameraHeight;
+          skybox.frustumCulled = false;
+          skybox.renderOrder = -100;
           skybox.material.depthWrite = false;
+          skybox.material.depthTest = true;
           sceneInstance.background = null;
           sceneInstance.add(skybox);
           envSkyboxRef.current = skybox;
@@ -9715,10 +9718,12 @@ function Chess3D({
       const skybox = envSkyboxRef.current;
       if (!skybox) return;
       const radius = camera.position.distanceTo(boardLookTarget);
-      const baseRadius = baseCameraRadiusRef.current || radius || 1;
       const baseScale = baseSkyboxScaleRef.current || 1;
-      const scale = clamp(radius / baseRadius, 0.35, 3.5);
-      skybox.scale.setScalar(baseScale * scale);
+      // Keep the grounded HDRI fixed during wheel/pinch zoom. Uniformly scaling
+      // GroundedSkybox moves its projected floor relative to the arena, which can
+      // make the table, chairs, avatars, and parked weapons appear to sink under
+      // the HDRI ground as the camera radius changes.
+      skybox.scale.setScalar(baseScale);
       lastCameraRadiusRef.current = radius;
     };
     controls.addEventListener('change', syncSkyboxToCamera);
