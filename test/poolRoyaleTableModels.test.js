@@ -8,8 +8,8 @@ import {
 describe('Pool Royale table models', () => {
   test('defaults to the Showood GLB table', () => {
     assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel('unknown').id, 'showood-seven-foot');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'royal-original');
+    assert.equal(resolvePoolRoyaleTableModel('unknown').id, 'royal-original');
   });
 
   test('Showood uses original GLB surface layout with Pool Royale finish textures', () => {
@@ -25,8 +25,8 @@ describe('Pool Royale table models', () => {
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['trim']);
     assert.equal(showood.tintOriginalTrimGold, true);
-    assert.deepEqual(showood.chromeMaterialSurfaceNames, ['diamonds', 'railSight', 'sideWoodApron', 'bevel']);
-    assert.deepEqual(showood.blackMaterialSurfaceNames, []);
+    assert.deepEqual(showood.chromeMaterialSurfaceNames, ['diamonds']);
+    assert.deepEqual(showood.blackMaterialSurfaceNames, ['sideWoodApron', 'railSight']);
     assert.equal(showood.forceGeneratedChromePlates, false);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
