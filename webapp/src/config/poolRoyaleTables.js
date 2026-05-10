@@ -4,24 +4,6 @@ const BASE_TABLE_COMPACT_SCALE = 1.44;
 const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
-  '7ft': {
-    id: '7ft',
-    label: '7 ft (Showood)',
-    playfield: Object.freeze({ widthMm: 1981.2, heightMm: 990.6 }), // 78" × 39" Showood/WPA 7 ft playing surface
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
-    }),
-    cushionCutAngleDeg: 32,
-    sideCushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    scaleOverrides: Object.freeze({
-      scale: 1.218,
-      mobileScale: 1.342,
-      compactScale: 1.154
-    })
-  },
   '9ft': {
     id: '9ft',
     label: '9 ft (Tournament)',

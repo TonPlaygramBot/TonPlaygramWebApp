@@ -2677,11 +2677,11 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 28; // match Murlan Royale's default octagon table proportions at pool-side scale.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 19.2;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 74; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 56;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 68;
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
+const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 38;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 54;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
 const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
@@ -12860,9 +12860,6 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   // must win over material names for physics mapping and finish assignment.
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
-  // Showood names the metallic apron/sight meshes after their table position;
-  // keep those pieces on the trim/chrome path instead of treating them as wood.
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|rail[_\s-]*sight|railsight/.test(childName)) return 'trim';
   if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
@@ -12976,24 +12973,13 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
-    if (role === 'trim' && (tableModel?.tintOriginalTrimWithChrome || tableModel?.tintOriginalTrimGold)) {
-      const chromeMat = finishInfo?.materials?.trim;
-      if (originalMat.color) originalMat.color.copy(chromeMat?.color ?? new THREE.Color(0xd8b45a));
-      if ('metalness' in originalMat) {
-        originalMat.metalness = Math.max(chromeMat?.metalness ?? 0.88, originalMat.metalness ?? 0.88);
-      }
-      if ('roughness' in originalMat) {
-        originalMat.roughness = Math.min(chromeMat?.roughness ?? 0.24, originalMat.roughness ?? 0.18);
-      }
-      if ('envMapIntensity' in originalMat) {
-        originalMat.envMapIntensity = Math.max(chromeMat?.envMapIntensity ?? 1.15, originalMat.envMapIntensity ?? 1.15);
-      }
-      if ('clearcoat' in originalMat) {
-        originalMat.clearcoat = Math.max(chromeMat?.clearcoat ?? 0.55, originalMat.clearcoat ?? 0.55);
-      }
-      if ('clearcoatRoughness' in originalMat) {
-        originalMat.clearcoatRoughness = Math.min(chromeMat?.clearcoatRoughness ?? 0.18, originalMat.clearcoatRoughness ?? 0.12);
-      }
+    if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
+      if (originalMat.color) originalMat.color.set(0xd8b45a);
+      if ('metalness' in originalMat) originalMat.metalness = Math.max(0.88, originalMat.metalness ?? 0.88);
+      if ('roughness' in originalMat) originalMat.roughness = Math.min(0.24, originalMat.roughness ?? 0.18);
+      if ('envMapIntensity' in originalMat) originalMat.envMapIntensity = Math.max(1.15, originalMat.envMapIntensity ?? 1.15);
+      if ('clearcoat' in originalMat) originalMat.clearcoat = Math.max(0.55, originalMat.clearcoat ?? 0.55);
+      if ('clearcoatRoughness' in originalMat) originalMat.clearcoatRoughness = Math.min(0.18, originalMat.clearcoatRoughness ?? 0.12);
     }
     preparePoolRoyaleExternalTexture(originalMat.map, true);
     preparePoolRoyaleExternalTexture(originalMat.emissiveMap, true);
@@ -26208,14 +26194,14 @@ const shotPowerRef = useRef(0);
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 21.5, BALL_R * 22.0, BALL_R * 1.65, 64), woodMat);
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
         tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.35, BALL_R * 3.3, tableTopY, 32), woodMat);
+        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 23.5, BALL_R * 2.45, BALL_R * 20.2), seatMat);
-        chairSeat.position.set(0, BALL_R * 5.3, zSign * BALL_R * 46.0);
-        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 23.5, BALL_R * 18.8, BALL_R * 2.45), seatMat);
-        chairBack.position.set(0, BALL_R * 13.6, zSign * BALL_R * 56.5);
+        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
+        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
+        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
         [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
@@ -38083,20 +38069,7 @@ export default function PoolRoyale() {
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
-    if (requested) return resolveTableSize(requested).id;
-    const requestedModel = params.get('tableModel');
-    const model = requestedModel
-      ? resolvePoolRoyaleTableModel(requestedModel)
-      : (() => {
-          try {
-            return resolvePoolRoyaleTableModel(
-              window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
-            );
-          } catch {
-            return resolvePoolRoyaleTableModel();
-          }
-        })();
-    return resolveTableSize(model?.tableSizeId).id;
+    return resolveTableSize(requested).id;
   }, [location.search]);
   const tableModelKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
