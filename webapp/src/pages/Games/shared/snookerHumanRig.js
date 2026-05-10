@@ -1,11 +1,7 @@
 import { createHumanRig, chooseHumanEdgePosition, updateHumanPose } from './humanRigCore';
 
 export function createSnookerHumanRig(scene, opts = {}) {
-  return createHumanRig(scene, {
-    exactOriginalPoseLogic: true,
-    addFaceDetails: false,
-    ...opts
-  });
+  return createHumanRig(scene, opts);
 }
 
 export { chooseHumanEdgePosition };
