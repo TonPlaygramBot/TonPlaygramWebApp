@@ -17,7 +17,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
-  resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
@@ -10806,7 +10805,21 @@ function Table3D(
     return removedMeshes.length;
   };
 
-  const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceClothUvBounds()) => {
+  const resolveOpenSourceModelClothUvBounds = (root) => {
+    const bounds = new THREE.Box3();
+    root?.updateMatrixWorld?.(true);
+    table.updateMatrixWorld(true);
+    root?.traverse?.((node) => {
+      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cloth') return;
+      expandBoxByObjectLocalBounds(bounds, node);
+    });
+    if (bounds.isEmpty() && root) {
+      expandBoxByObjectLocalBounds(bounds, root);
+    }
+    return bounds.isEmpty() ? resolveOpenSourceClothUvBounds() : bounds;
+  };
+
+  const remapOpenSourceClothTextureCoordinates = (root, targetBounds = resolveOpenSourceModelClothUvBounds(root)) => {
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     if (targetSize.x <= MICRO_EPS || targetSize.z <= MICRO_EPS) return;
     const localPoint = new THREE.Vector3();
@@ -10827,7 +10840,11 @@ function Table3D(
         localPoint.fromBufferAttribute(position, i);
         node.localToWorld(worldPoint.copy(localPoint));
         table.worldToLocal(worldPoint);
-        uv.setXY(i, worldPoint.x, worldPoint.z);
+        uv.setXY(
+          i,
+          (worldPoint.x - targetBounds.min.x) / targetSize.x,
+          (worldPoint.z - targetBounds.min.z) / targetSize.z
+        );
       }
       uv.needsUpdate = true;
       geometry.computeBoundingBox();
@@ -10895,7 +10912,6 @@ function Table3D(
 
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
-    const clothUvBounds = resolveOpenSourceClothUvBounds();
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
@@ -10909,18 +10925,21 @@ function Table3D(
         model.updateMatrixWorld(true);
         const fullSourceBounds = new THREE.Box3().setFromObject(model);
         const sourceFitBounds = resolveOpenSourceUpperBounds(model, fullSourceBounds);
-        const fullSourceSize = fullSourceBounds.getSize(new THREE.Vector3());
         const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
-        const fit = resolveSnookerGlbFitTransform(
-          { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
-          { x: targetSize.x, y: targetSize.y, z: targetSize.z }
-        );
-        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
-        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
-          fit.scale.y = upperTableScale;
-          fit.preservesOriginalUpperTableProportions = true;
-        }
-        model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
+        const heightScale = sourceFitSize.y > MICRO_EPS ? targetSize.y / sourceFitSize.y : 1;
+        const originalProportionScale =
+          Number.isFinite(heightScale) && heightScale > MICRO_EPS ? heightScale : 1;
+        const fit = {
+          scale: {
+            x: originalProportionScale,
+            y: originalProportionScale,
+            z: originalProportionScale
+          },
+          source: 'original-glb-height',
+          preservesOriginalGlbProportions: true,
+          usesProceduralHeightOnly: true
+        };
+        model.scale.setScalar(originalProportionScale);
 
         model.updateMatrixWorld(true);
         const scaledFullBounds = new THREE.Box3().setFromObject(model);
@@ -10937,7 +10956,8 @@ function Table3D(
 
         applyDefaultTableFinishToOpenSourceModel(model);
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
-        remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
+        const glbClothUvBounds = resolveOpenSourceModelClothUvBounds(model);
+        remapOpenSourceClothTextureCoordinates(model, glbClothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
@@ -10946,7 +10966,7 @@ function Table3D(
           ...(model.userData || {}),
           isOpenSourceVisual: true,
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
-          fitToProceduralMapping: true,
+          fitToProceduralMapping: false,
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
@@ -10954,13 +10974,15 @@ function Table3D(
           removedOriginalBaseMeshCount,
           usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
-          clothUvMappedToDefaultPlayfield: true,
-          clothUvUsesProceduralWorldScale: true
+          clothUvMappedToDefaultPlayfield: false,
+          clothUvUsesProceduralWorldScale: false,
+          clothUvMappedFromGlbBounds: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
         table.userData.openSourceVisualFit = fit;
         table.userData.openSourceVisualTargetBounds = targetBounds;
+        table.userData.openSourceVisualClothUvBounds = glbClothUvBounds;
       })
       .catch((error) => {
         setProceduralTableMeshesVisible(true);
@@ -21053,6 +21075,7 @@ const powerRef = useRef(hud.power);
         bridgeHandBackFromBall: humanBridgeBackFromBall,
         bridgeHandSide: humanBridgeSideOffset,
         bridgePoseUsesConfiguredSide: true,
+        exactReadyPlayerHeadOnly: true,
         chinToCueHeight: 0.11 * humanUnitScale,
         footGroundY: 0.035 * humanUnitScale,
         kneeBendShot: 0.16 * humanUnitScale,
