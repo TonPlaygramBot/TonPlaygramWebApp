@@ -677,6 +677,12 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 
 export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
   {
+    id: 'showoodOriginal',
+    name: 'Showood Original Base',
+    description: 'Original GLB Showood legs and base with chrome/gold feet linked to Chrome Plates.',
+    swatches: ['#5a2608', '#d4af37']
+  },
+  {
     id: 'classicCylinders',
     name: 'Classic Cylinders',
     description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
