@@ -1707,7 +1707,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -4360,12 +4360,6 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
-const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  BILARDO_SHQIP_HUMAN_URL
-]);
-
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
 const CHROME_COLOR_OPTIONS = Object.freeze([
@@ -4521,9 +4515,12 @@ const normalizeShowoodTableStyle = (value = {}) => {
   return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
     const options = getShowoodTablePartOptions(part);
     const requested = source[part];
+    const defaultChoice = DEFAULT_SHOWOOD_TABLE_STYLE[part];
     acc[part] = options.some((option) => option.id === requested)
       ? requested
-      : options[0]?.id || DEFAULT_SHOWOOD_TABLE_STYLE[part];
+      : options.some((option) => option.id === defaultChoice)
+        ? defaultChoice
+        : options[0]?.id || defaultChoice;
     return acc;
   }, {});
 };
@@ -13168,15 +13165,18 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   };
 
   if (part === 'railSight') {
-    const chromeOption = style.railSight === 'gold'
-      ? CHROME_COLOR_OPTIONS.find((item) => item.id === 'gold')
-      : CHROME_COLOR_OPTIONS.find((item) => item.id === 'chrome');
     copyMaterialLook(materials.trim);
-    if (chromeOption?.color && mat.color) mat.color.set(chromeOption.color);
+    if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
     ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
-      const value = chromeOption?.[key] ?? materialProps[key];
+      const value = materialProps[key];
       if (typeof value === 'number' && key in mat) mat[key] = value;
     });
+    mat.map = null;
+    mat.normalMap = null;
+    mat.roughnessMap = null;
+    mat.aoMap = null;
+    mat.metalnessMap = null;
+    mat.bumpMap = null;
     enhanceChromeMaterial(mat);
   } else if (part === 'cloth' || part === 'cushion') {
     copyMaterialLook(part === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat);
@@ -14195,7 +14195,7 @@ function mountPoolRoyaleExternalTableModel({
 
   table.userData.applyExternalTableFallbackBase = () => {
     if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
-      applyBaseVariant(DEFAULT_PROCEDURAL_TABLE_BASE_ID);
+      applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
 
@@ -15522,8 +15522,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15600,10 +15602,10 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases[0] ??
+      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15660,7 +15662,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -26660,23 +26664,29 @@ const shotPowerRef = useRef(0);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
-        const murlanDefaultTable = new THREE.Group();
-        murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-        try {
-          createMurlanStyleTable({
-            THREE,
-            arena: murlanDefaultTable,
-            renderer,
-            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-            tableHeight: tableTopY,
-            includeBase: true
-          });
-          group.add(murlanDefaultTable);
-          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-            mesh.visible = false;
-          });
-        } catch (error) {
-          console.warn('Failed to create Pool Royale Murlan default lounge table', error);
+        const showLoungeTable = seat !== 'B';
+        fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+          mesh.visible = showLoungeTable;
+        });
+        if (showLoungeTable) {
+          const murlanDefaultTable = new THREE.Group();
+          murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
+          try {
+            createMurlanStyleTable({
+              THREE,
+              arena: murlanDefaultTable,
+              renderer,
+              tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
+              tableHeight: tableTopY,
+              includeBase: true
+            });
+            group.add(murlanDefaultTable);
+            fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+              mesh.visible = false;
+            });
+          } catch (error) {
+            console.warn('Failed to create Pool Royale Murlan default lounge table', error);
+          }
         }
 
         loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
@@ -26694,76 +26704,13 @@ const shotPowerRef = useRef(0);
           console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
         });
 
-        const serviceProps = createWaterServiceProps(tableTopY);
-        group.add(serviceProps);
+        const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
+        if (serviceProps) group.add(serviceProps);
         group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
         group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
         group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.glass = serviceProps.userData.glass;
-        group.userData.glassBase = serviceProps.userData.glassBase.clone();
-        return group;
-      };
-
-      const createFallbackRefereeOfficial = () => {
-        const group = new THREE.Group();
-        const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.04 });
-        const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
-        const skin = new THREE.MeshStandardMaterial({ color: 0xc9906e, roughness: 0.6, metalness: 0.01 });
-        const torso = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 1.0, BALL_R * 1.15, BALL_R * 4.4, 16), white);
-        torso.position.y = BALL_R * 6.1;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 1.9, BALL_R * 3.4, BALL_R * 0.28), black);
-        vest.position.set(0, BALL_R * 6.25, -BALL_R * 0.72);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * 0.92, 18, 12), skin);
-        head.position.y = BALL_R * 8.9;
-        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.34, BALL_R * 0.38, BALL_R * 3.8, 12), black);
-        leftLeg.position.set(-BALL_R * 0.55, BALL_R * 2.8, 0);
-        const rightLeg = leftLeg.clone();
-        rightLeg.position.x = BALL_R * 0.55;
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.22, BALL_R * 0.28, BALL_R * 3.2, 10), white);
-        rightArm.position.set(BALL_R * 1.35, BALL_R * 6.0, 0);
-        rightArm.rotation.z = THREE.MathUtils.degToRad(-10);
-        [torso, vest, head, leftLeg, rightLeg, rightArm].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        return group;
-      };
-
-      const createRefereeOfficial = async () => {
-        const group = new THREE.Group();
-        const gltf = await loadFirstAvailableGltf(POOL_ROYALE_REFEREE_HUMAN_URLS).catch(() => null);
-        const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? null;
-        if (model) {
-          model.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            const key = `${child.name || ''} ${materials.map((mat) => mat?.name || '').join(' ')}`.toLowerCase();
-            const cloned = materials.map((mat) => {
-              const next = mat?.clone?.() ?? new THREE.MeshStandardMaterial();
-              if (key.includes('shirt') || key.includes('top') || key.includes('torso') || key.includes('body')) {
-                next.color?.setHex?.(0xf8fafc);
-              }
-              if (key.includes('pant') || key.includes('leg') || key.includes('shoe') || key.includes('boot')) {
-                next.color?.setHex?.(0x050505);
-              }
-              next.roughness = Math.max(next.roughness ?? 0.5, 0.46);
-              next.needsUpdate = true;
-              return next;
-            });
-            child.material = Array.isArray(child.material) ? cloned : cloned[0];
-          });
-          fitAssetToSpan(model, BALL_R * 18.5);
-          group.add(model);
-        } else {
-          group.add(createFallbackRefereeOfficial());
-        }
-        group.position.set(TABLE.W / 2 + BALL_R * 16, floorY, 0);
-        group.userData.referee = true;
-        group.userData.walkT = 0;
-        group.userData.gltfReferee = Boolean(model);
+        group.userData.glass = serviceProps?.userData?.glass || null;
+        group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
       };
 
@@ -26852,14 +26799,12 @@ const shotPowerRef = useRef(0);
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
         const loungeA = createPoolSideLounge('A', -1);
         const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
+        world.add(loungeA, loungeB);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
           { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
+          { group: loungeB, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -26982,24 +26927,6 @@ const shotPowerRef = useRef(0);
         const desiredRoot = chooseEdgeTarget(normalizedAim);
         const loungeBySeat = new Map();
         rigs.forEach((entry) => {
-          if (entry?.referee && entry.group) {
-            const halfX = TABLE.W / 2 + BALL_R * 18;
-            const halfZ = TABLE.H / 2 + BALL_R * 34;
-            const cueBallInHand = Boolean(hudState?.inHand);
-            const activeSeatSign = activeSeat === 'A' ? -1 : 1;
-            const oppositeSeatSign = -activeSeatSign;
-            const target = cueBallInHand && cueBall?.pos
-              ? new THREE.Vector3(cueBall.pos.x + BALL_R * 7, floorY, cueBall.pos.y + oppositeSeatSign * BALL_R * 10)
-              : new THREE.Vector3(TABLE.W / 2 + BALL_R * 15, floorY, oppositeSeatSign * (TABLE.H / 2 + BALL_R * 20));
-            entry.group.position.lerp(target, 1 - Math.exp(-1.6 * dtSeconds));
-            entry.group.position.x = THREE.MathUtils.clamp(entry.group.position.x, -halfX, halfX);
-            entry.group.position.z = THREE.MathUtils.clamp(entry.group.position.z, -halfZ, halfZ);
-            const lookTarget = cueBall?.pos
-              ? new THREE.Vector3(cueBall.pos.x, entry.group.position.y, cueBall.pos.y)
-              : new THREE.Vector3(0, entry.group.position.y, 0);
-            entry.group.lookAt(lookTarget);
-            return;
-          }
           if (!entry?.lounge || !entry.group) return;
           loungeBySeat.set(entry.seat, entry.group);
           const glass = entry.group.userData?.glass;
@@ -37010,50 +36937,6 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
                       </button>
                     );
                   })}
