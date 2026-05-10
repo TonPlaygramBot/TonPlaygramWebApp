@@ -4433,91 +4433,6 @@ const CHROME_PLATE_STYLE_BY_ID = Object.freeze(
   }, {})
 );
 
-
-const SHOWOOD_TABLE_STYLE_STORAGE_KEY = 'poolRoyaleShowoodTableStyle';
-const SHOWOOD_TABLE_PARTS = Object.freeze([
-  'cloth',
-  'cushion',
-  'topWoodRail',
-  'railSight',
-  'pocketCup',
-  'verticalCornerRim',
-  'baseCornerBlock',
-  'leg'
-]);
-const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
-  cloth: 'green',
-  cushion: 'green',
-  topWoodRail: 'walnut',
-  railSight: 'chrome',
-  pocketCup: 'black',
-  verticalCornerRim: 'gold',
-  baseCornerBlock: 'black',
-  leg: 'walnut'
-});
-const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
-  cloth: Object.freeze([
-    { id: 'green', label: 'Clean Green Field', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 1, metalness: 0, envMapIntensity: 0.16 } },
-    { id: 'blue', label: 'Clean Blue Field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
-  ]),
-  cushion: Object.freeze([
-    { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
-    { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
-  ]),
-  topWoodRail: Object.freeze([
-    { id: 'walnut', label: 'Walnut Rails', color: '#5a2608', keepSourceTexture: true, material: { color: 0x5a2608, roughness: 0.38, metalness: 0.02, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 } },
-    { id: 'black', label: 'Black Rails', color: '#070605', keepSourceTexture: true, material: { color: 0x070605, roughness: 0.28, metalness: 0.04, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 } }
-  ]),
-  railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
-  ]),
-  pocketCup: Object.freeze([
-    { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
-    { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
-  ]),
-  verticalCornerRim: Object.freeze([
-    { id: 'gold', label: 'Gold Rims + Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.06, metalness: 0.98, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
-    { id: 'chrome', label: 'Chrome Rims + Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
-  ]),
-  baseCornerBlock: Object.freeze([
-    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
-    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
-  ]),
-  leg: Object.freeze([
-    { id: 'walnut', label: 'Walnut Legs', color: '#3d1706', keepSourceTexture: true, material: { color: 0x3d1706, roughness: 0.52, metalness: 0.02, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 } },
-    { id: 'black', label: 'Black Legs', color: '#070504', keepSourceTexture: true, material: { color: 0x070504, roughness: 0.4, metalness: 0.04, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 } }
-  ])
-});
-const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
-  cloth: 'Field Cloth',
-  cushion: 'Cushions',
-  topWoodRail: 'Top Rails',
-  railSight: 'Side Apron + Rail Sights',
-  pocketCup: 'Pocket Cups',
-  verticalCornerRim: 'Corner Rims + Feet',
-  baseCornerBlock: 'Table Base',
-  leg: 'Legs'
-});
-const normalizeShowoodTableStyle = (value = {}) => {
-  const source = value && typeof value === 'object' ? value : {};
-  return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
-    const options = SHOWOOD_TABLE_PART_OPTIONS[part] || [];
-    const requested = source[part];
-    acc[part] = options.some((option) => option.id === requested)
-      ? requested
-      : DEFAULT_SHOWOOD_TABLE_STYLE[part];
-    return acc;
-  }, {});
-};
-const getShowoodPartOption = (style, part) => {
-  const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'railSight' : part;
-  const optionId = normalized[optionPart];
-  const options = SHOWOOD_TABLE_PART_OPTIONS[optionPart] || SHOWOOD_TABLE_PART_OPTIONS.railSight || [];
-  return options.find((option) => option.id === optionId) || options[0] || null;
-};
-
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
 const BASE_CLOTH_DETAIL = Object.freeze({
@@ -12949,26 +12864,17 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
     ? child.userData.poolRoyaleBlackSurfaceNames
     : [];
-  if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
+  if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
+  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|rail[_\s-]*sight|railsight/.test(childName)) return 'trim';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
-  if (/corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
-  if (/base|corner[_\s-]*block|cabinet|lower[_\s-]*trim|underside/.test(childName)) return 'baseCornerBlock';
-  if (/leg|support/.test(childName)) return 'leg';
-  if (/rail|wood|showood|bevel/.test(childName)) return 'topWoodRail';
-  if (/gold|metal|chrome|plate|trim|screw|bolt/.test(childName)) return 'railSight';
+  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/pocket|liner|leather|net|basket|drop|cup/.test(label)) return 'pocketCup';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'railSight';
-  if (/leg|support/.test(label)) return 'leg';
-  if (/foot|rim/.test(label)) return 'verticalCornerRim';
-  if (/base|cabinet/.test(label)) return 'baseCornerBlock';
-  if (/apron/.test(label)) return 'sideWoodApron';
-  if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
+  if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
+  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
 }
 
@@ -13090,94 +12996,8 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
-function clearPoolRoyaleExternalMaterialMaps(material) {
-  if (!material) return;
-  material.map = null;
-  material.normalMap = null;
-  material.bumpMap = null;
-  material.roughnessMap = null;
-  material.metalnessMap = null;
-  material.aoMap = null;
-  material.emissiveMap = null;
-  material.lightMap = null;
-  material.alphaMap = null;
-}
-
-function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, finishInfo = null) {
-  if (!material) return material;
-  const style = normalizeShowoodTableStyle(tableModel?.showoodStyle);
-  const roleToPart = {
-    cloth: 'cloth',
-    cushion: 'cushion',
-    topWoodRail: 'topWoodRail',
-    wood: 'topWoodRail',
-    sideWoodApron: 'railSight',
-    railSight: 'railSight',
-    trim: 'railSight',
-    pocket: 'pocketCup',
-    pocketCup: 'pocketCup',
-    verticalCornerRim: 'verticalCornerRim',
-    baseFoot: 'verticalCornerRim',
-    baseCornerBlock: 'baseCornerBlock',
-    leg: 'leg'
-  };
-  const part = roleToPart[role] || 'topWoodRail';
-  const option = getShowoodPartOption(style, part);
-  if (!option) return material;
-  const mat = material.clone ? material.clone() : material;
-  const materialProps = option.material || {};
-
-  if (part === 'railSight') {
-    const chromeOption = style.railSight === 'gold'
-      ? CHROME_COLOR_OPTIONS.find((item) => item.id === 'gold')
-      : CHROME_COLOR_OPTIONS.find((item) => item.id === 'chrome');
-    const chromeMat = finishInfo?.materials?.trim;
-    if (chromeMat?.color && mat.color) mat.color.copy(chromeMat.color);
-    else if (chromeOption?.color && mat.color) mat.color.set(chromeOption.color);
-    ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
-      const value = chromeMat?.[key] ?? chromeOption?.[key] ?? materialProps[key];
-      if (typeof value === 'number' && key in mat) mat[key] = value;
-    });
-    enhanceChromeMaterial(mat);
-  } else {
-    if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
-    ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
-      if (typeof materialProps[key] === 'number' && key in mat) mat[key] = materialProps[key];
-    });
-  }
-
-  if (!option.keepSourceTexture) {
-    clearPoolRoyaleExternalMaterialMaps(mat);
-  }
-  mat.transparent = false;
-  mat.opacity = 1;
-  mat.depthWrite = true;
-  mat.side = THREE.DoubleSide;
-  preparePoolRoyaleExternalTexture(mat.map, true);
-  preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
-  preparePoolRoyaleExternalTexture(mat.aoMap, false);
-  preparePoolRoyaleExternalTexture(mat.normalMap, false);
-  preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
-  preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
-  preparePoolRoyaleExternalTexture(mat.bumpMap, false);
-  mat.userData = {
-    ...(mat.userData || {}),
-    poolRoyaleShowoodPart: part,
-    poolRoyaleShowoodOption: option.id
-  };
-  mat.needsUpdate = true;
-  return mat;
-}
-
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
-  if (tableModel?.id === 'showood-seven-foot') {
-    return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
-  }
-  const canonicalRole = role === 'pocketCup' ? 'pocket' :
-    (role === 'topWoodRail' || role === 'sideWoodApron' || role === 'leg' || role === 'baseCornerBlock' || role === 'verticalCornerRim' ? 'wood' :
-      (role === 'railSight' ? 'trim' : role));
-  role = canonicalRole;
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
     ? tableModel.usePoolRoyaleFinishRoles
     : null;
@@ -14296,7 +14116,6 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
-          showoodStyle: resolvedTableOptions.showoodStyle,
           preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
             ? Array.from(new Set([
                 ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
@@ -15248,15 +15067,6 @@ function PoolRoyaleGame({
       (id) => CHROME_PLATE_STYLE_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_CHROME_PLATE_STYLE_ID
     );
-  });
-  const [showoodTableStyle, setShowoodTableStyle] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = window.localStorage.getItem(SHOWOOD_TABLE_STYLE_STORAGE_KEY);
-        if (stored) return normalizeShowoodTableStyle(JSON.parse(stored));
-      } catch {}
-    }
-    return normalizeShowoodTableStyle(DEFAULT_SHOWOOD_TABLE_STYLE);
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -16951,25 +16761,6 @@ function PoolRoyaleGame({
   }, [chromePlateStyleId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(
-          SHOWOOD_TABLE_STYLE_STORAGE_KEY,
-          JSON.stringify(normalizeShowoodTableStyle(showoodTableStyle))
-        );
-      } catch {}
-    }
-  }, [showoodTableStyle]);
-  useEffect(() => {
-    setShowoodTableStyle((current) => {
-      const next = normalizeShowoodTableStyle(current);
-      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
-        ? next
-        : { ...next, railSight: linkedRailSight };
-    });
-  }, [chromeColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
@@ -17776,17 +17567,7 @@ const shotPowerRef = useRef(0);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
-  const showoodTableVisualResetReadyRef = useRef(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
-  useEffect(() => {
-    if (!showoodTableVisualResetReadyRef.current) {
-      showoodTableVisualResetReadyRef.current = true;
-      return;
-    }
-    if (activeTableModel?.kind === 'gltf') {
-      setRenderResetKey((value) => value + 1);
-    }
-  }, [activeTableModel?.id, chromeColorId, chromePlateStyleId, showoodTableStyle]);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -25717,7 +25498,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -25772,7 +25553,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -36972,69 +36753,6 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Showood Table Options
-                </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {SHOWOOD_TABLE_PARTS.map((part) => {
-                    const options = SHOWOOD_TABLE_PART_OPTIONS[part] || [];
-                    const selected = part === 'railSight'
-                      ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                      : normalizeShowoodTableStyle(showoodTableStyle)[part];
-                    return (
-                      <div
-                        key={part}
-                        className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">
-                            {SHOWOOD_TABLE_PART_LABELS[part] || part}
-                          </span>
-                          {part === 'railSight' ? (
-                            <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
-                              linked to chrome plates
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {options.map((option) => {
-                            const active = option.id === selected;
-                            return (
-                              <button
-                                key={`${part}-${option.id}`}
-                                type="button"
-                                onClick={() => {
-                                  if (part === 'railSight') {
-                                    setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
-                                  } else {
-                                    setShowoodTableStyle((current) =>
-                                      normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                    );
-                                  }
-                                }}
-                                aria-pressed={active}
-                                className={`flex min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                                  active
-                                    ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                    : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                                }`}
-                              >
-                                <span
-                                  className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                  style={{ backgroundColor: option.color }}
-                                  aria-hidden="true"
-                                />
-                                <span className="truncate">{option.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plate Shape
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">
@@ -37194,6 +36912,58 @@ const shotPowerRef = useRef(0);
                   </div>
                 </div>
               ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Rail Markers
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerShapeId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerShapeId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableRailMarkerColors.map((option) => {
+                    const active = option.id === railMarkerColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
