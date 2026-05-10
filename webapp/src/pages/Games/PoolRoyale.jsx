@@ -12861,7 +12861,11 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const chromeSurfaceNames = Array.isArray(child?.userData?.poolRoyaleChromeSurfaceNames)
     ? child.userData.poolRoyaleChromeSurfaceNames
     : [];
+  const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
+    ? child.userData.poolRoyaleBlackSurfaceNames
+    : [];
   if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
+  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
   if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|rail[_\s-]*sight|railsight/.test(childName)) return 'trim';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
@@ -12872,6 +12876,31 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
   if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
+}
+
+function isPoolRoyaleExternalBlackSurface(child) {
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
+    ? child.userData.poolRoyaleBlackSurfaceNames
+    : [];
+  return blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()));
+}
+
+function applyPoolRoyaleBlackExternalSurfaceMaterial(material) {
+  if (!material) return;
+  if (material.color) material.color.set(0x020202);
+  if (material.emissive) material.emissive.set(0x000000);
+  material.map = null;
+  material.emissiveMap = null;
+  if ('metalness' in material) material.metalness = Math.max(material.metalness ?? 0, 0.35);
+  if ('roughness' in material) material.roughness = Math.max(material.roughness ?? 0, 0.58);
+  if ('envMapIntensity' in material) material.envMapIntensity = Math.min(material.envMapIntensity ?? 0.75, 0.75);
+  if ('clearcoat' in material) material.clearcoat = Math.max(material.clearcoat ?? 0, 0.25);
+  if ('clearcoatRoughness' in material) material.clearcoatRoughness = Math.max(material.clearcoatRoughness ?? 0, 0.35);
+  material.userData = {
+    ...(material.userData || {}),
+    poolRoyaleForcedBlackSurface: true
+  };
 }
 
 function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
@@ -12967,7 +12996,7 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
-function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
+function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
     ? tableModel.usePoolRoyaleFinishRoles
@@ -12978,7 +13007,9 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
-    if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
+    if (isPoolRoyaleExternalBlackSurface(child)) {
+      applyPoolRoyaleBlackExternalSurfaceMaterial(originalMat);
+    } else if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
       const chromeMat = finishInfo.materials?.trim;
       if (chromeMat?.color && originalMat.color) originalMat.color.copy(chromeMat.color);
       else if (originalMat.color) originalMat.color.set(0xd8b45a);
@@ -13080,9 +13111,13 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const chromeSurfaceNames = Array.isArray(tableModel?.chromeMaterialSurfaceNames)
       ? tableModel.chromeMaterialSurfaceNames
       : [];
+    const blackSurfaceNames = Array.isArray(tableModel?.blackMaterialSurfaceNames)
+      ? tableModel.blackMaterialSurfaceNames
+      : [];
     child.userData = {
       ...(child.userData || {}),
-      poolRoyaleChromeSurfaceNames: chromeSurfaceNames
+      poolRoyaleChromeSurfaceNames: chromeSurfaceNames,
+      poolRoyaleBlackSurfaceNames: blackSurfaceNames
     };
 
     const prepareMaterial = (material) => {
@@ -13092,7 +13127,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
         child.visible = false;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
-        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
+        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel, child);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }

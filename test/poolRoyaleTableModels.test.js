@@ -25,6 +25,8 @@ describe('Pool Royale table models', () => {
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['trim']);
     assert.equal(showood.tintOriginalTrimGold, true);
+    assert.deepEqual(showood.chromeMaterialSurfaceNames, ['diamonds']);
+    assert.deepEqual(showood.blackMaterialSurfaceNames, ['sideWoodApron', 'railSight']);
     assert.equal(showood.forceGeneratedChromePlates, false);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',

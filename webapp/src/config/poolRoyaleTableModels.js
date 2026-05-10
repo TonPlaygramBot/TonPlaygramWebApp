@@ -25,7 +25,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1,
+    fitScale: 1.02,
     lowerBaseHeightScale: 1,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
@@ -38,7 +38,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['sideWoodApron', 'railSight', 'diamonds'],
+    chromeMaterialSurfaceNames: ['diamonds'],
+    blackMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
