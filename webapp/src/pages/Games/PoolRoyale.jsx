@@ -13266,7 +13266,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
   const fitScaleMultiplier = tableModel?.fitScale ?? 1;
-  if (tableModel?.fitStrategy === 'exact') {
+  if (tableModel?.fitStrategy === 'exact' || tableModel?.fitStrategy === 'showoodPreview') {
     const exactXScale = Math.max(MICRO_EPS, dims.targetWidth / Math.max(MICRO_EPS, footprintSize.x));
     const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, footprintSize.z));
     const targetHeight = dims.targetHeight ?? dims.nativeVisualHeight;
@@ -13285,11 +13285,21 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
       ? Math.max(MICRO_EPS, heightMatchSource.target / Math.max(MICRO_EPS, heightMatchSource.source)) *
         (tableModel?.fitHeightScale ?? 1)
       : Math.sqrt(exactXScale * exactZScale);
-    model.scale.set(
-      model.scale.x * exactXScale * fitScaleMultiplier,
-      model.scale.y * exactYScale * fitScaleMultiplier,
-      model.scale.z * exactZScale * fitScaleMultiplier
-    );
+
+    if (tableModel?.fitStrategy === 'showoodPreview' || tableModel?.preserveOriginalFootprintAspect) {
+      const uniformFootprintScale = Math.min(exactXScale, exactZScale);
+      model.scale.set(
+        model.scale.x * uniformFootprintScale * fitScaleMultiplier,
+        model.scale.y * exactYScale * fitScaleMultiplier,
+        model.scale.z * uniformFootprintScale * fitScaleMultiplier
+      );
+    } else {
+      model.scale.set(
+        model.scale.x * exactXScale * fitScaleMultiplier,
+        model.scale.y * exactYScale * fitScaleMultiplier,
+        model.scale.z * exactZScale * fitScaleMultiplier
+      );
+    }
   } else {
     const baseFitScale =
       tableModel?.fitStrategy === 'contain'
