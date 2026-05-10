@@ -10,6 +10,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     description:
       'Open-source Pooltool Showood showroom table matched to Pool Royale footprint. If the GLB cannot load, Pool Royale keeps the native procedural table as a gameplay-safe fallback.',
     tableSizeId: '7ft',
+    baseId: 'showoodOriginalBase',
     assetUrl:
       'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
@@ -20,7 +21,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitHeightScale: 1,
     lowerBaseHeightScale: 0.78,
     legLengthScale: 1.18,
-    clothRepeatScale: 5.25,
+    clothRepeatScale: 1,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,

@@ -661,6 +661,7 @@ const CUE_STYLE_THUMBNAILS = Object.freeze({
 });
 
 const BASE_VARIANT_THUMBNAILS = Object.freeze({
+  showoodOriginalBase: swatchThumbnail(['#5a2608', '#d4af37', '#0a7b33']),
   classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
   openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
   coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
@@ -676,6 +677,12 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 );
 
 export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
+  {
+    id: 'showoodOriginalBase',
+    name: 'Showood Original Base',
+    description: 'Keeps the original Showood GLB legs, feet, and cabinet base.',
+    swatches: ['#5a2608', '#d4af37']
+  },
   {
     id: 'classicCylinders',
     name: 'Classic Cylinders',

@@ -1705,7 +1705,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
-const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
+const SHOWOOD_ORIGINAL_BASE_ID = 'showoodOriginalBase';
+const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || SHOWOOD_ORIGINAL_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -4500,14 +4501,23 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   leg: 'Legs'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'verticalCornerRim']);
+const getShowoodOptionsForPart = (part) => {
+  if ((part === 'cloth' || part === 'cushion') && Array.isArray(CLOTH_COLOR_OPTIONS)) {
+    return CLOTH_COLOR_OPTIONS;
+  }
+  return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
+};
 const normalizeShowoodTableStyle = (value = {}) => {
   const source = value && typeof value === 'object' ? value : {};
   return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
-    const options = SHOWOOD_TABLE_PART_OPTIONS[part] || [];
+    const options = getShowoodOptionsForPart(part);
     const requested = source[part];
+    const fallback = options.some((option) => option.id === DEFAULT_SHOWOOD_TABLE_STYLE[part])
+      ? DEFAULT_SHOWOOD_TABLE_STYLE[part]
+      : options[0]?.id;
     acc[part] = options.some((option) => option.id === requested)
       ? requested
-      : DEFAULT_SHOWOOD_TABLE_STYLE[part];
+      : fallback;
     return acc;
   }, {});
 };
@@ -4515,7 +4525,7 @@ const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
   const optionPart = part === 'sideWoodApron' ? 'railSight' : part;
   const optionId = normalized[optionPart];
-  const options = SHOWOOD_TABLE_PART_OPTIONS[optionPart] || SHOWOOD_TABLE_PART_OPTIONS.railSight || [];
+  const options = getShowoodOptionsForPart(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
 };
 
@@ -10239,6 +10249,7 @@ export function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
+    net.userData.generatedPocketHardware = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -10255,6 +10266,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.generatedPocketHardware = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -10289,6 +10301,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.generatedPocketHardware = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -10353,6 +10366,7 @@ export function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       strap.userData.externalTableKeepVisible = true;
+      strap.userData.generatedPocketHardware = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -13113,7 +13127,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   const option = getShowoodPartOption(style, part);
   if (!option) return material;
   const mat = material.clone ? material.clone() : material;
-  const materialProps = option.material || {};
+  const materialProps = option.material || { color: option.color };
   const materials = finishInfo?.materials || {};
   const finish = TABLE_FINISHES[finishInfo?.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
 
@@ -13161,8 +13175,9 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     enhanceChromeMaterial(mat);
   } else if (part === 'cloth' || part === 'cushion') {
     copyMaterialLook(part === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat);
-    applyShowoodTint();
-    scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
+    if (part === 'cushion') {
+      applyShowoodTint();
+    }
   } else if (part === 'pocketCup') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
@@ -13642,6 +13657,27 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   };
 }
 
+function isShowoodOriginalBaseVariant(variantId) {
+  return !variantId || variantId === SHOWOOD_ORIGINAL_BASE_ID || variantId === 'externalModelOwnBase';
+}
+
+function applyPoolRoyaleExternalBaseVariantMode(externalRoot, tableModel, baseVariantId) {
+  if (!externalRoot || tableModel?.id !== 'showood-seven-foot') return;
+  const useOriginalBase = isShowoodOriginalBaseVariant(baseVariantId);
+  externalRoot.traverse((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (role === 'leg' || role === 'baseCornerBlock' || role === 'verticalCornerRim') {
+      child.visible = useOriginalBase;
+      child.userData = {
+        ...(child.userData || {}),
+        poolRoyaleShowoodOriginalBasePart: true
+      };
+    }
+  });
+}
+
 function mountPoolRoyaleExternalTableModel({
   table,
   tableModel,
@@ -13668,6 +13704,8 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
+      externalRoot.userData.model = model;
+      applyPoolRoyaleExternalBaseVariantMode(externalRoot, tableModel, table.userData?.baseVariantId);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -14087,15 +14125,28 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   const applyBaseVariant = (variant) => {
-    if (usesExternalTableModel) {
-      clearBaseMeshes();
-      finishParts.baseVariantId = 'externalModelOwnBase';
-      table.userData.baseVariantId = 'externalModelOwnBase';
+    let variantId = resolveBaseVariantId(variant);
+    if (!usesExternalTableModel && variantId === SHOWOOD_ORIGINAL_BASE_ID) {
+      variantId = 'classicCylinders';
+    }
+    clearBaseMeshes();
+    if (usesExternalTableModel && isShowoodOriginalBaseVariant(variantId)) {
+      finishParts.baseVariantId = SHOWOOD_ORIGINAL_BASE_ID;
+      table.userData.baseVariantId = SHOWOOD_ORIGINAL_BASE_ID;
+      applyPoolRoyaleExternalBaseVariantMode(
+        table.userData.externalTable?.group,
+        resolvedTableOptions?.tableModel,
+        SHOWOOD_ORIGINAL_BASE_ID
+      );
       return;
     }
-    const variantId = resolveBaseVariantId(variant);
-    const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
-    clearBaseMeshes();
+
+    const builder = baseBuilders[variantId] ?? baseBuilders.classicCylinders;
+    if (!builder) {
+      finishParts.baseVariantId = variantId;
+      table.userData.baseVariantId = variantId;
+      return;
+    }
     const finishMaterials = table.userData?.finish?.materials || {};
     const built = builder({
       ...baseContext,
@@ -14119,6 +14170,13 @@ function mountPoolRoyaleExternalTableModel({
     }
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
+    if (usesExternalTableModel) {
+      applyPoolRoyaleExternalBaseVariantMode(
+        table.userData.externalTable?.group,
+        resolvedTableOptions?.tableModel,
+        variantId
+      );
+    }
   };
 
   if (externalPlayfieldVisualLift > 0) {
@@ -14361,9 +14419,14 @@ function mountPoolRoyaleExternalTableModel({
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
+      const replacementBaseActive = usesExternalTableModel && !isShowoodOriginalBaseVariant(table.userData.baseVariantId);
+      const keepProceduralPocketHardware = replacementBaseActive && object.userData?.generatedPocketHardware;
+      const keepProceduralReplacementBase = replacementBaseActive && object.userData?.__basePart;
       if (
         !visible &&
         (
+          keepProceduralPocketHardware ||
+          keepProceduralReplacementBase ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
@@ -17868,7 +17931,7 @@ const shotPowerRef = useRef(0);
     if (activeTableModel?.kind === 'gltf') {
       setRenderResetKey((value) => value + 1);
     }
-  }, [activeTableModel?.id, chromeColorId, chromePlateStyleId, showoodTableStyle]);
+  }, [activeTableModel?.id, chromeColorId, chromePlateStyleId, clothColorId, pocketLinerId, tableFinishId, showoodTableStyle]);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -37058,11 +37121,15 @@ const shotPowerRef = useRef(0);
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   {SHOWOOD_TABLE_PARTS.map((part) => {
-                    const options = SHOWOOD_TABLE_PART_OPTIONS[part] || [];
+                    const options = part === 'cloth' || part === 'cushion'
+                      ? availableClothOptions
+                      : getShowoodOptionsForPart(part);
                     const chromeLinked = SHOWOOD_CHROME_LINKED_PARTS.has(part);
                     const selected = chromeLinked
                       ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                      : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                      : part === 'cloth'
+                        ? clothColorId
+                        : normalizeShowoodTableStyle(showoodTableStyle)[part];
                     return (
                       <div
                         key={part}
@@ -37088,6 +37155,11 @@ const shotPowerRef = useRef(0);
                                 onClick={() => {
                                   if (chromeLinked) {
                                     setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
+                                  } else if (part === 'cloth') {
+                                    setClothColorId(option.id);
+                                    setShowoodTableStyle((current) =>
+                                      normalizeShowoodTableStyle({ ...current, cloth: option.id })
+                                    );
                                   } else {
                                     setShowoodTableStyle((current) =>
                                       normalizeShowoodTableStyle({ ...current, [part]: option.id })
@@ -37103,7 +37175,7 @@ const shotPowerRef = useRef(0);
                               >
                                 <span
                                   className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                  style={{ backgroundColor: option.color }}
+                                  style={{ backgroundColor: toHexColor(option.color) }}
                                   aria-hidden="true"
                                 />
                                 <span className="truncate">{option.label}</span>
