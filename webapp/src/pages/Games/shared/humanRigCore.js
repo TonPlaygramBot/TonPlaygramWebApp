@@ -250,7 +250,8 @@ const BASE_CFG = {
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
-  addFaceDetails: true
+  addFaceDetails: true,
+  exactReadyPlayerHeadOnly: false
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -859,9 +860,41 @@ function driveHuman(human, frame) {
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, cfg.footLockStrength * ik);
 }
 
+
+function updateExactReadyPlayerHeadOnlyPose(human, dt, frameData) {
+  const cfg = human.cfg;
+  human.poseT = dampScalar(human.poseT, 0, cfg.poseLambda, dt);
+  human.breathT += dt;
+  dampVector(human.root.position, frameData.rootTarget, cfg.moveLambda, dt);
+  human.root.position.y = cfg.groundY;
+  human.root.visible = true;
+
+  if (!human.activeGlb || !human.model) return;
+
+  human.modelRoot.visible = true;
+  human.modelRoot.position.copy(human.root.position);
+  human.modelRoot.rotation.y = human.yaw;
+  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
+  human.modelRoot.updateMatrixWorld(true);
+
+  const forward = new THREE.Vector3(0, 0, -1);
+  const side = new THREE.Vector3(1, 0, 0);
+  const shotQ = makeBasisQuaternion(side, UP, forward);
+
+  if (human.bones.head) {
+    setBoneWorldQuaternion(human.bones.head, shotQ);
+  }
+
+  human.modelRoot.updateMatrixWorld(true);
+}
+
 export function updateHumanPose(human, dt, frameData) {
   if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
   const cfg = human.cfg;
+  if (cfg.exactReadyPlayerHeadOnly) {
+    updateExactReadyPlayerHeadOnlyPose(human, dt, frameData);
+    return;
+  }
   const state = frameData.state || 'idle';
   const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
   human.poseT = dampScalar(human.poseT, activeState === 'idle' || activeState === 'seated' ? 0 : 1, cfg.poseLambda, dt);
