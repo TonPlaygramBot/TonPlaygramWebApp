@@ -3957,8 +3957,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.58 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.38 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.42 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.255 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4022,10 +4022,6 @@ const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
 const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
-const BOTTOM_SEAT_GAMEPLAY_FOCUS_BLEND = 0.74;
-const BOTTOM_SEAT_DICE_FOCUS_TTL_MS = 1900;
-const BOTTOM_SEAT_TOKEN_FOCUS_TTL_MS = 2800;
-const BOTTOM_SEAT_RESULT_FOCUS_TTL_MS = 1600;
 const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
   fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
   helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
@@ -7731,7 +7727,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
   const cameraSeatLockPositionRef = useRef(null);
-  const bottomSeatGameplayFocusRef = useRef(null);
   const dynamicFirearmCameraRef = useRef(false);
   const firearmCinematicCameraPoseRef = useRef(null);
   const lockUserTurnSeatViewRef = useRef(false);
@@ -10779,7 +10774,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (!isCamera2d && camera && LUDO_CAMERA_SEAT_LOCK_ENABLED && !dynamicFirearmCameraRef.current) {
         const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
-        const gameplayTarget = resolveBottomPlayerGameplayTarget();
+        const gameplayTarget = boardLookTargetRef.current?.isVector3
+          ? boardLookTargetRef.current.clone()
+          : null;
         const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
         const hardLockedPosition = liveFacePose?.position?.isVector3
           ? liveFacePose.position
@@ -12541,49 +12538,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 
 
-  const setBottomSeatGameplayFocus = useCallback((focus = {}) => {
-    const {
-      object = null,
-      target = null,
-      ttlMs = BOTTOM_SEAT_RESULT_FOCUS_TTL_MS,
-      blend = BOTTOM_SEAT_GAMEPLAY_FOCUS_BLEND,
-      offset = CAMERA_TARGET_LIFT + 0.026
-    } = focus;
-    if (!object?.isObject3D && !target?.isVector3) {
-      bottomSeatGameplayFocusRef.current = null;
-      return;
-    }
-    bottomSeatGameplayFocusRef.current = {
-      object: object?.isObject3D ? object : null,
-      target: target?.isVector3 ? target.clone() : null,
-      expiresAt: ttlMs > 0 ? performance.now() + ttlMs : Infinity,
-      blend: clamp(blend, 0, 1),
-      offset
-    };
-  }, []);
-
   const resolveBottomPlayerGameplayTarget = useCallback(() => {
-    const boardTarget = boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
-    const focus = bottomSeatGameplayFocusRef.current;
-    if (!focus) return boardTarget;
-    if (Number.isFinite(focus.expiresAt) && performance.now() > focus.expiresAt) {
-      bottomSeatGameplayFocusRef.current = null;
-      return boardTarget;
-    }
-
-    let focusTarget = null;
-    if (focus.object?.isObject3D) {
-      focusTarget = focus.object.getWorldPosition(new THREE.Vector3());
-    } else if (focus.target?.isVector3) {
-      focusTarget = focus.target.clone();
-    }
-    if (!focusTarget?.isVector3) return boardTarget;
-
-    const surfaceY = arenaRef.current?.tableInfo?.surfaceY ?? boardTarget?.y ?? focusTarget.y;
-    focusTarget.y = surfaceY + (focus.offset ?? CAMERA_TARGET_LIFT + 0.026);
-    if (!boardTarget) return focusTarget;
-    boardTarget.y = surfaceY + CAMERA_TARGET_LIFT;
-    return boardTarget.lerp(focusTarget, focus.blend ?? BOTTOM_SEAT_GAMEPLAY_FOCUS_BLEND);
+    return boardLookTargetRef.current?.isVector3 ? boardLookTargetRef.current.clone() : null;
   }, []);
 
   const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
@@ -12837,11 +12793,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     if (!segments.length) {
       if (token && shouldFollowCamera) {
-        setBottomSeatGameplayFocus({
-          object: token,
-          ttlMs: BOTTOM_SEAT_TOKEN_FOCUS_TTL_MS,
-          offset: CAMERA_TARGET_LIFT + 0.038
-        });
         setCameraFocus({
           target: token.position.clone(),
           follow: false,
@@ -12856,11 +12807,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
       if (token && shouldFollowCamera) {
-        setBottomSeatGameplayFocus({
-          object: token,
-          ttlMs: BOTTOM_SEAT_TOKEN_FOCUS_TTL_MS,
-          offset: CAMERA_TARGET_LIFT + 0.038
-        });
         setCameraFocus({
           object: token,
           follow: true,
@@ -13368,11 +13314,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     baseTarget.y = baseHeight;
     stopDiceTransition();
     dice.userData.isRolling = true;
-    setBottomSeatGameplayFocus({
-      object: dice,
-      ttlMs: BOTTOM_SEAT_DICE_FOCUS_TTL_MS,
-      offset: CAMERA_TARGET_LIFT + 0.04
-    });
     if (!isHumanTurn) {
       setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       setCameraFocus({
@@ -13418,11 +13359,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       dice: value,
       status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
     }));
-    setBottomSeatGameplayFocus({
-      target: landingFocus,
-      ttlMs: BOTTOM_SEAT_RESULT_FOCUS_TTL_MS,
-      offset: CAMERA_TARGET_LIFT + 0.05
-    });
     if (value === 6) {
       playSixRollSound();
     }
