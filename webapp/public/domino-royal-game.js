@@ -6716,7 +6716,10 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 // May 9, 2026 mobile portrait tuning: compact the rack and pull hands visually inward toward the tiles.
-const PLAYER_HAND_GAP_SCALE = 0.56;
+// May 10, 2026: shrink only player-hand dominoes and tighten their rack spacing.
+const PLAYER_HAND_TILE_SCALE = 0.9;
+const PLAYER_HAND_GAP_SCALE = 0.5;
+const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.4;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.7;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.15;
@@ -9204,7 +9207,7 @@ function computeHandSlotPosition(
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
   const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 0.82;
+  const MIN_GAP = DOMINO_LENGTH * 0.82 * PLAYER_HAND_MIN_GAP_SCALE;
   const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
 
   const gapBase =
@@ -9291,6 +9294,7 @@ function renderHands() {
         flat: openFlat,
         faceUp: faceUp || openFaceUpHand
       });
+      m.scale.multiplyScalar(PLAYER_HAND_TILE_SCALE);
       const slotPosition = computeHandSlotPosition(pi, hi, count, {
         isTopDown
       });
@@ -9413,6 +9417,7 @@ function spawnDrawAnimation(startWorld, seatIndex = human) {
     ? startWorld.clone()
     : new THREE.Vector3().copy(startWorld);
   const domino = makeDomino(0, 0, { flat: true, faceUp: false });
+  const drawEndScale = domino.scale.clone().multiplyScalar(PLAYER_HAND_TILE_SCALE);
   orientDominoFlat(domino, Math.PI / 2);
   domino.rotation.z = Math.PI;
   domino.userData = { stockAnim: true };
@@ -9432,7 +9437,9 @@ function spawnDrawAnimation(startWorld, seatIndex = human) {
     startTime: performance.now(),
     duration: DRAW_ANIM_DURATION,
     delay: 0,
-    arc: 0.05
+    arc: 0.05,
+    startScale: domino.scale.clone(),
+    endScale: drawEndScale
   });
 }
 
@@ -9584,6 +9591,7 @@ function spawnPlacementAnimation(
       flat: cameraViewMode === VIEW_MODES.twoD,
       faceUp: true
     });
+    mesh.scale.multiplyScalar(PLAYER_HAND_TILE_SCALE);
     const sourcePos = computeHandSlotPosition(sourceSeat, sourceSlot, sourceCount, {
       isTopDown: cameraViewMode === VIEW_MODES.twoD
     });
@@ -9638,7 +9646,7 @@ function spawnPlacementAnimation(
     startQuat,
     endQuat,
     startScale,
-    endScale: startScale.clone(),
+    endScale: startScale.clone().divideScalar(PLAYER_HAND_TILE_SCALE),
     startTime: performance.now(),
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
@@ -11578,6 +11586,9 @@ function updateDrawAnimations(now) {
       pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
     anim.mesh.position.copy(pos);
+    if (anim.endScale && anim.startScale) {
+      anim.mesh.scale.copy(anim.startScale.clone().lerp(anim.endScale, ease));
+    }
     if (t >= 1) {
       piecesG.remove(anim.mesh);
       drawAnimations.splice(i, 1);
