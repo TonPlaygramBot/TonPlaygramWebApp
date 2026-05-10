@@ -7,8 +7,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
     id: 'royal-original',
     label: 'Royal Original',
-    description: 'Procedural fallback table matched to the Showood 7 ft gameplay geometry.',
-    tableSizeId: '7ft',
+    description: 'Current TonPlaygram table with existing gameplay geometry.',
+    tableSizeId: '9ft',
     finishId: 'peelingPaintWeathered',
     baseId: 'classicCylinders',
     icon: '🎱',
@@ -19,7 +19,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     label: 'Showood 7 ft GLB',
     description:
       'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, pockets, and preserved Showood chrome plates.',
-    tableSizeId: '7ft',
+    tableSizeId: '9ft',
     assetUrl:
       'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
@@ -37,7 +37,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
-    tintOriginalTrimWithChrome: true,
+    tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
@@ -51,7 +51,6 @@ export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
-    POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
   );
 }
