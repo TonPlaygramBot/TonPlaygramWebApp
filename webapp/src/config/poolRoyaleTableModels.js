@@ -38,8 +38,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['diamonds'],
-    blackMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
+    chromeMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
+    blackMaterialSurfaceNames: [],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
@@ -51,8 +51,9 @@ export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
 
 export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
-  return (
-    POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
-    POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
-  );
+  const defaultOption =
+    POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
+      (option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID
+    ) || POOL_ROYALE_TABLE_MODEL_OPTIONS[0];
+  return POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) || defaultOption;
 }
