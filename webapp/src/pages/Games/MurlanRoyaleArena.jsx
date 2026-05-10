@@ -2974,15 +2974,13 @@ const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const AI_HAND_CARD_SCALE = 0.82;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.22 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.08 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 1.42 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = -0.19 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = -0.16 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = 0.06 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 1.22 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 1.1 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
-const AI_SIDE_HAND_CARD_SCALE = 0.78;
-const AI_TOP_HAND_CARD_SCALE = 0.8;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
@@ -4561,12 +4559,7 @@ export default function MurlanRoyaleArena({ search }) {
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
           PLAYER_HAND_UP_LIFT_ONE_CARD;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        const aiCardScale = aiHandVariant === 'side'
-          ? AI_SIDE_HAND_CARD_SCALE
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_CARD_SCALE
-            : AI_HAND_CARD_SCALE;
-        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : aiCardScale);
+        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : AI_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
