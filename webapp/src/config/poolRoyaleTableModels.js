@@ -5,20 +5,10 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'royal-original',
-    label: 'Royal Original',
-    description: 'Current TonPlaygram table with existing gameplay geometry.',
-    tableSizeId: '7ft',
-    finishId: 'peelingPaintWeathered',
-    baseId: 'classicCylinders',
-    icon: '🎱',
-    kind: 'native'
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
-      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, pockets, and preserved Showood chrome plates.',
+      'Open-source Pooltool Showood showroom table shown by default, with Pool Royale material controls applied to cloth, cushions, wood, pocket liners, and original chrome/apron surfaces while the native procedural table remains the runtime fallback.',
     tableSizeId: '7ft',
     assetUrl:
       'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
@@ -35,11 +25,21 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveOriginalFootprintAspect: false,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: ['trim'],
-    tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['diamonds'],
-    blackMaterialSurfaceNames: ['sideWoodApron', 'railSight'],
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket', 'trim'],
+    preserveOriginalSurfaceRoles: [],
+    usePoolRoyaleChromeOnOriginalTrim: true,
+    tintOriginalTrimGold: false,
+    chromeMaterialSurfaceNames: [
+      'cornerPocketPlate',
+      'middlePocketPlate',
+      'verticalCornerRim',
+      'lowerTrim',
+      'baseFoot',
+      'sideWoodApron',
+      'railSight'
+    ],
+    blackMaterialSurfaceNames: [],
+    hideSurfaceNamePatterns: ['diamond'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
@@ -53,6 +53,9 @@ export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
+    POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
+      (option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID
+    ) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
   );
 }

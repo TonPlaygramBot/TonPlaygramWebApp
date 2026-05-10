@@ -4492,10 +4492,9 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
   }))
 );
 
-const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
+const DEFAULT_RAIL_MARKER_SHAPE = 'none';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
-  { id: 'diamond', label: 'Diamonds' },
-  { id: 'circle', label: 'Circles' }
+  { id: 'none', label: 'Original table only' }
 ]);
 const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
@@ -12001,13 +12000,12 @@ export function Table3D(
     }
   };
   const applyRailMarkerStyleFn = (style = activeRailMarkerStyle, overrides = {}) => {
+    const requestedShape = typeof style?.shape === 'string' ? style.shape : DEFAULT_RAIL_MARKER_SHAPE;
     const shapeId =
-      railMarkerGeometries[style?.shape] && typeof style?.shape === 'string'
-        ? style.shape
+      requestedShape === 'none' || railMarkerGeometries[requestedShape]
+        ? requestedShape
         : DEFAULT_RAIL_MARKER_SHAPE;
-    const geometry =
-      railMarkerGeometries[shapeId] ??
-      railMarkerGeometries[DEFAULT_RAIL_MARKER_SHAPE];
+    const geometry = shapeId === 'none' ? null : railMarkerGeometries[shapeId];
     const colorOpt = resolveRailMarkerColorOption(style?.colorId);
     const baseTrim = overrides.trimMaterial ?? trimMat;
     railMarkerMat.copy(baseTrim);
@@ -12035,6 +12033,10 @@ export function Table3D(
     }
     railMarkerMat.needsUpdate = true;
     clearRailMarkerMeshes();
+    if (!geometry) {
+      activeRailMarkerStyle = { shape: 'none', colorId: colorOpt.id };
+      return;
+    }
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
@@ -12865,8 +12867,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
     ? child.userData.poolRoyaleBlackSurfaceNames
     : [];
   if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
-  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
   if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|rail[_\s-]*sight|railsight/.test(childName)) return 'trim';
+  if (blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) return 'trim';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
   if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
@@ -12880,6 +12882,12 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
 
 function isPoolRoyaleExternalBlackSurface(child) {
   const childName = `${child?.name || ''}`.toLowerCase();
+  const chromeSurfaceNames = Array.isArray(child?.userData?.poolRoyaleChromeSurfaceNames)
+    ? child.userData.poolRoyaleChromeSurfaceNames
+    : [];
+  if (chromeSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()))) {
+    return false;
+  }
   const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
     ? child.userData.poolRoyaleBlackSurfaceNames
     : [];
@@ -13119,6 +13127,14 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       poolRoyaleChromeSurfaceNames: chromeSurfaceNames,
       poolRoyaleBlackSurfaceNames: blackSurfaceNames
     };
+
+    const childName = `${child?.name || ''}`.toLowerCase();
+    const hideSurfaceNamePatterns = Array.isArray(tableModel?.hideSurfaceNamePatterns)
+      ? tableModel.hideSurfaceNamePatterns
+      : [];
+    if (hideSurfaceNamePatterns.some((pattern) => childName.includes(`${pattern}`.toLowerCase()))) {
+      child.visible = false;
+    }
 
     const prepareMaterial = (material) => {
       if (!material) return material;
@@ -14116,12 +14132,15 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
-          preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
-            ? Array.from(new Set([
-                ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
-                'trim'
-              ]))
-            : chromePlateStyle.preserveExternalTrim
+          preserveOriginalSurfaceRoles:
+            resolvedTableOptions.tableModel.useOriginalLayoutSurfaces &&
+            !resolvedTableOptions.tableModel.usePoolRoyaleChromeOnOriginalTrim
+              ? Array.from(new Set([
+                  ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
+                  'trim'
+                ]))
+              : chromePlateStyle.preserveExternalTrim &&
+                  !resolvedTableOptions.tableModel.usePoolRoyaleChromeOnOriginalTrim
               ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
               : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
                   (role) => role !== 'trim'
@@ -15029,7 +15048,10 @@ function PoolRoyaleGame({
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
-      if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
+      if (stored && stored !== 'none') {
+        window.localStorage.setItem('poolRailMarkerShape', DEFAULT_RAIL_MARKER_SHAPE);
+      }
+      if (stored === 'none') {
         return stored;
       }
     }
@@ -36597,6 +36619,24 @@ const shotPowerRef = useRef(0);
                   </button>
                 </div>
               ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Model
+                </h3>
+                <div className="mt-2 rounded-2xl border border-emerald-300/50 bg-emerald-300/10 px-4 py-3 text-left">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-100">
+                      {activeTableModel?.label || 'Showood 7 ft GLB'}
+                    </span>
+                    <span className="rounded-full border border-emerald-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-100/90">
+                      Default
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/60">
+                    Showood is always used first; the Pool Royale procedural table is only the fallback if the GLB cannot load.
+                  </p>
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
