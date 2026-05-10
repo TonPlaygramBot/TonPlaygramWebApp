@@ -1707,7 +1707,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -4360,34 +4360,28 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
-const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  BILARDO_SHQIP_HUMAN_URL
-]);
-
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd6d8dc,
-    metalness: 0.95,
-    roughness: 0.12,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xd7dde7,
+    metalness: 1,
+    roughness: 0.055,
+    clearcoat: 1,
+    clearcoatRoughness: 0.025,
+    envMapIntensity: 7.2
   },
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.92,
-    roughness: 0.16,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xf5d978,
+    metalness: 1,
+    roughness: 0.065,
+    clearcoat: 1,
+    clearcoatRoughness: 0.035,
+    envMapIntensity: 6.7
   }
 ]);
 
@@ -6175,8 +6169,11 @@ function projectRailUVs(geometry, bounds) {
   return target;
 }
 
-function enhanceChromeMaterial(material) {
+function enhanceChromeMaterial(material, options = {}) {
   if (!material) return;
+  const maxEnvMapIntensity = Number.isFinite(options.maxEnvMapIntensity)
+    ? options.maxEnvMapIntensity
+    : 1.02;
   const ensure = (key, value, transform) => {
     if (typeof material[key] === 'number') {
       material[key] = transform(material[key], value);
@@ -6188,7 +6185,7 @@ function enhanceChromeMaterial(material) {
   ensure('roughness', 0.1, (current, target) => Math.min(current, target));
   ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
   ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
-  ensure('envMapIntensity', 1.02, (current, target) =>
+  ensure('envMapIntensity', maxEnvMapIntensity, (current, target) =>
     THREE.MathUtils.clamp(current, 0.92, target)
   );
   if (material.side !== THREE.DoubleSide) {
@@ -11995,7 +11992,9 @@ export function Table3D(
       });
   const createBrandSideMaterial = () => {
     const mat = trimMat.clone();
-    enhanceChromeMaterial(mat);
+    enhanceChromeMaterial(mat, {
+      maxEnvMapIntensity: Math.max(chromeOption?.envMapIntensity ?? 1.02, materialProps.envMapIntensity ?? 1.02)
+    });
     mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
     mat.roughness = Math.max(0.06, (mat.roughness ?? 0.4) * 0.78);
     mat.clearcoat = Math.max(mat.clearcoat ?? 0.28, 0.42);
@@ -12978,7 +12977,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
   if (/base|corner[_\s-]*block|cabinet|lower[_\s-]*trim|underside/.test(childName)) return 'baseCornerBlock';
   if (/leg|support/.test(childName)) return 'leg';
-  if (/rail|wood|showood|bevel/.test(childName)) return 'topWoodRail';
+  if (/bevel/.test(childName)) return 'sideWoodApron';
+  if (/rail|wood|showood/.test(childName)) return 'topWoodRail';
   if (/gold|metal|chrome|plate|trim|screw|bolt/.test(childName)) return 'railSight';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
@@ -12987,8 +12987,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/leg|support/.test(label)) return 'leg';
   if (/foot|rim/.test(label)) return 'verticalCornerRim';
   if (/base|cabinet/.test(label)) return 'baseCornerBlock';
-  if (/apron/.test(label)) return 'sideWoodApron';
-  if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
+  if (/apron|bevel/.test(label)) return 'sideWoodApron';
+  if (/frame|wood|rail|showood/.test(label)) return 'topWoodRail';
   return 'wood';
 }
 
@@ -13123,8 +13123,8 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'railSight',
-    baseFoot: 'railSight',
+    verticalCornerRim: 'verticalCornerRim',
+    baseFoot: 'verticalCornerRim',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
   };
@@ -13168,16 +13168,22 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   };
 
   if (part === 'railSight') {
-    const chromeOption = style.railSight === 'gold'
-      ? CHROME_COLOR_OPTIONS.find((item) => item.id === 'gold')
-      : CHROME_COLOR_OPTIONS.find((item) => item.id === 'chrome');
+    const linkedChromeId = tableModel?.chromeColorId === 'gold' || style.railSight === 'gold'
+      ? 'gold'
+      : 'chrome';
+    const chromeOption = CHROME_COLOR_OPTIONS.find((item) => item.id === linkedChromeId);
     copyMaterialLook(materials.trim);
     if (chromeOption?.color && mat.color) mat.color.set(chromeOption.color);
     ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
       const value = chromeOption?.[key] ?? materialProps[key];
       if (typeof value === 'number' && key in mat) mat[key] = value;
     });
-    enhanceChromeMaterial(mat);
+    enhanceChromeMaterial(mat, {
+      maxEnvMapIntensity: Math.max(
+        chromeOption?.envMapIntensity ?? 1.02,
+        materialProps.envMapIntensity ?? 1.02
+      )
+    });
   } else if (part === 'cloth' || part === 'cushion') {
     copyMaterialLook(part === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat);
     if (part === 'cushion') {
@@ -14461,6 +14467,7 @@ function mountPoolRoyaleExternalTableModel({
       ? {
           ...resolvedTableOptions.tableModel,
           showoodStyle: resolvedTableOptions.showoodStyle,
+          chromeColorId: resolvedTableOptions.chromeColorId,
           baseVariantId: table.userData.baseVariantId,
           preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
             ? Array.from(new Set([
@@ -14474,6 +14481,10 @@ function mountPoolRoyaleExternalTableModel({
                 )
         }
       : null;
+  if (externalTableUsesOriginalLayout && externalTableModelForMount?.kind === 'gltf') {
+    setGeneratedVisualsVisible(false);
+  }
+
   const externalTable =
     externalTableModelForMount?.kind === 'gltf'
       ? mountPoolRoyaleExternalTableModel({
@@ -15300,14 +15311,7 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_FINISH_ID
     );
   });
-  const [tableBaseId, setTableBaseId] = useState(() => {
-    return resolveStoredSelection(
-      'tableBase',
-      TABLE_BASE_STORAGE_KEY,
-      (id) => POOL_ROYALE_BASE_VARIANTS.some((variant) => variant.id === id),
-      DEFAULT_TABLE_BASE_ID
-    );
-  });
+  const [tableBaseId, setTableBaseId] = useState(DEFAULT_TABLE_BASE_ID);
   const [humanCharacterId, setHumanCharacterId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
@@ -15521,11 +15525,8 @@ function PoolRoyaleGame({
     [poolInventory]
   );
   const availableTableBases = useMemo(
-    () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      ),
-    [poolInventory]
+    () => POOL_ROYALE_BASE_VARIANTS.filter((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID),
+    []
   );
   const availableChromeOptions = useMemo(
     () =>
@@ -15660,7 +15661,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== DEFAULT_TABLE_BASE_ID) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -25882,7 +25883,12 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
+        {
+          tableModel: activeTableModel,
+          chromePlateStyle: activeChromePlateStyle,
+          showoodStyle: showoodTableStyle,
+          chromeColorId
+        }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -25930,17 +25936,11 @@ const shotPowerRef = useRef(0);
         }
         return secondarySpacingBase;
       };
-      const secondaryTableEntry = Table3D(
-        world,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase,
-        rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
-      );
-      secondaryTableRef.current = secondaryTableEntry?.group ?? null;
-      secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
+      // The second full table was hidden by default but still built all procedural geometry
+      // and kicked off another Showood GLB clone. Keep the slot API inert so environments
+      // can opt out without paying that startup cost.
+      secondaryTableRef.current = null;
+      secondaryBaseSetterRef.current = null;
       const resolveSnookerScale = () => {
         const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
         const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
@@ -26704,68 +26704,6 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createFallbackRefereeOfficial = () => {
-        const group = new THREE.Group();
-        const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.04 });
-        const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
-        const skin = new THREE.MeshStandardMaterial({ color: 0xc9906e, roughness: 0.6, metalness: 0.01 });
-        const torso = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 1.0, BALL_R * 1.15, BALL_R * 4.4, 16), white);
-        torso.position.y = BALL_R * 6.1;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 1.9, BALL_R * 3.4, BALL_R * 0.28), black);
-        vest.position.set(0, BALL_R * 6.25, -BALL_R * 0.72);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * 0.92, 18, 12), skin);
-        head.position.y = BALL_R * 8.9;
-        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.34, BALL_R * 0.38, BALL_R * 3.8, 12), black);
-        leftLeg.position.set(-BALL_R * 0.55, BALL_R * 2.8, 0);
-        const rightLeg = leftLeg.clone();
-        rightLeg.position.x = BALL_R * 0.55;
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.22, BALL_R * 0.28, BALL_R * 3.2, 10), white);
-        rightArm.position.set(BALL_R * 1.35, BALL_R * 6.0, 0);
-        rightArm.rotation.z = THREE.MathUtils.degToRad(-10);
-        [torso, vest, head, leftLeg, rightLeg, rightArm].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        return group;
-      };
-
-      const createRefereeOfficial = async () => {
-        const group = new THREE.Group();
-        const gltf = await loadFirstAvailableGltf(POOL_ROYALE_REFEREE_HUMAN_URLS).catch(() => null);
-        const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? null;
-        if (model) {
-          model.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            const key = `${child.name || ''} ${materials.map((mat) => mat?.name || '').join(' ')}`.toLowerCase();
-            const cloned = materials.map((mat) => {
-              const next = mat?.clone?.() ?? new THREE.MeshStandardMaterial();
-              if (key.includes('shirt') || key.includes('top') || key.includes('torso') || key.includes('body')) {
-                next.color?.setHex?.(0xf8fafc);
-              }
-              if (key.includes('pant') || key.includes('leg') || key.includes('shoe') || key.includes('boot')) {
-                next.color?.setHex?.(0x050505);
-              }
-              next.roughness = Math.max(next.roughness ?? 0.5, 0.46);
-              next.needsUpdate = true;
-              return next;
-            });
-            child.material = Array.isArray(child.material) ? cloned : cloned[0];
-          });
-          fitAssetToSpan(model, BALL_R * 18.5);
-          group.add(model);
-        } else {
-          group.add(createFallbackRefereeOfficial());
-        }
-        group.position.set(TABLE.W / 2 + BALL_R * 16, floorY, 0);
-        group.userData.referee = true;
-        group.userData.walkT = 0;
-        group.userData.gltfReferee = Boolean(model);
-        return group;
-      };
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
@@ -26851,15 +26789,11 @@ const shotPowerRef = useRef(0);
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
         const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
+        world.add(loungeA);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
+          { group: loungeA, lounge: true, seat: 'A' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -37010,50 +36944,6 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
                       </button>
                     );
                   })}
