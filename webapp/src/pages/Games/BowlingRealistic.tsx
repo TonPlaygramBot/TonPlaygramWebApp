@@ -7,8 +7,10 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
+import { createMurlanStyleTable } from "../../utils/murlanTable.js";
+import { MURLAN_CHARACTER_THEMES } from "../../config/murlanCharacterThemes.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
+type PlayerAction = "idle" | "seated" | "standingUp" | "approach" | "throw" | "recover" | "celebrate" | "toSeat" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -20,6 +22,8 @@ type HudState = {
   p2: number;
   frame: number;
   roll: number;
+  rule: string;
+  lane: string;
 };
 
 type ThrowIntent = {
@@ -41,6 +45,7 @@ type ControlState = {
 };
 
 type BowlingFrame = { rolls: number[]; cumulative: number | null };
+type RollDecision = { frameIndex: number; rollIndex: number; frameEnded: boolean; resetPins: boolean; gameFinished: boolean };
 type ScorePlayer = { name: string; frames: BowlingFrame[]; total: number };
 
 type HumanRig = {
@@ -57,15 +62,20 @@ type HumanRig = {
   approachT: number;
   throwT: number;
   recoverT: number;
+  celebrateT: number;
   returnWalkT: number;
   pickT: number;
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
+  seatPos: THREE.Vector3;
+  seatYaw: number;
+  standPos: THREE.Vector3;
+  seatT: number;
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
-type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string };
+type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string; skinTone?: number; hairColor?: number; url?: string };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -94,8 +104,21 @@ type PinState = {
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
-const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 1.46;
+const normalizeCharacterOption = (option: any, suffix = ""): HumanCharacterOption => ({
+  id: suffix ? `${option.id}${suffix}` : option.id,
+  label: option.label,
+  modelUrls: option.modelUrls || [option.url || HUMAN_URL],
+  thumbnail: option.thumbnail,
+  accent: option.accent || (Number.isFinite(option.hairColor) ? `#${option.hairColor.toString(16).padStart(6, "0")}` : undefined),
+  skinTone: option.skinTone,
+  hairColor: option.hairColor,
+  url: option.url,
+});
+const HUMAN_CHARACTER_OPTIONS = [
+  ...BOWLING_HUMAN_CHARACTER_OPTIONS.map((option: any) => normalizeCharacterOption(option)),
+  ...MURLAN_CHARACTER_THEMES.map((option: any) => normalizeCharacterOption(option, "-domino-full")),
+].filter((option, index, all) => all.findIndex((entry) => entry.modelUrls[0] === option.modelUrls[0]) === index) as HumanCharacterOption[];
+const HUMAN_INITIAL_SCALE = 1.0;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -134,10 +157,10 @@ const CFG = {
   laneY: 0,
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
-  playerStartZ: 7.15,
-  rackEdgeX: 1.42,
-  rackStopZ: 6.34,
-  approachStopZ: 4.95,
+  playerStartZ: 6.9,
+  rackEdgeX: 2.55,
+  rackStopZ: 5.78,
+  approachStopZ: 4.82,
   foulZ: 4.55,
   arrowsZ: 0.95,
   pinDeckZ: -10.75,
@@ -145,10 +168,14 @@ const CFG = {
   ballR: 0.18,
   pinR: 0.17,
   pinToppleThreshold: 0.58,
+  pinSpotSpacing: 0.56,
   approachDuration: 0.56,
   throwDuration: 0.9,
   replayDuration: 3.2,
   recoverDuration: 0.28,
+  celebrateDuration: 0.68,
+  seatWalkDuration: 0.95,
+  standDuration: 0.42,
   returnWalkDuration: 1.08,
   pickDuration: 0.52,
   releaseT: 0.56,
@@ -160,6 +187,20 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ["8k", "4k", "2k", "1k"] as const;
+const BOWLING_RULE_SUMMARY = "Ten-pin rules: 10 frames · strike resets the rack · spare earns next-ball bonus · 10th frame allows bonus balls.";
+const LANE_BOARD_COUNT = 39;
+const BOARD_WIDTH = (CFG.laneHalfW * 2) / LANE_BOARD_COUNT;
+const BOWLING_MURLAN_CHAIR_URLS = [
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dining_chair_02/dining_chair_02_1k.gltf",
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf",
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf",
+];
+const PLAYER_SEATS = [
+  { pos: new THREE.Vector3(-4.95, CFG.laneY, 6.28), yaw: Math.PI * 0.52, stand: new THREE.Vector3(-0.42, CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-3.42, CFG.laneY, 7.18), yaw: Math.PI * 0.78, stand: new THREE.Vector3(0.42, CFG.laneY, CFG.playerStartZ) },
+];
+const LOUNGE_CENTER = new THREE.Vector3(-4.16, CFG.laneY, 6.72);
+const RETURN_X = 2.78;
 
 function makeEmptyPlayers(): ScorePlayer[] {
   const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
@@ -231,19 +272,20 @@ function recomputePlayerTotals(player: ScorePlayer) {
   player.total = running;
 }
 
-function addRollToPlayer(player: ScorePlayer, knocked: number) {
+function addRollToPlayer(player: ScorePlayer, knocked: number): RollDecision {
   const frameIndex = currentFrameIndex(player);
   const frame = player.frames[frameIndex];
+  const rollIndex = frame.rolls.length;
 
   if (frameIndex < 9) {
-    if (frame.rolls.length === 0) frame.rolls.push(clamp(knocked, 0, 10));
-    else if (frame.rolls.length === 1) frame.rolls.push(clamp(knocked, 0, 10 - frame.rolls[0]));
+    if (rollIndex === 0) frame.rolls.push(clamp(knocked, 0, 10));
+    else if (rollIndex === 1) frame.rolls.push(clamp(knocked, 0, 10 - frame.rolls[0]));
   } else {
-    if (frame.rolls.length === 0) frame.rolls.push(clamp(knocked, 0, 10));
-    else if (frame.rolls.length === 1) {
+    if (rollIndex === 0) frame.rolls.push(clamp(knocked, 0, 10));
+    else if (rollIndex === 1) {
       const max = frame.rolls[0] === 10 ? 10 : 10 - frame.rolls[0];
       frame.rolls.push(clamp(knocked, 0, max));
-    } else if (frame.rolls.length === 2) {
+    } else if (rollIndex === 2) {
       let max = 10;
       if (frame.rolls[0] === 10 && frame.rolls[1] !== 10) max = 10 - frame.rolls[1];
       frame.rolls.push(clamp(knocked, 0, max));
@@ -251,7 +293,35 @@ function addRollToPlayer(player: ScorePlayer, knocked: number) {
   }
 
   recomputePlayerTotals(player);
-  return { frameIndex, frameEnded: frameComplete(frame, frameIndex), gameFinished: playerFinished(player) };
+  const frameEnded = frameComplete(frame, frameIndex);
+  return {
+    frameIndex,
+    rollIndex,
+    frameEnded,
+    resetPins: shouldResetPinsForNextRoll(frame, frameIndex, rollIndex, knocked, frameEnded),
+    gameFinished: playerFinished(player),
+  };
+}
+
+function shouldResetPinsForNextRoll(frame: BowlingFrame, frameIndex: number, rollIndex: number, knocked: number, frameEnded: boolean) {
+  if (frameEnded) return true;
+  if (frameIndex < 9) return knocked === 10;
+  if (rollIndex === 0) return knocked === 10;
+  if (rollIndex === 1) return frame.rolls[0] === 10 || frame.rolls[0] + frame.rolls[1] === 10;
+  return false;
+}
+
+function describeRollResult(player: ScorePlayer, result: RollDecision, knocked: number) {
+  const frame = player.frames[result.frameIndex];
+  const isStrike = knocked === 10 && (result.rollIndex === 0 || result.frameIndex === 9);
+  const isSpare = !isStrike && result.rollIndex > 0 && frame.rolls[result.rollIndex - 1] + knocked === 10;
+  const pocket = knocked >= 8 ? "Pocket hit" : knocked >= 5 ? "Brooklyn leaves" : "Light hit";
+  return {
+    isStrike,
+    isSpare,
+    rule: isStrike ? "Strike: rack resets and next two rolls are bonuses" : isSpare ? "Spare: next roll scores as bonus" : result.frameEnded ? "Open frame: switch players" : "Second ball: convert the spare",
+    lane: `${pocket} · ${Math.max(0, 10 - knocked)} pin${10 - knocked === 1 ? "" : "s"} left`,
+  };
 }
 
 function standingPinsCount(pins: PinState[]) {
@@ -337,29 +407,37 @@ function makeFallbackHuman(color: number) {
   const shoes = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.56 });
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 18), skin);
+  head.name = "head";
   head.position.y = 1.62;
   g.add(head);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.54, 6, 14), shirt);
+  torso.name = "torso";
   torso.position.y = 1.05;
   g.add(torso);
   const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.52, 4, 10), pants);
+  leftLeg.name = "leftLeg";
   leftLeg.position.set(-0.12, 0.35, 0);
   g.add(leftLeg);
   const rightLeg = leftLeg.clone();
+  rightLeg.name = "rightLeg";
   rightLeg.position.x = 0.12;
   g.add(rightLeg);
   const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 4, 10), skin);
+  leftArm.name = "leftArm";
   leftArm.position.set(-0.32, 1.16, 0);
   leftArm.rotation.z = 0.22;
   g.add(leftArm);
   const rightArm = leftArm.clone();
+  rightArm.name = "rightArm";
   rightArm.position.set(0.32, 1.16, 0.06);
   rightArm.rotation.z = -0.18;
   g.add(rightArm);
   const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.28), shoes);
+  shoeL.name = "leftShoe";
   shoeL.position.set(-0.12, 0.03, -0.02);
   g.add(shoeL);
   const shoeR = shoeL.clone();
+  shoeR.name = "rightShoe";
   shoeR.position.x = 0.12;
   g.add(shoeR);
   enableShadow(g);
@@ -382,7 +460,7 @@ function pickRandomAiCharacter(playerCharacterId: string) {
   return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
 }
 
-function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption): HumanRig {
+function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption, seatPos = start.clone(), seatYaw = 0): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = makeFallbackHuman(parseHexColor(character?.accent, 0xff7a2f));
@@ -410,11 +488,16 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanChar
     approachT: 0,
     throwT: 0,
     recoverT: 0,
+    celebrateT: 0,
     returnWalkT: 0,
     pickT: 0,
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
+    seatPos: seatPos.clone(),
+    seatYaw,
+    standPos: start.clone(),
+    seatT: 0,
   };
 
   loadHumanCharacter(rig, character);
@@ -443,7 +526,7 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
       (gltf) => {
         if (cancelled) return;
         const model = gltf.scene;
-        normalizeHuman(model, 1.82);
+        normalizeHuman(model, 1.78);
         model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
         lockHumanToLaneGround(model);
         enableShadow(model);
@@ -495,8 +578,107 @@ function findRightHand(modelRoot: THREE.Object3D | null) {
   return hand;
 }
 
+
+function applyStandingPose(rig: HumanRig) {
+  rig.modelRoot.visible = true;
+  rig.shadow.visible = true;
+  if (rig.model) {
+    rig.model.position.x *= 0.3;
+    rig.model.position.z *= 0.3;
+    rig.model.rotation.x *= 0.65;
+    rig.model.rotation.z *= 0.65;
+  }
+}
+
+function applySeatedPose(rig: HumanRig) {
+  rig.modelRoot.visible = true;
+  rig.shadow.visible = true;
+  rig.pos.copy(rig.seatPos);
+  rig.yaw = rig.seatYaw;
+  rig.targetYaw = rig.seatYaw;
+  rig.action = "seated";
+  if (rig.model) {
+    rig.model.position.set(0, -0.42, -0.08);
+    rig.model.rotation.set(-0.18, 0, 0.02);
+  }
+  syncHuman(rig);
+  rig.shadow.scale.set(0.92, 0.72, 1);
+}
+
+function standRigForTurn(rig: HumanRig) {
+  rig.action = "standingUp";
+  rig.seatT = 0.001;
+  rig.approachT = 0;
+  rig.throwT = 0;
+  rig.recoverT = 0;
+  rig.returnWalkT = 0;
+  rig.walkCycle = 0;
+  rig.approachFrom.copy(rig.seatPos);
+  rig.approachTo.copy(rig.standPos);
+}
+
+function seatRigAfterTurn(rig: HumanRig) {
+  rig.action = "toSeat";
+  rig.seatT = 0.001;
+  rig.returnWalkT = 0;
+  rig.approachFrom.copy(rig.pos);
+  rig.approachTo.copy(rig.seatPos);
+}
+
+function loadFirstAvailableGltf(urls: string[], onLoad: (gltf: any) => void, onError?: () => void) {
+  const loader = new GLTFLoader().setCrossOrigin("anonymous");
+  const tryLoad = (index: number) => {
+    if (index >= urls.length) {
+      onError?.();
+      return;
+    }
+    loader.load(urls[index], onLoad, undefined, () => tryLoad(index + 1));
+  };
+  tryLoad(0);
+}
+
+
+function animateFallbackHuman(rig: HumanRig, mode: "walk" | "bowl" | "seat" | "celebrate" | "idle", t: number) {
+  const leftArm = rig.fallback.getObjectByName("leftArm") as THREE.Object3D | undefined;
+  const rightArm = rig.fallback.getObjectByName("rightArm") as THREE.Object3D | undefined;
+  const leftLeg = rig.fallback.getObjectByName("leftLeg") as THREE.Object3D | undefined;
+  const rightLeg = rig.fallback.getObjectByName("rightLeg") as THREE.Object3D | undefined;
+  const torso = rig.fallback.getObjectByName("torso") as THREE.Object3D | undefined;
+  const reset = () => {
+    if (leftArm) leftArm.rotation.set(0, 0, 0.22);
+    if (rightArm) rightArm.rotation.set(0, 0, -0.18);
+    if (leftLeg) leftLeg.rotation.set(0, 0, 0);
+    if (rightLeg) rightLeg.rotation.set(0, 0, 0);
+    if (torso) torso.rotation.set(0, 0, 0);
+  };
+  reset();
+  if (mode === "walk") {
+    const s = Math.sin(t);
+    if (leftArm) leftArm.rotation.x = -s * 0.52;
+    if (rightArm) rightArm.rotation.x = s * 0.52;
+    if (leftLeg) leftLeg.rotation.x = s * 0.38;
+    if (rightLeg) rightLeg.rotation.x = -s * 0.38;
+  } else if (mode === "bowl") {
+    const k = clamp01(t);
+    if (rightArm) rightArm.rotation.x = k < CFG.releaseT ? lerp(-0.35, -1.9, k / CFG.releaseT) : lerp(-1.9, 0.9, (k - CFG.releaseT) / (1 - CFG.releaseT));
+    if (leftArm) leftArm.rotation.x = lerp(0.35, -0.45, k);
+    if (leftLeg) leftLeg.rotation.x = lerp(0.1, -0.58, k);
+    if (rightLeg) rightLeg.rotation.x = lerp(-0.1, 0.46, k);
+    if (torso) torso.rotation.x = lerp(0, 0.22, Math.sin(k * Math.PI));
+  } else if (mode === "seat") {
+    if (leftLeg) leftLeg.rotation.x = -0.95;
+    if (rightLeg) rightLeg.rotation.x = -0.95;
+    if (torso) torso.rotation.x = -0.12;
+  } else if (mode === "celebrate") {
+    const wave = Math.sin(t * 8);
+    if (leftArm) leftArm.rotation.x = -1.9 + wave * 0.18;
+    if (rightArm) rightArm.rotation.x = -1.8 - wave * 0.18;
+    if (torso) torso.rotation.z = wave * 0.06;
+  }
+}
+
 function getHeldBallWorldPosition(rig: HumanRig) {
-  const handNode = findRightHand(rig.model);
+  const handNode = findRightHand(rig.model) as THREE.Object3D | null;
   const handAnchor = handNode ? handNode.getWorldPosition(new THREE.Vector3()) : null;
   let local = new THREE.Vector3(0.31, 0.92, 0.08);
   if (rig.action === "approach") {
@@ -610,11 +792,12 @@ function createPinMesh() {
 
 function createPins(scene: THREE.Scene) {
   const pins: PinState[] = [];
+  const s = CFG.pinSpotSpacing;
   const positions = [
     [0, 0],
-    [-0.32, -0.56], [0.32, -0.56],
-    [-0.64, -1.12], [0, -1.12], [0.64, -1.12],
-    [-0.96, -1.68], [-0.32, -1.68], [0.32, -1.68], [0.96, -1.68],
+    [-s * 0.57, -s], [s * 0.57, -s],
+    [-s * 1.14, -s * 2], [0, -s * 2], [s * 1.14, -s * 2],
+    [-s * 1.71, -s * 3], [-s * 0.57, -s * 3], [s * 0.57, -s * 3], [s * 1.71, -s * 3],
   ];
   for (const [x, dz] of positions) {
     const root = createPinMesh();
@@ -671,14 +854,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
-  const groundingFloor = new THREE.Mesh(
-    new THREE.CircleGeometry(18, 96),
-    new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.02, envMapIntensity: 0.35 })
-  );
-  groundingFloor.rotation.x = -Math.PI / 2;
-  groundingFloor.position.set(0, CFG.laneY - 0.028, -2.4);
-  groundingFloor.receiveShadow = true;
-  group.add(groundingFloor);
+  // Intentionally no dark grounding floor: the lane sits directly on the HDRI ground plane so the environment remains visible.
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
@@ -689,6 +865,23 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   lane.position.set(0, CFG.laneY, -4.2);
   lane.receiveShadow = true;
   group.add(lane);
+
+  const boardLineMat = new THREE.MeshBasicMaterial({ color: 0x4b2e18, transparent: true, opacity: 0.18, depthWrite: false });
+  for (let b = 1; b < LANE_BOARD_COUNT; b++) {
+    const x = -CFG.laneHalfW + b * BOARD_WIDTH;
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.006, 18.62), boardLineMat);
+    board.rotation.x = -Math.PI / 2;
+    board.position.set(x, CFG.laneY + 0.004, -4.2);
+    group.add(board);
+  }
+  const boardNumberMat = new THREE.MeshBasicMaterial({ color: 0x1b365d, transparent: true, opacity: 0.38, depthWrite: false });
+  for (const board of [5, 10, 15, 20, 25, 30, 35]) {
+    const x = -CFG.laneHalfW + (board - 0.5) * BOARD_WIDTH;
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(board === 20 ? 0.035 : 0.026, 18), boardNumberMat);
+    dot.rotation.x = -Math.PI / 2;
+    dot.position.set(x, CFG.laneY + 0.014, CFG.foulZ - 0.72);
+    group.add(dot);
+  }
   const oil = new THREE.Mesh(
     new THREE.PlaneGeometry(CFG.laneHalfW * 2 - 0.06, 13.4),
     new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, reflectivity: 1 })
@@ -726,30 +919,118 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     mesh.position.set(i * 0.46, CFG.laneY + 0.012, CFG.arrowsZ);
     group.add(mesh);
   }
+  const spotMat = new THREE.MeshBasicMaterial({ color: 0x7f1d1d, transparent: true, opacity: 0.45, depthWrite: false });
+  const pinS = CFG.pinSpotSpacing;
+  for (const [x, dz] of [[0,0],[-pinS * 0.57,-pinS],[pinS * 0.57,-pinS],[-pinS * 1.14,-pinS * 2],[0,-pinS * 2],[pinS * 1.14,-pinS * 2],[-pinS * 1.71,-pinS * 3],[-pinS * 0.57,-pinS * 3],[pinS * 0.57,-pinS * 3],[pinS * 1.71,-pinS * 3]]) {
+    const spot = new THREE.Mesh(new THREE.RingGeometry(0.07, 0.105, 24), spotMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(x, CFG.laneY + 0.018, CFG.pinDeckZ + dz);
+    group.add(spot);
+  }
   const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.8, 1.25), metalMat);
   pinsetter.position.set(0, 0.32, CFG.backStopZ + 0.18);
   group.add(pinsetter);
+  const maskingGlow = new THREE.Mesh(new THREE.BoxGeometry(4.32, 0.12, 0.08), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.62 }));
+  maskingGlow.position.set(0, 0.78, CFG.backStopZ + 0.83);
+  group.add(maskingGlow);
 
-  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.08, 1.72), woodMat);
-  tableTop.position.set(2.02, 0.76, 6.35);
-  group.add(tableTop);
-  const legGeom = new THREE.BoxGeometry(0.1, 0.7, 0.1);
-  for (const sx of [-0.68, 0.68]) {
-    for (const sz of [-0.7, 0.7]) {
-      const leg = new THREE.Mesh(legGeom, blackMat);
-      leg.position.set(2.02 + sx, 0.37, 6.35 + sz);
-      group.add(leg);
+  const pitCurtain = new THREE.Mesh(
+    new THREE.BoxGeometry(4.62, 1.25, 0.12),
+    new THREE.MeshPhysicalMaterial({ color: 0x05070d, roughness: 0.5, metalness: 0.15, clearcoat: 0.28 })
+  );
+  pitCurtain.position.set(0, 0.5, CFG.backStopZ - 0.48);
+  group.add(pitCurtain);
+  const sweepBar = new THREE.Mesh(new THREE.BoxGeometry(3.95, 0.1, 0.1), metalMat);
+  sweepBar.position.set(0, 0.95, CFG.pinDeckZ + 0.32);
+  group.add(sweepBar);
+  for (const side of [-1, 1]) {
+    const kickback = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.86, 3.2), new THREE.MeshPhysicalMaterial({ color: 0x1f2937, roughness: 0.34, metalness: 0.28, clearcoat: 0.32 }));
+    kickback.position.set(side * 2.34, 0.42, CFG.pinDeckZ - 0.84);
+    group.add(kickback);
+  }
+
+  const loungeDeck = new THREE.Mesh(
+    new THREE.BoxGeometry(2.65, 0.035, 2.28),
+    new THREE.MeshPhysicalMaterial({ color: 0x18202e, roughness: 0.62, metalness: 0.05, clearcoat: 0.2 })
+  );
+  loungeDeck.position.set(LOUNGE_CENTER.x, CFG.laneY + 0.018, LOUNGE_CENTER.z);
+  group.add(loungeDeck);
+
+  const lounge = new THREE.Group();
+  lounge.position.copy(LOUNGE_CENTER);
+  try {
+    createMurlanStyleTable({
+      THREE,
+      arena: lounge,
+      tableRadius: 0.64,
+      tableHeight: 0.72,
+      pedestalHeightScale: 0.82,
+      includeBase: true,
+    });
+  } catch {
+    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.08, 1.28), woodMat);
+    tableTop.position.set(0, 0.74, 0);
+    lounge.add(tableTop);
+    const legGeom = new THREE.BoxGeometry(0.08, 0.66, 0.08);
+    for (const sx of [-0.48, 0.48]) {
+      for (const sz of [-0.48, 0.48]) {
+        const leg = new THREE.Mesh(legGeom, blackMat);
+        leg.position.set(sx, 0.35, sz);
+        lounge.add(leg);
+      }
     }
   }
-  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.4, 1.55), woodMat);
-  returnBase.position.set(1.67, 0.2, 5.92);
+  const chairFallbackMat = new THREE.MeshPhysicalMaterial({ color: 0x5f3d26, roughness: 0.42, metalness: 0.05, clearcoat: 0.35 });
+  for (const seat of PLAYER_SEATS) {
+    const chair = new THREE.Group();
+    chair.position.copy(seat.pos);
+    chair.rotation.y = seat.yaw + Math.PI;
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.12, 0.72), chairFallbackMat);
+    pad.position.y = 0.43;
+    chair.add(pad);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.86, 0.12), chairFallbackMat);
+    back.position.set(0, 0.88, 0.33);
+    chair.add(back);
+    for (const sx of [-0.27, 0.27]) for (const sz of [-0.24, 0.24]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.44, 12), chairFallbackMat);
+      leg.position.set(sx, 0.21, sz);
+      chair.add(leg);
+    }
+    group.add(chair);
+    loadFirstAvailableGltf(BOWLING_MURLAN_CHAIR_URLS, (gltf) => {
+      if (!group.parent) return;
+      const model = gltf.scene.clone(true);
+      enableShadow(model);
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const span = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z) || 1;
+      model.scale.setScalar(1.05 / span);
+      model.updateMatrixWorld(true);
+      const box2 = new THREE.Box3().setFromObject(model);
+      model.position.set(seat.pos.x - (box2.min.x + box2.max.x) / 2, CFG.laneY - box2.min.y, seat.pos.z - (box2.min.z + box2.max.z) / 2);
+      model.rotation.y = seat.yaw + Math.PI;
+      group.add(model);
+      chair.visible = false;
+    });
+  }
+  group.add(lounge);
+
+  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.48, 1.72), woodMat);
+  returnBase.position.set(RETURN_X, 0.24, 5.78);
   group.add(returnBase);
-  const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.84, 28, 1, false, 0, Math.PI), metalMat);
-  returnCover.rotation.z = Math.PI / 2;
-  returnCover.position.set(1.67, 0.52, 5.92);
-  group.add(returnCover);
-  const sideChannel = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.18, 9.9), metalMat);
-  sideChannel.position.set(1.86, 0.16, 1.05);
+  const returnHood = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.74, 8, 28), metalMat);
+  returnHood.rotation.z = Math.PI / 2;
+  returnHood.rotation.x = Math.PI / 2;
+  returnHood.position.set(RETURN_X, 0.66, 5.78);
+  group.add(returnHood);
+  const returnRailMat = new THREE.MeshPhysicalMaterial({ color: 0x9ca3af, roughness: 0.18, metalness: 0.82, clearcoat: 0.7 });
+  for (const dx of [-0.18, 0.18]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.08, 8.7), returnRailMat);
+    rail.position.set(RETURN_X + dx, 0.34, 1.14);
+    group.add(rail);
+  }
+  const sideChannel = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.2, 9.4), metalMat);
+  sideChannel.position.set(RETURN_X, 0.19, 1.05);
   group.add(sideChannel);
 
   const rackColors: [string, string, string][] = [
@@ -759,12 +1040,11 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   ];
   for (let i = 0; i < 3; i++) {
     const rb = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 56, 42), makeBallMaterial(rackColors[i]));
-    rb.position.set(2.02, 0.96, 5.82 + i * 0.44);
+    rb.position.set(RETURN_X, 0.98, 5.35 + i * 0.42);
     enableShadow(rb);
     group.add(rb);
   }
 
-  // 3D overhead monitor already removed so it no longer blocks or distracts the camera.
   enableShadow(group);
 }
 
@@ -808,7 +1088,45 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
-  if (rig.action === "approach") {
+  if (rig.action === "seated") {
+    const breath = Math.sin(performance.now() * 0.002) * 0.008;
+    rig.pos.copy(rig.seatPos);
+    rig.yaw = rig.seatYaw;
+    rig.targetYaw = rig.seatYaw;
+    if (rig.model) {
+      rig.model.position.set(0, -0.42 + breath, -0.08);
+      rig.model.rotation.set(-0.18, 0, 0.02);
+    }
+    animateFallbackHuman(rig, "seat", rig.walkCycle);
+  } else if (rig.action === "standingUp") {
+    rig.seatT = clamp01(rig.seatT + dt / CFG.standDuration);
+    const k = easeInOut(rig.seatT);
+    rig.pos.lerpVectors(rig.seatPos, rig.standPos, k);
+    rig.yaw = lerp(rig.seatYaw, Math.PI, k);
+    rig.targetYaw = rig.yaw;
+    if (rig.model) {
+      rig.model.position.set(0, lerp(-0.42, 0, k), lerp(-0.08, 0, k));
+      rig.model.rotation.x = lerp(-0.18, 0, k);
+      rig.model.rotation.z = lerp(0.02, 0, k);
+    }
+    if (rig.seatT >= 1) {
+      rig.action = "idle";
+      rig.pos.copy(rig.standPos);
+      rig.yaw = Math.PI;
+      rig.targetYaw = Math.PI;
+    }
+  } else if (rig.action === "toSeat") {
+    rig.seatT = clamp01(rig.seatT + dt / CFG.seatWalkDuration);
+    rig.walkCycle += dt * 8.8;
+    const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.seatPos, easeInOut(rig.seatT));
+    smoothFacing(rig, nextPos, dt);
+    rig.pos.copy(nextPos);
+    if (rig.model) {
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.035;
+      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.035;
+    }
+    if (rig.seatT >= 1) applySeatedPose(rig);
+  } else if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
     const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
@@ -820,12 +1138,14 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       const turnLean = clamp(rig.yawVelocity * 0.0032, -0.12, 0.12);
       rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.02 - turnLean;
     }
+    animateFallbackHuman(rig, "walk", rig.walkCycle);
     if (rig.approachT >= 1) {
       rig.action = "throw";
       rig.throwT = 0.001;
     }
   } else if (rig.action === "throw") {
     rig.throwT += dt / CFG.throwDuration;
+    animateFallbackHuman(rig, "bowl", clamp01(rig.throwT));
     if (rig.model) {
       const t = clamp01(rig.throwT);
       // right-handed form: left leg forward, right leg trail, left arm counter-balance
@@ -837,7 +1157,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       // left slide foot forward, right trail leg back (visual posture only).
       rig.model.position.x = t < CFG.releaseT ? lerp(0, -0.08, t / CFG.releaseT) : lerp(-0.08, -0.02, (t - CFG.releaseT) / (1 - CFG.releaseT));
       rig.model.position.z = t < CFG.releaseT ? lerp(0, -0.11, t / CFG.releaseT) : lerp(-0.11, -0.03, (t - CFG.releaseT) / (1 - CFG.releaseT));
-      const rightHand = findRightHand(rig.model);
+      const rightHand = findRightHand(rig.model) as THREE.Object3D | null;
       if (rightHand) {
         if (t < CFG.releaseT) {
           const k = easeInOut(t / CFG.releaseT);
@@ -877,6 +1197,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.model.rotation.z = swing * 0.08 - turnLean;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
+    animateFallbackHuman(rig, "walk", rig.walkCycle);
     if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
   } else if (rig.action === "pickBall") {
     rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
@@ -900,6 +1221,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.model.rotation.z = -swing * 0.06 - turnLean;
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
+    animateFallbackHuman(rig, "walk", rig.walkCycle);
     if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
     rig.model.position.y *= 0.82;
@@ -912,12 +1234,12 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.yawVelocity = 0;
   }
   if (rig.action === "idle") {
-    rig.targetYaw = 0;
-    rig.yaw = lerp(rig.yaw, 0, 1 - Math.pow(0.0008, dt));
+    rig.targetYaw = Math.PI;
+    rig.yaw = lerp(rig.yaw, Math.PI, 1 - Math.pow(0.0008, dt));
     rig.yawVelocity = 0;
   }
   syncHuman(rig);
-  if (ball.held) {
+  if (ball.held && canStartReturnCycle) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
     ball.mesh.position.copy(ball.pos);
   }
@@ -1062,7 +1384,7 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = "returning";
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(1.86, 0.27, 1.1);
+      ball.pos.set(RETURN_X, 0.31, 1.1);
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -1070,7 +1392,7 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === "returning") {
     ball.returnT += dt / 1.5;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(1.71, 0.9, lerp(1.1, 5.92, t));
+    ball.pos.set(RETURN_X, 0.92, lerp(1.1, 5.78, t));
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.16);
     ball.mesh.rotateX(0.23);
@@ -1086,16 +1408,31 @@ function updateBallReturn(ball: BallState, dt: number) {
   return false;
 }
 
+
+function oilRatioAt(z: number) {
+  // House-shot style: slick through the heads, tapering to dry boards near the pin deck.
+  return clamp01((z - (CFG.pinDeckZ + 1.4)) / (CFG.foulZ - (CFG.pinDeckZ + 1.4)));
+}
+
+function boardNumberFromX(x: number) {
+  return clamp(Math.round(((x + CFG.laneHalfW) / (CFG.laneHalfW * 2)) * LANE_BOARD_COUNT), 1, LANE_BOARD_COUNT);
+}
+
 function updateBall(ball: BallState, pins: PinState[], dt: number) {
   if (!ball.rolling) return false;
   const flatSpeed = Math.hypot(ball.vel.x, ball.vel.z);
   ball.inGutter = Math.abs(ball.pos.x) > CFG.laneHalfW;
-  if (!ball.inGutter && flatSpeed > 0.85 && ball.pos.z < 2.6) {
-    const hookPhase = clamp01((2.4 - ball.pos.z) / 8.4);
-    const hookGain = lerp(0.7, 1.36, clamp01(flatSpeed / 16));
+  if (!ball.inGutter && flatSpeed > 0.85) {
+    const oil = oilRatioAt(ball.pos.z);
+    const dryBoards = clamp01((Math.abs(ball.pos.x) - CFG.laneHalfW * 0.34) / (CFG.laneHalfW * 0.55));
+    const downLane = 1 - oil;
+    const hookPhase = clamp01(downLane * 0.78 + dryBoards * 0.42);
+    const hookGain = lerp(0.42, 1.62, clamp01(flatSpeed / 16)) * (0.55 + dryBoards * 0.72);
     ball.vel.x += ball.hook * hookPhase * hookGain * dt;
   }
-  const drag = ball.inGutter ? 1.24 : 0.4;
+  const oil = ball.inGutter ? 0 : oilRatioAt(ball.pos.z);
+  const dryDrag = clamp01((Math.abs(ball.pos.x) - CFG.laneHalfW * 0.46) / (CFG.laneHalfW * 0.5));
+  const drag = ball.inGutter ? 1.28 : lerp(0.22, 0.58, 1 - oil) + dryDrag * 0.2;
   ball.vel.multiplyScalar(Math.exp(-drag * dt));
   ball.pos.addScaledVector(ball.vel, dt);
   if (Math.abs(ball.pos.x) > CFG.gutterHalfW) {
@@ -1114,6 +1451,18 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
   return true;
 }
 
+
+function getHumanFaceWorldPosition(rig: HumanRig) {
+  const head = rig.fallback.getObjectByName("head") as THREE.Object3D | undefined;
+  if (!rig.model && head) return head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.02, -0.02));
+  if (rig.model) {
+    const box = new THREE.Box3().setFromObject(rig.model);
+    const center = box.getCenter(new THREE.Vector3());
+    return new THREE.Vector3(center.x, Math.max(CFG.laneY + 1.34, box.max.y - 0.13), center.z + 0.06);
+  }
+  return rig.pos.clone().add(new THREE.Vector3(0, 1.55, 0.04));
+}
+
 function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
@@ -1126,9 +1475,13 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   } else if (player.action === "pickBall") {
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.7, 5.6));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.96, -0.8));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover" || player.action === "toRack" || player.action === "toApproach") {
-    desired = player.pos.clone().add(new THREE.Vector3(0, 2.55, 3.72));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.85, -1.7));
+  } else if (player.action === "idle" || player.action === "approach" || player.action === "throw" || player.action === "recover") {
+    const face = getHumanFaceWorldPosition(player);
+    desired = face.clone().add(new THREE.Vector3(0, 0.02, 0.06));
+    look = new THREE.Vector3(clamp(player.pos.x * 0.18, -0.32, 0.32), CFG.laneY + 0.58, CFG.pinDeckZ - 0.52);
+  } else if (player.action === "toRack" || player.action === "toApproach" || player.action === "standingUp" || player.action === "celebrate") {
+    desired = player.pos.clone().add(new THREE.Vector3(0, 2.2, 3.2));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.78, -1.6));
   } else {
     desired = new THREE.Vector3(0, 2.9, 10.8);
     look = new THREE.Vector3(0, CFG.laneY + 0.74, -2.6);
@@ -1157,7 +1510,7 @@ function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) {
 export default function MobileBowlingRealistic() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
+  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1, rule: BOWLING_RULE_SUMMARY, lane: "Board 20 · house shot" });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
@@ -1205,9 +1558,11 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
+    let bgTex: THREE.Texture | null = null;
     const applyHdri = (id: string) => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
-      const preferred = Array.isArray(selected?.preferredResolutions) ? selected.preferredResolutions : ["4k", "2k"];
+      const menuPreferred = graphicsQuality === "performance" ? ["2k", "1k"] : graphicsQuality === "ultra" ? ["8k", "4k", "2k"] : ["4k", "2k"];
+      const preferred = Array.isArray(selected?.preferredResolutions) ? [...menuPreferred, ...selected.preferredResolutions] : menuPreferred;
       const candidates = [
         ...(Object.values(selected?.assetUrls || {}) as string[]),
         selected?.hdriUrl,
@@ -1223,17 +1578,19 @@ export default function MobileBowlingRealistic() {
         new RGBELoader().setCrossOrigin("anonymous").load(
           ordered[idx],
           (hdr) => {
+            envTex?.dispose();
+            bgTex?.dispose();
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+            bgTex = hdr;
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
-            scene.background = envTex;
+            scene.background = bgTex;
             const selectedRotation = Number.isFinite(selected?.rotationY) ? selected.rotationY : 0;
             if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
             if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
-            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
-            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
-            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
-            envTex.mapping = THREE.EquirectangularReflectionMapping;
-            hdr.dispose();
+            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0;
+            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.12 : graphicsQuality === "performance" ? 0.92 : 1;
+            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.86 : graphicsQuality === "ultra" ? 1.2 : 1;
           },
           undefined,
           () => tryLoad(idx + 1)
@@ -1270,7 +1627,15 @@ export default function MobileBowlingRealistic() {
     const texLoader = new THREE.TextureLoader();
     createEnvironment(scene, texLoader, selectedTableFinish, selectedChromeColor);
     const pins = createPins(scene);
-    const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), playerCharacter);
+    const playerRigs = [
+      addHuman(scene, PLAYER_SEATS[0].stand.clone(), playerCharacter, PLAYER_SEATS[0].pos, PLAYER_SEATS[0].yaw),
+      addHuman(scene, PLAYER_SEATS[1].pos.clone(), aiCharacter, PLAYER_SEATS[1].pos, PLAYER_SEATS[1].yaw),
+    ];
+    playerRigs[0].standPos.copy(PLAYER_SEATS[0].stand);
+    playerRigs[1].standPos.copy(PLAYER_SEATS[1].stand);
+    applyStandingPose(playerRigs[0]);
+    applySeatedPose(playerRigs[1]);
+    let player = playerRigs[0];
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
     const ball = createActiveBall(ballVariant);
     scene.add(ball.mesh);
@@ -1284,6 +1649,7 @@ export default function MobileBowlingRealistic() {
     let pendingIntent: ThrowIntent | null = null;
     let shotResolved = false;
     let nextAction: "samePlayer" | "nextPlayer" | "gameOver" = "samePlayer";
+    let shouldResetRackBeforeNextRoll = false;
     let replayTimer = 0;
 
     const currentFrameRoll = () => {
@@ -1321,9 +1687,12 @@ export default function MobileBowlingRealistic() {
       player.throwT = 0;
       player.recoverT = 0;
       player.walkCycle = 0;
-      player.pos.set(0, CFG.laneY, CFG.playerStartZ);
+      player.pos.copy(player.standPos);
+      player.yaw = Math.PI;
+      player.targetYaw = Math.PI;
       player.approachFrom.copy(player.pos);
       player.approachTo.copy(player.pos);
+      applyStandingPose(player);
       syncHuman(player);
       ball.held = true;
       ball.rolling = false;
@@ -1338,11 +1707,15 @@ export default function MobileBowlingRealistic() {
       pinsWereMoving = false;
       settleTimer = 0;
       pendingIntent = null;
+      if (shouldResetRackBeforeNextRoll || nextAction === "nextPlayer") resetPins(pins);
+      shouldResetRackBeforeNextRoll = false;
+      const previousPlayer = player;
+      player = playerRigs[activePlayer];
+      if (previousPlayer !== player) seatRigAfterTurn(previousPlayer);
       resetPlayerPoseForNextBall();
-      if (nextAction === "nextPlayer") resetPins(pins);
+      if (previousPlayer !== player) standRigForTurn(player);
       syncReactScores();
       aiTurnDelay = activePlayer === 1 ? 0.85 + Math.random() * 0.5 : 0.85;
-      loadHumanCharacter(player, activePlayer === 0 ? playerCharacter : aiCharacter);
       const playerName = localScores[activePlayer].name;
       setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName} swipe up to bowl` }));
     };
@@ -1353,12 +1726,18 @@ export default function MobileBowlingRealistic() {
       const knocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
       const playerBefore = localScores[activePlayer];
       const result = addRollToPlayer(playerBefore, knocked);
+      const rollRead = describeRollResult(playerBefore, result, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
-      let compliment = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
-      const strike = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10;
-      const spare = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10;
+      let compliment: string = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
+      const strike = rollRead.isStrike;
+      const spare = rollRead.isSpare;
+      shouldResetRackBeforeNextRoll = result.resetPins;
       if (strike) { status = `${playerBefore.name} STRIKE!`; compliment = RESULT_COMPLIMENTS.strike[Math.floor(Math.random()*RESULT_COMPLIMENTS.strike.length)] + " " + STRIKE_DANCE_LINES[Math.floor(Math.random()*STRIKE_DANCE_LINES.length)]; }
       if (spare) { status = `${playerBefore.name} SPARE!`; compliment = RESULT_COMPLIMENTS.spare[Math.floor(Math.random()*RESULT_COMPLIMENTS.spare.length)]; }
+      if (strike || spare) {
+        player.action = "celebrate";
+        player.celebrateT = 0.001;
+      }
       const allDone = localScores.every((p) => playerFinished(p));
       if (allDone) nextAction = "gameOver";
       else if (result.frameEnded) {
@@ -1366,7 +1745,7 @@ export default function MobileBowlingRealistic() {
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
       syncReactScores();
-      setHud((prev) => ({ ...prev, status, compliment }));
+      setHud((prev) => ({ ...prev, status, compliment, rule: rollRead.rule, lane: rollRead.lane }));
       shotResolved = true;
       waitingForBallReturn = true;
       if (!skipReplays && (strike || spare)) {
@@ -1405,7 +1784,8 @@ export default function MobileBowlingRealistic() {
     const onPointerDown = (e: PointerEvent) => {
       if (nextAction === "gameOver") return;
       if (control.active || ball.rolling || waitingForBallReturn || replayActive) return;
-      if (player.action === "approach" || player.action === "throw" || player.action === "recover") return;
+      if (activePlayer !== 0 || player !== playerRigs[0]) return;
+      if (player.action !== "idle") return;
       canvas.setPointerCapture(e.pointerId);
       control.active = true;
       control.pointerId = e.pointerId;
@@ -1426,7 +1806,7 @@ export default function MobileBowlingRealistic() {
       control.intent = computeIntent(host.clientWidth, host.clientHeight, control.startX, control.startY, e.clientX, e.clientY);
       pendingIntent = control.intent;
       updateAimVisual(aimLine, aimMarker, control.intent);
-      setHud((prev) => ({ ...prev, power: control.intent!.power }));
+      setHud((prev) => ({ ...prev, power: control.intent!.power, lane: `Aim board ${boardNumberFromX(control.intent!.targetX)} · ${Math.round(control.intent!.power * 100)}% power` }));
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -1444,7 +1824,7 @@ export default function MobileBowlingRealistic() {
       }
       pendingIntent = intent;
       startApproach(player, intent);
-      setHud((prev) => ({ ...prev, power: 0, status: "Fast approach to the line" }));
+      setHud((prev) => ({ ...prev, power: 0, status: "Four-step approach · release before foul line", rule: "Release must stay behind the foul line", lane: `Target board ${boardNumberFromX(intent.targetX)} · hook ${intent.hook >= 0 ? "right" : "left"}` }));
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
@@ -1472,7 +1852,7 @@ export default function MobileBowlingRealistic() {
           setHud((prev) => ({ ...prev, status: "PLAYER 2 AI is bowling" }));
         }
       }
-      updateHuman(player, ball, dt, true);
+      for (const rig of playerRigs) updateHuman(rig, ball, dt, rig === player);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
@@ -1548,6 +1928,10 @@ export default function MobileBowlingRealistic() {
             ))}
           </div>
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
+          <div style={{ marginTop: 5, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 9, fontWeight: 800 }}>
+            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(14,165,233,0.16)", border: "1px solid rgba(125,211,252,0.18)" }}>{hud.lane}</div>
+            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(34,197,94,0.14)", border: "1px solid rgba(134,239,172,0.18)" }}>{hud.rule}</div>
+          </div>
           {hud.compliment ? <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 800, color: "#86efac" }}>{hud.compliment}</div> : null}
         </div>
 
@@ -1560,9 +1944,9 @@ export default function MobileBowlingRealistic() {
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
             {BALL_VARIANTS.map((v)=> <button key={v.label} onClick={()=>{setSelectedBallWeight(v.label); localStorage.setItem("bowling.ballWeight",v.label);}} style={{padding:"6px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background:selectedBallWeight===v.label?"#7fd6ff":"rgba(255,255,255,0.08)", color:selectedBallWeight===v.label?"#001018":"#fff", fontWeight:800}}>{v.label} lb</button>)}
           </div>
-          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Human character inventory</div>
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Domino Battle Royal human roster</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
-            {HUMAN_CHARACTER_OPTIONS.filter((item)=> item.id === DEFAULT_HUMAN_CHARACTER_ID || (ownedPoolInventory?.humanCharacter||[]).includes(item.id)).map((item)=><button key={item.id} onClick={()=>{setSelectedHumanCharacterId(item.id); localStorage.setItem("bowling.humanCharacter",item.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHumanCharacterId===item.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}>{item.thumbnail ? <img src={item.thumbnail} alt={item.label} style={{width:"100%",borderRadius:8,marginBottom:6}} /> : null}<div style={{fontSize:11,fontWeight:700}}>{item.label}</div><div style={{fontSize:10,opacity:0.75}}>Owned · AI randomizes from this set</div></button>)}
+            {HUMAN_CHARACTER_OPTIONS.map((item)=><button key={item.id} onClick={()=>{setSelectedHumanCharacterId(item.id); localStorage.setItem("bowling.humanCharacter",item.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHumanCharacterId===item.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}>{item.thumbnail ? <img src={item.thumbnail} alt={item.label} style={{width:"100%",borderRadius:8,marginBottom:6}} /> : null}<div style={{fontSize:11,fontWeight:700}}>{item.label}</div><div style={{fontSize:10,opacity:0.75}}>Available · AI chooses a different human</div></button>)}
           </div>
 
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
@@ -1582,6 +1966,9 @@ export default function MobileBowlingRealistic() {
             Skip strike/spare replays
           </label>
         </div> : null}
+        <div style={{ position:"absolute", left: 12, right: 12, bottom: 16, padding:"9px 12px", borderRadius: 16, background:"linear-gradient(90deg, rgba(5,8,14,0.78), rgba(15,23,42,0.62))", border:"1px solid rgba(255,255,255,0.16)", color:"#fff", fontSize: 11, fontWeight: 800, pointerEvents:"none", display:"flex", justifyContent:"space-between", gap: 10 }}>
+          <span>↕ Swipe power</span><span>↔ Aim boards</span><span>🎳 Follow-through</span>
+        </div>
         {replayActive ? <button onClick={()=>setReplayActive(false)} style={{ position:"absolute", top: 132, right: 8, padding:"8px 10px", borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(190,20,20,0.75)", color:"#fff", fontWeight:900, pointerEvents:"auto" }}>Skip replay</button> : null}
 
       </div>
