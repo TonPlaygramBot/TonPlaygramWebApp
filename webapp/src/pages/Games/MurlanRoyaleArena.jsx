@@ -171,6 +171,59 @@ const MURLAN_CHARACTER_CLOTH_MATERIALS = Object.freeze({
     tint: 0xc44f42
   }
 });
+
+function hashMurlanCharacterRosterSeed(input) {
+  const text = String(input ?? '');
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
+}
+
+function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex = 0, rosterSeed = 0) {
+  const availableThemes = MURLAN_CHARACTER_THEMES.filter((theme) =>
+    theme && (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length))
+  );
+  if (!availableThemes.length) return [];
+
+  const selectedTheme = baseTheme || availableThemes[0];
+  const selectedId = selectedTheme?.id;
+  const usedThemeIds = new Set(selectedId ? [selectedId] : []);
+  const playerSignature = players
+    .map((player, index) => `${index}:${player?.name || ''}:${player?.avatar || ''}:${player?.isHuman ? 'h' : 'ai'}`)
+    .join('|');
+  const shuffledAiThemes = availableThemes
+    .filter((theme) => theme.id !== selectedId)
+    .map((theme, index) => ({
+      theme,
+      order: hashMurlanCharacterRosterSeed(`${rosterSeed}|${playerSignature}|${index}|${theme.id}`)
+    }))
+    .sort((a, b) => a.order - b.order)
+    .map((entry) => entry.theme);
+
+  let aiThemeIndex = 0;
+  return players.map((player, index) => {
+    if (player?.isHuman || index === humanSeatIndex) {
+      return selectedTheme;
+    }
+
+    let nextTheme = shuffledAiThemes[aiThemeIndex % Math.max(shuffledAiThemes.length, 1)] || selectedTheme;
+    aiThemeIndex += 1;
+    if (usedThemeIds.has(nextTheme.id)) {
+      const unusedTheme = availableThemes.find((theme) => !usedThemeIds.has(theme.id));
+      if (unusedTheme) nextTheme = unusedTheme;
+    }
+    if (nextTheme?.id) usedThemeIds.add(nextTheme.id);
+    return nextTheme;
+  });
+}
+
+function characterThemeRosterSignature(roster = []) {
+  return roster.map((theme) => theme?.id || 'none').join('|');
+}
+
 const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
   royalDenim: {
     upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
@@ -1949,6 +2002,34 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
+async function loadCharacterTemplatesForRoster(roster = [], fallbackTheme = null, renderer = null) {
+  const uniqueThemes = [
+    fallbackTheme,
+    ...roster
+  ].filter((theme, index, themes) =>
+    theme &&
+    (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length)) &&
+    themes.findIndex((candidate) => candidate?.id === theme.id) === index
+  );
+
+  const templatesById = new Map();
+  let fallbackTemplate = null;
+  for (const theme of uniqueThemes) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const template = await loadCharacterModel(theme, renderer);
+      templatesById.set(theme.id, template);
+      if (!fallbackTemplate || theme.id === fallbackTheme?.id) {
+        fallbackTemplate = template;
+      }
+    } catch (error) {
+      console.warn('Failed to load Murlan character theme', theme?.id, error);
+    }
+  }
+
+  return { templatesById, fallbackTemplate };
+}
+
 function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8', cardTextureSize = null } = {}) {
   const cardsGroup = new THREE.Group();
   const handCards = Array.isArray(handCardsInput) && handCardsInput.length
@@ -2974,12 +3055,12 @@ const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const AI_HAND_CARD_SCALE = 0.76;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.24 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 1.52 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.52 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 1.86 * MODEL_SCALE;
 const AI_SIDE_HAND_UP_SHIFT_Y = -0.2 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = 0.02 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 1.24 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 1.58 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
@@ -3363,6 +3444,7 @@ const START_CARD = { rank: '3', suit: '♠' };
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
+  const characterRosterSeedRef = useRef(Math.random());
 
   const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
 
@@ -4877,7 +4959,15 @@ export default function MurlanRoyaleArena({ search }) {
         store.characterThemeId = null;
         return;
       }
+      const currentPlayers = gameStateRef.current?.players ?? players;
+      const humanSeatIndex = currentPlayers.findIndex((player) => player?.isHuman);
       const safe = characterTheme || MURLAN_CHARACTER_THEMES[0];
+      const characterRoster = buildSeatCharacterThemeRoster(
+        safe,
+        currentPlayers,
+        humanSeatIndex >= 0 ? humanSeatIndex : 0,
+        characterRosterSeedRef.current
+      );
 
       store.characterInstances?.forEach((entry) => {
         if (!entry) return;
@@ -4888,25 +4978,28 @@ export default function MurlanRoyaleArena({ search }) {
       store.characterRigs = new Map();
       store.characterActionAnimations = [];
 
-      let template;
-      try {
-        template = await loadCharacterModel(safe, store.renderer);
-      } catch (error) {
-        console.warn('Failed to load character theme', safe?.id, error);
-        return;
-      }
-
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const expectedTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
 
-      store.characterThemeId = safe.id;
-      const currentPlayers = gameStateRef.current?.players ?? players;
+      const { templatesById, fallbackTemplate } = await loadCharacterTemplatesForRoster(
+        characterRoster,
+        safe,
+        store.renderer
+      );
+      if (!fallbackTemplate) {
+        store.characterThemeId = null;
+        return;
+      }
+
+      store.characterThemeId = characterThemeRosterSignature(characterRoster);
       store.seatConfigs.forEach((seatConfig, seatIndex) => {
+        const seatTheme = characterRoster[seatIndex] || safe;
+        const template = templatesById.get(seatTheme.id) || fallbackTemplate;
         attachSeatedCharacter({
           template,
           seatConfig,
-          characterTheme: safe,
+          characterTheme: seatTheme,
           store,
           player: currentPlayers[seatIndex] ?? null,
           playerIndex: seatIndex,
@@ -5042,7 +5135,15 @@ export default function MurlanRoyaleArena({ search }) {
           applyChairThemeMaterials(three, stoolTheme);
         }
         if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
-          if (three.characterThemeId !== characterTheme.id) {
+          const currentPlayers = gameStateRef.current?.players ?? players;
+          const rosterHumanSeatIndex = currentPlayers.findIndex((player) => player?.isHuman);
+          const expectedCharacterRoster = buildSeatCharacterThemeRoster(
+            characterTheme,
+            currentPlayers,
+            rosterHumanSeatIndex >= 0 ? rosterHumanSeatIndex : 0,
+            characterRosterSeedRef.current
+          );
+          if (three.characterThemeId !== characterThemeRosterSignature(expectedCharacterRoster)) {
             void rebuildSeatCharacters(characterTheme);
           }
         } else if (three.characterInstances?.length) {
@@ -5849,16 +5950,29 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
+      let initialCharacterRoster = [];
+      let initialCharacterRosterSignature = null;
       if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
-        try {
-          const characterTemplate = await loadCharacterModel(characterTheme, renderer);
+        initialCharacterRoster = buildSeatCharacterThemeRoster(
+          characterTheme,
+          players,
+          humanSeatIndex >= 0 ? humanSeatIndex : 0,
+          characterRosterSeedRef.current
+        );
+        const { templatesById, fallbackTemplate } = await loadCharacterTemplatesForRoster(
+          initialCharacterRoster,
+          characterTheme,
+          renderer
+        );
+        if (fallbackTemplate) {
           for (let i = 0; i < seatConfigs.length; i++) {
             const seatConfig = seatConfigs[i];
             const player = players[i] ?? null;
+            const seatTheme = initialCharacterRoster[i] || characterTheme;
             attachSeatedCharacter({
-              template: characterTemplate,
+              template: templatesById.get(seatTheme.id) || fallbackTemplate,
               seatConfig,
-              characterTheme,
+              characterTheme: seatTheme,
               store: threeStateRef.current,
               player,
               playerIndex: i,
@@ -5866,14 +5980,13 @@ export default function MurlanRoyaleArena({ search }) {
               cardTextureSize: cardTextureQualityRef.current
             });
           }
-        } catch (error) {
-          console.warn('Failed to place initial player characters', error);
+          initialCharacterRosterSignature = characterThemeRosterSignature(initialCharacterRoster);
         }
       }
 
       threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
-      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? characterTheme.id : null;
+      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? initialCharacterRosterSignature : null;
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
       spot.target.updateMatrixWorld();
