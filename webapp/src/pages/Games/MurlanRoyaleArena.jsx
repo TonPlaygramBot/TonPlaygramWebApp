@@ -2220,12 +2220,15 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-49), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(49), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(3));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(53), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(3));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-11), THREE.MathUtils.degToRad(-8));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-7));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(22), THREE.MathUtils.degToRad(-10), THREE.MathUtils.degToRad(-9));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-46), THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(8));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(7));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(24), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(9));
+  applyRotationOffset(rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
+  applyRotationOffset(rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -2448,58 +2451,53 @@ function runCharacterAction(store, rig, action) {
 
   if (action.type === 'PASS') {
     const relaxedOpenHand = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(-5) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-3), y: THREE.MathUtils.degToRad(1) }
     };
     const looseKnockFist = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(13) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-2) }
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(44), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(15) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(40), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-1) }
+    };
+    const armDownDiagonal = {
+      spine: { x: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-1) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(3) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-18) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(48), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) }
     };
     const reachBeforeKnock = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(3) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(4) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-4) },
+      ...armDownDiagonal,
+      rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
       ...relaxedOpenHand
     });
     const cockedKnuckles = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(5) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-16) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
+      ...armDownDiagonal,
+      rightHand: { x: THREE.MathUtils.degToRad(-13), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
       ...looseKnockFist
     });
     const tableTap = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(7) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(-15) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(54), y: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-5) },
+      ...armDownDiagonal,
+      rightHand: { x: THREE.MathUtils.degToRad(14), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
       ...looseKnockFist
     });
     const rebound = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(1) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(40), y: THREE.MathUtils.degToRad(-3) },
-      rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-7) },
+      ...armDownDiagonal,
+      rightHand: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
       ...looseKnockFist
     });
 
     let cursor = now;
     [
-      [reachBeforeKnock, 260],
-      [cockedKnuckles, 150],
-      [tableTap, 95],
-      [rebound, 120],
-      [tableTap, 82],
-      [rebound, 140],
-      [basePose, 420]
+      [reachBeforeKnock, 320],
+      [cockedKnuckles, 170],
+      [tableTap, 78],
+      [rebound, 110],
+      [tableTap, 70],
+      [rebound, 125],
+      [basePose, 460]
     ].forEach(([pose, duration]) => {
       list.push({
         start: cursor,
@@ -3033,17 +3031,22 @@ const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
-const AI_HAND_CARD_SCALE = 0.76;
-const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.9 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.48 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = -0.34 * MODEL_SCALE;
-const AI_TOP_HAND_UP_SHIFT_Y = -0.12 * MODEL_SCALE;
-const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 2.14 * MODEL_SCALE;
+const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
+const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(13);
+const AI_HAND_FAN_ARC_LIFT = 0.052 * MODEL_SCALE;
+const AI_HAND_CARD_SCALE = 0.74;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.035 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.07 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.72 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.34 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = -0.42 * MODEL_SCALE;
+const AI_TOP_HAND_UP_SHIFT_Y = -0.18 * MODEL_SCALE;
+const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.12 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 1.96 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
+const AI_SIDE_HAND_GRIP_PITCH_X = THREE.MathUtils.degToRad(-6);
+const AI_TOP_HAND_GRIP_PITCH_X = THREE.MathUtils.degToRad(-3);
+const AI_SIDE_HAND_GRIP_ROLL_Z = THREE.MathUtils.degToRad(4);
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
@@ -4560,6 +4563,7 @@ export default function MurlanRoyaleArena({ search }) {
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
         const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cards.length, cardIdx);
+        const aiHandVariant = isHumanCard ? 'human' : seat?.handVariant;
         const humanLineOffset = cards.length > 1
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
@@ -4573,9 +4577,14 @@ export default function MurlanRoyaleArena({ search }) {
             : (forward?.x ?? 0) < -0.45
               ? -HUMAN_HAND_FAN_DIRECTION
               : HUMAN_HAND_FAN_DIRECTION;
+        const aiFanMaxYaw = aiHandVariant === 'side'
+          ? AI_SIDE_HAND_FAN_MAX_YAW
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_FAN_MAX_YAW
+            : AI_HAND_FAN_MAX_YAW;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
-          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
+          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : aiFanMaxYaw) * fanDirection;
         const layoutAxis = right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
         if (layoutAxis.lengthSq() > 1e-6) {
           layoutAxis.normalize();
@@ -4583,7 +4592,6 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        const aiHandVariant = isHumanCard ? 'human' : seat?.handVariant;
         const aiExtraInwardPull = aiHandVariant === 'side'
           ? AI_SIDE_HAND_EXTRA_INWARD_PULL
           : aiHandVariant === 'top'
@@ -4644,7 +4652,17 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
+            pitchX:
+              centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X +
+              (aiHandVariant === 'side'
+                ? AI_SIDE_HAND_GRIP_PITCH_X
+                : aiHandVariant === 'top'
+                  ? AI_TOP_HAND_GRIP_PITCH_X
+                  : 0),
+            rollZ:
+              !isHumanCard && aiHandVariant === 'side'
+                ? AI_SIDE_HAND_GRIP_ROLL_Z * Math.sign(forward?.x || 1)
+                : 0
           },
           immediate,
           three.animations,
