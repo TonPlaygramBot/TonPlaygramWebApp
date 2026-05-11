@@ -27291,19 +27291,7 @@ const shotPowerRef = useRef(0);
               const chairRoot = seatChair?.chairRoot;
               if (chairRoot) {
                 walkRoot.copy(chairRoot);
-                const tableWatchPoint = cueWorld?.clone?.() || new THREE.Vector3(0, floorY, 0);
-                tableWatchPoint.y = floorY;
-                chairFacing = tableWatchPoint.sub(chairRoot);
-                chairFacing.y = 0;
-                if (chairFacing.lengthSq() < 1e-6) {
-                  chairFacing = new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z);
-                }
-                chairFacing.normalize();
-                // Keep the off-turn player registered at the lounge entry point while seated.
-                // On the next turn, the shared rig eases out to this perimeter point instead of
-                // teleporting from a chair directly to an already-advanced walk-ring position.
-                human.walkPerimeterT = pointToPerimeterT(chairRoot);
-                human.perimeterT = human.walkPerimeterT;
+                chairFacing = seatChair?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
                 walkingToChair = true;
                 seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
               }
