@@ -27,7 +27,7 @@ import {
 import {
   createSnookerHumanRig,
   chooseHumanEdgePosition as chooseSnookerHumanEdgePosition,
-  updateBilardoHumanPose as updateSnookerHumanPose
+  updateSnookerHumanPose
 } from './shared/snookerHumanRig.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
