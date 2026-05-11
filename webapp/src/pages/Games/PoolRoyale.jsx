@@ -2402,27 +2402,27 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     label: 'Classic Pro',
     summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
     bendMode: 'forward',
-    desiredShootDistance: 1.55,
-    edgeMargin: 0.84,
+    desiredShootDistance: 1.32,
+    edgeMargin: 0.68,
     stanceWidth: 0.52,
-    bridgeBack: 0.055,
-    bridgeSide: -0.018,
-    bridgeLift: 0.003,
+    bridgeBack: 0.072,
+    bridgeSide: -0.024,
+    bridgeLift: 0.006,
     gripFromBack: 0.58,
-    rightElbowRise: 0.28,
-    rightElbowSide: -0.50,
-    rightElbowBack: -0.88,
-    forearmOutward: 0.32,
-    forearmBack: 0.52,
-    forearmDown: 0.54,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.46,
+    rightElbowBack: -0.78,
+    forearmOutward: 0.36,
+    forearmBack: 0.44,
+    forearmDown: 0.48,
     strokePull: 0.42,
     strokePush: 0.18,
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
     walkSpeed: 4.0,
-    shootForwardBendScale: 0.78,
-    shootUpperBodyCounterLean: 0.55
+    shootForwardBendScale: 0.62,
+    shootUpperBodyCounterLean: 0.72
   }),
   'rpm-67d411': Object.freeze({
     label: 'Sniper Rail',
@@ -2671,14 +2671,14 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 38; // larger pool-side player table matching the Showood table's bigger stage presence.
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 28; // larger pool-side player table matching the Showood table's bigger stage presence.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 18.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 82; // larger, taller portrait-readable chairs for each player lounge.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 58;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 72; // larger, taller portrait-readable chairs for each player lounge.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 52;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 64;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
-const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -2686,19 +2686,19 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 2.08; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
-const HUMAN_DESIRED_SHOOT_DISTANCE = 2.34; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
+const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.026; // lower the low cue camera close to cloth height for portrait aiming
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.15; // move the low cue camera closer toward the table while staying behind the bridge hand
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.24; // set the bridge farther behind the cue ball to match real pool hand placement
-const HUMAN_BRIDGE_HAND_SIDE = -0.014; // match Bilardo Shqip bridge hand lateral placement
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
+const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
 const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
@@ -14165,7 +14165,7 @@ function mountPoolRoyaleExternalTableModel({
       footprintDepthScale: 1.06,
       heightFill: 0.8,
       topInsetScale: 0.96,
-      materialKey: 'rail'
+      materialKey: 'trim'
     }),
     gothicCoffeeTable: (ctx) => {
       const build = createPolyhavenTableBaseBuilder('gothic_coffee_table', {
@@ -26816,48 +26816,43 @@ const shotPowerRef = useRef(0);
         return asset;
       };
 
-      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY) => {
+      const createFallbackPoolSideFurniture = (seat, zSign, tableTopY) => {
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 25.8, BALL_R * 26.4, BALL_R * 1.65, 72), woodMat);
+        const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
         tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.25, BALL_R * 3.15, tableTopY, 32), woodMat);
+        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairMeshes = [];
-        [-1, 1].forEach((chairZ, index) => {
-          const seatMat = new THREE.MeshStandardMaterial({ color: index === 0 ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-          const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 21.5, BALL_R * 2.15, BALL_R * 18.8), seatMat);
-          chairSeat.position.set(sideSign * BALL_R * 39.5, BALL_R * 4.4, chairZ * POOL_ROYALE_LOUNGE_CHAIR_OFFSET);
-          const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 2.15, BALL_R * 16.5, BALL_R * 21.5), seatMat);
-          chairBack.position.set(sideSign * BALL_R * 48.0, BALL_R * 11.4, chairZ * POOL_ROYALE_LOUNGE_CHAIR_OFFSET);
-          chairBack.rotation.y = 0;
-          chairMeshes.push(chairSeat, chairBack);
-          group.add(chairSeat, chairBack);
-        });
-        [tableTop, tablePedestal, ...chairMeshes].forEach((mesh) => {
+        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
+        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
+        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
+        [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          if (!mesh.parent) group.add(mesh);
+          group.add(mesh);
         });
         group.userData.tableMeshes = [tableTop, tablePedestal];
-        group.userData.chairMeshes = chairMeshes;
+        group.userData.chairMeshes = [chairSeat, chairBack];
         return group;
       };
 
-      const createPoolSideLounge = (seat, sideSign) => {
+      const createPoolSideLounge = (seat, zSign) => {
         const group = new THREE.Group();
         group.userData.seat = seat;
-        const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = 0;
+        const z = zSign * (TABLE.H / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
+        const x = 0;
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
+        const chairLocalZ = zSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
+        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign, tableTopY);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
-        const showLoungeTable = true;
+        const showLoungeTable = seat !== 'B';
         fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
           mesh.visible = showLoungeTable;
         });
@@ -26888,31 +26883,20 @@ const shotPowerRef = useRef(0);
           if (!chairModel) return;
           markHospitalityMaterials(chairModel);
           fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          [-1, 1].forEach((chairZ) => {
-            const chairClone = chairModel.clone(true);
-            chairClone.position.set(sideSign * BALL_R * 39.5, chairClone.position.y, chairZ * POOL_ROYALE_LOUNGE_CHAIR_OFFSET);
-            const toTable = new THREE.Vector2(-chairClone.position.x, -chairClone.position.z);
-            chairClone.rotation.y = Math.atan2(toTable.x, toTable.y);
-            group.add(chairClone);
-          });
-          fallbackFurniture.userData?.chairMeshes?.forEach((mesh) => { mesh.visible = false; });
+          chairModel.position.set(0, chairModel.position.y, chairLocalZ);
+          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
+          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
+          group.add(chairModel);
+          fallbackFurniture.visible = false;
         }).catch((error) => {
           console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
         });
 
         const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRootBySeat = {
-          A: new THREE.Vector3(x + sideSign * BALL_R * 39.5, floorY, z - POOL_ROYALE_LOUNGE_CHAIR_OFFSET),
-          B: new THREE.Vector3(x + sideSign * BALL_R * 39.5, floorY, z + POOL_ROYALE_LOUNGE_CHAIR_OFFSET)
-        };
-        group.userData.chairFacingBySeat = {
-          A: new THREE.Vector3(-sideSign, 0, 0).normalize(),
-          B: new THREE.Vector3(-sideSign, 0, 0).normalize()
-        };
-        group.userData.chairRoot = group.userData.chairRootBySeat[seat] || group.userData.chairRootBySeat.A;
-        group.userData.chairFacing = group.userData.chairFacingBySeat[seat] || group.userData.chairFacingBySeat.A;
-        group.userData.chairSeatWorld = group.userData.chairRoot.clone();
+        group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
+        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
         group.userData.glass = serviceProps?.userData?.glass || null;
         group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
@@ -26978,7 +26962,7 @@ const shotPowerRef = useRef(0);
             rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePull: behavior.strokePull * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePush: behavior.strokePush * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandShotLift: -0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandZ: -0.015 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -27000,14 +26984,11 @@ const shotPowerRef = useRef(0);
           return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const loungeA = createPoolSideLounge('A', -1);
         world.add(loungeA);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeA, lounge: true, seat: 'B' }
+          { group: loungeA, lounge: true, seat: 'A' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -27197,10 +27178,10 @@ const shotPowerRef = useRef(0);
             let chairFacing = null;
             if (shouldRestAtChair) {
               const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRootBySeat?.[seat] ?? lounge?.userData?.chairRoot;
+              const chairRoot = lounge?.userData?.chairRoot;
               if (chairRoot) {
                 walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacingBySeat?.[seat]?.clone?.() ?? lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
+                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
                 walkingToChair = true;
                 seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
               }
