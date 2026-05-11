@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
+import { BOWLING_DOMINO_CHARACTER_TEXTURES, BOWLING_DOMINO_CLOTH_MATERIALS, BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 import { createMurlanStyleTable } from "../../utils/murlanTable.js";
@@ -75,7 +75,7 @@ type HumanRig = {
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
-type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string };
+type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string; clothCombo?: string };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -144,9 +144,9 @@ const CFG = {
   laneY: 0,
   laneHalfW: 1.68,
   gutterHalfW: 2.22,
-  playerStartZ: 6.9,
-  rackEdgeX: 1.42,
-  rackStopZ: 6.34,
+  playerStartZ: 7.05,
+  rackEdgeX: 1.18,
+  rackStopZ: 6.55,
   approachStopZ: 4.82,
   foulZ: 4.55,
   arrowsZ: 0.95,
@@ -183,9 +183,12 @@ const BOWLING_MURLAN_CHAIR_URLS = [
   "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf",
 ];
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.55, CFG.laneY, 7.42);
+const RETURN_SAFE_WAYPOINT = new THREE.Vector3(1.34, CFG.laneY, 5.18);
+const RETURN_PICKUP_POINT = new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ);
+const PLAYER_READY_POINT = new THREE.Vector3(0.92, CFG.laneY, CFG.playerStartZ);
 const PLAYER_SEATS = [
-  { pos: new THREE.Vector3(-4.78, CFG.laneY, 6.72), yaw: 0, stand: new THREE.Vector3(-0.42, CFG.laneY, CFG.playerStartZ) },
-  { pos: new THREE.Vector3(-3.32, CFG.laneY, 6.72), yaw: 0, stand: new THREE.Vector3(0.42, CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-4.78, CFG.laneY, 6.72), yaw: 0, stand: PLAYER_READY_POINT.clone() },
+  { pos: new THREE.Vector3(-3.32, CFG.laneY, 6.72), yaw: 0, stand: new THREE.Vector3(-0.92, CFG.laneY, CFG.playerStartZ) },
 ];
 
 function makeEmptyPlayers(): ScorePlayer[] {
@@ -446,6 +449,100 @@ function pickRandomAiCharacter(playerCharacterId: string) {
   return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
 }
 
+
+const dominoHumanTextureLoader = new THREE.TextureLoader();
+const dominoHumanTextureCache = new Map<string, THREE.Texture>();
+
+function loadDominoHumanTexture(url: string | undefined, isColor = false, repeat = 3) {
+  if (!url) return null;
+  const key = `${url}|${isColor ? "srgb" : "linear"}|${repeat}`;
+  const cached = dominoHumanTextureCache.get(key);
+  if (cached) return cached;
+  const tex = dominoHumanTextureLoader.load(url);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+  if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  dominoHumanTextureCache.set(key, tex);
+  return tex;
+}
+
+function isNearlyWhiteMaterial(mat: any) {
+  if (!mat?.color) return false;
+  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
+}
+
+function isLowSaturationLightMaterial(mat: any) {
+  if (!mat?.color || mat.map) return false;
+  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
+  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyDominoHumanSurface(obj: THREE.Object3D, mat: any) {
+  const name = `${obj?.name || ""} ${mat?.name || ""}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return "eye";
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return "hair";
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return "mouth";
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return "shoe";
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return "skin";
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return "upperCloth";
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return "lowerCloth";
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return "accentCloth";
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return "upperCloth";
+  if (isNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return "upperCloth";
+  return "other";
+}
+
+function resolveDominoCloth(character: HumanCharacterOption, slot: "upper" | "lower" | "accent") {
+  const combo = (BOWLING_DOMINO_CHARACTER_TEXTURES as any)[character?.clothCombo || "royalDenim"] || (BOWLING_DOMINO_CHARACTER_TEXTURES as any).royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: "denim" };
+  const material = (BOWLING_DOMINO_CLOTH_MATERIALS as any)[slotConfig.material] || (BOWLING_DOMINO_CLOTH_MATERIALS as any).denim;
+  return { ...material, tint: slotConfig.tint ?? material.tint ?? 0xffffff, repeat: slotConfig.repeat ?? 3.5 };
+}
+
+function applyDominoClothMaterial(mat: any, cloth: any) {
+  mat.map = loadDominoHumanTexture(cloth.color, true, cloth.repeat);
+  mat.normalMap = loadDominoHumanTexture(cloth.normal, false, cloth.repeat);
+  mat.roughnessMap = loadDominoHumanTexture(cloth.roughness, false, cloth.repeat);
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+}
+
+function enhanceBowlingHumanLikeDomino(model: THREE.Object3D, character: HumanCharacterOption) {
+  const combo = (BOWLING_DOMINO_CHARACTER_TEXTURES as any)[character?.clothCombo || "royalDenim"] || (BOWLING_DOMINO_CHARACTER_TEXTURES as any).royalDenim;
+  const clothSlots: Record<string, any> = {
+    upperCloth: resolveDominoCloth(character, "upper"),
+    lowerCloth: resolveDominoCloth(character, "lower"),
+    accentCloth: resolveDominoCloth(character, "accent"),
+  };
+  const skinColor = new THREE.Color(combo.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(combo.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(combo.eyeColor ?? 0x3f5f75);
+  model.traverse((obj: any) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const enhanced = sourceMaterials.map((sourceMat: any) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyDominoHumanSurface(obj, mat);
+      if (clothSlots[surface]) applyDominoClothMaterial(mat, clothSlots[surface]);
+      else if (surface === "hair") { mat.map = null; mat.color = hairColor.clone(); mat.roughness = 0.56; mat.metalness = 0.02; mat.envMapIntensity = 0.28; }
+      else if (surface === "eye") { mat.map = null; mat.color = eyeColor.clone(); mat.roughness = 0.18; mat.metalness = 0; mat.envMapIntensity = 1.1; }
+      else if (surface === "skin") { if (isLowSaturationLightMaterial(mat)) mat.color = skinColor.clone(); mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62); mat.metalness = 0; }
+      else if (surface === "shoe") { if (isLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827); mat.roughness = 0.78; mat.metalness = 0.02; }
+      else if (surface === "mouth") { if (isNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc); mat.roughness = 0.32; mat.metalness = 0; }
+      else if (isNearlyWhiteMaterial(mat)) { mat.color = skinColor.clone(); mat.roughness = 0.58; mat.metalness = 0; }
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? enhanced : enhanced[0];
+  });
+}
+
 function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption, seatPos = start.clone(), seatYaw = 0): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
@@ -515,6 +612,7 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
         const model = gltf.scene;
         normalizeHuman(model, 1.78);
         model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
+        enhanceBowlingHumanLikeDomino(model, selected);
         lockHumanToLaneGround(model);
         enableShadow(model);
         if (rig.model) rig.modelRoot.remove(rig.model);
@@ -749,7 +847,7 @@ function makeBallMaterial(colors: [string, string, string]) {
 function createActiveBall(variant: BallVariant) {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(variant.radius, 80, 64), makeBallMaterial(variant.colors));
   enableShadow(mesh);
-  const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ);
+  const pos = new THREE.Vector3(0.42, CFG.laneY + 0.66, 6.16);
   mesh.position.copy(pos);
   return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant } as BallState;
 }
@@ -930,16 +1028,11 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
-  const polishedFloorMat = new THREE.MeshPhysicalMaterial({ color: 0x111827, roughness: 0.18, metalness: 0.05, clearcoat: 0.9, clearcoatRoughness: 0.05, envMapIntensity: 1.35 });
+  // Keep the alley open to the active HDRI; only lane, approach, machinery and props receive geometry.
   const carpetMat = new THREE.MeshStandardMaterial({ color: 0x26172f, roughness: 0.78, metalness: 0.02 });
-  const architectureMat = new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.66, metalness: 0.12 });
   const ledCyan = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.82, toneMapped: false });
   const ledAmber = new THREE.MeshBasicMaterial({ color: 0xffb86b, transparent: true, opacity: 0.74, toneMapped: false });
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12.8, 26.5), polishedFloorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0, CFG.laneY - 0.018, -2.5);
-  group.add(floor);
   const loungeCarpet = new THREE.Mesh(new THREE.PlaneGeometry(5.1, 4.8), carpetMat);
   loungeCarpet.rotation.x = -Math.PI / 2;
   loungeCarpet.position.set(BOWLING_LOUNGE_CENTER.x, CFG.laneY - 0.012, BOWLING_LOUNGE_CENTER.z);
@@ -948,24 +1041,12 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   rightCarpet.position.x = 4.55;
   group.add(rightCarpet);
 
-  for (const x of [-6.45, 6.45]) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.4, 25.8), architectureMat);
-    wall.position.set(x, 1.55, -2.65);
-    group.add(wall);
+  for (const x of [-6.15, 6.15]) {
     for (let i = 0; i < 6; i++) {
       const led = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 2.3), i % 2 ? ledAmber : ledCyan);
-      led.position.set(x * 0.995, 1.15 + (i % 3) * 0.42, 7.6 - i * 3.55);
+      led.position.set(x, 1.15 + (i % 3) * 0.42, 7.6 - i * 3.55);
       group.add(led);
     }
-  }
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(12.9, 0.16, 25.9), architectureMat);
-  ceiling.position.set(0, 3.24, -2.5);
-  group.add(ceiling);
-  for (let i = 0; i < 9; i++) {
-    const z = 8.4 - i * 2.45;
-    const fixture = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.045, 0.075), i % 2 ? ledCyan : ledAmber);
-    fixture.position.set(0, 3.12, z);
-    group.add(fixture);
   }
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
@@ -1067,17 +1148,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     machineryHousing.add(servicePanel);
   }
   group.add(machineryHousing);
-  const heroSign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.05), makeCanvasTextMaterial("LUXE STRIKE", { accent: "#f97316" }));
-  heroSign.position.set(0, 2.16, CFG.backStopZ + 0.71);
-  group.add(heroSign);
-  decor.scoreboardPanels.push(heroSign);
-  for (const x of [-3.3, 3.3]) {
-    const sideBoard = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.68), makeCanvasTextMaterial(x < 0 ? "LANE 01" : "LANE 02", { width: 384, height: 128, accent: x < 0 ? "#38bdf8" : "#f472b6" }));
-    sideBoard.position.set(x, 2.42, CFG.pinDeckZ - 2.15);
-    sideBoard.rotation.y = x < 0 ? 0.12 : -0.12;
-    group.add(sideBoard);
-    decor.scoreboardPanels.push(sideBoard);
-  }
+  // Removed the oversized lane/title sign frames so the pin deck and HDRI stay unobstructed.
 
   const lounge = new THREE.Group();
   lounge.position.copy(BOWLING_LOUNGE_CENTER);
@@ -1323,8 +1394,8 @@ function updateDominoBowlingCrowd(crowd: BowlingCrowdMember[], dt: number, criti
 function updateArenaDecor(decor: BowlingArenaDecor, elapsed: number, criticalPulse: boolean) {
   decor.returnBalls.forEach((ball, i) => {
     const phase = (elapsed * 0.26 + (ball.userData.returnPhase || 0)) % 1;
-    ball.position.z = lerp(4.35, 6.72, phase);
-    ball.position.x = Math.sin(phase * Math.PI * 2 + i) * 0.24;
+    ball.position.z = lerp(4.72, 6.38, phase);
+    ball.position.x = lerp(-0.18, 0.42, phase) + Math.sin(phase * Math.PI * 2 + i) * 0.035;
     ball.rotation.x -= 0.08;
     ball.rotation.z += 0.045;
     ball.visible = phase < 0.88;
@@ -1476,7 +1547,10 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
   } else if (rig.action === "toRack") {
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    const nextPos = new THREE.Vector3().lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
+    const k = easeInOut(rig.returnWalkT);
+    const nextPos = k < 0.55
+      ? new THREE.Vector3().lerpVectors(rig.approachTo, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.55))
+      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, RETURN_PICKUP_POINT, easeInOut((k - 0.55) / 0.45));
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
@@ -1500,7 +1574,10 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
   } else if (rig.action === "toApproach") {
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    const nextPos = new THREE.Vector3().lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
+    const k = easeInOut(rig.returnWalkT);
+    const nextPos = k < 0.45
+      ? new THREE.Vector3().lerpVectors(RETURN_PICKUP_POINT, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.45))
+      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, PLAYER_READY_POINT, easeInOut((k - 0.45) / 0.55));
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
@@ -1673,7 +1750,7 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = "returning";
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(1.86, 0.27, 1.1);
+      ball.pos.set(0, CFG.laneY + 0.34, 1.1);
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -1681,7 +1758,7 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === "returning") {
     ball.returnT += dt / 1.5;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(1.71, 0.9, lerp(1.1, 5.92, t));
+    ball.pos.set(lerp(0, 0.42, t), CFG.laneY + lerp(0.34, 0.66, t), lerp(1.1, 6.16, t));
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.16);
     ball.mesh.rotateX(0.23);
@@ -1785,13 +1862,13 @@ function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) {
   const rolls = createFrameRollSymbols(frame, index);
   const smallCols = index === 9 ? 3 : 2;
   return (
-    <div style={{ minWidth: index === 9 ? 44 : 34, border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${smallCols}, 1fr)`, borderBottom: "1px solid rgba(255,255,255,0.14)", minHeight: 18, fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.96)" }}>
+    <div style={{ minWidth: index === 9 ? 34 : 26, border: "1px solid rgba(255,255,255,0.16)", borderRadius: 5, overflow: "hidden", background: "rgba(255,255,255,0.035)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${smallCols}, 1fr)`, borderBottom: "1px solid rgba(255,255,255,0.12)", minHeight: 14, fontSize: 8, fontWeight: 800, color: "rgba(255,255,255,0.96)" }}>
         {rolls.map((r, i) => (
           <div key={i} style={{ textAlign: "center", padding: "2px 0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.12)" : "none" }}>{r}</div>
         ))}
       </div>
-      <div style={{ textAlign: "center", padding: "4px 2px", minHeight: 18, fontSize: 11, fontWeight: 900, color: "#7fd6ff" }}>{frame.cumulative ?? ""}</div>
+      <div style={{ textAlign: "center", padding: "2px 1px", minHeight: 14, fontSize: 9, fontWeight: 900, color: "#7fd6ff" }}>{frame.cumulative ?? ""}</div>
     </div>
   );
 }
@@ -2205,31 +2282,31 @@ export default function MobileBowlingRealistic() {
       </div>
 
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: 8, right: 8, top: 8, color: "white", background: "rgba(5,8,14,0.72)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, padding: "8px 8px 10px", boxShadow: "0 14px 30px rgba(0,0,0,0.28)", backdropFilter: "blur(10px)" }}>
+        <div style={{ position: "absolute", left: 12, right: 12, top: 8, color: "white", background: "rgba(5,8,14,0.66)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 14, padding: "6px 6px 8px", boxShadow: "0 10px 24px rgba(0,0,0,0.24)", backdropFilter: "blur(10px)", transform: "scale(0.9)", transformOrigin: "top center" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 0.2 }}>REAL BOWLING SCOREBOARD</div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#7fd6ff" }}>FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}</div>
+            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.2 }}>REAL BOWLING SCOREBOARD</div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#7fd6ff" }}>FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "56px repeat(10, minmax(28px, 1fr))", gap: 4, alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "44px repeat(10, minmax(22px, 1fr))", gap: 3, alignItems: "center" }}>
             <div style={{ fontSize: 10, fontWeight: 800, opacity: 0.72, textAlign: "center" }}></div>
             {Array.from({ length: 10 }, (_, i) => <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 800, opacity: 0.7 }}>{i + 1}</div>)}
             {scoresMemo.map((p, row) => (
               <React.Fragment key={p.name}>
-                <div style={{ paddingLeft: 2, fontSize: 11, fontWeight: 900, color: row === hud.activePlayer ? "#7fd6ff" : "#ffffff" }}>{row === 0 ? `P1 ${p.total}` : `P2 ${p.total}`}</div>
+                <div style={{ paddingLeft: 1, fontSize: 9, fontWeight: 900, color: row === hud.activePlayer ? "#7fd6ff" : "#ffffff" }}>{row === 0 ? `P1 ${p.total}` : `P2 ${p.total}`}</div>
                 {p.frames.map((f, i) => <FrameBox key={`${row}-${i}`} frame={f} index={i} />)}
               </React.Fragment>
             ))}
           </div>
-          <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
-          <div style={{ marginTop: 5, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 9, fontWeight: 800 }}>
-            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(14,165,233,0.16)", border: "1px solid rgba(125,211,252,0.18)" }}>{hud.lane}</div>
-            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(34,197,94,0.14)", border: "1px solid rgba(134,239,172,0.18)" }}>{hud.rule}</div>
+          <div style={{ marginTop: 5, textAlign: "center", fontSize: 10, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
+          <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, fontSize: 8, fontWeight: 800 }}>
+            <div style={{ padding: "4px 5px", borderRadius: 7, background: "rgba(14,165,233,0.16)", border: "1px solid rgba(125,211,252,0.18)" }}>{hud.lane}</div>
+            <div style={{ padding: "4px 5px", borderRadius: 7, background: "rgba(34,197,94,0.14)", border: "1px solid rgba(134,239,172,0.18)" }}>{hud.rule}</div>
           </div>
           {hud.compliment ? <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 800, color: "#86efac" }}>{hud.compliment}</div> : null}
         </div>
 
-        <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 132, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
-        {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
+        <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 118, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
+        {menuOpen ? <div style={{ position:"absolute", top: 164, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
           <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
           {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
 
