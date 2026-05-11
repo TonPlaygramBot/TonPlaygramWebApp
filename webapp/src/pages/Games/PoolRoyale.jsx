@@ -2395,7 +2395,15 @@ const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
 });
 const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
 const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
-  'rpm-current'
+  'rpm-current',
+  'rpm-67d411',
+  'rpm-67f433',
+  'rpm-67e1b5',
+  'webgl-vietnam-human',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1',
+  'webgl-thanh-human',
+  'threejs-xbot-human'
 ]);
 const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
   'rpm-current': Object.freeze({
@@ -4976,10 +4984,10 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 1.15; // tighter, smaller cloth weave so Pool Royal no longer shows oversized felt patterns
-const CLOTH_TEXTURE_REPEAT_HINT = 2.15;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.35;
-const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 3.4; // tighter normalization for external GLB cloth UV spans
+const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
+const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // base normalization for external GLB cloth UV spans
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -13354,17 +13362,13 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
 
     const prepareMaterial = (material) => {
       if (!material) return material;
-      const sourceMaterial = material.clone ? material.clone() : material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
-        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(sourceMaterial, role, finishInfo, tableModel, child);
+        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel, child);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
-        if (nextMaterial?.userData) {
-          nextMaterial.userData.poolRoyaleSourceMaterial = sourceMaterial;
-        }
         return nextMaterial;
       }
       const mat = material.clone ? material.clone() : material;
@@ -13382,33 +13386,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       child.material = child.material.map(prepareMaterial);
     } else if (child.material) {
       child.material = prepareMaterial(child.material);
-    }
-  });
-}
-
-function refreshPoolRoyaleExternalTableMaterials(table, tableModel = null, finishInfo = null) {
-  const externalRoot = table?.userData?.externalTable?.group;
-  if (!externalRoot?.traverse || !tableModel?.usePoolRoyaleFinish || !finishInfo) return;
-  externalRoot.traverse((child) => {
-    if (!child?.isMesh) return;
-    const refreshMaterial = (material) => {
-      if (!material) return material;
-      const source = material.userData?.poolRoyaleSourceMaterial || material;
-      const role = classifyPoolRoyaleExternalTableSurface(child, source);
-      const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(source, role, finishInfo, tableModel, child);
-      normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
-      if (nextMaterial?.userData) {
-        nextMaterial.userData.poolRoyaleSourceMaterial = source;
-      }
-      if (nextMaterial !== material) {
-        material.dispose?.();
-      }
-      return nextMaterial;
-    };
-    if (Array.isArray(child.material)) {
-      child.material = child.material.map(refreshMaterial);
-    } else {
-      child.material = refreshMaterial(child.material);
     }
   });
 }
@@ -14429,8 +14406,7 @@ function mountPoolRoyaleExternalTableModel({
   table.userData.cushionLipClearance = clothPlaneWorld;
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
-  table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'showood-seven-foot';
-  table.userData.tableModel = resolvedTableOptions?.tableModel || null;
+  table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'royal-original';
 
   const generatedVisualObjects = [];
   const generatedStructuralObjects = [];
@@ -17103,14 +17079,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     tableFinishRef.current = tableFinish;
   }, [tableFinish]);
-  const activeTableModelRef = useRef(activeTableModel);
-  useEffect(() => {
-    activeTableModelRef.current = activeTableModel;
-  }, [activeTableModel]);
-  const showoodTableStyleRef = useRef(showoodTableStyle);
-  useEffect(() => {
-    showoodTableStyleRef.current = showoodTableStyle;
-  }, [showoodTableStyle]);
   const activeVariantRef = useRef(activeVariant);
   useEffect(() => {
     activeVariantRef.current = activeVariant;
@@ -17982,8 +17950,12 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     if (!showoodTableVisualResetReadyRef.current) {
       showoodTableVisualResetReadyRef.current = true;
+      return;
     }
-  }, [activeTableModel?.id]);
+    if (activeTableModel?.kind === 'gltf') {
+      setRenderResetKey((value) => value + 1);
+    }
+  }, [activeTableModel?.id, chromeColorId, chromePlateStyleId, clothColorId, pocketLinerId, showoodTableStyle, tableFinishId]);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -26824,8 +26796,15 @@ const shotPowerRef = useRef(0);
           return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
+        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
+        const loungeA = createPoolSideLounge('A', -1);
+        const loungeB = createPoolSideLounge('B', 1);
+        world.add(loungeA, loungeB);
         playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0, playerA)
+          makeRig('A', -sideOffset, -zOffset, 0, playerA),
+          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
+          { group: loungeA, lounge: true, seat: 'A' },
+          { group: loungeB, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -26966,7 +26945,7 @@ const shotPowerRef = useRef(0);
           const human = rig?.human;
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
-          const singleHumanMode = rigs.filter((entry) => entry?.human || entry?.anim).length === 1;
+          const singleHumanMode = rigs.length === 1;
           const isShooter = singleHumanMode ? true : anim?.seat === activeSeat;
           const isHumanShooter = singleHumanMode ? true : seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
@@ -27321,28 +27300,13 @@ const shotPowerRef = useRef(0);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
-          refreshPoolRoyaleExternalTableMaterials(
-            table,
-            { ...activeTableModelRef.current, showoodStyle: normalizeShowoodTableStyle(showoodTableStyleRef.current) },
-            table.userData?.finish
-          );
         }
         if (secondaryTableRef.current && nextFinish) {
           applyTableFinishToTable(secondaryTableRef.current, nextFinish);
-          refreshPoolRoyaleExternalTableMaterials(
-            secondaryTableRef.current,
-            { ...activeTableModelRef.current, showoodStyle: normalizeShowoodTableStyle(showoodTableStyleRef.current) },
-            secondaryTableRef.current.userData?.finish
-          );
         }
         decorativeTablesRef.current.forEach((entry) => {
           if (entry?.group && nextFinish) {
             applyTableFinishToTable(entry.group, nextFinish);
-            refreshPoolRoyaleExternalTableMaterials(
-              entry.group,
-              { ...activeTableModelRef.current, showoodStyle: normalizeShowoodTableStyle(showoodTableStyleRef.current) },
-              entry.group.userData?.finish
-            );
           }
         });
       };
@@ -35697,7 +35661,7 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
-  }, [tableFinish, showoodTableStyle]);
+  }, [tableFinish]);
   useEffect(() => {
     applyBaseRef.current?.(activeTableBase);
   }, [activeTableBase]);
@@ -36843,19 +36807,14 @@ const shotPowerRef = useRef(0);
           <div
             id="snooker-config-panel"
             ref={configPanelRef}
-            className={`pointer-events-auto w-[22rem] max-w-[88vw] rounded-3xl border border-emerald-400/40 bg-black/88 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
+            className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
               isPortrait ? 'mt-2 max-h-[56vh] overflow-y-auto' : 'mt-2'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-                  Table Customizer
-                </span>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                  Change only the selected part — the loaded Showood table stays live.
-                </p>
-              </div>
+              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
+                Table Setup
+              </span>
               <button
                 type="button"
                 onClick={() => setConfigOpen(false)}
@@ -36874,7 +36833,38 @@ const shotPowerRef = useRef(0);
                 </svg>
               </button>
             </div>
-            <div className="mt-4 max-h-[24rem] space-y-4 overflow-y-auto pr-1">
+            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Human Pool Player
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
+                    const active = option.id === humanCharacterId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setHumanCharacterId(option.id)}
+                        aria-pressed={active}
+                        title={`${option.label} • ${option.summary}`}
+                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
+                          {index + 1}. {option.logicLabel}
+                        </span>
+                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
+                          feet planted • table-facing
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
