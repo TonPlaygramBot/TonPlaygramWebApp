@@ -4517,7 +4517,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'railSight' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -13289,9 +13289,10 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
-  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
-  const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
-  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
+  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.06 && s.relY < 0.86 && s.longN > 0.66 && s.shortN > 0.44;
+  const outerMostVerticalCorner = s.sideFace && s.relY > 0.08 && s.relY < 0.88 && s.longN > 0.74 && s.shortN > 0.58;
+  const goldCornerDropZone = s.sideFace && s.relY > 0.12 && s.relY < 0.78 && s.longN > 0.58 && s.shortN > 0.58;
+  const sideLowerTrimZone = s.sideFace && s.relY > 0.16 && s.relY < 0.48 && (s.longN > 0.50 || s.shortN > 0.50) && !outsideBaseCornerRimZone;
   const baseCornerZone = s.sideFace && midBody && (
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
@@ -13303,9 +13304,9 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
+  if ((outsideBaseCornerRimZone || outerMostVerticalCorner || (hardwareCandidate && goldCornerDropZone)) && !green && !s.upFace) return 'railSight';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'railSight';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
@@ -13336,7 +13337,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'railSight' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
