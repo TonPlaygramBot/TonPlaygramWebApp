@@ -500,6 +500,9 @@ export function createHumanRig(scene, opts = {}) {
     yaw: 0,
     breathT: 0,
     settleT: 0,
+    seatedBlend: 0,
+    standTransitionT: 1,
+    lastSeated: false,
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
@@ -752,25 +755,61 @@ function driveHuman(human, frame) {
   const standingCueDir = cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
-  if (frame.seated) {
-    // Murlan Royale seated baseline: hips fold down into the cushion, legs stay
-    // grounded in front of the chair and only light upper-body breathing remains.
-    if (b.hips) b.hips.rotation.x += THREE.MathUtils.degToRad(-9);
-    if (b.spine) b.spine.rotation.x += THREE.MathUtils.degToRad(-3);
-    if (b.chest) b.chest.rotation.x += THREE.MathUtils.degToRad(-2);
-    if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(3);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-42);
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-38);
-    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(38);
-    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(34);
+  const seatedBlend = clamp01(frame.seatedBlend ?? (frame.seated ? 1 : 0));
+  if (seatedBlend > 0.015) {
+    // Lounge waiting pose: the pelvis stays settled in the cushion while the
+    // torso and head remain oriented toward the table.  The blend is reused as a
+    // sit-to-stand layer so the player transfers weight before walking instead
+    // of popping directly into the locomotion pose.
+    const sitW = easeInOut(seatedBlend);
+    const standW = 1 - sitW;
+    const breathe = Math.sin(human.breathT * Math.PI * 2) * sitW;
+    const idleShift = Math.sin(human.breathT * Math.PI * 0.74 + 0.8) * sitW;
+    if (b.hips) {
+      b.hips.rotation.x += THREE.MathUtils.degToRad(-18 + 9 * standW) * sitW;
+      b.hips.rotation.y += THREE.MathUtils.degToRad(4.8 * idleShift + 3.5 * frame.side.x) * sitW;
+      b.hips.rotation.z += THREE.MathUtils.degToRad(1.8 * idleShift) * sitW;
+    }
+    if (b.spine) {
+      b.spine.rotation.x += THREE.MathUtils.degToRad(-6.5 - 0.9 * breathe) * sitW;
+      b.spine.rotation.y += THREE.MathUtils.degToRad(8.5 + 2.2 * idleShift) * sitW;
+      b.spine.rotation.z += THREE.MathUtils.degToRad(-2.2) * sitW;
+    }
+    if (b.chest) {
+      b.chest.rotation.x += THREE.MathUtils.degToRad(-4.5 - 0.8 * breathe) * sitW;
+      b.chest.rotation.y += THREE.MathUtils.degToRad(10.5 + 1.8 * idleShift) * sitW;
+      b.chest.rotation.z += THREE.MathUtils.degToRad(1.4 * idleShift) * sitW;
+    }
+    if (b.neck) {
+      b.neck.rotation.x += THREE.MathUtils.degToRad(3.5 - 0.8 * breathe) * sitW;
+      b.neck.rotation.y += THREE.MathUtils.degToRad(-7.5 - 1.2 * idleShift) * sitW;
+    }
+    if (b.head) {
+      b.head.rotation.x += THREE.MathUtils.degToRad(2.8 - 0.5 * breathe) * sitW;
+      b.head.rotation.y += THREE.MathUtils.degToRad(-5.5 - 1.4 * idleShift) * sitW;
+      rotateBoneToward(b.head, frame.cueTipWorld, 0.42 * sitW, frame.forward);
+    }
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-89.5) * sitW;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-84.5) * sitW;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.z += THREE.MathUtils.degToRad(-4.5) * sitW;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.z += THREE.MathUtils.degToRad(6.5) * sitW;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-93.5) * sitW;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-99.0) * sitW;
+    if (b.leftFoot) b.leftFoot.rotation.x += THREE.MathUtils.degToRad(8.0) * sitW;
+    if (b.rightFoot) b.rightFoot.rotation.x += THREE.MathUtils.degToRad(5.0) * sitW;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-36 - 2 * breathe) * sitW;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-31 + 1.5 * idleShift) * sitW;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.z += THREE.MathUtils.degToRad(8) * sitW;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.z += THREE.MathUtils.degToRad(-7) * sitW;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(35) * sitW;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(31) * sitW;
+    human.modelRoot.position.y -= 0.1 * cfg.unit * sitW;
     human.modelRoot.updateMatrixWorld(true);
-    poseFingers(human.leftFingers, 'idle', 1);
-    poseFingers(human.rightFingers, 'grip', 0.7);
-    return;
+    if (frame.seated || seatedBlend > 0.55) {
+      poseFingers(human.leftFingers, 'idle', 1);
+      poseFingers(human.rightFingers, 'grip', 0.7);
+      return;
+    }
   }
 
   if (frame.walkAmount * idle > 0.001) {
@@ -779,19 +818,32 @@ function driveHuman(human, frame) {
     const w = frame.walkAmount * idle;
     const liftL = Math.max(0, s);
     const liftR = Math.max(0, -s);
-    // Soldier-matching walk cycle: opposite legs/arms, visible knee flex, and a
-    // small hip/chest counter-sway so the body no longer slides stiffly.
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += liftR * 0.34 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += liftL * 0.34 * w;
-    if (b.leftFoot) b.leftFoot.rotation.x += liftR * 0.16 * w;
-    if (b.rightFoot) b.rightFoot.rotation.x += liftL * 0.16 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.3 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.3 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.035 * w;
-    if (b.chest) b.chest.rotation.z -= c * 0.022 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.03 * w;
+    const plantL = Math.max(0, -s);
+    const plantR = Math.max(0, s);
+    // Relaxed billiards-room walk: planted foot pressure, opposite arm swing,
+    // hip rotation and shoulder counter-sway keep the avatar from sliding like a
+    // mannequin while moving around the table perimeter.
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += (s * 0.32 - plantL * 0.035) * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += (-s * 0.32 - plantR * 0.035) * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.z += c * 0.035 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.z += c * 0.035 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += (liftR * 0.38 + plantL * 0.055) * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += (liftL * 0.38 + plantR * 0.055) * w;
+    if (b.leftFoot) b.leftFoot.rotation.x += (liftR * 0.18 - plantL * 0.045) * w;
+    if (b.rightFoot) b.rightFoot.rotation.x += (liftL * 0.18 - plantR * 0.045) * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += (-s * 0.27 - 0.025) * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += (s * 0.27 - 0.025) * w;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += (0.06 + liftL * 0.05) * w;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += (0.06 + liftR * 0.05) * w;
+    if (b.spine) b.spine.rotation.z += c * 0.032 * w;
+    if (b.chest) {
+      b.chest.rotation.z -= c * 0.028 * w;
+      b.chest.rotation.y += s * 0.026 * w;
+    }
+    if (b.hips) {
+      b.hips.rotation.z -= c * 0.032 * w;
+      b.hips.rotation.y -= s * 0.034 * w;
+    }
   }
 
   if (ik >= 0.025) {
@@ -873,6 +925,10 @@ export function updateHumanPose(human, dt, frameData) {
   const state = frameData.state || 'idle';
   const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
   human.poseT = dampScalar(human.poseT, activeState === 'idle' || activeState === 'seated' ? 0 : 1, cfg.poseLambda, dt);
+  human.seatedBlend = dampScalar(human.seatedBlend || 0, activeState === 'seated' ? 1 : 0, activeState === 'seated' ? 7.5 : 3.2, dt);
+  if (human.lastSeated && activeState !== 'seated') human.standTransitionT = 0;
+  human.lastSeated = activeState === 'seated';
+  human.standTransitionT = clamp01((human.standTransitionT ?? 1) + dt * 1.85);
   human.breathT += dt * (activeState === 'idle' || activeState === 'seated' ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
   if (activeState === 'striking') {
@@ -886,15 +942,17 @@ export function updateHumanPose(human, dt, frameData) {
   }
 
   const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const directRootTarget = frameData.directRootTarget || activeState === 'seated';
+  const standingUpFromChair = activeState !== 'seated' && (human.seatedBlend || 0) > 0.08;
+  const directRootTarget = frameData.directRootTarget || activeState === 'seated' || standingUpFromChair;
   const moveAmountRaw = activeState === 'striking' || directRootTarget
     ? (() => {
-        dampVector(human.root.position, rootGoal, directRootTarget ? cfg.moveLambda : 12, dt);
+        dampVector(human.root.position, rootGoal, standingUpFromChair ? cfg.moveLambda * 0.42 : directRootTarget ? cfg.moveLambda : 12, dt);
         human.root.position.y = cfg.groundY;
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
-  human.walkT += dt * (1.45 + Math.min(5.2, (moveAmountRaw * 8.2) / cfg.unit));
+  const standGate = easeInOut(clamp01(human.standTransitionT ?? 1));
+  human.walkT += dt * (1.45 + Math.min(5.2, (moveAmountRaw * 8.2) / cfg.unit)) * Math.max(0.35, standGate);
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
   const tableForward = resolveRootToTableForward(human.root.position, frameData);
   const facingForward = shootingPoseActive && tableForward
@@ -914,7 +972,7 @@ export function updateHumanPose(human, dt, frameData) {
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
   human.lastMoveAmountRaw = moveAmountRaw;
-  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle;
+  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle * standGate;
   const dragStroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + (frameData.power || 0) * 0.75) : 0;
   const strikeFollow = activeState === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const visualYaw = human.yaw + (cfg.humanVisualYawFix || 0);
@@ -939,24 +997,24 @@ export function updateHumanPose(human, dt, frameData) {
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.2, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.08, t) - 0.008 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.26, t) - 0.014 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.38, t) - 0.016 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.5, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.22 * t, shotBendZ(lerp(0.03, -0.44, t) - 0.018 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.31, t) - 0.012 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.25, t) - 0.012 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.008 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, t) - 0.014 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, t) - 0.016 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ(lerp(0.03, -0.62, t) - 0.018 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
   const plantedLeftFootLocal = new THREE.Vector3(
-    -cfg.stanceWidth * 0.42,
+    -cfg.stanceWidth * 0.56,
     cfg.footGroundY,
-    -0.34 * cfg.unit
+    -0.41 * cfg.unit
   );
   const plantedRightFootLocal = new THREE.Vector3(
-    cfg.stanceWidth * 0.5,
+    cfg.stanceWidth * 0.58,
     cfg.footGroundY,
-    0.34 * cfg.unit
+    0.39 * cfg.unit
   );
   const leftFoot = local(new THREE.Vector3(
     -0.13 * cfg.unit,
@@ -1004,7 +1062,7 @@ export function updateHumanPose(human, dt, frameData) {
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
   const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
   const bridgeArmDownElbow = leftHand.clone()
-    .addScaledVector(UP, 0.34 * cfg.unit)
+    .addScaledVector(UP, 0.39 * cfg.unit)
     .addScaledVector(side, -0.01 * cfg.unit)
     .addScaledVector(forward, 0.012 * cfg.unit);
   const extendedBridgeElbow = leftShoulder.clone()
@@ -1014,7 +1072,7 @@ export function updateHumanPose(human, dt, frameData) {
     .addScaledVector(forward, -0.055 * cfg.unit * t);
   const leftElbow = extendedBridgeElbow.lerp(bridgeArmDownElbow, cfg.bridgeArmStraightDown ? t : 0);
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
-  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 1.02, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
 
   human.root.visible = true;
   driveHuman(human, {
@@ -1041,7 +1099,9 @@ export function updateHumanPose(human, dt, frameData) {
     rightFootWorld: rightFoot,
     cueBackWorld: frameData.cueBack,
     cueTipWorld: frameData.cueTip,
-    seated: activeState === 'seated'
+    seated: activeState === 'seated',
+    seatedBlend: human.seatedBlend || 0,
+    standTransition: standGate
   });
 }
 
