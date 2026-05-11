@@ -2216,16 +2216,48 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   // Match Ludo Battle Royal seated framing: keep characters visually lower on portrait screens.
   instance.position.y -= 0.09 * MODEL_SCALE;
 
+  const bottomHumanArmReach = player?.isHuman ? 1 : 0;
+
   // Professional seated base pose aligned with Ludo human-leg orientation.
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-11), THREE.MathUtils.degToRad(-8));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-7));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(22), THREE.MathUtils.degToRad(-10), THREE.MathUtils.degToRad(-9));
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-46), THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(8));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(7));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(24), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(9));
+  applyRotationOffset(
+    leftUpperArm,
+    THREE.MathUtils.degToRad(-44 - bottomHumanArmReach * 10),
+    THREE.MathUtils.degToRad(-11),
+    THREE.MathUtils.degToRad(-8)
+  );
+  applyRotationOffset(
+    leftForeArm,
+    THREE.MathUtils.degToRad(62 - bottomHumanArmReach * 14),
+    THREE.MathUtils.degToRad(-7),
+    THREE.MathUtils.degToRad(-7)
+  );
+  applyRotationOffset(
+    leftHand,
+    THREE.MathUtils.degToRad(22 + bottomHumanArmReach * 4),
+    THREE.MathUtils.degToRad(-10),
+    THREE.MathUtils.degToRad(-9)
+  );
+  applyRotationOffset(
+    rightUpperArm,
+    THREE.MathUtils.degToRad(-46 - bottomHumanArmReach * 10),
+    THREE.MathUtils.degToRad(11),
+    THREE.MathUtils.degToRad(8)
+  );
+  applyRotationOffset(
+    rightForeArm,
+    THREE.MathUtils.degToRad(62 - bottomHumanArmReach * 14),
+    THREE.MathUtils.degToRad(7),
+    THREE.MathUtils.degToRad(7)
+  );
+  applyRotationOffset(
+    rightHand,
+    THREE.MathUtils.degToRad(24 + bottomHumanArmReach * 4),
+    THREE.MathUtils.degToRad(10),
+    THREE.MathUtils.degToRad(9)
+  );
   applyRotationOffset(rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
   applyRotationOffset(rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
@@ -3008,11 +3040,12 @@ const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
   portrait: 0.19 * MODEL_SCALE,
   landscape: 0.05 * MODEL_SCALE
 });
-const HUMAN_HAND_CARD_SCALE = 1.02;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
+const HUMAN_HAND_CARD_SCALE = 1.18;
+// Pinch the card centers closer together so the lower hand-side edges overlap like a real held fan.
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.13;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
-const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(19);
+const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(29);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
@@ -3024,17 +3057,17 @@ const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.168 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
-const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
+const AI_HAND_CARD_SPACING = CARD_W * 0.88 * 0.13;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.1;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
-const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(13);
+const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(24);
+const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(21);
 const AI_HAND_FAN_ARC_LIFT = 0.052 * MODEL_SCALE;
-const AI_HAND_CARD_SCALE = 0.74;
+const AI_HAND_CARD_SCALE = 0.88;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.035 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.07 * MODEL_SCALE;
 const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.72 * MODEL_SCALE;
