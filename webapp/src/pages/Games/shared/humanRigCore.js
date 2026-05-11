@@ -324,9 +324,7 @@ function ensureHumanFacingTable(human, frameData, cfg) {
   const visualYaw = human.yaw + (cfg.humanVisualYawFix || 0);
   const liveForward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, visualYaw).normalize();
   if (liveForward.dot(rootToTable) < -0.05) {
-    const targetYaw = yawFromForward(rootToTable) - (cfg.humanVisualYawFix || 0);
-    const delta = THREE.MathUtils.euclideanModulo(targetYaw - human.yaw + Math.PI, Math.PI * 2) - Math.PI;
-    human.yaw += delta * 0.18;
+    human.yaw = yawFromForward(rootToTable) - (cfg.humanVisualYawFix || 0);
   }
 }
 
@@ -960,11 +958,13 @@ export function updateHumanPose(human, dt, frameData) {
   const facingForward = shootingPoseActive && tableForward
     ? tableForward
     : resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
-  // Always rotate through damped interpolation.  The pose still corrects toward
-  // the cue-ball/table quickly, but never snaps or spins instantly when the aim
-  // line crosses to another rail.
+  // When the low cue camera/shot pose is active, lock yaw directly toward the
+  // cue-ball/table reference. Damped yaw could leave the upper body bending toward
+  // the previous direction for a few frames, which made the pose look backwards.
   const targetRootYaw = yawFromForward(facingForward) - (cfg.humanVisualYawFix || 0);
-  human.yaw = dampScalar(human.yaw, targetRootYaw, shootingPoseActive ? cfg.rotLambda * 1.6 : cfg.rotLambda, dt);
+  human.yaw = shootingPoseActive
+    ? targetRootYaw
+    : dampScalar(human.yaw, targetRootYaw, cfg.rotLambda, dt);
   ensureHumanFacingTable(human, frameData, cfg);
 
   const t = easeInOut(human.poseT);
@@ -993,50 +993,28 @@ export function updateHumanPose(human, dt, frameData) {
   const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
-  const shotContext = frameData.shotContext || {};
-  const shotType = shotContext.type || 'standard';
-  const longReachPose = shotType === 'longReach' ? 1 : 0;
-  const railPose = shotType === 'rail' ? 1 : 0;
-  const compactPose = shotType === 'closeCueBall' ? 1 : 0;
-  const powerPose = shotType === 'power' ? 1 : 0;
-  const softPose = shotType === 'softPrecision' ? 1 : 0;
-  const difficultPose = shotType === 'difficultAngle' ? 1 : 0;
-  const reachLeanBoost = 1 + longReachPose * 0.16 + powerPose * 0.06 - compactPose * 0.12 - railPose * 0.08;
-  const stanceWidthBoost = 1 + powerPose * 0.16 + longReachPose * 0.1 + difficultPose * 0.08 - compactPose * 0.08;
-  const rearFootBackBoost = 1 + longReachPose * 0.22 + powerPose * 0.16 - compactPose * 0.18;
-  const frontFootForwardBoost = 1 + longReachPose * 0.14 + difficultPose * 0.08 - railPose * 0.08;
-  const bridgeHeightBoost = railPose * 0.05 * cfg.unit;
-  const gripCompactness = compactPose * 0.16 * cfg.unit + softPose * 0.08 * cfg.unit;
-  const shoulderSideAdjust = difficultPose * 0.045;
-  human.poolPlayerState = activeState === 'idle'
-    ? (moveAmountRaw > cfg.unit * 0.04 ? 'WalkToShotPosition' : 'IdleWaiting')
-    : activeState === 'dragging'
-      ? (human.settleT > 0.72 ? 'AimAdjust' : 'AlignCue')
-      : activeState === 'striking'
-        ? (human.strikeClock < cfg.strikeTime * 0.38 ? 'CuePullBack' : human.strikeClock < cfg.strikeTime ? 'CueStrike' : 'FollowThrough')
-        : 'WatchBalls';
 
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ((lerp(0.01, -0.12, t) - 0.008 * powerLean) * reachLeanBoost) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ((lerp(0.015, -0.36, t) - 0.014 * powerLean) * reachLeanBoost) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ((lerp(0.02, -0.52, t) - 0.016 * powerLean) * reachLeanBoost) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ((lerp(0.03, -0.62, t) - 0.018 * powerLean) * reachLeanBoost) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 * stanceWidthBoost + shotCounterLeanX(0.048 * t) - shoulderSideAdjust) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 * stanceWidthBoost + shotCounterLeanX(0.034 * t) + shoulderSideAdjust) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.008 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, t) - 0.014 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, t) - 0.016 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ(lerp(0.03, -0.62, t) - 0.018 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
   const plantedLeftFootLocal = new THREE.Vector3(
-    -cfg.stanceWidth * 0.56 * stanceWidthBoost,
+    -cfg.stanceWidth * 0.56,
     cfg.footGroundY,
-    -0.41 * cfg.unit * frontFootForwardBoost
+    -0.41 * cfg.unit
   );
   const plantedRightFootLocal = new THREE.Vector3(
-    cfg.stanceWidth * 0.58 * stanceWidthBoost,
+    cfg.stanceWidth * 0.58,
     cfg.footGroundY,
-    0.39 * cfg.unit * rearFootBackBoost
+    0.39 * cfg.unit
   );
   const leftFoot = local(new THREE.Vector3(
     -0.13 * cfg.unit,
@@ -1055,7 +1033,7 @@ export function updateHumanPose(human, dt, frameData) {
   const bridgePalmTarget = frameData.bridgeTarget.clone()
     .addScaledVector(forward, -0.006 * cfg.unit * t)
     .addScaledVector(side, bridgePalmSide * t)
-    .setY(cfg.tableTopY + cfg.bridgePalmTableLift + bridgeHeightBoost)
+    .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
   const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
@@ -1076,7 +1054,7 @@ export function updateHumanPose(human, dt, frameData) {
     .addScaledVector(side, cfg.rightForearmOutward * t)
     .addScaledVector(UP, -cfg.rightForearmDown * t)
     .addScaledVector(UP, cfg.rightHandShotLift * t)
-    .addScaledVector(forward, (-cfg.rightForearmBack + gripCompactness) * t)
+    .addScaledVector(forward, -cfg.rightForearmBack * t)
     .addScaledVector(cueDirForHand, cfg.rightForearmLength);
   const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
   if (frameData.gripTarget) liveCueGripPoint.lerp(frameData.gripTarget, 0.72 * t);
@@ -1127,82 +1105,17 @@ export function updateHumanPose(human, dt, frameData) {
   });
 }
 
-function closestPointOnWalkRectangle(point, halfX, halfZ, groundY = 0) {
-  const x = clamp(point?.x ?? 0, -halfX, halfX);
-  const z = clamp(point?.z ?? 0, -halfZ, halfZ);
-  const distLeft = Math.abs(x + halfX);
-  const distRight = Math.abs(x - halfX);
-  const distNear = Math.abs(z + halfZ);
-  const distFar = Math.abs(z - halfZ);
-  const nearest = Math.min(distLeft, distRight, distNear, distFar);
-  if (nearest === distLeft) return new THREE.Vector3(-halfX, groundY, z);
-  if (nearest === distRight) return new THREE.Vector3(halfX, groundY, z);
-  if (nearest === distNear) return new THREE.Vector3(x, groundY, -halfZ);
-  return new THREE.Vector3(x, groundY, halfZ);
-}
-
-function rayToWalkRectangle(origin, dir, halfX, halfZ, groundY = 0) {
-  const hits = [];
-  if (Math.abs(dir.x) > 1e-6) {
-    const txA = (-halfX - origin.x) / dir.x;
-    const zA = origin.z + dir.z * txA;
-    if (txA >= 0 && zA >= -halfZ && zA <= halfZ) hits.push(new THREE.Vector3(-halfX, groundY, zA));
-    const txB = (halfX - origin.x) / dir.x;
-    const zB = origin.z + dir.z * txB;
-    if (txB >= 0 && zB >= -halfZ && zB <= halfZ) hits.push(new THREE.Vector3(halfX, groundY, zB));
-  }
-  if (Math.abs(dir.z) > 1e-6) {
-    const tzA = (-halfZ - origin.z) / dir.z;
-    const xA = origin.x + dir.x * tzA;
-    if (tzA >= 0 && xA >= -halfX && xA <= halfX) hits.push(new THREE.Vector3(xA, groundY, -halfZ));
-    const tzB = (halfZ - origin.z) / dir.z;
-    const xB = origin.x + dir.x * tzB;
-    if (tzB >= 0 && xB >= -halfX && xB <= halfX) hits.push(new THREE.Vector3(xB, groundY, halfZ));
-  }
-  return hits.sort((a, b) => a.distanceToSquared(origin) - b.distanceToSquared(origin))[0] || null;
-}
-
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const cfg = scaleVectorConfig(opts);
+  const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance);
+  const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin;
+  const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin;
   const groundY = cfg.groundY || 0;
-  const shotForward = aimForward?.clone?.() ?? new THREE.Vector3(0, 0, -1);
-  shotForward.y = 0;
-  if (shotForward.lengthSq() < 1e-8) shotForward.set(0, 0, -1);
-  shotForward.normalize();
-
-  const halfX = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin;
-  const halfZ = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin;
-  const behindDir = shotForward.clone().multiplyScalar(-1);
-  const desired = cueBallWorld.clone().addScaledVector(behindDir, cfg.desiredShootDistance).setY(groundY);
-
-  // Prefer the real pool-player spot: directly behind the cue ball on the opposite
-  // side of the shot line, then intersect that ray with the walkable rectangle
-  // around the rails.  The old nearest-edge choice could put the avatar on a side
-  // rail for diagonal shots, making the body and cue appear sideways to the table.
-  const linePosition = rayToWalkRectangle(cueBallWorld, behindDir, halfX, halfZ, groundY);
-  const nearestPerimeter = closestPointOnWalkRectangle(desired, halfX, halfZ, groundY);
-  const cueToCandidateForward = (candidate) => cueBallWorld.clone().sub(candidate).setY(0).normalize();
-  const clearancePenalty = (candidate) => {
-    const insideX = Math.max(0, Math.abs(candidate.x) < halfX ? halfX - Math.abs(candidate.x) : 0);
-    const insideZ = Math.max(0, Math.abs(candidate.z) < halfZ ? halfZ - Math.abs(candidate.z) : 0);
-    return Math.min(insideX, insideZ) * 1000;
-  };
   const candidates = [
-    linePosition,
-    nearestPerimeter,
-    new THREE.Vector3(-halfX, groundY, clamp(desired.z, -halfZ, halfZ)),
-    new THREE.Vector3(halfX, groundY, clamp(desired.z, -halfZ, halfZ)),
-    new THREE.Vector3(clamp(desired.x, -halfX, halfX), groundY, -halfZ),
-    new THREE.Vector3(clamp(desired.x, -halfX, halfX), groundY, halfZ)
-  ].filter(Boolean);
-
-  return candidates
-    .sort((a, b) => {
-      const aLine = Math.max(0, 1 - cueToCandidateForward(a).dot(shotForward));
-      const bLine = Math.max(0, 1 - cueToCandidateForward(b).dot(shotForward));
-      const aScore = a.distanceToSquared(desired) + aLine * 12 + clearancePenalty(a);
-      const bScore = b.distanceToSquared(desired) + bLine * 12 + clearancePenalty(b);
-      return aScore - bScore;
-    })[0]
-    .clone();
+    new THREE.Vector3(-xEdge, groundY, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, groundY, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), groundY, -zEdge),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), groundY, zEdge)
+  ];
+  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
