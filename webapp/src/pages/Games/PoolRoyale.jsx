@@ -123,7 +123,6 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
   chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
@@ -2671,14 +2670,9 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 38; // larger pool-side player table matching the Showood table's bigger stage presence.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 84; // larger, taller portrait-readable chairs for each player lounge.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 82;
-// Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
-// the visible player faces inward toward the table instead of showing their back in portrait play.
-const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
+// ReadyPlayer/Soldier avatars face away from the billiards rig forward axis by default; flip the
+// child model so the visible player faces inward toward the table instead of showing their back.
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -4346,11 +4340,6 @@ const CHESS_BATTLE_DEFAULT_SET_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
-]);
-const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dining_chair_02/dining_chair_02_1k.gltf',
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
@@ -26851,156 +26840,6 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createWaterServiceProps = (tableTopY = BALL_R * 6.2) => {
-        const group = new THREE.Group();
-        const waterMat = new THREE.MeshPhysicalMaterial({ color: 0xbdeaff, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0, transmission: 0.35 });
-        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, roughness: 0.04, metalness: 0, transmission: 0.55 });
-        const bottle = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.62, BALL_R * 0.74, BALL_R * 3.9, 20), waterMat);
-        bottle.position.set(-BALL_R * 2.15, tableTopY + BALL_R * 2.0, -BALL_R * 0.45);
-        const glass = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.82, BALL_R * 0.68, BALL_R * 1.85, 20), glassMat);
-        glass.position.set(BALL_R * 2.0, tableTopY + BALL_R * 0.9, BALL_R * 0.55);
-        const water = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.66, BALL_R * 0.56, BALL_R * 0.88, 20), waterMat);
-        water.position.set(0, -BALL_R * 0.18, 0);
-        glass.add(water);
-        [bottle, glass].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        group.userData.glass = glass;
-        group.userData.glassBase = glass.position.clone();
-        return group;
-      };
-
-      const fitAssetToSpan = (asset, targetSpan, { ground = true } = {}) => {
-        if (!asset) return asset;
-        const box = new THREE.Box3().setFromObject(asset);
-        const size = box.getSize(new THREE.Vector3());
-        const span = Math.max(size.x || 0, size.z || 0, size.y || 0);
-        if (span > 1e-6 && Number.isFinite(targetSpan)) {
-          asset.scale.multiplyScalar(targetSpan / span);
-        }
-        if (ground) {
-          const groundedBox = new THREE.Box3().setFromObject(asset);
-          asset.position.y += -groundedBox.min.y;
-        }
-        return asset;
-      };
-
-      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY) => {
-        const group = new THREE.Group();
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
-        const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 25.2, BALL_R * 25.8, BALL_R * 1.65, 64), woodMat);
-        tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.45, BALL_R * 3.5, tableTopY, 32), woodMat);
-        tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 18.6, BALL_R * 2.05, BALL_R * 20.8), seatMat);
-        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, 0);
-        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 2.05, BALL_R * 15.8, BALL_R * 20.8), seatMat);
-        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, 0);
-        [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        group.userData.tableMeshes = [tableTop, tablePedestal];
-        group.userData.chairMeshes = [chairSeat, chairBack];
-        return group;
-      };
-
-      const createPoolSideLounge = (seat, sideSign, options = {}) => {
-        const group = new THREE.Group();
-        const sharedSeatOffsets = options.sharedSeatOffsets || { [seat]: 0 };
-        const primarySeat = options.primarySeat || seat;
-        group.userData.seat = primarySeat;
-        const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = options.z ?? 0;
-        group.position.set(x, floorY, z);
-        group.rotation.y = 0;
-
-        const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(primarySeat, sideSign, tableTopY);
-        fallbackFurniture.name = `PoolRoyale_${primarySeat}_VisibleSharedLoungeFallback`;
-        const fallbackChairMeshes = fallbackFurniture.userData?.chairMeshes || [];
-        const fallbackSeatEntries = Object.entries(sharedSeatOffsets);
-        fallbackSeatEntries.forEach(([seatKey, localZ], index) => {
-          const meshes = index === 0
-            ? fallbackChairMeshes
-            : fallbackChairMeshes.map((mesh) => mesh.clone());
-          meshes.forEach((mesh) => {
-            mesh.name = `PoolRoyale_${seatKey}_SharedFallbackChair`;
-            mesh.position.z = localZ;
-            if (index > 0) fallbackFurniture.add(mesh);
-          });
-        });
-        group.add(fallbackFurniture);
-
-        const showLoungeTable = true;
-        fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-          mesh.visible = showLoungeTable;
-        });
-        if (showLoungeTable) {
-          const murlanDefaultTable = new THREE.Group();
-          murlanDefaultTable.name = `PoolRoyale_${primarySeat}_MurlanDefaultOctagonTable`;
-          try {
-            createMurlanStyleTable({
-              THREE,
-              arena: murlanDefaultTable,
-              renderer,
-              tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-              tableHeight: tableTopY,
-              includeBase: true
-            });
-            group.add(murlanDefaultTable);
-            fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-              mesh.visible = false;
-            });
-          } catch (error) {
-            console.warn('Failed to create Pool Royale Murlan default lounge table', error);
-          }
-        }
-
-        loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
-          if (!group.parent) return;
-          const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
-          if (!chairModel) return;
-          markHospitalityMaterials(chairModel);
-          fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          Object.entries(sharedSeatOffsets).forEach(([seatKey, localZ], index) => {
-            const seatChair = index === 0 ? chairModel : chairModel.clone(true);
-            seatChair.name = `PoolRoyale_${seatKey}_SharedLoungeChair`;
-            seatChair.position.set(chairLocalX, chairModel.position.y, localZ);
-            const toTable = new THREE.Vector2(-seatChair.position.x, -seatChair.position.z);
-            seatChair.rotation.y = Math.atan2(toTable.x, toTable.y);
-            group.add(seatChair);
-          });
-          fallbackFurniture.visible = false;
-        }).catch((error) => {
-          console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
-        });
-
-        const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
-        if (serviceProps) group.add(serviceProps);
-        group.userData.sharedSeatChairs = Object.fromEntries(
-          Object.entries(sharedSeatOffsets).map(([seatKey, localZ]) => [
-            seatKey,
-            {
-              chairRoot: new THREE.Vector3(x + chairLocalX, floorY, z + localZ),
-              chairFacing: new THREE.Vector3(-(x + chairLocalX), 0, -(z + localZ)).normalize(),
-              chairSeatWorld: new THREE.Vector3(x + chairLocalX, floorY, z + localZ)
-            }
-          ])
-        );
-        group.userData.chairRoot = group.userData.sharedSeatChairs[primarySeat]?.chairRoot?.clone?.() || new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.chairFacing = group.userData.sharedSeatChairs[primarySeat]?.chairFacing?.clone?.() || new THREE.Vector3(-sideSign, 0, 0).normalize();
-        group.userData.chairSeatWorld = group.userData.sharedSeatChairs[primarySeat]?.chairSeatWorld?.clone?.() || new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.glass = serviceProps?.userData?.glass || null;
-        group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
-        return group;
-      };
-
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
         const zOffset = TABLE.H * 0.72;
@@ -27083,21 +26922,8 @@ const shotPowerRef = useRef(0);
           return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const sharedLounge = createPoolSideLounge('A', -1, {
-          primarySeat: 'A',
-          z: 0,
-          sharedSeatOffsets: {
-            A: -TABLE.H * 0.18,
-            B: TABLE.H * 0.18
-          }
-        });
-        world.add(sharedLounge);
         playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: sharedLounge, lounge: true, seat: 'A' },
-          { group: sharedLounge, lounge: true, seat: 'B' }
+          makeRig('A', -sideOffset, -zOffset, 0, playerA)
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -27218,20 +27044,6 @@ const shotPowerRef = useRef(0);
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
 
         const desiredRoot = chooseEdgeTarget(normalizedAim);
-        const loungeBySeat = new Map();
-        rigs.forEach((entry) => {
-          if (!entry?.lounge || !entry.group) return;
-          loungeBySeat.set(entry.seat, entry.group);
-          const glass = entry.group.userData?.glass;
-          const base = entry.group.userData?.glassBase;
-          if (glass && base) {
-            const sip = (Math.sin(nowMs * 0.00075 + (entry.seat === 'A' ? 0 : Math.PI)) + 1) * 0.5;
-            const lift = sip > 0.86 ? (sip - 0.86) / 0.14 : 0;
-            glass.position.copy(base);
-            glass.position.y += lift * BALL_R * 2.0;
-            glass.position.z += (entry.seat === 'A' ? -1 : 1) * lift * BALL_R * 1.6;
-          }
-        });
 
         rigs.forEach((rig) => {
           const anim = rig?.anim;
@@ -27281,26 +27093,9 @@ const shotPowerRef = useRef(0);
               1
             );
             const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            const shouldRestAtChair = !isHumanShooter;
-            let walkingToChair = false;
-            let seatedAtChair = false;
-            let chairFacing = null;
-            if (shouldRestAtChair) {
-              const lounge = loungeBySeat.get(seat);
-              const seatChair = lounge?.userData?.sharedSeatChairs?.[seat] || lounge?.userData || null;
-              const chairRoot = seatChair?.chairRoot;
-              if (chairRoot) {
-                walkRoot.copy(chairRoot);
-                chairFacing = seatChair?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
-                walkingToChair = true;
-                seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
-              }
-            }
-            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: seatedAtChair };
+            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: true };
             characterTurnFlowRef.current = turnFlow;
-            const state = seatedAtChair
-              ? 'seated'
-              : mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+            const state = mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
             const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
             const activePower = state === 'dragging' ? draggingPower : strikingPower;
@@ -27351,7 +27146,7 @@ const shotPowerRef = useRef(0);
                 side: side.clone()
               };
             }
-            const poseForward = chairFacing?.lengthSq?.() > 1e-6 ? chairFacing.normalize() : aimForward;
+            const poseForward = aimForward;
             const standingYaw = Math.atan2(-poseForward.x, -poseForward.z);
             const idleRight = walkRoot
               .clone()
@@ -27392,7 +27187,7 @@ const shotPowerRef = useRef(0);
               cueBack,
               cueTip,
               power: activePower,
-              directRootTarget: walkingToChair
+              directRootTarget: false
             });
             if (rig.heldCue) {
               rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
