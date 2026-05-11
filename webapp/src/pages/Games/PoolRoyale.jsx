@@ -1848,7 +1848,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
@@ -2245,7 +2245,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
+const SPIN_GLOBAL_SCALE = 0.82; // trim Pool Royale spin slightly for more natural cue-ball action
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -2273,7 +2273,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1; // keep slider strength honest by removing the extra Pool Royale boost
-const SHOT_GLOBAL_POWER_SCALE = 0.72; // soften Pool Royale shot pace so ball travel matches the displayed slider power
+const SHOT_GLOBAL_POWER_SCALE = 0.82; // add more Pool Royale shot pace while keeping slider strength controllable
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2420,7 +2420,7 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
-    walkSpeed: 4.0,
+    walkSpeed: 2.85,
     shootForwardBendScale: 0.92,
     shootUpperBodyCounterLean: 0.48
   }),
@@ -2676,6 +2676,7 @@ const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 84; // larger, taller portrait-readable chairs for each player lounge.
 const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
 const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 82;
+const POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z = BALL_R * 26;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
 const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
@@ -9026,7 +9027,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
@@ -18142,15 +18143,16 @@ const shotPowerRef = useRef(0);
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
-      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
+      const hdriShadowLightScale = 0.32;
+      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity * hdriShadowLightScale;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
-      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
+      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity * hdriShadowLightScale;
       if (settings.washColor && wash) wash.color.set(settings.washColor);
-      if (settings.washIntensity && wash) wash.intensity = settings.washIntensity;
+      if (settings.washIntensity && wash) wash.intensity = settings.washIntensity * hdriShadowLightScale;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
-      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
+      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity * hdriShadowLightScale;
       if (settings.ambientIntensity && ambient)
-        ambient.intensity = settings.ambientIntensity;
+        ambient.intensity = settings.ambientIntensity * hdriShadowLightScale;
     },
     [lightingId]
   );
@@ -20346,7 +20348,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -25991,7 +25993,7 @@ const shotPowerRef = useRef(0);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = true;
+        const useHdriOnly = false;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -26018,12 +26020,12 @@ const shotPowerRef = useRef(0);
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.3 * lightBrightnessTrim);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.06 * lightBrightnessTrim);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(
           0xffffff,
-          1.68 * brightnessCompensation * lightBrightnessTrim
+          0.42 * brightnessCompensation * lightBrightnessTrim
         );
         key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(0, targetY, 0);
@@ -26043,7 +26045,7 @@ const shotPowerRef = useRef(0);
 
         const fill = new THREE.DirectionalLight(
           0xffffff,
-          0.84 * brightnessCompensation * lightBrightnessTrim
+          0.08 * brightnessCompensation * lightBrightnessTrim
         );
         fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
@@ -26052,7 +26054,7 @@ const shotPowerRef = useRef(0);
 
         const wash = new THREE.DirectionalLight(
           0xffffff,
-          0.76 * brightnessCompensation * lightBrightnessTrim
+          0.06 * brightnessCompensation * lightBrightnessTrim
         );
         wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
@@ -26061,12 +26063,24 @@ const shotPowerRef = useRef(0);
 
         const rim = new THREE.DirectionalLight(
           0xffffff,
-          0.68 * brightnessCompensation * lightBrightnessTrim
+          0.05 * brightnessCompensation * lightBrightnessTrim
         );
         rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
+
+        const hdriFloorShadow = new THREE.Mesh(
+          new THREE.PlaneGeometry(shadowHalfSpan * 2.4, shadowHalfSpan * 2.4),
+          new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.28, transparent: true })
+        );
+        hdriFloorShadow.name = 'PoolRoyale_HdriFloorShadowReceiver';
+        hdriFloorShadow.rotation.x = -Math.PI / 2;
+        hdriFloorShadow.position.y = floorY + MICRO_EPS;
+        hdriFloorShadow.receiveShadow = true;
+        hdriFloorShadow.castShadow = false;
+        hdriFloorShadow.renderOrder = -6;
+        lightingRig.add(hdriFloorShadow);
 
         lightingRigRef.current = {
           group: lightingRig,
@@ -26074,7 +26088,8 @@ const shotPowerRef = useRef(0);
           fill,
           wash,
           rim,
-          ambient
+          ambient,
+          hdriFloorShadow
         };
         applyLightingPreset();
       };
@@ -26843,7 +26858,7 @@ const shotPowerRef = useRef(0);
         return asset;
       };
 
-      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY) => {
+      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY, { includeTable = true, chairLocalZ = 0 } = {}) => {
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
@@ -26852,80 +26867,112 @@ const shotPowerRef = useRef(0);
         const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.45, BALL_R * 3.5, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
         const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 18.6, BALL_R * 2.05, BALL_R * 20.8), seatMat);
-        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, 0);
+        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, chairLocalZ);
         const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 2.05, BALL_R * 15.8, BALL_R * 20.8), seatMat);
-        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, 0);
+        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, chairLocalZ);
         [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          group.add(mesh);
         });
-        group.userData.tableMeshes = [tableTop, tablePedestal];
+        if (includeTable) group.add(tableTop, tablePedestal);
+        group.add(chairSeat, chairBack);
+        group.userData.tableMeshes = includeTable ? [tableTop, tablePedestal] : [];
         group.userData.chairMeshes = [chairSeat, chairBack];
         return group;
       };
 
-      const createPoolSideLounge = (seat, sideSign) => {
+      const createPoolSideLounge = () => {
         const group = new THREE.Group();
-        group.userData.seat = seat;
-        const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = seat === 'A' ? -TABLE.H * 0.16 : TABLE.H * 0.16;
+        const sharedSideSign = 1;
+        const x = sharedSideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
+        const z = 0;
+        group.name = 'PoolRoyale_SharedPlayerSideLounge';
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
+        group.userData = {
+          ...(group.userData || {}),
+          poolRoyaleSharedPlayerTable: true,
+          seats: {}
+        };
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
-        fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
-        group.add(fallbackFurniture);
+        const chairLocalX = sharedSideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
+        const chairFacing = new THREE.Vector3(-sharedSideSign, 0, 0).normalize();
 
-        const showLoungeTable = true;
-        fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-          mesh.visible = showLoungeTable;
+        // This is the single small player table on the side of the Showood pool table.
+        // The actual gameplay/pool table is built elsewhere and remains at its original origin.
+        const tableFallback = createFallbackPoolSideFurniture('A', sharedSideSign, tableTopY, {
+          includeTable: true,
+          chairLocalZ: -POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z
         });
-        if (showLoungeTable) {
-          const murlanDefaultTable = new THREE.Group();
-          murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-          try {
-            createMurlanStyleTable({
-              THREE,
-              arena: murlanDefaultTable,
-              renderer,
-              tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-              tableHeight: tableTopY,
-              includeBase: true
-            });
-            group.add(murlanDefaultTable);
-            fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-              mesh.visible = false;
-            });
-          } catch (error) {
-            console.warn('Failed to create Pool Royale Murlan default lounge table', error);
-          }
+        tableFallback.name = 'PoolRoyale_SharedPlayerTableFallback';
+        group.add(tableFallback);
+
+        const murlanDefaultTable = new THREE.Group();
+        murlanDefaultTable.name = 'PoolRoyale_SharedPlayer_MurlanDefaultOctagonTable';
+        try {
+          createMurlanStyleTable({
+            THREE,
+            arena: murlanDefaultTable,
+            renderer,
+            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
+            tableHeight: tableTopY,
+            includeBase: true
+          });
+          group.add(murlanDefaultTable);
+          tableFallback.userData?.tableMeshes?.forEach((mesh) => {
+            mesh.visible = false;
+          });
+        } catch (error) {
+          console.warn('Failed to create Pool Royale shared Murlan player table', error);
         }
 
-        loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
-          if (!group.parent) return;
-          const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
-          if (!chairModel) return;
-          markHospitalityMaterials(chairModel);
-          fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(chairLocalX, chairModel.position.y, 0);
-          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
-          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
-          group.add(chairModel);
-          fallbackFurniture.visible = false;
-        }).catch((error) => {
-          console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
-        });
-
-        const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
+        const serviceProps = createWaterServiceProps(tableTopY);
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.chairFacing = new THREE.Vector3(-sideSign, 0, 0).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.glass = serviceProps?.userData?.glass || null;
-        group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
+
+        const addSeat = (seat) => {
+          const chairLocalZ = seat === 'A'
+            ? -POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z
+            : POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z;
+          const fallbackFurniture = seat === 'A'
+            ? tableFallback
+            : createFallbackPoolSideFurniture(seat, sharedSideSign, tableTopY, {
+                includeTable: false,
+                chairLocalZ
+              });
+          fallbackFurniture.name = `PoolRoyale_${seat}_SharedPlayerChairFallback`;
+          if (seat !== 'A') group.add(fallbackFurniture);
+
+          loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
+            if (!group.parent) return;
+            const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
+            if (!chairModel) return;
+            markHospitalityMaterials(chairModel);
+            fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
+            chairModel.position.set(chairLocalX, chairModel.position.y, chairLocalZ);
+            const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
+            chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
+            group.add(chairModel);
+            fallbackFurniture.userData?.chairMeshes?.forEach((mesh) => {
+              mesh.visible = false;
+            });
+          }).catch((error) => {
+            console.warn(`Failed to upgrade Pool Royale ${seat} shared lounge chair GLTF asset`, error);
+          });
+
+          group.userData.seats[seat] = {
+            chairRoot: new THREE.Vector3(x + chairLocalX, floorY, z + chairLocalZ),
+            chairFacing: chairFacing.clone(),
+            chairSeatWorld: new THREE.Vector3(x + chairLocalX, floorY, z + chairLocalZ),
+            glass: seat === 'A' ? serviceProps?.userData?.glass || null : null,
+            glassBase: seat === 'A'
+              ? serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3()
+              : new THREE.Vector3()
+          };
+        };
+
+        addSeat('A');
+        addSeat('B');
         return group;
       };
 
@@ -27012,15 +27059,13 @@ const shotPowerRef = useRef(0);
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        world.add(loungeA);
-        world.add(loungeB);
+        const sharedPlayerLounge = createPoolSideLounge();
+        world.add(sharedPlayerLounge);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' }
+          { group: sharedPlayerLounge, lounge: true, seat: 'A' },
+          { group: sharedPlayerLounge, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -27145,8 +27190,9 @@ const shotPowerRef = useRef(0);
         rigs.forEach((entry) => {
           if (!entry?.lounge || !entry.group) return;
           loungeBySeat.set(entry.seat, entry.group);
-          const glass = entry.group.userData?.glass;
-          const base = entry.group.userData?.glassBase;
+          const loungeSeatData = entry.group.userData?.seats?.[entry.seat] ?? entry.group.userData;
+          const glass = loungeSeatData?.glass;
+          const base = loungeSeatData?.glassBase;
           if (glass && base) {
             const sip = (Math.sin(nowMs * 0.00075 + (entry.seat === 'A' ? 0 : Math.PI)) + 1) * 0.5;
             const lift = sip > 0.86 ? (sip - 0.86) / 0.14 : 0;
@@ -27210,10 +27256,11 @@ const shotPowerRef = useRef(0);
             let chairFacing = null;
             if (shouldRestAtChair) {
               const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRoot;
+              const loungeSeatData = lounge?.userData?.seats?.[seat] ?? lounge?.userData;
+              const chairRoot = loungeSeatData?.chairRoot;
               if (chairRoot) {
                 walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
+                chairFacing = loungeSeatData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
                 walkingToChair = true;
                 seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
               }
@@ -27317,11 +27364,8 @@ const shotPowerRef = useRef(0);
               directRootTarget: walkingToChair
             });
             if (rig.heldCue) {
-              if (isHumanShooter) {
-                rig.heldCue.visible = false;
-              } else {
-                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
-              }
+              rig.heldCue.visible = true;
+              rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
             }
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
