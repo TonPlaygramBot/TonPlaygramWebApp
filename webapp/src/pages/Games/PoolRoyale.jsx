@@ -27118,6 +27118,20 @@ const shotPowerRef = useRef(0);
             }
             const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
             const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
+            const railDistance = Math.min(
+              Math.max(0, TABLE.W / 2 - Math.abs(cueWorld.x)),
+              Math.max(0, TABLE.H / 2 - Math.abs(cueWorld.z))
+            );
+            const bridgeReach = cueWorld.clone().sub(walkRoot).setY(0).length();
+            const shotType = railDistance <= BALL_R * 7
+              ? 'rail'
+              : bridgeReach >= humanUnitScale * 1.25
+                ? 'longReach'
+                : activePower >= 0.74
+                  ? 'power'
+                  : activePower > 0 && activePower <= 0.26
+                    ? 'softPrecision'
+                    : 'standard';
             const bridgeTarget = cueWorld
               .clone()
               // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
@@ -27188,6 +27202,10 @@ const shotPowerRef = useRef(0);
               cueBack,
               cueTip,
               power: activePower,
+              tableCenter: new THREE.Vector3(0, TABLE_Y + TABLE.THICK, 0),
+              railDistance,
+              bridgeReach,
+              shotType,
               directRootTarget: false
             });
             if (rig.heldCue) {
