@@ -2693,8 +2693,8 @@ const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ri
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.15; // move the low cue camera closer toward the bridge hand/cue ball while staying behind the shot line
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.85; // move the low cue camera closer toward the bridge hand/cue ball while staying behind the shot line
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 1.05; // offset beside the cue line so the active player never hides the cue ball or shot line
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
@@ -26988,7 +26988,7 @@ const shotPowerRef = useRef(0);
             seatKey,
             {
               chairRoot: new THREE.Vector3(x + chairLocalX, floorY, z + localZ),
-              chairFacing: new THREE.Vector3(-sideSign, 0, 0).normalize(),
+              chairFacing: new THREE.Vector3(-(x + chairLocalX), 0, -(z + localZ)).normalize(),
               chairSeatWorld: new THREE.Vector3(x + chairLocalX, floorY, z + localZ)
             }
           ])
@@ -27042,10 +27042,10 @@ const shotPowerRef = useRef(0);
             perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_UNIT_SCALE,
             stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            chinToCueHeight: 0.14 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
-            kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            kneeBendShot: 0.21 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: behavior.desiredShootDistance * POOL_ROYALE_HUMAN_UNIT_SCALE,
             edgeMargin: behavior.edgeMargin * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgeHandBackFromBall: behavior.bridgeBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -27061,7 +27061,7 @@ const shotPowerRef = useRef(0);
             rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePull: behavior.strokePull * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightStrokePush: behavior.strokePush * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            rightHandShotLift: -0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             idleRightHandZ: -0.015 * POOL_ROYALE_HUMAN_UNIT_SCALE,
