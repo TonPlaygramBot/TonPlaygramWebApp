@@ -2133,6 +2133,9 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const rightIndexFinger = findBoneByHints(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']);
   const rightThumbFinger = findBoneByHints(instance, ['rightthumb', 'thumb.r', 'thumb_01_r', 'r_thumb']);
   const rightMiddleFinger = findBoneByHints(instance, ['rightmiddle', 'middle.r', 'middle_01_r', 'r_middle']);
+  const leftIndexFinger = findBoneByHints(instance, ['leftindex', 'index.l', 'index_01_l', 'l_index']);
+  const leftThumbFinger = findBoneByHints(instance, ['leftthumb', 'thumb.l', 'thumb_01_l', 'l_thumb']);
+  const leftMiddleFinger = findBoneByHints(instance, ['leftmiddle', 'middle.l', 'middle_01_l', 'l_middle']);
   const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
   const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
   const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
@@ -2181,6 +2184,9 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightIndexFinger,
       rightThumbFinger,
       rightMiddleFinger,
+      leftIndexFinger,
+      leftThumbFinger,
+      leftMiddleFinger,
       leftUpperArm,
       leftForeArm,
       leftHand,
@@ -2199,6 +2205,9 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightIndexFinger: captureBoneRotation(rightIndexFinger),
       rightThumbFinger: captureBoneRotation(rightThumbFinger),
       rightMiddleFinger: captureBoneRotation(rightMiddleFinger),
+      leftIndexFinger: captureBoneRotation(leftIndexFinger),
+      leftThumbFinger: captureBoneRotation(leftThumbFinger),
+      leftMiddleFinger: captureBoneRotation(leftMiddleFinger),
       leftUpperArm: captureBoneRotation(leftUpperArm),
       leftForeArm: captureBoneRotation(leftForeArm),
       leftHand: captureBoneRotation(leftHand),
@@ -2220,12 +2229,21 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-9), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-3), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-49), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(49), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-3));
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-53), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(3));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(53), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(3));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  // Real card grip reference: the fan rests low at the table edge, one palm supports
+  // the bottom edge while the opposite thumb/fingers pinch the spread instead of
+  // floating open-palmed in front of the torso.
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-38), THREE.MathUtils.degToRad(-13), THREE.MathUtils.degToRad(-7));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(-9), THREE.MathUtils.degToRad(-5));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(24), THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(-7));
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-42), THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(7));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(9), THREE.MathUtils.degToRad(5));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(25), THREE.MathUtils.degToRad(12), THREE.MathUtils.degToRad(7));
+  applyRotationOffset(leftIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(1));
+  applyRotationOffset(leftThumbFinger, THREE.MathUtils.degToRad(-14), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-8));
+  applyRotationOffset(leftMiddleFinger, THREE.MathUtils.degToRad(20), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(1));
+  applyRotationOffset(rightIndexFinger, THREE.MathUtils.degToRad(20), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(-1));
+  applyRotationOffset(rightThumbFinger, THREE.MathUtils.degToRad(-16), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(8));
+  applyRotationOffset(rightMiddleFinger, THREE.MathUtils.degToRad(22), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-1));
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -2242,6 +2260,9 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightIndexFinger: captureBoneRotation(rightIndexFinger),
     rightThumbFinger: captureBoneRotation(rightThumbFinger),
     rightMiddleFinger: captureBoneRotation(rightMiddleFinger),
+    leftIndexFinger: captureBoneRotation(leftIndexFinger),
+    leftThumbFinger: captureBoneRotation(leftThumbFinger),
+    leftMiddleFinger: captureBoneRotation(leftMiddleFinger),
     leftUpperArm: captureBoneRotation(leftUpperArm),
     leftForeArm: captureBoneRotation(leftForeArm),
     leftHand: captureBoneRotation(leftHand),
@@ -2457,37 +2478,39 @@ function runCharacterAction(store, rig, action) {
       rightThumbFinger: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(13) },
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-2) }
     };
+    const tableKnockArm = {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-23) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(64), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-3) }
+    };
     const reachBeforeKnock = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(3) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(4) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-4) },
+      spine: { x: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(4) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(3) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-26), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-19) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(44), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-1), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
       ...relaxedOpenHand
     });
     const cockedKnuckles = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(5) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-16) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-8) },
+      spine: { x: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(6) },
+      ...tableKnockArm,
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-10) },
       ...looseKnockFist
     });
     const tableTap = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(2) },
+      spine: { x: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(2) },
       head: { x: THREE.MathUtils.degToRad(7) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(-15) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(54), y: THREE.MathUtils.degToRad(-4) },
-      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-5) },
+      ...tableKnockArm,
+      rightHand: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(-9) },
       ...looseKnockFist
     });
     const rebound = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-11), z: THREE.MathUtils.degToRad(1) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(40), y: THREE.MathUtils.degToRad(-3) },
-      rightHand: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-7) },
+      spine: { x: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(2) },
+      head: { x: THREE.MathUtils.degToRad(6) },
+      ...tableKnockArm,
+      rightHand: { x: THREE.MathUtils.degToRad(-9), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-10) },
       ...looseKnockFist
     });
 
@@ -3034,16 +3057,20 @@ const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
-const AI_HAND_CARD_SCALE = 0.76;
-const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.9 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.48 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = -0.34 * MODEL_SCALE;
-const AI_TOP_HAND_UP_SHIFT_Y = -0.12 * MODEL_SCALE;
-const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 2.14 * MODEL_SCALE;
-const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
+const AI_HAND_CARD_SCALE = 0.72;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.06 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.08 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.58 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.12 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = -0.46 * MODEL_SCALE;
+const AI_TOP_HAND_UP_SHIFT_Y = -0.2 * MODEL_SCALE;
+const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.11 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 1.86 * MODEL_SCALE;
+const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0.02 * MODEL_SCALE;
+const AI_SIDE_HAND_WRIST_ROLL = THREE.MathUtils.degToRad(4);
+const AI_TOP_HAND_WRIST_ROLL = THREE.MathUtils.degToRad(-2);
+const AI_SIDE_HAND_EXTRA_PITCH = THREE.MathUtils.degToRad(5);
+const AI_TOP_HAND_EXTRA_PITCH = THREE.MathUtils.degToRad(3);
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
@@ -4637,6 +4664,16 @@ export default function MurlanRoyaleArena({ search }) {
             handDealDelay += DEAL_SHUFFLE_LEAD_IN_MS;
           }
         }
+        const aiWristRoll = aiHandVariant === 'side'
+          ? ((forward?.x ?? 0) < 0 ? AI_SIDE_HAND_WRIST_ROLL : -AI_SIDE_HAND_WRIST_ROLL)
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_WRIST_ROLL
+            : 0;
+        const aiExtraPitch = aiHandVariant === 'side'
+          ? AI_SIDE_HAND_EXTRA_PITCH
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_EXTRA_PITCH
+            : 0;
         setMeshPosition(
           mesh,
           target,
@@ -4644,7 +4681,8 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
+            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X + aiExtraPitch,
+            rollZ: aiWristRoll
           },
           immediate,
           three.animations,
