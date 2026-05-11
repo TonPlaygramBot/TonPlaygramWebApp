@@ -77,6 +77,22 @@ export const BOWLING_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     thumbnail: swatchThumbnail(['#3b6ea8', '#4f6f93', '#d6a35f']),
     accent: '#3b6ea8',
     ...DEFAULT_BOWLING_CHARACTER_SOURCE
+  },
+  {
+    id: 'webgl-thanh-human-domino',
+    label: 'Thanh Human',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
+    thumbnail: swatchThumbnail(['#c58b5d', '#1f2937', '#e5e7eb']),
+    accent: '#c58b5d',
+    ...DEFAULT_BOWLING_CHARACTER_SOURCE
+  },
+  {
+    id: 'threejs-xbot-human-domino',
+    label: 'Xbot Human',
+    modelUrls: ['https://threejs.org/examples/models/gltf/Xbot.glb'],
+    thumbnail: swatchThumbnail(['#111827', '#64748b', '#f8fafc']),
+    accent: '#111827',
+    ...DEFAULT_BOWLING_CHARACTER_SOURCE
   }
 ]);
 
