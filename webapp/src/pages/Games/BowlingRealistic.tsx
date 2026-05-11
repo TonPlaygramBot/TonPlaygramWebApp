@@ -124,6 +124,10 @@ const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "tableFinish");
 const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "chromeColor");
 const PORTRAIT_AIM_ASSIST = 0.62;
+const PORTRAIT_CAMERA_BACK_OFFSET = 4.85;
+const PORTRAIT_CAMERA_SIDE_OFFSET = 1.35;
+const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.38;
+const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
 const BALL_VARIANTS: BallVariant[] = [
   { label: "10", radius: 0.165, massFactor: 0.92, colors:["#93c5fd","#2563eb","#0b1b4a"] },
   { label: "12", radius: 0.176, massFactor: 1.0, colors:["#fda4af","#e11d48","#4a0416"] },
@@ -143,7 +147,7 @@ const STRIKE_DANCE_LINES = ["Perfect strike!", "Unstoppable!", "Ten down, wow!",
 const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket hit!","That was elite timing."], spare:["Great spare conversion!","Clutch second ball!"], open:["Nice try—adjust and fire again.","Good pace, keep rhythm."] } as const;
 
 const CFG = {
-  laneY: 0,
+  laneY: -0.08,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -458,49 +462,11 @@ function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
 }
 
-function makeFallbackHuman(color: number) {
+function makeFallbackHuman(_color: number) {
+  // GLTF-only humans: keep an empty placeholder so animation code has a stable root,
+  // but never render procedural capsule/body parts while remote characters load.
   const g = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xecc5a2, roughness: 0.82 });
-  const shirt = new THREE.MeshStandardMaterial({ color, roughness: 0.72 });
-  const pants = new THREE.MeshStandardMaterial({ color: 0x1f232c, roughness: 0.84 });
-  const shoes = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.56 });
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 18), skin);
-  head.name = "head";
-  head.position.y = 1.62;
-  g.add(head);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.54, 6, 14), shirt);
-  torso.name = "torso";
-  torso.position.y = 1.05;
-  g.add(torso);
-  const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.52, 4, 10), pants);
-  leftLeg.name = "leftLeg";
-  leftLeg.position.set(-0.12, 0.35, 0);
-  g.add(leftLeg);
-  const rightLeg = leftLeg.clone();
-  rightLeg.name = "rightLeg";
-  rightLeg.position.x = 0.12;
-  g.add(rightLeg);
-  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 4, 10), skin);
-  leftArm.name = "leftArm";
-  leftArm.position.set(-0.32, 1.16, 0);
-  leftArm.rotation.z = 0.22;
-  g.add(leftArm);
-  const rightArm = leftArm.clone();
-  rightArm.name = "rightArm";
-  rightArm.position.set(0.32, 1.16, 0.06);
-  rightArm.rotation.z = -0.18;
-  g.add(rightArm);
-  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.28), shoes);
-  shoeL.name = "leftShoe";
-  shoeL.position.set(-0.12, 0.03, -0.02);
-  g.add(shoeL);
-  const shoeR = shoeL.clone();
-  shoeR.name = "rightShoe";
-  shoeR.position.x = 0.12;
-  g.add(shoeR);
-  g.scale.setScalar(0.9);
-  enableShadow(g);
+  g.visible = false;
   return g;
 }
 
@@ -624,6 +590,7 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanChar
   );
   shadow.rotation.x = -Math.PI / 2;
   modelRoot.position.copy(start);
+  fallback.visible = false;
   modelRoot.add(fallback);
   shadow.position.set(start.x, CFG.laneY + 0.01, start.z);
   scene.add(root, modelRoot, shadow);
@@ -668,12 +635,12 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
     rig.modelRoot.remove(rig.model);
     rig.model = null;
   }
-  rig.fallback.visible = true;
+  rig.fallback.visible = false;
   let cancelled = false;
   const tryLoad = (index: number) => {
     if (cancelled) return;
     if (index >= urls.length) {
-      rig.fallback.visible = true;
+      rig.fallback.visible = false;
       return;
     }
     loader.load(
@@ -1326,19 +1293,11 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     group.add(laneNumber);
   }
 
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(pairHalfW * 2 + 0.6, 1.05, 0.16), new THREE.MeshStandardMaterial({ color: 0x0f1724, roughness: 0.72, metalness: 0.12 }));
-  backWall.position.set(0, 0.78, CFG.backStopZ - 0.78);
-  group.add(backWall);
-  const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(pairHalfW * 2 + 0.2, 0.92, 1.86), new THREE.MeshStandardMaterial({ color: 0x202833, roughness: 0.5, metalness: 0.32 }));
-  pinsetter.position.set(0, 0.34, CFG.backStopZ + 0.12);
-  group.add(pinsetter);
+  // Leave the pin end open to the HDRI wall; no black back board or pinsetter cabinet.
   for (const laneCenter of LANE_CENTERS) {
     const pinFocus = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.38, 0.1, 0.08), new THREE.MeshBasicMaterial({ color: 0x92e7ff, transparent: true, opacity: 0.46, toneMapped: false }));
     pinFocus.position.set(laneCenter, 0.86, CFG.backStopZ + 0.82);
     group.add(pinFocus);
-    const pitCurtain = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.36, 1.28, 0.1), new THREE.MeshStandardMaterial({ color: 0x03050a, roughness: 0.95, metalness: 0.02 }));
-    pitCurtain.position.set(laneCenter, CFG.laneY + 0.48, CFG.backStopZ - 0.34);
-    group.add(pitCurtain);
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.86, 4.2), woodMat);
       kickback.position.set(laneCenter + x * (CFG.laneHalfW + 0.52), CFG.laneY + 0.42, CFG.pinDeckZ - 1.02);
@@ -2187,7 +2146,17 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   camera.userData.impactShake = shake;
   const shakeVec = new THREE.Vector3(Math.sin(now * 0.047) * 0.028 * shake, Math.cos(now * 0.039) * 0.018 * shake, Math.sin(now * 0.051) * 0.012 * shake);
   const naturalHeadMotion = new THREE.Vector3(Math.sin(now * 0.001) * 0.01, Math.sin(now * 0.0017) * 0.008, 0);
-  const baseFov = camera.aspect < 0.72 ? 48 : 42;
+  const isPortraitCamera = camera.aspect < 0.72;
+  if (isPortraitCamera) {
+    desired.add(new THREE.Vector3(
+      desired.x < 0 ? -PORTRAIT_CAMERA_SIDE_OFFSET : PORTRAIT_CAMERA_SIDE_OFFSET,
+      PORTRAIT_CAMERA_HEIGHT_OFFSET,
+      PORTRAIT_CAMERA_BACK_OFFSET,
+    ));
+    look.x = lerp(look.x, BOWLING_LOUNGE_CENTER.x * 0.38, 0.16);
+    look.z += 0.82;
+  }
+  const baseFov = isPortraitCamera ? 48 : 42;
   const speedFov = ball.rolling ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5 : 0;
   camera.fov = lerp(camera.fov, baseFov + speedFov + pinsProximity * 1.6, 1 - Math.exp(-3.6 * dt));
   camera.updateProjectionMatrix();
@@ -2290,7 +2259,7 @@ export default function MobileBowlingRealistic() {
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
             scene.background = bgTex;
-            const selectedRotation = Number.isFinite(selected?.rotationY) ? selected.rotationY : 0;
+            const selectedRotation = (Number.isFinite(selected?.rotationY) ? selected.rotationY : 0) + BOWLING_HDRI_WALL_ALIGNMENT_Y;
             if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
             if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
             if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0;
