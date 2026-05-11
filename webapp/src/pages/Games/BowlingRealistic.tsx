@@ -1535,9 +1535,12 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   returnBase.position.set(0, CFG.laneY + 0.11, 6.34);
   group.add(returnBase);
   const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 2.68, 48, 1, false, 0, Math.PI), returnShellMat);
-  returnCover.rotation.z = Math.PI / 2;
+  // The ball-return hood should run down-lane with the field instead of across the approach.
+  // CylinderGeometry's height axis starts on local Y; map it to world Z and keep the
+  // half-cylinder arch rising on world Y so the cover matches the lane direction.
+  returnCover.rotation.set(Math.PI / 2, 0, Math.PI / 2);
   returnCover.position.set(0, CFG.laneY + 0.34, 6.34);
-  returnCover.scale.z = 1.02;
+  returnCover.scale.y = 1.02;
   group.add(returnCover);
   const returnMouth = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.055, 32, 1, false, Math.PI * 0.08, Math.PI * 0.84), new THREE.MeshBasicMaterial({ color: 0x010204, transparent: true, opacity: 0.9 }));
   returnMouth.rotation.x = Math.PI / 2;
