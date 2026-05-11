@@ -113,9 +113,6 @@ const BowlingRealistic = React.lazy(
 const FreeKickArena = React.lazy(
   () => import('./pages/Games/FreeKickArena.tsx')
 );
-const MobileUrbanFps = React.lazy(
-  () => import('./games/mobileUrbanFps/MobileUrbanFps.tsx')
-);
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -210,22 +207,6 @@ export default function App() {
               <Route
                 path="/games/transactions"
                 element={<GameTransactions />}
-              />
-              <Route
-                path="/games/mobile-urban-fps"
-                element={
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Urban Ops FPS…
-                      </div>
-                    }
-                  >
-                    <GameLiveAvatarOverlay gameSlug="mobile-urban-fps">
-                      <MobileUrbanFps />
-                    </GameLiveAvatarOverlay>
-                  </Suspense>
-                }
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
               <Route

@@ -1,14 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'Urban Ops FPS',
-    route: '/games/mobile-urban-fps',
-    slug: 'mobile-urban-fps',
-    image: '/assets/icons/mobile-urban-fps.svg',
-    description:
-      'Mobile-first portrait FPS prototype with touch aiming, rifle recoil, city cover, and enemy AI.'
-  },
-
-  {
     name: 'Real Bowling',
     route: '/games/bowling/lobby',
     slug: 'bowling',
