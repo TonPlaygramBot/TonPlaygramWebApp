@@ -2018,7 +2018,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     ? handCardsInput.slice(0, 5)
     : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
   const safeCount = Math.max(handCards.length, 2);
-  const cardGeometry = createCardGeometry(0.186 * MODEL_SCALE, 0.27 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
+  const cardGeometry = createCardGeometry(0.218 * MODEL_SCALE, 0.316 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
     cornerRadiusRatio: 0.18,
     segments: 14
@@ -2032,7 +2032,9 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const managedTextures = [backTexture];
   const managedMaterials = [edgeMaterial];
 
-  const spread = 0.12 * MODEL_SCALE;
+  // Narrow centers and wider rotations make held helper decks pinch at the
+  // thumb/bottom while opening gradually toward the card tops.
+  const spread = 0.082 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
     const handCard = handCards[idx] || handCards[handCards.length - 1];
     const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, cardTextureSize?.heldW, cardTextureSize?.heldH);
@@ -2060,8 +2062,8 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
       THREE.MathUtils.degToRad(-72),
-      THREE.MathUtils.degToRad(-centered * 8),
-      THREE.MathUtils.degToRad(centered * 11)
+      THREE.MathUtils.degToRad(-centered * 12),
+      THREE.MathUtils.degToRad(centered * 16)
     );
     card.castShadow = true;
     card.receiveShadow = true;
@@ -2229,6 +2231,17 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
   applyRotationOffset(rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
   applyRotationOffset(rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+
+  if (player?.isHuman) {
+    // Bottom player: reach farther toward the enlarged fan and soften the elbow
+    // bend so the forearms look straighter and closer to the card bottoms.
+    applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(2));
+    applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-14), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2));
+    applyRotationOffset(leftHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(2));
+    applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-2));
+    applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-14), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-2));
+    applyRotationOffset(rightHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-2));
+  }
   // Legs rotated opposite/downward (not upward) to mirror Ludo Battle Royal seated humans.
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -2960,7 +2973,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 0.96 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 1.08 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.01 * MODEL_SCALE * CARD_SCALE; // Extra-trimmed thickness to avoid dark edge wedges.
@@ -3008,11 +3021,13 @@ const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
   portrait: 0.19 * MODEL_SCALE,
   landscape: 0.05 * MODEL_SCALE
 });
-const HUMAN_HAND_CARD_SCALE = 1.02;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
+const HUMAN_HAND_CARD_SCALE = 1.12;
+// Keep the bottom edges tucked together like a real thumb-held fan while the
+// stronger yaw below preserves the open top spread shown in the reference photos.
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.16;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
-const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(19);
+const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(29);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
@@ -3031,10 +3046,10 @@ const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
 const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
-const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(13);
+const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
+const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(19);
 const AI_HAND_FAN_ARC_LIFT = 0.052 * MODEL_SCALE;
-const AI_HAND_CARD_SCALE = 0.74;
+const AI_HAND_CARD_SCALE = 0.84;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.035 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.07 * MODEL_SCALE;
 const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.72 * MODEL_SCALE;
@@ -3052,7 +3067,7 @@ const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
 const HAND_CARDS_INWARD_BIAS = 0.18 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
-const COMMUNITY_CARD_SCALE = 1.08;
+const COMMUNITY_CARD_SCALE = 1.14;
 const COMMUNITY_CARD_SPACING = HUMAN_HAND_CARD_SPACING * 0.2;
 const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
