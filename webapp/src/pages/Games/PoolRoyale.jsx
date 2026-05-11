@@ -1848,7 +1848,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
@@ -2245,7 +2245,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
+const SPIN_GLOBAL_SCALE = 0.82; // trim Pool Royale cue spin slightly for more natural ball control
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -2273,7 +2273,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1; // keep slider strength honest by removing the extra Pool Royale boost
-const SHOT_GLOBAL_POWER_SCALE = 0.72; // soften Pool Royale shot pace so ball travel matches the displayed slider power
+const SHOT_GLOBAL_POWER_SCALE = 0.84; // add more Pool Royale cue power while keeping slider response controlled
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2686,6 +2686,7 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
+const POOL_ROYALE_HUMAN_WALK_SPEED_SCALE = 0.72; // slower, soldier-like natural walk cadence
 const HUMAN_EDGE_MARGIN = 2.18; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
 const HUMAN_DESIRED_SHOOT_DISTANCE = 2.42; // keep the shooter much farther back on the cue-butt side like a real pool stance
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
@@ -7471,7 +7472,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive follow
+const MAX_TOPSPIN_INPUT = 0.78; // trim topspin cap further to reduce excessive follow
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
@@ -9026,7 +9027,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
@@ -20346,7 +20347,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -20955,6 +20956,18 @@ const shotPowerRef = useRef(0);
       const backInterior = arenaHalfDepth;
       const leftInterior = -arenaHalfWidth;
       const rightInterior = arenaHalfWidth;
+
+      const hdriFloorShadowCatcher = new THREE.Mesh(
+        new THREE.PlaneGeometry(roomWidth * 1.4, roomDepth * 1.4),
+        new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.28 })
+      );
+      hdriFloorShadowCatcher.name = 'PoolRoyale_HDRI_Floor_ShadowCatcher';
+      hdriFloorShadowCatcher.rotation.x = -Math.PI / 2;
+      hdriFloorShadowCatcher.position.y = floorY + MICRO_EPS;
+      hdriFloorShadowCatcher.receiveShadow = true;
+      hdriFloorShadowCatcher.castShadow = false;
+      hdriFloorShadowCatcher.renderOrder = -20;
+      world.add(hdriFloorShadowCatcher);
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -26865,65 +26878,100 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPoolSideLounge = (seat, sideSign) => {
+      const createPoolSharedLounge = () => {
         const group = new THREE.Group();
-        group.userData.seat = seat;
+        group.userData.sharedPoolRoyaleLounge = true;
+        const sideSign = 1;
         const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = seat === 'A' ? -TABLE.H * 0.16 : TABLE.H * 0.16;
+        const z = 0;
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
         const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
-        fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
+        const chairLocalZBySeat = {
+          A: -Math.max(TABLE.H * 0.18, BALL_R * 22),
+          B: Math.max(TABLE.H * 0.18, BALL_R * 22)
+        };
+        const fallbackFurniture = createFallbackPoolSideFurniture('A', sideSign, tableTopY);
+        fallbackFurniture.name = 'PoolRoyale_Shared_VisibleLoungeFallback';
+        fallbackFurniture.userData?.chairMeshes?.forEach((mesh) => {
+          mesh.visible = false;
+        });
         group.add(fallbackFurniture);
 
-        const showLoungeTable = true;
-        fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-          mesh.visible = showLoungeTable;
-        });
-        if (showLoungeTable) {
-          const murlanDefaultTable = new THREE.Group();
-          murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-          try {
-            createMurlanStyleTable({
-              THREE,
-              arena: murlanDefaultTable,
-              renderer,
-              tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-              tableHeight: tableTopY,
-              includeBase: true
-            });
-            group.add(murlanDefaultTable);
-            fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-              mesh.visible = false;
-            });
-          } catch (error) {
-            console.warn('Failed to create Pool Royale Murlan default lounge table', error);
-          }
+        const murlanDefaultTable = new THREE.Group();
+        murlanDefaultTable.name = 'PoolRoyale_Shared_MurlanDefaultOctagonTable';
+        try {
+          createMurlanStyleTable({
+            THREE,
+            arena: murlanDefaultTable,
+            renderer,
+            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
+            tableHeight: tableTopY,
+            includeBase: true
+          });
+          group.add(murlanDefaultTable);
+          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+            mesh.visible = false;
+          });
+        } catch (error) {
+          console.warn('Failed to create shared Pool Royale Murlan lounge table', error);
+          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+            mesh.visible = true;
+          });
         }
+
+        const addFallbackChairForSeat = (seat) => {
+          const chairSeat = fallbackFurniture.userData?.chairMeshes?.[0]?.clone?.();
+          const chairBack = fallbackFurniture.userData?.chairMeshes?.[1]?.clone?.();
+          if (!chairSeat || !chairBack) return null;
+          const chair = new THREE.Group();
+          chair.name = `PoolRoyale_${seat}_SharedFallbackChair`;
+          chairSeat.visible = true;
+          chairBack.visible = true;
+          chairSeat.position.set(chairLocalX, BALL_R * 4.4, chairLocalZBySeat[seat]);
+          chairBack.position.set(chairLocalX + sideSign * BALL_R * 9.5, BALL_R * 11.2, chairLocalZBySeat[seat]);
+          chair.add(chairSeat, chairBack);
+          group.add(chair);
+          return chair;
+        };
+        const fallbackChairs = {
+          A: addFallbackChairForSeat('A'),
+          B: addFallbackChairForSeat('B')
+        };
 
         loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
           if (!group.parent) return;
-          const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
-          if (!chairModel) return;
-          markHospitalityMaterials(chairModel);
-          fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(chairLocalX, chairModel.position.y, 0);
-          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
-          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
-          group.add(chairModel);
-          fallbackFurniture.visible = false;
+          ['A', 'B'].forEach((seat) => {
+            const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
+            if (!chairModel) return;
+            markHospitalityMaterials(chairModel);
+            fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
+            chairModel.position.set(chairLocalX, chairModel.position.y, chairLocalZBySeat[seat]);
+            const toGameplay = new THREE.Vector2(-x - chairLocalX, -chairLocalZBySeat[seat]);
+            chairModel.rotation.y = Math.atan2(toGameplay.x, toGameplay.y);
+            group.add(chairModel);
+          });
+          Object.values(fallbackChairs).forEach((chair) => {
+            if (chair) chair.visible = false;
+          });
         }).catch((error) => {
-          console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
+          console.warn('Failed to upgrade shared Pool Royale lounge chair GLTF asset', error);
         });
 
-        const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
+        const serviceProps = createWaterServiceProps(tableTopY);
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.chairFacing = new THREE.Vector3(-sideSign, 0, 0).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z);
+        const chairsBySeat = {};
+        ['A', 'B'].forEach((seat) => {
+          const chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z + chairLocalZBySeat[seat]);
+          chairsBySeat[seat] = {
+            root: chairRoot,
+            facing: new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize(),
+            seatWorld: chairRoot.clone()
+          };
+        });
+        group.userData.chairsBySeat = chairsBySeat;
         group.userData.glass = serviceProps?.userData?.glass || null;
         group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
@@ -26967,7 +27015,7 @@ const shotPowerRef = useRef(0);
             tableW: PLAY_W,
             tableL: PLAY_H,
             perimeterWalk: true,
-            perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_WALK_SPEED_SCALE * POOL_ROYALE_HUMAN_UNIT_SCALE,
             stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -27012,15 +27060,12 @@ const shotPowerRef = useRef(0);
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        world.add(loungeA);
-        world.add(loungeB);
+        const sharedLounge = createPoolSharedLounge();
+        world.add(sharedLounge);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' }
+          { group: sharedLounge, lounge: true, sharedLounge: true }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -27144,7 +27189,14 @@ const shotPowerRef = useRef(0);
         const loungeBySeat = new Map();
         rigs.forEach((entry) => {
           if (!entry?.lounge || !entry.group) return;
-          loungeBySeat.set(entry.seat, entry.group);
+          const chairsBySeat = entry.group.userData?.chairsBySeat;
+          if (chairsBySeat) {
+            Object.keys(chairsBySeat).forEach((loungeSeat) => {
+              loungeBySeat.set(loungeSeat, entry.group);
+            });
+          } else if (entry.seat) {
+            loungeBySeat.set(entry.seat, entry.group);
+          }
           const glass = entry.group.userData?.glass;
           const base = entry.group.userData?.glassBase;
           if (glass && base) {
@@ -27197,7 +27249,7 @@ const shotPowerRef = useRef(0);
             const humanLoopDelta =
               THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
             const humanMaxStepT =
-              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
+              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_WALK_SPEED_SCALE * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
               (4 * (walkHalfX + walkHalfZ));
             human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
               human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
@@ -27210,10 +27262,11 @@ const shotPowerRef = useRef(0);
             let chairFacing = null;
             if (shouldRestAtChair) {
               const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRoot;
+              const chairData = lounge?.userData?.chairsBySeat?.[seat];
+              const chairRoot = chairData?.root || lounge?.userData?.chairRoot;
               if (chairRoot) {
                 walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
+                chairFacing = chairData?.facing?.clone?.() ?? lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
                 walkingToChair = true;
                 seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
               }
@@ -27317,11 +27370,7 @@ const shotPowerRef = useRef(0);
               directRootTarget: walkingToChair
             });
             if (rig.heldCue) {
-              if (isHumanShooter) {
-                rig.heldCue.visible = false;
-              } else {
-                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
-              }
+              rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
             }
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
