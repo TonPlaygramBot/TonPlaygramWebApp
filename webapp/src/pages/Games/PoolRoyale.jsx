@@ -125,6 +125,7 @@ import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
+  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
   updateBilardoHumanPose as sharedUpdateBilardoHumanPose
 } from './shared/bilardoHumanRig.js';
 
@@ -557,6 +558,7 @@ function updateBilardoHumanPose(human, dt, frameData) {
 
 // Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
 const createBilardoHumanRig = sharedCreateBilardoHumanRig;
+const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
 const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -2697,128 +2699,6 @@ const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/c
 const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
-const HUMAN_RAIL_CLEARANCE = TABLE.WALL * 3.15; // stance body/feet stay outside the rail blocker while the bridge hand can reach cloth/rail
-const HUMAN_STANCE_LATERAL_SAMPLE = BALL_R * 5.6;
-const HUMAN_STANCE_REAR_SAMPLE = BALL_R * 10.8;
-const HUMAN_DEBUG_ARROW_LENGTH = BALL_R * 13.5;
-const HUMAN_DEBUG_ARROW_LIFT = BALL_R * 1.35;
-const HUMAN_SHOT_TYPES = Object.freeze({
-  STANDARD: 'standard',
-  RAIL: 'rail',
-  LONG_REACH: 'longReach',
-  CLOSE_CUE: 'closeCueBall',
-  POWER: 'power',
-  SOFT: 'softPrecision',
-  DIFFICULT: 'difficultAngle'
-});
-
-function classifyPoolPlayerShot({ cueWorld, aimForward, activePower = 0, tableW = TABLE.W, tableH = TABLE.H } = {}) {
-  const halfX = tableW / 2;
-  const halfZ = tableH / 2;
-  const railDist = cueWorld
-    ? Math.min(halfX - Math.abs(cueWorld.x), halfZ - Math.abs(cueWorld.z))
-    : Infinity;
-  const diagonalBias = aimForward
-    ? Math.abs(Math.abs(aimForward.x) - Math.abs(aimForward.z))
-    : 1;
-  if (activePower >= 0.78) return HUMAN_SHOT_TYPES.POWER;
-  if (activePower > 0 && activePower <= 0.22) return HUMAN_SHOT_TYPES.SOFT;
-  if (railDist <= BALL_R * 3.1) return HUMAN_SHOT_TYPES.RAIL;
-  if (railDist <= BALL_R * 5.2 && activePower >= 0.45) return HUMAN_SHOT_TYPES.LONG_REACH;
-  if (diagonalBias < 0.18) return HUMAN_SHOT_TYPES.DIFFICULT;
-  return HUMAN_SHOT_TYPES.STANDARD;
-}
-
-function resolvePoolPlayerShotProfile(shotType, activePower = 0) {
-  const profile = {
-    bridgeBackScale: 1,
-    bridgeSideAdd: 0,
-    bridgeLiftAdd: 0,
-    cueLiftAdd: 0,
-    stanceBackAdd: 0,
-    stanceSideAdd: 0,
-    gripScale: 1,
-    strokeScale: 1,
-    posturePower: activePower
-  };
-  if (shotType === HUMAN_SHOT_TYPES.RAIL) {
-    profile.bridgeBackScale = 0.82;
-    profile.bridgeLiftAdd = BALL_R * 0.72;
-    profile.cueLiftAdd = BALL_R * 0.52;
-    profile.stanceBackAdd = BALL_R * 2.0;
-    profile.posturePower = Math.max(profile.posturePower, 0.34);
-  } else if (shotType === HUMAN_SHOT_TYPES.LONG_REACH) {
-    profile.bridgeBackScale = 1.3;
-    profile.stanceBackAdd = BALL_R * 4.8;
-    profile.gripScale = 1.08;
-    profile.posturePower = Math.max(profile.posturePower, 0.5);
-  } else if (shotType === HUMAN_SHOT_TYPES.CLOSE_CUE) {
-    profile.bridgeBackScale = 0.72;
-    profile.gripScale = 0.82;
-    profile.strokeScale = 0.58;
-  } else if (shotType === HUMAN_SHOT_TYPES.POWER) {
-    profile.stanceBackAdd = BALL_R * 3.2;
-    profile.strokeScale = 1.22;
-    profile.posturePower = 1;
-  } else if (shotType === HUMAN_SHOT_TYPES.SOFT) {
-    profile.strokeScale = 0.52;
-    profile.gripScale = 0.92;
-    profile.posturePower = Math.min(profile.posturePower, 0.22);
-  } else if (shotType === HUMAN_SHOT_TYPES.DIFFICULT) {
-    profile.bridgeSideAdd = BALL_R * 0.5;
-    profile.stanceSideAdd = BALL_R * 1.2;
-    profile.posturePower = Math.max(profile.posturePower, 0.38);
-  }
-  return profile;
-}
-
-function createPoolPlayerDebugArrows() {
-  const root = new THREE.Group();
-  root.name = 'PoolRoyaleHumanShotDebugArrows';
-  const makeArrow = (name, color) => {
-    const arrow = new THREE.ArrowHelper(
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(),
-      HUMAN_DEBUG_ARROW_LENGTH,
-      color,
-      HUMAN_DEBUG_ARROW_LENGTH * 0.24,
-      HUMAN_DEBUG_ARROW_LENGTH * 0.1
-    );
-    arrow.name = name;
-    root.add(arrow);
-    return arrow;
-  };
-  root.userData.arrows = {
-    table: makeArrow('table center direction', 0x38bdf8),
-    shot: makeArrow('shot direction', 0xfacc15),
-    character: makeArrow('character forward direction', 0x22c55e),
-    cue: makeArrow('cue direction', 0xf97316)
-  };
-  root.visible = false;
-  return root;
-}
-
-function updatePoolPlayerDebugArrows(group, frame) {
-  if (!group?.userData?.arrows || !frame?.root) return;
-  const arrows = group.userData.arrows;
-  const origin = frame.root.clone().add(new THREE.Vector3(0, HUMAN_DEBUG_ARROW_LIFT, 0));
-  const setArrow = (arrow, dir, pos = origin) => {
-    if (!arrow || !dir || dir.lengthSq() < 1e-8) return;
-    const n = dir.clone();
-    n.y = 0;
-    if (n.lengthSq() < 1e-8) n.copy(dir);
-    n.normalize();
-    arrow.position.copy(pos);
-    arrow.setDirection(n);
-    arrow.setLength(HUMAN_DEBUG_ARROW_LENGTH, HUMAN_DEBUG_ARROW_LENGTH * 0.24, HUMAN_DEBUG_ARROW_LENGTH * 0.1);
-  };
-  setArrow(arrows.table, frame.tableCenter.clone().sub(frame.root));
-  setArrow(arrows.shot, frame.shotForward, frame.cueBall.clone().add(new THREE.Vector3(0, HUMAN_DEBUG_ARROW_LIFT, 0)));
-  setArrow(arrows.character, frame.characterForward);
-  setArrow(arrows.cue, frame.cueTip.clone().sub(frame.cueBack), frame.cueBack.clone().add(new THREE.Vector3(0, HUMAN_DEBUG_ARROW_LIFT * 0.55, 0)));
-  group.visible = Boolean(frame.visible);
-}
-
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -26733,9 +26613,6 @@ const shotPowerRef = useRef(0);
           if (rig?.heldCue?.parent) {
             rig.heldCue.parent.remove(rig.heldCue);
           }
-          if (rig?.debugArrows?.parent) {
-            rig.debugArrows.parent.remove(rig.debugArrows);
-          }
         });
         playerCharacterRigsRef.current = [];
       };
@@ -27043,9 +26920,7 @@ const shotPowerRef = useRef(0);
           };
           const heldCue = createHumanHeldCueMesh();
           world.add(heldCue);
-          const debugArrows = createPoolPlayerDebugArrows();
-          world.add(debugArrows);
-          return { seat, human, heldCue, debugArrows };
+          return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         playerCharacterRigsRef.current = [
@@ -27168,57 +27043,6 @@ const shotPowerRef = useRef(0);
         };
         const isInsideTableBlocker = (point) =>
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
-        const isWalkableRoot = (point) => {
-          if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return false;
-          return !isInsideTableBlocker(point);
-        };
-        const chooseValidPoolPlayerRoot = (cuePoint, aimForward, behavior, shotProfile) => {
-          const safeAim = aimForward?.clone?.() ?? new THREE.Vector3(0, 0, -1);
-          safeAim.y = 0;
-          if (safeAim.lengthSq() < 1e-8) safeAim.set(0, 0, -1);
-          safeAim.normalize();
-          const side = new THREE.Vector3(safeAim.z, 0, -safeAim.x).normalize();
-          const baseDistance =
-            ((behavior?.desiredShootDistance ?? HUMAN_DESIRED_SHOOT_DISTANCE) * POOL_ROYALE_HUMAN_UNIT_SCALE) +
-            (shotProfile?.stanceBackAdd ?? 0);
-          const lateral = shotProfile?.stanceSideAdd ?? 0;
-          const rawDesired = cuePoint
-            .clone()
-            .addScaledVector(safeAim, -baseDistance)
-            .addScaledVector(side, lateral)
-            .setY(floorY);
-          const edgeMargin = Math.max(
-            HUMAN_RAIL_CLEARANCE,
-            (behavior?.edgeMargin ?? HUMAN_EDGE_MARGIN) * POOL_ROYALE_HUMAN_UNIT_SCALE
-          );
-          const outsideHalfX = TABLE.W / 2 + edgeMargin;
-          const outsideHalfZ = TABLE.H / 2 + edgeMargin;
-          const samples = [
-            rawDesired,
-            rawDesired.clone().addScaledVector(side, HUMAN_STANCE_LATERAL_SAMPLE),
-            rawDesired.clone().addScaledVector(side, -HUMAN_STANCE_LATERAL_SAMPLE),
-            rawDesired.clone().addScaledVector(safeAim, -HUMAN_STANCE_REAR_SAMPLE),
-            rawDesired.clone().addScaledVector(side, HUMAN_STANCE_LATERAL_SAMPLE * 1.8).addScaledVector(safeAim, -HUMAN_STANCE_REAR_SAMPLE * 0.5),
-            rawDesired.clone().addScaledVector(side, -HUMAN_STANCE_LATERAL_SAMPLE * 1.8).addScaledVector(safeAim, -HUMAN_STANCE_REAR_SAMPLE * 0.5),
-            new THREE.Vector3(-outsideHalfX, floorY, THREE.MathUtils.clamp(rawDesired.z, -outsideHalfZ, outsideHalfZ)),
-            new THREE.Vector3(outsideHalfX, floorY, THREE.MathUtils.clamp(rawDesired.z, -outsideHalfZ, outsideHalfZ)),
-            new THREE.Vector3(THREE.MathUtils.clamp(rawDesired.x, -outsideHalfX, outsideHalfX), floorY, -outsideHalfZ),
-            new THREE.Vector3(THREE.MathUtils.clamp(rawDesired.x, -outsideHalfX, outsideHalfX), floorY, outsideHalfZ)
-          ];
-          const ranked = samples
-            .map((sample) => clampToWalkPerimeter(sample))
-            .filter(isWalkableRoot)
-            .sort((a, b) => a.distanceToSquared(rawDesired) - b.distanceToSquared(rawDesired));
-          return (ranked[0] ?? clampToWalkPerimeter(rawDesired)).setY(floorY);
-        };
-        const humanDebugArrowsEnabled = (() => {
-          try {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('humanDebug') === '1' || window.localStorage?.getItem('poolRoyaleHumanDebug') === '1';
-          } catch {
-            return false;
-          }
-        })();
 
         const desiredRoot = chooseEdgeTarget(normalizedAim);
 
@@ -27246,13 +27070,12 @@ const shotPowerRef = useRef(0);
             const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
             const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
             const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const state = mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-            const activePower = state === 'dragging' ? draggingPower : strikingPower;
-            const shotType = classifyPoolPlayerShot({ cueWorld, aimForward, activePower, tableW: TABLE.W, tableH: TABLE.H });
-            const shotProfile = resolvePoolPlayerShotProfile(shotType, activePower);
-            const desiredRoot = chooseValidPoolPlayerRoot(cueWorld, aimForward, behavior, shotProfile);
+            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
+              tableW: TABLE.W,
+              tableL: TABLE.H,
+              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
+              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
+            }).setY(floorY);
             const perimeterRoot = clampToWalkPerimeter(desiredRoot);
             if (isInsideTableBlocker(perimeterRoot)) {
               perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
@@ -27273,12 +27096,12 @@ const shotPowerRef = useRef(0);
             const walkRoot = perimeterTToPoint(human.walkPerimeterT);
             turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: true };
             characterTurnFlowRef.current = turnFlow;
+            const state = mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+            const activePower = state === 'dragging' ? draggingPower : strikingPower;
             const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const pull =
-              (behavior.strokePull ?? 0.42) *
-              humanUnitScale *
-              (shotProfile.strokeScale ?? 1) *
-              (1 - Math.pow(1 - activePower, 3));
+            const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
             const practiceStroke =
               state === 'dragging'
                 ? Math.sin(nowMs * 0.012) * (behavior.practiceStroke ?? 0.035) * humanUnitScale * (0.25 + activePower * 0.75)
@@ -27293,22 +27116,18 @@ const shotPowerRef = useRef(0);
                 1 - Math.pow(1 - strikeNorm, 3)
               );
             }
-            const bridgeBackFromBall =
-              (human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale) *
-              (shotProfile.bridgeBackScale ?? 1);
-            const bridgeSideOffset =
-              (human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale) +
-              (shotProfile.bridgeSideAdd ?? 0);
+            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
+            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
             const bridgeTarget = cueWorld
               .clone()
               // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
               .addScaledVector(aimForward, -bridgeBackFromBall)
               .addScaledVector(side, bridgeSideOffset)
-              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale + (shotProfile.bridgeLiftAdd ?? 0));
+              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
             const bridgeCuePoint = bridgeTarget
               .clone()
               .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale + (shotProfile.cueLiftAdd ?? 0), 0));
+              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
             const cueTipShoot = cueWorld
               .clone()
               .addScaledVector(aimForward, -(BALL_R + cueBallGap));
@@ -27319,7 +27138,7 @@ const shotPowerRef = useRef(0);
             const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
             const shootGripTarget = cueBackShoot
               .clone()
-              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale * (shotProfile.gripScale ?? 1));
+              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale);
             if (isHumanShooter && state === 'dragging') {
               activeHumanCueViewRef.current = {
                 cueBack: cueBackShoot.clone(),
@@ -27368,9 +27187,8 @@ const shotPowerRef = useRef(0);
               idleLeft,
               cueBack,
               cueTip,
-              power: shotProfile.posturePower ?? activePower,
-              shotType,
-              directRootTarget: true
+              power: activePower,
+              directRootTarget: false
             });
             if (rig.heldCue) {
               rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
@@ -27378,18 +27196,6 @@ const shotPowerRef = useRef(0);
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
             }
-            updatePoolPlayerDebugArrows(rig.debugArrows, {
-              visible: humanDebugArrowsEnabled && isHumanShooter,
-              root: walkRoot,
-              tableCenter: new THREE.Vector3(0, TABLE_Y + TABLE.THICK, 0),
-              cueBall: cueWorld,
-              shotForward: aimForward,
-              characterForward: new THREE.Vector3(0, 0, -1)
-                .applyAxisAngle(new THREE.Vector3(0, 1, 0), (human.yaw || 0) + (human.cfg?.humanVisualYawFix || 0))
-                .normalize(),
-              cueBack,
-              cueTip
-            });
             return;
           }
 
