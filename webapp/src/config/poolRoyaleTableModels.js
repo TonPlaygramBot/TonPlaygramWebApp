@@ -21,7 +21,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitHeightScale: 1,
     lowerBaseHeightScale: 0.78,
     legLengthScale: 1.18,
-    clothRepeatScale: 5.25,
+    clothRepeatScale: 8.75,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
