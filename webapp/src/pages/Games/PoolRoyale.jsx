@@ -10915,6 +10915,92 @@ export function Table3D(
 
   const carbonFiberPatternCanvas = getCarbonFiberPatternCanvas();
 
+  const createMurlanBrandPlateTexture = () => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const pattern = document.createElement('canvas');
+    pattern.width = 64;
+    pattern.height = 64;
+    const pctx = pattern.getContext('2d');
+    if (pctx) {
+      pctx.fillStyle = '#0d1117';
+      pctx.fillRect(0, 0, 64, 64);
+      pctx.fillStyle = '#141a22';
+      pctx.fillRect(0, 0, 32, 32);
+      pctx.fillRect(32, 32, 32, 32);
+      pctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      pctx.lineWidth = 2;
+      pctx.beginPath();
+      pctx.moveTo(0, 32);
+      pctx.lineTo(32, 0);
+      pctx.lineTo(64, 32);
+      pctx.lineTo(32, 64);
+      pctx.closePath();
+      pctx.stroke();
+    }
+
+    const bgPattern = ctx.createPattern(pattern, 'repeat');
+    ctx.fillStyle = bgPattern || '#111827';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const goldFill = '#e6c56a';
+    const goldStroke = '#f2d783';
+    const frameX = 12;
+    const frameY = 12;
+    const frameW = canvas.width - 24;
+    const frameH = canvas.height - 24;
+    const radius = 24;
+    ctx.strokeStyle = goldStroke;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(frameX + radius, frameY);
+    ctx.lineTo(frameX + frameW - radius, frameY);
+    ctx.quadraticCurveTo(frameX + frameW, frameY, frameX + frameW, frameY + radius);
+    ctx.lineTo(frameX + frameW, frameY + frameH - radius);
+    ctx.quadraticCurveTo(frameX + frameW, frameY + frameH, frameX + frameW - radius, frameY + frameH);
+    ctx.lineTo(frameX + radius, frameY + frameH);
+    ctx.quadraticCurveTo(frameX, frameY + frameH, frameX, frameY + frameH - radius);
+    ctx.lineTo(frameX, frameY + radius);
+    ctx.quadraticCurveTo(frameX, frameY, frameX + radius, frameY);
+    ctx.closePath();
+    ctx.stroke();
+
+    const dotRadius = 8;
+    const dotOffset = 34;
+    [
+      [frameX + dotOffset, frameY + dotOffset],
+      [frameX + frameW - dotOffset, frameY + dotOffset],
+      [frameX + dotOffset, frameY + frameH - dotOffset],
+      [frameX + frameW - dotOffset, frameY + frameH - dotOffset]
+    ].forEach(([x, y]) => {
+      ctx.fillStyle = goldFill;
+      ctx.beginPath();
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = goldFill;
+    ctx.font = '700 96px "Inter", "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TonPlaygram', canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+    applySRGBColorSpace(texture);
+    texture.needsUpdate = true;
+    return texture;
+  };
+
   const createCarbonLabelTexture = ({
     width = 2048,
     height = 512,
@@ -11954,15 +12040,7 @@ export function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const brandPlateTexture =
-    createCarbonLabelTexture({
-      width: 2048,
-      height: 512,
-      lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
-      borderWidth: Math.max(TABLE.THICK * 5.5, 20),
-      padding: 140,
-      studScale: 0.28
-    }) || null;
+  const brandPlateTexture = createMurlanBrandPlateTexture();
   const brandPlateTopMaterial = brandPlateTexture
     ? new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
@@ -12019,6 +12097,8 @@ export function Table3D(
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
+    plate.userData.externalTableKeepVisible = true;
+    plate.userData.poolRoyaleKeepBrandPlateWithExternalOriginal = true;
     railsGroup.add(plate);
     const sideMaterials = Array.isArray(plate.material)
       ? plate.material.filter((_, index) => index !== 2)
@@ -13113,7 +13193,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'railSight',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13337,7 +13417,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'railSight' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'railSight' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -14608,6 +14688,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
+          object.userData?.poolRoyaleKeepBrandPlateWithExternalOriginal ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
           (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
