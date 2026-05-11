@@ -2402,27 +2402,27 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     label: 'Classic Pro',
     summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
     bendMode: 'forward',
-    desiredShootDistance: 1.32,
-    edgeMargin: 0.68,
-    stanceWidth: 0.52,
-    bridgeBack: 0.072,
+    desiredShootDistance: 1.58,
+    edgeMargin: 0.82,
+    stanceWidth: 0.62,
+    bridgeBack: 0.095,
     bridgeSide: -0.024,
     bridgeLift: 0.006,
     gripFromBack: 0.58,
-    rightElbowRise: 0.18,
-    rightElbowSide: -0.46,
-    rightElbowBack: -0.78,
-    forearmOutward: 0.36,
-    forearmBack: 0.44,
-    forearmDown: 0.48,
+    rightElbowRise: 0.32,
+    rightElbowSide: -0.52,
+    rightElbowBack: -0.94,
+    forearmOutward: 0.42,
+    forearmBack: 0.56,
+    forearmDown: 0.58,
     strokePull: 0.42,
     strokePush: 0.18,
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
     walkSpeed: 4.0,
-    shootForwardBendScale: 0.62,
-    shootUpperBodyCounterLean: 0.72
+    shootForwardBendScale: 0.92,
+    shootUpperBodyCounterLean: 0.48
   }),
   'rpm-67d411': Object.freeze({
     label: 'Sniper Rail',
@@ -2671,14 +2671,14 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 28; // larger pool-side player table matching the Showood table's bigger stage presence.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 18.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 72; // larger, taller portrait-readable chairs for each player lounge.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 52;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 64;
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 38; // larger pool-side player table matching the Showood table's bigger stage presence.
+const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 84; // larger, taller portrait-readable chairs for each player lounge.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 82;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
-const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -2686,14 +2686,14 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
-const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_EDGE_MARGIN = 2.18; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
+const HUMAN_DESIRED_SHOOT_DISTANCE = 2.42; // keep the shooter much farther back on the cue-butt side like a real pool stance
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.15; // move the low cue camera closer toward the bridge hand/cue ball while staying behind the shot line
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
@@ -4593,8 +4593,9 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
   }))
 );
 
-const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
+const DEFAULT_RAIL_MARKER_SHAPE = 'none';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
+  { id: 'none', label: 'No rail markings' },
   { id: 'diamond', label: 'Diamonds' },
   { id: 'circle', label: 'Circles' }
 ]);
@@ -6997,7 +6998,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0112; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_RADIUS_RATIO = 0.0088; // move cue camera closer for a tighter portrait aiming view
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -12105,13 +12106,13 @@ export function Table3D(
     }
   };
   const applyRailMarkerStyleFn = (style = activeRailMarkerStyle, overrides = {}) => {
-    const shapeId =
-      railMarkerGeometries[style?.shape] && typeof style?.shape === 'string'
-        ? style.shape
-        : DEFAULT_RAIL_MARKER_SHAPE;
-    const geometry =
-      railMarkerGeometries[shapeId] ??
-      railMarkerGeometries[DEFAULT_RAIL_MARKER_SHAPE];
+    const requestedShape = typeof style?.shape === 'string' ? style.shape : DEFAULT_RAIL_MARKER_SHAPE;
+    const shapeId = requestedShape === 'none'
+      ? 'none'
+      : railMarkerGeometries[requestedShape]
+        ? requestedShape
+        : 'none';
+    const geometry = shapeId === 'none' ? null : railMarkerGeometries[shapeId];
     const colorOpt = resolveRailMarkerColorOption(style?.colorId);
     const baseTrim = overrides.trimMaterial ?? trimMat;
     railMarkerMat.copy(baseTrim);
@@ -12139,6 +12140,10 @@ export function Table3D(
     }
     railMarkerMat.needsUpdate = true;
     clearRailMarkerMeshes();
+    if (!geometry) {
+      activeRailMarkerStyle = { shape: 'none', colorId: colorOpt.id };
+      return;
+    }
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
@@ -13994,7 +13999,9 @@ function mountPoolRoyaleExternalTableModel({
             ? ctx.railMat
             : materialKey === 'trim'
               ? ctx.trimMat
-              : null;
+              : materialKey === 'frame'
+                ? ctx.frameMat
+                : null;
         if (material) {
           applyBaseMaterialToObject(base, material, materialKey);
         } else if (materialKey) {
@@ -14199,6 +14206,26 @@ function mountPoolRoyaleExternalTableModel({
       const built = build(ctx);
       const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.88);
       const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.68);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
+    },
+    finishGltfTextureBase: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
+        footprintScale: 1.02,
+        footprintDepthScale: 1.0,
+        heightFill: 0.92,
+        topInsetScale: 0.94,
+        materialKey: 'frame',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.9);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.7);
       const centers = [
         { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
         { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
@@ -15525,7 +15552,7 @@ function PoolRoyaleGame({
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
       if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
+        return stored === 'diamond' ? DEFAULT_RAIL_MARKER_SHAPE : stored;
       }
     }
     return DEFAULT_RAIL_MARKER_SHAPE;
@@ -26816,18 +26843,18 @@ const shotPowerRef = useRef(0);
         return asset;
       };
 
-      const createFallbackPoolSideFurniture = (seat, zSign, tableTopY) => {
+      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY) => {
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 25.2, BALL_R * 25.8, BALL_R * 1.65, 64), woodMat);
         tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
+        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.45, BALL_R * 3.5, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
-        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
-        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
-        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
+        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 18.6, BALL_R * 2.05, BALL_R * 20.8), seatMat);
+        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, 0);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 2.05, BALL_R * 15.8, BALL_R * 20.8), seatMat);
+        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, 0);
         [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
@@ -26838,21 +26865,21 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPoolSideLounge = (seat, zSign) => {
+      const createPoolSideLounge = (seat, sideSign) => {
         const group = new THREE.Group();
         group.userData.seat = seat;
-        const z = zSign * (TABLE.H / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const x = 0;
+        const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
+        const z = seat === 'A' ? -TABLE.H * 0.16 : TABLE.H * 0.16;
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const chairLocalZ = zSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign, tableTopY);
+        const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
+        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
-        const showLoungeTable = seat !== 'B';
+        const showLoungeTable = true;
         fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
           mesh.visible = showLoungeTable;
         });
@@ -26883,7 +26910,7 @@ const shotPowerRef = useRef(0);
           if (!chairModel) return;
           markHospitalityMaterials(chairModel);
           fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(0, chairModel.position.y, chairLocalZ);
+          chairModel.position.set(chairLocalX, chairModel.position.y, 0);
           const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
           chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
           group.add(chairModel);
@@ -26894,9 +26921,9 @@ const shotPowerRef = useRef(0);
 
         const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z);
+        group.userData.chairFacing = new THREE.Vector3(-sideSign, 0, 0).normalize();
+        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z);
         group.userData.glass = serviceProps?.userData?.glass || null;
         group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
@@ -26984,11 +27011,16 @@ const shotPowerRef = useRef(0);
           return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
+        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const loungeA = createPoolSideLounge('A', -1);
+        const loungeB = createPoolSideLounge('B', 1);
         world.add(loungeA);
+        world.add(loungeB);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          { group: loungeA, lounge: true, seat: 'A' }
+          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
+          { group: loungeA, lounge: true, seat: 'A' },
+          { group: loungeB, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;

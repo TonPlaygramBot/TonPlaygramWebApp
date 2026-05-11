@@ -665,7 +665,8 @@ const BASE_VARIANT_THUMBNAILS = Object.freeze({
   openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
   coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
   gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
-  woodenTable02Alt: polyHavenThumb('wooden_table_02')
+  woodenTable02Alt: polyHavenThumb('wooden_table_02'),
+  finishGltfTextureBase: polyHavenThumb('wooden_table_02')
 });
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
@@ -711,6 +712,12 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Wooden Table 02 Alt Base',
     description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
     swatches: ['#6f5140', '#caa07a']
+  },
+  {
+    id: 'finishGltfTextureBase',
+    name: 'Finish GLTF Texture Base',
+    description: 'Wooden Table 02 support remapped to the active table-finish GLTF wood textures.',
+    swatches: ['#7b4a28', '#d8b16c']
   }
 ].map((variant) => ({
   ...variant,
