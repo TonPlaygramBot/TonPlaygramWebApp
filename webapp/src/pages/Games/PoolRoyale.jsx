@@ -13289,9 +13289,21 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
-  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
-  const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
-  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
+  // The original Showood corner chrome wraps down the rounded corner post, below the top
+  // rail cap. Keep the flat apron/body black, but let the railSight gold continue onto
+  // the narrow vertical rim so the rounded edge reads as one continuous chrome piece.
+  const outsideBaseCornerRimZone =
+    s.sideFace && s.relY > 0.035 && s.relY < 0.88 && s.longN > 0.62 && s.shortN > 0.50;
+  const outerMostVerticalCorner =
+    s.sideFace && s.relY > 0.035 && s.relY < 0.9 && s.longN > 0.72 && s.shortN > 0.58;
+  const lowerCornerChromeWrapZone =
+    s.sideFace && s.relY > 0.02 && s.relY < 0.56 && s.longN > 0.58 && s.shortN > 0.54;
+  const sideLowerTrimZone =
+    s.sideFace &&
+    s.relY > 0.16 &&
+    s.relY < 0.48 &&
+    (s.longN > 0.54 || s.shortN > 0.54) &&
+    !outsideBaseCornerRimZone;
   const baseCornerZone = s.sideFace && midBody && (
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
@@ -13304,8 +13316,11 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
+  if (lowerCornerChromeWrapZone && !green && !brown && !s.upFace) return 'verticalCornerRim';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if ((hardwareCandidate || lowerCornerChromeWrapZone) && sideLowerTrimZone && !green && !brown) {
+    return 'railSight';
+  }
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
@@ -13336,7 +13351,11 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron'
+        ? 'baseCornerBlock'
+        : part === 'verticalCornerRim'
+          ? 'railSight'
+          : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -14792,17 +14811,10 @@ function applyTableFinishToTable(table, finish) {
           mat.needsUpdate = true;
         });
       }
+      // Keep the TonPlaygram branding plate locked to its own carbon label material;
+      // finish swaps should recolor the chrome sides only, not wash the label face.
       const topMaterial = entry?.topMaterial;
       if (topMaterial) {
-        topMaterial.metalness = Math.min(1, (trimMat.metalness ?? topMaterial.metalness ?? 0.6) + 0.06);
-        topMaterial.roughness = Math.max(0.2, (trimMat.roughness ?? topMaterial.roughness ?? 0.4) * 0.92);
-        topMaterial.clearcoat = Math.max(trimMat.clearcoat ?? 0.3, topMaterial.clearcoat ?? 0.32);
-        topMaterial.clearcoatRoughness = Math.min(
-          topMaterial.clearcoatRoughness ?? 0.24,
-          trimMat.clearcoatRoughness ?? topMaterial.clearcoatRoughness ?? 0.24
-        );
-        topMaterial.sheen = Math.max(topMaterial.sheen ?? 0.18, trimMat.sheen ?? 0.18);
-        topMaterial.sheenRoughness = Math.min(topMaterial.sheenRoughness ?? 0.5, trimMat.sheenRoughness ?? 0.5);
         topMaterial.needsUpdate = true;
       }
     });
