@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { BOWLING_HDRI_VARIANTS } from "../../config/bowlingInventoryConfig.js";
+import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
@@ -65,6 +65,7 @@ type HumanRig = {
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
+type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -92,15 +93,20 @@ type PinState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
+const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
 const HUMAN_INITIAL_SCALE = 1.46;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
-  thumb: h.thumbnailUrl,
+  thumb: h.thumbnailUrl || h.thumbnail,
   hdriUrl: h.hdriUrl,
   assetId: h.assetId,
   assetUrls: h.assetUrls,
   preferredResolutions: h.preferredResolutions,
+  rotationY: h.rotationY,
+  cameraHeightM: h.cameraHeightM,
+  arenaScale: h.arenaScale,
 }));
 const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "tableFinish");
@@ -360,10 +366,26 @@ function makeFallbackHuman(color: number) {
   return g;
 }
 
-function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): HumanRig {
+function parseHexColor(value: string | undefined, fallback: number) {
+  if (!value) return fallback;
+  const normalized = value.replace("#", "");
+  const parsed = Number.parseInt(normalized, 16);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getCharacterById(id: string | undefined) {
+  return HUMAN_CHARACTER_OPTIONS.find((option) => option.id === id) || HUMAN_CHARACTER_OPTIONS[0];
+}
+
+function pickRandomAiCharacter(playerCharacterId: string) {
+  const pool = HUMAN_CHARACTER_OPTIONS.filter((option) => option.id !== playerCharacterId);
+  return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
+}
+
+function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
-  const fallback = makeFallbackHuman(accent);
+  const fallback = makeFallbackHuman(parseHexColor(character?.accent, 0xff7a2f));
   const shadow = new THREE.Mesh(
     new THREE.CircleGeometry(0.34, 32),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false })
@@ -395,25 +417,47 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, accent: number): Hum
     approachTo: start.clone(),
   };
 
-  new GLTFLoader().setCrossOrigin("anonymous").load(
-    HUMAN_URL,
-    (gltf) => {
-      const model = gltf.scene;
-      normalizeHuman(model, 1.82);
-      model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
-      lockHumanToLaneGround(model);
-      enableShadow(model);
-      rig.model = model;
-      rig.fallback.visible = false;
-      rig.modelRoot.add(model);
-    },
-    undefined,
-    () => {
-      rig.fallback.visible = true;
-    }
-  );
+  loadHumanCharacter(rig, character);
 
   return rig;
+}
+
+function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | undefined) {
+  const selected = character || HUMAN_CHARACTER_OPTIONS[0];
+  const urls = selected?.modelUrls?.length ? selected.modelUrls : [HUMAN_URL];
+  const loader = new GLTFLoader().setCrossOrigin("anonymous");
+  if (rig.model) {
+    rig.modelRoot.remove(rig.model);
+    rig.model = null;
+  }
+  rig.fallback.visible = true;
+  let cancelled = false;
+  const tryLoad = (index: number) => {
+    if (cancelled) return;
+    if (index >= urls.length) {
+      rig.fallback.visible = true;
+      return;
+    }
+    loader.load(
+      urls[index],
+      (gltf) => {
+        if (cancelled) return;
+        const model = gltf.scene;
+        normalizeHuman(model, 1.82);
+        model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
+        lockHumanToLaneGround(model);
+        enableShadow(model);
+        if (rig.model) rig.modelRoot.remove(rig.model);
+        rig.model = model;
+        rig.fallback.visible = false;
+        rig.modelRoot.add(model);
+      },
+      undefined,
+      () => tryLoad(index + 1)
+    );
+  };
+  tryLoad(0);
+  return () => { cancelled = true; };
 }
 
 function lockHumanToLaneGround(model: THREE.Object3D) {
@@ -627,8 +671,14 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
-  // Arena removed: no walls, no ceiling, and no extra room floor.
-  // The bowling game objects below are kept exactly as the playable lane setup.
+  const groundingFloor = new THREE.Mesh(
+    new THREE.CircleGeometry(18, 96),
+    new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.02, envMapIntensity: 0.35 })
+  );
+  groundingFloor.rotation.x = -Math.PI / 2;
+  groundingFloor.position.set(0, CFG.laneY - 0.028, -2.4);
+  groundingFloor.receiveShadow = true;
+  group.add(groundingFloor);
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
@@ -1116,6 +1166,7 @@ export default function MobileBowlingRealistic() {
   const [selectedTableFinish, setSelectedTableFinish] = useState<string>(() => localStorage.getItem("bowling.tableFinish") || POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]);
   const [selectedChromeColor, setSelectedChromeColor] = useState<string>(() => localStorage.getItem("bowling.chromeColor") || POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor[0]);
   const [selectedBallWeight, setSelectedBallWeight] = useState<string>(() => localStorage.getItem("bowling.ballWeight") || "12");
+  const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState<string>(() => localStorage.getItem("bowling.humanCharacter") || DEFAULT_HUMAN_CHARACTER_ID);
   const [skipReplays, setSkipReplays] = useState<boolean>(() => localStorage.getItem("bowling.skipReplays") === "1");
   const [replayActive, setReplayActive] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
@@ -1148,6 +1199,9 @@ export default function MobileBowlingRealistic() {
     const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 80);
     camera.position.set(0, 2.9, 10.8);
 
+    const playerCharacter = getCharacterById(selectedHumanCharacterId);
+    const aiCharacter = pickRandomAiCharacter(playerCharacter?.id || DEFAULT_HUMAN_CHARACTER_ID);
+
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
@@ -1172,6 +1226,9 @@ export default function MobileBowlingRealistic() {
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
             scene.background = envTex;
+            const selectedRotation = Number.isFinite(selected?.rotationY) ? selected.rotationY : 0;
+            if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
+            if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
             if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
             if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
             if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
@@ -1213,7 +1270,7 @@ export default function MobileBowlingRealistic() {
     const texLoader = new THREE.TextureLoader();
     createEnvironment(scene, texLoader, selectedTableFinish, selectedChromeColor);
     const pins = createPins(scene);
-    const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), 0xff7a2f);
+    const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), playerCharacter);
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
     const ball = createActiveBall(ballVariant);
     scene.add(ball.mesh);
@@ -1284,8 +1341,10 @@ export default function MobileBowlingRealistic() {
       resetPlayerPoseForNextBall();
       if (nextAction === "nextPlayer") resetPins(pins);
       syncReactScores();
+      aiTurnDelay = activePlayer === 1 ? 0.85 + Math.random() * 0.5 : 0.85;
+      loadHumanCharacter(player, activePlayer === 0 ? playerCharacter : aiCharacter);
       const playerName = localScores[activePlayer].name;
-      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : `${playerName} swipe up to bowl` }));
+      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName} swipe up to bowl` }));
     };
 
     const finalizeShot = () => {
@@ -1315,6 +1374,18 @@ export default function MobileBowlingRealistic() {
         setReplayActive(true);
       }
       if (ball.returnState === "idle") startBallReturn(ball);
+    };
+
+    let aiTurnDelay = 0.85;
+    const makeAiIntent = (): ThrowIntent => {
+      const frame = currentFrameIndex(localScores[1]);
+      const roll = localScores[1].frames[frame]?.rolls.length || 0;
+      const targetJitter = (Math.random() - 0.5) * (roll ? 0.7 : 0.42);
+      const releaseJitter = (Math.random() - 0.5) * 0.5;
+      const power = clamp(0.72 + Math.random() * 0.22, 0, 1);
+      const targetX = clamp(targetJitter, -1.1, 1.1);
+      const releaseX = clamp(releaseJitter * 0.55, -0.72, 0.72);
+      return { power, releaseX, targetX, hook: (Math.random() - 0.5) * 0.32, speed: lerp(10.8, 15.4, power) };
     };
 
     let frameId = 0;
@@ -1392,6 +1463,15 @@ export default function MobileBowlingRealistic() {
         replayTimer = Math.max(0, replayTimer - dt);
         if (replayTimer <= 0) setReplayActive(false);
       }
+      if (activePlayer === 1 && !control.active && !ball.rolling && !waitingForBallReturn && !replayActive && player.action === "idle" && nextAction !== "gameOver") {
+        aiTurnDelay = Math.max(0, aiTurnDelay - dt);
+        if (aiTurnDelay <= 0) {
+          pendingIntent = makeAiIntent();
+          startApproach(player, pendingIntent);
+          aiTurnDelay = 0.85 + Math.random() * 0.5;
+          setHud((prev) => ({ ...prev, status: "PLAYER 2 AI is bowling" }));
+        }
+      }
       updateHuman(player, ball, dt, true);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
@@ -1443,7 +1523,7 @@ export default function MobileBowlingRealistic() {
         }
       });
     };
-  }, [graphicsQuality, selectedHdriId, selectedBallWeight, selectedTableFinish, selectedChromeColor, replayActive, skipReplays]);
+  }, [graphicsQuality, selectedHdriId, selectedBallWeight, selectedTableFinish, selectedChromeColor, selectedHumanCharacterId, replayActive, skipReplays]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#090b11", touchAction: "none", userSelect: "none" }}>
@@ -1480,6 +1560,11 @@ export default function MobileBowlingRealistic() {
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
             {BALL_VARIANTS.map((v)=> <button key={v.label} onClick={()=>{setSelectedBallWeight(v.label); localStorage.setItem("bowling.ballWeight",v.label);}} style={{padding:"6px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background:selectedBallWeight===v.label?"#7fd6ff":"rgba(255,255,255,0.08)", color:selectedBallWeight===v.label?"#001018":"#fff", fontWeight:800}}>{v.label} lb</button>)}
           </div>
+          <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>Human character inventory</div>
+          <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
+            {HUMAN_CHARACTER_OPTIONS.filter((item)=> item.id === DEFAULT_HUMAN_CHARACTER_ID || (ownedPoolInventory?.humanCharacter||[]).includes(item.id)).map((item)=><button key={item.id} onClick={()=>{setSelectedHumanCharacterId(item.id); localStorage.setItem("bowling.humanCharacter",item.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHumanCharacterId===item.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}>{item.thumbnail ? <img src={item.thumbnail} alt={item.label} style={{width:"100%",borderRadius:8,marginBottom:6}} /> : null}<div style={{fontSize:11,fontWeight:700}}>{item.label}</div><div style={{fontSize:10,opacity:0.75}}>Owned · AI randomizes from this set</div></button>)}
+          </div>
+
           <div style={{fontSize:12,fontWeight:800,margin:"10px 0 6px"}}>HDRI inventory</div>
           <div style={{display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8}}>
             {HDRI_OPTIONS.filter((h)=> (ownedPoolInventory?.environmentHdri||[]).includes(h.id)).map((h)=><button key={h.id} onClick={()=>{setSelectedHdriId(h.id); localStorage.setItem("bowling.hdri",h.id);}} style={{textAlign:"left", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:6, background:selectedHdriId===h.id?"rgba(127,214,255,0.2)":"rgba(255,255,255,0.05)", color:"#fff"}}><img src={h.thumb} alt={h.name} style={{width:"100%",borderRadius:8,marginBottom:6}} /><div style={{fontSize:11,fontWeight:700}}>{h.name}</div><div style={{fontSize:10,opacity:0.75}}>Owned</div></button>)}

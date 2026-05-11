@@ -1694,7 +1694,7 @@ export default function Store() {
         hdriSelectedGames.map((slug) => {
           const optionId = optionIdByGame[slug];
           if (!optionId) return Promise.resolve();
-          if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis') {
+          if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis' || slug === 'bowling') {
             return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
           }
           if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
@@ -1893,7 +1893,8 @@ export default function Store() {
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
       tennis: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
-      bowling: (type, optionId) => optionId === BOWLING_DEFAULT_LOADOUT.environmentHdri,
+      bowling: (type, optionId) =>
+        optionId === BOWLING_DEFAULT_LOADOUT[type] || isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
     }),
@@ -2557,7 +2558,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis' || slug === 'bowling') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
