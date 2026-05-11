@@ -1516,6 +1516,38 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
+function seededCharacterNoise(seed, index) {
+  let value = (Number(seed) || 0) + index * 0x9e3779b9;
+  value = Math.imul(value ^ (value >>> 16), 0x85ebca6b);
+  value = Math.imul(value ^ (value >>> 13), 0xc2b2ae35);
+  return ((value ^ (value >>> 16)) >>> 0) / 0x100000000;
+}
+
+function buildShuffledCharacterThemes(seed, selectedCharacterIndex) {
+  const selectedTheme = MURLAN_CHARACTER_THEMES[selectedCharacterIndex] ?? MURLAN_CHARACTER_THEMES[0];
+  return MURLAN_CHARACTER_THEMES
+    .filter((theme) => theme?.id && theme.id !== selectedTheme?.id)
+    .map((theme, index) => ({ theme, sort: seededCharacterNoise(seed, index) }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ theme }) => theme);
+}
+
+function buildSeatCharacterThemes(players = [], selectedCharacterIndex = 0, seed = Date.now()) {
+  const selectedTheme = MURLAN_CHARACTER_THEMES[selectedCharacterIndex] ?? MURLAN_CHARACTER_THEMES[0];
+  const aiThemes = buildShuffledCharacterThemes(seed, selectedCharacterIndex);
+  let aiCursor = 0;
+  return players.map((player, index) => {
+    if (player?.isHuman) return selectedTheme;
+    const theme = aiThemes[aiCursor % Math.max(aiThemes.length, 1)] ?? selectedTheme;
+    aiCursor += 1;
+    return theme ?? MURLAN_CHARACTER_THEMES[index % MURLAN_CHARACTER_THEMES.length];
+  });
+}
+
+function seatCharacterRosterSignature(roster = []) {
+  return roster.map((theme) => theme?.id || 'none').join('|');
+}
+
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -2965,21 +2997,21 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(4);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.1;
-const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
-const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 0.92;
-const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 0.88;
+const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.18;
+const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.18;
+const SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 1.02;
+const SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.02;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = 0.062 * MODEL_SCALE;
 const AI_HAND_CARD_SCALE = 0.76;
 const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.01 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.03 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.24 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 1.52 * MODEL_SCALE;
-const AI_SIDE_HAND_UP_SHIFT_Y = -0.2 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.62 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 1.9 * MODEL_SCALE;
+const AI_SIDE_HAND_UP_SHIFT_Y = -0.14 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = 0.02 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 1.24 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 1.62 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.2 * MODEL_SCALE;
@@ -3363,6 +3395,7 @@ const START_CARD = { rank: '3', suit: '♠' };
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
+  const characterRosterSeedRef = useRef(Math.floor(Math.random() * 0xffffffff));
 
   const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
 
@@ -4861,7 +4894,7 @@ export default function MurlanRoyaleArena({ search }) {
   );
 
   const rebuildSeatCharacters = useCallback(
-    async (characterTheme) => {
+    async (characterRoster) => {
       if (!threeReady) return;
       const store = threeStateRef.current;
       if (!store?.seatConfigs?.length) return;
@@ -4877,7 +4910,16 @@ export default function MurlanRoyaleArena({ search }) {
         store.characterThemeId = null;
         return;
       }
-      const safe = characterTheme || MURLAN_CHARACTER_THEMES[0];
+
+      const currentPlayers = gameStateRef.current?.players ?? players;
+      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const roster = Array.isArray(characterRoster) && characterRoster.length
+        ? characterRoster
+        : buildSeatCharacterThemes(currentPlayers, currentAppearance.characters, characterRosterSeedRef.current);
+      const expectedRoster = buildSeatCharacterThemes(currentPlayers, currentAppearance.characters, characterRosterSeedRef.current);
+      const expectedSignature = seatCharacterRosterSignature(expectedRoster);
+      const requestedSignature = seatCharacterRosterSignature(roster);
+      if (expectedSignature !== requestedSignature) return;
 
       store.characterInstances?.forEach((entry) => {
         if (!entry) return;
@@ -4888,25 +4930,36 @@ export default function MurlanRoyaleArena({ search }) {
       store.characterRigs = new Map();
       store.characterActionAnimations = [];
 
-      let template;
-      try {
-        template = await loadCharacterModel(safe, store.renderer);
-      } catch (error) {
-        console.warn('Failed to load character theme', safe?.id, error);
-        return;
+      const templates = new Map();
+      for (const theme of roster) {
+        if (!theme?.id || templates.has(theme.id)) continue;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          templates.set(theme.id, await loadCharacterModel(theme, store.renderer));
+        } catch (error) {
+          console.warn('Failed to load character theme', theme?.id, error);
+        }
       }
 
-      const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const expectedTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
-      if (expectedTheme.id !== safe.id) return;
+      const fallbackTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
+      if (!templates.size && fallbackTheme) {
+        try {
+          templates.set(fallbackTheme.id, await loadCharacterModel(fallbackTheme, store.renderer));
+        } catch (error) {
+          console.warn('Failed to load fallback character theme', fallbackTheme?.id, error);
+          return;
+        }
+      }
 
-      store.characterThemeId = safe.id;
-      const currentPlayers = gameStateRef.current?.players ?? players;
+      store.characterThemeId = requestedSignature;
       store.seatConfigs.forEach((seatConfig, seatIndex) => {
+        const theme = roster[seatIndex] ?? fallbackTheme;
+        const template = templates.get(theme?.id) ?? templates.get(fallbackTheme?.id) ?? templates.values().next().value;
+        if (!template || !theme) return;
         attachSeatedCharacter({
           template,
           seatConfig,
-          characterTheme: safe,
+          characterTheme: theme,
           store,
           player: currentPlayers[seatIndex] ?? null,
           playerIndex: seatIndex,
@@ -4914,7 +4967,7 @@ export default function MurlanRoyaleArena({ search }) {
         });
       });
     },
-    [threeReady]
+    [players, threeReady]
   );
 
   const applyHdriEnvironment = useCallback(
@@ -4998,9 +5051,9 @@ export default function MurlanRoyaleArena({ search }) {
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
-      const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
-      ? MURLAN_CHARACTER_THEMES[safe.characters] ?? MURLAN_CHARACTER_THEMES[0]
-      : null;
+      const characterRoster = ENABLE_3D_HUMAN_CHARACTERS
+        ? buildSeatCharacterThemes(gameStateRef.current?.players ?? players, safe.characters, characterRosterSeedRef.current)
+        : [];
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
       const tableShape = TABLE_SHAPE_OPTIONS[safe.tableShape] ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
       const tableFinish = resolveTableFinish(safe.tableFinish);
@@ -5041,9 +5094,10 @@ export default function MurlanRoyaleArena({ search }) {
         } else {
           applyChairThemeMaterials(three, stoolTheme);
         }
-        if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
-          if (three.characterThemeId !== characterTheme.id) {
-            void rebuildSeatCharacters(characterTheme);
+        if (ENABLE_3D_HUMAN_CHARACTERS && characterRoster.length) {
+          const rosterSignature = seatCharacterRosterSignature(characterRoster);
+          if (three.characterThemeId !== rosterSignature) {
+            void rebuildSeatCharacters(characterRoster);
           }
         } else if (three.characterInstances?.length) {
           void rebuildSeatCharacters(null);
@@ -5074,6 +5128,7 @@ export default function MurlanRoyaleArena({ search }) {
       rebuildSeatCharacters,
       rebuildTable,
       applyTableMaterials,
+      players,
       threeReady
     ]
   );
@@ -5666,9 +5721,9 @@ export default function MurlanRoyaleArena({ search }) {
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
-      const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
-      ? MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0]
-      : null;
+      const characterRoster = ENABLE_3D_HUMAN_CHARACTERS
+        ? buildSeatCharacterThemes(players, currentAppearance.characters, characterRosterSeedRef.current)
+        : [];
       const cardTheme = CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const tableShape = TABLE_SHAPE_OPTIONS[currentAppearance.tableShape] ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
@@ -5849,31 +5904,39 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
-      if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
-        try {
-          const characterTemplate = await loadCharacterModel(characterTheme, renderer);
-          for (let i = 0; i < seatConfigs.length; i++) {
-            const seatConfig = seatConfigs[i];
-            const player = players[i] ?? null;
-            attachSeatedCharacter({
-              template: characterTemplate,
-              seatConfig,
-              characterTheme,
-              store: threeStateRef.current,
-              player,
-              playerIndex: i,
-              cardTheme,
-              cardTextureSize: cardTextureQualityRef.current
-            });
+      if (ENABLE_3D_HUMAN_CHARACTERS && characterRoster.length) {
+        const templates = new Map();
+        for (const theme of characterRoster) {
+          if (!theme?.id || templates.has(theme.id)) continue;
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            templates.set(theme.id, await loadCharacterModel(theme, renderer));
+          } catch (error) {
+            console.warn('Failed to load initial character theme', theme?.id, error);
           }
-        } catch (error) {
-          console.warn('Failed to place initial player characters', error);
+        }
+        for (let i = 0; i < seatConfigs.length; i++) {
+          const seatConfig = seatConfigs[i];
+          const player = players[i] ?? null;
+          const characterTheme = characterRoster[i] ?? characterRoster[0];
+          const template = templates.get(characterTheme?.id) ?? templates.values().next().value;
+          if (!template || !characterTheme) continue;
+          attachSeatedCharacter({
+            template,
+            seatConfig,
+            characterTheme,
+            store: threeStateRef.current,
+            player,
+            playerIndex: i,
+            cardTheme,
+            cardTextureSize: cardTextureQualityRef.current
+          });
         }
       }
 
       threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
-      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? characterTheme.id : null;
+      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS ? seatCharacterRosterSignature(characterRoster) : null;
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
       spot.target.updateMatrixWorld();
