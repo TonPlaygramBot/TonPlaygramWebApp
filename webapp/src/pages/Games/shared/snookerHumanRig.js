@@ -1,7 +1,7 @@
-import { createHumanRig, chooseHumanEdgePosition, updateHumanPose } from './humanRigCore';
+import { createHumanPoolPlayer, chooseHumanEdgePosition, updateHumanPose } from './HumanPoolPlayer';
 
 export function createSnookerHumanRig(scene, opts = {}) {
-  return createHumanRig(scene, opts);
+  return createHumanPoolPlayer(scene, opts);
 }
 
 export { chooseHumanEdgePosition };
