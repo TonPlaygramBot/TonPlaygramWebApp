@@ -26613,6 +26613,9 @@ const shotPowerRef = useRef(0);
           if (rig?.heldCue?.parent) {
             rig.heldCue.parent.remove(rig.heldCue);
           }
+          if (rig?.debugVectors?.parent) {
+            rig.debugVectors.parent.remove(rig.debugVectors);
+          }
         });
         playerCharacterRigsRef.current = [];
       };
@@ -26816,6 +26819,131 @@ const shotPowerRef = useRef(0);
       };
 
       let setCueStickFromHumanCuePose = null;
+
+      const shouldShowHumanDebugVectors = () => {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          return params.get('debugHuman') === '1' || window.localStorage?.getItem('poolRoyaleHumanDebugVectors') === '1';
+        } catch (_) {
+          return false;
+        }
+      };
+
+      const createHumanDebugVectorGroup = () => {
+        const group = new THREE.Group();
+        group.name = 'PoolRoyaleHumanDebugVectors';
+        const makeArrow = (name, color) => {
+          const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(), 1, color, 0.18, 0.09);
+          arrow.name = name;
+          arrow.visible = false;
+          group.add(arrow);
+          return arrow;
+        };
+        group.userData.arrows = {
+          tableCenter: makeArrow('table-center-direction', 0xffd400),
+          shot: makeArrow('shot-direction', 0x40e0ff),
+          characterForward: makeArrow('character-forward-direction', 0x66ff66),
+          cue: makeArrow('cue-direction', 0xff66cc)
+        };
+        group.visible = false;
+        return group;
+      };
+
+      const updateHumanDebugVectors = (rig, { root, cueWorld, aimForward, cueBack, cueTip, tableCenter }) => {
+        if (!rig) return;
+        if (!rig.debugVectors) {
+          rig.debugVectors = createHumanDebugVectorGroup();
+          world.add(rig.debugVectors);
+        }
+        const visible = shouldShowHumanDebugVectors();
+        rig.debugVectors.visible = visible;
+        if (!visible || !root || !cueWorld || !aimForward || !cueBack || !cueTip) return;
+        const arrows = rig.debugVectors.userData.arrows || {};
+        const placeArrow = (arrow, origin, dir, length) => {
+          if (!arrow || !origin || !dir || dir.lengthSq() < 1e-8) return;
+          const flatDir = dir.clone();
+          flatDir.y = Math.abs(dir.y) > 0.001 ? dir.y : 0.02;
+          arrow.position.copy(origin);
+          arrow.setDirection(flatDir.normalize());
+          arrow.setLength(length, 0.18, 0.09);
+          arrow.visible = true;
+        };
+        const rootPos = root.clone().setY(TABLE_Y + TABLE.THICK + BALL_R * 2.4);
+        const tableDir = (tableCenter || new THREE.Vector3()).clone().sub(root).setY(0);
+        const characterForward = cueWorld.clone().sub(root).setY(0);
+        const cueDir = cueTip.clone().sub(cueBack);
+        placeArrow(arrows.tableCenter, rootPos, tableDir, 0.72);
+        placeArrow(arrows.shot, cueWorld.clone().setY(rootPos.y + 0.06), aimForward.clone().setY(0), 0.82);
+        placeArrow(arrows.characterForward, rootPos.clone().add(new THREE.Vector3(0, 0.08, 0)), characterForward, 0.66);
+        placeArrow(arrows.cue, cueBack.clone().setY(rootPos.y + 0.12), cueDir, 0.9);
+      };
+
+      const resolvePoolPlayerShotContext = ({ cueWorld, aimForward, root, activePower = 0, state = 'idle' }) => {
+        const railGapX = PLAY_W / 2 - Math.abs(cueWorld.x);
+        const railGapZ = PLAY_H / 2 - Math.abs(cueWorld.z);
+        const railGap = Math.min(railGapX, railGapZ);
+        const rootReach = root ? root.distanceTo(cueWorld) : 0;
+        const anglePressure = Math.abs(aimForward.x * aimForward.z);
+        const railShot = railGap < BALL_R * 5.5;
+        const longReach = rootReach > POOL_ROYALE_HUMAN_UNIT_SCALE * 1.62;
+        const closeCueBall = railGap < BALL_R * 3.2 || activePower < 0.16;
+        const powerShot = activePower > 0.72;
+        const softPrecision = activePower > 0 && activePower < 0.28 && !railShot;
+        const difficultAngle = anglePressure > 0.42;
+        let type = 'standard';
+        if (powerShot) type = 'power';
+        else if (railShot) type = 'rail';
+        else if (longReach) type = 'longReach';
+        else if (closeCueBall) type = 'closeCueBall';
+        else if (softPrecision) type = 'softPrecision';
+        else if (difficultAngle) type = 'difficultAngle';
+        return { type, railShot, longReach, closeCueBall, powerShot, softPrecision, difficultAngle, active: state !== 'idle' };
+      };
+
+      const applyPoolPlayerShotContext = (behavior, context) => {
+        const next = { ...behavior };
+        switch (context?.type) {
+          case 'rail':
+            next.bridgeBack = Math.max(0.048, (behavior.bridgeBack ?? 0.08) * 0.76);
+            next.bridgeLift = Math.max(behavior.bridgeLift ?? 0.006, 0.014);
+            next.desiredShootDistance = Math.max(1.16, (behavior.desiredShootDistance ?? 1.4) * 0.9);
+            next.strokePull = Math.min(0.38, (behavior.strokePull ?? 0.42) * 0.82);
+            next.rightElbowRise = (behavior.rightElbowRise ?? 0.22) + 0.08;
+            break;
+          case 'longReach':
+            next.bridgeBack = (behavior.bridgeBack ?? 0.08) * 1.22;
+            next.desiredShootDistance = (behavior.desiredShootDistance ?? 1.4) * 1.08;
+            next.stanceWidth = (behavior.stanceWidth ?? 0.56) * 1.1;
+            next.shootForwardBendScale = Math.min(1, (behavior.shootForwardBendScale ?? 0.7) * 1.18);
+            break;
+          case 'closeCueBall':
+            next.bridgeBack = Math.max(0.045, (behavior.bridgeBack ?? 0.08) * 0.7);
+            next.strokePull = Math.min(0.3, (behavior.strokePull ?? 0.42) * 0.68);
+            next.strokePush = Math.min(0.12, (behavior.strokePush ?? 0.16) * 0.72);
+            next.desiredShootDistance = Math.max(1.08, (behavior.desiredShootDistance ?? 1.4) * 0.84);
+            break;
+          case 'power':
+            next.strokePull = Math.max(0.56, (behavior.strokePull ?? 0.42) * 1.28);
+            next.strokePush = Math.max(0.26, (behavior.strokePush ?? 0.18) * 1.35);
+            next.stanceWidth = (behavior.stanceWidth ?? 0.56) * 1.14;
+            next.rightElbowBack = (behavior.rightElbowBack ?? -0.8) * 1.08;
+            break;
+          case 'softPrecision':
+            next.strokePull = Math.min(0.28, (behavior.strokePull ?? 0.42) * 0.58);
+            next.strokePush = Math.min(0.1, (behavior.strokePush ?? 0.16) * 0.62);
+            next.practiceStroke = Math.min(0.014, (behavior.practiceStroke ?? 0.03) * 0.55);
+            next.rightElbowRise = (behavior.rightElbowRise ?? 0.22) * 0.82;
+            break;
+          case 'difficultAngle':
+            next.bridgeSide = (behavior.bridgeSide ?? -0.024) * 1.45;
+            next.stanceWidth = (behavior.stanceWidth ?? 0.56) * 1.08;
+            next.shootUpperBodyCounterLean = Math.min(0.95, (behavior.shootUpperBodyCounterLean ?? 0.55) * 1.18);
+            break;
+          default:
+            break;
+        }
+        return next;
+      };
 
       const createHumanHeldCueMesh = () => {
         const group = new THREE.Group();
@@ -27067,9 +27195,23 @@ const shotPowerRef = useRef(0);
           if (anim) anim.mode = mode;
 
           if (human) {
-            const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
+            const baseBehavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
             const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
             const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: true };
+            characterTurnFlowRef.current = turnFlow;
+            const state = mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+            const activePower = state === 'dragging' ? draggingPower : strikingPower;
+            const shotContextPreview = resolvePoolPlayerShotContext({
+              cueWorld,
+              aimForward,
+              root: human.root?.position,
+              activePower,
+              state
+            });
+            const behavior = applyPoolPlayerShotContext(baseBehavior, shotContextPreview);
             const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
               tableW: TABLE.W,
               tableL: TABLE.H,
@@ -27094,12 +27236,6 @@ const shotPowerRef = useRef(0);
               1
             );
             const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: true };
-            characterTurnFlowRef.current = turnFlow;
-            const state = mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-            const activePower = state === 'dragging' ? draggingPower : strikingPower;
             const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
             const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
             const practiceStroke =
@@ -27116,8 +27252,8 @@ const shotPowerRef = useRef(0);
                 1 - Math.pow(1 - strikeNorm, 3)
               );
             }
-            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
-            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
+            const bridgeBackFromBall = (behavior.bridgeBack ?? 0.072) * humanUnitScale;
+            const bridgeSideOffset = (behavior.bridgeSide ?? -0.024) * humanUnitScale;
             const bridgeTarget = cueWorld
               .clone()
               // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
@@ -27188,7 +27324,16 @@ const shotPowerRef = useRef(0);
               cueBack,
               cueTip,
               power: activePower,
+              shotContext: shotContextPreview,
               directRootTarget: false
+            });
+            updateHumanDebugVectors(rig, {
+              root: walkRoot,
+              cueWorld,
+              aimForward: poseForward,
+              cueBack,
+              cueTip,
+              tableCenter: new THREE.Vector3(0, TABLE_Y + TABLE.THICK, 0)
             });
             if (rig.heldCue) {
               rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
