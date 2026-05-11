@@ -727,7 +727,8 @@ function updateGoalRushWalkAnimation(human, dt, frame) {
   if (walk) {
     const ref = human.cfg?.perimeterWalkSpeed || human.cfg?.unit || 1;
     const normalizedSpeed = Math.max(0, Math.min(2, (human.lastMoveAmountRaw || 0) * 60 / Math.max(0.001, ref)));
-    walk.timeScale = THREE.MathUtils.clamp(normalizedSpeed || walkWeight, 0.7, 1.35);
+    // Match the slower Soldier-style cadence: less skating, fuller leg/body motion.
+    walk.timeScale = THREE.MathUtils.clamp((normalizedSpeed || walkWeight) * 0.72, 0.48, 0.95);
   }
   human.mixer.update(dt);
   return walkWeight > 0.05 && frame.t < 0.025;
@@ -758,10 +759,10 @@ function driveHuman(human, frame) {
     if (b.spine) b.spine.rotation.x += THREE.MathUtils.degToRad(-3);
     if (b.chest) b.chest.rotation.x += THREE.MathUtils.degToRad(-2);
     if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(3);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
     if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-42);
     if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-38);
     if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(38);
@@ -773,17 +774,24 @@ function driveHuman(human, frame) {
   }
 
   if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 6.2);
-    const c = Math.cos(human.walkT * 6.2);
+    const s = Math.sin(human.walkT * 5.15);
+    const c = Math.cos(human.walkT * 5.15);
     const w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
+    const liftL = Math.max(0, s);
+    const liftR = Math.max(0, -s);
+    // Soldier-matching walk cycle: opposite legs/arms, visible knee flex, and a
+    // small hip/chest counter-sway so the body no longer slides stiffly.
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += liftR * 0.34 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += liftL * 0.34 * w;
+    if (b.leftFoot) b.leftFoot.rotation.x += liftR * 0.16 * w;
+    if (b.rightFoot) b.rightFoot.rotation.x += liftL * 0.16 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.3 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.3 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.035 * w;
+    if (b.chest) b.chest.rotation.z -= c * 0.022 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.03 * w;
   }
 
   if (ik >= 0.025) {
@@ -886,7 +894,7 @@ export function updateHumanPose(human, dt, frameData) {
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
-  human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
+  human.walkT += dt * (1.45 + Math.min(5.2, (moveAmountRaw * 8.2) / cfg.unit));
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
   const tableForward = resolveRootToTableForward(human.root.position, frameData);
   const facingForward = shootingPoseActive && tableForward

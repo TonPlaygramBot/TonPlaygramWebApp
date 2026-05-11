@@ -1848,7 +1848,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
@@ -2245,7 +2245,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
+const SPIN_GLOBAL_SCALE = 0.82; // reduce Pool Royale cue spin slightly for a more natural roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -2272,8 +2272,8 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1; // keep slider strength honest by removing the extra Pool Royale boost
-const SHOT_GLOBAL_POWER_SCALE = 0.72; // soften Pool Royale shot pace so ball travel matches the displayed slider power
+const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
+const SHOT_GLOBAL_POWER_SCALE = 0.76; // keep Pool Royale stronger than before without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -9026,7 +9026,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
@@ -18179,6 +18179,7 @@ const shotPowerRef = useRef(0);
   const envSkyboxTextureRef = useRef(null);
   const envSkyboxSettingsRef = useRef(null);
   const envSkyboxScaleRef = useRef(1);
+  const floorShadowCatcherRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -20346,7 +20347,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -20453,6 +20454,25 @@ const shotPowerRef = useRef(0);
             sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
           }
         }
+        if (floorShadowCatcherRef.current) {
+          floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+          floorShadowCatcherRef.current.geometry?.dispose?.();
+          floorShadowCatcherRef.current.material?.dispose?.();
+          floorShadowCatcherRef.current = null;
+        }
+        const shadowCatcherSize = Math.max(skyboxRadius * 1.85, Math.max(roomWidth, roomDepth) * resolvedWorldScale * 1.35);
+        const shadowCatcher = new THREE.Mesh(
+          new THREE.PlaneGeometry(shadowCatcherSize, shadowCatcherSize),
+          new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.28, transparent: true, depthWrite: false })
+        );
+        shadowCatcher.name = 'PoolRoyale_HdriFloorShadowCatcher';
+        shadowCatcher.rotation.x = -Math.PI / 2;
+        shadowCatcher.position.y = floorWorldY + MICRO_EPS * resolvedWorldScale;
+        shadowCatcher.receiveShadow = true;
+        shadowCatcher.castShadow = false;
+        shadowCatcher.renderOrder = -4;
+        sceneInstance.add(shadowCatcher);
+        floorShadowCatcherRef.current = shadowCatcher;
         if (
           'environmentIntensity' in sceneInstance &&
           typeof activeVariant?.environmentIntensity === 'number'
@@ -20478,6 +20498,12 @@ const shotPowerRef = useRef(0);
             }
             envSkyboxSettingsRef.current = null;
             envSkyboxScaleRef.current = 1;
+          }
+          if (floorShadowCatcherRef.current) {
+            floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+            floorShadowCatcherRef.current.geometry?.dispose?.();
+            floorShadowCatcherRef.current.material?.dispose?.();
+            floorShadowCatcherRef.current = null;
           }
           if (skyboxMap) {
             skyboxMap.dispose?.();
@@ -25993,7 +26019,25 @@ const shotPowerRef = useRef(0);
       const addMobileLighting = () => {
         const useHdriOnly = true;
         if (useHdriOnly) {
-          lightingRigRef.current = null;
+          const shadowRig = new THREE.Group();
+          world.add(shadowRig);
+          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.22);
+          hdriShadowKey.position.set(-roomWidth * 0.22, tableSurfaceY + TABLE.THICK * 9, roomDepth * 0.18);
+          hdriShadowKey.target.position.set(0, floorY, 0);
+          hdriShadowKey.castShadow = true;
+          const shadowSpan = Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 4;
+          hdriShadowKey.shadow.mapSize.set(2048, 2048);
+          hdriShadowKey.shadow.camera.near = 0.1;
+          hdriShadowKey.shadow.camera.far = TABLE.THICK * 42;
+          hdriShadowKey.shadow.camera.left = -shadowSpan;
+          hdriShadowKey.shadow.camera.right = shadowSpan;
+          hdriShadowKey.shadow.camera.top = shadowSpan;
+          hdriShadowKey.shadow.camera.bottom = -shadowSpan;
+          hdriShadowKey.shadow.bias = -0.00005;
+          hdriShadowKey.shadow.normalBias = 0.0008;
+          hdriShadowKey.shadow.camera.updateProjectionMatrix();
+          shadowRig.add(hdriShadowKey, hdriShadowKey.target);
+          lightingRigRef.current = { group: shadowRig, key: hdriShadowKey };
           return;
         }
         const lightingRig = new THREE.Group();
@@ -26865,18 +26909,32 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const createPoolSideLounge = (seat, sideSign) => {
+      const createPoolSideLounge = (seat, sideSign, options = {}) => {
         const group = new THREE.Group();
-        group.userData.seat = seat;
+        const sharedSeatOffsets = options.sharedSeatOffsets || { [seat]: 0 };
+        const primarySeat = options.primarySeat || seat;
+        group.userData.seat = primarySeat;
         const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = seat === 'A' ? -TABLE.H * 0.16 : TABLE.H * 0.16;
+        const z = options.z ?? 0;
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
         const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
-        fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
+        const fallbackFurniture = createFallbackPoolSideFurniture(primarySeat, sideSign, tableTopY);
+        fallbackFurniture.name = `PoolRoyale_${primarySeat}_VisibleSharedLoungeFallback`;
+        const fallbackChairMeshes = fallbackFurniture.userData?.chairMeshes || [];
+        const fallbackSeatEntries = Object.entries(sharedSeatOffsets);
+        fallbackSeatEntries.forEach(([seatKey, localZ], index) => {
+          const meshes = index === 0
+            ? fallbackChairMeshes
+            : fallbackChairMeshes.map((mesh) => mesh.clone());
+          meshes.forEach((mesh) => {
+            mesh.name = `PoolRoyale_${seatKey}_SharedFallbackChair`;
+            mesh.position.z = localZ;
+            if (index > 0) fallbackFurniture.add(mesh);
+          });
+        });
         group.add(fallbackFurniture);
 
         const showLoungeTable = true;
@@ -26885,7 +26943,7 @@ const shotPowerRef = useRef(0);
         });
         if (showLoungeTable) {
           const murlanDefaultTable = new THREE.Group();
-          murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
+          murlanDefaultTable.name = `PoolRoyale_${primarySeat}_MurlanDefaultOctagonTable`;
           try {
             createMurlanStyleTable({
               THREE,
@@ -26910,10 +26968,14 @@ const shotPowerRef = useRef(0);
           if (!chairModel) return;
           markHospitalityMaterials(chairModel);
           fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(chairLocalX, chairModel.position.y, 0);
-          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
-          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
-          group.add(chairModel);
+          Object.entries(sharedSeatOffsets).forEach(([seatKey, localZ], index) => {
+            const seatChair = index === 0 ? chairModel : chairModel.clone(true);
+            seatChair.name = `PoolRoyale_${seatKey}_SharedLoungeChair`;
+            seatChair.position.set(chairLocalX, chairModel.position.y, localZ);
+            const toTable = new THREE.Vector2(-seatChair.position.x, -seatChair.position.z);
+            seatChair.rotation.y = Math.atan2(toTable.x, toTable.y);
+            group.add(seatChair);
+          });
           fallbackFurniture.visible = false;
         }).catch((error) => {
           console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
@@ -26921,9 +26983,19 @@ const shotPowerRef = useRef(0);
 
         const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z);
-        group.userData.chairFacing = new THREE.Vector3(-sideSign, 0, 0).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z);
+        group.userData.sharedSeatChairs = Object.fromEntries(
+          Object.entries(sharedSeatOffsets).map(([seatKey, localZ]) => [
+            seatKey,
+            {
+              chairRoot: new THREE.Vector3(x + chairLocalX, floorY, z + localZ),
+              chairFacing: new THREE.Vector3(-sideSign, 0, 0).normalize(),
+              chairSeatWorld: new THREE.Vector3(x + chairLocalX, floorY, z + localZ)
+            }
+          ])
+        );
+        group.userData.chairRoot = group.userData.sharedSeatChairs[primarySeat]?.chairRoot?.clone?.() || new THREE.Vector3(x + chairLocalX, floorY, z);
+        group.userData.chairFacing = group.userData.sharedSeatChairs[primarySeat]?.chairFacing?.clone?.() || new THREE.Vector3(-sideSign, 0, 0).normalize();
+        group.userData.chairSeatWorld = group.userData.sharedSeatChairs[primarySeat]?.chairSeatWorld?.clone?.() || new THREE.Vector3(x + chairLocalX, floorY, z);
         group.userData.glass = serviceProps?.userData?.glass || null;
         group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
@@ -27012,15 +27084,20 @@ const shotPowerRef = useRef(0);
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        world.add(loungeA);
-        world.add(loungeB);
+        const sharedLounge = createPoolSideLounge('A', -1, {
+          primarySeat: 'A',
+          z: 0,
+          sharedSeatOffsets: {
+            A: -TABLE.H * 0.18,
+            B: TABLE.H * 0.18
+          }
+        });
+        world.add(sharedLounge);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
           makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' }
+          { group: sharedLounge, lounge: true, seat: 'A' },
+          { group: sharedLounge, lounge: true, seat: 'B' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -27210,10 +27287,11 @@ const shotPowerRef = useRef(0);
             let chairFacing = null;
             if (shouldRestAtChair) {
               const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRoot;
+              const seatChair = lounge?.userData?.sharedSeatChairs?.[seat] || lounge?.userData || null;
+              const chairRoot = seatChair?.chairRoot;
               if (chairRoot) {
                 walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
+                chairFacing = seatChair?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
                 walkingToChair = true;
                 seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
               }
@@ -27317,11 +27395,7 @@ const shotPowerRef = useRef(0);
               directRootTarget: walkingToChair
             });
             if (rig.heldCue) {
-              if (isHumanShooter) {
-                rig.heldCue.visible = false;
-              } else {
-                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
-              }
+              rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
             }
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
@@ -35858,6 +35932,12 @@ const shotPowerRef = useRef(0);
         disposeEnvironmentRef.current = null;
         envTextureRef.current = null;
         envSkyboxRef.current = null;
+        if (floorShadowCatcherRef.current) {
+          floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+          floorShadowCatcherRef.current.geometry?.dispose?.();
+          floorShadowCatcherRef.current.material?.dispose?.();
+          floorShadowCatcherRef.current = null;
+        }
         envSkyboxTextureRef.current = null;
         cueGalleryStateRef.current.active = false;
         cueGalleryStateRef.current.rackId = null;
