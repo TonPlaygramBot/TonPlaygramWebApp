@@ -727,7 +727,7 @@ function updateGoalRushWalkAnimation(human, dt, frame) {
   if (walk) {
     const ref = human.cfg?.perimeterWalkSpeed || human.cfg?.unit || 1;
     const normalizedSpeed = Math.max(0, Math.min(2, (human.lastMoveAmountRaw || 0) * 60 / Math.max(0.001, ref)));
-    walk.timeScale = THREE.MathUtils.clamp((normalizedSpeed || walkWeight) * 0.72, 0.48, 0.92);
+    walk.timeScale = THREE.MathUtils.clamp(normalizedSpeed || walkWeight, 0.7, 1.35);
   }
   human.mixer.update(dt);
   return walkWeight > 0.05 && frame.t < 0.025;
@@ -752,83 +752,38 @@ function driveHuman(human, frame) {
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
   if (frame.seated) {
-    // Match Murlan Royale seated framing: the body is lower in the cushion,
-    // arms rest naturally, and both legs fold down in front of the chair.
-    human.model.position.y = -0.09 * cfg.unit;
+    // Murlan Royale seated baseline: hips fold down into the cushion, legs stay
+    // grounded in front of the chair and only light upper-body breathing remains.
     if (b.hips) b.hips.rotation.x += THREE.MathUtils.degToRad(-9);
     if (b.spine) b.spine.rotation.x += THREE.MathUtils.degToRad(-3);
     if (b.chest) b.chest.rotation.x += THREE.MathUtils.degToRad(-2);
-    if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(2);
-    if (b.leftUpperLeg) {
-      b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-      b.leftUpperLeg.rotation.y += THREE.MathUtils.degToRad(9.2);
-      b.leftUpperLeg.rotation.z += THREE.MathUtils.degToRad(2.9);
-    }
-    if (b.rightUpperLeg) {
-      b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-      b.rightUpperLeg.rotation.y += THREE.MathUtils.degToRad(1.7);
-      b.rightUpperLeg.rotation.z += THREE.MathUtils.degToRad(-1.1);
-    }
-    if (b.leftLowerLeg) {
-      b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-      b.leftLowerLeg.rotation.y += THREE.MathUtils.degToRad(1.1);
-      b.leftLowerLeg.rotation.z += THREE.MathUtils.degToRad(0.6);
-    }
-    if (b.rightLowerLeg) {
-      b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-      b.rightLowerLeg.rotation.y += THREE.MathUtils.degToRad(-1.1);
-      b.rightLowerLeg.rotation.z += THREE.MathUtils.degToRad(-0.6);
-    }
-    if (b.leftUpperArm) {
-      b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-49);
-      b.leftUpperArm.rotation.y += THREE.MathUtils.degToRad(-7);
-      b.leftUpperArm.rotation.z += THREE.MathUtils.degToRad(-3);
-    }
-    if (b.rightUpperArm) {
-      b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-53);
-      b.rightUpperArm.rotation.y += THREE.MathUtils.degToRad(7);
-      b.rightUpperArm.rotation.z += THREE.MathUtils.degToRad(3);
-    }
-    if (b.leftLowerArm) {
-      b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(49);
-      b.leftLowerArm.rotation.y += THREE.MathUtils.degToRad(-4);
-      b.leftLowerArm.rotation.z += THREE.MathUtils.degToRad(-3);
-    }
-    if (b.rightLowerArm) {
-      b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(53);
-      b.rightLowerArm.rotation.y += THREE.MathUtils.degToRad(4);
-      b.rightLowerArm.rotation.z += THREE.MathUtils.degToRad(3);
-    }
-    if (b.leftHand) {
-      b.leftHand.rotation.x += THREE.MathUtils.degToRad(16);
-      b.leftHand.rotation.y += THREE.MathUtils.degToRad(-5);
-      b.leftHand.rotation.z += THREE.MathUtils.degToRad(-3);
-    }
-    if (b.rightHand) {
-      b.rightHand.rotation.x += THREE.MathUtils.degToRad(18);
-      b.rightHand.rotation.y += THREE.MathUtils.degToRad(5);
-      b.rightHand.rotation.z += THREE.MathUtils.degToRad(3);
-    }
+    if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(3);
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-42);
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-38);
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(38);
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(34);
     human.modelRoot.updateMatrixWorld(true);
     poseFingers(human.leftFingers, 'idle', 1);
-    poseFingers(human.rightFingers, 'grip', 0.9);
+    poseFingers(human.rightFingers, 'grip', 0.7);
     return;
   }
-
-  human.model.position.y = 0;
 
   if (frame.walkAmount * idle > 0.001) {
     const s = Math.sin(human.walkT * 6.2);
     const c = Math.cos(human.walkT * 6.2);
     const w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.28 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.28 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.24 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.24 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.25 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.25 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.028 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.02 * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
   }
 
   if (ik >= 0.025) {
@@ -931,7 +886,7 @@ export function updateHumanPose(human, dt, frameData) {
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
-  human.walkT += dt * (1.45 + Math.min(4.8, (moveAmountRaw * 7.2) / cfg.unit));
+  human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
   const tableForward = resolveRootToTableForward(human.root.position, frameData);
   const facingForward = shootingPoseActive && tableForward

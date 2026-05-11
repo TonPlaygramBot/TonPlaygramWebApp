@@ -1848,7 +1848,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = false;
+const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
@@ -2245,7 +2245,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.82; // trim Pool Royale spin slightly for more natural cue-ball action
+const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -2273,7 +2273,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1; // keep slider strength honest by removing the extra Pool Royale boost
-const SHOT_GLOBAL_POWER_SCALE = 0.82; // add more Pool Royale shot pace while keeping slider strength controllable
+const SHOT_GLOBAL_POWER_SCALE = 0.72; // soften Pool Royale shot pace so ball travel matches the displayed slider power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2420,7 +2420,7 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
-    walkSpeed: 2.85,
+    walkSpeed: 4.0,
     shootForwardBendScale: 0.92,
     shootUpperBodyCounterLean: 0.48
   }),
@@ -2676,9 +2676,6 @@ const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 84; // larger, taller portrait-readable chairs for each player lounge.
 const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
 const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 82;
-const POOL_ROYALE_SHARED_LOUNGE_SIDE_SIGN = -1; // keep the single small player-side table; never moves the main Showood pool table.
-const POOL_ROYALE_SHARED_LOUNGE_TABLE_SEAT = 'A';
-const POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z = BALL_R * 26;
 // Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
 // the visible player faces inward toward the table instead of showing their back in portrait play.
 const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
@@ -9029,7 +9026,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = true;
+  mesh.castShadow = false;
   mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
@@ -18145,16 +18142,15 @@ const shotPowerRef = useRef(0);
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
-      const hdriShadowLightScale = 0.32;
-      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity * hdriShadowLightScale;
+      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
-      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity * hdriShadowLightScale;
+      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.washColor && wash) wash.color.set(settings.washColor);
-      if (settings.washIntensity && wash) wash.intensity = settings.washIntensity * hdriShadowLightScale;
+      if (settings.washIntensity && wash) wash.intensity = settings.washIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
-      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity * hdriShadowLightScale;
+      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
-        ambient.intensity = settings.ambientIntensity * hdriShadowLightScale;
+        ambient.intensity = settings.ambientIntensity;
     },
     [lightingId]
   );
@@ -20350,7 +20346,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -25995,7 +25991,7 @@ const shotPowerRef = useRef(0);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = false;
+        const useHdriOnly = true;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -26022,12 +26018,12 @@ const shotPowerRef = useRef(0);
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.06 * lightBrightnessTrim);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.3 * lightBrightnessTrim);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(
           0xffffff,
-          0.42 * brightnessCompensation * lightBrightnessTrim
+          1.68 * brightnessCompensation * lightBrightnessTrim
         );
         key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(0, targetY, 0);
@@ -26047,7 +26043,7 @@ const shotPowerRef = useRef(0);
 
         const fill = new THREE.DirectionalLight(
           0xffffff,
-          0.08 * brightnessCompensation * lightBrightnessTrim
+          0.84 * brightnessCompensation * lightBrightnessTrim
         );
         fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
@@ -26056,7 +26052,7 @@ const shotPowerRef = useRef(0);
 
         const wash = new THREE.DirectionalLight(
           0xffffff,
-          0.06 * brightnessCompensation * lightBrightnessTrim
+          0.76 * brightnessCompensation * lightBrightnessTrim
         );
         wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
@@ -26065,24 +26061,12 @@ const shotPowerRef = useRef(0);
 
         const rim = new THREE.DirectionalLight(
           0xffffff,
-          0.05 * brightnessCompensation * lightBrightnessTrim
+          0.68 * brightnessCompensation * lightBrightnessTrim
         );
         rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
-
-        const hdriFloorShadow = new THREE.Mesh(
-          new THREE.PlaneGeometry(shadowHalfSpan * 2.4, shadowHalfSpan * 2.4),
-          new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.28, transparent: true })
-        );
-        hdriFloorShadow.name = 'PoolRoyale_HdriFloorShadowReceiver';
-        hdriFloorShadow.rotation.x = -Math.PI / 2;
-        hdriFloorShadow.position.y = floorY + MICRO_EPS;
-        hdriFloorShadow.receiveShadow = true;
-        hdriFloorShadow.castShadow = false;
-        hdriFloorShadow.renderOrder = -6;
-        lightingRig.add(hdriFloorShadow);
 
         lightingRigRef.current = {
           group: lightingRig,
@@ -26090,8 +26074,7 @@ const shotPowerRef = useRef(0);
           fill,
           wash,
           rim,
-          ambient,
-          hdriFloorShadow
+          ambient
         };
         applyLightingPreset();
       };
@@ -26860,7 +26843,7 @@ const shotPowerRef = useRef(0);
         return asset;
       };
 
-      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY, { includeTable = true, chairLocalZ = 0 } = {}) => {
+      const createFallbackPoolSideFurniture = (seat, sideSign, tableTopY) => {
         const group = new THREE.Group();
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
         const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
@@ -26869,16 +26852,15 @@ const shotPowerRef = useRef(0);
         const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.45, BALL_R * 3.5, tableTopY, 32), woodMat);
         tablePedestal.position.set(0, tableTopY * 0.5, 0);
         const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 18.6, BALL_R * 2.05, BALL_R * 20.8), seatMat);
-        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, chairLocalZ);
+        chairSeat.position.set(sideSign * BALL_R * 47.5, BALL_R * 4.4, 0);
         const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 2.05, BALL_R * 15.8, BALL_R * 20.8), seatMat);
-        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, chairLocalZ);
+        chairBack.position.set(sideSign * BALL_R * 57.0, BALL_R * 11.2, 0);
         [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
+          group.add(mesh);
         });
-        if (includeTable) group.add(tableTop, tablePedestal);
-        group.add(chairSeat, chairBack);
-        group.userData.tableMeshes = includeTable ? [tableTop, tablePedestal] : [];
+        group.userData.tableMeshes = [tableTop, tablePedestal];
         group.userData.chairMeshes = [chairSeat, chairBack];
         return group;
       };
@@ -26886,23 +26868,18 @@ const shotPowerRef = useRef(0);
       const createPoolSideLounge = (seat, sideSign) => {
         const group = new THREE.Group();
         group.userData.seat = seat;
-        const sharedSideSign = POOL_ROYALE_SHARED_LOUNGE_SIDE_SIGN;
-        const x = sharedSideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const z = 0;
+        const x = sideSign * (TABLE.W / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
+        const z = seat === 'A' ? -TABLE.H * 0.16 : TABLE.H * 0.16;
         group.position.set(x, floorY, z);
         group.rotation.y = 0;
 
         const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const chairLocalX = sharedSideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const chairLocalZ = seat === 'A' ? -POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z : POOL_ROYALE_SHARED_LOUNGE_CHAIR_Z;
-        const showLoungeTable = seat === POOL_ROYALE_SHARED_LOUNGE_TABLE_SEAT;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sharedSideSign, tableTopY, {
-          includeTable: showLoungeTable,
-          chairLocalZ
-        });
+        const chairLocalX = sideSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
+        const fallbackFurniture = createFallbackPoolSideFurniture(seat, sideSign, tableTopY);
         fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
         group.add(fallbackFurniture);
 
+        const showLoungeTable = true;
         fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
           mesh.visible = showLoungeTable;
         });
@@ -26933,7 +26910,7 @@ const shotPowerRef = useRef(0);
           if (!chairModel) return;
           markHospitalityMaterials(chairModel);
           fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(chairLocalX, chairModel.position.y, chairLocalZ);
+          chairModel.position.set(chairLocalX, chairModel.position.y, 0);
           const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
           chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
           group.add(chairModel);
@@ -26944,9 +26921,9 @@ const shotPowerRef = useRef(0);
 
         const serviceProps = showLoungeTable ? createWaterServiceProps(tableTopY) : null;
         if (serviceProps) group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z + chairLocalZ);
-        group.userData.chairFacing = new THREE.Vector3(-sharedSideSign, 0, 0).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z + chairLocalZ);
+        group.userData.chairRoot = new THREE.Vector3(x + chairLocalX, floorY, z);
+        group.userData.chairFacing = new THREE.Vector3(-sideSign, 0, 0).normalize();
+        group.userData.chairSeatWorld = new THREE.Vector3(x + chairLocalX, floorY, z);
         group.userData.glass = serviceProps?.userData?.glass || null;
         group.userData.glassBase = serviceProps?.userData?.glassBase?.clone?.() || new THREE.Vector3();
         return group;
@@ -27340,8 +27317,11 @@ const shotPowerRef = useRef(0);
               directRootTarget: walkingToChair
             });
             if (rig.heldCue) {
-              rig.heldCue.visible = true;
-              rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
+              if (isHumanShooter) {
+                rig.heldCue.visible = false;
+              } else {
+                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
+              }
             }
             if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
               setCueStickFromHumanCuePose(cueBack, cueTip);
