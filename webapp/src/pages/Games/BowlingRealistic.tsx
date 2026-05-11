@@ -7,8 +7,9 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
+import { createMurlanStyleTable } from "../../utils/murlanTable.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
+type PlayerAction = "idle" | "seated" | "standingUp" | "approach" | "throw" | "recover" | "toSeat" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -20,6 +21,8 @@ type HudState = {
   p2: number;
   frame: number;
   roll: number;
+  phase: string;
+  ruleHint: string;
 };
 
 type ThrowIntent = {
@@ -62,6 +65,10 @@ type HumanRig = {
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
+  seatPos: THREE.Vector3;
+  seatYaw: number;
+  standPos: THREE.Vector3;
+  seatT: number;
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
@@ -95,7 +102,7 @@ type PinState = {
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
 const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 1.46;
+const HUMAN_INITIAL_SCALE = 1.0;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -129,15 +136,22 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 const STRIKE_DANCE_LINES = ["Perfect strike!", "Unstoppable!", "Ten down, wow!", "Pure power!"];
 const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket hit!","That was elite timing."], spare:["Great spare conversion!","Clutch second ball!"], open:["Nice try—adjust and fire again.","Good pace, keep rhythm."] } as const;
+const BOWLING_RULES = [
+  "10 frames per player. Frames 1–9 end after a strike or after two rolls.",
+  "A strike scores 10 plus the next two rolls; a spare scores 10 plus the next roll.",
+  "In frame 10, a strike or spare earns bonus rolls with a fresh rack when rules require it.",
+  "Only the active bowler stands, takes a ball, approaches, and releases; the waiting player remains seated.",
+  "Swipe up for power. Start/drag left or right to choose board and hook direction.",
+];
 
 const CFG = {
   laneY: 0,
   laneHalfW: 1.56,
   gutterHalfW: 2.08,
-  playerStartZ: 7.15,
+  playerStartZ: 6.9,
   rackEdgeX: 1.42,
   rackStopZ: 6.34,
-  approachStopZ: 4.95,
+  approachStopZ: 4.82,
   foulZ: 4.55,
   arrowsZ: 0.95,
   pinDeckZ: -10.75,
@@ -145,13 +159,15 @@ const CFG = {
   ballR: 0.18,
   pinR: 0.17,
   pinToppleThreshold: 0.58,
-  approachDuration: 0.56,
-  throwDuration: 0.9,
+  approachDuration: 0.78,
+  throwDuration: 1.04,
   replayDuration: 3.2,
   recoverDuration: 0.28,
+  seatWalkDuration: 0.95,
+  standDuration: 0.42,
   returnWalkDuration: 1.08,
-  pickDuration: 0.52,
-  releaseT: 0.56,
+  pickDuration: 0.6,
+  releaseT: 0.58,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -160,6 +176,15 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ["8k", "4k", "2k", "1k"] as const;
+const BOWLING_MURLAN_CHAIR_URLS = [
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dining_chair_02/dining_chair_02_1k.gltf",
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf",
+  "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf",
+];
+const PLAYER_SEATS = [
+  { pos: new THREE.Vector3(-2.72, CFG.laneY, 6.7), yaw: Math.PI / 2, stand: new THREE.Vector3(-0.42, CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(2.72, CFG.laneY, 6.7), yaw: -Math.PI / 2, stand: new THREE.Vector3(0.42, CFG.laneY, CFG.playerStartZ) },
+];
 
 function makeEmptyPlayers(): ScorePlayer[] {
   const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
@@ -229,6 +254,16 @@ function recomputePlayerTotals(player: ScorePlayer) {
   }
 
   player.total = running;
+}
+
+function shouldResetRackForNextRoll(player: ScorePlayer, frameIndex: number, frameEnded: boolean) {
+  const frame = player.frames[frameIndex];
+  if (frameEnded) return true;
+  if (frameIndex !== 9) return false;
+  const rolls = frame.rolls;
+  if (rolls.length === 1 && rolls[0] === 10) return true;
+  if (rolls.length === 2 && (rolls[0] === 10 || rolls[0] + rolls[1] === 10)) return true;
+  return false;
 }
 
 function addRollToPlayer(player: ScorePlayer, knocked: number) {
@@ -337,34 +372,80 @@ function makeFallbackHuman(color: number) {
   const shoes = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.56 });
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 18), skin);
+  head.name = "fallback_head";
   head.position.y = 1.62;
   g.add(head);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.54, 6, 14), shirt);
+  torso.name = "fallback_torso";
   torso.position.y = 1.05;
   g.add(torso);
   const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.52, 4, 10), pants);
+  leftLeg.name = "fallback_leftLeg";
   leftLeg.position.set(-0.12, 0.35, 0);
   g.add(leftLeg);
   const rightLeg = leftLeg.clone();
+  rightLeg.name = "fallback_rightLeg";
   rightLeg.position.x = 0.12;
   g.add(rightLeg);
   const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 4, 10), skin);
+  leftArm.name = "fallback_leftArm";
   leftArm.position.set(-0.32, 1.16, 0);
   leftArm.rotation.z = 0.22;
   g.add(leftArm);
   const rightArm = leftArm.clone();
+  rightArm.name = "fallback_rightArm";
   rightArm.position.set(0.32, 1.16, 0.06);
   rightArm.rotation.z = -0.18;
   g.add(rightArm);
   const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.28), shoes);
+  shoeL.name = "fallback_leftShoe";
   shoeL.position.set(-0.12, 0.03, -0.02);
   g.add(shoeL);
   const shoeR = shoeL.clone();
+  shoeR.name = "fallback_rightShoe";
   shoeR.position.x = 0.12;
   g.add(shoeR);
+  g.userData.parts = { head, torso, leftLeg, rightLeg, leftArm, rightArm, shoeL, shoeR };
   enableShadow(g);
   return g;
 }
+
+function animateFallbackHuman(rig: HumanRig) {
+  const parts = rig.fallback.userData.parts || {};
+  const cycle = rig.walkCycle;
+  const stride = Math.sin(cycle);
+  const counter = Math.sin(cycle + Math.PI);
+  const reset = (obj: THREE.Object3D | undefined) => {
+    if (!obj) return;
+    obj.rotation.set(0, 0, 0);
+  };
+  [parts.head, parts.torso, parts.leftLeg, parts.rightLeg, parts.leftArm, parts.rightArm, parts.shoeL, parts.shoeR].forEach(reset);
+  if (rig.action === "seated") {
+    parts.torso?.rotation?.set?.(-0.16, 0, 0);
+    parts.leftLeg?.rotation?.set?.(-1.05, 0, 0.08);
+    parts.rightLeg?.rotation?.set?.(-1.05, 0, -0.08);
+    parts.leftArm?.rotation?.set?.(0.2, 0, 0.32);
+    parts.rightArm?.rotation?.set?.(0.25, 0, -0.32);
+    if (parts.head) parts.head.rotation.y = Math.sin(performance.now() * 0.0014) * 0.16;
+    return;
+  }
+  if (rig.action === "approach" || rig.action === "toRack" || rig.action === "toApproach" || rig.action === "toSeat") {
+    if (parts.leftLeg) parts.leftLeg.rotation.x = stride * 0.5;
+    if (parts.rightLeg) parts.rightLeg.rotation.x = counter * 0.5;
+    if (parts.leftArm) parts.leftArm.rotation.x = counter * 0.46;
+    if (parts.rightArm) parts.rightArm.rotation.x = stride * 0.46;
+    if (parts.torso) parts.torso.rotation.z = Math.sin(cycle * 2) * 0.025;
+  }
+  if (rig.action === "throw") {
+    const t = clamp01(rig.throwT);
+    if (parts.torso) parts.torso.rotation.x = lerp(0.02, 0.34, Math.min(t / CFG.releaseT, 1));
+    if (parts.rightArm) parts.rightArm.rotation.x = t < CFG.releaseT ? lerp(-0.3, -1.75, t / CFG.releaseT) : lerp(-1.75, 0.78, (t - CFG.releaseT) / (1 - CFG.releaseT));
+    if (parts.leftArm) parts.leftArm.rotation.x = lerp(0.1, 0.7, t);
+    if (parts.leftLeg) parts.leftLeg.rotation.x = -0.42;
+    if (parts.rightLeg) parts.rightLeg.rotation.x = 0.32;
+  }
+}
+
 
 function parseHexColor(value: string | undefined, fallback: number) {
   if (!value) return fallback;
@@ -382,7 +463,7 @@ function pickRandomAiCharacter(playerCharacterId: string) {
   return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
 }
 
-function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption): HumanRig {
+function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption, seatPos = start.clone(), seatYaw = 0): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = makeFallbackHuman(parseHexColor(character?.accent, 0xff7a2f));
@@ -415,6 +496,10 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanChar
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
+    seatPos: seatPos.clone(),
+    seatYaw,
+    standPos: start.clone(),
+    seatT: 0,
   };
 
   loadHumanCharacter(rig, character);
@@ -443,7 +528,7 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
       (gltf) => {
         if (cancelled) return;
         const model = gltf.scene;
-        normalizeHuman(model, 1.82);
+        normalizeHuman(model, 1.78);
         model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
         lockHumanToLaneGround(model);
         enableShadow(model);
@@ -495,8 +580,67 @@ function findRightHand(modelRoot: THREE.Object3D | null) {
   return hand;
 }
 
+
+function applyStandingPose(rig: HumanRig) {
+  rig.modelRoot.visible = true;
+  rig.shadow.visible = true;
+  if (rig.model) {
+    rig.model.position.x *= 0.3;
+    rig.model.position.z *= 0.3;
+    rig.model.rotation.x *= 0.65;
+    rig.model.rotation.z *= 0.65;
+  }
+}
+
+function applySeatedPose(rig: HumanRig) {
+  rig.modelRoot.visible = true;
+  rig.shadow.visible = true;
+  rig.pos.copy(rig.seatPos);
+  rig.yaw = rig.seatYaw;
+  rig.targetYaw = rig.seatYaw;
+  rig.action = "seated";
+  if (rig.model) {
+    rig.model.position.set(0, -0.42, -0.08);
+    rig.model.rotation.set(-0.18, 0, 0.02);
+  }
+  syncHuman(rig);
+  rig.shadow.scale.set(0.92, 0.72, 1);
+}
+
+function standRigForTurn(rig: HumanRig) {
+  rig.action = "standingUp";
+  rig.seatT = 0.001;
+  rig.approachT = 0;
+  rig.throwT = 0;
+  rig.recoverT = 0;
+  rig.returnWalkT = 0;
+  rig.walkCycle = 0;
+  rig.approachFrom.copy(rig.seatPos);
+  rig.approachTo.copy(rig.standPos);
+}
+
+function seatRigAfterTurn(rig: HumanRig) {
+  rig.action = "toSeat";
+  rig.seatT = 0.001;
+  rig.returnWalkT = 0;
+  rig.approachFrom.copy(rig.pos);
+  rig.approachTo.copy(rig.seatPos);
+}
+
+function loadFirstAvailableGltf(urls: string[], onLoad: (gltf: any) => void, onError?: () => void) {
+  const loader = new GLTFLoader().setCrossOrigin("anonymous");
+  const tryLoad = (index: number) => {
+    if (index >= urls.length) {
+      onError?.();
+      return;
+    }
+    loader.load(urls[index], onLoad, undefined, () => tryLoad(index + 1));
+  };
+  tryLoad(0);
+}
+
 function getHeldBallWorldPosition(rig: HumanRig) {
-  const handNode = findRightHand(rig.model);
+  const handNode = findRightHand(rig.model) as THREE.Object3D | null;
   const handAnchor = handNode ? handNode.getWorldPosition(new THREE.Vector3()) : null;
   let local = new THREE.Vector3(0.31, 0.92, 0.08);
   if (rig.action === "approach") {
@@ -671,14 +815,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
-  const groundingFloor = new THREE.Mesh(
-    new THREE.CircleGeometry(18, 96),
-    new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.02, envMapIntensity: 0.35 })
-  );
-  groundingFloor.rotation.x = -Math.PI / 2;
-  groundingFloor.position.set(0, CFG.laneY - 0.028, -2.4);
-  groundingFloor.receiveShadow = true;
-  group.add(groundingFloor);
+  // Intentionally no dark grounding floor: the lane sits directly on the HDRI ground plane so the environment remains visible.
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
@@ -714,8 +851,23 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   const foulLine = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.018, 0.055), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42 }));
   foulLine.position.set(0, CFG.laneY + 0.012, CFG.foulZ);
   group.add(foulLine);
+  const boardMat = new THREE.MeshBasicMaterial({ color: 0x3f2b16, transparent: true, opacity: 0.18 });
+  for (let i = -8; i <= 8; i++) {
+    if (i === 0) continue;
+    const boardLine = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 18.2), boardMat);
+    boardLine.rotation.x = -Math.PI / 2;
+    boardLine.position.set(i * (CFG.laneHalfW / 10), CFG.laneY + 0.014, -4.15);
+    group.add(boardLine);
+  }
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0x1d3557, transparent: true, opacity: 0.58 });
+  [-0.92, -0.46, 0, 0.46, 0.92].forEach((x) => {
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.035, 24), dotMat);
+    dot.rotation.x = -Math.PI / 2;
+    dot.position.set(x, CFG.laneY + 0.016, 3.22);
+    group.add(dot);
+  });
   const arrowMat = new THREE.MeshStandardMaterial({ color: 0x2d4f80, roughness: 0.44 });
-  for (let i = -2; i <= 2; i++) {
+  for (let i = -3; i <= 3; i++) {
     const tri = new THREE.Shape();
     tri.moveTo(0, 0.22);
     tri.lineTo(-0.11, -0.16);
@@ -723,24 +875,78 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     tri.lineTo(0, 0.22);
     const mesh = new THREE.Mesh(new THREE.ShapeGeometry(tri), arrowMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(i * 0.46, CFG.laneY + 0.012, CFG.arrowsZ);
+    mesh.position.set(i * 0.32, CFG.laneY + 0.017, CFG.arrowsZ);
     group.add(mesh);
   }
+  const pinSpotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.34 });
+  [[0, 0], [-0.32, -0.56], [0.32, -0.56], [-0.64, -1.12], [0, -1.12], [0.64, -1.12], [-0.96, -1.68], [-0.32, -1.68], [0.32, -1.68], [0.96, -1.68]].forEach(([x, dz]) => {
+    const spot = new THREE.Mesh(new THREE.RingGeometry(0.11, 0.125, 24), pinSpotMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(x, CFG.laneY + 0.018, CFG.pinDeckZ + dz);
+    group.add(spot);
+  });
   const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.8, 1.25), metalMat);
   pinsetter.position.set(0, 0.32, CFG.backStopZ + 0.18);
   group.add(pinsetter);
 
-  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.08, 1.72), woodMat);
-  tableTop.position.set(2.02, 0.76, 6.35);
-  group.add(tableTop);
-  const legGeom = new THREE.BoxGeometry(0.1, 0.7, 0.1);
-  for (const sx of [-0.68, 0.68]) {
-    for (const sz of [-0.7, 0.7]) {
-      const leg = new THREE.Mesh(legGeom, blackMat);
-      leg.position.set(2.02 + sx, 0.37, 6.35 + sz);
-      group.add(leg);
+  const lounge = new THREE.Group();
+  lounge.position.set(0, CFG.laneY, 6.7);
+  try {
+    createMurlanStyleTable({
+      THREE,
+      arena: lounge,
+      tableRadius: 0.82,
+      tableHeight: 0.74,
+      pedestalHeightScale: 0.86,
+      includeBase: true,
+    });
+  } catch {
+    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.08, 1.72), woodMat);
+    tableTop.position.set(0, 0.76, 0);
+    lounge.add(tableTop);
+    const legGeom = new THREE.BoxGeometry(0.1, 0.7, 0.1);
+    for (const sx of [-0.68, 0.68]) {
+      for (const sz of [-0.7, 0.7]) {
+        const leg = new THREE.Mesh(legGeom, blackMat);
+        leg.position.set(sx, 0.37, sz);
+        lounge.add(leg);
+      }
     }
   }
+  const chairFallbackMat = new THREE.MeshPhysicalMaterial({ color: 0x5f3d26, roughness: 0.42, metalness: 0.05, clearcoat: 0.35 });
+  for (const seat of PLAYER_SEATS) {
+    const chair = new THREE.Group();
+    chair.position.copy(seat.pos);
+    chair.rotation.y = seat.yaw + Math.PI;
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.12, 0.72), chairFallbackMat);
+    pad.position.y = 0.43;
+    chair.add(pad);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.86, 0.12), chairFallbackMat);
+    back.position.set(0, 0.88, 0.33);
+    chair.add(back);
+    for (const sx of [-0.27, 0.27]) for (const sz of [-0.24, 0.24]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.44, 12), chairFallbackMat);
+      leg.position.set(sx, 0.21, sz);
+      chair.add(leg);
+    }
+    group.add(chair);
+    loadFirstAvailableGltf(BOWLING_MURLAN_CHAIR_URLS, (gltf) => {
+      if (!group.parent) return;
+      const model = gltf.scene.clone(true);
+      enableShadow(model);
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const span = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z) || 1;
+      model.scale.setScalar(1.05 / span);
+      model.updateMatrixWorld(true);
+      const box2 = new THREE.Box3().setFromObject(model);
+      model.position.set(seat.pos.x - (box2.min.x + box2.max.x) / 2, CFG.laneY - box2.min.y, seat.pos.z - (box2.min.z + box2.max.z) / 2);
+      model.rotation.y = seat.yaw + Math.PI;
+      group.add(model);
+      chair.visible = false;
+    });
+  }
+  group.add(lounge);
   const returnBase = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.4, 1.55), woodMat);
   returnBase.position.set(1.67, 0.2, 5.92);
   group.add(returnBase);
@@ -808,7 +1014,44 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
-  if (rig.action === "approach") {
+  if (rig.action === "seated") {
+    const breath = Math.sin(performance.now() * 0.002) * 0.008;
+    rig.pos.copy(rig.seatPos);
+    rig.yaw = rig.seatYaw;
+    rig.targetYaw = rig.seatYaw;
+    if (rig.model) {
+      rig.model.position.set(0, -0.42 + breath, -0.08);
+      rig.model.rotation.set(-0.18, 0, 0.02);
+    }
+  } else if (rig.action === "standingUp") {
+    rig.seatT = clamp01(rig.seatT + dt / CFG.standDuration);
+    const k = easeInOut(rig.seatT);
+    rig.pos.lerpVectors(rig.seatPos, rig.standPos, k);
+    rig.yaw = lerp(rig.seatYaw, Math.PI, k);
+    rig.targetYaw = rig.yaw;
+    if (rig.model) {
+      rig.model.position.set(0, lerp(-0.42, 0, k), lerp(-0.08, 0, k));
+      rig.model.rotation.x = lerp(-0.18, 0, k);
+      rig.model.rotation.z = lerp(0.02, 0, k);
+    }
+    if (rig.seatT >= 1) {
+      rig.action = "idle";
+      rig.pos.copy(rig.standPos);
+      rig.yaw = Math.PI;
+      rig.targetYaw = Math.PI;
+    }
+  } else if (rig.action === "toSeat") {
+    rig.seatT = clamp01(rig.seatT + dt / CFG.seatWalkDuration);
+    rig.walkCycle += dt * 8.8;
+    const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.seatPos, easeInOut(rig.seatT));
+    smoothFacing(rig, nextPos, dt);
+    rig.pos.copy(nextPos);
+    if (rig.model) {
+      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.035;
+      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.035;
+    }
+    if (rig.seatT >= 1) applySeatedPose(rig);
+  } else if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
     const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
@@ -837,7 +1080,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       // left slide foot forward, right trail leg back (visual posture only).
       rig.model.position.x = t < CFG.releaseT ? lerp(0, -0.08, t / CFG.releaseT) : lerp(-0.08, -0.02, (t - CFG.releaseT) / (1 - CFG.releaseT));
       rig.model.position.z = t < CFG.releaseT ? lerp(0, -0.11, t / CFG.releaseT) : lerp(-0.11, -0.03, (t - CFG.releaseT) / (1 - CFG.releaseT));
-      const rightHand = findRightHand(rig.model);
+      const rightHand = findRightHand(rig.model) as THREE.Object3D | null;
       if (rightHand) {
         if (t < CFG.releaseT) {
           const k = easeInOut(t / CFG.releaseT);
@@ -912,12 +1155,13 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.yawVelocity = 0;
   }
   if (rig.action === "idle") {
-    rig.targetYaw = 0;
-    rig.yaw = lerp(rig.yaw, 0, 1 - Math.pow(0.0008, dt));
+    rig.targetYaw = Math.PI;
+    rig.yaw = lerp(rig.yaw, Math.PI, 1 - Math.pow(0.0008, dt));
     rig.yawVelocity = 0;
   }
+  animateFallbackHuman(rig);
   syncHuman(rig);
-  if (ball.held) {
+  if (ball.held && canStartReturnCycle) {
     ball.pos.copy(getHeldBallWorldPosition(rig));
     ball.mesh.position.copy(ball.pos);
   }
@@ -1126,9 +1370,13 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   } else if (player.action === "pickBall") {
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.7, 5.6));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.96, -0.8));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover" || player.action === "toRack" || player.action === "toApproach") {
-    desired = player.pos.clone().add(new THREE.Vector3(0, 2.55, 3.72));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.85, -1.7));
+  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover") {
+    const shoulderSide = player.pos.x <= 0 ? -0.34 : 0.34;
+    desired = player.pos.clone().add(new THREE.Vector3(shoulderSide, 1.62, 1.18));
+    look = new THREE.Vector3(clamp(player.pos.x * 0.28, -0.42, 0.42), CFG.laneY + 0.52, CFG.pinDeckZ - 0.42);
+  } else if (player.action === "toRack" || player.action === "toApproach" || player.action === "standingUp") {
+    desired = player.pos.clone().add(new THREE.Vector3(0, 2.2, 3.2));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.78, -1.6));
   } else {
     desired = new THREE.Vector3(0, 2.9, 10.8);
     look = new THREE.Vector3(0, CFG.laneY + 0.74, -2.6);
@@ -1157,7 +1405,7 @@ function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) {
 export default function MobileBowlingRealistic() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1 });
+  const [hud, setHud] = useState<HudState>({ power: 0, status: "Swipe up to bowl", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1, phase: "Ready", ruleHint: BOWLING_RULES[0] });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<"performance"|"balanced"|"ultra">("balanced");
@@ -1205,9 +1453,11 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
+    let bgTex: THREE.Texture | null = null;
     const applyHdri = (id: string) => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
-      const preferred = Array.isArray(selected?.preferredResolutions) ? selected.preferredResolutions : ["4k", "2k"];
+      const menuPreferred = graphicsQuality === "performance" ? ["2k", "1k"] : graphicsQuality === "ultra" ? ["8k", "4k", "2k"] : ["4k", "2k"];
+      const preferred = Array.isArray(selected?.preferredResolutions) ? [...menuPreferred, ...selected.preferredResolutions] : menuPreferred;
       const candidates = [
         ...(Object.values(selected?.assetUrls || {}) as string[]),
         selected?.hdriUrl,
@@ -1223,17 +1473,19 @@ export default function MobileBowlingRealistic() {
         new RGBELoader().setCrossOrigin("anonymous").load(
           ordered[idx],
           (hdr) => {
+            envTex?.dispose();
+            bgTex?.dispose();
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+            bgTex = hdr;
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
-            scene.background = envTex;
+            scene.background = bgTex;
             const selectedRotation = Number.isFinite(selected?.rotationY) ? selected.rotationY : 0;
             if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
             if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
-            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
-            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
-            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
-            envTex.mapping = THREE.EquirectangularReflectionMapping;
-            hdr.dispose();
+            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0;
+            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.12 : graphicsQuality === "performance" ? 0.92 : 1;
+            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.86 : graphicsQuality === "ultra" ? 1.2 : 1;
           },
           undefined,
           () => tryLoad(idx + 1)
@@ -1270,7 +1522,15 @@ export default function MobileBowlingRealistic() {
     const texLoader = new THREE.TextureLoader();
     createEnvironment(scene, texLoader, selectedTableFinish, selectedChromeColor);
     const pins = createPins(scene);
-    const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), playerCharacter);
+    const playerRigs = [
+      addHuman(scene, PLAYER_SEATS[0].stand.clone(), playerCharacter, PLAYER_SEATS[0].pos, PLAYER_SEATS[0].yaw),
+      addHuman(scene, PLAYER_SEATS[1].pos.clone(), aiCharacter, PLAYER_SEATS[1].pos, PLAYER_SEATS[1].yaw),
+    ];
+    playerRigs[0].standPos.copy(PLAYER_SEATS[0].stand);
+    playerRigs[1].standPos.copy(PLAYER_SEATS[1].stand);
+    applyStandingPose(playerRigs[0]);
+    applySeatedPose(playerRigs[1]);
+    let player = playerRigs[0];
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
     const ball = createActiveBall(ballVariant);
     scene.add(ball.mesh);
@@ -1284,6 +1544,7 @@ export default function MobileBowlingRealistic() {
     let pendingIntent: ThrowIntent | null = null;
     let shotResolved = false;
     let nextAction: "samePlayer" | "nextPlayer" | "gameOver" = "samePlayer";
+    let resetDeckOnReturn = false;
     let replayTimer = 0;
 
     const currentFrameRoll = () => {
@@ -1321,9 +1582,12 @@ export default function MobileBowlingRealistic() {
       player.throwT = 0;
       player.recoverT = 0;
       player.walkCycle = 0;
-      player.pos.set(0, CFG.laneY, CFG.playerStartZ);
+      player.pos.copy(player.standPos);
+      player.yaw = Math.PI;
+      player.targetYaw = Math.PI;
       player.approachFrom.copy(player.pos);
       player.approachTo.copy(player.pos);
+      applyStandingPose(player);
       syncHuman(player);
       ball.held = true;
       ball.rolling = false;
@@ -1338,13 +1602,17 @@ export default function MobileBowlingRealistic() {
       pinsWereMoving = false;
       settleTimer = 0;
       pendingIntent = null;
+      if (resetDeckOnReturn) resetPins(pins);
+      resetDeckOnReturn = false;
+      const previousPlayer = player;
+      player = playerRigs[activePlayer];
+      if (previousPlayer !== player) seatRigAfterTurn(previousPlayer);
       resetPlayerPoseForNextBall();
-      if (nextAction === "nextPlayer") resetPins(pins);
+      if (previousPlayer !== player) standRigForTurn(player);
       syncReactScores();
       aiTurnDelay = activePlayer === 1 ? 0.85 + Math.random() * 0.5 : 0.85;
-      loadHumanCharacter(player, activePlayer === 0 ? playerCharacter : aiCharacter);
       const playerName = localScores[activePlayer].name;
-      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName} swipe up to bowl` }));
+      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName} swipe up to bowl`, phase: nextAction === "gameOver" ? "Final" : activePlayer === 1 ? "AI turn" : "Your turn" }));
     };
 
     const finalizeShot = () => {
@@ -1354,19 +1622,21 @@ export default function MobileBowlingRealistic() {
       const playerBefore = localScores[activePlayer];
       const result = addRollToPlayer(playerBefore, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
-      let compliment = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
+      let compliment: string = RESULT_COMPLIMENTS.open[Math.floor(Math.random()*RESULT_COMPLIMENTS.open.length)];
       const strike = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls[0] === 10;
       const spare = result.frameIndex < 9 && playerBefore.frames[result.frameIndex].rolls.length === 2 && playerBefore.frames[result.frameIndex].rolls[0] + playerBefore.frames[result.frameIndex].rolls[1] === 10 && playerBefore.frames[result.frameIndex].rolls[0] !== 10;
       if (strike) { status = `${playerBefore.name} STRIKE!`; compliment = RESULT_COMPLIMENTS.strike[Math.floor(Math.random()*RESULT_COMPLIMENTS.strike.length)] + " " + STRIKE_DANCE_LINES[Math.floor(Math.random()*STRIKE_DANCE_LINES.length)]; }
       if (spare) { status = `${playerBefore.name} SPARE!`; compliment = RESULT_COMPLIMENTS.spare[Math.floor(Math.random()*RESULT_COMPLIMENTS.spare.length)]; }
       const allDone = localScores.every((p) => playerFinished(p));
+      resetDeckOnReturn = shouldResetRackForNextRoll(playerBefore, result.frameIndex, result.frameEnded);
       if (allDone) nextAction = "gameOver";
       else if (result.frameEnded) {
         activePlayer = (activePlayer + 1) % 2;
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
       syncReactScores();
-      setHud((prev) => ({ ...prev, status, compliment }));
+      const ruleHint = resetDeckOnReturn && result.frameIndex === 9 ? "10th-frame bonus rack is being reset." : result.frameEnded ? "Frame complete — next bowler gets a full rack." : "Second ball: standing pins remain in play.";
+      setHud((prev) => ({ ...prev, status, compliment, ruleHint, phase: result.frameEnded ? "Frame scored" : "Second ball" }));
       shotResolved = true;
       waitingForBallReturn = true;
       if (!skipReplays && (strike || spare)) {
@@ -1405,7 +1675,8 @@ export default function MobileBowlingRealistic() {
     const onPointerDown = (e: PointerEvent) => {
       if (nextAction === "gameOver") return;
       if (control.active || ball.rolling || waitingForBallReturn || replayActive) return;
-      if (player.action === "approach" || player.action === "throw" || player.action === "recover") return;
+      if (activePlayer !== 0 || player !== playerRigs[0]) return;
+      if (player.action !== "idle") return;
       canvas.setPointerCapture(e.pointerId);
       control.active = true;
       control.pointerId = e.pointerId;
@@ -1416,7 +1687,7 @@ export default function MobileBowlingRealistic() {
       control.intent = computeIntent(host.clientWidth, host.clientHeight, e.clientX, e.clientY, e.clientX, e.clientY);
       pendingIntent = control.intent;
       updateAimVisual(aimLine, aimMarker, control.intent);
-      setHud((prev) => ({ ...prev, power: 0, status: "Swipe up. Slide left/right to aim." }));
+      setHud((prev) => ({ ...prev, power: 0, status: "Swipe up. Slide left/right to pick board + hook.", phase: "Aiming", ruleHint: BOWLING_RULES[4] }));
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -1426,7 +1697,7 @@ export default function MobileBowlingRealistic() {
       control.intent = computeIntent(host.clientWidth, host.clientHeight, control.startX, control.startY, e.clientX, e.clientY);
       pendingIntent = control.intent;
       updateAimVisual(aimLine, aimMarker, control.intent);
-      setHud((prev) => ({ ...prev, power: control.intent!.power }));
+      setHud((prev) => ({ ...prev, power: control.intent!.power, phase: `Power ${Math.round(control.intent!.power * 100)}%` }));
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -1439,12 +1710,12 @@ export default function MobileBowlingRealistic() {
       const intent = computeIntent(host.clientWidth, host.clientHeight, control.startX, control.startY, e.clientX, e.clientY);
       if (intent.power < 0.05) {
         pendingIntent = null;
-        setHud((prev) => ({ ...prev, power: 0, status: "Swipe higher for power" }));
+        setHud((prev) => ({ ...prev, power: 0, status: "Swipe higher for power", phase: "Try again" }));
         return;
       }
       pendingIntent = intent;
       startApproach(player, intent);
-      setHud((prev) => ({ ...prev, power: 0, status: "Fast approach to the line" }));
+      setHud((prev) => ({ ...prev, power: 0, status: "Four-step approach: eyes on the arrows", phase: "Approach" }));
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
@@ -1469,15 +1740,15 @@ export default function MobileBowlingRealistic() {
           pendingIntent = makeAiIntent();
           startApproach(player, pendingIntent);
           aiTurnDelay = 0.85 + Math.random() * 0.5;
-          setHud((prev) => ({ ...prev, status: "PLAYER 2 AI is bowling" }));
+          setHud((prev) => ({ ...prev, status: "PLAYER 2 AI is bowling", phase: "AI release" }));
         }
       }
-      updateHuman(player, ball, dt, true);
+      for (const rig of playerRigs) updateHuman(rig, ball, dt, rig === player);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
         pendingIntent = null;
-        setHud((prev) => ({ ...prev, status: "Ball rolling" }));
+        setHud((prev) => ({ ...prev, status: "Ball rolling through the oil pattern", phase: "Rolling" }));
       }
       updateBall(ball, pins, dt);
       const pinsMoving = updatePins(pins, dt);
@@ -1547,12 +1818,18 @@ export default function MobileBowlingRealistic() {
               </React.Fragment>
             ))}
           </div>
-          <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
+          <div style={{ marginTop: 7, display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 10, fontWeight: 900, color: "#001018", background: "#7fd6ff", borderRadius: 999, padding: "2px 8px" }}>{hud.phase}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.94 }}>{hud.status}</span>
+          </div>
+          <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 700, color: "#c7d2fe" }}>{hud.ruleHint}</div>
           {hud.compliment ? <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 800, color: "#86efac" }}>{hud.compliment}</div> : null}
         </div>
 
         <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 132, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
         {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
+          <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Rules + mobile controls</div>
+          <div style={{display:"grid",gap:5,marginBottom:10}}>{BOWLING_RULES.map((rule, idx)=><div key={rule} style={{fontSize:11,lineHeight:1.25,color:"rgba(255,255,255,0.86)"}}><b style={{color:"#7fd6ff"}}>{idx + 1}.</b> {rule}</div>)}</div>
           <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
           {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
 
@@ -1583,6 +1860,19 @@ export default function MobileBowlingRealistic() {
           </label>
         </div> : null}
         {replayActive ? <button onClick={()=>setReplayActive(false)} style={{ position:"absolute", top: 132, right: 8, padding:"8px 10px", borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(190,20,20,0.75)", color:"#fff", fontWeight:900, pointerEvents:"auto" }}>Skip replay</button> : null}
+
+        <div style={{ position:"absolute", left: 10, right: 10, bottom: 16, padding: "10px 12px", borderRadius: 16, background:"linear-gradient(180deg, rgba(5,8,14,0.68), rgba(5,8,14,0.88))", border:"1px solid rgba(255,255,255,0.16)", color:"#fff", pointerEvents:"none", boxShadow:"0 18px 34px rgba(0,0,0,0.28)" }}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, marginBottom:6}}>
+            <div style={{fontSize:11,fontWeight:900,letterSpacing:0.4}}>MOBILE RELEASE</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#7fd6ff"}}>Aim board + hook with one thumb</div>
+          </div>
+          <div style={{height:8,borderRadius:999,background:"rgba(255,255,255,0.14)",overflow:"hidden"}}>
+            <div style={{height:"100%",width:`${Math.round(hud.power * 100)}%`,background:"linear-gradient(90deg,#86efac,#7fd6ff,#fbbf24)",transition:"width 80ms linear"}} />
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:700,opacity:0.82,marginTop:5}}>
+            <span>low speed</span><span>strike speed</span>
+          </div>
+        </div>
 
       </div>
     </div>
