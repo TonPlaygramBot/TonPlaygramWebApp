@@ -727,8 +727,7 @@ function updateGoalRushWalkAnimation(human, dt, frame) {
   if (walk) {
     const ref = human.cfg?.perimeterWalkSpeed || human.cfg?.unit || 1;
     const normalizedSpeed = Math.max(0, Math.min(2, (human.lastMoveAmountRaw || 0) * 60 / Math.max(0.001, ref)));
-    // Match the Soldier-style locomotion cadence, but slow it down so Pool Royale walk-ups feel natural.
-    walk.timeScale = THREE.MathUtils.clamp((normalizedSpeed || walkWeight) * 0.72, 0.48, 0.95);
+    walk.timeScale = THREE.MathUtils.clamp(normalizedSpeed || walkWeight, 0.7, 1.35);
   }
   human.mixer.update(dt);
   return walkWeight > 0.05 && frame.t < 0.025;
@@ -777,14 +776,14 @@ function driveHuman(human, frame) {
     const s = Math.sin(human.walkT * 6.2);
     const c = Math.cos(human.walkT * 6.2);
     const w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.28 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.28 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.26 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.26 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.24 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.24 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.026 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.02 * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
   }
 
   if (ik >= 0.025) {
@@ -887,8 +886,7 @@ export function updateHumanPose(human, dt, frameData) {
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
-  // Slower Soldier-like procedural cadence when the loaded GLB has no native walk clip.
-  human.walkT += dt * (1.35 + Math.min(5.1, (moveAmountRaw * 7.2) / cfg.unit));
+  human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
   const tableForward = resolveRootToTableForward(human.root.position, frameData);
   const facingForward = shootingPoseActive && tableForward
