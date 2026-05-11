@@ -107,7 +107,7 @@ type PinState = {
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
 const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 0.84;
+const HUMAN_INITIAL_SCALE = 1.04;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -147,7 +147,7 @@ const STRIKE_DANCE_LINES = ["Perfect strike!", "Unstoppable!", "Ten down, wow!",
 const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket hit!","That was elite timing."], spare:["Great spare conversion!","Clutch second ball!"], open:["Nice try—adjust and fire again.","Good pace, keep rhythm."] } as const;
 
 const CFG = {
-  laneY: -0.08,
+  laneY: -0.62,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -192,6 +192,10 @@ const BOWLING_MURLAN_CHAIR_URLS = [
 const LANE_CENTERS = [-CFG.laneCenterOffset, CFG.laneCenterOffset] as const;
 const laneCenterForPlayer = (playerIndex: number) => LANE_CENTERS[playerIndex === 1 ? 1 : 0];
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.92, CFG.laneY, 8.18);
+const BOWLING_MURLAN_TABLE_CENTERS = [
+  new THREE.Vector3(-5.0, CFG.laneY, 7.22),
+  new THREE.Vector3(-5.0, CFG.laneY, 9.16),
+] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
   { x: 0, z: 6.34, rx: 1.1, rz: 2.02 },
@@ -203,8 +207,13 @@ const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
 const HUMAN_CLEARANCE = 0.34;
 const PLAYER_READY_POINT = new THREE.Vector3(laneCenterForPlayer(0), CFG.laneY, CFG.playerStartZ);
 const PLAYER_SEATS = [
-  { pos: new THREE.Vector3(-5.62, CFG.laneY, 7.34), yaw: Math.PI / 2, stand: PLAYER_READY_POINT.clone() },
-  { pos: new THREE.Vector3(-5.5, CFG.laneY, 8.94), yaw: Math.PI / 2, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-5.96, CFG.laneY, 7.22), yaw: Math.PI / 2, stand: PLAYER_READY_POINT.clone() },
+  { pos: new THREE.Vector3(-4.04, CFG.laneY, 7.22), yaw: -Math.PI / 2, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
+];
+const BOWLING_MURLAN_CHAIR_SEATS = [
+  ...PLAYER_SEATS,
+  { pos: new THREE.Vector3(-5.96, CFG.laneY, 9.16), yaw: Math.PI / 2 },
+  { pos: new THREE.Vector3(-4.04, CFG.laneY, 9.16), yaw: -Math.PI / 2 },
 ];
 
 function keepHumanInBowlingWalkableArea(pos: THREE.Vector3, preferredSide = -1) {
@@ -1064,6 +1073,70 @@ type BowlingCrowdMember = {
   seated: boolean;
 };
 
+function drawBowlingBoardTexture(text: string, options: { width?: number; height?: number; bg?: string; fg?: string; accent?: string; pulse?: number } = {}) {
+  const width = options.width || 512;
+  const height = options.height || 160;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const bg = options.bg || "rgba(3, 7, 18, 0.96)";
+  const fg = options.fg || "#f8fafc";
+  const accent = options.accent || "#38bdf8";
+  const pulse = options.pulse ?? 0;
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+  const sweepX = ((pulse % 1) * width * 1.35) - width * 0.18;
+  const scan = ctx.createLinearGradient(sweepX - width * 0.22, 0, sweepX + width * 0.22, 0);
+  scan.addColorStop(0, "rgba(255,255,255,0)");
+  scan.addColorStop(0.5, "rgba(125,211,252,0.22)");
+  scan.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = scan;
+  ctx.fillRect(0, 0, width, height);
+  const grad = ctx.createLinearGradient(0, 0, width, 0);
+  grad.addColorStop(0, "rgba(56,189,248,0.95)");
+  grad.addColorStop(0.5, "rgba(244,114,182,0.9)");
+  grad.addColorStop(1, "rgba(250,204,21,0.85)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, 10);
+  ctx.fillRect(0, height - 10, width, 10);
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 2;
+  for (let y = 26; y < height - 14; y += 18) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  ctx.fillStyle = accent;
+  ctx.font = `900 ${Math.round(height * 0.2)}px system-ui, sans-serif`;
+  ctx.fillText("TON PLAYGRAM", 28, Math.round(height * 0.34));
+  ctx.fillStyle = fg;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = 16;
+  ctx.font = `900 ${Math.round(height * 0.34)}px system-ui, sans-serif`;
+  ctx.fillText(text, 28, Math.round(height * 0.76));
+  ctx.shadowBlur = 0;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeBowlingBoardMaterial(text: string, options: { width?: number; height?: number; bg?: string; fg?: string; accent?: string; pulse?: number } = {}) {
+  return new THREE.MeshBasicMaterial({ map: drawBowlingBoardTexture(text, options), transparent: true, toneMapped: false });
+}
+
+function setBowlingBoardText(panel: THREE.Mesh, text: string, accent = "#38bdf8", pulse = 0) {
+  const oldMat = panel.material as THREE.MeshBasicMaterial | undefined;
+  const oldMap = oldMat?.map;
+  panel.material = makeBowlingBoardMaterial(text, { width: 768, height: 144, accent, pulse, bg: "rgba(0,0,0,0.96)" });
+  oldMap?.dispose?.();
+  oldMat?.dispose?.();
+  panel.userData.scoreText = text;
+  panel.userData.scoreAccent = accent;
+  panel.userData.scorePulse = pulse;
+}
+
 function makeCanvasTextMaterial(text: string, options: { width?: number; height?: number; bg?: string; fg?: string; accent?: string } = {}) {
   const width = options.width || 512;
   const height = options.height || 160;
@@ -1293,11 +1366,27 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     group.add(laneNumber);
   }
 
-  // Leave the pin end open to the HDRI wall; no black back board or pinsetter cabinet.
-  for (const laneCenter of LANE_CENTERS) {
+  // Grounded black pin boards sit behind the pin decks again, with animated score screens above the pins.
+  for (const [laneIndex, laneCenter] of LANE_CENTERS.entries()) {
+    const blackBackBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.72, 1.72, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0x030407, roughness: 0.72, metalness: 0.18 })
+    );
+    blackBackBoard.position.set(laneCenter, CFG.laneY + 0.86, CFG.backStopZ + 0.82);
+    group.add(blackBackBoard);
     const pinFocus = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.38, 0.1, 0.08), new THREE.MeshBasicMaterial({ color: 0x92e7ff, transparent: true, opacity: 0.46, toneMapped: false }));
-    pinFocus.position.set(laneCenter, 0.86, CFG.backStopZ + 0.82);
+    pinFocus.position.set(laneCenter, CFG.laneY + 1.16, CFG.backStopZ + 0.9);
     group.add(pinFocus);
+    const pinFallBoard = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.42, 0.62),
+      makeBowlingBoardMaterial(`LANE ${laneIndex + 1} READY`, { width: 768, height: 144, accent: laneIndex === 0 ? '#38bdf8' : '#f97316', bg: 'rgba(0,0,0,0.96)' })
+    );
+    pinFallBoard.position.set(laneCenter, CFG.laneY + 1.46, CFG.backStopZ + 0.895);
+    pinFallBoard.userData.isPinFallBoard = true;
+    pinFallBoard.userData.scoreText = `LANE ${laneIndex + 1} READY`;
+    pinFallBoard.userData.scoreAccent = laneIndex === 0 ? '#38bdf8' : '#f97316';
+    group.add(pinFallBoard);
+    decor.scoreboardPanels.push(pinFallBoard);
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.86, 4.2), woodMat);
       kickback.position.set(laneCenter + x * (CFG.laneHalfW + 0.52), CFG.laneY + 0.42, CFG.pinDeckZ - 1.02);
@@ -1348,52 +1437,49 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   group.add(machineryHousing);
 
   const lounge = new THREE.Group();
-  lounge.position.copy(BOWLING_LOUNGE_CENTER);
-  try {
+  lounge.position.set(0, 0, 0);
+  for (const [index, center] of BOWLING_MURLAN_TABLE_CENTERS.entries()) {
+    const murlanTable = new THREE.Group();
+    murlanTable.position.copy(center);
     createMurlanStyleTable({
       THREE,
-      arena: lounge,
-      tableRadius: 0.94,
-      tableHeight: 0.76,
-      pedestalHeightScale: 0.86,
+      arena: murlanTable,
+      tableRadius: 0.82,
+      tableHeight: 0.72,
+      pedestalHeightScale: 0.82,
       includeBase: true,
+      rotationY: index % 2 ? Math.PI / 8 : 0,
     });
-  } catch {
-    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.08, 1.94), woodMat);
-    tableTop.position.set(0, 0.76, 0);
-    lounge.add(tableTop);
-    const legGeom = new THREE.BoxGeometry(0.1, 0.7, 0.1);
-    for (const sx of [-0.68, 0.68]) {
-      for (const sz of [-0.7, 0.7]) {
-        const leg = new THREE.Mesh(legGeom, blackMat);
-        leg.position.set(sx, 0.37, sz);
-        lounge.add(leg);
-      }
-    }
+    lounge.add(murlanTable);
   }
   const snackMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.58 });
   const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x7dd3fc, roughness: 0.08, metalness: 0, transmission: 0.2, transparent: true, opacity: 0.72, clearcoat: 1 });
   const tabletMat = new THREE.MeshBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.86, toneMapped: false });
-  for (const [x, z, rot] of [[-0.34, -0.18, -0.18], [0.42, 0.22, 0.28]]) {
-    const drink = makeDrink(glassMat);
-    drink.position.set(x as number, 0.82, z as number);
-    drink.rotation.y = rot as number;
-    lounge.add(drink);
+  for (const [tableIndex, center] of BOWLING_MURLAN_TABLE_CENTERS.entries()) {
+    for (const [x, z, rot] of [[-0.26, -0.16, -0.18], [0.32, 0.2, 0.28]]) {
+      const drink = makeDrink(glassMat);
+      drink.position.set(center.x + (x as number), CFG.laneY + 0.77, center.z + (z as number));
+      drink.rotation.y = rot as number;
+      lounge.add(drink);
+    }
+    for (const [x, z] of [[-0.1, 0.28], [0.12, -0.28]]) {
+      const snack = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.035, 0.09), snackMat);
+      snack.position.set(center.x + (x as number), CFG.laneY + 0.78, center.z + (z as number));
+      snack.rotation.y = (x as number) * 2.4;
+      lounge.add(snack);
+    }
+    if (tableIndex === 0) {
+      const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.025, 0.36), tabletMat);
+      tablet.position.set(center.x + 0.1, CFG.laneY + 0.785, center.z - 0.02);
+      tablet.rotation.y = -0.36;
+      lounge.add(tablet);
+    } else {
+      const towel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.018, 0.22), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.88 }));
+      towel.position.set(center.x - 0.24, CFG.laneY + 0.785, center.z + 0.18);
+      towel.rotation.y = 0.42;
+      lounge.add(towel);
+    }
   }
-  for (const [x, z] of [[-0.12, 0.34], [0.12, 0.38], [0.27, -0.32]]) {
-    const snack = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.035, 0.09), snackMat);
-    snack.position.set(x as number, 0.83, z as number);
-    snack.rotation.y = (x as number) * 2.4;
-    lounge.add(snack);
-  }
-  const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.025, 0.36), tabletMat);
-  tablet.position.set(0.1, 0.835, -0.02);
-  tablet.rotation.y = -0.36;
-  lounge.add(tablet);
-  const towel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.018, 0.22), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.88 }));
-  towel.position.set(-0.43, 0.835, 0.26);
-  towel.rotation.y = 0.42;
-  lounge.add(towel);
 
   const couchMat = new THREE.MeshPhysicalMaterial({ color: 0x182235, roughness: 0.82, metalness: 0.01, clearcoat: 0.08 });
   for (const [x, z, yaw] of [[-5.24, 7.18, Math.PI / 2], [-5.24, 9.18, Math.PI / 2]]) {
@@ -1442,7 +1528,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   }
 
   const chairFallbackMat = new THREE.MeshPhysicalMaterial({ color: 0x5f3d26, roughness: 0.42, metalness: 0.05, clearcoat: 0.35 });
-  for (const seat of PLAYER_SEATS) {
+  for (const seat of BOWLING_MURLAN_CHAIR_SEATS) {
     const chair = new THREE.Group();
     chair.position.copy(seat.pos);
     chair.rotation.y = seat.yaw + Math.PI;
@@ -1571,14 +1657,8 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
 function createDominoBowlingCrowd(scene: THREE.Scene, playerCharacterId: string): BowlingCrowdMember[] {
   const members: BowlingCrowdMember[] = [];
   const behaviors: BowlingCrowdMember["behavior"][] = ["talking", "clapping", "phone", "drinking", "spectating", "celebrating"];
-  const spots = [
-    { pos: [-4.08, 0, 7.02], yaw: 0.02, seated: true },
-    { pos: [-3.42, 0, 8.78], yaw: Math.PI - 0.04, seated: true },
-    { pos: [-3.05, 0, 6.08], yaw: Math.PI * 0.78, seated: false },
-    { pos: [-2.66, 0, 8.05], yaw: Math.PI * 0.98, seated: false },
-    { pos: [-4.28, 0, 4.4], yaw: Math.PI * 0.62, seated: false },
-    { pos: [-3.62, 0, 9.52], yaw: 0.2, seated: false },
-  ];
+  // Keep the bowling lounge focused on the two active human bowlers seated opposite each other.
+  const spots: { pos: [number, number, number]; yaw: number; seated: boolean }[] = [];
   const roster = HUMAN_CHARACTER_OPTIONS.filter((option) => option.id !== playerCharacterId);
   spots.forEach((spot, i) => {
     const option = roster[i % Math.max(1, roster.length)] || HUMAN_CHARACTER_OPTIONS[0];
@@ -1637,7 +1717,9 @@ function updateArenaDecor(decor: BowlingArenaDecor, elapsed: number, criticalPul
     ball.visible = phase < 0.92;
   });
   decor.scoreboardPanels.forEach((panel, i) => {
-    panel.scale.setScalar(1 + Math.sin(elapsed * 2.2 + i) * (criticalPulse ? 0.018 : 0.006));
+    const animatedBoard = panel.userData?.isPinFallBoard;
+    const pulse = animatedBoard ? Math.sin(elapsed * 5.8 + i) * (criticalPulse ? 0.034 : 0.018) : Math.sin(elapsed * 2.2 + i) * (criticalPulse ? 0.018 : 0.006);
+    panel.scale.setScalar(1 + pulse);
   });
   decor.crowdPulseLights.forEach((light, i) => {
     light.intensity = (criticalPulse ? 1.2 : 0.42) + Math.sin(elapsed * 3 + i) * 0.12;
@@ -2104,11 +2186,16 @@ function getPlayerPerspectiveCameraPose(player: HumanRig, ball: BallState, dt: n
   return { desired, look };
 }
 
-function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number) {
+function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number, usePlayerPerspective = true) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay = ["idle", "approach", "throw", "recover"].includes(player.action) && player !== undefined;
-  if (ball.rolling) {
+  if (ball.rolling && !usePlayerPerspective) {
+    const laneCenter = ball.laneCenter;
+    const progressToPins = clamp01((CFG.foulZ - ball.pos.z) / (CFG.foulZ - CFG.pinDeckZ));
+    desired = new THREE.Vector3(laneCenter * 0.22, CFG.laneY + 2.55, lerp(11.9, 7.9, progressToPins));
+    look = new THREE.Vector3(laneCenter * 0.72, CFG.laneY + 0.58, lerp(-5.8, CFG.pinDeckZ - 0.9, progressToPins));
+  } else if (ball.rolling) {
     const laneCenter = ball.laneCenter;
     const lead = ball.vel.clone().setY(0);
     if (lead.lengthSq() < 0.001) lead.set(0, 0, -1);
@@ -2123,10 +2210,13 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   } else if (player.action === "pickBall") {
     desired = player.pos.clone().add(new THREE.Vector3(-0.56, 1.72, 2.7));
     look = new THREE.Vector3(0, CFG.laneY + 0.55, 6.68);
-  } else if (isActiveGameplay) {
+  } else if (isActiveGameplay && usePlayerPerspective) {
     const pose = getPlayerPerspectiveCameraPose(player, ball, dt);
     desired = pose.desired;
     look = pose.look;
+  } else if (isActiveGameplay) {
+    desired = new THREE.Vector3(player.standPos.x * 0.24, CFG.laneY + 2.48, 12.15);
+    look = new THREE.Vector3(player.standPos.x * 0.72, CFG.laneY + 0.58, -6.9);
   } else if (player.action === "toRack" || player.action === "toApproach" || player.action === "standingUp") {
     desired = player.pos.clone().add(new THREE.Vector3(-0.58, 1.68, 3.1));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.64, -1.95));
@@ -2432,6 +2522,11 @@ export default function MobileBowlingRealistic() {
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
       syncReactScores();
+      const pinBoard = arenaDecor.scoreboardPanels.find((panel) => panel.userData?.isPinFallBoard && Math.abs(panel.position.x - laneCenterForPlayer(rackResetLane)) < 0.05);
+      if (pinBoard) {
+        const boardAccent = rackResetLane === 0 ? "#38bdf8" : "#f97316";
+        setBowlingBoardText(pinBoard, `${knocked} PIN${knocked === 1 ? "" : "S"} DOWN`, boardAccent, Math.random());
+      }
       setHud((prev) => ({ ...prev, status, compliment, rule: rollRead.rule, lane: rollRead.lane }));
       shotResolved = true;
       waitingForBallReturn = true;
@@ -2573,7 +2668,8 @@ export default function MobileBowlingRealistic() {
       ballShadow.position.set(ball.pos.x, CFG.laneY + 0.01, ball.pos.z);
       ballShadow.scale.setScalar(ball.held ? 0.72 : ball.inGutter ? 0.9 : 1.04);
       if (control.active) updateAimVisual(aimLine, aimMarker, control.intent, activeLaneCenter());
-      updateCamera(camera, ball, player, dt);
+      const useUserPerspectiveCamera = activePlayer === 0 && (control.active || ball.rolling || ["approach", "throw", "recover"].includes(player.action));
+      updateCamera(camera, ball, player, dt, useUserPerspectiveCamera);
       renderer.render(scene, camera);
     }
     animate();
