@@ -837,7 +837,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.018; // push middle chrome plates farther outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1124,6 +1124,45 @@ function addPocketCuts(
     stripes.push(mesh);
   });
   return stripes;
+}
+
+function syncClothEdgeMaterialWithCloth(clothEdgeMat, clothMat) {
+  if (!clothEdgeMat || !clothMat) return;
+  const edgeColor = clothMat.color?.isColor
+    ? clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
+    : null;
+  if (edgeColor) {
+    clothEdgeMat.color.copy(edgeColor);
+    clothEdgeMat.emissive.copy(edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER));
+    if (clothEdgeMat.sheenColor) {
+      clothEdgeMat.sheenColor.copy(edgeColor);
+    }
+  }
+  const cloneClothEdgeTexture = (texture, { isColor = false } = {}) => {
+    if (!texture) return null;
+    const clone = texture.clone ? texture.clone() : texture;
+    if (isColor) applySRGBColorSpace(clone);
+    clone.anisotropy = resolveTextureAnisotropy(12);
+    clone.needsUpdate = true;
+    return clone;
+  };
+  clothEdgeMat.map = cloneClothEdgeTexture(clothMat.map, { isColor: true });
+  clothEdgeMat.bumpMap = cloneClothEdgeTexture(clothMat.bumpMap);
+  clothEdgeMat.normalMap = cloneClothEdgeTexture(clothMat.normalMap);
+  clothEdgeMat.roughnessMap = cloneClothEdgeTexture(clothMat.roughnessMap);
+  clothEdgeMat.aoMap = cloneClothEdgeTexture(clothMat.aoMap);
+  clothEdgeMat.metalnessMap = null;
+  clothEdgeMat.side = THREE.DoubleSide;
+  clothEdgeMat.bumpScale = Number.isFinite(clothMat.bumpScale) ? clothMat.bumpScale * 0.72 : 0;
+  clothEdgeMat.roughness = Math.max(0.74, clothMat.roughness ?? 0.86);
+  clothEdgeMat.clearcoat = Math.min(0.08, clothMat.clearcoat ?? 0);
+  clothEdgeMat.clearcoatRoughness = 1;
+  clothEdgeMat.envMapIntensity = 0;
+  clothEdgeMat.sheen = Math.min(0.16, clothMat.sheen ?? 0);
+  clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+  clothEdgeMat.metalness = 0;
+  clothEdgeMat.reflectivity = 0;
+  clothEdgeMat.needsUpdate = true;
 }
 
 /**
@@ -1832,8 +1871,8 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_POWER_BOOST = 1.2; // add more cue drive while preserving slider feel
+const SHOT_GLOBAL_POWER_SCALE = 0.91; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4983,29 +5022,7 @@ function updateClothTexturesForFinish (
     }
   }
   if (finishInfo.clothEdgeMat) {
-    const edgeColor = finishInfo.clothMat?.color
-      ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
-      : null;
-    if (edgeColor) {
-      finishInfo.clothEdgeMat.color.copy(edgeColor);
-      finishInfo.clothEdgeMat.emissive.copy(
-        edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
-      );
-    }
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.normalMap = null;
-    finishInfo.clothEdgeMat.roughnessMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
-    finishInfo.clothEdgeMat.clearcoat = 0;
-    finishInfo.clothEdgeMat.clearcoatRoughness = 1;
-    finishInfo.clothEdgeMat.envMapIntensity = 0;
-    finishInfo.clothEdgeMat.sheen = 0;
-    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
-    finishInfo.clothEdgeMat.metalness = 0;
-    finishInfo.clothEdgeMat.reflectivity = 0;
-    finishInfo.clothEdgeMat.needsUpdate = true;
+    syncClothEdgeMaterialWithCloth(finishInfo.clothEdgeMat, finishInfo.clothMat);
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
@@ -6660,10 +6677,10 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive follow
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
+const MAX_TOPSPIN_INPUT = 0.78; // trim topspin cap further so default follow stays under control
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.58; // soften straight follow transfer while keeping follow-through visible
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.86; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.8; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.42;
@@ -8884,23 +8901,7 @@ export function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.color.copy(clothColor);
-  clothEdgeMat.emissive.set(0x000000);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.normalMap = null;
-  clothEdgeMat.roughnessMap = null;
-  clothEdgeMat.bumpScale = 0;
-  clothEdgeMat.side = THREE.DoubleSide;
-  clothEdgeMat.envMapIntensity = 0;
-  clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
-  clothEdgeMat.metalness = 0;
-  clothEdgeMat.roughness = 1;
-  clothEdgeMat.clearcoat = 0;
-  clothEdgeMat.clearcoatRoughness = 1;
-  clothEdgeMat.sheen = 0;
-  clothEdgeMat.reflectivity = 0;
-  clothEdgeMat.needsUpdate = true;
+  syncClothEdgeMaterialWithCloth(clothEdgeMat, clothMat);
   const clothBaseSettings = {
     roughnessTarget: clothRoughnessTarget,
     roughness: clothMat.roughness,
@@ -8991,15 +8992,7 @@ export function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.bumpScale = 0;
-  clothEdgeMat.roughness = 1;
-  clothEdgeMat.clearcoat = 0;
-  clothEdgeMat.clearcoatRoughness = 1;
-  clothEdgeMat.envMapIntensity = 0;
-  clothEdgeMat.sheen = 0;
-  clothEdgeMat.needsUpdate = true;
+  syncClothEdgeMaterialWithCloth(clothEdgeMat, clothMat);
   const finishInfo = {
     id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
     palette,
@@ -9258,6 +9251,14 @@ export function Table3D(
       clothEdgeMat.bumpMap.rotation = clothEdgeMat.map?.rotation ?? clothEdgeMat.bumpMap.rotation ?? 0;
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
+    ['normalMap', 'roughnessMap', 'aoMap'].forEach((key) => {
+      const texture = clothEdgeMat[key];
+      if (!texture) return;
+      texture.repeat.set(Math.max(repeatAround, 1), Math.max(repeatHeight, 0.5));
+      texture.center.set(0.5, 0.5);
+      texture.rotation = clothEdgeMat.map?.rotation ?? texture.rotation ?? 0;
+      texture.needsUpdate = true;
+    });
     clothEdgeMat.needsUpdate = true;
   }
 
@@ -11276,7 +11277,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.42;
+  const brandPlateOutwardShift = endRailW * 1.72;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12514,7 +12515,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner || (hardwareCandidate && goldCornerDropZone)) && !green && !s.upFace && !namedApron) return 'railSight';
   if (namedApron && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'railSight';
+  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'sideWoodApron';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
@@ -13837,26 +13838,7 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
-    const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
-    finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
-    finishInfo.clothEdgeMat.clearcoat = 0;
-    finishInfo.clothEdgeMat.clearcoatRoughness = 1;
-    finishInfo.clothEdgeMat.envMapIntensity = 0;
-    finishInfo.clothEdgeMat.sheen = 0;
-    if (finishInfo.clothEdgeMat.sheenColor) {
-      finishInfo.clothEdgeMat.sheenColor.copy(clothEdgeColor);
-    }
-    finishInfo.clothEdgeMat.emissive.copy(
-      clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
-    );
-    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
-    finishInfo.clothEdgeMat.metalness = 0;
-    finishInfo.clothEdgeMat.reflectivity = 0;
-    finishInfo.clothEdgeMat.needsUpdate = true;
+    syncClothEdgeMaterialWithCloth(finishInfo.clothEdgeMat, finishInfo.clothMat);
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material) return;
