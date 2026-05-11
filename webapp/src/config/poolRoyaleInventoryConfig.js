@@ -660,15 +660,6 @@ const CUE_STYLE_THUMBNAILS = Object.freeze({
   'graphite-aurora': swatchThumbnail(['#1f2937', '#4b5563', '#c7d2fe'])
 });
 
-const BASE_VARIANT_THUMBNAILS = Object.freeze({
-  classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
-  openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
-  coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
-  gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
-  woodenTable02Alt: polyHavenThumb('wooden_table_02'),
-  finishGltfTextureBase: polyHavenThumb('wooden_table_02')
-});
-
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
   POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
     acc[variant.id] = variant;
@@ -681,55 +672,17 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     id: 'showoodOriginal',
     name: 'Showood Original Base',
     description: 'Original GLB Showood legs and base with chrome/gold feet linked to Chrome Plates.',
-    swatches: ['#5a2608', '#d4af37']
-  },
-  {
-    id: 'classicCylinders',
-    name: 'Classic Cylinders',
-    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
-    swatches: ['#8f6243', '#6f3a2f']
-  },
-  {
-    id: 'openPortal',
-    name: 'Open Portal',
-    description: 'Twin portal legs with angled sides and negative space.',
-    swatches: ['#f8fafc', '#e5e7eb']
-  },
-  {
-    id: 'coffeeTableRound01',
-    name: 'Coffee Table Round 01 Base',
-    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
-    swatches: ['#c5a47e', '#7a5534']
-  },
-  {
-    id: 'gothicCoffeeTable',
-    name: 'Gothic Coffee Table Base',
-    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
-    swatches: ['#8f4a2b', '#3b2a1f']
-  },
-  {
-    id: 'woodenTable02Alt',
-    name: 'Wooden Table 02 Alt Base',
-    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
-    swatches: ['#6f5140', '#caa07a']
-  },
-  {
-    id: 'finishGltfTextureBase',
-    name: 'Finish GLTF Texture Base',
-    description: 'Wooden Table 02 support remapped to the active table-finish GLTF wood textures.',
-    swatches: ['#7b4a28', '#d8b16c']
+    swatches: ['#5a2608', '#d4af37'],
+    thumbnail: swatchThumbnail(['#5a2608', '#d4af37', '#050505'])
   }
-].map((variant) => ({
-  ...variant,
-  thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
-})));
+]);
 
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold'],
-  chromePlateStyle: ['showood-rounded', 'royal-classic'],
+  chromePlateStyle: ['showood-rounded'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
@@ -772,7 +725,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     gold: 'Gold'
   }),
   chromePlateStyle: Object.freeze({
-    'royal-classic': 'Royal Classic Plates',
     'showood-rounded': 'Showood Rounded Plates'
   }),
   railMarkerColor: Object.freeze({
@@ -1007,7 +959,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'showood-rounded',
     name: 'Showood Rounded Chrome Plates',
     price: 420,
-    description: 'Rounded showroom-style chrome plates that can be used on both Royal Original and Showood tables.',
+    description: 'Rounded showroom-style chrome plates for the Showood table.',
     thumbnail: swatchThumbnail(['#f6d56f', '#d6d8dc', '#2f2418'])
   },
   {
