@@ -401,8 +401,23 @@ function moveRootAroundPerimeter(human, rootGoal, cfg, dt) {
   }
   const goal = clampPointToWalkPerimeter(rootGoal, perimeter);
   goal.y = cfg.groundY;
-  if (human.root.position.lengthSq() < 1e-6) human.root.position.copy(goal);
-  else human.root.position.copy(clampPointToWalkPerimeter(human.root.position, perimeter)).setY(cfg.groundY);
+  if (human.root.position.lengthSq() < 1e-6) {
+    human.root.position.copy(goal);
+  } else {
+    // When a seated avatar stands up from a lounge chair, do not snap the root
+    // straight onto the walk ring. First transfer weight out of the chair and
+    // ease to the nearest legal perimeter point; only then continue around the
+    // table. This preserves a believable sit-to-stand/walk transition.
+    const entryPoint = clampPointToWalkPerimeter(human.root.position, perimeter).setY(cfg.groundY);
+    const offRingDistance = human.root.position.distanceTo(entryPoint);
+    if (offRingDistance > Math.max(0.025 * cfg.unit, 0.001)) {
+      dampVector(human.root.position, entryPoint, cfg.moveLambda * 0.58, dt);
+      human.root.position.y = cfg.groundY;
+      human.perimeterT = pointToPerimeterT(entryPoint, perimeter);
+      return offRingDistance;
+    }
+    human.root.position.copy(entryPoint);
+  }
   if (!Number.isFinite(human.perimeterT)) human.perimeterT = pointToPerimeterT(human.root.position, perimeter);
   const targetT = pointToPerimeterT(goal, perimeter);
   const loopDelta = THREE.MathUtils.euclideanModulo(targetT - human.perimeterT + 0.5, 1) - 0.5;
@@ -503,6 +518,8 @@ export function createHumanRig(scene, opts = {}) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
+    seatedT: 0,
+    seatedIdleT: 0,
     mixer: null,
     actions: {},
     currentAction: 'Idle',
@@ -752,46 +769,97 @@ function driveHuman(human, frame) {
   const standingCueDir = cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
-  if (frame.seated) {
-    // Murlan Royale seated baseline: hips fold down into the cushion, legs stay
-    // grounded in front of the chair and only light upper-body breathing remains.
-    if (b.hips) b.hips.rotation.x += THREE.MathUtils.degToRad(-9);
-    if (b.spine) b.spine.rotation.x += THREE.MathUtils.degToRad(-3);
-    if (b.chest) b.chest.rotation.x += THREE.MathUtils.degToRad(-2);
-    if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(3);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-90.5);
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-95.1);
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-42);
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-38);
-    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(38);
-    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(34);
-    human.modelRoot.updateMatrixWorld(true);
-    poseFingers(human.leftFingers, 'idle', 1);
-    poseFingers(human.rightFingers, 'grip', 0.7);
-    return;
+  const seatedBlend = clamp01(frame.seatedBlend ?? (frame.seated ? 1 : 0));
+  if (seatedBlend > 0.01) {
+    const sit = easeInOut(seatedBlend);
+    const watch = Math.sin(human.seatedIdleT * 1.7) * sit;
+    const breath = Math.sin(human.breathT * Math.PI * 2) * sit;
+    // Pool Royale lounge pose: hips are settled into the chair, torso and head
+    // stay subtly turned toward the table, feet are staggered instead of square,
+    // and breathing/posture-shift layers keep the waiting player alive.
+    if (b.hips) {
+      b.hips.rotation.x += THREE.MathUtils.degToRad(-8 - 5 * sit) * sit;
+      b.hips.rotation.y += THREE.MathUtils.degToRad(2.2 * watch) * sit;
+      b.hips.rotation.z += THREE.MathUtils.degToRad(-1.6 * watch) * sit;
+    }
+    if (b.spine) {
+      b.spine.rotation.x += THREE.MathUtils.degToRad(-4.5 + 1.4 * breath) * sit;
+      b.spine.rotation.y += THREE.MathUtils.degToRad(5 + 1.5 * watch) * sit;
+      b.spine.rotation.z += THREE.MathUtils.degToRad(1.2 * watch) * sit;
+    }
+    if (b.chest) {
+      b.chest.rotation.x += THREE.MathUtils.degToRad(-3 + 1.2 * breath) * sit;
+      b.chest.rotation.y += THREE.MathUtils.degToRad(4.5 + 1.1 * watch) * sit;
+      b.chest.rotation.z += THREE.MathUtils.degToRad(-1.0 * watch) * sit;
+    }
+    if (b.neck) {
+      b.neck.rotation.x += THREE.MathUtils.degToRad(2.5 - 0.8 * breath) * sit;
+      b.neck.rotation.y += THREE.MathUtils.degToRad(-2.0 + 0.7 * watch) * sit;
+    }
+    if (b.head) {
+      b.head.rotation.x += THREE.MathUtils.degToRad(3.5 - 0.7 * breath) * sit;
+      b.head.rotation.y += THREE.MathUtils.degToRad(-3.0 + 0.9 * watch) * sit;
+      b.head.rotation.z += THREE.MathUtils.degToRad(0.9 * watch) * sit;
+    }
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-82) * sit;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-87) * sit;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.y += THREE.MathUtils.degToRad(-5) * sit;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.y += THREE.MathUtils.degToRad(6) * sit;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-88) * sit;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-94) * sit;
+    if (b.leftFoot) b.leftFoot.rotation.z += THREE.MathUtils.degToRad(-5) * sit;
+    if (b.rightFoot) b.rightFoot.rotation.z += THREE.MathUtils.degToRad(4) * sit;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-37 - 1.2 * breath) * sit;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-34 + 1.0 * breath) * sit;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.z += THREE.MathUtils.degToRad(-5) * sit;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.z += THREE.MathUtils.degToRad(4) * sit;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(34) * sit;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(31) * sit;
+    if (seatedBlend > 0.72) {
+      human.modelRoot.updateMatrixWorld(true);
+      poseFingers(human.leftFingers, 'idle', 1);
+      poseFingers(human.rightFingers, 'grip', 0.65);
+      return;
+    }
   }
 
   if (frame.walkAmount * idle > 0.001) {
     const s = Math.sin(human.walkT * 5.15);
     const c = Math.cos(human.walkT * 5.15);
+    const footPlant = Math.sin(human.walkT * 10.3);
     const w = frame.walkAmount * idle;
     const liftL = Math.max(0, s);
     const liftR = Math.max(0, -s);
     // Soldier-matching walk cycle: opposite legs/arms, visible knee flex, and a
     // small hip/chest counter-sway so the body no longer slides stiffly.
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.34 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.34 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += liftR * 0.34 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += liftL * 0.34 * w;
-    if (b.leftFoot) b.leftFoot.rotation.x += liftR * 0.16 * w;
-    if (b.rightFoot) b.rightFoot.rotation.x += liftL * 0.16 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.3 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.3 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.035 * w;
-    if (b.chest) b.chest.rotation.z -= c * 0.022 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.03 * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.36 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.36 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += liftR * 0.38 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += liftL * 0.38 * w;
+    if (b.leftFoot) {
+      b.leftFoot.rotation.x += (liftR * 0.18 - Math.max(0, footPlant) * 0.035) * w;
+      b.leftFoot.rotation.z += c * 0.025 * w;
+    }
+    if (b.rightFoot) {
+      b.rightFoot.rotation.x += (liftL * 0.18 - Math.max(0, -footPlant) * 0.035) * w;
+      b.rightFoot.rotation.z -= c * 0.025 * w;
+    }
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.34 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.34 * w;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += Math.max(0, -s) * 0.12 * w;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += Math.max(0, s) * 0.12 * w;
+    if (b.spine) {
+      b.spine.rotation.z += c * 0.04 * w;
+      b.spine.rotation.y += s * 0.018 * w;
+    }
+    if (b.chest) {
+      b.chest.rotation.z -= c * 0.026 * w;
+      b.chest.rotation.y -= s * 0.014 * w;
+    }
+    if (b.hips) {
+      b.hips.rotation.z -= c * 0.035 * w;
+      b.hips.rotation.y += s * 0.018 * w;
+    }
   }
 
   if (ik >= 0.025) {
@@ -873,6 +941,8 @@ export function updateHumanPose(human, dt, frameData) {
   const state = frameData.state || 'idle';
   const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
   human.poseT = dampScalar(human.poseT, activeState === 'idle' || activeState === 'seated' ? 0 : 1, cfg.poseLambda, dt);
+  human.seatedT = dampScalar(human.seatedT || 0, activeState === 'seated' ? 1 : 0, activeState === 'seated' ? 7.5 : 4.2, dt);
+  human.seatedIdleT = (human.seatedIdleT || 0) + dt * (0.9 + 0.25 * (human.seatedT || 0));
   human.breathT += dt * (activeState === 'idle' || activeState === 'seated' ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
   if (activeState === 'striking') {
@@ -914,7 +984,7 @@ export function updateHumanPose(human, dt, frameData) {
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
   human.lastMoveAmountRaw = moveAmountRaw;
-  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle;
+  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle * (1 - easeInOut(clamp01(human.seatedT || 0)) * 0.82);
   const dragStroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + (frameData.power || 0) * 0.75) : 0;
   const strikeFollow = activeState === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const visualYaw = human.yaw + (cfg.humanVisualYawFix || 0);
@@ -939,10 +1009,10 @@ export function updateHumanPose(human, dt, frameData) {
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.2, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.08, t) - 0.008 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.26, t) - 0.014 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.38, t) - 0.016 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.5, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.22 * t, shotBendZ(lerp(0.03, -0.44, t) - 0.018 * powerLean) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.018 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.01 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.046 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.34, t) - 0.018 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.064 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.33, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.48, t) - 0.02 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.074 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.34 * t, shotBendZ(lerp(0.03, -0.54, t) - 0.022 * powerLean) * cfg.unit));
   const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.31, t) - 0.012 * human.settleT) * cfg.unit));
   const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.25, t) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
@@ -1041,7 +1111,8 @@ export function updateHumanPose(human, dt, frameData) {
     rightFootWorld: rightFoot,
     cueBackWorld: frameData.cueBack,
     cueTipWorld: frameData.cueTip,
-    seated: activeState === 'seated'
+    seated: activeState === 'seated',
+    seatedBlend: human.seatedT || 0
   });
 }
 
