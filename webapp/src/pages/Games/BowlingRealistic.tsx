@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { BOWLING_DOMINO_CHARACTER_TEXTURES, BOWLING_DOMINO_CLOTH_MATERIALS, BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
+import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 import { createMurlanStyleTable } from "../../utils/murlanTable.js";
@@ -75,7 +75,7 @@ type HumanRig = {
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
-type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string; clothCombo?: string };
+type HumanCharacterOption = { id: string; label: string; modelUrls: string[]; thumbnail?: string; accent?: string };
 
 type BallState = {
   mesh: THREE.Mesh;
@@ -105,7 +105,7 @@ type PinState = {
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
 const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 0.96;
+const HUMAN_INITIAL_SCALE = 1.0;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -142,11 +142,11 @@ const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket 
 
 const CFG = {
   laneY: 0,
-  laneHalfW: 1.82,
-  gutterHalfW: 2.42,
-  playerStartZ: 7.32,
-  rackEdgeX: 1.06,
-  rackStopZ: 6.66,
+  laneHalfW: 1.68,
+  gutterHalfW: 2.22,
+  playerStartZ: 6.9,
+  rackEdgeX: 1.42,
+  rackStopZ: 6.34,
   approachStopZ: 4.82,
   foulZ: 4.55,
   arrowsZ: 0.95,
@@ -182,13 +182,10 @@ const BOWLING_MURLAN_CHAIR_URLS = [
   "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf",
   "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf",
 ];
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-3.72, CFG.laneY, 7.52);
-const RETURN_SAFE_WAYPOINT = new THREE.Vector3(1.46, CFG.laneY, 5.28);
-const RETURN_PICKUP_POINT = new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ);
-const PLAYER_READY_POINT = new THREE.Vector3(1.18, CFG.laneY, CFG.playerStartZ);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.55, CFG.laneY, 7.42);
 const PLAYER_SEATS = [
-  { pos: new THREE.Vector3(-3.82, CFG.laneY, 6.86), yaw: 0, stand: PLAYER_READY_POINT.clone() },
-  { pos: new THREE.Vector3(-2.58, CFG.laneY, 6.86), yaw: 0, stand: new THREE.Vector3(-1.02, CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-4.78, CFG.laneY, 6.72), yaw: 0, stand: new THREE.Vector3(-0.42, CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-3.32, CFG.laneY, 6.72), yaw: 0, stand: new THREE.Vector3(0.42, CFG.laneY, CFG.playerStartZ) },
 ];
 
 function makeEmptyPlayers(): ScorePlayer[] {
@@ -348,11 +345,11 @@ function loadOakMaterial(loader: THREE.TextureLoader, repeatX: number, repeatY: 
     map: diff,
     roughnessMap: rough,
     normalMap: normal,
-    roughness: 0.34,
-    metalness: 0.01,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.18,
-    reflectivity: 0.48,
+    roughness: 0.22,
+    metalness: 0.02,
+    clearcoat: 1,
+    clearcoatRoughness: 0.055,
+    reflectivity: 0.92,
   });
 }
 
@@ -371,7 +368,7 @@ function makeFallbackWoodMaterial() {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(1.1, 8.2);
-  return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.38, metalness: 0.01, clearcoat: 0.35, clearcoatRoughness: 0.18 });
+  return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.24, metalness: 0.02, clearcoat: 1, clearcoatRoughness: 0.08 });
 }
 
 function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
@@ -449,100 +446,6 @@ function pickRandomAiCharacter(playerCharacterId: string) {
   return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
 }
 
-
-const dominoHumanTextureLoader = new THREE.TextureLoader();
-const dominoHumanTextureCache = new Map<string, THREE.Texture>();
-
-function loadDominoHumanTexture(url: string | undefined, isColor = false, repeat = 3) {
-  if (!url) return null;
-  const key = `${url}|${isColor ? "srgb" : "linear"}|${repeat}`;
-  const cached = dominoHumanTextureCache.get(key);
-  if (cached) return cached;
-  const tex = dominoHumanTextureLoader.load(url);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeat, repeat);
-  if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  dominoHumanTextureCache.set(key, tex);
-  return tex;
-}
-
-function isNearlyWhiteMaterial(mat: any) {
-  if (!mat?.color) return false;
-  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
-}
-
-function isLowSaturationLightMaterial(mat: any) {
-  if (!mat?.color || mat.map) return false;
-  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
-  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
-  return max > 0.72 && max - min < 0.18;
-}
-
-function classifyDominoHumanSurface(obj: THREE.Object3D, mat: any) {
-  const name = `${obj?.name || ""} ${mat?.name || ""}`.toLowerCase();
-  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return "eye";
-  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return "hair";
-  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return "mouth";
-  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return "shoe";
-  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return "skin";
-  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return "upperCloth";
-  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return "lowerCloth";
-  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return "accentCloth";
-  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return "upperCloth";
-  if (isNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return "upperCloth";
-  return "other";
-}
-
-function resolveDominoCloth(character: HumanCharacterOption, slot: "upper" | "lower" | "accent") {
-  const combo = (BOWLING_DOMINO_CHARACTER_TEXTURES as any)[character?.clothCombo || "royalDenim"] || (BOWLING_DOMINO_CHARACTER_TEXTURES as any).royalDenim;
-  const slotConfig = combo?.[slot] || combo?.upper || { material: "denim" };
-  const material = (BOWLING_DOMINO_CLOTH_MATERIALS as any)[slotConfig.material] || (BOWLING_DOMINO_CLOTH_MATERIALS as any).denim;
-  return { ...material, tint: slotConfig.tint ?? material.tint ?? 0xffffff, repeat: slotConfig.repeat ?? 3.5 };
-}
-
-function applyDominoClothMaterial(mat: any, cloth: any) {
-  mat.map = loadDominoHumanTexture(cloth.color, true, cloth.repeat);
-  mat.normalMap = loadDominoHumanTexture(cloth.normal, false, cloth.repeat);
-  mat.roughnessMap = loadDominoHumanTexture(cloth.roughness, false, cloth.repeat);
-  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-  mat.normalScale = new THREE.Vector2(0.28, 0.28);
-  mat.roughness = 0.86;
-  mat.metalness = 0.015;
-}
-
-function enhanceBowlingHumanLikeDomino(model: THREE.Object3D, character: HumanCharacterOption) {
-  const combo = (BOWLING_DOMINO_CHARACTER_TEXTURES as any)[character?.clothCombo || "royalDenim"] || (BOWLING_DOMINO_CHARACTER_TEXTURES as any).royalDenim;
-  const clothSlots: Record<string, any> = {
-    upperCloth: resolveDominoCloth(character, "upper"),
-    lowerCloth: resolveDominoCloth(character, "lower"),
-    accentCloth: resolveDominoCloth(character, "accent"),
-  };
-  const skinColor = new THREE.Color(combo.skinTone ?? 0xd2a07c);
-  const hairColor = new THREE.Color(combo.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(combo.eyeColor ?? 0x3f5f75);
-  model.traverse((obj: any) => {
-    if (!obj?.isMesh) return;
-    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const enhanced = sourceMaterials.map((sourceMat: any) => {
-      if (!sourceMat) return sourceMat;
-      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
-      const surface = classifyDominoHumanSurface(obj, mat);
-      if (clothSlots[surface]) applyDominoClothMaterial(mat, clothSlots[surface]);
-      else if (surface === "hair") { mat.map = null; mat.color = hairColor.clone(); mat.roughness = 0.56; mat.metalness = 0.02; mat.envMapIntensity = 0.28; }
-      else if (surface === "eye") { mat.map = null; mat.color = eyeColor.clone(); mat.roughness = 0.18; mat.metalness = 0; mat.envMapIntensity = 1.1; }
-      else if (surface === "skin") { if (isLowSaturationLightMaterial(mat)) mat.color = skinColor.clone(); mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62); mat.metalness = 0; }
-      else if (surface === "shoe") { if (isLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827); mat.roughness = 0.78; mat.metalness = 0.02; }
-      else if (surface === "mouth") { if (isNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc); mat.roughness = 0.32; mat.metalness = 0; }
-      else if (isNearlyWhiteMaterial(mat)) { mat.color = skinColor.clone(); mat.roughness = 0.58; mat.metalness = 0; }
-      mat.needsUpdate = true;
-      return mat;
-    });
-    obj.material = Array.isArray(obj.material) ? enhanced : enhanced[0];
-  });
-}
-
 function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption, seatPos = start.clone(), seatYaw = 0): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
@@ -610,9 +513,8 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
       (gltf) => {
         if (cancelled) return;
         const model = gltf.scene;
-        normalizeHuman(model, 1.68);
+        normalizeHuman(model, 1.78);
         model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
-        enhanceBowlingHumanLikeDomino(model, selected);
         lockHumanToLaneGround(model);
         enableShadow(model);
         if (rig.model) rig.modelRoot.remove(rig.model);
@@ -765,7 +667,7 @@ function animateFallbackHuman(rig: HumanRig, mode: "walk" | "bowl" | "seat" | "c
 function getHeldBallWorldPosition(rig: HumanRig) {
   const handNode = findRightHand(rig.model) as THREE.Object3D | null;
   const handAnchor = handNode ? handNode.getWorldPosition(new THREE.Vector3()) : null;
-  let local = new THREE.Vector3(0.28, 0.72, 0.16);
+  let local = new THREE.Vector3(0.31, 0.92, 0.08);
   if (rig.action === "approach") {
     const s = Math.sin(rig.walkCycle);
     local = new THREE.Vector3(0.36, 0.82 + Math.abs(s) * 0.05, 0.14 + s * 0.09);
@@ -847,7 +749,7 @@ function makeBallMaterial(colors: [string, string, string]) {
 function createActiveBall(variant: BallVariant) {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(variant.radius, 80, 64), makeBallMaterial(variant.colors));
   enableShadow(mesh);
-  const pos = new THREE.Vector3(0.38, CFG.laneY + 0.5, 6.48);
+  const pos = new THREE.Vector3(0.4, CFG.laneY + 0.82, CFG.playerStartZ);
   mesh.position.copy(pos);
   return { mesh, pos, vel: new THREE.Vector3(), held: true, rolling: false, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant } as BallState;
 }
@@ -1028,16 +930,16 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
 
-  // Rebuild a believable indoor bowling shell while keeping HDRI visible through open architectural gaps.
-  const carpetMat = new THREE.MeshStandardMaterial({ color: 0x20162c, roughness: 0.92, metalness: 0.01 });
-  const aisleMat = new THREE.MeshStandardMaterial({ color: 0x151a24, roughness: 0.86, metalness: 0.02 });
-  const architectureMat = new THREE.MeshStandardMaterial({ color: 0x151a23, roughness: 0.72, metalness: 0.06 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x222939, roughness: 0.82, metalness: 0.02 });
-  const acousticMat = new THREE.MeshStandardMaterial({ color: 0x080b12, roughness: 0.9, metalness: 0.03 });
-  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x06070a, roughness: 0.88, metalness: 0.01 });
-  const ledCyan = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.78, toneMapped: false });
-  const ledAmber = new THREE.MeshBasicMaterial({ color: 0xffb86b, transparent: true, opacity: 0.68, toneMapped: false });
+  const polishedFloorMat = new THREE.MeshPhysicalMaterial({ color: 0x111827, roughness: 0.18, metalness: 0.05, clearcoat: 0.9, clearcoatRoughness: 0.05, envMapIntensity: 1.35 });
+  const carpetMat = new THREE.MeshStandardMaterial({ color: 0x26172f, roughness: 0.78, metalness: 0.02 });
+  const architectureMat = new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.66, metalness: 0.12 });
+  const ledCyan = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.82, toneMapped: false });
+  const ledAmber = new THREE.MeshBasicMaterial({ color: 0xffb86b, transparent: true, opacity: 0.74, toneMapped: false });
 
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12.8, 26.5), polishedFloorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, CFG.laneY - 0.018, -2.5);
+  group.add(floor);
   const loungeCarpet = new THREE.Mesh(new THREE.PlaneGeometry(5.1, 4.8), carpetMat);
   loungeCarpet.rotation.x = -Math.PI / 2;
   loungeCarpet.position.set(BOWLING_LOUNGE_CENTER.x, CFG.laneY - 0.012, BOWLING_LOUNGE_CENTER.z);
@@ -1046,78 +948,42 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   rightCarpet.position.x = 4.55;
   group.add(rightCarpet);
 
-  for (const x of [-6.15, 6.15]) {
+  for (const x of [-6.45, 6.45]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.4, 25.8), architectureMat);
+    wall.position.set(x, 1.55, -2.65);
+    group.add(wall);
     for (let i = 0; i < 6; i++) {
       const led = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 2.3), i % 2 ? ledAmber : ledCyan);
-      led.position.set(x, 1.15 + (i % 3) * 0.42, 7.6 - i * 3.55);
+      led.position.set(x * 0.995, 1.15 + (i % 3) * 0.42, 7.6 - i * 3.55);
       group.add(led);
     }
   }
-  for (const x of [-4.95, 4.95]) {
-    const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.7, 22.6), wallMat);
-    sideWall.position.set(x, 1.22, -2.1);
-    group.add(sideWall);
-    const wainscot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.52, 21.4), architectureMat);
-    wainscot.position.set(x * 0.995, 0.28, -2.1);
-    group.add(wainscot);
-  }
-  for (const x of [-3.15, 3.15]) {
-    const neighborLane = new THREE.Mesh(new THREE.PlaneGeometry(CFG.laneHalfW * 1.72, 18.2, 24, 120), laneMat);
-    neighborLane.rotation.x = -Math.PI / 2;
-    neighborLane.position.set(x, CFG.laneY - 0.018, -4.08);
-    neighborLane.receiveShadow = true;
-    group.add(neighborLane);
-    const neighborOil = new THREE.Mesh(
-      new THREE.PlaneGeometry(CFG.laneHalfW * 1.52, 12.6),
-      new THREE.MeshPhysicalMaterial({ color: 0xfff2d2, transparent: true, opacity: 0.022, roughness: 0.36, metalness: 0, clearcoat: 0.16, depthWrite: false })
-    );
-    neighborOil.rotation.x = -Math.PI / 2;
-    neighborOil.position.set(x, CFG.laneY + 0.002, -2.9);
-    group.add(neighborOil);
-  }
-  const backAisle = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 4.5), aisleMat);
-  backAisle.rotation.x = -Math.PI / 2;
-  backAisle.position.set(0, CFG.laneY - 0.026, 7.5);
-  group.add(backAisle);
-  const pinBackWall = new THREE.Mesh(new THREE.BoxGeometry(8.8, 2.65, 0.18), wallMat);
-  pinBackWall.position.set(0, 1.3, CFG.backStopZ - 1.0);
-  group.add(pinBackWall);
-  const pinBackGlow = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.05), ledCyan);
-  pinBackGlow.position.set(0, 1.88, CFG.backStopZ - 0.86);
-  group.add(pinBackGlow);
-  for (const x of [-4.05, -2.05, 2.05, 4.05]) {
-    const column = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.9, 0.28), architectureMat);
-    column.position.set(x, 1.36, -2.05);
-    group.add(column);
-  }
-  for (const z of [7.6, 4.4, 1.2, -2.0, -5.2, -8.4, -11.2]) {
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(9.45, 0.12, 0.2), acousticMat);
-    beam.position.set(0, 2.88, z);
-    group.add(beam);
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.035, 0.045), z % 2 ? ledAmber : ledCyan);
-    strip.position.set(0, 2.78, z + 0.05);
-    group.add(strip);
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(12.9, 0.16, 25.9), architectureMat);
+  ceiling.position.set(0, 3.24, -2.5);
+  group.add(ceiling);
+  for (let i = 0; i < 9; i++) {
+    const z = 8.4 - i * 2.45;
+    const fixture = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.045, 0.075), i % 2 ? ledCyan : ledAmber);
+    fixture.position.set(0, 3.12, z);
+    group.add(fixture);
   }
 
-  const approach = new THREE.Mesh(new THREE.PlaneGeometry(5.35, 4.55, 24, 24), woodMat);
+  const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
-  approach.position.set(0, CFG.laneY - 0.006, 7.18);
+  approach.position.set(0, CFG.laneY - 0.005, 7.35);
   group.add(approach);
-  const approachApron = new THREE.Mesh(new THREE.BoxGeometry(5.38, 0.035, 0.18), rubberMat);
-  approachApron.position.set(0, CFG.laneY + 0.018, CFG.foulZ + 0.24);
-  group.add(approachApron);
-  const lane = new THREE.Mesh(new THREE.PlaneGeometry(CFG.laneHalfW * 2, 19.55, 96, 360), laneMat);
+  const lane = new THREE.Mesh(new THREE.PlaneGeometry(CFG.laneHalfW * 2, 18.72, 80, 320), laneMat);
   lane.rotation.x = -Math.PI / 2;
-  lane.position.set(0, CFG.laneY, -4.52);
+  lane.position.set(0, CFG.laneY, -4.2);
   lane.receiveShadow = true;
   group.add(lane);
 
   const boardLineMat = new THREE.MeshBasicMaterial({ color: 0x4b2e18, transparent: true, opacity: 0.18, depthWrite: false });
   for (let b = 1; b < LANE_BOARD_COUNT; b++) {
     const x = -CFG.laneHalfW + b * BOARD_WIDTH;
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.005, 19.35), boardLineMat);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.006, 18.62), boardLineMat);
     board.rotation.x = -Math.PI / 2;
-    board.position.set(x, CFG.laneY + 0.004, -4.52);
+    board.position.set(x, CFG.laneY + 0.004, -4.2);
     group.add(board);
   }
   const boardNumberMat = new THREE.MeshBasicMaterial({ color: 0x1b365d, transparent: true, opacity: 0.38, depthWrite: false });
@@ -1129,43 +995,28 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     group.add(dot);
   }
   const oil = new THREE.Mesh(
-    new THREE.PlaneGeometry(CFG.laneHalfW * 2 - 0.12, 14.15),
-    new THREE.MeshPhysicalMaterial({ color: 0xfff2d6, transparent: true, opacity: 0.045, roughness: 0.28, metalness: 0, clearcoat: 0.24, clearcoatRoughness: 0.32, reflectivity: 0.22, depthWrite: false })
+    new THREE.PlaneGeometry(CFG.laneHalfW * 2 - 0.06, 13.4),
+    new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, reflectivity: 1 })
   );
   oil.rotation.x = -Math.PI / 2;
-  oil.position.set(0, CFG.laneY + 0.002, -3.05);
+  oil.position.set(0, CFG.laneY + 0.002, -2.7);
   group.add(oil);
-  const scuffMat = new THREE.MeshBasicMaterial({ color: 0x2a160c, transparent: true, opacity: 0.12, depthWrite: false });
-  for (let i = 0; i < 18; i++) {
-    const scuff = new THREE.Mesh(new THREE.PlaneGeometry(0.018 + (i % 4) * 0.01, 0.42 + (i % 5) * 0.18), scuffMat);
-    scuff.rotation.x = -Math.PI / 2;
-    scuff.rotation.z = (i % 3 - 1) * 0.035;
-    scuff.position.set(((i * 37) % 100 / 100 - 0.5) * CFG.laneHalfW * 1.55, CFG.laneY + 0.006, 2.9 - i * 0.58);
-    group.add(scuff);
-  }
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.7, 0.13, 2.75), woodMat);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.5, 0.13, 2.52), woodMat);
   deck.position.set(0, CFG.laneY + 0.02, CFG.pinDeckZ - 0.75);
   group.add(deck);
-  const gutterW = 0.44;
-  const gutterX = CFG.laneHalfW + gutterW / 2 + 0.08;
-  const gutterL = new THREE.Mesh(new THREE.BoxGeometry(gutterW, 0.12, 19.85), gutterMat);
-  gutterL.position.set(-gutterX, CFG.laneY - 0.01, -4.52);
+  const gutterL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.14, 19.1), gutterMat);
+  gutterL.position.set(-1.94, CFG.laneY, -4.2);
   group.add(gutterL);
   const gutterR = gutterL.clone();
-  gutterR.position.x = gutterX;
+  gutterR.position.x = 1.94;
   group.add(gutterR);
-  const capL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.2, 20.05), woodMat);
-  capL.position.set(-CFG.gutterHalfW, CFG.laneY + 0.055, -4.52);
+  const capL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 19.5), woodMat);
+  capL.position.set(-2.24, CFG.laneY + 0.07, -4.2);
   group.add(capL);
   const capR = capL.clone();
-  capR.position.x = CFG.gutterHalfW;
+  capR.position.x = 2.24;
   group.add(capR);
-  for (const x of [-CFG.gutterHalfW - 0.42, CFG.gutterHalfW + 0.42]) {
-    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 18.6), rubberMat);
-    divider.position.set(x, CFG.laneY + 0.055, -4.35);
-    group.add(divider);
-  }
-  const foulLine = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.14, 0.018, 0.055), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42 }));
+  const foulLine = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.018, 0.055), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42 }));
   foulLine.position.set(0, CFG.laneY + 0.012, CFG.foulZ);
   group.add(foulLine);
   const arrowMat = new THREE.MeshStandardMaterial({ color: 0x2d4f80, roughness: 0.44 });
@@ -1188,18 +1039,15 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     spot.position.set(x, CFG.laneY + 0.018, CFG.pinDeckZ + dz);
     group.add(spot);
   }
-  const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.76, 1.42), metalMat);
-  pinsetter.position.set(0, 0.36, CFG.backStopZ + 0.18);
+  const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.8, 1.25), metalMat);
+  pinsetter.position.set(0, 0.32, CFG.backStopZ + 0.18);
   group.add(pinsetter);
-  const maskingGlow = new THREE.Mesh(new THREE.BoxGeometry(4.58, 0.09, 0.08), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.5 }));
-  maskingGlow.position.set(0, 0.84, CFG.backStopZ + 0.88);
+  const maskingGlow = new THREE.Mesh(new THREE.BoxGeometry(4.32, 0.12, 0.08), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.62 }));
+  maskingGlow.position.set(0, 0.78, CFG.backStopZ + 0.83);
   group.add(maskingGlow);
-  const pitCurtain = new THREE.Mesh(new THREE.BoxGeometry(4.72, 1.42, 0.1), new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.96, metalness: 0.04 }));
-  pitCurtain.position.set(0, CFG.laneY + 0.5, CFG.backStopZ - 0.38);
+  const pitCurtain = new THREE.Mesh(new THREE.BoxGeometry(4.22, 1.32, 0.08), new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.92, metalness: 0.08 }));
+  pitCurtain.position.set(0, CFG.laneY + 0.44, CFG.backStopZ - 0.32);
   group.add(pitCurtain);
-  const pitFloor = new THREE.Mesh(new THREE.BoxGeometry(4.86, 0.1, 1.05), rubberMat);
-  pitFloor.position.set(0, CFG.laneY - 0.02, CFG.backStopZ + 0.18);
-  group.add(pitFloor);
   const sweepBar = new THREE.Mesh(new THREE.BoxGeometry(3.86, 0.12, 0.16), metalMat);
   sweepBar.position.set(0, CFG.laneY + 0.42, CFG.pinDeckZ + 0.74);
   group.add(sweepBar);
@@ -1210,26 +1058,26 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   }
   const machineryHousing = new THREE.Group();
   const housingMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.62, metalness: 0.25 });
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(5.75, 1.58, 1.45), housingMat);
-  hood.position.set(0, 1.24, CFG.backStopZ + 0.06);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(5.35, 1.35, 1.2), housingMat);
+  hood.position.set(0, 1.12, CFG.backStopZ + 0.05);
   machineryHousing.add(hood);
-  const hoodLip = new THREE.Mesh(new THREE.BoxGeometry(5.9, 0.16, 0.18), rubberMat);
-  hoodLip.position.set(0, 0.52, CFG.backStopZ + 0.83);
-  machineryHousing.add(hoodLip);
-  const upperMask = new THREE.Mesh(new THREE.BoxGeometry(5.92, 0.48, 0.16), acousticMat);
-  upperMask.position.set(0, 2.24, CFG.backStopZ + 0.76);
-  machineryHousing.add(upperMask);
   for (const x of [-1.7, 0, 1.7]) {
     const servicePanel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.42, 0.035), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.45 }));
     servicePanel.position.set(x, 1.18, CFG.backStopZ + 0.67);
     machineryHousing.add(servicePanel);
   }
   group.add(machineryHousing);
-  const laneFocusSign = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 0.42), makeCanvasTextMaterial("LUXE LANES", { width: 512, height: 96, accent: "#38bdf8" }));
-  laneFocusSign.position.set(0, 2.5, CFG.backStopZ + 0.86);
-  group.add(laneFocusSign);
-  decor.scoreboardPanels.push(laneFocusSign);
-  // Replaced the oversized title boards with a compact high mask/sign that frames pins without blocking gameplay.
+  const heroSign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.05), makeCanvasTextMaterial("LUXE STRIKE", { accent: "#f97316" }));
+  heroSign.position.set(0, 2.16, CFG.backStopZ + 0.71);
+  group.add(heroSign);
+  decor.scoreboardPanels.push(heroSign);
+  for (const x of [-3.3, 3.3]) {
+    const sideBoard = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.68), makeCanvasTextMaterial(x < 0 ? "LANE 01" : "LANE 02", { width: 384, height: 128, accent: x < 0 ? "#38bdf8" : "#f472b6" }));
+    sideBoard.position.set(x, 2.42, CFG.pinDeckZ - 2.15);
+    sideBoard.rotation.y = x < 0 ? 0.12 : -0.12;
+    group.add(sideBoard);
+    decor.scoreboardPanels.push(sideBoard);
+  }
 
   const lounge = new THREE.Group();
   lounge.position.copy(BOWLING_LOUNGE_CENTER);
@@ -1280,50 +1128,20 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   lounge.add(towel);
 
   const couchMat = new THREE.MeshPhysicalMaterial({ color: 0x172033, roughness: 0.5, metalness: 0.02, clearcoat: 0.25 });
-  for (const [x, z, yaw] of [[-4.45, 7.2, Math.PI / 2], [4.45, 7.2, -Math.PI / 2], [-3.45, 8.95, 0], [3.45, 8.95, 0], [-2.35, 6.15, Math.PI * 0.08], [2.35, 6.15, -Math.PI * 0.08]]) {
+  for (const [x, z, yaw] of [[-5.7, 7.35, Math.PI / 2], [4.78, 7.35, -Math.PI / 2], [-4.54, 9.05, 0], [4.54, 9.05, 0]]) {
     const couch = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.25, 0.66), couchMat);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.25, 0.66), couchMat);
     base.position.y = 0.38;
     couch.add(base);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.72, 0.16), couchMat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.72, 0.16), couchMat);
     back.position.set(0, 0.76, 0.32);
     couch.add(back);
-    const chrome = new THREE.Mesh(new THREE.BoxGeometry(1.66, 0.055, 0.08), metalMat);
+    const chrome = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.055, 0.08), metalMat);
     chrome.position.set(0, 0.18, -0.26);
     couch.add(chrome);
     couch.position.set(x as number, CFG.laneY, z as number);
     couch.rotation.y = yaw as number;
     group.add(couch);
-  }
-
-  const consoleMat = new THREE.MeshPhysicalMaterial({ color: 0x0b1220, roughness: 0.52, metalness: 0.18, clearcoat: 0.18 });
-  const screenMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.72, toneMapped: false });
-  for (const x of [-1.45, 1.45]) {
-    const console = new THREE.Group();
-    const pedestal = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.72, 0.36), consoleMat);
-    pedestal.position.y = 0.36;
-    console.add(pedestal);
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.34, 0.05), screenMat);
-    screen.position.set(0, 0.86, -0.12);
-    screen.rotation.x = -0.22;
-    console.add(screen);
-    console.position.set(x, CFG.laneY, 5.84);
-    console.rotation.y = x < 0 ? 0.18 : -0.18;
-    group.add(console);
-  }
-  for (const [x, z] of [[-3.1, 7.6], [3.1, 7.6], [-4.18, 8.35], [4.18, 8.35]]) {
-    const sideTable = new THREE.Group();
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.055, 28), woodMat);
-    top.position.y = 0.58;
-    sideTable.add(top);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 0.55, 16), metalMat);
-    stem.position.y = 0.3;
-    sideTable.add(stem);
-    const drink = makeDrink(new THREE.MeshPhysicalMaterial({ color: 0xf59e0b, roughness: 0.2, transparent: true, opacity: 0.75, clearcoat: 0.3 }));
-    drink.position.set(0.08, 0.62, 0.02);
-    sideTable.add(drink);
-    sideTable.position.set(x as number, CFG.laneY, z as number);
-    group.add(sideTable);
   }
 
   const chairFallbackMat = new THREE.MeshPhysicalMaterial({ color: 0x5f3d26, roughness: 0.42, metalness: 0.05, clearcoat: 0.35 });
@@ -1368,39 +1186,36 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   loungeBoundary.position.set(BOWLING_LOUNGE_CENTER.x, CFG.laneY + 0.006, BOWLING_LOUNGE_CENTER.z);
   group.add(loungeBoundary);
 
-  const returnShellMat = new THREE.MeshPhysicalMaterial({ color: 0x090b10, roughness: 0.82, metalness: 0.04, clearcoat: 0.08, clearcoatRoughness: 0.62 });
-  const returnTrimMat = new THREE.MeshPhysicalMaterial({ color: 0x94a3b8, roughness: 0.36, metalness: 0.72, clearcoat: 0.22, envMapIntensity: 0.62 });
-  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.25, 2.46), returnShellMat);
-  returnBase.position.set(0, 0.125, 6.28);
+  const returnShellMat = new THREE.MeshPhysicalMaterial({ color: 0x06080d, roughness: 0.64, metalness: 0.12, clearcoat: 0.35, clearcoatRoughness: 0.18 });
+  const returnTrimMat = new THREE.MeshPhysicalMaterial({ color: 0xa6b4c6, roughness: 0.2, metalness: 0.92, clearcoat: 0.7, envMapIntensity: 1.25 });
+  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.34, 2.08), returnShellMat);
+  returnBase.position.set(0, 0.17, 6.06);
   group.add(returnBase);
-  const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 2.14, 42, 1, false, 0, Math.PI), returnShellMat);
+  const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.76, 36, 1, false, 0, Math.PI), returnShellMat);
   returnCover.rotation.z = Math.PI / 2;
-  returnCover.position.set(0, 0.36, 6.28);
+  returnCover.position.set(0, 0.48, 6.08);
   group.add(returnCover);
-  const centerSlot = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.04, 1.88), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.84 }));
-  centerSlot.position.set(0, CFG.laneY + 0.49, 6.22);
+  const centerSlot = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.045, 1.72), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.82 }));
+  centerSlot.position.set(0, CFG.laneY + 0.62, 6.08);
   group.add(centerSlot);
-  for (const x of [-0.94, 0.94]) {
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.13, 2.26), returnTrimMat);
-    trim.position.set(x, CFG.laneY + 0.39, 6.28);
+  for (const x of [-0.72, 0.72]) {
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.16, 2.08), returnTrimMat);
+    trim.position.set(x, CFG.laneY + 0.51, 6.08);
     group.add(trim);
   }
-  const returnFloorPlate = new THREE.Mesh(new THREE.BoxGeometry(2.56, 0.035, 2.76), rubberMat);
-  returnFloorPlate.position.set(0, CFG.laneY + 0.014, 6.28);
-  group.add(returnFloorPlate);
-  const channel = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.13, 10.45), returnShellMat);
-  channel.position.set(0, 0.075, 1.12);
+  const channel = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.2, 10.15), returnShellMat);
+  channel.position.set(0, 0.12, 1.05);
   group.add(channel);
-  for (const x of [-0.33, 0.33]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.085, 10.45), returnTrimMat);
-    rail.position.set(x, CFG.laneY + 0.22, 1.12);
+  for (const x of [-0.25, 0.25]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.1, 10.3), returnTrimMat);
+    rail.position.set(x, CFG.laneY + 0.34, 1.05);
     group.add(rail);
   }
-  const returnLed = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.026, 0.04), ledCyan);
-  returnLed.position.set(0, CFG.laneY + 0.54, 5.18);
+  const returnLed = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.035, 0.045), ledCyan);
+  returnLed.position.set(0, CFG.laneY + 0.7, 5.05);
   group.add(returnLed);
-  const ballLift = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.86, 42), returnTrimMat);
-  ballLift.position.set(0, CFG.laneY + 0.22, 7.0);
+  const ballLift = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.45, 0.72, 36), returnTrimMat);
+  ballLift.position.set(0, CFG.laneY + 0.32, 6.92);
   ballLift.rotation.z = Math.PI / 2;
   group.add(ballLift);
   const animatedReturnColors: [string, string, string][] = [
@@ -1409,7 +1224,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   ];
   animatedReturnColors.forEach((colors, i) => {
     const rb = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR * 0.92, 40, 30), makeBallMaterial(colors));
-    rb.position.set(i ? 0.28 : -0.24, 0.36, 4.9 + i * 0.64);
+    rb.position.set(i ? 0.25 : -0.22, 0.43, 4.6 + i * 0.72);
     rb.userData.returnPhase = i * 0.5;
     decor.returnBalls.push(rb);
     group.add(rb);
@@ -1447,18 +1262,16 @@ function createDominoBowlingCrowd(scene: THREE.Scene, playerCharacterId: string)
   const members: BowlingCrowdMember[] = [];
   const behaviors: BowlingCrowdMember["behavior"][] = ["talking", "clapping", "phone", "drinking", "spectating", "celebrating"];
   const spots = [
-    { pos: [-4.45, 0, 7.18], yaw: Math.PI / 2, seated: true },
-    { pos: [-3.45, 0, 8.92], yaw: 0, seated: true },
-    { pos: [3.45, 0, 8.92], yaw: 0, seated: true },
-    { pos: [4.45, 0, 7.18], yaw: -Math.PI / 2, seated: true },
-    { pos: [-2.35, 0, 6.12], yaw: Math.PI * 0.08, seated: true },
-    { pos: [2.35, 0, 6.12], yaw: -Math.PI * 0.08, seated: true },
-    { pos: [-3.72, 0, 5.46], yaw: Math.PI * 0.82, seated: false },
-    { pos: [-2.72, 0, 5.28], yaw: Math.PI * 0.92, seated: false },
-    { pos: [2.95, 0, 5.34], yaw: -Math.PI * 0.92, seated: false },
-    { pos: [3.82, 0, 5.52], yaw: -Math.PI * 0.82, seated: false },
-    { pos: [-4.55, 0, 2.6], yaw: Math.PI * 0.62, seated: false },
-    { pos: [4.55, 0, 2.52], yaw: -Math.PI * 0.62, seated: false },
+    { pos: [-5.74, 0, 7.28], yaw: Math.PI / 2, seated: true },
+    { pos: [-4.72, 0, 9.0], yaw: 0, seated: true },
+    { pos: [4.66, 0, 9.0], yaw: 0, seated: true },
+    { pos: [5.72, 0, 7.32], yaw: -Math.PI / 2, seated: true },
+    { pos: [-3.9, 0, 5.42], yaw: Math.PI * 0.86, seated: false },
+    { pos: [-2.95, 0, 5.18], yaw: Math.PI * 0.94, seated: false },
+    { pos: [3.18, 0, 5.32], yaw: -Math.PI * 0.9, seated: false },
+    { pos: [4.1, 0, 5.55], yaw: -Math.PI * 0.82, seated: false },
+    { pos: [-5.55, 0, 3.15], yaw: Math.PI * 0.62, seated: false },
+    { pos: [5.55, 0, 3.05], yaw: -Math.PI * 0.62, seated: false },
   ];
   const roster = HUMAN_CHARACTER_OPTIONS.filter((option) => option.id !== playerCharacterId);
   spots.forEach((spot, i) => {
@@ -1510,8 +1323,8 @@ function updateDominoBowlingCrowd(crowd: BowlingCrowdMember[], dt: number, criti
 function updateArenaDecor(decor: BowlingArenaDecor, elapsed: number, criticalPulse: boolean) {
   decor.returnBalls.forEach((ball, i) => {
     const phase = (elapsed * 0.26 + (ball.userData.returnPhase || 0)) % 1;
-    ball.position.z = lerp(4.72, 6.38, phase);
-    ball.position.x = lerp(-0.18, 0.42, phase) + Math.sin(phase * Math.PI * 2 + i) * 0.035;
+    ball.position.z = lerp(4.35, 6.72, phase);
+    ball.position.x = Math.sin(phase * Math.PI * 2 + i) * 0.24;
     ball.rotation.x -= 0.08;
     ball.rotation.z += 0.045;
     ball.visible = phase < 0.88;
@@ -1663,10 +1476,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
   } else if (rig.action === "toRack") {
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    const k = easeInOut(rig.returnWalkT);
-    const nextPos = k < 0.55
-      ? new THREE.Vector3().lerpVectors(rig.approachTo, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.55))
-      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, RETURN_PICKUP_POINT, easeInOut((k - 0.55) / 0.45));
+    const nextPos = new THREE.Vector3().lerpVectors(rig.approachTo, new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), easeInOut(rig.returnWalkT));
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
@@ -1690,10 +1500,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
   } else if (rig.action === "toApproach") {
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
-    const k = easeInOut(rig.returnWalkT);
-    const nextPos = k < 0.45
-      ? new THREE.Vector3().lerpVectors(RETURN_PICKUP_POINT, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.45))
-      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, PLAYER_READY_POINT, easeInOut((k - 0.45) / 0.55));
+    const nextPos = new THREE.Vector3().lerpVectors(new THREE.Vector3(CFG.rackEdgeX, CFG.laneY, CFG.rackStopZ), new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), easeInOut(rig.returnWalkT));
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
@@ -1706,10 +1513,9 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     animateFallbackHuman(rig, "walk", rig.walkCycle);
     if (rig.returnWalkT >= 1) rig.action = "idle";
   } else if (rig.model) {
-    const idleWave = Math.sin(performance.now() * 0.0018 + rig.pos.x) * 0.5 + 0.5;
-    rig.model.position.y = lerp(rig.model.position.y || 0, 0.012 + idleWave * 0.012, 0.08);
+    rig.model.position.y *= 0.82;
     rig.model.rotation.x *= 0.82;
-    rig.model.rotation.z = lerp(rig.model.rotation.z, (idleWave - 0.5) * 0.035, 0.06);
+    rig.model.rotation.z *= 0.82;
   }
   if (rig.action === "throw" || rig.action === "recover") {
     rig.targetYaw = Math.PI;
@@ -1867,7 +1673,7 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = "returning";
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(0, CFG.laneY + 0.23, 1.1);
+      ball.pos.set(1.86, 0.27, 1.1);
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -1875,7 +1681,7 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === "returning") {
     ball.returnT += dt / 1.5;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(lerp(0, 0.38, t), CFG.laneY + lerp(0.23, 0.5, t), lerp(1.1, 6.48, t));
+    ball.pos.set(1.71, 0.9, lerp(1.1, 5.92, t));
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.16);
     ball.mesh.rotateX(0.23);
@@ -1936,10 +1742,12 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
 
 
 function getHumanFaceCameraPose(player: HumanRig) {
-  const shoulderOffset = new THREE.Vector3(0.72, 2.06, 4.75);
-  const laneLook = new THREE.Vector3(clamp(player.pos.x * 0.16, -0.32, 0.32), CFG.laneY + 0.58, CFG.pinDeckZ - 0.48);
+  const faceLocal = new THREE.Vector3(0, 1.58, 0.1).applyAxisAngle(UP, player.yaw);
+  const eye = player.pos.clone().add(faceLocal);
+  const laneForward = new THREE.Vector3(0, 0, -1);
+  const laneLook = new THREE.Vector3(clamp(player.pos.x * 0.25, -0.45, 0.45), CFG.laneY + 0.52, CFG.pinDeckZ - 0.62);
   return {
-    desired: player.pos.clone().add(shoulderOffset),
+    desired: eye.addScaledVector(laneForward, -0.04),
     look: laneLook,
   };
 }
@@ -1964,13 +1772,12 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.2, 3.2));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.78, -1.6));
   } else {
-    const sway = Math.sin(performance.now() * 0.0007) * 0.045;
-    desired = new THREE.Vector3(0.14 + sway, 2.66, 11.85);
-    look = new THREE.Vector3(0, CFG.laneY + 0.56, -4.65);
+    desired = new THREE.Vector3(0, 2.9, 10.8);
+    look = new THREE.Vector3(0, CFG.laneY + 0.74, -2.6);
   }
-  camera.position.lerp(desired, 1 - Math.exp(-4.4 * dt));
+  camera.position.lerp(desired, 1 - Math.exp(-5.1 * dt));
   const currentLook = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(8).add(camera.position);
-  currentLook.lerp(look, 1 - Math.exp(-6.2 * dt));
+  currentLook.lerp(look, 1 - Math.exp(-7 * dt));
   camera.lookAt(currentLook);
 }
 
@@ -1978,13 +1785,13 @@ function FrameBox({ frame, index }: { frame: BowlingFrame; index: number }) {
   const rolls = createFrameRollSymbols(frame, index);
   const smallCols = index === 9 ? 3 : 2;
   return (
-    <div style={{ minWidth: index === 9 ? 34 : 26, border: "1px solid rgba(255,255,255,0.16)", borderRadius: 5, overflow: "hidden", background: "rgba(255,255,255,0.035)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${smallCols}, 1fr)`, borderBottom: "1px solid rgba(255,255,255,0.12)", minHeight: 14, fontSize: 8, fontWeight: 800, color: "rgba(255,255,255,0.96)" }}>
+    <div style={{ minWidth: index === 9 ? 44 : 34, border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${smallCols}, 1fr)`, borderBottom: "1px solid rgba(255,255,255,0.14)", minHeight: 18, fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.96)" }}>
         {rolls.map((r, i) => (
           <div key={i} style={{ textAlign: "center", padding: "2px 0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.12)" : "none" }}>{r}</div>
         ))}
       </div>
-      <div style={{ textAlign: "center", padding: "2px 1px", minHeight: 14, fontSize: 9, fontWeight: 900, color: "#7fd6ff" }}>{frame.cumulative ?? ""}</div>
+      <div style={{ textAlign: "center", padding: "4px 2px", minHeight: 18, fontSize: 11, fontWeight: 900, color: "#7fd6ff" }}>{frame.cumulative ?? ""}</div>
     </div>
   );
 }
@@ -2023,15 +1830,15 @@ export default function MobileBowlingRealistic() {
     renderer.setClearColor(0x090b11, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = graphicsQuality === "ultra" ? 0.96 : graphicsQuality === "performance" ? 0.84 : 0.9;
+    renderer.toneMappingExposure = graphicsQuality === "ultra" ? 1.08 : graphicsQuality === "performance" ? 0.94 : 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x070a12);
-    scene.fog = new THREE.FogExp2(0x090b11, 0.026);
+    scene.fog = new THREE.FogExp2(0x090b11, 0.018);
 
-    const camera = new THREE.PerspectiveCamera(51, 1, 0.05, 80);
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 80);
     camera.position.set(0, 2.9, 10.8);
 
     const playerCharacter = getCharacterById(selectedHumanCharacterId);
@@ -2071,8 +1878,8 @@ export default function MobileBowlingRealistic() {
             if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
             if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
             if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0;
-            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 0.82 : graphicsQuality === "performance" ? 0.62 : 0.72;
-            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.58 : graphicsQuality === "ultra" ? 0.86 : 0.72;
+            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.12 : graphicsQuality === "performance" ? 0.92 : 1;
+            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.86 : graphicsQuality === "ultra" ? 1.2 : 1;
           },
           undefined,
           () => tryLoad(idx + 1)
@@ -2082,9 +1889,9 @@ export default function MobileBowlingRealistic() {
     };
     applyHdri(selectedHdriId);
 
-    scene.add(new THREE.AmbientLight(0x788db6, 0.08));
-    scene.add(new THREE.HemisphereLight(0xffe0bb, 0x15192a, 0.28));
-    const key = new THREE.DirectionalLight(0xffecd6, 2.25);
+    scene.add(new THREE.AmbientLight(0x9fb7ff, 0.16));
+    scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x24160b, 0.42));
+    const key = new THREE.DirectionalLight(0xfff2df, 1.85);
     key.position.set(-4.8, 8.2, 6.6);
     key.castShadow = true;
     key.shadow.mapSize.width = 2048;
@@ -2096,10 +1903,10 @@ export default function MobileBowlingRealistic() {
     key.shadow.camera.top = 12;
     key.shadow.camera.bottom = -14;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x7dd3fc, 0.18);
+    const fill = new THREE.DirectionalLight(0x7dd3fc, 0.28);
     fill.position.set(4.4, 4.8, 6.3);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xff9a45, 1.24);
+    const rim = new THREE.DirectionalLight(0xff7a2f, 1.05);
     rim.position.set(3.8, 4.6, -12.4);
     scene.add(rim);
     for (let i = 0; i < 6; i++) {
@@ -2398,31 +2205,31 @@ export default function MobileBowlingRealistic() {
       </div>
 
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ position: "absolute", left: 20, right: 20, top: 6, color: "white", background: "rgba(5,8,14,0.58)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 13, padding: "5px 6px 7px", boxShadow: "0 8px 20px rgba(0,0,0,0.22)", backdropFilter: "blur(10px)", transform: "scale(0.82)", transformOrigin: "top center" }}>
+        <div style={{ position: "absolute", left: 8, right: 8, top: 8, color: "white", background: "rgba(5,8,14,0.72)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, padding: "8px 8px 10px", boxShadow: "0 14px 30px rgba(0,0,0,0.28)", backdropFilter: "blur(10px)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.2 }}>REAL BOWLING SCOREBOARD</div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: "#7fd6ff" }}>FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}</div>
+            <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 0.2 }}>REAL BOWLING SCOREBOARD</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#7fd6ff" }}>FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "44px repeat(10, minmax(22px, 1fr))", gap: 3, alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "56px repeat(10, minmax(28px, 1fr))", gap: 4, alignItems: "center" }}>
             <div style={{ fontSize: 10, fontWeight: 800, opacity: 0.72, textAlign: "center" }}></div>
             {Array.from({ length: 10 }, (_, i) => <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 800, opacity: 0.7 }}>{i + 1}</div>)}
             {scoresMemo.map((p, row) => (
               <React.Fragment key={p.name}>
-                <div style={{ paddingLeft: 1, fontSize: 9, fontWeight: 900, color: row === hud.activePlayer ? "#7fd6ff" : "#ffffff" }}>{row === 0 ? `P1 ${p.total}` : `P2 ${p.total}`}</div>
+                <div style={{ paddingLeft: 2, fontSize: 11, fontWeight: 900, color: row === hud.activePlayer ? "#7fd6ff" : "#ffffff" }}>{row === 0 ? `P1 ${p.total}` : `P2 ${p.total}`}</div>
                 {p.frames.map((f, i) => <FrameBox key={`${row}-${i}`} frame={f} index={i} />)}
               </React.Fragment>
             ))}
           </div>
-          <div style={{ marginTop: 5, textAlign: "center", fontSize: 10, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
-          <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "0.75fr 1.25fr", gap: 5, fontSize: 7, fontWeight: 800 }}>
-            <div style={{ padding: "3px 5px", borderRadius: 7, background: "rgba(14,165,233,0.13)", border: "1px solid rgba(125,211,252,0.16)" }}>{hud.lane}</div>
-            <div style={{ padding: "3px 5px", borderRadius: 7, background: "rgba(34,197,94,0.11)", border: "1px solid rgba(134,239,172,0.16)" }}>{hud.rule}</div>
+          <div style={{ marginTop: 7, textAlign: "center", fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{hud.status}</div>
+          <div style={{ marginTop: 5, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 9, fontWeight: 800 }}>
+            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(14,165,233,0.16)", border: "1px solid rgba(125,211,252,0.18)" }}>{hud.lane}</div>
+            <div style={{ padding: "5px 6px", borderRadius: 8, background: "rgba(34,197,94,0.14)", border: "1px solid rgba(134,239,172,0.18)" }}>{hud.rule}</div>
           </div>
           {hud.compliment ? <div style={{ marginTop: 4, textAlign: "center", fontSize: 10, fontWeight: 800, color: "#86efac" }}>{hud.compliment}</div> : null}
         </div>
 
-        <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 96, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
-        {menuOpen ? <div style={{ position:"absolute", top: 142, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
+        <button onClick={() => setMenuOpen((v)=>!v)} style={{ position:"absolute", top: 132, left: 8, width: 40, height:40, borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(5,8,14,0.72)", color:"#fff", fontSize:22, fontWeight:900, pointerEvents:"auto" }}>☰</button>
+        {menuOpen ? <div style={{ position:"absolute", top: 178, left: 8, right: 8, maxHeight:"48vh", overflow:"auto", borderRadius: 14, padding: 10, background:"rgba(5,8,14,0.88)", border:"1px solid rgba(255,255,255,0.18)", pointerEvents:"auto" }}>
           <div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Graphics (Pool Royal style)</div>
           {["performance","balanced","ultra"].map((q)=> <button key={q} onClick={()=>setGraphicsQuality(q as any)} style={{marginRight:6, marginBottom:6, padding:"6px 9px", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)", background: graphicsQuality===q?"#7fd6ff":"rgba(255,255,255,0.08)", color: graphicsQuality===q?"#001018":"#fff"}}>{q}</button>)}
 
