@@ -4439,7 +4439,7 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
-  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
+  baseCornerBlock: 'black',
   leg: DEFAULT_TABLE_FINISH_ID,
   baseFoot: 'gold'
 });
@@ -4454,14 +4454,17 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   ]),
   topWoodRail: Object.freeze([]),
   railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Sights + Rims', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Sights + Rims', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ]),
   pocketCup: Object.freeze([
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
-  baseCornerBlock: Object.freeze([]),
+  baseCornerBlock: Object.freeze([
+    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
+    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
+  ]),
   leg: Object.freeze([]),
   baseFoot: Object.freeze([
     { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
@@ -4472,9 +4475,9 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   cloth: 'Field Cloth',
   cushion: 'Cushions',
   topWoodRail: 'Top Rails',
-  railSight: 'Rail Sights + Vertical Rims',
+  railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
-  baseCornerBlock: 'Table Base Finish',
+  baseCornerBlock: 'Table Base',
   leg: 'Legs',
   baseFoot: 'Feet'
 });
@@ -4491,7 +4494,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+  if (part === 'topWoodRail' || part === 'leg') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4500,7 +4503,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Legs'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
@@ -4590,7 +4593,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
   }))
 );
 
-const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
+const DEFAULT_RAIL_MARKER_SHAPE = 'none';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
   { id: 'none', label: 'No rail markings' },
   { id: 'diamond', label: 'Diamonds' },
@@ -13121,7 +13124,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'topWoodRail',
+    sideWoodApron: 'railSight',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13198,46 +13201,18 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
-    const selectedFinish = TABLE_FINISHES[option.id] ?? finish;
-    const selectedMaterials = option.id === finishInfo?.id
-      ? materials
-      : (typeof selectedFinish?.createMaterials === 'function'
-        ? selectedFinish.createMaterials()
-        : materials);
-    const sourceMaterial = part === 'topWoodRail'
-      ? selectedMaterials.rail ?? selectedMaterials.frame
-      : selectedMaterials.frame ?? selectedMaterials.rail;
-    copyMaterialLook(sourceMaterial);
-    const defaultWoodOption =
-      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
-    const resolvedWoodOption =
-      selectedFinish?.woodTexture ||
-      (selectedFinish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[selectedFinish.woodTextureId]) ||
-      defaultWoodOption;
     const surface = part === 'topWoodRail'
-      ? resolveWoodSurfaceConfig(
-          resolvedWoodOption?.rail,
-          resolvedWoodOption?.frame ?? defaultWoodOption.frame ?? defaultWoodOption.rail
-        )
-      : resolveWoodSurfaceConfig(
-          resolvedWoodOption?.frame,
-          resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
-        );
-    const cueRepeatScale = selectedFinish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
-    const woodRepeatScale = clampWoodRepeatScaleValue(
-      (selectedFinish?.woodRepeatScale ?? finishInfo?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueRepeatScale
-    );
-    applyWoodTextureToMaterial(mat, {
-      ...surface,
-      woodRepeatScale
-    });
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
+    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
     applyTableFinishDulling(mat);
     applyTableWoodVisibilityTuning(mat);
-    if (selectedFinish?.surfaceStyle === 'matte') {
-      if (selectedFinish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+    if (finish?.surfaceStyle === 'matte') {
+      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
       else applyMonoMattePlasticSurface(mat);
     }
-    applyFinishWoodTint(mat, selectedFinish);
+    applyShowoodTint();
   } else {
     applyShowoodTint();
   }
@@ -13372,7 +13347,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'topWoodRail' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -17288,73 +17263,8 @@ function PoolRoyaleGame({
         }
         const applyShowoodPartMaterial = (material, part) => {
           const option = getShowoodPartOption(showoodTableStyle, part);
-          if (!material || !option) return;
-          const copyMaterialLook = (source) => {
-            if (!source) return;
-            if (source.color && material.color) material.color.copy(source.color);
-            [
-              'roughness',
-              'metalness',
-              'clearcoat',
-              'clearcoatRoughness',
-              'sheen',
-              'sheenRoughness',
-              'reflectivity',
-              'envMapIntensity',
-              'bumpScale'
-            ].forEach((key) => {
-              if (typeof source[key] === 'number' && key in material) material[key] = source[key];
-            });
-            material.map = clonePoolRoyaleMaterialTexture(source.map, { isColor: true });
-            material.normalMap = clonePoolRoyaleMaterialTexture(source.normalMap);
-            material.roughnessMap = clonePoolRoyaleMaterialTexture(source.roughnessMap);
-            material.aoMap = clonePoolRoyaleMaterialTexture(source.aoMap);
-            material.metalnessMap = clonePoolRoyaleMaterialTexture(source.metalnessMap);
-            material.bumpMap = clonePoolRoyaleMaterialTexture(source.bumpMap);
-          };
-          if (option.useTableFinishTexture) {
-            const selectedFinish = TABLE_FINISHES[option.id] ?? baseFinish;
-            const selectedMaterials = option.id === tableFinishId
-              ? materials
-              : (typeof selectedFinish?.createMaterials === 'function'
-                ? selectedFinish.createMaterials()
-                : materials);
-            const sourceMaterial = part === 'topWoodRail'
-              ? selectedMaterials.rail ?? selectedMaterials.frame
-              : selectedMaterials.frame ?? selectedMaterials.rail;
-            copyMaterialLook(sourceMaterial);
-            const defaultWoodOption =
-              WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
-            const resolvedWoodOption =
-              selectedFinish?.woodTexture ||
-              (selectedFinish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[selectedFinish.woodTextureId]) ||
-              defaultWoodOption;
-            const surface = part === 'topWoodRail'
-              ? resolveWoodSurfaceConfig(
-                  resolvedWoodOption?.rail,
-                  resolvedWoodOption?.frame ?? defaultWoodOption.frame ?? defaultWoodOption.rail
-                )
-              : resolveWoodSurfaceConfig(
-                  resolvedWoodOption?.frame,
-                  resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
-                );
-            const cueRepeatScale = selectedFinish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
-            const woodRepeatScale = clampWoodRepeatScaleValue(
-              (selectedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueRepeatScale
-            );
-            applyWoodTextureToMaterial(material, { ...surface, woodRepeatScale });
-            applyTableFinishDulling(material);
-            applyTableWoodVisibilityTuning(material);
-            if (selectedFinish?.surfaceStyle === 'matte') {
-              if (selectedFinish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(material);
-              else applyMonoMattePlasticSurface(material);
-            }
-            applyFinishWoodTint(material, selectedFinish);
-            material.needsUpdate = true;
-            return;
-          }
-          const props = option.material;
-          if (!props) return;
+          const props = option?.material;
+          if (!material || !props) return;
           if (material.color && Number.isFinite(props.color)) material.color.set(props.color);
           ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
             if (typeof props[key] === 'number' && key in material) material[key] = props[key];
