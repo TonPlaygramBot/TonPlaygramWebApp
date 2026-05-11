@@ -2272,8 +2272,8 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // restore softer shot pace so cue-ball travel matches the previous tuning window
+const SHOT_POWER_BOOST = 1; // keep slider strength honest by removing the extra Pool Royale boost
+const SHOT_GLOBAL_POWER_SCALE = 0.72; // soften Pool Royale shot pace so ball travel matches the displayed slider power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2366,8 +2366,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
+const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
@@ -2717,10 +2717,10 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.48; // keep the cue stick visually down on the table during the shot
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.18; // flatter table-level cue orientation so the stick stays visible on the cloth
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
@@ -13233,6 +13233,150 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   return mat;
 }
 
+
+function getPoolRoyaleGeometryMaterialIndexAt(geometry, offset) {
+  if (!geometry?.groups?.length) return 0;
+  const group = geometry.groups.find((entry) => offset >= entry.start && offset < entry.start + entry.count);
+  return group?.materialIndex ?? 0;
+}
+
+function resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const position = geometry.attributes.position;
+  const a = new THREE.Vector3().fromBufferAttribute(position, aIndex).applyMatrix4(mesh.matrixWorld);
+  const b = new THREE.Vector3().fromBufferAttribute(position, bIndex).applyMatrix4(mesh.matrixWorld);
+  const c = new THREE.Vector3().fromBufferAttribute(position, cIndex).applyMatrix4(mesh.matrixWorld);
+  const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3);
+  const normal = new THREE.Vector3()
+    .crossVectors(new THREE.Vector3().subVectors(b, a), new THREE.Vector3().subVectors(c, a))
+    .normalize()
+    .transformDirection(mesh.matrixWorld);
+  const relX = Math.abs(center.x - tableCenter.x) / Math.max(tableSize.x * 0.5, MICRO_EPS);
+  const relZ = Math.abs(center.z - tableCenter.z) / Math.max(tableSize.z * 0.5, MICRO_EPS);
+  const relY = (center.y - tableBox.min.y) / Math.max(tableSize.y, MICRO_EPS);
+  const xIsLongAxis = tableSize.x >= tableSize.z;
+  return {
+    relY,
+    longN: xIsLongAxis ? relX : relZ,
+    shortN: xIsLongAxis ? relZ : relX,
+    upFace: normal.y > 0.33,
+    sideFace: Math.abs(normal.x) > 0.25 || Math.abs(normal.z) > 0.25,
+    downFace: normal.y < -0.33
+  };
+}
+
+function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const name = `${mesh?.name || ''} ${material?.name || ''}`.toLowerCase();
+  const s = resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
+  const color = material?.color?.isColor ? material.color : null;
+  const green = color ? color.g > color.r * 1.14 && color.g > color.b * 1.08 && color.g > 0.11 : false;
+  const brown = color ? color.r > color.b * 1.12 && color.g > color.b * 0.48 && color.r > 0.07 && color.g < color.r * 0.9 : false;
+  const black = color ? color.r < 0.11 && color.g < 0.11 && color.b < 0.11 : false;
+  const gold = color ? color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88 : false;
+  const light = color ? color.r > 0.72 && color.g > 0.72 && color.b > 0.62 : false;
+  const namedCloth = /cloth|felt|fabric|surface|bed|slate/i.test(name);
+  const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
+  const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
+  const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
+  const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
+  const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
+  const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
+  const high = s.relY > 0.54;
+  const veryTop = s.relY > 0.65;
+  const midBody = s.relY > 0.16 && s.relY <= 0.62;
+  const low = s.relY <= 0.16;
+  const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
+  const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
+  const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
+  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.74 && s.shortN < 0.59;
+  const cushionBand = high && !anyPocketZone && (
+    (s.upFace && s.longN >= 0.70 && s.longN < 0.88 && s.shortN < 0.68) ||
+    (s.upFace && s.shortN >= 0.54 && s.shortN < 0.78 && s.longN < 0.88) ||
+    (s.sideFace && s.relY > 0.58 && (s.longN > 0.66 || s.shortN > 0.50)) ||
+    (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
+  );
+  const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
+  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
+  const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.80 && s.longN > 0.80 && s.shortN > 0.68;
+  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
+  const baseCornerZone = s.sideFace && midBody && (
+    (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
+    (s.longN > 0.50 && s.shortN > 0.48) ||
+    (s.longN > 0.64 && s.shortN > 0.64)
+  );
+  const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
+  if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
+  if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
+  if (namedSight && high) return 'railSight';
+  if ((namedCloth || green) && centralCloth) return 'cloth';
+  if ((namedCushion || green) && cushionBand) return 'cushion';
+  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'baseFoot';
+  if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
+  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if (low) return 'baseFoot';
+  if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
+  if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
+  if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
+  if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
+  return namedCushion ? 'cushion' : 'sideWoodApron';
+}
+
+function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
+  if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
+  model.updateMatrixWorld(true);
+  const tableBox = new THREE.Box3().setFromObject(model);
+  if (tableBox.isEmpty()) return;
+  const tableCenter = tableBox.getCenter(new THREE.Vector3());
+  const tableSize = tableBox.getSize(new THREE.Vector3());
+  model.traverse((mesh) => {
+    if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) return;
+    const sourceGeometry = mesh.geometry;
+    const position = sourceGeometry.attributes.position;
+    const oldIndex = sourceGeometry.index;
+    const totalIndices = oldIndex ? oldIndex.count : position.count;
+    if (totalIndices < 3) return;
+    const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material].filter(Boolean);
+    if (!sourceMaterials.length) return;
+    const finalGeometry = sourceGeometry.clone();
+    finalGeometry.clearGroups();
+    const finalIndex = [];
+    const finalMaterials = [];
+    const materialLookup = new Map();
+    const getMaterialIndex = (sourceMaterialIndex, part) => {
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part;
+      const key = `${sourceMaterialIndex}:${linkedPart}`;
+      if (materialLookup.has(key)) return materialLookup.get(key);
+      const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
+      const next = applyShowoodStyleToExternalMaterial(source, linkedPart, tableModel, finishInfo);
+      next.name = `${source?.name || 'showood'}__${linkedPart}`;
+      const index = finalMaterials.length;
+      finalMaterials.push(next);
+      materialLookup.set(key, index);
+      return index;
+    };
+    for (let i = 0; i + 2 < totalIndices; i += 3) {
+      const a = oldIndex ? oldIndex.getX(i) : i;
+      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
+      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
+      const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
+      const sourceMaterial = sourceMaterials[sourceMaterialIndex];
+      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const materialIndex = getMaterialIndex(sourceMaterialIndex, part);
+      const start = finalIndex.length;
+      finalIndex.push(a, b, c);
+      finalGeometry.addGroup(start, 3, materialIndex);
+    }
+    finalGeometry.setIndex(finalIndex);
+    finalGeometry.computeBoundingBox();
+    finalGeometry.computeBoundingSphere();
+    mesh.geometry = finalGeometry;
+    mesh.material = finalMaterials.length === 1 ? finalMaterials[0] : finalMaterials;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      poolRoyaleShowoodSpatialPartsRemapped: true
+    };
+  });
+}
+
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
   if (tableModel?.id === 'showood-seven-foot') {
@@ -13695,6 +13839,7 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
       if (tableModel.id === 'showood-seven-foot') {
