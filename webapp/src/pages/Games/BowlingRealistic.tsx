@@ -187,14 +187,79 @@ const BOWLING_MURLAN_CHAIR_URLS = [
 ];
 const LANE_CENTERS = [-CFG.laneCenterOffset, CFG.laneCenterOffset] as const;
 const laneCenterForPlayer = (playerIndex: number) => LANE_CENTERS[playerIndex === 1 ? 1 : 0];
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-5.25, CFG.laneY, 7.82);
-const RETURN_SAFE_WAYPOINT = new THREE.Vector3(0, CFG.laneY, 5.56);
-const RETURN_PICKUP_POINT = new THREE.Vector3(0, CFG.laneY, CFG.rackStopZ);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.92, CFG.laneY, 8.18);
+type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
+const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
+  { x: 0, z: 6.34, rx: 1.1, rz: 2.02 },
+  { x: BOWLING_LOUNGE_CENTER.x, z: BOWLING_LOUNGE_CENTER.z, rx: 1.48, rz: 1.36 },
+  { x: -5.24, z: 7.18, rx: 0.72, rz: 1.36 },
+  { x: -5.24, z: 9.18, rx: 0.72, rz: 1.36 },
+  { x: -2.72, z: 6.42, rx: 0.62, rz: 0.5 },
+];
+const HUMAN_CLEARANCE = 0.34;
 const PLAYER_READY_POINT = new THREE.Vector3(laneCenterForPlayer(0), CFG.laneY, CFG.playerStartZ);
 const PLAYER_SEATS = [
-  { pos: new THREE.Vector3(-5.12, CFG.laneY, 7.24), yaw: 0, stand: PLAYER_READY_POINT.clone() },
-  { pos: new THREE.Vector3(-4.18, CFG.laneY, 8.34), yaw: Math.PI, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-5.62, CFG.laneY, 7.34), yaw: Math.PI / 2, stand: PLAYER_READY_POINT.clone() },
+  { pos: new THREE.Vector3(-5.5, CFG.laneY, 8.94), yaw: Math.PI / 2, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
 ];
+
+function keepHumanInBowlingWalkableArea(pos: THREE.Vector3, preferredSide = -1) {
+  // Keep bowlers off ball returns, furniture, lane caps, and other props with a light-weight ellipse navmesh.
+  pos.z = clamp(pos.z, CFG.foulZ + 0.2, 9.82);
+  const maxLaneX = CFG.laneCenterOffset + CFG.gutterHalfW + 0.54;
+  const minLoungeX = -5.9;
+  pos.x = clamp(pos.x, minLoungeX, maxLaneX);
+  for (let pass = 0; pass < 2; pass++) {
+    for (const obstacle of HUMAN_NAV_OBSTACLES) {
+      const rx = obstacle.rx + HUMAN_CLEARANCE;
+      const rz = obstacle.rz + HUMAN_CLEARANCE;
+      const dx = pos.x - obstacle.x;
+      const dz = pos.z - obstacle.z;
+      const dist = (dx * dx) / (rx * rx) + (dz * dz) / (rz * rz);
+      if (dist >= 1) continue;
+      const angle = Math.atan2(dz / rz, dx / rx);
+      pos.x = obstacle.x + Math.cos(angle || preferredSide * Math.PI) * rx;
+      pos.z = obstacle.z + Math.sin(angle || -0.35) * rz;
+    }
+  }
+  if (Math.abs(pos.x) < CFG.gutterHalfW + 0.58 && pos.z < CFG.foulZ + 1.2) {
+    pos.z = CFG.foulZ + 1.2;
+  }
+  pos.y = CFG.laneY;
+  return pos;
+}
+
+function returnSafeWaypointForRig(rig: HumanRig) {
+  const side = rig.standPos.x < 0 ? -1 : 1;
+  return new THREE.Vector3(side * 0.96, CFG.laneY, 5.86);
+}
+
+function returnPickupPointForRig(rig: HumanRig) {
+  const side = rig.standPos.x < 0 ? -1 : 1;
+  return new THREE.Vector3(side * 0.92, CFG.laneY, 7.34);
+}
+
+function keepPlayersSeparated(rigs: HumanRig[], minDistance = 0.58) {
+  for (let i = 0; i < rigs.length; i++) {
+    for (let j = i + 1; j < rigs.length; j++) {
+      const a = rigs[i].pos;
+      const b = rigs[j].pos;
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const d = Math.hypot(dx, dz);
+      if (d <= 0.0001 || d >= minDistance) continue;
+      const push = (minDistance - d) * 0.5;
+      const nx = dx / d;
+      const nz = dz / d;
+      a.x -= nx * push; a.z -= nz * push;
+      b.x += nx * push; b.z += nz * push;
+      keepHumanInBowlingWalkableArea(a, -1);
+      keepHumanInBowlingWalkableArea(b, 1);
+      syncHuman(rigs[i]);
+      syncHuman(rigs[j]);
+    }
+  }
+}
 
 function makeEmptyPlayers(): ScorePlayer[] {
   const makeFrames = () => Array.from({ length: 10 }, () => ({ rolls: [] as number[], cumulative: null }));
@@ -940,10 +1005,11 @@ function beginPinReset(state: PinResetState, pins: PinState[], decor: BowlingAre
   state.fallenPins = pins.filter(isFallenPin);
   state.standingPins = pins.filter((pin) => !isFallenPin(pin));
   decor.resetMachine.visible = true;
-  const resetCenter = state.standingPins[0]?.start.x || state.fallenPins[0]?.start.x || 0;
+  const sourcePin = state.standingPins[0] || state.fallenPins[0];
+  const resetCenter = sourcePin ? laneCenterForPlayer(sourcePin.start.x > 0 ? 1 : 0) : 0;
   decor.resetMachine.position.x = resetCenter;
-  decor.resetMachine.position.y = CFG.laneY + 1.08;
-  decor.resetMachine.position.z = CFG.pinDeckZ - 0.48;
+  decor.resetMachine.position.y = CFG.laneY + 1.16;
+  decor.resetMachine.position.z = CFG.pinDeckZ - 0.82;
   for (const pin of pins) {
     pin.vel.set(0, 0, 0);
     pin.angularVel = 0;
@@ -960,13 +1026,13 @@ function beginPinReset(state: PinResetState, pins: PinState[], decor: BowlingAre
 
 function updatePinReset(state: PinResetState, decor: BowlingArenaDecor, dt: number) {
   if (state.phase === "idle") return null;
-  state.t = clamp01(state.t + dt / 1.55);
-  state.phase = state.t < 0.32 ? "lowering" : state.t < 0.72 ? "sweeping" : "lifting";
-  const lower = state.t < 0.32 ? easeInOut(state.t / 0.32) : state.t > 0.72 ? 1 - easeInOut((state.t - 0.72) / 0.28) : 1;
-  const sweep = clamp01((state.t - 0.28) / 0.34);
-  const lift = state.t < 0.5 ? 0 : state.t < 0.72 ? Math.sin(((state.t - 0.5) / 0.22) * Math.PI) * 0.18 : 0;
-  decor.resetMachine.position.y = CFG.laneY + lerp(1.08, 0.48, lower);
-  decor.resetMachine.position.z = CFG.pinDeckZ - 0.48 + Math.sin(sweep * Math.PI) * 0.18;
+  state.t = clamp01(state.t + dt / 1.9);
+  state.phase = state.t < 0.34 ? "lowering" : state.t < 0.76 ? "sweeping" : "lifting";
+  const lower = state.t < 0.34 ? easeInOut(state.t / 0.34) : state.t > 0.76 ? 1 - easeInOut((state.t - 0.76) / 0.24) : 1;
+  const sweep = clamp01((state.t - 0.34) / 0.34);
+  const lift = state.t < 0.48 ? 0 : state.t < 0.76 ? Math.sin(((state.t - 0.48) / 0.28) * Math.PI) * 0.14 : 0;
+  decor.resetMachine.position.y = CFG.laneY + lerp(1.16, 0.43, lower);
+  decor.resetMachine.position.z = CFG.pinDeckZ - 0.92 + sweep * 1.12;
 
   for (const pin of state.standingPins) {
     pin.pos.copy(pin.start);
@@ -978,12 +1044,12 @@ function updatePinReset(state: PinResetState, decor: BowlingArenaDecor, dt: numb
 
   for (const pin of state.fallenPins) {
     if (!pin.root.visible) continue;
-    const carry = clamp01((state.t - 0.32) / 0.28);
-    pin.root.position.z = pin.pos.z - carry * 1.15;
-    pin.root.position.y = Math.max(CFG.laneY + 0.025, pin.pos.y - carry * 0.08);
+    const carry = clamp01((state.t - 0.38) / 0.26);
+    pin.root.position.z = pin.pos.z - carry * 1.55;
+    pin.root.position.y = Math.max(CFG.laneY + 0.02, pin.pos.y - carry * 0.1);
   }
 
-  if (!state.removed && state.t >= 0.56) {
+  if (!state.removed && state.t >= 0.64) {
     clearFallenPins(state.fallenPins);
     state.removed = true;
   }
@@ -1075,26 +1141,44 @@ function makeDrink(mat: THREE.Material) {
 
 function makeBowlingBallRack(colors: [string, string, string][], matFactory: (colors: [string, string, string]) => THREE.MeshPhysicalMaterial) {
   const rack = new THREE.Group();
-  const railMat = new THREE.MeshPhysicalMaterial({ color: 0x101722, roughness: 0.48, metalness: 0.45, clearcoat: 0.55 });
-  for (const y of [0.32, 0.62]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.08), railMat);
-    rail.position.set(0, y, -0.18);
+  const railMat = new THREE.MeshPhysicalMaterial({ color: 0x07090d, roughness: 0.88, metalness: 0.18, clearcoat: 0.16, clearcoatRoughness: 0.62 });
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x020305, roughness: 0.96, metalness: 0.02 });
+  const railGeom = new THREE.CylinderGeometry(0.045, 0.045, 1.86, 24);
+  for (const [y, z] of [[0.34, -0.34], [0.58, 0.08]]) {
+    const rail = new THREE.Mesh(railGeom, railMat);
+    rail.rotation.z = Math.PI / 2;
+    rail.position.set(0, y as number, z as number);
     rack.add(rail);
   }
-  for (const x of [-0.82, 0.82]) {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.36), railMat);
-    side.position.set(x, 0.36, -0.18);
+  for (const [x, z] of [[-0.98, -0.16], [0.98, -0.16]]) {
+    const side = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.64, 8, 18), railMat);
+    side.position.set(x as number, 0.36, z as number);
     rack.add(side);
   }
-  colors.forEach((colorset, i) => {
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR * (0.92 + (i % 3) * 0.04), 40, 30), matFactory(colorset));
-    ball.position.set(-0.66 + i * 0.33 + Math.sin(i * 3.1) * 0.025, i % 2 ? 0.66 : 0.36, -0.2 + Math.cos(i * 1.7) * 0.025);
+  for (const [x, z] of [[-0.84, -0.48], [0.84, -0.48], [-0.84, 0.2], [0.84, 0.2]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.56, 18), railMat);
+    leg.position.set(x as number, 0.28, z as number);
+    rack.add(leg);
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 24), rubberMat);
+    foot.position.set(x as number, 0.012, z as number);
+    rack.add(foot);
+  }
+  const displayed = colors.slice(0, 5);
+  const ballSlots = [
+    [-0.62, 0.31, -0.34], [-0.18, 0.31, -0.34], [0.26, 0.31, -0.34], [0.7, 0.31, -0.34],
+    [-0.4, 0.55, 0.08], [0.16, 0.55, 0.08],
+  ];
+  displayed.forEach((colorset, i) => {
+    const radius = CFG.ballR * 0.98;
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 32), matFactory(colorset));
+    const [x, y, z] = ballSlots[i];
+    ball.position.set(x, y + radius * 0.28, z);
     ball.rotation.set(i * 0.37, i * 0.61, 0);
     rack.add(ball);
     const holeMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.82 });
     for (const [hx, hy] of [[-0.035, 0.12], [0.045, 0.11], [0.006, 0.045]]) {
-      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.018, 12), holeMat);
-      hole.position.set(ball.position.x + hx, ball.position.y + hy, ball.position.z + CFG.ballR * 0.86);
+      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.017, 14), holeMat);
+      hole.position.set(ball.position.x + hx, ball.position.y + hy, ball.position.z + radius * 0.84);
       hole.rotation.y = Math.PI;
       rack.add(hole);
     }
@@ -1136,7 +1220,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   sideFloor.rotation.x = -Math.PI / 2;
   sideFloor.position.set(0, CFG.laneY - 0.024, -3.72);
   group.add(sideFloor);
-  const loungeCarpet = new THREE.Mesh(new THREE.PlaneGeometry(3.05, 5.4), carpetMat);
+  const loungeCarpet = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 4.95), carpetMat);
   loungeCarpet.rotation.x = -Math.PI / 2;
   loungeCarpet.position.set(BOWLING_LOUNGE_CENTER.x, CFG.laneY - 0.014, BOWLING_LOUNGE_CENTER.z);
   group.add(loungeCarpet);
@@ -1264,14 +1348,14 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
       group.add(shadowPocket);
     }
   }
-  decor.resetMachine.position.set(laneCenterForPlayer(0), CFG.laneY + 1.08, CFG.pinDeckZ - 0.48);
+  decor.resetMachine.position.set(laneCenterForPlayer(0), CFG.laneY + 1.16, CFG.pinDeckZ - 0.92);
   decor.resetMachine.visible = false;
   const resetHeadMat = new THREE.MeshStandardMaterial({ color: 0x121a26, roughness: 0.58, metalness: 0.32 });
-  const resetHead = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.42, 0.16, 0.5), resetHeadMat);
+  const resetHead = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.5, 0.16, 0.58), resetHeadMat);
   resetHead.position.set(0, 0, 0);
   decor.resetMachine.add(resetHead);
   const sweepBlade = new THREE.Mesh(new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.34, 0.12, 0.18), metalMat);
-  sweepBlade.position.set(0, -0.28, 0.78);
+  sweepBlade.position.set(0, -0.3, 0.18);
   decor.resetMachine.add(sweepBlade);
   for (const x of [-0.94, -0.32, 0.32, 0.94]) {
     const pinCup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.18, 18), resetHeadMat);
@@ -1353,7 +1437,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   lounge.add(towel);
 
   const couchMat = new THREE.MeshPhysicalMaterial({ color: 0x182235, roughness: 0.82, metalness: 0.01, clearcoat: 0.08 });
-  for (const [x, z, yaw] of [[-4.08, 6.72, 0], [-4.08, 8.92, Math.PI]]) {
+  for (const [x, z, yaw] of [[-5.24, 7.18, Math.PI / 2], [-5.24, 9.18, Math.PI / 2]]) {
     const couch = new THREE.Group();
     const base = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.28, 0.82), couchMat);
     base.position.y = 0.38;
@@ -1381,8 +1465,8 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     const cupTray = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.035, 24), blackMat);
     cupTray.position.set(0.34 * Math.sign(x), 0.74, 0.16);
     consoleGroup.add(cupTray);
-    consoleGroup.position.set(x, CFG.laneY, 6.18);
-    consoleGroup.rotation.y = x < 0 ? -0.28 : 0.28;
+    consoleGroup.position.set(x, CFG.laneY, 6.42);
+    consoleGroup.rotation.y = Math.PI / 2;
     group.add(consoleGroup);
   }
   for (const [x, z] of [[-4.34, 5.82], [-3.28, 9.72]]) {
@@ -1440,34 +1524,36 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   loungeBoundary.position.set(BOWLING_LOUNGE_CENTER.x, CFG.laneY + 0.006, BOWLING_LOUNGE_CENTER.z);
   group.add(loungeBoundary);
 
-  const returnShellMat = new THREE.MeshPhysicalMaterial({ color: 0x090c12, roughness: 0.9, metalness: 0.03, clearcoat: 0.14, clearcoatRoughness: 0.55 });
-  const returnTrimMat = new THREE.MeshPhysicalMaterial({ color: 0x9ca8b5, roughness: 0.32, metalness: 0.82, clearcoat: 0.22, envMapIntensity: 0.78 });
-  const returnRubberMat = new THREE.MeshStandardMaterial({ color: 0x030406, roughness: 0.92, metalness: 0.01 });
-  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.16, 3.08), returnShellMat);
-  returnBase.position.set(0, CFG.laneY + 0.12, 6.28);
+  const returnShellMat = new THREE.MeshPhysicalMaterial({ color: 0x050609, roughness: 0.91, metalness: 0.05, clearcoat: 0.18, clearcoatRoughness: 0.58 });
+  const returnTrimMat = new THREE.MeshPhysicalMaterial({ color: 0x111827, roughness: 0.66, metalness: 0.48, clearcoat: 0.18, envMapIntensity: 0.68 });
+  const returnRubberMat = new THREE.MeshStandardMaterial({ color: 0x020304, roughness: 0.94, metalness: 0.01 });
+  const returnBase = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.18, 2.7), returnShellMat);
+  returnBase.position.set(0, CFG.laneY + 0.11, 6.34);
   group.add(returnBase);
-  const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 3.04, 44, 1, false, 0, Math.PI), returnShellMat);
+  const returnCover = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 2.68, 48, 1, false, 0, Math.PI), returnShellMat);
   returnCover.rotation.z = Math.PI / 2;
-  returnCover.position.set(0, CFG.laneY + 0.33, 6.28);
-  returnCover.scale.z = 1.04;
+  returnCover.position.set(0, CFG.laneY + 0.34, 6.34);
+  returnCover.scale.z = 1.02;
   group.add(returnCover);
-  const returnMouth = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.74), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.86 }));
-  returnMouth.position.set(0, CFG.laneY + 0.38, 7.23);
+  const returnMouth = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.055, 32, 1, false, Math.PI * 0.08, Math.PI * 0.84), new THREE.MeshBasicMaterial({ color: 0x010204, transparent: true, opacity: 0.9 }));
+  returnMouth.rotation.x = Math.PI / 2;
+  returnMouth.position.set(0, CFG.laneY + 0.37, 7.32);
   group.add(returnMouth);
-  for (const x of [-0.58, 0.58]) {
-    const sideRubber = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 2.58), returnRubberMat);
-    sideRubber.position.set(x, CFG.laneY + 0.31, 6.28);
+  for (const x of [-0.52, 0.52]) {
+    const sideRubber = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.13, 2.24), returnRubberMat);
+    sideRubber.position.set(x, CFG.laneY + 0.31, 6.34);
     group.add(sideRubber);
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.08, 2.42), returnTrimMat);
-    trim.position.set(x, CFG.laneY + 0.43, 6.28);
+    const trim = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 2.18, 16), returnTrimMat);
+    trim.rotation.x = Math.PI / 2;
+    trim.position.set(x, CFG.laneY + 0.43, 6.34);
     group.add(trim);
   }
   const channel = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 12.9), returnShellMat);
-  channel.position.set(0, CFG.laneY + 0.075, 0.05);
+  channel.position.set(0, CFG.laneY + 0.065, 0.12);
   group.add(channel);
   for (const x of [-0.32, 0.32]) {
     const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 12.96), returnTrimMat);
-    rail.position.set(x, CFG.laneY + 0.19, 0.07);
+    rail.position.set(x, CFG.laneY + 0.18, 0.12);
     group.add(rail);
   }
   for (const z of [4.92, 6.86]) {
@@ -1476,10 +1562,10 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     group.add(returnLed);
   }
   const ballLift = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.45, 1.04, 44), returnTrimMat);
-  ballLift.position.set(0, CFG.laneY + 0.22, 7.06);
+  ballLift.position.set(0, CFG.laneY + 0.22, 7.12);
   ballLift.rotation.z = Math.PI / 2;
   group.add(ballLift);
-  for (const [x, z] of [[-0.38, 5.18], [0.38, 5.18], [-0.38, 6.92], [0.38, 6.92]]) {
+  for (const [x, z] of [[-0.44, 5.24], [0.44, 5.24], [-0.44, 7.02], [0.44, 7.02]]) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.34, 16), returnTrimMat);
     leg.position.set(x as number, CFG.laneY + 0.13, z as number);
     group.add(leg);
@@ -1493,12 +1579,22 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     ["#ffe59b", "#f57e09", "#5a2c00"],
   ];
   animatedReturnColors.forEach((colors, i) => {
-    const rb = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR * 0.9, 40, 30), makeBallMaterial(colors));
-    rb.position.set(-0.32 + i * 0.32, CFG.laneY + 0.27, 5.08 + i * 0.48);
+    const rb = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR * 0.98, 44, 32), makeBallMaterial(colors));
+    rb.position.set(-0.28 + i * 0.28, CFG.laneY + 0.31, 5.14 + i * 0.5);
     rb.userData.returnPhase = i * 0.34;
     decor.returnBalls.push(rb);
     group.add(rb);
   });
+  const commercialRack = makeBowlingBallRack([
+    ["#93c5fd", "#2563eb", "#0b1b4a"],
+    ["#fda4af", "#e11d48", "#4a0416"],
+    ["#fde68a", "#f59e0b", "#4a2900"],
+    ["#a7f3d0", "#059669", "#032d22"],
+    ["#ddd6fe", "#7c3aed", "#2e1065"],
+  ], makeBallMaterial);
+  commercialRack.position.set(0, CFG.laneY, 7.64);
+  commercialRack.rotation.y = 0;
+  group.add(commercialRack);
 
   for (const [x, z, color] of [[-4.35, 7.6, 0x38bdf8], [0, CFG.pinDeckZ - 0.4, 0xffb86b]]) {
     const pulse = new THREE.PointLight(color as number, 0.42, 5.4, 2.1);
@@ -1574,9 +1670,9 @@ function updateDominoBowlingCrowd(crowd: BowlingCrowdMember[], dt: number, criti
 function updateArenaDecor(decor: BowlingArenaDecor, elapsed: number, criticalPulse: boolean) {
   decor.returnBalls.forEach((ball, i) => {
     const phase = (elapsed * 0.22 + (ball.userData.returnPhase || 0)) % 1;
-    ball.position.z = lerp(3.9, 6.92, phase);
-    ball.position.x = lerp(0.08, 0.78, phase) + Math.sin(phase * Math.PI * 2 + i) * 0.028;
-    ball.position.y = CFG.laneY + lerp(0.24, 0.38, easeOutCubic(phase));
+    ball.position.z = lerp(4.18, 6.98, phase);
+    ball.position.x = Math.sin(phase * Math.PI * 2 + i) * 0.055;
+    ball.position.y = CFG.laneY + lerp(0.24, 0.4, easeOutCubic(phase));
     ball.rotation.x -= 0.1;
     ball.rotation.z += 0.055;
     ball.visible = phase < 0.92;
@@ -1661,7 +1757,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.walkCycle += dt * 8.8;
     const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.seatPos, easeInOut(rig.seatT));
     smoothFacing(rig, nextPos, dt);
-    rig.pos.copy(nextPos);
+    rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, rig.standPos.x < 0 ? -1 : 1));
     if (rig.model) {
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.035;
       rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.035;
@@ -1739,11 +1835,13 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     const k = easeInOut(rig.returnWalkT);
+    const safeWaypoint = returnSafeWaypointForRig(rig);
+    const pickupPoint = returnPickupPointForRig(rig);
     const nextPos = k < 0.55
-      ? new THREE.Vector3().lerpVectors(rig.approachTo, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.55))
-      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, RETURN_PICKUP_POINT, easeInOut((k - 0.55) / 0.45));
+      ? new THREE.Vector3().lerpVectors(rig.approachTo, safeWaypoint, easeInOut(k / 0.55))
+      : new THREE.Vector3().lerpVectors(safeWaypoint, pickupPoint, easeInOut((k - 0.55) / 0.45));
     smoothFacing(rig, nextPos, dt);
-    rig.pos.copy(nextPos);
+    rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
@@ -1766,11 +1864,13 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     const k = easeInOut(rig.returnWalkT);
+    const safeWaypoint = returnSafeWaypointForRig(rig);
+    const pickupPoint = returnPickupPointForRig(rig);
     const nextPos = k < 0.45
-      ? new THREE.Vector3().lerpVectors(RETURN_PICKUP_POINT, RETURN_SAFE_WAYPOINT, easeInOut(k / 0.45))
-      : new THREE.Vector3().lerpVectors(RETURN_SAFE_WAYPOINT, rig.standPos, easeInOut((k - 0.45) / 0.55));
+      ? new THREE.Vector3().lerpVectors(pickupPoint, safeWaypoint, easeInOut(k / 0.45))
+      : new THREE.Vector3().lerpVectors(safeWaypoint, rig.standPos, easeInOut((k - 0.45) / 0.55));
     smoothFacing(rig, nextPos, dt);
-    rig.pos.copy(nextPos);
+    rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
       const swing = Math.sin(rig.walkCycle) * 0.18;
       const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
@@ -2022,48 +2122,78 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
 }
 
 
-function getHumanFaceCameraPose(player: HumanRig) {
-  const sway = Math.sin(performance.now() * 0.0012) * 0.035;
-  const cameraOffset = new THREE.Vector3(-0.82 + sway, 1.74, 6.18);
-  const laneLook = new THREE.Vector3(player.standPos.x, CFG.laneY + 0.48, CFG.pinDeckZ - 0.62);
-  return {
-    desired: player.pos.clone().add(cameraOffset),
-    look: laneLook,
-  };
+function getPlayerPerspectiveCameraPose(player: HumanRig, ball: BallState, dt: number) {
+  const laneCenter = ball.laneCenter || player.standPos.x;
+  const aimCenter = laneCenter + clamp(ball.pos.x - laneCenter, -0.42, 0.42) * 0.32;
+  const shoulderSide = player.standPos.x < 0 ? -0.18 : 0.18;
+  const progress = player.action === "approach" ? player.approachT : player.action === "throw" ? Math.min(1, player.throwT) : 0;
+  const releaseMomentum = player.action === "throw" ? easeOutCubic(clamp01((player.throwT - 0.18) / 0.62)) * 0.7 : 0;
+  const shoulder = player.pos.clone().add(new THREE.Vector3(shoulderSide, 1.52, 1.24 - releaseMomentum));
+  shoulder.z = Math.max(shoulder.z, CFG.foulZ + 0.72);
+  const desired = new THREE.Vector3(
+    lerp(shoulder.x, laneCenter + shoulderSide * 0.28, 0.2),
+    shoulder.y + lerp(0.1, -0.03, progress),
+    shoulder.z + 1.08 - releaseMomentum * 0.58,
+  );
+  const ballFocus = ball.held
+    ? ball.pos.clone().add(new THREE.Vector3(0, 0.18, -1.2))
+    : ball.pos.clone().add(new THREE.Vector3(0, 0.16, -0.7));
+  const pinFocus = new THREE.Vector3(laneCenter, CFG.laneY + 0.56, CFG.pinDeckZ - 0.68);
+  const look = ball.rolling
+    ? ballFocus.lerp(pinFocus, clamp01((CFG.foulZ - ball.pos.z) / (CFG.foulZ - CFG.pinDeckZ)))
+    : new THREE.Vector3(aimCenter, CFG.laneY + 0.55, lerp(CFG.arrowsZ, CFG.pinDeckZ - 0.2, 0.48 + progress * 0.22));
+  return { desired, look };
 }
 
 function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
+  const isActiveGameplay = ["idle", "approach", "throw", "recover"].includes(player.action) && player !== undefined;
   if (ball.rolling) {
+    const laneCenter = ball.laneCenter;
     const lead = ball.vel.clone().setY(0);
     if (lead.lengthSq() < 0.001) lead.set(0, 0, -1);
     lead.normalize();
     const speed01 = clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16);
-    desired = ball.pos.clone().addScaledVector(lead, -5.95).add(new THREE.Vector3(-0.22, lerp(1.42, 1.18, speed01), 1.16));
-    look = ball.pos.clone().addScaledVector(lead, lerp(2.8, 4.1, speed01)).add(new THREE.Vector3(0, 0.26, 0));
+    const chase = getPlayerPerspectiveCameraPose(player, ball, dt);
+    const laneChase = ball.pos.clone().addScaledVector(lead, -3.85).add(new THREE.Vector3(0, lerp(1.34, 1.15, speed01), 0.92));
+    laneChase.x = lerp(laneChase.x, laneCenter, 0.44);
+    desired = chase.desired.lerp(laneChase, clamp01((CFG.foulZ - ball.pos.z) / 7.2));
+    look = ball.pos.clone().addScaledVector(lead, lerp(3.2, 5.0, speed01)).add(new THREE.Vector3(0, 0.24, 0));
+    if (ball.pos.z < CFG.pinDeckZ + 2.4) look.lerp(new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.pinDeckZ - 0.7), 0.45);
   } else if (player.action === "pickBall") {
-    desired = player.pos.clone().add(new THREE.Vector3(-0.68, 1.92, 6.18));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.72, -1.05));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover") {
-    const facePose = getHumanFaceCameraPose(player);
-    desired = facePose.desired;
-    look = facePose.look;
+    desired = player.pos.clone().add(new THREE.Vector3(-0.56, 1.72, 2.7));
+    look = new THREE.Vector3(0, CFG.laneY + 0.55, 6.68);
+  } else if (isActiveGameplay) {
+    const pose = getPlayerPerspectiveCameraPose(player, ball, dt);
+    desired = pose.desired;
+    look = pose.look;
   } else if (player.action === "toRack" || player.action === "toApproach" || player.action === "standingUp") {
-    desired = player.pos.clone().add(new THREE.Vector3(-0.68, 1.78, 4.95));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.62, -1.8));
+    desired = player.pos.clone().add(new THREE.Vector3(-0.58, 1.68, 3.1));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.64, -1.95));
   } else {
-    desired = new THREE.Vector3(0, 2.34, 13.9);
-    look = new THREE.Vector3(player.standPos.x * 0.55, CFG.laneY + 0.58, -5.62);
+    desired = new THREE.Vector3(player.standPos.x * 0.28, 2.24, 12.3);
+    look = new THREE.Vector3(player.standPos.x * 0.72, CFG.laneY + 0.58, -6.8);
   }
-  const cinematicSway = new THREE.Vector3(Math.sin(performance.now() * 0.0007) * 0.018, Math.sin(performance.now() * 0.0011) * 0.012, 0);
-  const baseFov = camera.aspect < 0.72 ? 50 : 44;
-  const speedFov = ball.rolling ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 5.5 : 0;
-  camera.fov = lerp(camera.fov, baseFov + speedFov, 1 - Math.exp(-3.8 * dt));
+  const now = performance.now();
+  const pinsProximity = ball.rolling ? clamp01((ball.pos.z - (CFG.pinDeckZ + 1.65)) / 1.6) : 0;
+  let shake = camera.userData.impactShake || 0;
+  if (ball.rolling && ball.pos.z < CFG.pinDeckZ + 1.4 && !camera.userData.impactShakeTriggered) {
+    shake = 1;
+    camera.userData.impactShakeTriggered = true;
+  }
+  if (!ball.rolling) camera.userData.impactShakeTriggered = false;
+  shake = Math.max(0, shake - dt * 2.2);
+  camera.userData.impactShake = shake;
+  const shakeVec = new THREE.Vector3(Math.sin(now * 0.047) * 0.028 * shake, Math.cos(now * 0.039) * 0.018 * shake, Math.sin(now * 0.051) * 0.012 * shake);
+  const naturalHeadMotion = new THREE.Vector3(Math.sin(now * 0.001) * 0.01, Math.sin(now * 0.0017) * 0.008, 0);
+  const baseFov = camera.aspect < 0.72 ? 48 : 42;
+  const speedFov = ball.rolling ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5 : 0;
+  camera.fov = lerp(camera.fov, baseFov + speedFov + pinsProximity * 1.6, 1 - Math.exp(-3.6 * dt));
   camera.updateProjectionMatrix();
-  camera.position.lerp(desired.add(cinematicSway), 1 - Math.exp(-4.6 * dt));
+  camera.position.lerp(desired.add(naturalHeadMotion).add(shakeVec), 1 - Math.exp(-5.8 * dt));
   const currentLook = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(8).add(camera.position);
-  currentLook.lerp(look, 1 - Math.exp(-7 * dt));
+  currentLook.lerp(look, 1 - Math.exp(-8.6 * dt));
   camera.lookAt(currentLook);
 }
 
@@ -2442,6 +2572,7 @@ export default function MobileBowlingRealistic() {
       }
       const criticalPulse = replayTimer > 0 || player.celebrateNext;
       for (const rig of playerRigs) updateHuman(rig, ball, dt, rig === player);
+      keepPlayersSeparated(playerRigs, 0.62);
       updateDominoBowlingCrowd(crowdMembers, dt, criticalPulse);
       updateArenaDecor(arenaDecor, now * 0.001, criticalPulse);
       if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
