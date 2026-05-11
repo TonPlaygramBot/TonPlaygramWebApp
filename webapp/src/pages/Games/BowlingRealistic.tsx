@@ -4,11 +4,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { BOWLING_HDRI_VARIANTS, BOWLING_HUMAN_CHARACTER_OPTIONS } from "../../config/bowlingInventoryConfig.js";
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 
-type PlayerAction = "idle" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
+type PlayerAction = "idle" | "seated" | "standUp" | "sitDown" | "approach" | "throw" | "recover" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
 
 type HudState = {
@@ -62,6 +63,12 @@ type HumanRig = {
   walkCycle: number;
   approachFrom: THREE.Vector3;
   approachTo: THREE.Vector3;
+  seatPos: THREE.Vector3;
+  standPos: THREE.Vector3;
+  seatYaw: number;
+  standT: number;
+  sitT: number;
+  seatedPoseApplied: boolean;
 };
 
 type BallVariant = { label: string; radius: number; massFactor: number; colors: [string,string,string] };
@@ -95,7 +102,8 @@ type PinState = {
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
 const DEFAULT_HUMAN_CHARACTER_ID = BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current-domino";
 const HUMAN_CHARACTER_OPTIONS = BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 1.46;
+const HUMAN_INITIAL_SCALE = 1.0;
+const HUMAN_TARGET_HEIGHT = 1.78;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -152,7 +160,14 @@ const CFG = {
   returnWalkDuration: 1.08,
   pickDuration: 0.52,
   releaseT: 0.56,
+  seatTransitionDuration: 0.72,
 };
+
+const BOWLER_STAND_POS = new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ);
+const PLAYER_SEATS = [
+  { pos: new THREE.Vector3(-2.95, CFG.laneY, 6.78), yaw: Math.PI * 0.5 },
+  { pos: new THREE.Vector3(-2.95, CFG.laneY, 5.78), yaw: Math.PI * 0.5 },
+] as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clamp01 = (v: number) => clamp(v, 0, 1);
@@ -366,6 +381,49 @@ function makeFallbackHuman(color: number) {
   return g;
 }
 
+
+function findBoneByHints(root: THREE.Object3D, hints: string[] = []) {
+  let matched: THREE.Bone | null = null;
+  root.traverse((obj) => {
+    const bone = obj as THREE.Bone;
+    if (matched || !bone.isBone) return;
+    const name = String(bone.name || "").toLowerCase();
+    if (name && hints.some((hint) => name.includes(hint))) matched = bone;
+  });
+  return matched;
+}
+
+function applyBoneOffset(bone: THREE.Bone | null, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function applyMurlanSeatedPose(model: THREE.Object3D) {
+  const deg = THREE.MathUtils.degToRad;
+  applyBoneOffset(findBoneByHints(model, ["hips", "pelvis"]), deg(-9), 0, 0);
+  applyBoneOffset(findBoneByHints(model, ["spine", "chest", "torso"]), deg(-3), 0, 0);
+  applyBoneOffset(findBoneByHints(model, ["head", "neck"]), deg(2), 0, 0);
+  applyBoneOffset(findBoneByHints(model, ["leftarm", "arm.l", "l_upperarm", "leftshoulder"]), deg(-53), deg(-6), deg(-2));
+  applyBoneOffset(findBoneByHints(model, ["leftforearm", "l_forearm", "leftlowerarm", "forearml"]), deg(40), deg(-3), deg(-2));
+  applyBoneOffset(findBoneByHints(model, ["rightarm", "arm.r", "r_upperarm", "rightshoulder"]), deg(-57), deg(6), deg(2));
+  applyBoneOffset(findBoneByHints(model, ["rightforearm", "r_forearm", "rightlowerarm", "forearmr"]), deg(44), deg(3), deg(2));
+  applyBoneOffset(findBoneByHints(model, ["leftupleg", "leftthigh", "l_thigh"]), deg(-90.5), deg(9.2), deg(2.9));
+  applyBoneOffset(findBoneByHints(model, ["rightupleg", "rightthigh", "r_thigh"]), deg(-90.5), deg(1.7), deg(-1.1));
+  applyBoneOffset(findBoneByHints(model, ["leftleg", "leftcalf", "l_calf"]), deg(-95.1), deg(1.1), deg(0.6));
+  applyBoneOffset(findBoneByHints(model, ["rightleg", "rightcalf", "r_calf"]), deg(-95.1), deg(-1.1), deg(-0.6));
+}
+
+function setFallbackSeatedPose(fallback: THREE.Group, seated: boolean) {
+  const legAngle = THREE.MathUtils.degToRad(seated ? 80 : 0);
+  fallback.children.forEach((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (mesh.position.y < 0.65) mesh.rotation.x = legAngle;
+  });
+}
+
 function parseHexColor(value: string | undefined, fallback: number) {
   if (!value) return fallback;
   const normalized = value.replace("#", "");
@@ -382,7 +440,7 @@ function pickRandomAiCharacter(playerCharacterId: string) {
   return pool[Math.floor(Math.random() * pool.length)] || HUMAN_CHARACTER_OPTIONS[0];
 }
 
-function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption): HumanRig {
+function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanCharacterOption, seatPos = start, seatYaw = 0): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = makeFallbackHuman(parseHexColor(character?.accent, 0xff7a2f));
@@ -415,6 +473,12 @@ function addHuman(scene: THREE.Scene, start: THREE.Vector3, character: HumanChar
     walkCycle: 0,
     approachFrom: start.clone(),
     approachTo: start.clone(),
+    seatPos: seatPos.clone(),
+    standPos: start.clone(),
+    seatYaw,
+    standT: 0,
+    sitT: 0,
+    seatedPoseApplied: false,
   };
 
   loadHumanCharacter(rig, character);
@@ -442,15 +506,15 @@ function loadHumanCharacter(rig: HumanRig, character: HumanCharacterOption | und
       urls[index],
       (gltf) => {
         if (cancelled) return;
-        const model = gltf.scene;
-        normalizeHuman(model, 1.82);
+        const model = cloneSkeleton(gltf.scene);
+        normalizeHuman(model, HUMAN_TARGET_HEIGHT);
         model.scale.multiplyScalar(HUMAN_INITIAL_SCALE);
         lockHumanToLaneGround(model);
         enableShadow(model);
         if (rig.model) rig.modelRoot.remove(rig.model);
         rig.model = model;
-        rig.fallback.visible = false;
         rig.modelRoot.add(model);
+        applyRigSeatedVisual(rig, rig.action === "seated" || rig.action === "sitDown");
       },
       undefined,
       () => tryLoad(index + 1)
@@ -465,6 +529,36 @@ function lockHumanToLaneGround(model: THREE.Object3D) {
   const bounds = new THREE.Box3().setFromObject(model);
   const groundOffset = CFG.laneY - bounds.min.y;
   model.position.y += groundOffset;
+}
+
+function applyRigSeatedVisual(rig: HumanRig, seated: boolean) {
+  // Reuse the Murlan/Royal seated silhouette without mutating the loaded bowling avatar skeleton,
+  // so each bowler can stand up with a clean walking/throwing rig on their next turn.
+  if (rig.model) rig.model.visible = !seated;
+  rig.fallback.visible = seated || !rig.model;
+  setFallbackSeatedPose(rig.fallback, seated);
+  rig.seatedPoseApplied = seated;
+}
+
+function seatHuman(rig: HumanRig, instant = false) {
+  rig.action = instant ? "seated" : "sitDown";
+  rig.sitT = instant ? 1 : 0.001;
+  rig.standT = 0;
+  if (instant) {
+    rig.pos.copy(rig.seatPos);
+    rig.yaw = rig.seatYaw;
+    rig.targetYaw = rig.seatYaw;
+    applyRigSeatedVisual(rig, true);
+    syncHuman(rig);
+  }
+}
+
+function standHumanForTurn(rig: HumanRig) {
+  rig.action = "standUp";
+  rig.standT = 0.001;
+  rig.sitT = 0;
+  rig.approachFrom.copy(rig.seatPos);
+  rig.approachTo.copy(rig.standPos);
 }
 
 function syncHuman(rig: HumanRig) {
@@ -651,6 +745,50 @@ function clearFallenPins(pins: PinState[]) {
   }
 }
 
+
+function createMurlanLoungeChair(shellColor = 0x7f1d1d) {
+  const chair = new THREE.Group();
+  const shell = new THREE.MeshStandardMaterial({ color: shellColor, roughness: 0.74, metalness: 0.03 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.44, metalness: 0.18 });
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.07, 0.5), shell);
+  seat.position.set(0, 0.42, 0.05);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.54, 0.07), shell);
+  back.position.set(0, 0.72, -0.22);
+  back.rotation.x = THREE.MathUtils.degToRad(-8);
+  for (const x of [-0.22, 0.22]) {
+    for (const z of [-0.12, 0.24]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 10), metal);
+      leg.position.set(x, 0.2, z);
+      chair.add(leg);
+    }
+  }
+  chair.add(seat, back);
+  enableShadow(chair);
+  return chair;
+}
+
+function addMurlanLounge(group: THREE.Group, woodMat: THREE.Material) {
+  const tableCenter = new THREE.Vector3(-3.45, CFG.laneY, 6.28);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.08, 1.35), woodMat);
+  top.position.set(tableCenter.x, CFG.laneY + 0.58, tableCenter.z);
+  group.add(top);
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.68, metalness: 0.03 });
+  for (const x of [-0.33, 0.33]) {
+    for (const z of [-0.52, 0.52]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.58, 0.06), legMat);
+      leg.position.set(tableCenter.x + x, CFG.laneY + 0.29, tableCenter.z + z);
+      group.add(leg);
+    }
+  }
+  PLAYER_SEATS.forEach((seat, index) => {
+    const chair = createMurlanLoungeChair(index === 0 ? 0x1d4ed8 : 0x7f1d1d);
+    chair.position.set(seat.pos.x, CFG.laneY, seat.pos.z);
+    chair.rotation.y = seat.yaw;
+    chair.scale.setScalar(1.08);
+    group.add(chair);
+  });
+}
+
 function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tableFinishId: string, chromeColorId: string) {
   const group = new THREE.Group();
   scene.add(group);
@@ -670,15 +808,6 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   if (chromeColorId === 'gold') metalMat.color.set('#d4af37');
   if (tableFinishId.includes('dark') || tableFinishId.includes('carbon')) (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
   if (tableFinishId.includes('rosewood')) (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
-
-  const groundingFloor = new THREE.Mesh(
-    new THREE.CircleGeometry(18, 96),
-    new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.02, envMapIntensity: 0.35 })
-  );
-  groundingFloor.rotation.x = -Math.PI / 2;
-  groundingFloor.position.set(0, CFG.laneY - 0.028, -2.4);
-  groundingFloor.receiveShadow = true;
-  group.add(groundingFloor);
 
   const approach = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 4.25, 20, 20), woodMat);
   approach.rotation.x = -Math.PI / 2;
@@ -729,6 +858,8 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   const pinsetter = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.8, 1.25), metalMat);
   pinsetter.position.set(0, 0.32, CFG.backStopZ + 0.18);
   group.add(pinsetter);
+
+  addMurlanLounge(group, woodMat);
 
   const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.08, 1.72), woodMat);
   tableTop.position.set(2.02, 0.76, 6.35);
@@ -808,7 +939,44 @@ function startApproach(rig: HumanRig, intent: ThrowIntent) {
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
-  if (rig.action === "approach") {
+  if (rig.action === "seated") {
+    rig.pos.copy(rig.seatPos);
+    rig.yaw = rig.seatYaw;
+    rig.targetYaw = rig.seatYaw;
+    applyRigSeatedVisual(rig, true);
+  } else if (rig.action === "standUp") {
+    rig.standT = clamp01(rig.standT + dt / CFG.seatTransitionDuration);
+    const k = easeInOut(rig.standT);
+    rig.pos.lerpVectors(rig.seatPos, rig.standPos, k);
+    rig.yaw = lerp(rig.seatYaw, 0, k);
+    rig.targetYaw = rig.yaw;
+    if (rig.model) {
+      rig.model.rotation.x = lerp(THREE.MathUtils.degToRad(-7), 0, k);
+      rig.model.position.y = lerp(-0.05, 0, k);
+    }
+    setFallbackSeatedPose(rig.fallback, k < 0.55);
+    if (rig.standT >= 1) {
+      rig.action = "idle";
+      rig.pos.copy(rig.standPos);
+      applyRigSeatedVisual(rig, false);
+    }
+  } else if (rig.action === "sitDown") {
+    rig.sitT = clamp01(rig.sitT + dt / CFG.seatTransitionDuration);
+    const k = easeInOut(rig.sitT);
+    rig.pos.lerpVectors(rig.standPos, rig.seatPos, k);
+    rig.yaw = lerp(0, rig.seatYaw, k);
+    rig.targetYaw = rig.yaw;
+    if (rig.model) {
+      rig.model.rotation.x = lerp(0, THREE.MathUtils.degToRad(-7), k);
+      rig.model.position.y = lerp(0, -0.05, k);
+    }
+    setFallbackSeatedPose(rig.fallback, k > 0.45);
+    if (rig.sitT >= 1) {
+      rig.action = "seated";
+      rig.pos.copy(rig.seatPos);
+      applyRigSeatedVisual(rig, true);
+    }
+  } else if (rig.action === "approach") {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
     rig.walkCycle += dt * 16.8;
     const nextPos = new THREE.Vector3().lerpVectors(rig.approachFrom, rig.approachTo, easeInOut(rig.approachT));
@@ -912,12 +1080,13 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
     rig.yawVelocity = 0;
   }
   if (rig.action === "idle") {
+    applyRigSeatedVisual(rig, false);
     rig.targetYaw = 0;
     rig.yaw = lerp(rig.yaw, 0, 1 - Math.pow(0.0008, dt));
     rig.yawVelocity = 0;
   }
   syncHuman(rig);
-  if (ball.held) {
+  if (ball.held && rig.action !== "seated" && rig.action !== "sitDown") {
     ball.pos.copy(getHeldBallWorldPosition(rig));
     ball.mesh.position.copy(ball.pos);
   }
@@ -1126,9 +1295,12 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   } else if (player.action === "pickBall") {
     desired = player.pos.clone().add(new THREE.Vector3(0, 2.7, 5.6));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.96, -0.8));
-  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover" || player.action === "toRack" || player.action === "toApproach") {
-    desired = player.pos.clone().add(new THREE.Vector3(0, 2.55, 3.72));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.85, -1.7));
+  } else if (player.action === "approach" || player.action === "throw" || player.action === "recover") {
+    desired = player.pos.clone().add(new THREE.Vector3(0, 1.62, 2.18));
+    look = new THREE.Vector3(0, CFG.laneY + 0.78, CFG.pinDeckZ - 0.6);
+  } else if (player.action === "toRack" || player.action === "toApproach" || player.action === "standUp" || player.action === "sitDown") {
+    desired = player.pos.clone().add(new THREE.Vector3(0, 2.18, 3.15));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.82, -1.15));
   } else {
     desired = new THREE.Vector3(0, 2.9, 10.8);
     look = new THREE.Vector3(0, CFG.laneY + 0.74, -2.6);
@@ -1188,7 +1360,7 @@ export default function MobileBowlingRealistic() {
     renderer.setClearColor(0x090b11, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
+    renderer.toneMappingExposure = graphicsQuality === "performance" ? 0.96 : graphicsQuality === "ultra" ? 1.08 : 1.02;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -1205,6 +1377,7 @@ export default function MobileBowlingRealistic() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
+    let backgroundTex: THREE.Texture | null = null;
     const applyHdri = (id: string) => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
       const preferred = Array.isArray(selected?.preferredResolutions) ? selected.preferredResolutions : ["4k", "2k"];
@@ -1223,17 +1396,19 @@ export default function MobileBowlingRealistic() {
         new RGBELoader().setCrossOrigin("anonymous").load(
           ordered[idx],
           (hdr) => {
+            envTex?.dispose();
+            backgroundTex?.dispose();
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+            backgroundTex = hdr;
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
-            scene.background = envTex;
+            scene.background = backgroundTex;
             const selectedRotation = Number.isFinite(selected?.rotationY) ? selected.rotationY : 0;
             if ("backgroundRotation" in scene) scene.backgroundRotation.set(0, selectedRotation, 0);
             if ("environmentRotation" in scene) scene.environmentRotation.set(0, selectedRotation, 0);
-            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = 0.02;
-            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "ultra" ? 1.08 : 1;
-            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.88 : graphicsQuality === "ultra" ? 1.18 : 1;
-            envTex.mapping = THREE.EquirectangularReflectionMapping;
-            hdr.dispose();
+            if ("backgroundBlurriness" in scene) scene.backgroundBlurriness = graphicsQuality === "performance" ? 0.06 : graphicsQuality === "ultra" ? 0 : 0.02;
+            if ("backgroundIntensity" in scene) scene.backgroundIntensity = graphicsQuality === "performance" ? 0.92 : graphicsQuality === "ultra" ? 1.12 : 1;
+            if ("environmentIntensity" in scene) scene.environmentIntensity = graphicsQuality === "performance" ? 0.86 : graphicsQuality === "ultra" ? 1.22 : 1;
           },
           undefined,
           () => tryLoad(idx + 1)
@@ -1270,7 +1445,11 @@ export default function MobileBowlingRealistic() {
     const texLoader = new THREE.TextureLoader();
     createEnvironment(scene, texLoader, selectedTableFinish, selectedChromeColor);
     const pins = createPins(scene);
-    const player = addHuman(scene, new THREE.Vector3(0, CFG.laneY, CFG.playerStartZ), playerCharacter);
+    const players = [
+      addHuman(scene, BOWLER_STAND_POS.clone(), playerCharacter, PLAYER_SEATS[0].pos.clone(), PLAYER_SEATS[0].yaw),
+      addHuman(scene, PLAYER_SEATS[1].pos.clone(), aiCharacter, PLAYER_SEATS[1].pos.clone(), PLAYER_SEATS[1].yaw),
+    ];
+    seatHuman(players[1], true);
     const ballVariant = BALL_VARIANTS.find((v) => v.label === selectedBallWeight) || BALL_VARIANTS[1];
     const ball = createActiveBall(ballVariant);
     scene.add(ball.mesh);
@@ -1316,15 +1495,16 @@ export default function MobileBowlingRealistic() {
     const control: ControlState = { active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, intent: null };
 
     const resetPlayerPoseForNextBall = () => {
-      player.action = "idle";
-      player.approachT = 0;
-      player.throwT = 0;
-      player.recoverT = 0;
-      player.walkCycle = 0;
-      player.pos.set(0, CFG.laneY, CFG.playerStartZ);
-      player.approachFrom.copy(player.pos);
-      player.approachTo.copy(player.pos);
-      syncHuman(player);
+      const activeRig = players[activePlayer];
+      activeRig.action = "idle";
+      activeRig.approachT = 0;
+      activeRig.throwT = 0;
+      activeRig.recoverT = 0;
+      activeRig.walkCycle = 0;
+      activeRig.pos.copy(activeRig.standPos);
+      activeRig.approachFrom.copy(activeRig.pos);
+      activeRig.approachTo.copy(activeRig.pos);
+      syncHuman(activeRig);
       ball.held = true;
       ball.rolling = false;
       ball.inGutter = false;
@@ -1342,7 +1522,7 @@ export default function MobileBowlingRealistic() {
       if (nextAction === "nextPlayer") resetPins(pins);
       syncReactScores();
       aiTurnDelay = activePlayer === 1 ? 0.85 + Math.random() * 0.5 : 0.85;
-      loadHumanCharacter(player, activePlayer === 0 ? playerCharacter : aiCharacter);
+      players.forEach((rig, index) => index === activePlayer ? standHumanForTurn(rig) : seatHuman(rig, true));
       const playerName = localScores[activePlayer].name;
       setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName} swipe up to bowl` }));
     };
@@ -1351,6 +1531,7 @@ export default function MobileBowlingRealistic() {
       clearFallenPins(pins);
       const afterStanding = standingPinsCount(pins);
       const knocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
+      const finishedBowlerIndex = activePlayer;
       const playerBefore = localScores[activePlayer];
       const result = addRollToPlayer(playerBefore, knocked);
       let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? "" : "s"}`;
@@ -1365,6 +1546,7 @@ export default function MobileBowlingRealistic() {
         activePlayer = (activePlayer + 1) % 2;
         nextAction = "nextPlayer";
       } else nextAction = "samePlayer";
+      seatHuman(players[finishedBowlerIndex], false);
       syncReactScores();
       setHud((prev) => ({ ...prev, status, compliment }));
       shotResolved = true;
@@ -1405,7 +1587,8 @@ export default function MobileBowlingRealistic() {
     const onPointerDown = (e: PointerEvent) => {
       if (nextAction === "gameOver") return;
       if (control.active || ball.rolling || waitingForBallReturn || replayActive) return;
-      if (player.action === "approach" || player.action === "throw" || player.action === "recover") return;
+      const activeRig = players[activePlayer];
+      if (activePlayer !== 0 || activeRig.action !== "idle") return;
       canvas.setPointerCapture(e.pointerId);
       control.active = true;
       control.pointerId = e.pointerId;
@@ -1443,7 +1626,7 @@ export default function MobileBowlingRealistic() {
         return;
       }
       pendingIntent = intent;
-      startApproach(player, intent);
+      startApproach(players[activePlayer], intent);
       setHud((prev) => ({ ...prev, power: 0, status: "Fast approach to the line" }));
     };
 
@@ -1463,17 +1646,18 @@ export default function MobileBowlingRealistic() {
         replayTimer = Math.max(0, replayTimer - dt);
         if (replayTimer <= 0) setReplayActive(false);
       }
-      if (activePlayer === 1 && !control.active && !ball.rolling && !waitingForBallReturn && !replayActive && player.action === "idle" && nextAction !== "gameOver") {
+      const activeRig = players[activePlayer];
+      if (activePlayer === 1 && !control.active && !ball.rolling && !waitingForBallReturn && !replayActive && activeRig.action === "idle" && nextAction !== "gameOver") {
         aiTurnDelay = Math.max(0, aiTurnDelay - dt);
         if (aiTurnDelay <= 0) {
           pendingIntent = makeAiIntent();
-          startApproach(player, pendingIntent);
+          startApproach(activeRig, pendingIntent);
           aiTurnDelay = 0.85 + Math.random() * 0.5;
           setHud((prev) => ({ ...prev, status: "PLAYER 2 AI is bowling" }));
         }
       }
-      updateHuman(player, ball, dt, true);
-      if (player.action === "throw" && pendingIntent && player.throwT >= CFG.releaseT && ball.held) {
+      players.forEach((rig) => updateHuman(rig, ball, dt, rig === activeRig));
+      if (activeRig.action === "throw" && pendingIntent && activeRig.throwT >= CFG.releaseT && ball.held) {
         lastShotStandingBefore = standingPinsCount(pins);
         releaseBall(ball, pendingIntent);
         pendingIntent = null;
@@ -1482,8 +1666,8 @@ export default function MobileBowlingRealistic() {
       updateBall(ball, pins, dt);
       const pinsMoving = updatePins(pins, dt);
       const mechanismBusy = ball.returnState !== "idle" || ball.rolling || pinsMoving;
-      if ((player.action === "pickBall" || player.action === "toApproach") && mechanismBusy) {
-        player.action = "pickBall";
+      if ((activeRig.action === "pickBall" || activeRig.action === "toApproach") && mechanismBusy) {
+        activeRig.action = "pickBall";
       }
       if (pinsMoving) pinsWereMoving = true;
       if (!shotResolved && !ball.rolling && pinsWereMoving && !pinsMoving) {
@@ -1498,7 +1682,7 @@ export default function MobileBowlingRealistic() {
       ballShadow.position.set(ball.pos.x, CFG.laneY + 0.01, ball.pos.z);
       ballShadow.scale.setScalar(ball.held ? 0.72 : ball.inGutter ? 0.9 : 1.04);
       if (control.active) updateAimVisual(aimLine, aimMarker, control.intent);
-      updateCamera(camera, ball, player, dt);
+      updateCamera(camera, ball, activeRig, dt);
       renderer.render(scene, camera);
     }
     animate();
@@ -1512,6 +1696,7 @@ export default function MobileBowlingRealistic() {
       canvas.removeEventListener("pointercancel", onPointerUp);
       pmrem.dispose();
       envTex?.dispose();
+      backgroundTex?.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
