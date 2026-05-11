@@ -958,13 +958,18 @@ export function updateHumanPose(human, dt, frameData) {
   const facingForward = shootingPoseActive && tableForward
     ? tableForward
     : resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
-  // When the low cue camera/shot pose is active, lock yaw directly toward the
-  // cue-ball/table reference. Damped yaw could leave the upper body bending toward
-  // the previous direction for a few frames, which made the pose look backwards.
+  // When the low cue camera/shot pose is active, bias yaw toward the
+  // cue-ball/table reference while retaining interpolation so aim changes do not snap.
   const targetRootYaw = yawFromForward(facingForward) - (cfg.humanVisualYawFix || 0);
-  human.yaw = shootingPoseActive
-    ? targetRootYaw
-    : dampScalar(human.yaw, targetRootYaw, cfg.rotLambda, dt);
+  // Always interpolate root rotation, including the shooting pose, so the player
+  // turns into the shot line instead of snapping instantly when aim changes.
+  // The corrective table-facing guard below only flips truly backwards poses.
+  human.yaw = dampScalar(
+    human.yaw,
+    targetRootYaw,
+    shootingPoseActive ? cfg.rotLambda * 1.35 : cfg.rotLambda,
+    dt
+  );
   ensureHumanFacingTable(human, frameData, cfg);
 
   const t = easeInOut(human.poseT);
