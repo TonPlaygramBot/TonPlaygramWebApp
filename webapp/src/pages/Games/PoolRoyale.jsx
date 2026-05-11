@@ -2395,15 +2395,7 @@ const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
 });
 const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
 const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
-  'rpm-current',
-  'rpm-67d411',
-  'rpm-67f433',
-  'rpm-67e1b5',
-  'webgl-vietnam-human',
-  'webgl-ai-teacher',
-  'webgl-ai-teacher-1',
-  'webgl-thanh-human',
-  'threejs-xbot-human'
+  'rpm-current'
 ]);
 const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
   'rpm-current': Object.freeze({
@@ -4984,10 +4976,10 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
-const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
-const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // base normalization for external GLB cloth UV spans
+const CLOTH_PATTERN_SCALE = 1.18; // smaller, denser Pool Royale cloth weave for close-up Showood table views
+const CLOTH_TEXTURE_REPEAT_HINT = 2.24;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.42;
+const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 3.45; // denser normalization for external GLB cloth UV spans
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -9619,7 +9611,7 @@ export function Table3D(
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 12; // base density before global scaling adjustments
+  const threadsPerBallTarget = 16; // denser cloth: more weave crossings per ball for smaller texture pattern
   const clothPatternUpscale = isPolyHavenCloth
     ? 1
     : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
@@ -17062,9 +17054,24 @@ function PoolRoyaleGame({
             material: materials.accent.material.clone()
           };
         }
+        const applyShowoodPartMaterial = (material, part) => {
+          const option = getShowoodPartOption(showoodTableStyle, part);
+          const props = option?.material;
+          if (!material || !props) return;
+          if (material.color && Number.isFinite(props.color)) material.color.set(props.color);
+          ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
+            if (typeof props[key] === 'number' && key in material) material[key] = props[key];
+          });
+          material.needsUpdate = true;
+        };
+        applyShowoodPartMaterial(materials.rail, 'topWoodRail');
+        applyShowoodPartMaterial(materials.frame, 'baseCornerBlock');
+        applyShowoodPartMaterial(materials.leg, 'leg');
         const liners = createPocketLinerMaterials(linerSelection);
         materials.pocketJaw = liners.jawMaterial;
         materials.pocketRim = liners.rimMaterial;
+        applyShowoodPartMaterial(materials.pocketJaw, 'pocketCup');
+        applyShowoodPartMaterial(materials.pocketRim, 'pocketCup');
         return materials;
       }
     };
@@ -17073,7 +17080,8 @@ function PoolRoyaleGame({
     activeChromeOption,
     activeClothOption,
     activePocketLinerOption,
-    clothTextureSourceId
+    clothTextureSourceId,
+    showoodTableStyle
   ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
@@ -17955,7 +17963,7 @@ const shotPowerRef = useRef(0);
     if (activeTableModel?.kind === 'gltf') {
       setRenderResetKey((value) => value + 1);
     }
-  }, [activeTableModel?.id, chromeColorId, chromePlateStyleId, clothColorId, pocketLinerId, showoodTableStyle, tableFinishId]);
+  }, [activeTableModel?.id]);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -26796,15 +26804,11 @@ const shotPowerRef = useRef(0);
           return { seat, human, heldCue };
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
         const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        world.add(loungeA, loungeB);
+        world.add(loungeA);
         playerCharacterRigsRef.current = [
           makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' }
+          { group: loungeA, lounge: true, seat: 'A' }
         ];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -26945,7 +26949,8 @@ const shotPowerRef = useRef(0);
           const human = rig?.human;
           const seat = anim?.seat ?? rig?.seat;
           if (!anim && !human) return;
-          const singleHumanMode = rigs.length === 1;
+          const humanRigCount = rigs.reduce((count, entry) => count + (entry?.human ? 1 : 0), 0);
+          const singleHumanMode = humanRigCount <= 1;
           const isShooter = singleHumanMode ? true : anim?.seat === activeSeat;
           const isHumanShooter = singleHumanMode ? true : seat === activeSeat;
           const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
@@ -36790,7 +36795,7 @@ const shotPowerRef = useRef(0);
           type="button"
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
-          aria-controls="snooker-config-panel"
+          aria-controls="pool-royale-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
             transformOrigin: isPortrait ? 'bottom left' : 'top left'
@@ -36805,15 +36810,15 @@ const shotPowerRef = useRef(0);
         </button>
         {configOpen && (
           <div
-            id="snooker-config-panel"
+            id="pool-royale-config-panel"
             ref={configPanelRef}
-            className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
+            className={`pointer-events-auto w-[min(92vw,26rem)] rounded-3xl border border-emerald-400/45 bg-slate-950/90 p-4 text-xs text-white shadow-[0_24px_58px_rgba(0,0,0,0.68)] backdrop-blur ${
               isPortrait ? 'mt-2 max-h-[56vh] overflow-y-auto' : 'mt-2'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-                Table Setup
+              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/80">
+                Pool Royale Menu
               </span>
               <button
                 type="button"
@@ -36833,36 +36838,23 @@ const shotPowerRef = useRef(0);
                 </svg>
               </button>
             </div>
-            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Human Pool Player
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
-                    const active = option.id === humanCharacterId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setHumanCharacterId(option.id)}
-                        aria-pressed={active}
-                        title={`${option.label} • ${option.summary}`}
-                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
-                          {index + 1}. {option.logicLabel}
-                        </span>
-                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
-                          feet planted • table-facing
-                        </span>
-                      </button>
-                    );
-                  })}
+            <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-50/85">
+              Change only the part you want. The Showood table stays loaded while cloth, rails, pockets, chrome, cue, and room options update live.
+            </div>
+            <div className="mt-4 max-h-[min(64vh,34rem)] space-y-4 overflow-y-auto pr-1">
+              <div className="rounded-3xl border border-emerald-300/30 bg-white/[0.05] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-100">
+                      Table Customizer
+                    </h3>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                      Showood only • one player character
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-200/40 bg-emerald-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100">
+                    Live
+                  </span>
                 </div>
               </div>
               {ENABLE_SHOT_REPLAY ? (
@@ -36910,7 +36902,7 @@ const shotPowerRef = useRef(0);
               ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Finish
+                  Wood Finish
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
@@ -37020,7 +37012,7 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Showood Table Options
+                  Showood Parts
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   {SHOWOOD_TABLE_PARTS.map((part) => {
@@ -37162,7 +37154,7 @@ const shotPowerRef = useRef(0);
               {availableClothOptions.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cloth Color
+                    Cloth Library
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {availableClothOptions.map((option) => {
@@ -37856,7 +37848,7 @@ const shotPowerRef = useRef(0);
             type="button"
             onClick={() => setConfigOpen((prev) => !prev)}
             aria-expanded={configOpen}
-            aria-controls="snooker-config-panel"
+            aria-controls="pool-royale-config-panel"
             className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
             aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
           >
