@@ -1805,7 +1805,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.72; // reduce Pool Royale cue spin slightly further for a more natural default roll
+const SPIN_GLOBAL_SCALE = 0.78; // reduce Pool Royale cue spin slightly further for a more natural default roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1832,8 +1832,8 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.9; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
+const SHOT_GLOBAL_POWER_SCALE = 0.84; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4992,13 +4992,12 @@ function updateClothTexturesForFinish (
         edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
-    finishInfo.clothEdgeMat.map = clonePoolRoyaleMaterialTexture(finishInfo.clothMat.map, { isColor: true });
-    finishInfo.clothEdgeMat.bumpMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat.bumpMap);
-    finishInfo.clothEdgeMat.normalMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat.normalMap);
-    finishInfo.clothEdgeMat.roughnessMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat.roughnessMap);
-    finishInfo.clothEdgeMat.bumpScale = finishInfo.clothMat.bumpScale ?? 0;
-    finishInfo.clothEdgeMat.normalScale = finishInfo.clothMat.normalScale?.clone?.() ?? finishInfo.clothEdgeMat.normalScale;
-    finishInfo.clothEdgeMat.roughness = finishInfo.clothBase?.roughnessTarget ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_TARGET;
+    finishInfo.clothEdgeMat.map = null;
+    finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.normalMap = null;
+    finishInfo.clothEdgeMat.roughnessMap = null;
+    finishInfo.clothEdgeMat.bumpScale = 0;
+    finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
@@ -8885,23 +8884,22 @@ export function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.color.copy(clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT));
-  clothEdgeMat.emissive.copy(
-    clothEdgeMat.color.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
-  );
+  clothEdgeMat.color.copy(clothColor);
+  clothEdgeMat.emissive.set(0x000000);
+  clothEdgeMat.map = null;
+  clothEdgeMat.bumpMap = null;
+  clothEdgeMat.normalMap = null;
+  clothEdgeMat.roughnessMap = null;
+  clothEdgeMat.bumpScale = 0;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
   clothEdgeMat.metalness = 0;
-  clothEdgeMat.roughness = clothRoughnessTarget;
+  clothEdgeMat.roughness = 1;
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
-  clothEdgeMat.sheen = Math.min(clothSheen, 0.12);
+  clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
-  clothEdgeMat.userData = {
-    ...(clothEdgeMat.userData || {}),
-    poolRoyalePocketCutoutClothTexture: true
-  };
   clothEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughnessTarget: clothRoughnessTarget,
@@ -8993,11 +8991,14 @@ export function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
-  clothEdgeMat.roughness = clothRoughnessTarget;
+  clothEdgeMat.map = null;
+  clothEdgeMat.bumpMap = null;
+  clothEdgeMat.bumpScale = 0;
+  clothEdgeMat.roughness = 1;
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.envMapIntensity = 0;
-  clothEdgeMat.sheen = Math.min(clothSheen, 0.12);
+  clothEdgeMat.sheen = 0;
   clothEdgeMat.needsUpdate = true;
   const finishInfo = {
     id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
@@ -11275,7 +11276,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.68;
+  const brandPlateOutwardShift = endRailW * 1.42;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -13838,13 +13839,10 @@ function applyTableFinishToTable(table, finish) {
   if (finishInfo.clothEdgeMat) {
     const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
     finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
-    finishInfo.clothEdgeMat.map = clonePoolRoyaleMaterialTexture(finishInfo.clothMat?.map, { isColor: true });
-    finishInfo.clothEdgeMat.bumpMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat?.bumpMap);
-    finishInfo.clothEdgeMat.normalMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat?.normalMap);
-    finishInfo.clothEdgeMat.roughnessMap = clonePoolRoyaleMaterialTexture(finishInfo.clothMat?.roughnessMap);
-    finishInfo.clothEdgeMat.bumpScale = finishInfo.clothMat?.bumpScale ?? 0;
-    finishInfo.clothEdgeMat.normalScale = finishInfo.clothMat?.normalScale?.clone?.() ?? finishInfo.clothEdgeMat.normalScale;
-    finishInfo.clothEdgeMat.roughness = finishInfo.clothBase?.roughnessTarget ?? finishInfo.clothMat?.roughness ?? CLOTH_ROUGHNESS_TARGET;
+    finishInfo.clothEdgeMat.map = null;
+    finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.bumpScale = 0;
+    finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
