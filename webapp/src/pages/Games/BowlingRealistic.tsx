@@ -44,6 +44,17 @@ type ControlState = {
   intent: ThrowIntent | null;
 };
 
+type CameraLookState = {
+  active: boolean;
+  pointerId: number | null;
+  startX: number;
+  startY: number;
+  yaw: number;
+  pitch: number;
+  targetYaw: number;
+  targetPitch: number;
+};
+
 type BowlingFrame = { rolls: number[]; cumulative: number | null };
 type RollDecision = { frameIndex: number; rollIndex: number; frameEnded: boolean; resetPins: boolean; gameFinished: boolean };
 type ScorePlayer = { name: string; frames: BowlingFrame[]; total: number };
@@ -124,7 +135,6 @@ const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || "studio_small_09";
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "tableFinish");
 const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === "chromeColor");
 const PORTRAIT_AIM_ASSIST = 0.62;
-const PORTRAIT_CAMERA_BACK_OFFSET = 1.18;
 const PORTRAIT_CAMERA_SIDE_OFFSET = 0.42;
 const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
 const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
@@ -147,7 +157,7 @@ const STRIKE_DANCE_LINES = ["Perfect strike!", "Unstoppable!", "Ten down, wow!",
 const RESULT_COMPLIMENTS = { strike:["STRIKE! Beautiful release.","Clean pocket hit!","That was elite timing."], spare:["Great spare conversion!","Clutch second ball!"], open:["Nice try—adjust and fire again.","Good pace, keep rhythm."] } as const;
 
 const CFG = {
-  laneY: -0.68,
+  laneY: -0.86,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -193,10 +203,10 @@ const LANE_CENTERS = [-CFG.laneCenterOffset, CFG.laneCenterOffset] as const;
 const laneCenterForPlayer = (playerIndex: number) => LANE_CENTERS[playerIndex === 1 ? 1 : 0];
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(0, CFG.laneY, 8.18);
 const BOWLING_TABLE_CENTERS = [
-  new THREE.Vector3(-5.16, CFG.laneY, 7.02),
-  new THREE.Vector3(-5.16, CFG.laneY, 9.28),
-  new THREE.Vector3(5.16, CFG.laneY, 7.02),
-  new THREE.Vector3(5.16, CFG.laneY, 9.28),
+  new THREE.Vector3(-4.72, CFG.laneY, 7.02),
+  new THREE.Vector3(-4.72, CFG.laneY, 9.28),
+  new THREE.Vector3(4.72, CFG.laneY, 7.02),
+  new THREE.Vector3(4.72, CFG.laneY, 9.28),
 ] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
@@ -208,8 +218,8 @@ const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
 const HUMAN_CLEARANCE = 0.34;
 const PLAYER_READY_POINT = new THREE.Vector3(laneCenterForPlayer(0), CFG.laneY, CFG.playerStartZ);
 const PLAYER_SEATS = [
-  { pos: new THREE.Vector3(-5.86, CFG.laneY, 6.52), yaw: Math.PI / 2, stand: PLAYER_READY_POINT.clone() },
-  { pos: new THREE.Vector3(5.86, CFG.laneY, 9.78), yaw: -Math.PI / 2, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
+  { pos: new THREE.Vector3(-5.42, CFG.laneY, 6.52), yaw: Math.PI / 2, stand: PLAYER_READY_POINT.clone() },
+  { pos: new THREE.Vector3(5.42, CFG.laneY, 9.78), yaw: -Math.PI / 2, stand: new THREE.Vector3(laneCenterForPlayer(1), CFG.laneY, CFG.playerStartZ) },
 ];
 const BOWLING_LOUNGE_CHAIRS = BOWLING_TABLE_CENTERS.flatMap((center) => {
   const side = center.x < 0 ? -1 : 1;
@@ -1587,7 +1597,7 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
     ["#ddd6fe", "#7c3aed", "#2e1065"],
   ], makeBallMaterial);
   commercialRack.position.set(0, CFG.laneY, 7.64);
-  commercialRack.rotation.y = 0;
+  commercialRack.rotation.y = Math.PI / 2;
   group.add(commercialRack);
 
   for (const [x, z, color] of [[-4.35, 7.6, 0x38bdf8], [0, CFG.pinDeckZ - 0.4, 0xffb86b]]) {
@@ -2133,16 +2143,19 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
 function getPlayerPerspectiveCameraPose(player: HumanRig, ball: BallState, dt: number) {
   const laneCenter = ball.laneCenter || player.standPos.x;
   const aimCenter = laneCenter + clamp(ball.pos.x - laneCenter, -0.42, 0.42) * 0.32;
-  const shoulderSide = player.standPos.x < 0 ? -0.08 : 0.08;
+  const faceSide = player.standPos.x < 0 ? -0.035 : 0.035;
   const progress = player.action === "approach" ? player.approachT : player.action === "throw" ? Math.min(1, player.throwT) : 0;
   const releaseMomentum = player.action === "throw" ? easeOutCubic(clamp01((player.throwT - 0.18) / 0.62)) * 0.7 : 0;
-  const shoulder = player.pos.clone().add(new THREE.Vector3(shoulderSide, 1.72, 0.38 - releaseMomentum * 0.45));
-  shoulder.z = Math.max(shoulder.z, CFG.foulZ + 0.28);
-  const desired = new THREE.Vector3(
-    lerp(shoulder.x, laneCenter + shoulderSide * 0.28, 0.2),
-    shoulder.y + lerp(0.1, -0.03, progress),
-    shoulder.z + 0.22 - releaseMomentum * 0.34,
-  );
+  const faceForward = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+  if (faceForward.lengthSq() < 0.001) faceForward.set(0, 0, -1);
+  faceForward.normalize();
+  const faceRight = new THREE.Vector3(faceForward.z, 0, -faceForward.x).normalize();
+  const face = player.pos.clone()
+    .addScaledVector(faceForward, 0.28 + releaseMomentum * 0.08)
+    .addScaledVector(faceRight, faceSide)
+    .add(new THREE.Vector3(0, 1.62 + lerp(0.04, -0.05, progress), 0));
+  face.z = Math.max(face.z, CFG.foulZ + 0.1);
+  const desired = face;
   const ballFocus = ball.held
     ? ball.pos.clone().add(new THREE.Vector3(0, 0.18, -1.2))
     : ball.pos.clone().add(new THREE.Vector3(0, 0.16, -0.7));
@@ -2153,7 +2166,21 @@ function getPlayerPerspectiveCameraPose(player: HumanRig, ball: BallState, dt: n
   return { desired, look };
 }
 
-function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number, usePlayerPerspective: boolean) {
+function applyCameraLookOffset(position: THREE.Vector3, look: THREE.Vector3, lookState?: CameraLookState | null) {
+  if (!lookState) return look;
+  const forward = look.clone().sub(position);
+  const distance = Math.max(1, forward.length());
+  forward.normalize();
+  const yawQuat = new THREE.Quaternion().setFromAxisAngle(UP, lookState.yaw);
+  forward.applyQuaternion(yawQuat);
+  const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
+  if (right.lengthSq() < 0.001) right.set(1, 0, 0);
+  const pitchQuat = new THREE.Quaternion().setFromAxisAngle(right, lookState.pitch);
+  forward.applyQuaternion(pitchQuat).normalize();
+  return position.clone().addScaledVector(forward, distance);
+}
+
+function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number, usePlayerPerspective: boolean, lookState?: CameraLookState | null) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay = ["idle", "approach", "throw", "recover"].includes(player.action) && player !== undefined;
@@ -2211,18 +2238,23 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
     desired.add(new THREE.Vector3(
       desired.x < 0 ? -PORTRAIT_CAMERA_SIDE_OFFSET : PORTRAIT_CAMERA_SIDE_OFFSET,
       PORTRAIT_CAMERA_HEIGHT_OFFSET,
-      PORTRAIT_CAMERA_BACK_OFFSET,
+      -0.08,
     ));
     look.x = lerp(look.x, BOWLING_LOUNGE_CENTER.x * 0.38, 0.16);
     look.z += 0.82;
+  }
+  if (lookState) {
+    lookState.yaw = lerp(lookState.yaw, lookState.targetYaw, 1 - Math.exp(-7.5 * dt));
+    lookState.pitch = lerp(lookState.pitch, lookState.targetPitch, 1 - Math.exp(-7.5 * dt));
   }
   const baseFov = isPortraitCamera ? 48 : 42;
   const speedFov = ball.rolling ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5 : 0;
   camera.fov = lerp(camera.fov, baseFov + speedFov + pinsProximity * 1.6, 1 - Math.exp(-3.6 * dt));
   camera.updateProjectionMatrix();
   camera.position.lerp(desired.add(naturalHeadMotion).add(shakeVec), 1 - Math.exp(-5.8 * dt));
+  const adjustedLook = applyCameraLookOffset(camera.position, look, lookState);
   const currentLook = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(8).add(camera.position);
-  currentLook.lerp(look, 1 - Math.exp(-8.6 * dt));
+  currentLook.lerp(adjustedLook, 1 - Math.exp(-8.6 * dt));
   camera.lookAt(currentLook);
 }
 
@@ -2245,8 +2277,10 @@ export default function MobileBowlingRealistic() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const joystickRef = useRef({ active: false, x: 0, z: 0 });
+  const cameraLookInputRef = useRef({ active: false, pointerId: null as number | null, startX: 0, startY: 0, targetYaw: 0, targetPitch: 0 });
   const ballPickRequestRef = useRef<string | null>(null);
   const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
+  const [lookKnob, setLookKnob] = useState({ x: 0, y: 0 });
   const [hud, setHud] = useState<HudState>({ power: 0, status: "Use joystick: walk to rack, tap a ball, then swipe at the line", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1, rule: BOWLING_RULE_SUMMARY, lane: "Board 20 · house shot" });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -2275,6 +2309,39 @@ export default function MobileBowlingRealistic() {
   const stopJoystick = () => {
     joystickRef.current = { active: false, x: 0, z: 0 };
     setJoystickKnob({ x: 0, y: 0 });
+  };
+
+  const setCameraLookFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = cameraLookInputRef.current;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const maxX = Math.max(1, rect.width * 0.42);
+    const maxY = Math.max(1, rect.height * 0.42);
+    const dx = clamp(e.clientX - state.startX, -maxX, maxX);
+    const dy = clamp(e.clientY - state.startY, -maxY, maxY);
+    state.targetYaw = clamp(-dx / maxX * 0.82, -0.82, 0.82);
+    state.targetPitch = clamp(-dy / maxY * 0.48, -0.42, 0.48);
+    setLookKnob({ x: dx * 0.5, y: dy * 0.5 });
+  };
+
+  const startCameraLookPad = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    cameraLookInputRef.current.active = true;
+    cameraLookInputRef.current.pointerId = e.pointerId;
+    cameraLookInputRef.current.startX = rect.left + rect.width / 2;
+    cameraLookInputRef.current.startY = rect.top + rect.height / 2;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setCameraLookFromPointer(e);
+  };
+
+  const stopCameraLookPad = (e?: React.PointerEvent<HTMLDivElement>) => {
+    if (e && cameraLookInputRef.current.pointerId === e.pointerId) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    }
+    cameraLookInputRef.current.active = false;
+    cameraLookInputRef.current.pointerId = null;
+    cameraLookInputRef.current.targetYaw = 0;
+    cameraLookInputRef.current.targetPitch = 0;
+    setLookKnob({ x: 0, y: 0 });
   };
 
   const requestManualBallPickup = (label: string) => {
@@ -2454,6 +2521,15 @@ export default function MobileBowlingRealistic() {
     scene.add(ballShadow);
 
     const control: ControlState = { active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, intent: null };
+    const cameraLook: CameraLookState = { active: false, pointerId: null, startX: 0, startY: 0, yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0 };
+
+    const startCameraLook = (e: PointerEvent) => {
+      canvas.setPointerCapture(e.pointerId);
+      cameraLook.active = true;
+      cameraLook.pointerId = e.pointerId;
+      cameraLook.startX = e.clientX;
+      cameraLook.startY = e.clientY;
+    };
 
     const resetPlayerPoseForNextBall = () => {
       player.action = "idle";
@@ -2597,16 +2673,23 @@ export default function MobileBowlingRealistic() {
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (nextAction === "gameOver") return;
-      if (control.active || ball.rolling || waitingForBallReturn || replayActive) return;
-      if (activePlayer !== 0 || player !== playerRigs[0]) return;
-      if (player.action !== "idle") return;
-      if (!ball.held) {
-        setHud((prev) => ({ ...prev, status: "Walk to the rack and tap the ball you want to pick up." }));
-        return;
-      }
-      if (player.pos.z > CFG.foulZ + 1.85) {
-        setHud((prev) => ({ ...prev, status: "Move to the approach line before swiping to shoot." }));
+      if (control.active || cameraLook.active) return;
+      const canStartThrow = nextAction !== "gameOver"
+        && !ball.rolling
+        && !waitingForBallReturn
+        && !replayActive
+        && activePlayer === 0
+        && player === playerRigs[0]
+        && player.action === "idle"
+        && ball.held
+        && player.pos.z <= CFG.foulZ + 1.85;
+      if (!canStartThrow) {
+        startCameraLook(e);
+        if (activePlayer === 0 && !ball.held && !ball.rolling && !waitingForBallReturn) {
+          setHud((prev) => ({ ...prev, status: "Drag the view to look around, or walk to the rack and tap a ball." }));
+        } else if (activePlayer === 0 && player.pos.z > CFG.foulZ + 1.85 && !ball.rolling && !waitingForBallReturn) {
+          setHud((prev) => ({ ...prev, status: "Drag the view to look around. Move to the approach line before swiping to shoot." }));
+        }
         return;
       }
       canvas.setPointerCapture(e.pointerId);
@@ -2623,6 +2706,17 @@ export default function MobileBowlingRealistic() {
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (cameraLook.active && cameraLook.pointerId === e.pointerId) {
+        const dx = (e.clientX - cameraLook.startX) / Math.max(1, host.clientWidth);
+        const dy = (e.clientY - cameraLook.startY) / Math.max(1, host.clientHeight);
+        cameraLook.targetYaw = clamp(cameraLook.targetYaw - dx * 1.45, -0.82, 0.82);
+        cameraLook.targetPitch = clamp(cameraLook.targetPitch - dy * 1.05, -0.42, 0.48);
+        cameraLookInputRef.current.targetYaw = cameraLook.targetYaw;
+        cameraLookInputRef.current.targetPitch = cameraLook.targetPitch;
+        cameraLook.startX = e.clientX;
+        cameraLook.startY = e.clientY;
+        return;
+      }
       if (!control.active || control.pointerId !== e.pointerId) return;
       control.lastX = e.clientX;
       control.lastY = e.clientY;
@@ -2633,6 +2727,14 @@ export default function MobileBowlingRealistic() {
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      if (cameraLook.active && cameraLook.pointerId === e.pointerId) {
+        try { canvas.releasePointerCapture(e.pointerId); } catch {}
+        cameraLook.active = false;
+        cameraLook.pointerId = null;
+        cameraLookInputRef.current.targetYaw = cameraLook.targetYaw;
+        cameraLookInputRef.current.targetPitch = cameraLook.targetPitch;
+        return;
+      }
       if (!control.active || control.pointerId !== e.pointerId) return;
       try { canvas.releasePointerCapture(e.pointerId); } catch {}
       control.active = false;
@@ -2714,8 +2816,12 @@ export default function MobileBowlingRealistic() {
       ballShadow.visible = ball.mesh.visible;
       ballShadow.position.set(ball.pos.x, CFG.laneY + 0.01, ball.pos.z);
       ballShadow.scale.setScalar(ball.held ? 0.72 : ball.inGutter ? 0.9 : 1.04);
+      if (!cameraLook.active) {
+        cameraLook.targetYaw = cameraLookInputRef.current.targetYaw;
+        cameraLook.targetPitch = cameraLookInputRef.current.targetPitch;
+      }
       if (control.active) updateAimVisual(aimLine, aimMarker, control.intent, activeLaneCenter());
-      updateCamera(camera, ball, player, dt, activePlayer === 0);
+      updateCamera(camera, ball, player, dt, activePlayer === 0, cameraLook);
       renderer.render(scene, camera);
     }
     animate();
@@ -2818,8 +2924,20 @@ export default function MobileBowlingRealistic() {
           {BALL_VARIANTS.map((v)=><button key={`pickup-${v.label}`} onClick={()=>requestManualBallPickup(v.label)} style={{ width:46, height:46, borderRadius:"50%", border:selectedBallWeight===v.label?"2px solid #fff":"1px solid rgba(255,255,255,0.42)", background:`radial-gradient(circle at 32% 26%, ${v.colors[0]}, ${v.colors[1]} 52%, ${v.colors[2]})`, color:"#fff", fontSize:12, fontWeight:950, textShadow:"0 1px 3px rgba(0,0,0,0.8)", boxShadow:"0 8px 18px rgba(0,0,0,0.32)" }}>{v.label}</button>)}
         </div>
 
+
+        <div
+          onPointerDown={startCameraLookPad}
+          onPointerMove={(e)=>{ if (cameraLookInputRef.current.active && cameraLookInputRef.current.pointerId === e.pointerId) setCameraLookFromPointer(e); }}
+          onPointerUp={stopCameraLookPad}
+          onPointerCancel={stopCameraLookPad}
+          style={{ position:"absolute", right: 18, top: "42%", width: 104, height: 104, borderRadius:"50%", background:"radial-gradient(circle at 50% 50%, rgba(248,250,252,0.16), rgba(15,23,42,0.62))", border:"1px solid rgba(255,255,255,0.32)", boxShadow:"0 12px 30px rgba(0,0,0,0.28)", pointerEvents:"auto", touchAction:"none" }}
+        >
+          <div style={{ position:"absolute", left:"50%", top:"50%", width: 44, height: 44, borderRadius:"50%", transform:`translate(calc(-50% + ${lookKnob.x}px), calc(-50% + ${lookKnob.y}px))`, background:"linear-gradient(135deg, #f8fafc, #94a3b8)", border:"2px solid rgba(125,211,252,0.72)", boxShadow:"0 8px 18px rgba(0,0,0,0.3)" }} />
+          <div style={{ position:"absolute", left:0, right:0, bottom:-20, textAlign:"center", color:"#dff7ff", fontSize:10, fontWeight:900 }}>LOOK</div>
+        </div>
+
         <div style={{ position:"absolute", left: 12, right: 12, bottom: 16, padding:"9px 12px", borderRadius: 16, background:"linear-gradient(90deg, rgba(5,8,14,0.78), rgba(15,23,42,0.62))", border:"1px solid rgba(255,255,255,0.16)", color:"#fff", fontSize: 11, fontWeight: 800, pointerEvents:"none", display:"flex", justifyContent:"space-between", gap: 10 }}>
-          <span>🕹 Move</span><span>🎳 Tap rack ball</span><span>↕ Swipe at line</span>
+          <span>🕹 Move</span><span>👀 Look</span><span>↕ Swipe at line</span>
         </div>
         {replayActive ? <button onClick={()=>setReplayActive(false)} style={{ position:"absolute", top: 132, right: 8, padding:"8px 10px", borderRadius: 10, border:"1px solid rgba(255,255,255,0.28)", background:"rgba(190,20,20,0.75)", color:"#fff", fontWeight:900, pointerEvents:"auto" }}>Skip replay</button> : null}
 
