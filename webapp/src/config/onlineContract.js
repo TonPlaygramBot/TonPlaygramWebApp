@@ -8,10 +8,6 @@ export const ONLINE_CONTRACT_CHECKS = Object.freeze({
 });
 
 export const ONLINE_READINESS_BY_GAME = Object.freeze({
-  'mobile-urban-fps': {
-    checks: { lobby: false, runtime: true, backend: false, security: false },
-    label: 'Beta'
-  },
   poolroyale: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
