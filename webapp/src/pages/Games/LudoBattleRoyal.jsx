@@ -919,9 +919,31 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     muzzleOffset: [0, 0.015, 0.278]
   }
 });
-const FIREARM_UNIFIED_DIRECTION_ROTATION =
-  FIREARM_HAND_ATTACH_TUNING.assaultRifleAttack?.rotation ||
-  FIREARM_HAND_ATTACH_TUNING.default.rotation;
+const FIREARM_SHELL_EJECTION_OFFSET_BY_KIND = Object.freeze({
+  pistol: [0.024, 0.018, 0.042],
+  revolver: [0.018, 0.012, 0.018],
+  smg: [0.03, 0.018, 0.066],
+  rifle: [0.035, 0.019, 0.086],
+  marksman: [0.038, 0.02, 0.102],
+  shotgun: [0.04, 0.016, 0.094],
+  explosive: [0.046, 0.018, 0.08],
+  default: [0.032, 0.018, 0.072]
+});
+const FIREARM_SHELL_EJECTION_OFFSET_BY_ID = Object.freeze({
+  glockSidearmAttack: [0.021, 0.017, 0.038],
+  pistolSidearmAttack: [0.021, 0.017, 0.039],
+  sigsauerTacticalAttack: [0.022, 0.017, 0.044],
+  smithSidearmAttack: [0.018, 0.012, 0.018],
+  polyRevolver01Attack: [0.018, 0.012, 0.018],
+  polyRevolver02Attack: [0.018, 0.012, 0.018],
+  uziSprayAttack: [0.028, 0.018, 0.06],
+  smgBurstAttack: [0.03, 0.018, 0.064],
+  polySmg01Attack: [0.03, 0.018, 0.064],
+  ak47VolleyAttack: [0.038, 0.02, 0.096],
+  krsvBurstAttack: [0.038, 0.02, 0.092],
+  shotgunBlastAttack: [0.044, 0.017, 0.1],
+  sniperShotAttack: [0.04, 0.02, 0.112]
+});
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // Keep glock as the grip-size baseline and upscale all other firearms so
@@ -1260,10 +1282,16 @@ function matchProjectileDiameterToBarrel(profile = FIREARM_BALLISTICS_PROFILE.de
   return {
     ...profile,
     bulletRadius: barrelRadius,
-    // The shell casing uses the same visual diameter as the visible barrel/bore so bullets,
-    // ejected brass and muzzle opening read as one caliber during the close-up camera shot.
-    shellRadius: barrelRadius
+    // Keep the projectile diameter matched to the visible barrel/bore during close-up shots.
+    shellRadius: Math.max(profile.shellRadius ?? barrelRadius, barrelRadius * 0.86)
   };
+}
+
+function resolveFirearmShellEjectionOffset(captureAnimationId = '') {
+  const idOffset = FIREARM_SHELL_EJECTION_OFFSET_BY_ID[captureAnimationId];
+  if (idOffset) return idOffset;
+  const profileKind = FIREARM_BALLISTICS_PROFILE_BY_ID[captureAnimationId] || 'default';
+  return FIREARM_SHELL_EJECTION_OFFSET_BY_KIND[profileKind] || FIREARM_SHELL_EJECTION_OFFSET_BY_KIND.default;
 }
 
 function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
@@ -1595,7 +1623,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
+  weapon.rotation.set(...(tuning.rotation || FIREARM_HAND_ATTACH_TUNING.default.rotation));
   const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
     ? SHOTGUN_HAND_SCALE
     : (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
@@ -1631,11 +1659,17 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   offhandTarget.name = 'offhandTarget';
   weapon.add(offhandTarget);
   const muzzle = new THREE.Object3D();
+  muzzle.name = 'muzzleExit';
   muzzle.position.set(...(tuning.muzzleOffset || FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
   weapon.add(muzzle);
+  const ejectionPort = new THREE.Object3D();
+  ejectionPort.name = 'shellEjectionPort';
+  ejectionPort.position.set(...resolveFirearmShellEjectionOffset(captureAnimationId));
+  weapon.add(ejectionPort);
   return {
     weapon,
     muzzle,
+    ejectionPort,
     offhandTarget,
     twoHanded,
     release: () => {
@@ -3957,8 +3991,8 @@ const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
 const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.42 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.255 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.56 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.34 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4039,8 +4073,8 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.3;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.32;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -4054,7 +4088,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
   forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
-  targetLift: 0.06 * MODEL_SCALE
+  targetLift: -0.018 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
 const CAMERA_EXTRA_LIFT = 0.16;
@@ -7460,7 +7494,7 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06, onUpdate = null } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -7484,6 +7518,7 @@ function spinDice(
       const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
       position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
       dice.position.copy(position);
+      if (typeof onUpdate === 'function') onUpdate(position.clone(), eased);
 
       const spinFactor = 1 - eased * 0.28;
       dice.rotation.x += spinVec.x * spinFactor * 0.22;
@@ -7499,6 +7534,7 @@ function spinDice(
           setDiceOrientation(dice, targetValue);
         }
         dice.position.copy(endPos);
+        if (typeof onUpdate === 'function') onUpdate(endPos.clone(), 1);
         resolve(targetValue);
       }
     };
@@ -11133,6 +11169,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
           const muzzleOrigin = new THREE.Vector3();
           const muzzleTarget = new THREE.Vector3();
+          const shellEjectOrigin = new THREE.Vector3();
           const shellBase = new THREE.Vector3();
           const shooterRoot = attackerEntry?.actorRoot;
           const handWeaponAttachment = await attachFirearmToRightHand(attackerEntry, resolvedCaptureAnimationId);
@@ -11298,6 +11335,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (handWeaponAttachment?.muzzle?.isObject3D) {
                 handWeaponAttachment.muzzle.updateMatrixWorld?.(true);
                 handWeaponAttachment.muzzle.getWorldPosition(muzzleOrigin);
+              }
+              if (handWeaponAttachment?.ejectionPort?.isObject3D) {
+                handWeaponAttachment.ejectionPort.updateMatrixWorld?.(true);
+                handWeaponAttachment.ejectionPort.getWorldPosition(shellEjectOrigin);
               }
             }
             if (handWeaponAttachment?.twoHanded && handWeaponAttachment?.offhandTarget?.isObject3D) {
@@ -11478,7 +11519,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return;
               }
               shell.visible = true;
-              if (shellLife < 18) shellBase.copy(muzzleOrigin);
+              if (shellLife < 18) shellBase.copy(shellEjectOrigin.lengthSq() > 1e-8 ? shellEjectOrigin : muzzleOrigin);
               const nextY =
                 shellBase.y +
                 0.018 +
@@ -13344,10 +13385,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     await syncDiceToThrowHand(player, dice, { duration: 12 });
     const landingFocus = baseTarget.clone();
+    let lastDiceCameraFocusMs = 0;
+    const diceCameraFocus = (position, progress) => {
+      if (!position?.isVector3) return;
+      const now = performance.now();
+      if (progress < 1 && now - lastDiceCameraFocusMs < 120) return;
+      lastDiceCameraFocusMs = now;
+      setCameraFocus({
+        target: position,
+        follow: false,
+        priority: progress >= 1 ? 8 : 6,
+        offset: CAMERA_TARGET_LIFT + (progress >= 1 ? 0.04 : 0.055),
+        force: true
+      });
+    };
+    diceCameraFocus(dice.getWorldPosition(new THREE.Vector3()), 0);
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
       targetPosition: baseTarget,
-      bounceHeight: dice.userData?.bounceHeight ?? 0.06
+      bounceHeight: dice.userData?.bounceHeight ?? 0.06,
+      onUpdate: diceCameraFocus
     });
     dice.userData.isRolling = false;
     seatedHumanActionRef.current = {
