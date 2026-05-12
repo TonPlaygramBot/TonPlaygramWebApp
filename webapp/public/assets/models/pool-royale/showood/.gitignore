@@ -1,0 +1,3 @@
+# Keep the large Showood GLB out of git/PRs.
+# The deploy pipeline should place this file here out-of-band.
+/seven_foot_showood.glb
