@@ -1833,7 +1833,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.98; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_GLOBAL_POWER_SCALE = 0.88; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1961,7 +1961,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const TOPSPIN_MULTIPLIER = 1.48 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -11294,7 +11294,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 2.05;
+  const brandPlateOutwardShift = endRailW * 1.68;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12339,7 +12339,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'railSight',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -12417,7 +12417,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'pocketCutoutEdge') {
-    copyMaterialLook(finishInfo?.clothMat ?? finishInfo?.clothEdgeMat);
+    copyMaterialLook(finishInfo?.clothEdgeMat ?? finishInfo?.clothMat);
     scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
     mat.userData = {
       ...(mat.userData || {}),
