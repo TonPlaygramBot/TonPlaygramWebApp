@@ -1833,7 +1833,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.88; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_GLOBAL_POWER_SCALE = 0.98; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -11294,7 +11294,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.68;
+  const brandPlateOutwardShift = endRailW * 1.92;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12188,6 +12188,10 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
     ? child.userData.poolRoyaleBlackSurfaceNames
     : [];
+  const clothSurfaceNames = Array.isArray(child?.userData?.poolRoyaleClothSurfaceNames)
+    ? child.userData.poolRoyaleClothSurfaceNames
+    : [];
+  if (clothSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'pocketCutoutEdge';
   if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
@@ -12339,7 +12343,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'railSight',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -12576,7 +12580,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -12737,10 +12741,14 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const blackSurfaceNames = Array.isArray(tableModel?.blackMaterialSurfaceNames)
       ? tableModel.blackMaterialSurfaceNames
       : [];
+    const clothSurfaceNames = Array.isArray(tableModel?.clothMaterialSurfaceNames)
+      ? tableModel.clothMaterialSurfaceNames
+      : [];
     child.userData = {
       ...(child.userData || {}),
       poolRoyaleChromeSurfaceNames: chromeSurfaceNames,
-      poolRoyaleBlackSurfaceNames: blackSurfaceNames
+      poolRoyaleBlackSurfaceNames: blackSurfaceNames,
+      poolRoyaleClothSurfaceNames: clothSurfaceNames
     };
 
     const prepareMaterial = (material) => {

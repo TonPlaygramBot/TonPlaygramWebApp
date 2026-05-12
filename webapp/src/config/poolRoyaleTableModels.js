@@ -19,9 +19,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitScale: 1,
     fitFootprintScale: 1.075,
     fitHeightScale: 1,
-    lowerBaseHeightScale: 0.78,
+    lowerBaseHeightScale: 0.68,
     legLengthScale: 0.84,
-    baseFootWidthScale: 1.42,
+    baseFootWidthScale: 1.68,
     clothRepeatScale: 7.5,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -33,8 +33,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket', 'trim'],
     preserveOriginalSurfaceRoles: [],
     tintOriginalTrimGold: false,
-    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideWoodApron', 'apron'],
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight'],
     blackMaterialSurfaceNames: [],
+    clothMaterialSurfaceNames: ['pocketCutoutEdge', 'pocketCut', 'pocketMouth', 'pocketLip', 'pocketNotch'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
