@@ -8,8 +8,15 @@ import { useLocation } from "react-router-dom";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { HUMAN_CHARACTER_OPTIONS } from "../../config/ludoBattleOptions.js";
 import { getPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
+import { gameConfig as CFG, type PlayerSide, type ServeCourtSide } from "./tennis/gameConfig";
+import { BallController } from "./tennis/BallController";
+import { CourtRules, oppositeSide } from "./tennis/CourtRules";
+import { ScoreManager } from "./tennis/ScoreManager";
+import { RacketHitDetector } from "./tennis/RacketHitDetector";
+import { ShotTargeting } from "./tennis/ShotTargeting";
+import { ServeController } from "./tennis/ServeController";
 
-type PlayerSide = "near" | "far";
+
 type PointReason = "winner" | "out" | "doubleBounce" | "net" | "serviceFault";
 type StrokeAction = "ready" | "forehand" | "serve";
 
@@ -109,34 +116,6 @@ const Y_AXIS = UP;
 
 const TENNIS_HDRI_OPTION_IDS = Object.freeze(["suburbanGarden","countryTrackMidday","autumnPark","rooitouPark","rotesRathaus","veniceDawn2","piazzaSanMarco"]);
 
-const WORLD_SCALE = 1.2;
-
-const CFG = {
-  worldScale: WORLD_SCALE,
-  courtW: 7.45 * WORLD_SCALE,
-  doublesW: 8.9 * WORLD_SCALE,
-  courtL: 19.8 * WORLD_SCALE,
-  serviceLineZ: 3.65 * WORLD_SCALE,
-  netH: 0.78 * WORLD_SCALE,
-  ballR: 0.1 * WORLD_SCALE,
-  gravity: 9.8,
-  airDrag: 0.078,
-  bounceRestitution: 0.74,
-  groundFriction: 0.86,
-  minBallSpeed: 0.12 * WORLD_SCALE,
-  playerHeight: 2.2 * WORLD_SCALE,
-  playerSpeed: 7.1 * WORLD_SCALE,
-  aiSpeed: 11.6 * WORLD_SCALE,
-  reach: 1.45 * WORLD_SCALE,
-  swingDuration: 0.38,
-  serveDuration: 0.86,
-  hitWindowStart: 0.42,
-  hitWindowEnd: 0.72,
-  serveContactT: 0.72,
-  playerVisualYawFix: Math.PI,
-  serveNearBaselineZ: 8.2 * WORLD_SCALE,
-  serviceBuffer: 0.28 * WORLD_SCALE,
-};
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clamp01 = (v: number) => clamp(v, 0, 1);
@@ -144,37 +123,13 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const sideOfZ = (z: number): PlayerSide => (z >= 0 ? "near" : "far");
-const opposite = (side: PlayerSide): PlayerSide => (side === "near" ? "far" : "near");
+const opposite = (side: PlayerSide): PlayerSide => oppositeSide(side);
+const DEFAULT_COURT_RULES = new CourtRules();
+const serviceSideFromPoints = (nearScore: number, farScore: number): ServeCourtSide => DEFAULT_COURT_RULES.serviceSideFromPoints(nearScore, farScore);
+const serveXForSide = (player: PlayerSide, side: ServeCourtSide) => DEFAULT_COURT_RULES.serveXForSide(player, side);
+const serveLaneBoundsX = (side: ServeCourtSide) => DEFAULT_COURT_RULES.serveLaneBoundsX(side);
+const isInsideServiceBox = (pos: THREE.Vector3, hitter: PlayerSide, side: ServeCourtSide) => DEFAULT_COURT_RULES.isInsideServiceBox(pos, hitter, side);
 
-
-function serviceSideFromPoints(nearScore: number, farScore: number): "deuce" | "ad" {
-  return (nearScore + farScore) % 2 === 0 ? "deuce" : "ad";
-}
-
-function serveXForSide(player: PlayerSide, side: "deuce" | "ad") {
-  const outsideSingles = CFG.courtW / 2 + 0.42;
-  const laneMax = CFG.doublesW / 2 - 0.2;
-  const xAbs = clamp(outsideSingles, CFG.courtW / 2 + 0.12, laneMax);
-  const sign = side === "deuce" ? 1 : -1;
-  return (player === "near" ? sign : -sign) * xAbs;
-}
-
-
-function serveLaneBoundsX(side: "deuce" | "ad") {
-  const laneMinAbs = CFG.courtW / 2 + 0.12;
-  const laneMaxAbs = CFG.doublesW / 2 - 0.12;
-  if (side === "deuce") return { min: laneMinAbs, max: laneMaxAbs };
-  return { min: -laneMaxAbs, max: -laneMinAbs };
-}
-
-function isInsideServiceBox(pos: THREE.Vector3, hitter: PlayerSide, side: "deuce" | "ad") {
-  const targetSide = opposite(hitter);
-  const targetRight = side === "deuce";
-  const xOk = targetRight ? pos.x >= 0 + CFG.serviceBuffer : pos.x <= 0 - CFG.serviceBuffer;
-  const xInCourt = Math.abs(pos.x) <= CFG.courtW / 2;
-  const zOk = targetSide === "far" ? pos.z <= -CFG.serviceBuffer && pos.z >= -CFG.serviceLineZ : pos.z >= CFG.serviceBuffer && pos.z <= CFG.serviceLineZ;
-  return xOk && xInCourt && zOk;
-}
 function material(color: number, roughness = 0.74, metalness = 0.02) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
@@ -993,7 +948,13 @@ export default function MobileThreeTennisPrototype() {
   const [hdriChoices, setHdriChoices] = useState<any[]>([]);
   const [selectedHdriId, setSelectedHdriId] = useState(() => localStorage.getItem("tennisSelectedHdri") || POOL_ROYALE_DEFAULT_HDRI_ID);
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || HUMAN_CHARACTER_OPTIONS[0]?.id || "rpm-current");
-  const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
+  const tennisPoint = (score: number, otherScore = 0) => {
+    if (score >= 3 && otherScore >= 3) {
+      if (score === otherScore) return "40";
+      return score > otherScore ? "Ad" : "40";
+    }
+    return ["0", "15", "30", "40"][Math.min(score, 3)];
+  };
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3(), startTs: 0, lastTs: 0 });
 
@@ -1068,9 +1029,19 @@ export default function MobileThreeTennisPrototype() {
     const farPlayer = addHuman(scene, "far", new THREE.Vector3(0, 0, -CFG.courtL / 2 + 1.04), 0x62d2ff, aiHuman?.modelUrls?.[0] || HUMAN_URL);
     const ball = createBall();
     scene.add(ball.mesh);
-    let currentServeSide: "deuce" | "ad" = "deuce";
+    const courtRules = new CourtRules();
+    const scoreManager = new ScoreManager();
+    const serveController = new ServeController();
+    const shotTargeting = new ShotTargeting();
+    const hitDetector = new RacketHitDetector();
+    const ballController = new BallController(ball, courtRules);
+    let currentServeSide: ServeCourtSide = "deuce";
     let firstServeAttempt = true;
     resetBallForServe(ball, nearPlayer, currentServeSide);
+    ballController.resetServe(ball.pos);
+    serveController.begin("near", currentServeSide, firstServeAttempt);
+    void shotTargeting;
+    void hitDetector;
     let netShakeT = 0;
 
     const ghost = new THREE.Mesh(
@@ -1102,18 +1073,18 @@ export default function MobileThreeTennisPrototype() {
       if (pointLock) return;
       pointLock = true;
       pointLockT = 0.78;
-      const prev = hudRef.current;
-      const next = {
-        nearScore: prev.nearScore + (winner === "near" ? 1 : 0),
-        farScore: prev.farScore + (winner === "far" ? 1 : 0),
-      };
-      const reasonText = reason === "serviceFault" ? "Service fault" : reason === "out" ? "Out ball" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net fault" : "Point";
+      const result = scoreManager.addPoint(winner);
+      const snapshot = result.snapshot;
+      const reasonText = reason === "serviceFault" ? "Double Fault" : reason === "out" ? "Out" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net" : "Point";
       firstServeAttempt = true;
-      currentServeSide = serviceSideFromPoints(next.nearScore, next.farScore);
-      replayText = `Replay: ${reasonText} by ${winner === "near" ? "You" : "AI"}`;
+      currentServeSide = snapshot.serveSide;
+      serveController.begin("near", currentServeSide, firstServeAttempt);
+      ballController.setState("PointEnded");
+      replayText = `Replay: ${reasonText} — ${winner === "near" ? "You" : "AI"}`;
       replayT = 1.7;
       void crowdFx.play().catch(() => {});
-      setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0 });
+      const gameSuffix = result.gameWon ? ` Game ${result.gameWon === "near" ? "You" : "AI"}.` : "";
+      setHud({ nearScore: snapshot.nearPoints, farScore: snapshot.farPoints, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores.${gameSuffix}`, power: 0 });
     };
 
     const resize = () => {
@@ -1209,69 +1180,53 @@ export default function MobileThreeTennisPrototype() {
     }
 
     function updateBall(dt: number) {
-      const prevZ = ball.pos.z;
-      ball.vel.y -= CFG.gravity * (1 + ball.spin * 0.18) * dt;
-      ball.vel.multiplyScalar(Math.exp(-CFG.airDrag * dt));
-      ball.pos.addScaledVector(ball.vel, dt);
-      ball.spin *= Math.exp(-0.95 * dt);
-
-      if (ball.vel.length() > 0.02) {
-        const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x);
-        if (rollAxis.lengthSq() > 0.0001) ball.mesh.rotateOnWorldAxis(rollAxis.normalize(), (ball.vel.length() / CFG.ballR) * dt);
-      }
-
-      const crossesNet = (prevZ > 0 && ball.pos.z <= 0) || (prevZ < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.055;
-      if (crossesNet && Math.abs(ball.pos.x) <= CFG.doublesW / 2 + 0.1 && ball.pos.y < CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
-        const incoming = ball.vel.clone();
-        const outgoing = incoming.multiplyScalar(0.2); // 80% power loss on net impact
-        outgoing.z = Math.sign(outgoing.z || (ball.lastHitBy === "near" ? -1 : 1)) * Math.max(0.4, Math.abs(outgoing.z));
-        outgoing.y = Math.max(0.45, Math.abs(outgoing.y) + 0.2);
-        ball.vel.copy(outgoing);
-        ball.pos.z = ball.lastHitBy === "near" ? -0.12 : 0.12;
-        netShakeT = 0.45;
-        void netHitFx.play().catch(() => {});
-        awardPoint(opposite(ball.lastHitBy), "net");
-      }
-
-      if (ball.pos.y <= CFG.ballR) {
-        ball.pos.y = CFG.ballR;
-        if (ball.vel.y < 0) {
-          ball.vel.y = -ball.vel.y * CFG.bounceRestitution;
-          ball.vel.x *= CFG.groundFriction;
-          ball.vel.z *= CFG.groundFriction;
-          const bounceSide = sideOfZ(ball.pos.z);
+      const serving = ball.lastHitBy === serveController.server && ball.bounceSide === null && (serveController.state === "contact" || serveController.state === "ballFlight");
+      const events = ballController.update(dt, currentServeSide, serving);
+      for (const event of events) {
+        if (event.type === "net") {
+          netShakeT = 0.45;
+          void netHitFx.play().catch(() => {});
+          if (event.winner) awardPoint(event.winner, "net");
+          return;
+        }
+        if (event.type === "validServeBounce") {
+          serveController.markValidServe();
+          setHudSafe({ status: "Serve in — rally on" });
+          continue;
+        }
+        if (event.type === "serveFault") {
           void ballBounceFx.play().catch(() => {});
-          if (ball.bounceSide === bounceSide) ball.bounceCount += 1;
-          else {
-            ball.bounceSide = bounceSide;
-            ball.bounceCount = 1;
+          if (firstServeAttempt) {
+            firstServeAttempt = false;
+            scoreManager.setSecondServe();
+            serveController.markFault(false);
+            pointLock = false;
+            pointLockT = 0;
+            setHudSafe({ status: "Fault. Second serve", power: 0 });
+            nearPlayer.action = "ready";
+            farPlayer.action = "ready";
+            resetBallForServe(ball, nearPlayer, currentServeSide);
+            ballController.resetServe(ball.pos);
+            serveController.begin("near", currentServeSide, firstServeAttempt);
+            return;
           }
-          const isServeBall = ball.lastHitBy !== null && ball.bounceCount === 1;
-          if (isServeBall && !isInsideServiceBox(ball.pos, ball.lastHitBy, currentServeSide)) {
-            if (firstServeAttempt) {
-              firstServeAttempt = false;
-              pointLock = false;
-              pointLockT = 0;
-              setHudSafe({ status: "Fault. Move left/right and serve again" });
-              nearPlayer.action = "ready";
-              farPlayer.action = "ready";
-              resetBallForServe(ball, nearPlayer, currentServeSide);
-              return;
-            } else {
-              awardPoint(opposite(ball.lastHitBy), "serviceFault");
-              return;
-            }
-          }
-          const outsideX = Math.abs(ball.pos.x) > CFG.courtW / 2;
-          const outsideZ = Math.abs(ball.pos.z) > CFG.courtL / 2;
-          if ((outsideX || outsideZ) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
-          else if (ball.bounceCount > 1) awardPoint(opposite(bounceSide), "doubleBounce");
+          serveController.markFault(true);
+          awardPoint(opposite(ball.lastHitBy || "near"), "serviceFault");
+          return;
+        }
+        if (event.type === "rallyBounce" || event.type === "validServeBounce") {
+          void ballBounceFx.play().catch(() => {});
+        }
+        if (event.type === "out") {
+          void ballBounceFx.play().catch(() => {});
+          if (event.winner) awardPoint(event.winner, "out");
+          return;
+        }
+        if (event.type === "doubleBounce") {
+          if (event.winner) awardPoint(event.winner, "doubleBounce");
+          return;
         }
       }
-
-      if ((Math.abs(ball.pos.x) > 7.5 || Math.abs(ball.pos.z) > 9.3 || ball.pos.y < -1.2) && ball.lastHitBy) awardPoint(opposite(ball.lastHitBy), "out");
-      if (ball.vel.length() < CFG.minBallSpeed && ball.pos.y <= CFG.ballR + 0.002 && ball.lastHitBy) awardPoint(opposite(sideOfZ(ball.pos.z)), "doubleBounce");
-      ball.mesh.position.copy(ball.pos);
     }
 
     function updateAi() {
@@ -1297,8 +1252,10 @@ export default function MobileThreeTennisPrototype() {
         if (player.action === "serve") {
           if (player.swingT >= CFG.serveContactT) {
             performHit(player, ball, player.desiredHit, true);
+            serveController.markContact();
+            serveController.markFlight();
             void racketHitFx.play().catch(() => {});
-            setHudSafe({ status: "Serve sent" });
+            setHudSafe({ status: firstServeAttempt ? "Serve!" : "Second serve!" });
           }
           continue;
         }
@@ -1340,7 +1297,9 @@ export default function MobileThreeTennisPrototype() {
           nearPlayer.target.set(0, 0, CFG.courtL / 2 - 1.04);
           farPlayer.target.set(0, 0, -CFG.courtL / 2 + 1.04);
           resetBallForServe(ball, nearPlayer, currentServeSide);
-          setHudSafe({ status: "Swipe up to serve", power: 0 });
+          ballController.resetServe(ball.pos);
+          serveController.begin("near", currentServeSide, firstServeAttempt);
+          setHudSafe({ status: firstServeAttempt ? "Swipe up to serve" : "Second serve", power: 0 });
         }
       } else {
         updateAi();
@@ -1440,7 +1399,7 @@ export default function MobileThreeTennisPrototype() {
               <div style={{ width: 30, height: 30, borderRadius: "999px", overflow: "hidden", border: "1px solid rgba(255,255,255,.25)", background: "#1f2937" }}>{playerAvatar ? <img src={playerAvatar} alt={playerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}</div>
               <div><div style={{ fontWeight: 700 }}>{playerName}</div><div style={{ opacity: 0.7 }}>Points {hud.nearScore}</div></div>
             </div>
-            <div style={{ textAlign: "center", fontWeight: 900, fontSize: 18, letterSpacing: 1 }}>{tennisPoint(hud.nearScore)} : {tennisPoint(hud.farScore)}</div>
+            <div style={{ textAlign: "center", fontWeight: 900, fontSize: 18, letterSpacing: 1 }}>{tennisPoint(hud.nearScore, hud.farScore)} : {tennisPoint(hud.farScore, hud.nearScore)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div><div style={{ fontWeight: 700, textAlign: "right" }}>{rivalName}</div><div style={{ opacity: 0.7, textAlign: "right" }}>Points {hud.farScore}</div></div>
               <div style={{ width: 30, height: 30, borderRadius: "999px", border: "1px solid rgba(255,255,255,.25)", background: "#334155", display: "flex", alignItems: "center", justifyContent: "center" }}>🎾</div>
