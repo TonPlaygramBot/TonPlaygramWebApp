@@ -10,7 +10,7 @@ describe('Pool Royale spin controller mapping', () => {
     const center = mapSpinForPhysics({ x: 0, y: 0 });
     expect(Math.abs(center.x)).toBe(0);
     expect(center.y).toBeGreaterThan(0);
-    expect(center.y).toBeLessThan(0.25);
+    expect(center.y).toBeLessThanOrEqual(0.075);
   });
 
   it('keeps left/right spin directions aligned with the table axes', () => {
