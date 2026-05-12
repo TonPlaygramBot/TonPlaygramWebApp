@@ -1805,7 +1805,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.66; // reduce Pool Royale cue spin a bit more so default follow/topspin stays controlled
+const SPIN_GLOBAL_SCALE = 0.72; // reduce Pool Royale cue spin slightly further for a more natural default roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1833,7 +1833,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.98; // add stronger Pool Royale cue drive while preserving slider feel
+const SHOT_GLOBAL_POWER_SCALE = 0.88; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -6660,7 +6660,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.74; // trim topspin cap further to reduce excessive default follow
+const MAX_TOPSPIN_INPUT = 0.8; // trim topspin cap by 20% to reduce excessive follow
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
@@ -9229,19 +9229,12 @@ export function Table3D(
   const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketEdgeStopY =
     (PLYWOOD_ENABLED ? plywoodTopY : pocketTopY) - POCKET_EDGE_STOP_EXTRA_DROP;
-  const pocketCutClothMat = clothMat.clone();
-  pocketCutClothMat.map = clonePoolRoyaleMaterialTexture(clothMat.map, { isColor: true });
-  pocketCutClothMat.normalMap = clonePoolRoyaleMaterialTexture(clothMat.normalMap);
-  pocketCutClothMat.bumpMap = clonePoolRoyaleMaterialTexture(clothMat.bumpMap);
-  pocketCutClothMat.roughnessMap = clonePoolRoyaleMaterialTexture(clothMat.roughnessMap);
-  pocketCutClothMat.side = THREE.DoubleSide;
-  pocketCutClothMat.needsUpdate = true;
   const pocketCutStripes = POCKET_EDGE_SLEEVES_ENABLED
     ? addPocketCuts(
         table,
         cloth.position.y,
         clothPocketPositions,
-        pocketCutClothMat,
+        clothEdgeMat,
         sideRadiusScale,
         pocketEdgeStopY
       )
@@ -11301,7 +11294,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 2.05;
+  const brandPlateOutwardShift = endRailW * 1.68;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12424,7 +12417,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'pocketCutoutEdge') {
-    copyMaterialLook(finishInfo?.clothMat ?? finishInfo?.clothEdgeMat);
+    copyMaterialLook(finishInfo?.clothEdgeMat ?? finishInfo?.clothMat);
     scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
     mat.userData = {
       ...(mat.userData || {}),
@@ -12552,7 +12545,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner || (hardwareCandidate && goldCornerDropZone)) && !green && !s.upFace && !namedApron) return 'railSight';
   if (namedApron && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'baseCornerBlock';
+  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'railSight';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
