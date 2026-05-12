@@ -43,5 +43,3 @@ cache/
 
 # Downloaded by webapp/scripts/fetch-gradle-wrapper.mjs; keep binary out of PRs.
 webapp/android/gradle/wrapper/gradle-wrapper.jar
-# Keep locally downloaded Pool Royale table GLBs out of PRs.
-webapp/public/assets/models/pool-royale/showood/*.glb
