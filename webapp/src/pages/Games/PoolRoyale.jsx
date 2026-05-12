@@ -12340,6 +12340,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
     sideWoodApron: 'railSight',
+    pocketCutoutEdge: 'cloth',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -12538,6 +12539,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const namedPocketCutoutEdge = /cut|cutout|edge|jaw|mouth|lip|notch/i.test(name);
   if ((namedPocketCutoutEdge || ((namedCloth || green) && anyPocketZone)) && !black && !hardwareCandidate) return 'pocketCutoutEdge';
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
+  if ((namedCloth || green) && anyPocketZone && !hardwareCandidate) return 'pocketCutoutEdge';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
