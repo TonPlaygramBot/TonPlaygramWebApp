@@ -1805,7 +1805,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.78; // reduce Pool Royale cue spin slightly further for a more natural default roll
+const SPIN_GLOBAL_SCALE = 0.72; // reduce Pool Royale cue spin slightly further for a more natural default roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1832,8 +1832,8 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
+const SHOT_GLOBAL_POWER_SCALE = 0.88; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -6660,7 +6660,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive follow
+const MAX_TOPSPIN_INPUT = 0.8; // trim topspin cap by 20% to reduce excessive follow
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
@@ -8663,6 +8663,7 @@ export function Table3D(
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
+  let pocketCutoutEdgeMat = null;
   applyPocketLeatherTextureDefaults(pocketJawMat.map, { isColor: true });
   applyPocketLeatherTextureDefaults(pocketJawMat.normalMap);
   applyPocketLeatherTextureDefaults(pocketJawMat.roughnessMap);
@@ -9000,6 +9001,22 @@ export function Table3D(
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.sheen = 0;
   clothEdgeMat.needsUpdate = true;
+  pocketCutoutEdgeMat = clothMat.clone();
+  pocketCutoutEdgeMat.name = 'Pool Royale cloth-textured pocket cutout edge';
+  pocketCutoutEdgeMat.side = THREE.DoubleSide;
+  pocketCutoutEdgeMat.transparent = false;
+  pocketCutoutEdgeMat.opacity = 1;
+  pocketCutoutEdgeMat.depthWrite = true;
+  pocketCutoutEdgeMat.envMapIntensity = 0;
+  pocketCutoutEdgeMat.roughness = Math.max(pocketCutoutEdgeMat.roughness ?? 0.9, 0.96);
+  pocketCutoutEdgeMat.clearcoat = 0;
+  pocketCutoutEdgeMat.bumpScale = (clothMat.bumpScale ?? 0) * 0.72;
+  pocketCutoutEdgeMat.userData = {
+    ...(pocketCutoutEdgeMat.userData || {}),
+    poolRoyalePocketCutoutClothEdge: true
+  };
+  pocketCutoutEdgeMat.needsUpdate = true;
+
   const finishInfo = {
     id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
     palette,
@@ -10893,8 +10910,9 @@ export function Table3D(
     jawGeom.rotateX(-Math.PI / 2);
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
-    const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
+    const jawMesh = new THREE.Mesh(jawGeom, pocketCutoutEdgeMat || pocketJawMat);
     jawMesh.position.y = jawTopY;
+    jawMesh.userData.poolRoyaleClothCutoutEdge = true;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -11276,7 +11294,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.42;
+  const brandPlateOutwardShift = endRailW * 1.68;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12506,6 +12524,8 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.longN > 0.64 && s.shortN > 0.64)
   );
   const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
+  const clothPocketCutoutEdge = anyPocketZone && (s.sideFace || s.downFace) && !hardwareCandidate && !namedPocket;
+  if (clothPocketCutoutEdge) return 'cloth';
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
@@ -12545,7 +12565,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'railSight' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13562,7 +13582,9 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
-  finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
+  finishInfo.parts.pocketJawMeshes.forEach((mesh) =>
+    swapMaterial(mesh, mesh.userData?.poolRoyaleClothCutoutEdge ? finishInfo.clothMat : pocketJawMat)
+  );
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (Array.isArray(finishInfo.parts.brandPlates)) {
     finishInfo.parts.brandPlates.forEach((entry) => {
