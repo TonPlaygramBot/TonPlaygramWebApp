@@ -9,8 +9,7 @@
     "generate:native-assets": "node scripts/generate-native-assets.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
     "fetch:launcher": "node scripts/fetch-launcher.mjs",
-    "postinstall": "node scripts/postinstall.mjs",
-    "fetch:pool-royale-showood": "node scripts/fetch-pool-royale-showood-model.mjs"
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "type": "module",
   "dependencies": {
