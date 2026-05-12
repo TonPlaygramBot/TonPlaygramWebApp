@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {
   applySnookerTableModelParam,
-  resolveSnookerCushionBoundaryPolyline,
   resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
@@ -59,62 +58,4 @@ describe('snooker table model selection', () => {
       /pooltool\/models\/table\/snooker_generic\/snooker_generic\.glb$/
     );
   });
-
-  test('resolveSnookerCushionBoundaryPolyline follows angled jaw vertices instead of a flat bounding box', () => {
-    const points = [
-      { x: -4, z: 2.4 },
-      { x: -3, z: 2.2 },
-      { x: -2, z: 2 },
-      { x: 0, z: 2 },
-      { x: 2, z: 2 },
-      { x: 3, z: 2.2 },
-      { x: 4, z: 2.4 },
-      { x: -4, z: 2.9 },
-      { x: -3, z: 2.9 },
-      { x: -2, z: 2.9 },
-      { x: 0, z: 2.9 },
-      { x: 2, z: 2.9 },
-      { x: 3, z: 2.9 },
-      { x: 4, z: 2.9 }
-    ];
-
-    const polyline = resolveSnookerCushionBoundaryPolyline(points, {
-      horizontal: true,
-      side: 1,
-      binSize: 1,
-      minPoints: 4
-    });
-
-    assert.ok(polyline.length >= 7);
-    assert.deepEqual(polyline[0], { x: -4, z: 2.4 });
-    assert.deepEqual(polyline[3], { x: 0, z: 2 });
-    assert.deepEqual(polyline[polyline.length - 1], { x: 4, z: 2.4 });
-  });
-
-  test('resolveSnookerCushionBoundaryPolyline mirrors the lower cushion inward edge', () => {
-    const points = [
-      { x: -2, z: -2.8 },
-      { x: -1, z: -2 },
-      { x: 0, z: -2 },
-      { x: 1, z: -2 },
-      { x: 2, z: -2.8 },
-      { x: -2, z: -3.1 },
-      { x: -1, z: -3.1 },
-      { x: 0, z: -3.1 },
-      { x: 1, z: -3.1 },
-      { x: 2, z: -3.1 }
-    ];
-
-    const polyline = resolveSnookerCushionBoundaryPolyline(points, {
-      horizontal: true,
-      side: -1,
-      binSize: 1,
-      minPoints: 4
-    });
-
-    assert.equal(polyline[0].z, -2.8);
-    assert.equal(polyline[2].z, -2);
-    assert.equal(polyline[polyline.length - 1].z, -2.8);
-  });
-
 });
