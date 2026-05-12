@@ -43,3 +43,6 @@ cache/
 
 # Downloaded by webapp/scripts/fetch-gradle-wrapper.mjs; keep binary out of PRs.
 webapp/android/gradle/wrapper/gradle-wrapper.jar
+
+# Pool Royale GLB models are fetched during deploy/local setup, not committed.
+webapp/public/assets/models/pool-royale/showood/*.glb
