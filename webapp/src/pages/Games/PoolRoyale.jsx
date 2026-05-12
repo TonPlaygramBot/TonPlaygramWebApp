@@ -1805,7 +1805,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.78; // reduce Pool Royale cue spin slightly further for a more natural default roll
+const SPIN_GLOBAL_SCALE = 0.82; // reduce Pool Royale cue spin slightly for a more natural roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1833,7 +1833,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_GLOBAL_POWER_SCALE = 0.76; // keep Pool Royale stronger than before without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -3626,11 +3626,11 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
-  railSight: 'chrome',
+  railSight: 'gold',
   pocketCup: 'black',
   baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
   leg: DEFAULT_TABLE_FINISH_ID,
-  baseFoot: 'chrome'
+  baseFoot: 'gold'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   cloth: Object.freeze([
@@ -3717,7 +3717,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'railSight' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -11276,7 +11276,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.42;
+  const brandPlateOutwardShift = endRailW * 1.18;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12891,36 +12891,28 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
   if (!model || tableModel?.id !== 'showood-seven-foot') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
-  const footWidthScale = Number(tableModel?.baseFootWidthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
   const shouldScaleLegs = Number.isFinite(legScale) && legScale > MICRO_EPS && Math.abs(legScale - 1) > MICRO_EPS;
-  const shouldScaleFeet = Number.isFinite(footWidthScale) && footWidthScale > MICRO_EPS && Math.abs(footWidthScale - 1) > MICRO_EPS;
-  if (!shouldScaleBase && !shouldScaleLegs && !shouldScaleFeet) return;
+  if (!shouldScaleBase && !shouldScaleLegs) return;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodBaseProportionsAdjusted) return;
     const material = Array.isArray(child.material) ? child.material[0] : child.material;
     const role = classifyPoolRoyaleExternalTableSurface(child, material);
     const childName = `${child.name || ''}`.toLowerCase();
-    const isFoot = role === 'verticalCornerRim' || /foot|feet|base[_\s-]*foot|rim/.test(childName);
     const scaleY =
       shouldScaleLegs && (role === 'leg' || /leg|support/.test(childName))
         ? legScale
         : shouldScaleBase && (role === 'baseCornerBlock' || /base|cabinet|corner[_\s-]*block/.test(childName))
           ? baseScale
           : null;
-    const scaleXZ = shouldScaleFeet && isFoot ? footWidthScale : null;
-    if (!scaleY && !scaleXZ) return;
+    if (!scaleY) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty()) return;
     const anchorWorldY = childBox.max.y;
     const parent = child.parent || model;
     const anchorLocalY = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    if (scaleY) child.scale.y *= scaleY;
-    if (scaleXZ) {
-      child.scale.x *= scaleXZ;
-      child.scale.z *= scaleXZ;
-    }
+    child.scale.y *= scaleY;
     child.updateMatrixWorld(true);
     const nextBox = new THREE.Box3().setFromObject(child);
     const nextAnchorLocalY = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
