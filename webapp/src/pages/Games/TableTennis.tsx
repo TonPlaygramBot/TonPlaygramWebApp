@@ -10,15 +10,35 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { AIController, BallPhysics, CameraController, PaddleHitDetector, PlayerController, ReplayManager, ScoreManager } from "./tableTennis/GameManager";
-import { UIOverlay } from "./tableTennis/UIOverlay";
-import { BALL_SURFACE_Y, CFG, PADDLE_SCALE_FACTOR, TABLE_HALF_L, TABLE_HALF_W, TABLE_REFERENCE_LENGTH, TABLE_SCALE_FACTOR, UP, Y_AXIS, clamp, clamp01, easeOutCubic, isOverTable, lerp, opposite, sideOfZ, type AiTactic, type BallPhase, type BallPhysicsStateName, type BallState, type DesiredHit, type PlayerSide, type PointReason, type StrokeAction, type ServeStage } from "./tableTennis/gameConfig";
 
-const TABLE_GLTF_URL = "";
-const DEFAULT_HDRI_URLS = [
-  "https://threejs.org/examples/textures/equirectangular/royal_esplanade_1k.hdr",
-  "https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
-];
+type PlayerSide = "near" | "far";
+type PointReason = "out" | "doubleBounce" | "net" | "wrongSide" | "miss";
+type StrokeAction = "ready" | "forehand" | "backhand" | "serve";
+type ServeStage = "own" | "opponent";
+type AiTactic = "serve" | "loop" | "drive" | "push" | "wide" | "body";
+
+type DesiredHit = {
+  target: THREE.Vector3;
+  power: number;
+  topSpin: number;
+  sideSpin: number;
+  tactic?: AiTactic;
+};
+
+type BallPhase =
+  | { kind: "serve"; server: PlayerSide; stage: ServeStage }
+  | { kind: "rally" };
+
+type BallState = {
+  mesh: THREE.Mesh;
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  spin: THREE.Vector3;
+  lastHitBy: PlayerSide | null;
+  bounceSide: PlayerSide | null;
+  bounceCount: number;
+  phase: BallPhase;
+};
 
 type BonePack = {
   spine?: THREE.Bone;
@@ -96,6 +116,75 @@ type ControlState = {
   startPlayer: THREE.Vector3;
 };
 
+const TABLE_GLTF_URL = "";
+const DEFAULT_HDRI_URLS = [
+  "https://threejs.org/examples/textures/equirectangular/royal_esplanade_1k.hdr",
+  "https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
+];
+
+const UP = new THREE.Vector3(0, 1, 0);
+const Y_AXIS = UP;
+
+const CFG = {
+  // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
+  tableL: 5.8,
+  tableW: 3.2,
+  tableY: 1.45,
+  tableTopThickness: 0.075,
+  netH: 0.1525,
+  netPostOutside: 0.1525,
+  ballR: 0.038,
+  gravity: 9.81,
+  airDrag: 0.22,
+  magnus: 0.00125,
+  tableRestitution: 0.9,
+  tableFriction: 0.965,
+  spinDecay: 0.72,
+  playerHeight: 2.9,
+  playerSpeed: 3.35,
+  aiSpeed: 3.45,
+  reach: 0.82,
+  swingDuration: 0.34,
+  backhandDuration: 0.29,
+  serveDuration: 0.86,
+  hitWindowStart: 0.43,
+  hitWindowEnd: 0.72,
+  serveContactT: 0.68,
+  netTopRestitution: 0.34,
+  netFaceRestitution: 0.18,
+  netPowerRetention: 0.2,
+  bodyPowerRetention: 0.2,
+  floorRestitution: 0.56,
+  floorFriction: 0.88,
+  railRestitution: 0.5,
+  minShotSpeed: 3.7,
+  maxShotSpeed: 9.8,
+  playerVisualYawFix: Math.PI,
+  paddlePalmOffset: 0.038,
+};
+
+const TABLE_REFERENCE_LENGTH = 2.74;
+const TABLE_SCALE_FACTOR = CFG.tableL / TABLE_REFERENCE_LENGTH;
+const PADDLE_SCALE_FACTOR = Math.max(1, TABLE_SCALE_FACTOR * 0.78);
+
+const TABLE_HALF_W = CFG.tableW / 2;
+const TABLE_HALF_L = CFG.tableL / 2;
+const BALL_SURFACE_Y = CFG.tableY + CFG.ballR;
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const clamp01 = (v: number) => clamp(v, 0, 1);
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const sideOfZ = (z: number): PlayerSide => (z >= 0 ? "near" : "far");
+const opposite = (side: PlayerSide): PlayerSide => (side === "near" ? "far" : "near");
+
+function reduceImpactPower(velocity: THREE.Vector3, keepRatio: number, minSpeed = 0.35) {
+  const speed = velocity.length();
+  if (speed <= 0.0001) return;
+  const capped = Math.max(minSpeed, speed * clamp(keepRatio, 0.05, 1));
+  velocity.multiplyScalar(capped / speed);
+}
+
 function material(color: number, roughness = 0.72, metalness = 0.02) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
@@ -146,6 +235,10 @@ function rightFromForward(forward: THREE.Vector3) {
 
 function getWorldPos(obj: THREE.Object3D) {
   return obj.getWorldPosition(new THREE.Vector3());
+}
+
+function isOverTable(x: number, z: number, margin = 0) {
+  return Math.abs(x) <= TABLE_HALF_W + margin && Math.abs(z) <= TABLE_HALF_L + margin;
 }
 
 function buildRealisticTableTennisTable() {
@@ -560,8 +653,6 @@ function createBall() {
     bounceSide: null,
     bounceCount: 0,
     phase: { kind: "serve", server: "near", stage: "own" },
-    stateName: "serve",
-    sideBounceCounts: { near: 0, far: 0 },
   } as BallState;
 }
 
@@ -599,8 +690,6 @@ function resetBallForServe(ball: BallState, server: HumanRig) {
   ball.bounceSide = null;
   ball.bounceCount = 0;
   ball.phase = { kind: "serve", server: server.side, stage: "own" };
-  ball.stateName = "serve";
-  ball.sideBounceCounts = { near: 0, far: 0 };
   ball.mesh.position.copy(ball.pos);
 }
 
@@ -896,8 +985,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   ball.lastHitBy = player.side;
   ball.bounceSide = null;
   ball.bounceCount = 0;
-  ball.sideBounceCounts = { near: 0, far: 0 };
-  ball.stateName = player.side === "near" ? "paddleHitPlayer" : "paddleHitAI";
   ball.mesh.position.copy(ball.pos);
   player.cooldown = serve ? 0.34 : 0.2;
   player.hitThisSwing = true;
@@ -990,8 +1077,6 @@ export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
-  const [debugInfo, setDebugInfo] = useState({ ballState: "serve" as BallPhysicsStateName, bounceCount: 0, hitValidity: "idle", predictedLanding: { x: 0, y: BALL_SURFACE_Y, z: 0 } });
-  const debugOverlay = typeof window !== "undefined" && window.location.search.includes("debugTableTennis=1");
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1110,7 +1195,6 @@ export default function MobileRealisticTableTennisGame() {
     const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
     const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 1.05), 0xff6b2e, humanModelUrl);
     const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05), 0x4ab7ff, humanModelUrl);
-    farPlayer.speed = CFG.aiDifficulty.moveSpeed;
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
@@ -1150,46 +1234,24 @@ export default function MobileRealisticTableTennisGame() {
     const scoreFx = new Audio("/assets/sounds/successful.mp3");
     scoreFx.volume = 0.26;
     const playFx = (fx: HTMLAudioElement) => { fx.pause(); fx.currentTime = 0; const endAt = 1.0; const onTime = () => { if (fx.currentTime >= endAt) { fx.pause(); fx.removeEventListener("timeupdate", onTime); } }; fx.addEventListener("timeupdate", onTime); fx.play().catch(() => {}); };
-    const scoreManager = new ScoreManager();
-    const replayManager = new ReplayManager();
-    const hitDetector = new PaddleHitDetector();
-    const playerController = new PlayerController();
-    const aiController = new AIController(CFG.aiDifficulty);
-    const cameraController = new CameraController(camera);
-    let lastHitValidity = "idle";
+    const replayFrames: Array<{ pos: THREE.Vector3; vel: THREE.Vector3; spin: THREE.Vector3 }> = [];
+    let replayIndex = 0;
     let replayT = 0;
-    let debugFrame = 0;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
-
-    const ballPhysics = new BallPhysics({
-      onEvent: (event) => {
-        if (event.type === "tableBounce") {
-          replayManager.recordEvent("tableBounce");
-          playFx(bounceFx);
-          handleTableBounce(event.side);
-        } else if (event.type === "netHit") {
-          replayManager.recordEvent("netHit");
-          netWobble.amount = 1;
-          netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
-          playFx(netFx);
-        } else if (event.type === "out") {
-          awardPoint(event.winner, event.reason);
-        }
-      }
-    });
-
 
     const awardPoint = (winner: PlayerSide, reason: PointReason) => {
       if (pointLock) return;
       pointLock = true;
       pointLockT = 0.86;
       replayT = 1.2;
-      replayManager.recordEvent("score");
-      replayManager.start(replayT);
+      replayIndex = Math.max(0, replayFrames.length - 1);
       const prev = hudRef.current;
-      const next = scoreManager.scorePoint(winner, reason);
-      currentServer = next.server;
+      const next = {
+        nearScore: prev.nearScore + (winner === "near" ? 1 : 0),
+        farScore: prev.farScore + (winner === "far" ? 1 : 0),
+      };
+      currentServer = chooseServerAfterScore(next.nearScore, next.farScore);
       aiServeWindup = 0;
       const reasonText =
         reason === "out" ? "Out" :
@@ -1206,9 +1268,11 @@ export default function MobileRealisticTableTennisGame() {
       const h = Math.max(1, host.clientHeight);
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-      cameraController.resize(w, h);
+      camera.aspect = w / h;
+      camera.fov = camera.aspect < 0.72 ? 48 : 42;
       camera.position.set(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
       camera.lookAt(cameraTarget);
+      camera.updateProjectionMatrix();
     };
     const applyGraphicsPreset = () => {
       const preset = graphicsId === 'performance'
@@ -1222,7 +1286,6 @@ export default function MobileRealisticTableTennisGame() {
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (replayManager.inputDisabled) return;
       if (currentServer === "far" && ball.lastHitBy === null) return;
       if (controlRef.current.active) return;
       canvas.setPointerCapture(e.pointerId);
@@ -1239,7 +1302,6 @@ export default function MobileRealisticTableTennisGame() {
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (replayManager.inputDisabled) return;
       const control = controlRef.current;
       if (!control.active || control.pointerId !== e.pointerId) return;
       control.lastX = e.clientX;
@@ -1257,7 +1319,6 @@ export default function MobileRealisticTableTennisGame() {
     };
 
     const onPointerUp = (e: PointerEvent) => {
-      if (replayManager.inputDisabled) return;
       const control = controlRef.current;
       if (!control.active || control.pointerId !== e.pointerId) return;
       canvas.releasePointerCapture(e.pointerId);
@@ -1296,7 +1357,7 @@ export default function MobileRealisticTableTennisGame() {
 
     function handleTableBounce(side: PlayerSide) {
       const hitter = ball.lastHitBy;
-      if (!hitter || pointLock) return;
+      if (!hitter) return;
       if (ball.phase.kind === "serve") {
         const server = ball.phase.server;
         if (ball.phase.stage === "own") {
@@ -1305,6 +1366,8 @@ export default function MobileRealisticTableTennisGame() {
             return;
           }
           ball.phase.stage = "opponent";
+          ball.bounceSide = side;
+          ball.bounceCount = 1;
           return;
         }
         if (side !== opposite(server)) {
@@ -1312,6 +1375,8 @@ export default function MobileRealisticTableTennisGame() {
           return;
         }
         ball.phase = { kind: "rally" };
+        ball.bounceSide = side;
+        ball.bounceCount = 1;
         return;
       }
 
@@ -1320,17 +1385,119 @@ export default function MobileRealisticTableTennisGame() {
         awardPoint(expected, "wrongSide");
         return;
       }
-      if (ball.sideBounceCounts[side] > 1) {
+      if (ball.bounceSide === side && ball.bounceCount >= 1) {
         awardPoint(hitter, "doubleBounce");
+        return;
       }
+      ball.bounceSide = side;
+      ball.bounceCount = 1;
     }
 
     function updateBall(dt: number) {
-      ballPhysics.update(ball, dt);
-      replayManager.record(ball.pos, ball.vel, ball.spin);
+      const prev = ball.pos.clone();
+      const magnus = ball.spin.clone().cross(ball.vel).multiplyScalar(CFG.magnus);
+      ball.vel.x += (magnus.x - ball.vel.x * CFG.airDrag) * dt;
+      ball.vel.y += (-CFG.gravity + magnus.y - ball.vel.y * CFG.airDrag * 0.45) * dt;
+      ball.vel.z += (magnus.z - ball.vel.z * CFG.airDrag) * dt;
+      ball.pos.addScaledVector(ball.vel, dt);
+      ball.spin.multiplyScalar(Math.exp(-CFG.spinDecay * dt));
+
+      if (ball.spin.length() > 0.01) {
+        const spinAxis = ball.spin.clone().normalize();
+        ball.mesh.rotateOnWorldAxis(spinAxis, ball.spin.length() * dt * 0.18);
+      } else if (ball.vel.length() > 0.02) {
+        const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x);
+        if (rollAxis.lengthSq() > 0.0001) ball.mesh.rotateOnWorldAxis(rollAxis.normalize(), (ball.vel.length() / CFG.ballR) * dt);
+      }
+
+      const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
+      if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
+        ball.pos.z = ball.pos.z >= 0 ? 0.024 : -0.024;
+        ball.vel.z *= -CFG.netFaceRestitution;
+        ball.vel.y = Math.max(0.12, Math.abs(ball.vel.y) * 0.24);
+        ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
+        netWobble.amount = 1;
+        netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
+        playFx(netFx);
+      }
+
+      const descendingThroughSurface = prev.y > BALL_SURFACE_Y && ball.pos.y <= BALL_SURFACE_Y && ball.vel.y < 0;
+      const nearNetTop = Math.abs(ball.pos.z) < 0.02 && ball.pos.y <= CFG.tableY + CFG.netH + CFG.ballR * 0.24 && ball.pos.y > CFG.tableY + CFG.netH - CFG.ballR * 0.5;
+      if (nearNetTop && ball.lastHitBy) {
+        ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
+        ball.vel.z *= -CFG.netTopRestitution;
+        ball.vel.y = Math.max(0.03, ball.vel.y * 0.3);
+        ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
+        netWobble.amount = 1;
+        netWobble.side = Math.sign(ball.pos.z);
+      }
+
+      for (const player of [nearPlayer, farPlayer]) {
+        const torsoCenter = player.pos.clone().setY(CFG.tableY + 0.34);
+        const delta = ball.pos.clone().sub(torsoCenter);
+        delta.y *= 1.18;
+        const collisionRadius = 0.22;
+        if (delta.lengthSq() > collisionRadius * collisionRadius) continue;
+        const normal = delta.lengthSq() > 0.0001 ? delta.normalize() : new THREE.Vector3(0, 0.4, player.side === "near" ? 1 : -1).normalize();
+        ball.pos.copy(torsoCenter).addScaledVector(normal, collisionRadius + 0.004);
+        const vn = ball.vel.dot(normal);
+        if (vn < 0) ball.vel.addScaledVector(normal, -(1 + 0.18) * vn);
+        reduceImpactPower(ball.vel, CFG.bodyPowerRetention, 0.26);
+        ball.vel.y = Math.max(ball.vel.y, 0.05);
+      }
+
+      if (descendingThroughSurface && isOverTable(ball.pos.x, ball.pos.z, 0)) {
+        ball.pos.y = BALL_SURFACE_Y;
+        const side = sideOfZ(ball.pos.z);
+        ball.vel.y = -ball.vel.y * CFG.tableRestitution;
+        ball.vel.x *= CFG.tableFriction;
+        ball.vel.z *= CFG.tableFriction;
+        ball.vel.z += ball.spin.x * 0.0016;
+        ball.vel.x += ball.spin.y * 0.0012;
+        ball.spin.x *= 0.82;
+        ball.spin.y *= 0.86;
+        playFx(bounceFx);
+        handleTableBounce(side);
+      }
+
+      if (ball.pos.y <= CFG.ballR && !isOverTable(ball.pos.x, ball.pos.z, 0.08) && ball.lastHitBy) {
+        const hitter = ball.lastHitBy;
+        const hadLegalBounce = ball.bounceSide === opposite(hitter) && ball.bounceCount >= 1;
+        awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
+      }
+      if (ball.pos.y <= CFG.ballR && !ball.lastHitBy) {
+        ball.pos.y = CFG.ballR;
+        ball.vel.y = Math.abs(ball.vel.y) * CFG.floorRestitution;
+        ball.vel.x *= CFG.floorFriction;
+        ball.vel.z *= CFG.floorFriction;
+      }
+      if (Math.abs(ball.pos.x) > TABLE_HALF_W + 0.68) {
+        ball.pos.x = Math.sign(ball.pos.x) * (TABLE_HALF_W + 0.68);
+        ball.vel.x *= -CFG.railRestitution;
+        ball.vel.z *= 0.94;
+      }
+      if (Math.abs(ball.pos.z) > TABLE_HALF_L + 1.22) {
+        ball.pos.z = Math.sign(ball.pos.z) * (TABLE_HALF_L + 1.22);
+        ball.vel.z *= -CFG.railRestitution;
+        ball.vel.x *= 0.94;
+      }
+
+      if ((Math.abs(ball.pos.x) > TABLE_HALF_W + 1.3 || Math.abs(ball.pos.z) > TABLE_HALF_L + 1.8 || ball.pos.y < -0.7) && ball.lastHitBy) {
+        const hitter = ball.lastHitBy;
+        const hadLegalBounce = ball.bounceSide === opposite(hitter) && ball.bounceCount >= 1;
+        awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
+      }
+
+      ball.mesh.position.copy(ball.pos);
+      replayFrames.push({ pos: ball.pos.clone(), vel: ball.vel.clone(), spin: ball.spin.clone() });
+      if (replayFrames.length > 220) replayFrames.shift();
     }
 
     function updateAi(dt: number) {
+      const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05);
+
       if (ball.lastHitBy === null && ball.phase.kind === "serve" && ball.phase.server === "far") {
         farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 1.05), 0.045);
         aiServeWindup += dt;
@@ -1342,11 +1509,22 @@ export default function MobileRealisticTableTennisGame() {
         return;
       }
 
-      const aiRead = aiController.update(farPlayer, ball, ballPhysics.debug.predictedLanding, dt);
-      if (aiRead.incoming && aiRead.reachable && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
-        const plan = aiController.makeTarget(nearPlayer.pos.x, ball);
+      const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.22;
+      if (incoming) {
+        const landing = predictNextTableBounce(ball);
+        const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.42 : 0.32);
+        farPlayer.target.x = clamp(landing.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.45, -TABLE_HALF_L - 0.42);
+      } else {
+        farPlayer.target.lerp(home, 0.04);
+      }
+
+      if (incoming && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        const plan = makeAiTarget(nearPlayer, ball);
         const action: StrokeAction = ball.pos.x - farPlayer.pos.x > 0.1 || plan.tactic === "push" ? "backhand" : "forehand";
         startSwing(farPlayer, plan, action);
+        const label = plan.tactic === "loop" ? "AI loop" : plan.tactic === "push" ? "AI short push" : plan.tactic === "wide" ? "AI wide angle" : plan.tactic === "body" ? "AI body shot" : "AI drive";
+        setHudSafe({ status: label });
       }
     }
 
@@ -1357,43 +1535,17 @@ export default function MobileRealisticTableTennisGame() {
           if (player.swingT >= CFG.serveContactT) {
             playFx(shotFx);
             performHit(player, ball, player.desiredHit, true);
-            ballPhysics.reset(ball, player.side === "near" ? "paddleHitPlayer" : "paddleHitAI");
-            replayManager.recordEvent("paddleHit");
-            lastHitValidity = "serve";
             setHudSafe({ status: player.side === "near" ? "Serve: own side then AI side" : "AI served legally" });
           }
           continue;
         }
-        const pose = tableTennisPose(player, ball);
-        const result = hitDetector.detect({
-          side: player.side,
-          paddleWorldPosition: pose.paddleCenter,
-          paddleForwardNormal: pose.faceNormal,
-          ball,
-          swingT: player.swingT,
-          desiredHit: player.desiredHit,
-          action: player.action,
-          power: player.side === "far" ? CFG.aiDifficulty.shotPower : 1,
-          accuracy: player.side === "far" ? CFG.aiDifficulty.accuracy : 0.95,
-        });
-        lastHitValidity = result.valid ? "valid" : result.reason ?? "invalid";
-        if (result.valid && result.velocity && result.spin) {
+        if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
+        if (canReachBall(player, ball)) {
           playFx(shotFx);
-          ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
-          ball.vel.copy(result.velocity);
-          ball.spin.copy(result.spin);
-          ball.phase = { kind: "rally" };
-          ball.lastHitBy = player.side;
-          ball.bounceSide = null;
-          ball.bounceCount = 0;
-          ball.sideBounceCounts = { near: 0, far: 0 };
-          ball.stateName = player.side === "near" ? "paddleHitPlayer" : "paddleHitAI";
-          player.cooldown = 0.2;
-          player.hitThisSwing = true;
-          replayManager.recordEvent("paddleHit");
-          setHudSafe({ status: result.label ?? (player.side === "near" ? "Return sent" : "AI returned") });
+          performHit(player, ball, player.desiredHit, false);
+          setHudSafe({ status: player.side === "near" ? "Return sent" : "AI returned" });
         } else if (player.side === "near" && player.swingT > CFG.hitWindowEnd - 0.02) {
-          setHudSafe({ status: "Too early, wrong angle, or too far from ball" });
+          setHudSafe({ status: "Too early or too far from ball" });
         }
       }
     }
@@ -1406,9 +1558,10 @@ export default function MobileRealisticTableTennisGame() {
       last = now;
       if (replayT > 0) {
         replayT = Math.max(0, replayT - dtBase);
-        setHudSafe({ status: replayManager.statusText || "VAR Replay: slow motion review" });
-        const snap = replayManager.update(dtBase);
-        if (snap) {
+        setHudSafe({ status: "VAR Replay: slow motion review" });
+        if (replayFrames.length > 0) {
+          replayIndex = Math.max(0, replayIndex - 1);
+          const snap = replayFrames[replayIndex];
           ball.pos.copy(snap.pos);
           ball.vel.copy(snap.vel);
           ball.spin.copy(snap.spin);
@@ -1427,7 +1580,6 @@ export default function MobileRealisticTableTennisGame() {
           nearPlayer.target.set(0, 0, TABLE_HALF_L + 1.05);
           farPlayer.target.set(0, 0, -TABLE_HALF_L - 1.05);
           resetBallForServe(ball, players[currentServer]);
-          ballPhysics.reset(ball, "serve");
           aiServeWindup = 0;
           setHudSafe({ status: currentServer === "near" ? "Your serve: swipe up" : "AI is serving", power: 0, spin: 0 });
         }
@@ -1438,8 +1590,8 @@ export default function MobileRealisticTableTennisGame() {
         if (replayT <= 0 && (!lockedByServeToss || ball.lastHitBy !== null)) updateBall(dt);
       }
 
-      playerController.update(nearPlayer, ball, dt);
-      playerController.update(farPlayer, ball, dt);
+      updatePlayerMotion(nearPlayer, ball, dt);
+      updatePlayerMotion(farPlayer, ball, dt);
       updatePoseAndPaddle(nearPlayer, ball);
       updatePoseAndPaddle(farPlayer, ball);
 
@@ -1454,15 +1606,10 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      cameraController.update(ball.pos, nearPlayer.pos, dt);
-      if (debugOverlay && debugFrame++ % 12 === 0) {
-        setDebugInfo({
-          ballState: ball.stateName,
-          bounceCount: ball.bounceCount,
-          hitValidity: lastHitValidity,
-          predictedLanding: { x: ballPhysics.debug.predictedLanding.x, y: ballPhysics.debug.predictedLanding.y, z: ballPhysics.debug.predictedLanding.z },
-        });
-      }
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+      camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
+      camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
 
@@ -1499,13 +1646,13 @@ export default function MobileRealisticTableTennisGame() {
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
-          style={{ position: "absolute", top: 22, right: 18, pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.32)", background: "rgba(5,10,15,0.78)", color: "#fff", fontSize: 20, fontWeight: 800 }}
+          style={{ position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.32)", background: "rgba(5,10,15,0.78)", color: "#fff", fontSize: 20, fontWeight: 800 }}
           aria-label={menuOpen ? "Close game settings menu" : "Open game settings menu"}
         >
           ☰
         </button>
         {menuOpen && (
-          <div style={{ position: "absolute", top: 72, right: 14, pointerEvents: "auto", width: 248, maxHeight: "68vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
+          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, maxHeight: "68vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
             <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginBottom: 8 }}>Graphics</div>
             {[
               { id: "performance", label: "Performance" },
@@ -1532,15 +1679,10 @@ export default function MobileRealisticTableTennisGame() {
             ))}
           </div>
         )}
-        <UIOverlay
-          nearScore={hud.nearScore}
-          farScore={hud.farScore}
-          status={hud.status}
-          power={hud.power}
-          spin={hud.spin}
-          debug={debugOverlay}
-          debugState={debugInfo}
-        />
+        <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
+          You {hud.nearScore} — {hud.farScore} AI
+          <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
+        </div>
       </div>
     </div>
   );
