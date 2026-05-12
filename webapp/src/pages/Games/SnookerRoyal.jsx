@@ -6170,57 +6170,6 @@ function reflectRails(ball) {
         tangent: bestImpact.tangent.clone()
       };
     }
-
-    // Final containment guard for the GLB-derived rail map.  The exact hull
-    // segments above own normal cushion/jaw contacts, while this only catches
-    // rare high-speed tunnelling or microscopic seams so the cue ball cannot
-    // leave the physical table outline.
-    if (!inCaptureZone) {
-      let collided = null;
-      let collisionNormal = null;
-      if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
-        const overshoot = -railLimitX - ball.pos.x;
-        ball.pos.x = -railLimitX + overshoot;
-        ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-        collided = nearPocket ? 'glb-seam' : 'rail';
-        collisionNormal = new THREE.Vector2(1, 0);
-      }
-      if (ball.pos.x > railLimitX && ball.vel.x > 0) {
-        const overshoot = ball.pos.x - railLimitX;
-        ball.pos.x = railLimitX - overshoot;
-        ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-        collided = nearPocket ? 'glb-seam' : 'rail';
-        collisionNormal = new THREE.Vector2(-1, 0);
-      }
-      if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
-        const overshoot = -railLimitY - ball.pos.y;
-        ball.pos.y = -railLimitY + overshoot;
-        ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-        collided = nearPocket ? 'glb-seam' : 'rail';
-        collisionNormal = new THREE.Vector2(0, 1);
-      }
-      if (ball.pos.y > railLimitY && ball.vel.y > 0) {
-        const overshoot = ball.pos.y - railLimitY;
-        ball.pos.y = railLimitY - overshoot;
-        ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-        collided = nearPocket ? 'glb-seam' : 'rail';
-        collisionNormal = new THREE.Vector2(0, -1);
-      }
-      if (collided) {
-        const stamp =
-          typeof performance !== 'undefined' && performance.now
-            ? performance.now()
-            : Date.now();
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = collided;
-        const normal = collisionNormal ?? new THREE.Vector2(0, 1);
-        return {
-          type: collided,
-          normal,
-          tangent: new THREE.Vector2(-normal.y, normal.x)
-        };
-      }
-    }
   }
   if (!hasCushionSegments) {
     for (const { sx, sy } of CORNER_SIGNS) {
@@ -10882,111 +10831,19 @@ function Table3D(
 
   const applyOpenSourceCushionPhysicsFromModel = (model) => {
     const segments = [];
-    const quantize = (value) =>
-      Math.round(value / Math.max(MICRO_EPS, BALL_R * 0.001));
-    const addSegment = (start, end, type = 'rail') => {
-      if (
-        !start ||
-        !end ||
-        start.distanceToSquared(end) < Math.max(1e-6, BALL_R * BALL_R * 0.0004)
-      ) {
-        return;
-      }
+    const addSegment = (start, end, type = 'glb-cushion') => {
+      if (!start || !end || start.distanceToSquared(end) < 1e-6) return;
       const dir = end.clone().sub(start);
       const normal = new THREE.Vector2(-dir.y, dir.x).normalize();
       const midpoint = start.clone().add(end).multiplyScalar(0.5);
       if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
-      segments.push({ start: start.clone(), end: end.clone(), type, normal });
-    };
-    const cross = (origin, a, b) =>
-      (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
-    const convexHull = (points) => {
-      if (points.length <= 2) return points.slice();
-      const sorted = points
-        .slice()
-        .sort((a, b) => a.x - b.x || a.y - b.y);
-      const lower = [];
-      sorted.forEach((point) => {
-        while (
-          lower.length >= 2 &&
-          cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
-        ) {
-          lower.pop();
-        }
-        lower.push(point);
-      });
-      const upper = [];
-      for (let i = sorted.length - 1; i >= 0; i -= 1) {
-        const point = sorted[i];
-        while (
-          upper.length >= 2 &&
-          cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
-        ) {
-          upper.pop();
-        }
-        upper.push(point);
-      }
-      lower.pop();
-      upper.pop();
-      return lower.concat(upper);
-    };
-    const collectTopDownPoints = (node) => {
-      const geometry = node.geometry;
-      const position = geometry?.attributes?.position;
-      if (!position) return [];
-      const points = [];
-      const seen = new Set();
-      const localPoint = new THREE.Vector3();
-      const worldPoint = new THREE.Vector3();
-      const tablePoint = new THREE.Vector3();
-      for (let i = 0; i < position.count; i += 1) {
-        localPoint.fromBufferAttribute(position, i);
-        node.localToWorld(worldPoint.copy(localPoint));
-        table.worldToLocal(tablePoint.copy(worldPoint));
-        const key = `${quantize(tablePoint.x)}:${quantize(tablePoint.z)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        points.push(new THREE.Vector2(tablePoint.x, tablePoint.z));
-      }
-      return points;
-    };
-    const addFieldFacingHullSegments = (node) => {
-      const points = collectTopDownPoints(node);
-      if (points.length < 3) return false;
-      const hull = convexHull(points);
-      if (hull.length < 2) return false;
-      const localBox = new THREE.Box3();
-      points.forEach((point) =>
-        localBox.expandByPoint(new THREE.Vector3(point.x, 0, point.y))
-      );
-      const size = localBox.getSize(new THREE.Vector3());
-      const center = localBox.getCenter(new THREE.Vector3());
-      const horizontal = size.x >= size.z;
-      const side = horizontal ? Math.sign(center.z) || 1 : Math.sign(center.x) || 1;
-      const tolerance = Math.max(BALL_R * 0.08, MICRO_EPS * 8);
-      let added = 0;
-      for (let i = 0; i < hull.length; i += 1) {
-        const start = hull[i];
-        const end = hull[(i + 1) % hull.length];
-        const midpoint = start.clone().add(end).multiplyScalar(0.5);
-        const frontDistance = horizontal
-          ? (midpoint.y - center.z) * side
-          : (midpoint.x - center.x) * side;
-        if (frontDistance > tolerance) continue;
-        const dx = Math.abs(end.x - start.x);
-        const dz = Math.abs(end.y - start.y);
-        const axisAligned = dx <= tolerance || dz <= tolerance;
-        addSegment(start, end, axisAligned ? 'rail' : 'cut');
-        added += 1;
-      }
-      return added > 0;
+      segments.push({ start, end, type, normal });
     };
 
     model.updateMatrixWorld(true);
     table.updateMatrixWorld(true);
     model.traverse((node) => {
       if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cushion') return;
-      if (addFieldFacingHullSegments(node)) return;
       const worldBox = new THREE.Box3().setFromObject(node);
       if (worldBox.isEmpty()) return;
       const corners = [
@@ -11021,7 +10878,7 @@ function Table3D(
       table.userData.cushionSegments = nextSegments;
       CUSHION_SEGMENTS = nextSegments;
       table.userData.openSourcePhysics = {
-        source: 'glb-cushion-hulls',
+        source: 'glb-cushion-bounds',
         segmentCount: segments.length,
         proceduralJawSegmentCount: jaws.length
       };
