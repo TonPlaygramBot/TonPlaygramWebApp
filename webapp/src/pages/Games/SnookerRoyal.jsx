@@ -17,7 +17,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
-  resolveSnookerCushionBoundaryPolyline,
   resolveSnookerGlbFitTransform,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
@@ -6171,40 +6170,6 @@ function reflectRails(ball) {
         tangent: bestImpact.tangent.clone()
       };
     }
-    if (!inCaptureZone) {
-      let guardNormal = null;
-      if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
-        const overshoot = -railLimitX - ball.pos.x;
-        ball.pos.x = -railLimitX + overshoot;
-        ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-        guardNormal = new THREE.Vector2(1, 0);
-      } else if (ball.pos.x > railLimitX && ball.vel.x > 0) {
-        const overshoot = ball.pos.x - railLimitX;
-        ball.pos.x = railLimitX - overshoot;
-        ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-        guardNormal = new THREE.Vector2(-1, 0);
-      } else if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
-        const overshoot = -railLimitY - ball.pos.y;
-        ball.pos.y = -railLimitY + overshoot;
-        ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-        guardNormal = new THREE.Vector2(0, 1);
-      } else if (ball.pos.y > railLimitY && ball.vel.y > 0) {
-        const overshoot = ball.pos.y - railLimitY;
-        ball.pos.y = railLimitY - overshoot;
-        ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-        guardNormal = new THREE.Vector2(0, -1);
-      }
-      if (guardNormal) {
-        const tangent = new THREE.Vector2(-guardNormal.y, guardNormal.x);
-        const stamp =
-          typeof performance !== 'undefined' && performance.now
-            ? performance.now()
-            : Date.now();
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = 'glb-rail-guard';
-        return { type: 'rail', normal: guardNormal, tangent };
-      }
-    }
   }
   if (!hasCushionSegments) {
     for (const { sx, sy } of CORNER_SIGNS) {
@@ -10874,30 +10839,9 @@ function Table3D(
       if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
       segments.push({ start, end, type, normal });
     };
-    const addPolyline = (polyline) => {
-      for (let i = 1; i < polyline.length; i += 1) {
-        addSegment(
-          new THREE.Vector2(polyline[i - 1].x, polyline[i - 1].z),
-          new THREE.Vector2(polyline[i].x, polyline[i].z)
-        );
-      }
-    };
-    const addBoxFallbackSegment = (localBox) => {
-      const size = localBox.getSize(new THREE.Vector3());
-      const center = localBox.getCenter(new THREE.Vector3());
-      if (size.x >= size.z) {
-        const innerZ = center.z >= 0 ? localBox.min.z : localBox.max.z;
-        addSegment(new THREE.Vector2(localBox.min.x, innerZ), new THREE.Vector2(localBox.max.x, innerZ));
-      } else {
-        const innerX = center.x >= 0 ? localBox.min.x : localBox.max.x;
-        addSegment(new THREE.Vector2(innerX, localBox.min.z), new THREE.Vector2(innerX, localBox.max.z));
-      }
-    };
 
     model.updateMatrixWorld(true);
     table.updateMatrixWorld(true);
-    const vertex = new THREE.Vector3();
-    const worldVertex = new THREE.Vector3();
     model.traverse((node) => {
       if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cushion') return;
       const worldBox = new THREE.Box3().setFromObject(node);
@@ -10916,28 +10860,12 @@ function Table3D(
       corners.forEach((corner) => localBox.expandByPoint(table.worldToLocal(corner.clone())));
       const size = localBox.getSize(new THREE.Vector3());
       const center = localBox.getCenter(new THREE.Vector3());
-      const horizontal = size.x >= size.z;
-      const side = horizontal ? (center.z >= 0 ? 1 : -1) : center.x >= 0 ? 1 : -1;
-      const position = node.geometry?.attributes?.position;
-      const localPoints = [];
-      if (position) {
-        for (let i = 0; i < position.count; i += 1) {
-          vertex.fromBufferAttribute(position, i);
-          node.localToWorld(worldVertex.copy(vertex));
-          table.worldToLocal(worldVertex);
-          localPoints.push({ x: worldVertex.x, z: worldVertex.z });
-        }
-      }
-      const polyline = resolveSnookerCushionBoundaryPolyline(localPoints, {
-        horizontal,
-        side,
-        binSize: BALL_R * 0.22,
-        minPoints: 5
-      });
-      if (polyline.length >= 5) {
-        addPolyline(polyline);
+      if (size.x >= size.z) {
+        const innerZ = center.z >= 0 ? localBox.min.z : localBox.max.z;
+        addSegment(new THREE.Vector2(localBox.min.x, innerZ), new THREE.Vector2(localBox.max.x, innerZ));
       } else {
-        addBoxFallbackSegment(localBox);
+        const innerX = center.x >= 0 ? localBox.min.x : localBox.max.x;
+        addSegment(new THREE.Vector2(innerX, localBox.min.z), new THREE.Vector2(innerX, localBox.max.z));
       }
     });
 
@@ -10949,28 +10877,10 @@ function Table3D(
       const nextSegments = [...segments, ...jaws];
       table.userData.cushionSegments = nextSegments;
       CUSHION_SEGMENTS = nextSegments;
-      let minAbsX = Infinity;
-      let minAbsZ = Infinity;
-      segments.forEach((segment) => {
-        const midpoint = segment.start.clone().add(segment.end).multiplyScalar(0.5);
-        if (Math.abs(segment.normal.x) >= Math.abs(segment.normal.y)) {
-          minAbsX = Math.min(minAbsX, Math.abs(midpoint.x));
-        } else {
-          minAbsZ = Math.min(minAbsZ, Math.abs(midpoint.y));
-        }
-      });
-      if (minAbsX !== Infinity) {
-        RAIL_LIMIT_X = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
-      }
-      if (minAbsZ !== Infinity) {
-        RAIL_LIMIT_Y = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
-      }
       table.userData.openSourcePhysics = {
-        source: 'glb-cushion-vertex-boundary',
+        source: 'glb-cushion-bounds',
         segmentCount: segments.length,
-        proceduralJawSegmentCount: jaws.length,
-        railLimitX: RAIL_LIMIT_X,
-        railLimitY: RAIL_LIMIT_Y
+        proceduralJawSegmentCount: jaws.length
       };
       return true;
     }
