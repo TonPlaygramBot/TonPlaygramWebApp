@@ -1089,7 +1089,7 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to Pool Royale jaw geometry
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.02; // slightly expand jaw collision arcs so balls cannot slip past the GLB pocket lips
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -6068,7 +6068,7 @@ function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
-  const cutRadius = Math.min(railRadius, CUSHION_CUT_CONTACT_RADIUS);
+  const cutRadius = Math.max(railRadius, CUSHION_CUT_CONTACT_RADIUS);
   const railLimitX = limX + (BALL_R - railRadius);
   const railLimitY = limY + (BALL_R - railRadius);
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -6079,28 +6079,32 @@ function reflectRails(ball) {
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   const hasCushionSegments =
     Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
-  const jawContactRadius = railRadius * 0.96;
+  const jawContactRadius = railRadius;
   if (hasCushionSegments) {
-    const nearPocketRadius =
-      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + CUSHION_CUT_NEAR_POCKET_BUFFER;
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
+    let nearestPocketIndex = 0;
     centers.forEach((center, index) => {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
         nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+        nearestPocketIndex = index;
       }
     });
-    const nearPocket = nearestPocketDist < nearPocketRadius;
     const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
+    const inGuardZone =
+      nearestPocketDist <
+      (nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE);
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
-      if (nearPocket && segment.type === 'rail') continue;
-      if (inCaptureZone && (segment.type === 'cut' || segment.type === 'jaw')) continue;
+      // Keep GLB rail/jaw segments active around pocket mouths. The previous near-pocket
+      // bypass left small corridors between the physical GLB cushion nose and the
+      // procedural capture zone, allowing the cue ball to escape the table.
+      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
@@ -10834,16 +10838,104 @@ function Table3D(
     const addSegment = (start, end, type = 'glb-cushion') => {
       if (!start || !end || start.distanceToSquared(end) < 1e-6) return;
       const dir = end.clone().sub(start);
+      if (dir.lengthSq() < 1e-8) return;
       const normal = new THREE.Vector2(-dir.y, dir.x).normalize();
       const midpoint = start.clone().add(end).multiplyScalar(0.5);
       if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
       segments.push({ start, end, type, normal });
+    };
+    const cross = (origin, a, b) =>
+      (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+    const buildConvexHull = (points) => {
+      const unique = [];
+      points.forEach((point) => {
+        if (!unique.some((existing) => existing.distanceToSquared(point) < 1e-8)) {
+          unique.push(point.clone());
+        }
+      });
+      if (unique.length < 3) return unique;
+      unique.sort((a, b) => (Math.abs(a.x - b.x) > MICRO_EPS ? a.x - b.x : a.y - b.y));
+      const lower = [];
+      unique.forEach((point) => {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
+          lower.pop();
+        }
+        lower.push(point);
+      });
+      const upper = [];
+      for (let i = unique.length - 1; i >= 0; i -= 1) {
+        const point = unique[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
+          upper.pop();
+        }
+        upper.push(point);
+      }
+      lower.pop();
+      upper.pop();
+      return lower.concat(upper);
+    };
+    const collectProjectedGeometryPoints = (node) => {
+      const geometry = node.geometry;
+      const position = geometry?.attributes?.position;
+      if (!geometry || !position) return [];
+      const points = [];
+      const localPoint = new THREE.Vector3();
+      const worldPoint = new THREE.Vector3();
+      for (let i = 0; i < position.count; i += 1) {
+        localPoint.fromBufferAttribute(position, i);
+        node.localToWorld(worldPoint.copy(localPoint));
+        table.worldToLocal(worldPoint);
+        points.push(new THREE.Vector2(worldPoint.x, worldPoint.z));
+      }
+      return points;
+    };
+    const addHullSegmentsForMesh = (node) => {
+      const points = collectProjectedGeometryPoints(node);
+      const hull = buildConvexHull(points);
+      if (hull.length < 3) return false;
+      const meshCenter = points
+        .reduce((acc, point) => acc.add(point), new THREE.Vector2())
+        .multiplyScalar(1 / Math.max(points.length, 1));
+      const meshCenterRadius = meshCenter.length();
+      let added = 0;
+      for (let i = 0; i < hull.length; i += 1) {
+        const start = hull[i];
+        const end = hull[(i + 1) % hull.length];
+        if (start.distanceToSquared(end) < 1e-6) continue;
+        const dir = end.clone().sub(start);
+        const midpoint = start.clone().add(end).multiplyScalar(0.5);
+        const inward = midpoint.clone().multiplyScalar(-1);
+        if (inward.lengthSq() < 1e-8) continue;
+        inward.normalize();
+        const normalA = new THREE.Vector2(-dir.y, dir.x).normalize();
+        const normalB = normalA.clone().multiplyScalar(-1);
+        const normal = normalA.dot(inward) >= normalB.dot(inward) ? normalA : normalB;
+        // Use the true GLB cushion/jaw footprint rather than its AABB. Edges whose
+        // normals point into the playable field and sit on the field-facing half of
+        // the mesh are the cushion noses and pocket-jaw lips; outer/back edges are
+        // ignored so the solver matches the visible table instead of the table body.
+        if (normal.dot(inward) < 0.18) continue;
+        if (midpoint.length() > meshCenterRadius + BALL_R * 0.35) continue;
+        const axisAlignment = Math.max(
+          Math.abs(dir.x) / Math.max(dir.length(), MICRO_EPS),
+          Math.abs(dir.y) / Math.max(dir.length(), MICRO_EPS)
+        );
+        segments.push({
+          start: start.clone(),
+          end: end.clone(),
+          type: axisAlignment > 0.985 ? 'glb-cushion' : 'cut',
+          normal: normal.clone()
+        });
+        added += 1;
+      }
+      return added > 0;
     };
 
     model.updateMatrixWorld(true);
     table.updateMatrixWorld(true);
     model.traverse((node) => {
       if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cushion') return;
+      if (addHullSegmentsForMesh(node)) return;
       const worldBox = new THREE.Box3().setFromObject(node);
       if (worldBox.isEmpty()) return;
       const corners = [
@@ -10870,15 +10962,14 @@ function Table3D(
     });
 
     if (segments.length >= 4) {
-      const jaws =
-        keepProceduralRailDecor && Array.isArray(table.userData?.cushionSegments)
-          ? table.userData.cushionSegments.filter((segment) => segment?.type === 'jaw')
-          : [];
+      const jaws = Array.isArray(table.userData?.cushionSegments)
+        ? table.userData.cushionSegments.filter((segment) => segment?.type === 'jaw')
+        : [];
       const nextSegments = [...segments, ...jaws];
       table.userData.cushionSegments = nextSegments;
       CUSHION_SEGMENTS = nextSegments;
       table.userData.openSourcePhysics = {
-        source: 'glb-cushion-bounds',
+        source: 'glb-cushion-hulls',
         segmentCount: segments.length,
         proceduralJawSegmentCount: jaws.length
       };
