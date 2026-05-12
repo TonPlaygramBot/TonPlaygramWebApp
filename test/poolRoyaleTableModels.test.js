@@ -19,17 +19,33 @@ describe('Pool Royale table models', () => {
 
     assert.ok(showood, 'Showood table model must be configured');
     assert.equal(showood.kind, 'gltf');
+    assert.equal(showood.assetUrl, '/assets/models/pool-royale/showood/seven_foot_showood.glb');
+    assert.equal(
+      showood.fallbackAssetUrl,
+      'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+    );
     assert.equal(showood.useOriginalLayoutSurfaces, true);
     assert.equal(showood.fitScale, 1);
     assert.equal(showood.clothRepeatScale, 7.5);
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
     assert.equal(showood.tintOriginalTrimGold, false);
-    assert.equal(showood.lowerBaseHeightScale, 0.78);
+    assert.equal(showood.lowerBaseHeightScale, 0.68);
     assert.equal(showood.legLengthScale, 0.84);
-    assert.equal(showood.baseFootWidthScale, 1.42);
-    assert.deepEqual(showood.chromeMaterialSurfaceNames, ['diamonds', 'railSight', 'sideWoodApron', 'apron']);
+    assert.equal(showood.baseFootWidthScale, 1.68);
+    assert.deepEqual(showood.chromeMaterialSurfaceNames, [
+      'diamonds',
+      'railSight',
+      'sideWoodApron',
+      'apron'
+    ]);
     assert.deepEqual(showood.blackMaterialSurfaceNames, []);
+    assert.deepEqual(showood.clothMaterialSurfaceNames, [
+      'pocketCutoutEdge',
+      'pocketCut',
+      'pocketMouth',
+      'pocketNotch'
+    ]);
     assert.equal(showood.forceGeneratedChromePlates, false);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
