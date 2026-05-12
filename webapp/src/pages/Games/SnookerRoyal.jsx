@@ -10831,141 +10831,42 @@ function Table3D(
 
   const applyOpenSourceCushionPhysicsFromModel = (model) => {
     const segments = [];
-    const projectedPoint = new THREE.Vector3();
-    const localPoint = new THREE.Vector3();
-    const tableCenter = new THREE.Vector2(0, 0);
-    const precision = Math.max(MICRO_EPS, BALL_R * 0.015);
-    const pocketInfluence = Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 2.8;
-
-    const classifyGlbCushionSegment = (midpoint) => {
-      let nearestPocketDist = Infinity;
-      pocketCenters().forEach((center) => {
-        nearestPocketDist = Math.min(nearestPocketDist, midpoint.distanceTo(center));
-      });
-      return nearestPocketDist <= pocketInfluence ? 'jaw' : 'glb-cushion';
-    };
-
-    const addSegment = (start, end, type = null) => {
+    const addSegment = (start, end, type = 'glb-cushion') => {
       if (!start || !end || start.distanceToSquared(end) < 1e-6) return;
       const dir = end.clone().sub(start);
       const normal = new THREE.Vector2(-dir.y, dir.x).normalize();
       const midpoint = start.clone().add(end).multiplyScalar(0.5);
-      if (normal.dot(tableCenter.clone().sub(midpoint)) < 0) normal.multiplyScalar(-1);
-      segments.push({
-        start,
-        end,
-        type: type ?? classifyGlbCushionSegment(midpoint),
-        normal
-      });
-    };
-
-    const makePointKey = (point) =>
-      `${Math.round(point.x / precision)}:${Math.round(point.y / precision)}`;
-
-    const cross = (origin, a, b) =>
-      (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
-
-    const convexHull = (points) => {
-      if (points.length <= 3) return points;
-      const sorted = [...points].sort((a, b) =>
-        Math.abs(a.x - b.x) > precision ? a.x - b.x : a.y - b.y
-      );
-      const lower = [];
-      sorted.forEach((point) => {
-        while (
-          lower.length >= 2 &&
-          cross(lower[lower.length - 2], lower[lower.length - 1], point) <= precision
-        ) {
-          lower.pop();
-        }
-        lower.push(point);
-      });
-      const upper = [];
-      for (let i = sorted.length - 1; i >= 0; i -= 1) {
-        const point = sorted[i];
-        while (
-          upper.length >= 2 &&
-          cross(upper[upper.length - 2], upper[upper.length - 1], point) <= precision
-        ) {
-          upper.pop();
-        }
-        upper.push(point);
-      }
-      lower.pop();
-      upper.pop();
-      return lower.concat(upper);
-    };
-
-    const projectMeshCushionFootprints = (node) => {
-      const geometry = node.geometry;
-      const position = geometry?.attributes?.position;
-      if (!position?.count) return [];
-      const index = geometry.index;
-      const pointsByKey = new Map();
-      const keyByIndex = new Array(position.count);
-      for (let i = 0; i < position.count; i += 1) {
-        localPoint.fromBufferAttribute(position, i);
-        node.localToWorld(projectedPoint.copy(localPoint));
-        table.worldToLocal(projectedPoint);
-        const point = new THREE.Vector2(projectedPoint.x, projectedPoint.z);
-        const key = makePointKey(point);
-        keyByIndex[i] = key;
-        if (!pointsByKey.has(key)) pointsByKey.set(key, point);
-      }
-
-      const parent = new Map();
-      const find = (key) => {
-        let root = parent.get(key) ?? key;
-        if (root !== key) {
-          root = find(root);
-          parent.set(key, root);
-        }
-        return root;
-      };
-      const union = (a, b) => {
-        if (!a || !b) return;
-        if (!parent.has(a)) parent.set(a, a);
-        if (!parent.has(b)) parent.set(b, b);
-        const rootA = find(a);
-        const rootB = find(b);
-        if (rootA !== rootB) parent.set(rootB, rootA);
-      };
-      pointsByKey.forEach((_, key) => parent.set(key, key));
-      const getVertexIndex = (i) => (index ? index.getX(i) : i);
-      const indexCount = index ? index.count : position.count;
-      for (let i = 0; i + 2 < indexCount; i += 3) {
-        const a = keyByIndex[getVertexIndex(i)];
-        const b = keyByIndex[getVertexIndex(i + 1)];
-        const c = keyByIndex[getVertexIndex(i + 2)];
-        union(a, b);
-        union(b, c);
-        union(c, a);
-      }
-
-      const components = new Map();
-      pointsByKey.forEach((point, key) => {
-        const root = find(key);
-        if (!components.has(root)) components.set(root, []);
-        components.get(root).push(point);
-      });
-      const componentHulls = [...components.values()]
-        .filter((points) => points.length >= 3)
-        .map((points) => convexHull(points))
-        .filter((hull) => hull.length >= 3);
-      return componentHulls.length
-        ? componentHulls
-        : [convexHull([...pointsByKey.values()])];
+      if (normal.dot(midpoint.clone().multiplyScalar(-1)) < 0) normal.multiplyScalar(-1);
+      segments.push({ start, end, type, normal });
     };
 
     model.updateMatrixWorld(true);
     table.updateMatrixWorld(true);
     model.traverse((node) => {
       if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cushion') return;
-      projectMeshCushionFootprints(node).forEach((hull) => {
-        for (let i = 0; i < hull.length; i += 1) {
-          addSegment(hull[i].clone(), hull[(i + 1) % hull.length].clone());
-        }
-      });
+      const worldBox = new THREE.Box3().setFromObject(node);
+      if (worldBox.isEmpty()) return;
+      const corners = [
+        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.max.z)
+      ];
+      const localBox = new THREE.Box3();
+      corners.forEach((corner) => localBox.expandByPoint(table.worldToLocal(corner.clone())));
+      const size = localBox.getSize(new THREE.Vector3());
+      const center = localBox.getCenter(new THREE.Vector3());
+      if (size.x >= size.z) {
+        const innerZ = center.z >= 0 ? localBox.min.z : localBox.max.z;
+        addSegment(new THREE.Vector2(localBox.min.x, innerZ), new THREE.Vector2(localBox.max.x, innerZ));
+      } else {
+        const innerX = center.x >= 0 ? localBox.min.x : localBox.max.x;
+        addSegment(new THREE.Vector2(innerX, localBox.min.z), new THREE.Vector2(innerX, localBox.max.z));
+      }
     });
 
     if (segments.length >= 4) {
@@ -10976,38 +10877,10 @@ function Table3D(
       const nextSegments = [...segments, ...jaws];
       table.userData.cushionSegments = nextSegments;
       CUSHION_SEGMENTS = nextSegments;
-      const railXs = nextSegments
-        .filter(
-          (segment) =>
-            segment?.normal && Math.abs(segment.normal.x) > Math.abs(segment.normal.y)
-        )
-        .map(
-          (segment) =>
-            Math.abs((segment.start.x + segment.end.x) * 0.5) -
-            BALL_R -
-            RAIL_LIMIT_PADDING
-        )
-        .filter((value) => Number.isFinite(value) && value > 0);
-      const railZs = nextSegments
-        .filter(
-          (segment) =>
-            segment?.normal && Math.abs(segment.normal.y) >= Math.abs(segment.normal.x)
-        )
-        .map(
-          (segment) =>
-            Math.abs((segment.start.y + segment.end.y) * 0.5) -
-            BALL_R -
-            RAIL_LIMIT_PADDING
-        )
-        .filter((value) => Number.isFinite(value) && value > 0);
-      if (railXs.length) RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, Math.min(...railXs));
-      if (railZs.length) RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, Math.min(...railZs));
       table.userData.openSourcePhysics = {
-        source: 'glb-cushion-mesh-footprint',
+        source: 'glb-cushion-bounds',
         segmentCount: segments.length,
-        proceduralJawSegmentCount: jaws.length,
-        railLimitX: RAIL_LIMIT_X,
-        railLimitY: RAIL_LIMIT_Y
+        proceduralJawSegmentCount: jaws.length
       };
       return true;
     }
