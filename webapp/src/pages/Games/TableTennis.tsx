@@ -10,9 +10,6 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { GameManager } from "./tableTennis/GameManager";
-import UIOverlay, { type DebugState } from "./tableTennis/UIOverlay";
-import type { BallStateName, ShotType } from "./tableTennis/gameConfig";
 
 type PlayerSide = "near" | "far";
 type PointReason = "out" | "doubleBounce" | "net" | "wrongSide" | "miss";
@@ -41,7 +38,6 @@ type BallState = {
   bounceSide: PlayerSide | null;
   bounceCount: number;
   phase: BallPhase;
-  status: BallStateName;
 };
 
 type BonePack = {
@@ -108,7 +104,7 @@ type HumanRig = {
   speed: number;
 };
 
-type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number; shotLabel?: string; replay?: boolean };
+type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number };
 
 type ControlState = {
   active: boolean;
@@ -389,7 +385,7 @@ function createFallbackHuman(color: number) {
   const skin = material(0xf0c7a0, 0.78, 0.02);
   const shirt = material(color, 0.74, 0.02);
   const shorts = material(0x20232a, 0.76, 0.02);
-  const shoe = material(0xe8edf2, 0.62, 0.02);
+  const shoe = material(0xffffff, 0.55, 0.03);
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 28, 20), skin);
   head.position.y = 1.53;
@@ -645,7 +641,7 @@ function makeBallTexture() {
 }
 
 function createBall() {
-  const mat = new THREE.MeshStandardMaterial({ color: 0xfffbdf, roughness: 0.34, metalness: 0.0, emissive: 0x221600, emissiveIntensity: 0.08 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.01 });
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 32, 20), mat);
   enableShadow(mesh);
   return {
@@ -657,7 +653,6 @@ function createBall() {
     bounceSide: null,
     bounceCount: 0,
     phase: { kind: "serve", server: "near", stage: "own" },
-    status: "serve",
   } as BallState;
 }
 
@@ -695,7 +690,6 @@ function resetBallForServe(ball: BallState, server: HumanRig) {
   ball.bounceSide = null;
   ball.bounceCount = 0;
   ball.phase = { kind: "serve", server: server.side, stage: "own" };
-  ball.status = "serve";
   ball.mesh.position.copy(ball.pos);
 }
 
@@ -975,7 +969,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
-    ball.status = "serve";
   } else {
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
@@ -984,7 +977,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
-    ball.status = player.side === "near" ? "paddleHitPlayer" : "paddleHitAI";
   }
   const speed = ball.vel.length();
   if (speed < CFG.minShotSpeed) ball.vel.multiplyScalar(CFG.minShotSpeed / Math.max(speed, 0.0001));
@@ -1085,7 +1077,6 @@ export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
-  const [debug, setDebug] = useState<DebugState>(() => ({ enabled: typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ttDebug"), ballState: "serve", bounceCount: "0", hitValidity: "waiting", predictedLanding: "--" }));
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1180,9 +1171,9 @@ export default function MobileRealisticTableTennisGame() {
     const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.1, -0.05);
     const netWobble = { amount: 0, side: 0 };
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.48));
-    scene.add(new THREE.HemisphereLight(0xf3f7ff, 0x263f4b, 0.62));
-    const key = new THREE.DirectionalLight(0xffffff, 1.22);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.64));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x263f4b, 0.8));
+    const key = new THREE.DirectionalLight(0xffffff, 1.55);
     key.position.set(-2.8, 4.6, 3.7);
     key.castShadow = true;
     key.shadow.mapSize.width = 2048;
@@ -1195,7 +1186,7 @@ export default function MobileRealisticTableTennisGame() {
     key.shadow.camera.bottom = -4.5;
     scene.add(key);
 
-    const rim = new THREE.DirectionalLight(0xb8e6ff, 0.42);
+    const rim = new THREE.DirectionalLight(0xb8e6ff, 0.55);
     rim.position.set(2.4, 2.1, -3.1);
     scene.add(rim);
 
@@ -1207,9 +1198,6 @@ export default function MobileRealisticTableTennisGame() {
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
-    const manager = new GameManager();
-    const gameClock = { t: 0 };
-    let lastHitValidity = "waiting";
 
     let currentServer: PlayerSide = "near";
     let aiServeWindup = 0;
@@ -1258,16 +1246,12 @@ export default function MobileRealisticTableTennisGame() {
       pointLockT = 0.86;
       replayT = 1.2;
       replayIndex = Math.max(0, replayFrames.length - 1);
-      manager.replay.recordScore(winner, reason, ball.pos, gameClock.t);
-      manager.replay.startSlowMotion(1.2);
-      const event = manager.score.awardPoint(winner, reason);
       const prev = hudRef.current;
       const next = {
-        nearScore: event?.nearScore ?? prev.nearScore + (winner === "near" ? 1 : 0),
-        farScore: event?.farScore ?? prev.farScore + (winner === "far" ? 1 : 0),
+        nearScore: prev.nearScore + (winner === "near" ? 1 : 0),
+        farScore: prev.farScore + (winner === "far" ? 1 : 0),
       };
-      currentServer = event?.server ?? chooseServerAfterScore(next.nearScore, next.farScore);
-      ball.status = "pointEnded";
+      currentServer = chooseServerAfterScore(next.nearScore, next.farScore);
       aiServeWindup = 0;
       const reasonText =
         reason === "out" ? "Out" :
@@ -1284,9 +1268,11 @@ export default function MobileRealisticTableTennisGame() {
       const h = Math.max(1, host.clientHeight);
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-      manager.camera.resize(camera, w, h);
+      camera.aspect = w / h;
+      camera.fov = camera.aspect < 0.72 ? 48 : 42;
       camera.position.set(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
       camera.lookAt(cameraTarget);
+      camera.updateProjectionMatrix();
     };
     const applyGraphicsPreset = () => {
       const preset = graphicsId === 'performance'
@@ -1300,7 +1286,7 @@ export default function MobileRealisticTableTennisGame() {
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (manager.replay.isReplaying || (currentServer === "far" && ball.lastHitBy === null)) return;
+      if (currentServer === "far" && ball.lastHitBy === null) return;
       if (controlRef.current.active) return;
       canvas.setPointerCapture(e.pointerId);
       controlRef.current = {
@@ -1312,7 +1298,7 @@ export default function MobileRealisticTableTennisGame() {
         lastY: e.clientY,
         startPlayer: nearPlayer.target.clone(),
       };
-      setHudSafe({ status: ball.lastHitBy === null ? "Aim legal serve, release" : "Drag to move, release to hit", power: 0, spin: 0, shotLabel: "" });
+      setHudSafe({ status: ball.lastHitBy === null ? "Aim legal serve, release" : "Drag to move, release to hit", power: 0, spin: 0 });
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -1376,7 +1362,6 @@ export default function MobileRealisticTableTennisGame() {
         const server = ball.phase.server;
         if (ball.phase.stage === "own") {
           if (side !== server) {
-            ball.status = "out";
             awardPoint(opposite(server), "wrongSide");
             return;
           }
@@ -1386,12 +1371,10 @@ export default function MobileRealisticTableTennisGame() {
           return;
         }
         if (side !== opposite(server)) {
-          ball.status = "out";
           awardPoint(opposite(server), "wrongSide");
           return;
         }
         ball.phase = { kind: "rally" };
-        ball.status = "flying";
         ball.bounceSide = side;
         ball.bounceCount = 1;
         return;
@@ -1399,12 +1382,10 @@ export default function MobileRealisticTableTennisGame() {
 
       const expected = opposite(hitter);
       if (side !== expected) {
-        ball.status = "out";
         awardPoint(expected, "wrongSide");
         return;
       }
       if (ball.bounceSide === side && ball.bounceCount >= 1) {
-        ball.status = "pointEnded";
         awardPoint(hitter, "doubleBounce");
         return;
       }
@@ -1412,16 +1393,7 @@ export default function MobileRealisticTableTennisGame() {
       ball.bounceCount = 1;
     }
 
-    let ballAccumulator = 0;
-    function updateBall(frameDt: number) {
-      ballAccumulator += Math.min(frameDt, 0.05);
-      while (ballAccumulator >= 1 / 120) {
-        stepBall(1 / 120);
-        ballAccumulator -= 1 / 120;
-      }
-    }
-
-    function stepBall(dt: number) {
+    function updateBall(dt: number) {
       const prev = ball.pos.clone();
       const magnus = ball.spin.clone().cross(ball.vel).multiplyScalar(CFG.magnus);
       ball.vel.x += (magnus.x - ball.vel.x * CFG.airDrag) * dt;
@@ -1447,7 +1419,6 @@ export default function MobileRealisticTableTennisGame() {
         reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
         netWobble.amount = 1;
         netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
-        ball.status = "netHit";
         playFx(netFx);
       }
 
@@ -1461,7 +1432,6 @@ export default function MobileRealisticTableTennisGame() {
         reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
         netWobble.amount = 1;
         netWobble.side = Math.sign(ball.pos.z);
-        ball.status = "netHit";
       }
 
       for (const player of [nearPlayer, farPlayer]) {
@@ -1488,16 +1458,13 @@ export default function MobileRealisticTableTennisGame() {
         ball.vel.x += ball.spin.y * 0.0012;
         ball.spin.x *= 0.82;
         ball.spin.y *= 0.86;
-        ball.status = side === "near" ? "tableBouncePlayer" : "tableBounceAI";
         playFx(bounceFx);
-        manager.replay.recordBounce(side, ball.pos, gameClock.t);
         handleTableBounce(side);
       }
 
       if (ball.pos.y <= CFG.ballR && !isOverTable(ball.pos.x, ball.pos.z, 0.08) && ball.lastHitBy) {
         const hitter = ball.lastHitBy;
         const hadLegalBounce = ball.bounceSide === opposite(hitter) && ball.bounceCount >= 1;
-        ball.status = "out";
         awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
       }
       if (ball.pos.y <= CFG.ballR && !ball.lastHitBy) {
@@ -1523,9 +1490,7 @@ export default function MobileRealisticTableTennisGame() {
         awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
       }
 
-      if (ball.status !== "netHit" && !ball.status.includes("Bounce")) ball.status = ball.lastHitBy ? "flying" : ball.status;
       ball.mesh.position.copy(ball.pos);
-      manager.replay.recordFrame(ball.pos, ball.vel, ball.spin, ball.status, gameClock.t);
       replayFrames.push({ pos: ball.pos.clone(), vel: ball.vel.clone(), spin: ball.spin.clone() });
       if (replayFrames.length > 220) replayFrames.shift();
     }
@@ -1544,23 +1509,22 @@ export default function MobileRealisticTableTennisGame() {
         return;
       }
 
-      manager.physics.state.pos.copy(ball.pos);
-      manager.physics.state.vel.copy(ball.vel);
-      manager.physics.state.spin.copy(ball.spin);
-      manager.physics.state.lastHitBy = ball.lastHitBy;
-      const incoming = manager.ai.updateTarget(dt, manager.physics, farPlayer.pos, farPlayer.target);
-      if (!incoming) farPlayer.target.lerp(home, 0.04);
+      const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.22;
+      if (incoming) {
+        const landing = predictNextTableBounce(ball);
+        const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? 0.42 : 0.32);
+        farPlayer.target.x = clamp(landing.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.45, -TABLE_HALF_L - 0.42);
+      } else {
+        farPlayer.target.lerp(home, 0.04);
+      }
 
       if (incoming && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
-        const decision = manager.ai.decide(manager.physics, farPlayer.pos, nearPlayer.pos.x);
-        if (!decision?.shouldSwing) {
-          lastHitValidity = "AI skipped unreachable ball";
-          return;
-        }
-        const plan: DesiredHit = { target: decision.target, power: decision.power, topSpin: decision.topSpin, sideSpin: decision.sideSpin, tactic: decision.shot === "push" ? "push" : decision.shot === "brush/topspin" ? "loop" : "drive" };
-        const action: StrokeAction = decision.shot === "backhand drive" || decision.shot === "push" ? "backhand" : "forehand";
+        const plan = makeAiTarget(nearPlayer, ball);
+        const action: StrokeAction = ball.pos.x - farPlayer.pos.x > 0.1 || plan.tactic === "push" ? "backhand" : "forehand";
         startSwing(farPlayer, plan, action);
-        setHudSafe({ status: decision.label });
+        const label = plan.tactic === "loop" ? "AI loop" : plan.tactic === "push" ? "AI short push" : plan.tactic === "wide" ? "AI wide angle" : plan.tactic === "body" ? "AI body shot" : "AI drive";
+        setHudSafe({ status: label });
       }
     }
 
@@ -1571,43 +1535,17 @@ export default function MobileRealisticTableTennisGame() {
           if (player.swingT >= CFG.serveContactT) {
             playFx(shotFx);
             performHit(player, ball, player.desiredHit, true);
-            manager.physics.applyPaddleHit(player.side, ball.vel, ball.spin);
-            manager.replay.recordHit(player.side, "push", ball.pos, gameClock.t);
-            setHudSafe({ status: player.side === "near" ? "Serve: own side then AI side" : "AI served legally", shotLabel: "serve" });
+            setHudSafe({ status: player.side === "near" ? "Serve: own side then AI side" : "AI served legally" });
           }
           continue;
         }
         if (player.swingT < CFG.hitWindowStart || player.swingT > CFG.hitWindowEnd) continue;
-        const pose = tableTennisPose(player, ball);
-        const shot: ShotType = player.desiredHit.tactic === "push" ? "push" : player.desiredHit.tactic === "loop" ? "brush/topspin" : player.action === "backhand" ? "backhand drive" : "forehand drive";
-        const detector = manager.hitDetector.detect({
-          side: player.side,
-          paddleWorldPosition: pose.paddleCenter,
-          paddleForwardNormal: pose.faceNormal,
-          ballPosition: ball.pos,
-          ballVelocity: ball.vel,
-          desiredTarget: player.desiredHit.target,
-          requestedShot: shot,
-          swingT: player.swingT,
-          windowStart: CFG.hitWindowStart,
-          windowEnd: CFG.hitWindowEnd,
-          accuracy: player.side === "far" ? 0.82 : 0.9,
-          power: player.desiredHit.power,
-          spinScale: 0.85 + Math.abs(player.desiredHit.topSpin) * 0.22,
-        });
-        lastHitValidity = detector.valid ? `valid ${detector.shot}` : detector.reason ?? "invalid";
-        if (detector.valid && canReachBall(player, ball)) {
+        if (canReachBall(player, ball)) {
           playFx(shotFx);
           performHit(player, ball, player.desiredHit, false);
-          if (detector.velocity && detector.spin) {
-            ball.vel.copy(detector.velocity);
-            ball.spin.copy(detector.spin);
-            manager.physics.applyPaddleHit(player.side, detector.velocity, detector.spin);
-          }
-          manager.replay.recordHit(player.side, detector.shot, ball.pos, gameClock.t);
-          setHudSafe({ status: player.side === "near" ? "Return sent" : "AI returned", shotLabel: detector.shot });
+          setHudSafe({ status: player.side === "near" ? "Return sent" : "AI returned" });
         } else if (player.side === "near" && player.swingT > CFG.hitWindowEnd - 0.02) {
-          setHudSafe({ status: "Too early, wrong angle, or too far from ball", shotLabel: "" });
+          setHudSafe({ status: "Too early or too far from ball" });
         }
       }
     }
@@ -1616,12 +1554,11 @@ export default function MobileRealisticTableTennisGame() {
       frameId = requestAnimationFrame(animate);
       const now = performance.now();
       const dtBase = Math.min(0.026, (now - last) / 1000);
-      gameClock.t += dtBase;
       const dt = replayT > 0 ? dtBase * 0.35 : dtBase;
       last = now;
       if (replayT > 0) {
         replayT = Math.max(0, replayT - dtBase);
-        setHudSafe({ status: "VAR Replay: slow motion review", replay: true });
+        setHudSafe({ status: "VAR Replay: slow motion review" });
         if (replayFrames.length > 0) {
           replayIndex = Math.max(0, replayIndex - 1);
           const snap = replayFrames[replayIndex];
@@ -1636,9 +1573,6 @@ export default function MobileRealisticTableTennisGame() {
         pointLockT -= dt;
         if (pointLockT <= 0) {
           pointLock = false;
-          manager.score.resetPoint();
-          manager.replay.clear();
-          manager.ai.reset();
           nearPlayer.action = "ready";
           farPlayer.action = "ready";
           nearPlayer.swingT = 0;
@@ -1646,12 +1580,10 @@ export default function MobileRealisticTableTennisGame() {
           nearPlayer.target.set(0, 0, TABLE_HALF_L + 1.05);
           farPlayer.target.set(0, 0, -TABLE_HALF_L - 1.05);
           resetBallForServe(ball, players[currentServer]);
-          manager.physics.resetForServe(currentServer, ball.pos);
           aiServeWindup = 0;
-          setHudSafe({ status: currentServer === "near" ? "Your serve: swipe up" : "AI is serving", power: 0, spin: 0, replay: false, shotLabel: "" });
+          setHudSafe({ status: currentServer === "near" ? "Your serve: swipe up" : "AI is serving", power: 0, spin: 0 });
         }
       } else {
-        setHudSafe({ replay: false });
         updateAi(dt);
         const lockedByServeToss = updateServeTossLock();
         checkSwingHits();
@@ -1674,11 +1606,10 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      manager.camera.update(camera, ball.pos, nearPlayer.pos, dt);
-      if (debug.enabled) {
-        const predicted = predictNextTableBounce(ball);
-        setDebug((prev) => ({ ...prev, ballState: ball.status, bounceCount: `${ball.bounceSide ?? "none"}:${ball.bounceCount}`, hitValidity: lastHitValidity, predictedLanding: `${predicted.x.toFixed(2)}, ${predicted.z.toFixed(2)}` }));
-      }
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 5.9 : 5.0, camera.aspect < 0.72 ? 7.0 : 6.1);
+      camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.1, -0.05), 1 - Math.exp(-5 * dt));
+      camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
 
@@ -1711,19 +1642,48 @@ export default function MobileRealisticTableTennisGame() {
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
-      <UIOverlay
-        hud={hud}
-        menuOpen={menuOpen}
-        onToggleMenu={() => setMenuOpen((prev) => !prev)}
-        graphicsId={graphicsId}
-        onGraphics={setGraphicsId}
-        humanOptions={unlockedHumanCharacters}
-        hdriOptions={unlockedHdris}
-        selectedHumanId={selectedHumanCharacterId}
-        selectedHdriId={selectedHdriId}
-        onHuman={setSelectedHumanCharacterId}
-        onHdri={setSelectedHdriId}
-        debug={debug}
-      />
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          style={{ position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 42, height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.32)", background: "rgba(5,10,15,0.78)", color: "#fff", fontSize: 20, fontWeight: 800 }}
+          aria-label={menuOpen ? "Close game settings menu" : "Open game settings menu"}
+        >
+          ☰
+        </button>
+        {menuOpen && (
+          <div style={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 248, maxHeight: "68vh", overflowY: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(5,10,15,0.9)", padding: 12, color: "#fff" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginBottom: 8 }}>Graphics</div>
+            {[
+              { id: "performance", label: "Performance" },
+              { id: "balanced", label: "Balanced" },
+              { id: "ultra", label: "Ultra" }
+            ].map((option) => (
+              <button key={option.id} type="button" onClick={() => setGraphicsId(option.id as any)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: graphicsId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700 }}>
+                {option.label}
+              </button>
+            ))}
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>Human Characters</div>
+            {unlockedHumanCharacters.map((option) => (
+              <button key={option.id} type="button" onClick={() => setSelectedHumanCharacterId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHumanCharacterId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🙂</span>}
+                <span>{option.label}</span>
+              </button>
+            ))}
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9, marginTop: 10 }}>HDRI</div>
+            {unlockedHdris.map((option) => (
+              <button key={option.id} type="button" onClick={() => setSelectedHdriId(option.id)} style={{ width: "100%", textAlign: "left", marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: selectedHdriId === option.id ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)", color: "#fff", padding: "8px 10px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                {option.thumbnail ? <img src={option.thumbnail} alt={option.label} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} /> : <span>🌆</span>}
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
+          You {hud.nearScore} — {hud.farScore} AI
+          <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
+        </div>
+      </div>
     </div>
-  );}
+  );
+}
