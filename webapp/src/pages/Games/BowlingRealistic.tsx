@@ -8,7 +8,6 @@ import { BOWLING_DOMINO_CHARACTER_TEXTURES, BOWLING_DOMINO_CLOTH_MATERIALS, BOWL
 import { POOL_ROYALE_DEFAULT_UNLOCKS, POOL_ROYALE_OPTION_LABELS, POOL_ROYALE_STORE_ITEMS } from "../../config/poolRoyaleInventoryConfig.js";
 import { getCachedPoolRoyalInventory } from "../../utils/poolRoyalInventory.js";
 import { createMurlanStyleTable } from "../../utils/murlanTable.js";
-import { MAX_SPIN_OFFSET, mapSpinForPhysics } from "./poolRoyaleSpinUtils.js";
 
 type PlayerAction = "idle" | "seated" | "standingUp" | "approach" | "throw" | "recover" | "celebrate" | "toSeat" | "toRack" | "pickBall" | "toApproach" | "replay";
 type BallReturnState = "idle" | "toPit" | "hidden" | "returning";
@@ -27,15 +26,13 @@ type HudState = {
   lane: string;
 };
 
-type SpinInput = { x: number; y: number };
-
 type ThrowIntent = {
   power: number;
   releaseX: number;
   targetX: number;
   hook: number;
   speed: number;
-  spin: SpinInput;
+  spin: number;
 };
 
 type ControlState = {
@@ -102,7 +99,6 @@ type BallState = {
   laneCenter: number;
   inGutter: boolean;
   hook: number;
-  spin: SpinInput;
   returnState: BallReturnState;
   returnT: number;
   variant: BallVariant;
@@ -196,10 +192,6 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ["8k", "4k", "2k", "1k"] as const;
 const BOWLING_RULE_SUMMARY = "Ten-pin rules: 10 frames · strike resets the rack · spare earns next-ball bonus · 10th frame allows bonus balls.";
-const SHOOTING_LINE_SCREEN_TOP_RATIO = 0.38;
-const SHOOTING_LINE_READY_DISTANCE = 1.85;
-const SPIN_CONTROL_DIAMETER_PX = 132;
-const SPIN_DOT_DIAMETER_PX = 34;
 const LANE_BOARD_COUNT = 39;
 const BOARD_WIDTH = (CFG.laneHalfW * 2) / LANE_BOARD_COUNT;
 const BOWLING_MURLAN_CHAIR_URLS = [
@@ -915,7 +907,7 @@ function createActiveBall(variant: BallVariant, laneCenter = laneCenterForPlayer
   const pos = new THREE.Vector3(laneCenter, CFG.laneY + 0.52, 6.34);
   mesh.position.copy(pos);
   mesh.visible = false;
-  return { mesh, pos, vel: new THREE.Vector3(), held: false, rolling: false, laneCenter, inGutter: false, hook: 0, spin: { x: 0, y: 0 }, returnState: "idle", returnT: 0, variant } as BallState;
+  return { mesh, pos, vel: new THREE.Vector3(), held: false, rolling: false, laneCenter, inGutter: false, hook: 0, returnState: "idle", returnT: 0, variant } as BallState;
 }
 
 function createPinMesh() {
@@ -1776,7 +1768,7 @@ function createFrameRollSymbols(frame: BowlingFrame, frameIndex: number) {
   return [a, b, c];
 }
 
-function computeIntent(hostWidth: number, hostHeight: number, startX: number, startY: number, x: number, y: number, spin: SpinInput): ThrowIntent {
+function computeIntent(hostWidth: number, hostHeight: number, startX: number, startY: number, x: number, y: number, spin: number): ThrowIntent {
   const vertical = clamp((startY - y) / Math.max(170, hostHeight * 0.34), 0, 1);
   const releaseScreenX = clamp((startX / hostWidth) * 2 - 1, -1, 1);
   const targetScreenX = clamp((x / hostWidth) * 2 - 1, -1, 1);
@@ -1787,12 +1779,10 @@ function computeIntent(hostWidth: number, hostHeight: number, startX: number, st
   const targetX = clamp(targetScreenX * 1.12, -1.16, 1.16);
   const power = vertical;
   const speed = lerp(6.6, 18.4, easeOutCubic(power));
-  const physicsSpin = mapSpinForPhysics(spin);
-  const spinCurve = physicsSpin.x * lerp(0.28, 1.18, power);
-  const verticalSpinSpeed = clamp(physicsSpin.y, -MAX_SPIN_OFFSET, MAX_SPIN_OFFSET) * 1.2;
+  const spinCurve = spin * lerp(0.28, 1.18, power);
   const swipeCurve = dragX * lerp(0.06, 0.46, power);
   const hook = clamp(spinCurve + swipeCurve, -1.35, 1.35);
-  return { power, releaseX, targetX, hook, speed: clamp(speed + verticalSpinSpeed, 5.8, 19.2), spin: { x: spin.x, y: spin.y } };
+  return { power, releaseX, targetX, hook, speed, spin };
 }
 
 function startApproach(rig: HumanRig, intent: ThrowIntent, laneCenter = 0) {
@@ -1805,10 +1795,6 @@ function startApproach(rig: HumanRig, intent: ThrowIntent, laneCenter = 0) {
   rig.approachTo.set(laneCenter + clamp(intent.releaseX * 0.34, -0.34, 0.34), CFG.laneY, CFG.approachStopZ);
   rig.yaw = Math.PI;
   rig.targetYaw = Math.PI;
-}
-
-function isHumanAtShootingLine(rig: HumanRig, ball: BallState) {
-  return rig.action === "idle" && ball.held && !ball.rolling && rig.pos.z <= CFG.foulZ + SHOOTING_LINE_READY_DISTANCE;
 }
 
 function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnCycle: boolean) {
@@ -1937,13 +1923,7 @@ function updateHuman(rig: HumanRig, ball: BallState, dt: number, canStartReturnC
       rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
     }
     animateFallbackHuman(rig, "walk", rig.walkCycle);
-    if (rig.returnWalkT >= 1) {
-      rig.action = "idle";
-      rig.pickT = 0;
-      rig.pos.copy(pickupPoint);
-      rig.yaw = Math.PI;
-      rig.targetYaw = Math.PI;
-    }
+    if (rig.returnWalkT >= 1) { rig.action = "pickBall"; rig.pickT = 0.001; }
   } else if (rig.action === "pickBall") {
     rig.pickT = clamp01(rig.pickT + dt / CFG.pickDuration);
     if (rig.model) {
@@ -2029,11 +2009,8 @@ function releaseBall(ball: BallState, intent: ThrowIntent, laneCenter = ball.lan
   ball.inGutter = false;
   ball.hook = intent.hook;
   ball.pos.copy(releasePos);
-  const physicsSpin = mapSpinForPhysics(intent.spin);
-  ball.spin = { x: physicsSpin.x, y: physicsSpin.y };
   ball.vel.copy(dir.multiplyScalar(intent.speed));
   ball.vel.y = 0;
-  ball.hook = clamp(ball.hook + physicsSpin.x * 0.68, -1.55, 1.55);
   ball.mesh.position.copy(ball.pos);
 }
 
@@ -2180,7 +2157,6 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.held = false;
       ball.rolling = false;
       ball.inGutter = false;
-      ball.spin = { x: 0, y: 0 };
       ball.mesh.visible = false;
       return true;
     }
@@ -2210,7 +2186,6 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
     const hookPhase = clamp01(downLane * 0.78 + dryBoards * 0.42);
     const hookGain = lerp(0.42, 1.62, clamp01(flatSpeed / 16)) * (0.55 + dryBoards * 0.72);
     ball.vel.x += ball.hook * hookPhase * hookGain * dt;
-    ball.vel.z -= clamp(ball.spin.y, -MAX_SPIN_OFFSET, MAX_SPIN_OFFSET) * (0.18 + hookPhase * 0.36) * dt;
   }
   const oil = ball.inGutter ? 0 : oilRatioAt(ball.pos.z);
   const dryDrag = clamp01((Math.abs(localX) - CFG.laneHalfW * 0.46) / (CFG.laneHalfW * 0.5));
@@ -2226,12 +2201,7 @@ function updateBall(ball: BallState, pins: PinState[], dt: number) {
   const speed = Math.hypot(ball.vel.x, ball.vel.z);
   if (speed > 0.02) {
     const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x).normalize();
-    if (rollAxis.lengthSq() > 0.001) {
-      const topBackBoost = 1 + clamp(ball.spin.y, -MAX_SPIN_OFFSET, MAX_SPIN_OFFSET) * 0.32;
-      ball.mesh.rotateOnWorldAxis(rollAxis, (speed / ball.variant.radius) * topBackBoost * dt);
-    }
-    const sideSpin = clamp(ball.spin.x, -MAX_SPIN_OFFSET, MAX_SPIN_OFFSET);
-    if (Math.abs(sideSpin) > 0.001) ball.mesh.rotateOnWorldAxis(UP, sideSpin * 9.2 * dt);
+    if (rollAxis.lengthSq() > 0.001) ball.mesh.rotateOnWorldAxis(rollAxis, (speed / ball.variant.radius) * dt);
   }
   collideBallWithPins(ball, pins);
   if (ball.pos.z <= CFG.backStopZ + 0.45 || speed < 0.12) startBallReturn(ball);
@@ -2279,14 +2249,6 @@ function applyCameraLookOffset(position: THREE.Vector3, look: THREE.Vector3, loo
   return position.clone().addScaledVector(forward, distance);
 }
 
-function getShootingLineCameraPose(player: HumanRig, ball: BallState) {
-  const laneCenter = ball.laneCenter || player.standPos.x;
-  const side = player.standPos.x < 0 ? -1 : 1;
-  const desired = new THREE.Vector3(laneCenter + side * 0.34, CFG.laneY + 1.58, CFG.foulZ + 1.62);
-  const look = new THREE.Vector3(laneCenter, CFG.laneY + 0.58, CFG.pinDeckZ - 0.5);
-  return { desired, look };
-}
-
 function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: HumanRig, dt: number, usePlayerPerspective: boolean, lookState?: CameraLookState | null) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
@@ -2302,10 +2264,6 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
       look.lerp(ball.pos.clone().add(new THREE.Vector3(0, 0.22, -2.0)), 0.42);
       if (ball.pos.z < CFG.pinDeckZ + 2.4) look.lerp(new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.pinDeckZ - 0.7), 0.5);
     }
-  } else if (isHumanAtShootingLine(player, ball) && !ball.rolling) {
-    const pose = getShootingLineCameraPose(player, ball);
-    desired = pose.desired;
-    look = pose.look;
   } else if (ball.rolling) {
     const laneCenter = ball.laneCenter;
     const lead = ball.vel.clone().setY(0);
@@ -2363,7 +2321,7 @@ function updateCamera(camera: THREE.PerspectiveCamera, ball: BallState, player: 
   camera.fov = lerp(camera.fov, baseFov + speedFov + pinsProximity * 1.6, 1 - Math.exp(-3.6 * dt));
   camera.updateProjectionMatrix();
   camera.position.lerp(desired.add(naturalHeadMotion).add(shakeVec), 1 - Math.exp(-5.8 * dt));
-  const adjustedLook = isHumanAtShootingLine(player, ball) ? look : applyCameraLookOffset(camera.position, look, lookState);
+  const adjustedLook = applyCameraLookOffset(camera.position, look, lookState);
   const currentLook = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(8).add(camera.position);
   currentLook.lerp(adjustedLook, 1 - Math.exp(-8.6 * dt));
   camera.lookAt(currentLook);
@@ -2390,9 +2348,9 @@ export default function MobileBowlingRealistic() {
   const joystickRef = useRef({ active: false, x: 0, z: 0 });
   const cameraLookInputRef = useRef({ active: false, pointerId: null as number | null, startX: 0, startY: 0, targetYaw: 0, targetPitch: 0 });
   const ballPickRequestRef = useRef<string | null>(null);
-  const spinControlRef = useRef<SpinInput>({ x: 0, y: 0 });
+  const spinControlRef = useRef(0);
   const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
-  const [spinKnob, setSpinKnob] = useState({ x: 0, y: 0 });
+  const [spinKnob, setSpinKnob] = useState(0);
   const [hud, setHud] = useState<HudState>({ power: 0, status: "Move to the rack, pick up a ball, then swipe at the approach line", compliment: "", activePlayer: 0, p1: 0, p2: 0, frame: 1, roll: 1, rule: BOWLING_RULE_SUMMARY, lane: "Board 20 · house shot" });
   const [scores, setScores] = useState<ScorePlayer[]>(() => makeEmptyPlayers());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -2406,7 +2364,6 @@ export default function MobileBowlingRealistic() {
   const [skipReplays, setSkipReplays] = useState<boolean>(() => localStorage.getItem("bowling.skipReplays") === "1");
   const [replayActive, setReplayActive] = useState(false);
   const [pickupUiVisible, setPickupUiVisible] = useState(false);
-  const [spinControllerVisible, setSpinControllerVisible] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
 
   const setJoystickFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -2428,15 +2385,11 @@ export default function MobileBowlingRealistic() {
   const setSpinFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
     const max = rect.width * 0.36;
-    const rawX = (e.clientX - cx) / max;
-    const rawY = (cy - e.clientY) / max;
-    const len = Math.hypot(rawX, rawY);
-    const scale = len > 1 ? 1 / Math.max(len, 1e-6) : 1;
-    const spin = { x: rawX * scale * MAX_SPIN_OFFSET, y: rawY * scale * MAX_SPIN_OFFSET };
-    spinControlRef.current = spin;
-    setSpinKnob({ x: spin.x * max, y: -spin.y * max });
+    const dx = clamp(e.clientX - cx, -max, max);
+    const value = clamp(dx / max, -1, 1);
+    spinControlRef.current = value;
+    setSpinKnob(dx);
   };
 
   const requestManualBallPickup = (label: string) => {
@@ -2628,28 +2581,22 @@ export default function MobileBowlingRealistic() {
       cameraLook.startY = e.clientY;
     };
 
-    const resetPlayerPoseForNextBall = (walkHumanBackToRack = false) => {
-      player.action = walkHumanBackToRack ? "toRack" : "idle";
+    const resetPlayerPoseForNextBall = () => {
+      player.action = "idle";
       player.approachT = 0;
       player.throwT = 0;
       player.recoverT = 0;
       player.walkCycle = 0;
-      player.returnWalkT = walkHumanBackToRack ? 0.001 : 0;
-      if (walkHumanBackToRack) {
-        player.approachTo.copy(player.pos);
-      } else {
-        player.pos.copy(player.standPos);
-        player.approachTo.copy(player.pos);
-      }
+      player.pos.copy(player.standPos);
       player.yaw = Math.PI;
       player.targetYaw = Math.PI;
       player.approachFrom.copy(player.pos);
+      player.approachTo.copy(player.pos);
       applyStandingPose(player);
       syncHuman(player);
       ball.held = activePlayer === 1;
       ball.rolling = false;
       ball.inGutter = false;
-      ball.spin = { x: 0, y: 0 };
       ball.vel.set(0, 0, 0);
       ball.mesh.visible = ball.held;
       if (ball.held) syncHeldBallToHuman(ball, player);
@@ -2667,13 +2614,12 @@ export default function MobileBowlingRealistic() {
       player = playerRigs[activePlayer];
       ball.laneCenter = activeLaneCenter();
       if (previousPlayer !== player) seatRigAfterTurn(previousPlayer);
-      const shouldWalkHumanBackToRack = activePlayer === 0 && previousPlayer === player && nextAction === "samePlayer";
-      resetPlayerPoseForNextBall(shouldWalkHumanBackToRack);
+      resetPlayerPoseForNextBall();
       if (previousPlayer !== player) standRigForTurn(player);
       syncReactScores();
       aiTurnDelay = activePlayer === 1 ? 0.85 + Math.random() * 0.5 : 0.85;
       const playerName = localScores[activePlayer].name;
-      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : shouldWalkHumanBackToRack ? `${playerName}: walking back to the rack. Pick the second ball manually.` : `${playerName}: walk near the rack until PICK UP appears, tap a ball, then swipe at the line` }));
+      setHud((prev) => ({ ...prev, status: nextAction === "gameOver" ? "Game over" : activePlayer === 1 ? `${playerName} is choosing a line…` : `${playerName}: walk near the rack until PICK UP appears, tap a ball, then swipe at the line` }));
     };
 
     const finalizeShot = (afterStanding: number) => {
@@ -2718,7 +2664,7 @@ export default function MobileBowlingRealistic() {
       const power = clamp(0.72 + Math.random() * 0.22, 0, 1);
       const targetX = clamp(targetJitter, -1.1, 1.1);
       const releaseX = clamp(releaseJitter * 0.55, -0.72, 0.72);
-      return { power, releaseX, targetX, hook: (Math.random() - 0.5) * 0.32, speed: lerp(10.8, 15.4, power), spin: { x: (Math.random() - 0.5) * 0.28, y: 0.12 + Math.random() * 0.18 } };
+      return { power, releaseX, targetX, hook: (Math.random() - 0.5) * 0.32, speed: lerp(10.8, 15.4, power), spin: (Math.random() - 0.5) * 0.28 };
     };
 
     const manualMovePlayer = (dt: number) => {
@@ -2783,9 +2729,7 @@ export default function MobileBowlingRealistic() {
 
     const onPointerDown = (e: PointerEvent) => {
       if (control.active || cameraLook.active) return;
-      const isShootingScreenArea = e.clientY >= host.clientHeight * SHOOTING_LINE_SCREEN_TOP_RATIO;
-      const canStartThrow = isShootingScreenArea
-        && nextAction !== "gameOver"
+      const canStartThrow = nextAction !== "gameOver"
         && !ball.rolling
         && !waitingForBallReturn
         && !replayActive
@@ -2793,14 +2737,12 @@ export default function MobileBowlingRealistic() {
         && player === playerRigs[0]
         && player.action === "idle"
         && ball.held
-        && player.pos.z <= CFG.foulZ + SHOOTING_LINE_READY_DISTANCE;
+        && player.pos.z <= CFG.foulZ + 1.85;
       if (!canStartThrow) {
         startCameraLook(e);
         if (activePlayer === 0 && !ball.held && !ball.rolling && !waitingForBallReturn) {
           setHud((prev) => ({ ...prev, status: "Drag the view to look around, or walk to the rack and tap a ball." }));
-        } else if (activePlayer === 0 && !isShootingScreenArea && ball.held && !ball.rolling && !waitingForBallReturn) {
-          setHud((prev) => ({ ...prev, status: "Start the swipe inside the lower shooting-line area to bowl." }));
-        } else if (activePlayer === 0 && player.pos.z > CFG.foulZ + SHOOTING_LINE_READY_DISTANCE && !ball.rolling && !waitingForBallReturn) {
+        } else if (activePlayer === 0 && player.pos.z > CFG.foulZ + 1.85 && !ball.rolling && !waitingForBallReturn) {
           setHud((prev) => ({ ...prev, status: "Drag the view to look around. Move to the approach line before swiping to shoot." }));
         }
         return;
@@ -2836,8 +2778,7 @@ export default function MobileBowlingRealistic() {
       control.intent = computeIntent(host.clientWidth, host.clientHeight, control.startX, control.startY, e.clientX, e.clientY, spinControlRef.current);
       pendingIntent = control.intent;
       updateAimVisual(aimLine, aimMarker, control.intent, activeLaneCenter());
-      const s = control.intent!.spin;
-      setHud((prev) => ({ ...prev, power: control.intent!.power, lane: `Aim board ${boardNumberFromX(control.intent!.targetX)} · ${Math.round(control.intent!.power * 100)}% · spin X ${s.x >= 0 ? "+" : ""}${s.x.toFixed(2)} Y ${s.y >= 0 ? "+" : ""}${s.y.toFixed(2)}` }));
+      setHud((prev) => ({ ...prev, power: control.intent!.power, lane: `Aim board ${boardNumberFromX(control.intent!.targetX)} · ${Math.round(control.intent!.power * 100)}% · spin ${control.intent!.spin >= 0 ? "+" : ""}${control.intent!.spin.toFixed(2)}` }));
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -2863,8 +2804,7 @@ export default function MobileBowlingRealistic() {
       }
       pendingIntent = intent;
       startApproach(player, intent, activeLaneCenter());
-      setSpinControllerVisible(false);
-      setHud((prev) => ({ ...prev, power: 0, status: "Four-step approach · release before foul line", rule: "Release must stay behind the foul line", lane: `Target board ${boardNumberFromX(intent.targetX)} · hook ${intent.hook >= 0 ? "right" : "left"} · spin X ${intent.spin.x >= 0 ? "+" : ""}${intent.spin.x.toFixed(2)} Y ${intent.spin.y >= 0 ? "+" : ""}${intent.spin.y.toFixed(2)}` }));
+      setHud((prev) => ({ ...prev, power: 0, status: "Four-step approach · release before foul line", rule: "Release must stay behind the foul line", lane: `Target board ${boardNumberFromX(intent.targetX)} · hook ${intent.hook >= 0 ? "right" : "left"} · spin ${intent.spin >= 0 ? "+" : ""}${intent.spin.toFixed(2)}` }));
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
@@ -2900,8 +2840,6 @@ export default function MobileBowlingRealistic() {
       const rackDistanceForPrompt = Math.hypot(playerRigs[0].pos.x, playerRigs[0].pos.z - 7.64);
       pickupPrompt.visible = activePlayer === 0 && !ball.held && !ball.rolling && !waitingForBallReturn && playerRigs[0].action === "idle" && rackDistanceForPrompt <= 1.85;
       setPickupUiVisible((visible) => visible === pickupPrompt.visible ? visible : pickupPrompt.visible);
-      const shouldShowSpin = activePlayer === 0 && player === playerRigs[0] && isHumanAtShootingLine(player, ball) && !control.active && !waitingForBallReturn && !replayActive;
-      setSpinControllerVisible((visible) => visible === shouldShowSpin ? visible : shouldShowSpin);
       pickupPrompt.position.y = CFG.laneY + 1.52 + Math.sin(now * 0.004) * 0.045;
       manualMovePlayer(dt);
       const criticalPulse = replayTimer > 0 || player.celebrateNext;
@@ -3046,20 +2984,17 @@ export default function MobileBowlingRealistic() {
           <div style={{ gridColumn:"1 / -1", textAlign:"center", color:"#dff7ff", fontSize:10, fontWeight:900 }}>PICK UP</div>
         </div> : null}
 
-        {spinControllerVisible ? <div
+        <div
           onPointerDown={(e)=>{ e.currentTarget.setPointerCapture(e.pointerId); setSpinFromPointer(e); }}
           onPointerMove={(e)=>setSpinFromPointer(e)}
           onPointerUp={(e)=>{ try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} }}
           onPointerCancel={(e)=>{ try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} }}
-          style={{ position:"absolute", right: 18, bottom: 74, width: SPIN_CONTROL_DIAMETER_PX, height: SPIN_CONTROL_DIAMETER_PX, borderRadius:"50%", background:"radial-gradient(circle at 50% 50%, rgba(248,250,252,0.16), rgba(14,165,233,0.2) 42%, rgba(5,8,14,0.84))", border:"1px solid rgba(125,211,252,0.48)", boxShadow:"0 14px 34px rgba(0,0,0,0.34)", pointerEvents:"auto", touchAction:"none" }}
+          style={{ position:"absolute", right: 18, bottom: 74, width: 126, height: 64, borderRadius: 18, background:"linear-gradient(135deg, rgba(5,8,14,0.78), rgba(14,165,233,0.2))", border:"1px solid rgba(125,211,252,0.42)", boxShadow:"0 12px 30px rgba(0,0,0,0.28)", pointerEvents:"auto", touchAction:"none", padding: 10 }}
         >
-          <div style={{ position:"absolute", inset: 14, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.22)" }} />
-          <div style={{ position:"absolute", inset: 38, borderRadius:"50%", border:"1px solid rgba(125,211,252,0.26)" }} />
-          <div style={{ position:"absolute", left:"50%", top: 12, bottom: 12, width: 2, transform:"translateX(-50%)", background:"linear-gradient(180deg, #38bdf8, rgba(255,255,255,0.22), #f97316)", opacity:0.9 }} />
-          <div style={{ position:"absolute", top:"50%", left: 12, right: 12, height: 2, transform:"translateY(-50%)", background:"linear-gradient(90deg, #f97316, rgba(255,255,255,0.22), #38bdf8)", opacity:0.9 }} />
-          <div style={{ position:"absolute", left:"50%", top:"50%", width: SPIN_DOT_DIAMETER_PX, height: SPIN_DOT_DIAMETER_PX, borderRadius:"50%", transform:`translate(calc(-50% + ${spinKnob.x}px), calc(-50% + ${spinKnob.y}px))`, background:"radial-gradient(circle at 35% 28%, #ffffff, #7dd3fc 55%, #0f5ea8)", border:"2px solid rgba(255,255,255,0.86)", boxShadow:"0 8px 18px rgba(0,0,0,0.34)" }} />
-          <div style={{ position:"absolute", left:0, right:0, bottom:-22, textAlign:"center", color:"#dff7ff", fontSize:10, fontWeight:900 }}>SPIN X {spinControlRef.current.x >= 0 ? "+" : ""}{spinControlRef.current.x.toFixed(2)} · Y {spinControlRef.current.y >= 0 ? "+" : ""}{spinControlRef.current.y.toFixed(2)}</div>
-        </div> : null}
+          <div style={{ position:"absolute", left: 14, right: 14, top: 30, height: 5, borderRadius: 999, background:"linear-gradient(90deg, #f97316, #e5e7eb, #38bdf8)" }} />
+          <div style={{ position:"absolute", left:"50%", top: 22, width: 34, height: 34, borderRadius:"50%", transform:`translateX(calc(-50% + ${spinKnob}px))`, background:"linear-gradient(135deg, #f8fafc, #38bdf8)", border:"2px solid rgba(255,255,255,0.82)", boxShadow:"0 8px 18px rgba(0,0,0,0.3)" }} />
+          <div style={{ position:"absolute", left:0, right:0, bottom:-20, textAlign:"center", color:"#dff7ff", fontSize:10, fontWeight:900 }}>SPIN {spinControlRef.current >= 0 ? "+" : ""}{spinControlRef.current.toFixed(2)}</div>
+        </div>
 
         <div style={{ position:"absolute", left: 12, right: 12, bottom: 16, padding:"9px 12px", borderRadius: 16, background:"linear-gradient(90deg, rgba(5,8,14,0.78), rgba(15,23,42,0.62))", border:"1px solid rgba(255,255,255,0.16)", color:"#fff", fontSize: 11, fontWeight: 800, pointerEvents:"none", display:"flex", justifyContent:"space-between", gap: 10 }}>
           <span>🕹 Move</span><span>👆 Drag screen to look</span><span>↕ Swipe at line</span><span>🌀 Spin</span>
