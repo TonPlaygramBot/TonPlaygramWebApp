@@ -1613,6 +1613,7 @@ const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening sli
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.04; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
+const CLOTH_EDGE_BUMP_SCALE = 0.012; // keep pocket-cut cloth texture visible without making the sleeve walls too bumpy
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
@@ -1805,7 +1806,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.72; // reduce Pool Royale cue spin slightly further for a more natural default roll
+const SPIN_GLOBAL_SCALE = 0.68; // reduce Pool Royale cue spin a bit more for a more natural default roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1833,7 +1834,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.24; // add more cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.88; // give Pool Royale shots more drive without over-speeding the table
+const SHOT_GLOBAL_POWER_SCALE = 1.03; // give Pool Royale shots more drive without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4992,11 +4993,11 @@ function updateClothTexturesForFinish (
         edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.normalMap = null;
-    finishInfo.clothEdgeMat.roughnessMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
+    finishInfo.clothEdgeMat.map = finishInfo.clothMat?.map ?? null;
+    finishInfo.clothEdgeMat.bumpMap = finishInfo.clothMat?.bumpMap ?? null;
+    finishInfo.clothEdgeMat.normalMap = finishInfo.clothMat?.normalMap ?? null;
+    finishInfo.clothEdgeMat.roughnessMap = finishInfo.clothMat?.roughnessMap ?? null;
+    finishInfo.clothEdgeMat.bumpScale = Math.min(finishInfo.clothMat?.bumpScale ?? 0, CLOTH_EDGE_BUMP_SCALE);
     finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
@@ -6660,7 +6661,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.8; // trim topspin cap by 20% to reduce excessive follow
+const MAX_TOPSPIN_INPUT = 0.74; // trim topspin cap a bit more to reduce excessive default follow
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
@@ -8887,11 +8888,11 @@ export function Table3D(
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.normalMap = null;
-  clothEdgeMat.roughnessMap = null;
-  clothEdgeMat.bumpScale = 0;
+  clothEdgeMat.map = clothMat.map;
+  clothEdgeMat.bumpMap = clothMat.bumpMap;
+  clothEdgeMat.normalMap = clothMat.normalMap;
+  clothEdgeMat.roughnessMap = clothMat.roughnessMap;
+  clothEdgeMat.bumpScale = Math.min(clothMat.bumpScale ?? 0, CLOTH_EDGE_BUMP_SCALE);
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
@@ -11294,7 +11295,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.68;
+  const brandPlateOutwardShift = endRailW * 1.96;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12542,10 +12543,10 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((outsideBaseCornerRimZone || outerMostVerticalCorner || (hardwareCandidate && goldCornerDropZone)) && !green && !s.upFace && !namedApron) return 'railSight';
+  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace && !namedApron) return 'baseCornerBlock';
   if (namedApron && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'railSight';
+  if ((hardwareCandidate || goldCornerDropZone) && sideLowerTrimZone && !green) return 'baseCornerBlock';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
