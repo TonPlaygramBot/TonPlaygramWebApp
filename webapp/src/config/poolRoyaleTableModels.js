@@ -8,19 +8,20 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
-      'Local Pooltool Showood showroom table matched to Pool Royale footprint for faster startup. If the bundled GLB cannot load, Pool Royale retries the remote Showood GLB and keeps the Showood original base selection.',
+      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint. If the CDN GLB cannot load, Pool Royale retries the raw Showood GLB and keeps the Showood original base selection.',
     tableSizeId: '7ft',
     baseId: 'showoodOriginal',
-    assetUrl: '/assets/models/pool-royale/showood/seven_foot_showood.glb',
+    assetUrl:
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     icon: '🟫',
     kind: 'gltf',
     fitScale: 1,
     fitFootprintScale: 1.075,
     fitHeightScale: 1,
-    lowerBaseHeightScale: 0.68,
+    lowerBaseHeightScale: 0.78,
     legLengthScale: 0.84,
-    baseFootWidthScale: 1.68,
+    baseFootWidthScale: 1.42,
     clothRepeatScale: 7.5,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -34,7 +35,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     tintOriginalTrimGold: false,
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideWoodApron', 'apron'],
     blackMaterialSurfaceNames: [],
-    clothMaterialSurfaceNames: ['pocketCutoutEdge', 'pocketCut', 'pocketMouth', 'pocketNotch'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
