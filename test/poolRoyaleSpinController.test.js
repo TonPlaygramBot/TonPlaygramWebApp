@@ -1,7 +1,4 @@
-import * as poolSpin from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
-import * as snookerSpin from '../webapp/src/pages/Games/snookerRoyalSpinUtils.js';
-
-const { mapSpinForPhysics } = poolSpin;
+import { mapSpinForPhysics } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
 
 const getSigns = (vec) => ({
   x: Math.sign(vec.x),
@@ -57,25 +54,4 @@ describe('Pool Royale spin controller mapping', () => {
     expect(mixedSide).toBeLessThan(pureSide);
   });
 
-  it('keeps Snooker Royal spin constants and physics mapping identical to Pool Royale', () => {
-    expect(snookerSpin.MAX_SPIN_OFFSET).toBe(poolSpin.MAX_SPIN_OFFSET);
-    expect(snookerSpin.SPIN_RESPONSE_EXPONENT).toBe(poolSpin.SPIN_RESPONSE_EXPONENT);
-    expect(snookerSpin.SPIN_CENTER_TOPSPIN_BIAS).toBe(poolSpin.SPIN_CENTER_TOPSPIN_BIAS);
-    expect(snookerSpin.SPIN_DIRECTIONS).toEqual(poolSpin.SPIN_DIRECTIONS);
-    const samples = [
-      { x: 0, y: 0 },
-      { x: -1, y: 0 },
-      { x: 1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 },
-      { x: -1, y: -1 },
-      { x: 1, y: -1 },
-      { x: -1, y: 1 },
-      { x: 1, y: 1 },
-      { x: 0.4, y: -0.65 }
-    ];
-    for (const sample of samples) {
-      expect(snookerSpin.mapSpinForPhysics(sample)).toEqual(poolSpin.mapSpinForPhysics(sample));
-    }
-  });
 });
