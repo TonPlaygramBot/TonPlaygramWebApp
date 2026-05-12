@@ -203,10 +203,8 @@ const LANE_CENTERS = [-CFG.laneCenterOffset, CFG.laneCenterOffset] as const;
 const laneCenterForPlayer = (playerIndex: number) => LANE_CENTERS[playerIndex === 1 ? 1 : 0];
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(0, CFG.laneY, 8.18);
 const BOWLING_TABLE_CENTERS = [
-  new THREE.Vector3(-4.72, CFG.laneY, 7.02),
-  new THREE.Vector3(-4.72, CFG.laneY, 9.28),
-  new THREE.Vector3(4.72, CFG.laneY, 7.02),
-  new THREE.Vector3(4.72, CFG.laneY, 9.28),
+  new THREE.Vector3(-4.72, CFG.laneY, 8.14),
+  new THREE.Vector3(4.72, CFG.laneY, 8.14),
 ] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
@@ -224,8 +222,8 @@ const PLAYER_SEATS = [
 const BOWLING_LOUNGE_CHAIRS = BOWLING_TABLE_CENTERS.flatMap((center) => {
   const side = center.x < 0 ? -1 : 1;
   return [
-    { pos: new THREE.Vector3(center.x - side * 0.7, CFG.laneY, center.z - 0.5), yaw: side < 0 ? Math.PI / 2 : -Math.PI / 2 },
-    { pos: new THREE.Vector3(center.x + side * 0.7, CFG.laneY, center.z + 0.5), yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2 },
+    { pos: new THREE.Vector3(center.x - side * 0.76, CFG.laneY, center.z), yaw: side < 0 ? Math.PI / 2 : -Math.PI / 2 },
+    { pos: new THREE.Vector3(center.x + side * 0.76, CFG.laneY, center.z), yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2 },
   ];
 }) as { pos: THREE.Vector3; yaw: number }[];
 
@@ -1570,7 +1568,10 @@ function createEnvironment(scene: THREE.Scene, loader: THREE.TextureLoader, tabl
   }
   const ballLift = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.45, 1.04, 44), returnTrimMat);
   ballLift.position.set(0, CFG.laneY + 0.22, 7.12);
-  ballLift.rotation.z = Math.PI / 2;
+  // Align the lift drum with the return lane (world Z). A Z rotation turns the
+  // cylinder sideways across the approach, which made the rack/return assembly
+  // look misplaced from the player camera.
+  ballLift.rotation.x = Math.PI / 2;
   group.add(ballLift);
   for (const [x, z] of [[-0.44, 5.24], [0.44, 5.24], [-0.44, 7.02], [0.44, 7.02]]) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.34, 16), returnTrimMat);
