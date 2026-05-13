@@ -27,6 +27,7 @@ type WeaponStats = {
   spread: number;
   damage: number;
   pellets: number;
+  fairPellets: number;
   bulletSpeed: number;
   shellPower: number;
 };
@@ -67,6 +68,7 @@ type TableWeaponRuntime = {
 type BulletHole = {
   mesh: THREE.Mesh;
   points: number;
+  label: string;
 };
 
 type PaperTargetRuntime = {
@@ -110,7 +112,7 @@ const TABLE_Z = 2.35;
 const TABLE_TOP_Y = 0.94;
 const TARGET_Z = -21.8;
 
-const OVER_SHOULDER_OFFSET = new THREE.Vector3(0.5, 1.72, 4.1);
+const OVER_SHOULDER_OFFSET = new THREE.Vector3(0.5, 1.72, 4.85);
 const OVER_SHOULDER_LOOK = new THREE.Vector3(0.05, 1.38, -12.5);
 
 const HDRI_URL = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr';
@@ -180,12 +182,12 @@ const WEAPONS: WeaponEntry[] = [
 ];
 
 const STATS: Record<WeaponClass, WeaponStats> = {
-  pistol: { mag: 12, fireDelay: 210, reloadMs: 950, recoil: 0.35, spread: 0.013, damage: 34, pellets: 1, bulletSpeed: 5.2, shellPower: 0.95 },
-  revolver: { mag: 6, fireDelay: 430, reloadMs: 1150, recoil: 0.55, spread: 0.011, damage: 60, pellets: 1, bulletSpeed: 5.4, shellPower: 1.05 },
-  shotgun: { mag: 7, fireDelay: 670, reloadMs: 1300, recoil: 0.85, spread: 0.05, damage: 18, pellets: 8, bulletSpeed: 4.2, shellPower: 1.3 },
-  rifle: { mag: 30, fireDelay: 115, reloadMs: 1180, recoil: 0.28, spread: 0.017, damage: 27, pellets: 1, bulletSpeed: 5.6, shellPower: 1.0 },
-  smg: { mag: 34, fireDelay: 85, reloadMs: 1000, recoil: 0.2, spread: 0.024, damage: 20, pellets: 1, bulletSpeed: 5.0, shellPower: 0.82 },
-  sniper: { mag: 5, fireDelay: 900, reloadMs: 1500, recoil: 1.05, spread: 0.005, damage: 100, pellets: 1, bulletSpeed: 6.6, shellPower: 1.25 }
+  pistol: { mag: 12, fireDelay: 210, reloadMs: 950, recoil: 0.35, spread: 0.013, damage: 34, pellets: 1, fairPellets: 1, bulletSpeed: 5.2, shellPower: 0.95 },
+  revolver: { mag: 6, fireDelay: 430, reloadMs: 1150, recoil: 0.55, spread: 0.011, damage: 60, pellets: 1, fairPellets: 1, bulletSpeed: 5.4, shellPower: 1.05 },
+  shotgun: { mag: 7, fireDelay: 670, reloadMs: 1300, recoil: 0.85, spread: 0.05, damage: 18, pellets: 1, fairPellets: 1, bulletSpeed: 4.2, shellPower: 1.3 },
+  rifle: { mag: 30, fireDelay: 115, reloadMs: 1180, recoil: 0.28, spread: 0.017, damage: 27, pellets: 1, fairPellets: 1, bulletSpeed: 5.6, shellPower: 1.0 },
+  smg: { mag: 34, fireDelay: 85, reloadMs: 1000, recoil: 0.2, spread: 0.024, damage: 20, pellets: 1, fairPellets: 1, bulletSpeed: 5.0, shellPower: 0.82 },
+  sniper: { mag: 5, fireDelay: 900, reloadMs: 1500, recoil: 1.05, spread: 0.005, damage: 100, pellets: 1, fairPellets: 1, bulletSpeed: 6.6, shellPower: 1.25 }
 };
 
 const CHARACTERS: CharacterSpec[] = [
@@ -370,12 +372,26 @@ function orientWeaponForward(root: THREE.Object3D) {
 
 function layWeaponFlatOnTable(root: THREE.Object3D) {
   centerRoot(root);
-  root.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+  root.rotation.set(Math.PI / 2, Math.PI / 2, -Math.PI / 2);
   root.updateMatrixWorld(true);
   const box = getRenderableBounds(root);
   if (!box) return;
-  root.position.y += 0.025 - box.min.y;
+  root.position.y += 0.038 - box.min.y;
   root.updateMatrixWorld(true);
+}
+
+function pickAiWeaponIndex(aiOrder: number) {
+  const preferred: WeaponClass[][] = [
+    ['sniper', 'rifle'],
+    ['rifle', 'smg'],
+    ['pistol', 'revolver', 'shotgun']
+  ];
+  const classes = preferred[aiOrder % preferred.length];
+  const candidates = WEAPONS
+    .map((weapon, index) => ({ weapon, index }))
+    .filter(({ weapon }) => classes.includes(weapon.weaponClass));
+  const pool = candidates.length ? candidates : WEAPONS.map((weapon, index) => ({ weapon, index }));
+  return pool[Math.floor(Math.random() * pool.length)].index;
 }
 
 function makeFallbackCharacter(color = '#e5e7eb') {
@@ -527,8 +543,17 @@ function createSilhouetteTargetTexture() {
     ctx.lineWidth = ring.w;
     ctx.stroke();
   });
-  ctx.fillStyle = '#f97316';
-  ctx.fillRect(240, 340, 32, 32);
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(256, 356, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fef3c7';
+  ctx.font = 'bold 22px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('100', 256, 364);
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillText('95', 256, 166);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -650,7 +675,7 @@ function createBulletHole(localPoint: THREE.Vector3, points: number) {
   const mesh = new THREE.Mesh(
     new THREE.CircleGeometry(size, 18),
     new THREE.MeshBasicMaterial({
-      color: points >= 9 ? '#3f0a0a' : '#111111',
+      color: points >= 90 ? '#3f0a0a' : points >= 70 ? '#7f1d1d' : '#111111',
       transparent: true,
       opacity: 0.95,
       side: THREE.DoubleSide,
@@ -724,6 +749,8 @@ export default function ShootingRange() {
   const [laneScores, setLaneScores] = useState([0, 0, 0, 0]);
   const [shotsLeft, setShotsLeft] = useState([SHOTS_PER_PLAYER, SHOTS_PER_PLAYER, SHOTS_PER_PLAYER, SHOTS_PER_PLAYER]);
   const [winnerText, setWinnerText] = useState('');
+  const [userLane, setUserLane] = useState(USER_LANE);
+  const [lastHitText, setLastHitText] = useState('');
 
   const phaseRef = useRef<GamePhase>('loading');
   const viewModeRef = useRef<ViewMode>('tables');
@@ -731,6 +758,8 @@ export default function ShootingRange() {
   const ammoRef = useRef(STATS[WEAPONS[0].weaponClass].mag);
   const shotsLeftRef = useRef([SHOTS_PER_PLAYER, SHOTS_PER_PLAYER, SHOTS_PER_PLAYER, SHOTS_PER_PLAYER]);
   const laneScoresRef = useRef([0, 0, 0, 0]);
+  const userLaneRef = useRef(USER_LANE);
+  const winnerLaneRef = useRef<number | null>(null);
 
   const aimRef = useRef(new THREE.Vector2(0, 0));
   const fireLockRef = useRef(0);
@@ -970,11 +999,23 @@ export default function ShootingRange() {
     targets.forEach((t) => scene.add(t.root));
     paperTargetsRef.current = targets;
 
+    const tpcCoinMaterial = new THREE.MeshStandardMaterial({ color: '#facc15', emissive: '#f59e0b', emissiveIntensity: 0.48, roughness: 0.32, metalness: 0.8 });
+    const tpcCoins = Array.from({ length: 44 }, () => {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.025, 24), tpcCoinMaterial.clone());
+      mesh.visible = false;
+      mesh.castShadow = true;
+      scene.add(mesh);
+      return { mesh, velocity: new THREE.Vector3(), life: 0 };
+    });
+
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
     function buildCharacters() {
       const randomizedLanes = shuffle([0, 1, 2, 3]);
+      const humanLaneIndex = randomizedLanes[0];
+      userLaneRef.current = humanLaneIndex;
+      setUserLane(humanLaneIndex);
       const lanes: LaneRuntime[] = [];
 
       for (let playerId = 0; playerId < LANE_COUNT; playerId += 1) {
@@ -997,7 +1038,7 @@ export default function ShootingRange() {
         lanes[laneIndex] = {
           laneIndex,
           playerId,
-          controller: laneIndex === USER_LANE ? 'USER' : 'AI',
+          controller: playerId === 0 ? 'USER' : 'AI',
           root,
           visual,
           mixer: null,
@@ -1085,7 +1126,7 @@ export default function ShootingRange() {
       lane.muzzle = muzzle;
       lane.shellPort = shellPort;
 
-      if (laneIndex === USER_LANE) {
+      if (laneIndex === userLaneRef.current) {
         selectedWeaponRef.current = weaponIndex;
         setSelectedWeapon(weaponIndex);
         const st = statsFor(WEAPONS[weaponIndex]);
@@ -1116,12 +1157,12 @@ export default function ShootingRange() {
 
         const model = cloneScene(weaponSourcesRef.current[index] as THREE.Object3D);
         configureModel(model, renderer);
-        normalizeToLength(model, 0.62);
+        normalizeToLength(model, 0.72);
         layWeaponFlatOnTable(model);
         group.add(model);
 
         const card = new THREE.Mesh(
-          new THREE.BoxGeometry(0.92, 0.035, 0.42),
+          new THREE.BoxGeometry(1.08, 0.035, 0.5),
           new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.84, metalness: 0.14 })
         );
         card.position.y = -0.018;
@@ -1155,7 +1196,7 @@ export default function ShootingRange() {
 
               const loadedTableModel = cloneScene(gltf.scene);
               configureModel(loadedTableModel, renderer);
-              normalizeToLength(loadedTableModel, 0.62);
+              normalizeToLength(loadedTableModel, 0.72);
               layWeaponFlatOnTable(loadedTableModel);
               tableWeapon.root.add(loadedTableModel);
               tableWeapon.model = loadedTableModel;
@@ -1171,13 +1212,13 @@ export default function ShootingRange() {
           });
       });
 
-      setHeldWeapon(USER_LANE, 0, false);
+      setHeldWeapon(userLaneRef.current, 0, false);
       highlightTableSelection();
 
-      [1, 2, 3].forEach((laneIndex) => {
-        const possible = Array.from({ length: WEAPONS.length }, (_, i) => i);
-        const chosen = possible[(laneIndex * 3) % possible.length];
-        setHeldWeapon(laneIndex, chosen, false);
+      lanesRef.current.forEach((lane) => {
+        if (!lane || lane.controller !== 'AI') return;
+        const chosen = pickAiWeaponIndex(lane.playerId - 1);
+        setHeldWeapon(lane.laneIndex, chosen, false);
       });
 
       startPickPhase();
@@ -1206,13 +1247,15 @@ export default function ShootingRange() {
         }
       }, 1000);
 
-      [1, 2, 3].forEach((laneIndex, idx) => {
-        window.setTimeout(() => {
-          if (disposed || phaseRef.current !== 'pick') return;
-          const aiPick = (laneIndex * 5 + idx * 2 + 1) % WEAPONS.length;
-          setHeldWeapon(laneIndex, aiPick, true);
-        }, 850 + idx * 650);
-      });
+      lanesRef.current
+        .filter((lane) => lane?.controller === 'AI')
+        .forEach((lane, idx) => {
+          window.setTimeout(() => {
+            if (disposed || phaseRef.current !== 'pick') return;
+            const aiPick = pickAiWeaponIndex(idx);
+            setHeldWeapon(lane.laneIndex, aiPick, true);
+          }, 850 + idx * 650);
+        });
     }
 
     function startShootPhase() {
@@ -1227,6 +1270,9 @@ export default function ShootingRange() {
       const scores = [0, 0, 0, 0];
       laneScoresRef.current = scores;
       setLaneScores([...scores]);
+      winnerLaneRef.current = null;
+      setWinnerText('');
+      setLastHitText('');
 
       paperTargetsRef.current.forEach((target) => {
         target.score = 0;
@@ -1254,10 +1300,21 @@ export default function ShootingRange() {
 
       const scores = laneScoresRef.current;
       const best = Math.max(...scores);
-      const winnerLane = scores.findIndex((s) => s === best);
+      const winnerLane = scores.findIndex((score) => score === best);
+      const winnerLaneRuntime = lanesRef.current[winnerLane];
+      const winnerName = winnerLane === userLaneRef.current ? 'YOU' : `AI ${winnerLaneRuntime?.playerId ?? winnerLane}`;
+      winnerLaneRef.current = winnerLane;
 
-      setWinnerText(`Winner: Lane ${winnerLane + 1} · ${best} pts`);
-      setStatus(`Winner: Lane ${winnerLane + 1} · ${best} pts`);
+      setWinnerText(`Winner: ${winnerName} · Lane ${winnerLane + 1} · ${best} pts`);
+      setStatus(`${winnerName} wins! Winner target reveal + TPC coin burst.`);
+
+      tpcCoins.forEach((coin) => {
+        coin.mesh.visible = true;
+        coin.mesh.position.set(THREE.MathUtils.randFloatSpread(0.9), 1.85 + THREE.MathUtils.randFloatSpread(0.42), -3.72 + THREE.MathUtils.randFloatSpread(0.35));
+        coin.mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        coin.velocity.set(THREE.MathUtils.randFloatSpread(2.3), THREE.MathUtils.randFloat(1.65, 3.45), THREE.MathUtils.randFloat(-0.7, 1.45));
+        coin.life = 3.2 + Math.random() * 1.4;
+      });
 
       paperTargetsRef.current.forEach((target, i) => {
         (target.winnerRing.material as THREE.MeshBasicMaterial).opacity = i === winnerLane ? 1 : 0;
@@ -1286,21 +1343,22 @@ export default function ShootingRange() {
     }
 
     function scoreHit(local: THREE.Vector3) {
-      const dx = local.x;
-      const dy = local.y - 0.04;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < 0.055) return 10;
-      if (d < 0.1) return 9;
-      if (d < 0.16) return 8;
-      if (d < 0.24) return 7;
-      if (d < 0.33) return 6;
-      return 5;
+      const headDistance = Math.hypot(local.x, local.y - 0.46);
+      if (headDistance < 0.14) return { points: 95, label: 'Head shot' };
+
+      const heartDistance = Math.hypot(local.x, local.y - 0.08);
+      if (heartDistance < 0.075) return { points: 100, label: 'Heart shot' };
+      if (heartDistance < 0.13) return { points: 88, label: 'Center chest' };
+      if (heartDistance < 0.2) return { points: 70, label: 'Inner ring' };
+      if (heartDistance < 0.3) return { points: 48, label: 'Outer ring' };
+      if (Math.abs(local.x) < 0.43 && local.y > -0.64 && local.y < 0.48) return { points: 20, label: 'Body hit' };
+      return { points: 5, label: 'Paper edge' };
     }
 
-    function addBulletHole(target: PaperTargetRuntime, localPoint: THREE.Vector3, points: number) {
+    function addBulletHole(target: PaperTargetRuntime, localPoint: THREE.Vector3, points: number, label: string) {
       const hole = createBulletHole(localPoint, points);
       target.paper.add(hole);
-      target.holes.push({ mesh: hole, points });
+      target.holes.push({ mesh: hole, points, label });
       target.hits += 1;
       if (target.holes.length > 36) {
         const old = target.holes.shift();
@@ -1375,22 +1433,30 @@ export default function ShootingRange() {
       shellsRef.current.push(createShell(scene, shellPos, stats.shellPower));
 
       let bestPoints = 0;
+      let bestLabel = 'Miss';
+      const pelletCount = stats.fairPellets;
 
-      for (let i = 0; i < stats.pellets; i += 1) {
-        const result = resolveShotForLane(laneIndex, stats.spread * (isAI ? 1.28 : 1), lane.aiAim);
+      for (let i = 0; i < pelletCount; i += 1) {
+        const result = resolveShotForLane(laneIndex, stats.spread * (isAI ? 1.18 : 1), lane.aiAim);
         const cinematic = !isAI && i === 0;
         bulletsRef.current.push(
           createBullet(scene, muzzlePos.clone(), result.point.clone(), cinematic, stats.bulletSpeed)
         );
 
         if (result.local) {
-          const points = scoreHit(result.local);
-          addBulletHole(result.target, result.local, points);
-          if (i === 0) bestPoints = points;
+          const score = scoreHit(result.local);
+          addBulletHole(result.target, result.local, score.points, score.label);
+          if (score.points > bestPoints) {
+            bestPoints = score.points;
+            bestLabel = score.label;
+          }
         }
       }
 
       addLaneScore(laneIndex, bestPoints);
+      const shooterName = laneIndex === userLaneRef.current ? 'YOU' : `AI ${lane.playerId}`;
+      setLastHitText(`${shooterName}: ${bestLabel} · +${bestPoints} (${weapon.weaponClass === 'shotgun' ? 'single fair shotgun pellet' : 'single scored shot'})`);
+      setStatus(`${shooterName} fired ${weapon.shortName}: ${bestLabel} +${bestPoints}`);
 
       const allDone = shotsLeftRef.current.every((s) => s <= 0);
       if (allDone) {
@@ -1402,7 +1468,7 @@ export default function ShootingRange() {
 
     function fireUser() {
       if (phaseRef.current !== 'shoot') return;
-      executeShot(USER_LANE, false);
+      executeShot(userLaneRef.current, false);
     }
 
     function reloadUser() {
@@ -1425,7 +1491,7 @@ export default function ShootingRange() {
       const next = (selectedWeaponRef.current + 1) % WEAPONS.length;
       selectedWeaponRef.current = next;
       setSelectedWeapon(next);
-      setHeldWeapon(USER_LANE, next, true);
+      setHeldWeapon(userLaneRef.current, next, true);
       highlightTableSelection();
     }
 
@@ -1434,7 +1500,7 @@ export default function ShootingRange() {
       const next = (selectedWeaponRef.current - 1 + WEAPONS.length) % WEAPONS.length;
       selectedWeaponRef.current = next;
       setSelectedWeapon(next);
-      setHeldWeapon(USER_LANE, next, true);
+      setHeldWeapon(userLaneRef.current, next, true);
       highlightTableSelection();
     }
 
@@ -1442,7 +1508,7 @@ export default function ShootingRange() {
       if (phaseRef.current !== 'pick') return;
       selectedWeaponRef.current = index;
       setSelectedWeapon(index);
-      setHeldWeapon(USER_LANE, index, true);
+      setHeldWeapon(userLaneRef.current, index, true);
       highlightTableSelection();
       setStatus(`Picked ${WEAPONS[index].shortName}`);
     }
@@ -1566,7 +1632,7 @@ export default function ShootingRange() {
         lane.mixer?.update(dt);
         lane.pickupLift = Math.max(0, lane.pickupLift - dt * 2.3);
 
-        const isUser = lane.laneIndex === USER_LANE;
+        const isUser = lane.controller === 'USER';
         const aim = isUser ? aimRef.current : lane.aiAim;
         const recoil = isUser ? recoilRef.current : 0;
 
@@ -1601,7 +1667,7 @@ export default function ShootingRange() {
     function updateTargets() {
       if (phaseRef.current === 'results') {
         const best = Math.max(...laneScoresRef.current);
-        const winnerLane = laneScoresRef.current.findIndex((s) => s === best);
+        const winnerLane = winnerLaneRef.current ?? laneScoresRef.current.findIndex((score) => score === best);
 
         paperTargetsRef.current.forEach((target, i) => {
           const wantedZ = i === winnerLane ? -4.1 : -7.2;
@@ -1611,7 +1677,29 @@ export default function ShootingRange() {
           target.root.position.y = THREE.MathUtils.lerp(target.root.position.y, i === winnerLane ? 0.92 : 0.76, 0.05);
           target.root.rotation.y = THREE.MathUtils.lerp(target.root.rotation.y, 0, 0.08);
         });
+
+        lanesRef.current.forEach((lane) => {
+          if (!lane) return;
+          const winningLane = lane.laneIndex === winnerLane;
+          const targetX = winningLane ? -1.18 : LANE_X[lane.laneIndex];
+          const targetZ = winningLane ? -3.95 : 3.05;
+          lane.root.position.x = THREE.MathUtils.lerp(lane.root.position.x, targetX, 0.045);
+          lane.root.position.z = THREE.MathUtils.lerp(lane.root.position.z, targetZ, 0.045);
+          lane.root.rotation.y = THREE.MathUtils.lerp(lane.root.rotation.y, winningLane ? 0.18 : 0, 0.05);
+        });
       }
+    }
+
+    function updateWinnerCoins(dt: number) {
+      tpcCoins.forEach((coin) => {
+        if (!coin.mesh.visible) return;
+        coin.life -= dt;
+        coin.velocity.y -= 2.6 * dt;
+        coin.mesh.position.addScaledVector(coin.velocity, dt);
+        coin.mesh.rotation.x += 8.5 * dt;
+        coin.mesh.rotation.y += 5.8 * dt;
+        if (coin.life <= 0 || coin.mesh.position.y < 0.32) coin.mesh.visible = false;
+      });
     }
 
     const tempPos = new THREE.Vector3();
@@ -1619,8 +1707,8 @@ export default function ShootingRange() {
 
     function updateCamera() {
       if (viewModeRef.current === 'tables') {
-        tempPos.set(0, 5.3, 7.5);
-        tempLook.set(0, 1.05, 1.9);
+        tempPos.set(0, 5.75, 8.85);
+        tempLook.set(0, 1.0, 1.72);
         camera.position.lerp(tempPos, 0.08);
         camera.lookAt(tempLook);
         return;
@@ -1631,7 +1719,7 @@ export default function ShootingRange() {
         const winnerLane = laneScoresRef.current.findIndex((s) => s === best);
         const target = paperTargetsRef.current[winnerLane];
         if (target) {
-          tempPos.set(0, 2.25, 3.45);
+          tempPos.set(0, 2.5, 4.45);
           tempLook.copy(target.root.position).add(new THREE.Vector3(0, 1.0, 0));
           camera.position.lerp(tempPos, 0.07);
           camera.lookAt(tempLook);
@@ -1650,12 +1738,12 @@ export default function ShootingRange() {
       }
 
       tempPos.set(
-        LANE_X[USER_LANE] + OVER_SHOULDER_OFFSET.x + aimRef.current.x * 0.24,
+        LANE_X[userLaneRef.current] + OVER_SHOULDER_OFFSET.x + aimRef.current.x * 0.24,
         OVER_SHOULDER_OFFSET.y + aimRef.current.y * 0.12 + recoilRef.current * 0.04,
         OVER_SHOULDER_OFFSET.z
       );
       tempLook.set(
-        LANE_X[USER_LANE] + OVER_SHOULDER_LOOK.x + aimRef.current.x * 1.35,
+        LANE_X[userLaneRef.current] + OVER_SHOULDER_LOOK.x + aimRef.current.x * 1.35,
         OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.95,
         OVER_SHOULDER_LOOK.z
       );
@@ -1685,6 +1773,7 @@ export default function ShootingRange() {
       updateShells(dt);
       updateCharacters(dt);
       updateTargets();
+      updateWinnerCoins(dt);
       updateCamera();
 
       renderer.render(scene, camera);
@@ -1803,7 +1892,7 @@ export default function ShootingRange() {
                 {phase === 'pick'
                   ? `Pick any weapon from any table · ${pickTimer}s`
                   : phase === 'shoot'
-                  ? 'Lane 1 is yours · bullet holes are saved on targets'
+                  ? `Lane ${userLane + 1} is yours · bullet holes are saved on targets`
                   : phase === 'results'
                   ? winnerText
                   : 'Loading range...'}
@@ -1832,11 +1921,11 @@ export default function ShootingRange() {
                 style={{
                   padding: '6px 8px',
                   borderRadius: 12,
-                  background: i === USER_LANE ? 'rgba(250,204,21,.16)' : 'rgba(255,255,255,.05)',
-                  color: i === USER_LANE ? '#fde68a' : '#d1d5db'
+                  background: i === userLane ? 'rgba(250,204,21,.16)' : 'rgba(255,255,255,.05)',
+                  color: i === userLane ? '#fde68a' : '#d1d5db'
                 }}
               >
-                <div>{i === USER_LANE ? 'YOU' : `AI ${i}`}</div>
+                <div>{i === userLane ? 'YOU' : `AI ${lanesRef.current[i]?.playerId ?? i}`}</div>
                 <div>Score: {s}</div>
                 <div>Shots: {shotsLeft[i]}</div>
               </div>
@@ -1858,7 +1947,9 @@ export default function ShootingRange() {
             <span>Weapon: {selectedEntry.shortName}</span>
             <span>Type: {selectedEntry.weaponClass.toUpperCase()}</span>
             <span>Ammo: {ammo}/{selectedStats.mag}</span>
+            <span>{selectedEntry.weaponClass === 'shotgun' ? 'Shotgun fairness: 1 pellet' : 'Single scored shot'}</span>
             <span>{status}</span>
+            {lastHitText && <span style={{ color: '#86efac' }}>{lastHitText}</span>}
           </div>
         </div>
       </div>
@@ -1920,7 +2011,7 @@ export default function ShootingRange() {
           <button onClick={() => actionsRef.current.range()} style={buttonStyle}>Range View</button>
           <div style={panelStyle}>
             <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.86 }}>
-              During pick phase you can click any weapon lying on the tables.
+              During pick phase you can click any weapon lying flat on the tables.
             </div>
           </div>
         </div>
