@@ -124,11 +124,6 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
-import {
-  createBilardoHumanRig as sharedCreateBilardoHumanRig,
-  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose as sharedUpdateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
 
 const bilardoRigLocal = (() => {
 const WORLD_SCALE = 3.5;
@@ -490,30 +485,26 @@ function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cf
 
 function updateBilardoHumanPose(human, dt, frameData) {
   if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
-  const cfg = { ...CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
-  human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = dampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
-  if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
-  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const prevPos = human.root.position.clone();
-  dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
-  const moveDelta = human.root.position.clone().sub(prevPos).setY(0);
-  if (dt > 0) {
-    human.vel.copy(moveDelta).multiplyScalar(1 / dt);
-    human.speed = human.vel.length();
-    if (human.speed > 0.001) human.targetDir.copy(human.vel).normalize();
-  } else {
-    human.speed = 0;
-  }
-  if (state !== 'striking' && human.targetDir.lengthSq() > 0.001) {
-    human.dir.lerp(human.targetDir, 1 - Math.pow(0.001, dt)).normalize();
-    human.yaw = Math.atan2(human.dir.x, human.dir.z);
-  } else {
-    human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
-  }
+  const cfg = { ...CFG, ...(human.cfg || {}) };
+  const state = frameData.state || 'idle';
+  const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
+  human.poseT = dampScalar(human.poseT, activeState === 'idle' ? 0 : 1, cfg.poseLambda, dt);
+  human.breathT += dt * (activeState === 'idle' ? 1.05 : 0.5);
+  human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
+  if (activeState === 'striking') {
+    if (human.strikeClock === 0) {
+      human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget);
+      human.strikeYaw = human.yaw;
+    }
+    human.strikeClock += dt;
+  } else human.strikeClock = 0;
+  const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
+  dampVector(human.root.position, rootGoal, activeState === 'striking' ? 12 : cfg.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
+  human.yaw = dampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
   const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
-  const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
+  const power = frameData.power ?? 0; const stroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = activeState === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
@@ -534,9 +525,9 @@ function updateBilardoHumanPose(human, dt, frameData) {
   const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
   const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
   const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04, cfg.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18, cfg.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04, cfg.rightElbowShotBack, t));
-  const pullBack = state === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(power) : 0;
-  const pushForward = state === 'striking' ? cfg.rightStrokePush * follow : 0;
-  const smallPractice = state === 'dragging' ? stroke * 0.035 : 0;
+  const pullBack = activeState === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(power) : 0;
+  const pushForward = activeState === 'striking' ? cfg.rightStrokePush * follow : 0;
+  const smallPractice = activeState === 'dragging' ? stroke * 0.035 : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, cfg.rightForearmOutward * t).addScaledVector(UP, -cfg.rightForearmDown * t).addScaledVector(UP, cfg.rightHandShotLift * t).addScaledVector(forward, -cfg.rightForearmBack * t).addScaledVector(cueDirForHand, cfg.rightForearmLength);
   const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
@@ -557,10 +548,11 @@ function updateBilardoHumanPose(human, dt, frameData) {
   };
 })();
 
-// Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
-const createBilardoHumanRig = sharedCreateBilardoHumanRig;
-const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
-const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
+// Pool Royale uses the original cue-sports skeleton solver from the reference build.
+// Keep the change scoped to the human character: physics, rules, camera and HUD remain untouched.
+const createBilardoHumanRig = bilardoRigLocal.createBilardoHumanRig;
+const chooseBilardoHumanEdgePosition = bilardoRigLocal.chooseBilardoHumanEdgePosition;
+const updateBilardoHumanPose = bilardoRigLocal.updateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1515,6 +1507,34 @@ function applyChromePlateDamping(material) {
   mat.needsUpdate = true;
   return mat;
 }
+
+function cloneClothEdgeTexture(texture) {
+  if (!texture) return null;
+  const clone = texture.clone?.() || texture;
+  if (clone !== texture) clone.image = texture.image;
+  clone.needsUpdate = true;
+  return clone;
+}
+
+function applyClothTextureToPocketEdgeMaterial(edgeMat, clothMat) {
+  if (!edgeMat || !clothMat) return edgeMat;
+  edgeMat.map = cloneClothEdgeTexture(clothMat.map);
+  edgeMat.bumpMap = cloneClothEdgeTexture(clothMat.bumpMap);
+  edgeMat.normalMap = cloneClothEdgeTexture(clothMat.normalMap);
+  edgeMat.roughnessMap = cloneClothEdgeTexture(clothMat.roughnessMap);
+  if (edgeMat.map) edgeMat.map.colorSpace = THREE.SRGBColorSpace;
+  if (edgeMat.normalMap && clothMat.normalScale?.clone) {
+    edgeMat.normalScale = clothMat.normalScale.clone();
+  }
+  edgeMat.bumpScale = Number.isFinite(clothMat.bumpScale) ? clothMat.bumpScale * 0.58 : edgeMat.bumpScale;
+  edgeMat.userData = {
+    ...(edgeMat.userData || {}),
+    poolRoyalePocketCutoutsUseClothTexture: true
+  };
+  edgeMat.needsUpdate = true;
+  return edgeMat;
+}
+
 function addPocketCuts(
   parent,
   clothPlane,
@@ -2273,7 +2293,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.82; // raise Pool Royale strike speed so full shots feel powerful
+const SHOT_GLOBAL_POWER_SCALE = 1.08; // stronger Pool Royale strike speed so full shots carry more power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -5803,11 +5823,7 @@ function updateClothTexturesForFinish (
         edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.normalMap = null;
-    finishInfo.clothEdgeMat.roughnessMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
+    applyClothTextureToPocketEdgeMaterial(finishInfo.clothEdgeMat, finishInfo.clothMat);
     finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
@@ -9697,11 +9713,7 @@ export function Table3D(
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.normalMap = null;
-  clothEdgeMat.roughnessMap = null;
-  clothEdgeMat.bumpScale = 0;
+  applyClothTextureToPocketEdgeMaterial(clothEdgeMat, clothMat);
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
@@ -9802,9 +9814,7 @@ export function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.bumpScale = 0;
+  applyClothTextureToPocketEdgeMaterial(clothEdgeMat, clothMat);
   clothEdgeMat.roughness = 1;
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
@@ -15063,9 +15073,7 @@ function applyTableFinishToTable(table, finish) {
   if (finishInfo.clothEdgeMat) {
     const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
     finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
+    applyClothTextureToPocketEdgeMaterial(finishInfo.clothEdgeMat, finishInfo.clothMat);
     finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
