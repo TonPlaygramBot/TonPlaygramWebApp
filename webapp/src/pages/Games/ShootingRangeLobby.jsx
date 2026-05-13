@@ -18,6 +18,27 @@ import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 const PLAYER_FLAG_STORAGE_KEY = 'shootingRangePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'shootingRangeAiFlag';
 
+const RANGE_DISTANCES = [
+  {
+    id: 'standard',
+    label: 'Standard',
+    desc: 'Current shooting range distance',
+    icon: '🎯'
+  },
+  {
+    id: 'long',
+    label: 'Long',
+    desc: 'Further targets for steadier aim',
+    icon: '🏹'
+  },
+  {
+    id: 'extreme',
+    label: 'Extreme',
+    desc: 'Farthest precision challenge',
+    icon: '🔭'
+  }
+];
+
 export default function ShootingRangeLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -26,6 +47,7 @@ export default function ShootingRangeLobby() {
   const [mode, setMode] = useState('ai');
   const [players, setPlayers] = useState(4);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [distance, setDistance] = useState('standard');
   const [avatar, setAvatar] = useState('');
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
@@ -69,6 +91,7 @@ export default function ShootingRangeLobby() {
     const params = new URLSearchParams(search);
     params.set('mode', mode);
     params.set('players', String(players));
+    params.set('distance', distance);
     if (avatar) params.set('avatar', avatar);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
@@ -208,6 +231,43 @@ export default function ShootingRangeLobby() {
                   className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
                 >
                   <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-400/20 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src=""
+                        alt={label}
+                        fallback={icon}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Range Distance</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              3 distances
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {RANGE_DISTANCES.map(({ id, label, desc, icon }) => {
+              const active = distance === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setDistance(id)}
+                  className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-cyan-400/30 via-blue-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src=""

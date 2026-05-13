@@ -20,6 +20,7 @@ type GamePhase = 'loading' | 'pick' | 'shoot' | 'results';
 type ViewMode = 'tables' | 'range' | 'results';
 type ControllerType = 'USER' | 'AI';
 type MatchMode = 'ai' | 'online';
+type RangeDistance = 'standard' | 'long' | 'extreme';
 
 type WeaponEntry = {
   id: string;
@@ -123,6 +124,27 @@ const LANE_X = [-4.9, -1.65, 1.65, 4.9];
 const TABLE_Z = 2.35;
 const TABLE_TOP_Y = 0.94;
 const TARGET_Z = -21.8;
+
+const RANGE_DISTANCE_CONFIG: Record<
+  RangeDistance,
+  { label: string; targetZ: number; subtitle: string }
+> = {
+  standard: {
+    label: 'Standard',
+    targetZ: TARGET_Z,
+    subtitle: 'Current range distance'
+  },
+  long: {
+    label: 'Long',
+    targetZ: -29.6,
+    subtitle: 'Further target rails'
+  },
+  extreme: {
+    label: 'Extreme',
+    targetZ: -37.2,
+    subtitle: 'Maximum precision lane'
+  }
+};
 
 const OVER_SHOULDER_OFFSET = new THREE.Vector3(0.5, 1.72, 4.85);
 const OVER_SHOULDER_LOOK = new THREE.Vector3(0.05, 1.38, -12.5);
@@ -836,6 +858,72 @@ function makeFallbackWeapon(entry: WeaponEntry) {
   return group;
 }
 
+function createWeaponIconCanvas(entry: WeaponEntry) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.fillStyle = 'rgba(15,23,42,.92)';
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 9;
+
+  const longGun =
+    entry.weaponClass === 'rifle' ||
+    entry.weaponClass === 'shotgun' ||
+    entry.weaponClass === 'sniper';
+
+  if (longGun) {
+    const barrelEnd = entry.weaponClass === 'sniper' ? 226 : 206;
+    ctx.fillRect(58, 54, 96, 24);
+    ctx.fillRect(20, 60, 44, 18);
+    ctx.fillRect(148, 60, barrelEnd - 148, 10);
+    ctx.fillRect(76, 77, 22, 34);
+    if (entry.weaponClass === 'shotgun') {
+      ctx.fillRect(150, 76, 56, 7);
+    }
+    if (entry.weaponClass === 'sniper') {
+      ctx.fillRect(92, 36, 60, 13);
+      ctx.fillRect(102, 47, 10, 12);
+      ctx.fillRect(135, 47, 10, 12);
+    }
+  } else {
+    ctx.fillRect(66, 52, 92, 28);
+    ctx.fillRect(154, 60, 52, 10);
+    ctx.fillRect(84, 76, 24, 42);
+    ctx.beginPath();
+    ctx.arc(126, 82, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    if (entry.weaponClass === 'revolver') {
+      ctx.beginPath();
+      ctx.arc(120, 65, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.strokeRect(8, 8, 240, 112);
+  ctx.fillStyle = '#fde68a';
+  ctx.font = 'bold 20px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(entry.shortName, 128, 26);
+  return canvas;
+}
+
+function createWeaponIconTexture(entry: WeaponEntry) {
+  const tex = new THREE.CanvasTexture(createWeaponIconCanvas(entry));
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function weaponIconDataUri(entry: WeaponEntry) {
+  if (typeof document === 'undefined') return '';
+  return createWeaponIconCanvas(entry).toDataURL('image/png');
+}
+
 function createSilhouetteTargetTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -967,7 +1055,10 @@ function updateLabelSprite(sprite: THREE.Sprite, text: string) {
   tex.needsUpdate = true;
 }
 
-function createPaperTarget(laneIndex: number): PaperTargetRuntime {
+function createPaperTarget(
+  laneIndex: number,
+  targetZ = TARGET_Z
+): PaperTargetRuntime {
   const root = new THREE.Group();
   const railMat = new THREE.MeshStandardMaterial({
     color: '#555f69',
@@ -1025,7 +1116,7 @@ function createPaperTarget(laneIndex: number): PaperTargetRuntime {
   labelSprite.position.set(0, 2.95, 0);
   root.add(labelSprite);
 
-  root.position.set(LANE_X[laneIndex], 0.65, TARGET_Z);
+  root.position.set(LANE_X[laneIndex], 0.65, targetZ);
 
   return {
     laneIndex,
@@ -1038,7 +1129,7 @@ function createPaperTarget(laneIndex: number): PaperTargetRuntime {
     winnerRing,
     startX: LANE_X[laneIndex],
     startY: 0.65,
-    startZ: TARGET_Z,
+    startZ: targetZ,
     resultZ: -4.1
   };
 }
@@ -1167,10 +1258,16 @@ export default function ShootingRange() {
         playerCount: LANE_COUNT,
         playerName: 'Player',
         playerFlag: '',
-        aiFlag: ''
+        aiFlag: '',
+        distance: 'standard' as RangeDistance
       };
     const params = new URLSearchParams(window.location.search);
     const parsedPlayers = Number(params.get('players') || LANE_COUNT);
+    const requestedDistance = params.get('distance') as RangeDistance | null;
+    const distance: RangeDistance =
+      requestedDistance && requestedDistance in RANGE_DISTANCE_CONFIG
+        ? requestedDistance
+        : 'standard';
     return {
       mode:
         params.get('mode') === 'online'
@@ -1182,7 +1279,8 @@ export default function ShootingRange() {
       ),
       playerName: params.get('name') || 'Player',
       playerFlag: params.get('flag') || '',
-      aiFlag: params.get('aiFlag') || ''
+      aiFlag: params.get('aiFlag') || '',
+      distance
     };
   }, []);
 
@@ -1221,7 +1319,8 @@ export default function ShootingRange() {
     prev: () => {},
     tables: () => {},
     range: () => {},
-    restart: () => {}
+    restart: () => {},
+    select: (_index: number) => {}
   });
 
   const selectedEntry = useMemo(
@@ -1229,6 +1328,10 @@ export default function ShootingRange() {
     [selectedWeapon]
   );
   const selectedStats = useMemo(() => statsFor(selectedEntry), [selectedEntry]);
+  const weaponIconUris = useMemo(
+    () => WEAPONS.map((entry) => weaponIconDataUri(entry)),
+    []
+  );
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -1277,10 +1380,16 @@ export default function ShootingRange() {
     let disposed = false;
     let raf = 0;
     let pickInterval: number | null = null;
+    const rangeConfig = RANGE_DISTANCE_CONFIG[queryConfig.distance];
+    const activeTargetZ = rangeConfig.targetZ;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#111827');
-    scene.fog = new THREE.Fog('#111827', 18, 76);
+    scene.fog = new THREE.Fog(
+      '#111827',
+      18,
+      queryConfig.distance === 'extreme' ? 92 : 76
+    );
 
     const camera = new THREE.PerspectiveCamera(
       62,
@@ -1402,7 +1511,7 @@ export default function ShootingRange() {
       new THREE.BoxGeometry(15.2, 6.2, 0.25),
       wallMat
     );
-    backWall.position.set(0, 3.05, TARGET_Z - 10.4);
+    backWall.position.set(0, 3.05, activeTargetZ - 10.4);
     backWall.receiveShadow = true;
     scene.add(backWall);
 
@@ -1416,7 +1525,7 @@ export default function ShootingRange() {
       new THREE.BoxGeometry(14, 2.6, 1.2),
       laneMat
     );
-    darkBackstop.position.set(0, 1.3, TARGET_Z - 8.9);
+    darkBackstop.position.set(0, 1.3, activeTargetZ - 8.9);
     darkBackstop.rotation.x = -0.25;
     darkBackstop.receiveShadow = true;
     darkBackstop.castShadow = true;
@@ -1521,7 +1630,7 @@ export default function ShootingRange() {
     }
 
     const targets = Array.from({ length: LANE_COUNT }, (_, i) =>
-      createPaperTarget(i)
+      createPaperTarget(i, activeTargetZ)
     );
     targets.forEach((t) => scene.add(t.root));
     paperTargetsRef.current = targets;
@@ -1545,6 +1654,8 @@ export default function ShootingRange() {
     });
 
     const raycaster = new THREE.Raycaster();
+    const shotRaycaster = new THREE.Raycaster();
+    const crosshairNdc = new THREE.Vector2(0, 0);
     const pointer = new THREE.Vector2();
 
     function buildCharacters() {
@@ -1704,8 +1815,19 @@ export default function ShootingRange() {
 
       buildCharacters();
 
+      const randomizedSlots = shuffle(
+        WEAPONS.map((_, index) => ({
+          tableIndex: index % LANE_COUNT,
+          localIndex: Math.floor(index / LANE_COUNT)
+        }))
+      );
+
       WEAPONS.forEach((entry, index) => {
-        const tableIndex = index % LANE_COUNT;
+        const slot = randomizedSlots[index] ?? {
+          tableIndex: index % LANE_COUNT,
+          localIndex: Math.floor(index / LANE_COUNT)
+        };
+        const tableIndex = slot.tableIndex;
         const group = new THREE.Group();
         group.userData.pickWeaponIndex = index;
 
@@ -1729,7 +1851,19 @@ export default function ShootingRange() {
         card.receiveShadow = true;
         group.add(card);
 
-        const localIndex = Math.floor(index / LANE_COUNT);
+        const icon = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.42, 0.21),
+          new THREE.MeshBasicMaterial({
+            map: createWeaponIconTexture(entry),
+            transparent: true,
+            depthWrite: false
+          })
+        );
+        icon.rotation.x = -Math.PI / 2;
+        icon.position.set(0, 0.007, 0.17);
+        group.add(icon);
+
+        const localIndex = slot.localIndex;
         const col = localIndex % 2;
         const row = Math.floor(localIndex / 2);
 
@@ -1783,7 +1917,8 @@ export default function ShootingRange() {
           });
       });
 
-      setHeldWeapon(userLaneRef.current, 0, false);
+      const firstUserTableWeapon = tableWeaponIndicesForUser()[0] ?? 0;
+      setHeldWeapon(userLaneRef.current, firstUserTableWeapon, false);
       highlightTableSelection();
 
       lanesRef.current.forEach((lane) => {
@@ -1984,6 +2119,38 @@ export default function ShootingRange() {
       }
     }
 
+    function resolveUserShotFromCrosshair(laneIndex: number) {
+      const target = paperTargetsRef.current[laneIndex];
+      target.paper.updateMatrixWorld(true);
+      camera.updateMatrixWorld(true);
+
+      const planePoint = target.paper.getWorldPosition(new THREE.Vector3());
+      const planeNormal = new THREE.Vector3(0, 0, 1)
+        .applyQuaternion(
+          target.paper.getWorldQuaternion(new THREE.Quaternion())
+        )
+        .normalize();
+      const targetPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        planeNormal,
+        planePoint
+      );
+      shotRaycaster.setFromCamera(crosshairNdc, camera);
+
+      const point = new THREE.Vector3();
+      const intersects = shotRaycaster.ray.intersectPlane(targetPlane, point);
+      if (!intersects) {
+        return { point: planePoint, local: null, target };
+      }
+
+      const local = target.paper.worldToLocal(point.clone());
+      local.z = 0;
+      const onPaper =
+        Math.abs(local.x) <= TARGET_HALF_WIDTH &&
+        Math.abs(local.y) <= TARGET_HALF_HEIGHT;
+
+      return { point, local: onPaper ? local : null, target };
+    }
+
     function resolveShotForLane(
       laneIndex: number,
       spread: number,
@@ -2054,11 +2221,9 @@ export default function ShootingRange() {
       const pelletCount = stats.fairPellets;
 
       for (let i = 0; i < pelletCount; i += 1) {
-        const result = resolveShotForLane(
-          laneIndex,
-          stats.spread * (isAI ? 1.08 : 1),
-          isAI ? lane.aiAim : undefined
-        );
+        const result = isAI
+          ? resolveShotForLane(laneIndex, stats.spread * 1.08, lane.aiAim)
+          : resolveUserShotFromCrosshair(laneIndex);
         const cinematic = !isAI && i === 0;
         bulletsRef.current.push(
           createBullet(
@@ -2077,6 +2242,8 @@ export default function ShootingRange() {
             bestPoints = score.points;
             bestLabel = score.label;
           }
+        } else if (!isAI) {
+          bestLabel = 'Missed paper';
         }
       }
 
@@ -2117,46 +2284,54 @@ export default function ShootingRange() {
     }
 
     function tableWeaponIndicesForUser() {
-      const laneX = LANE_X[userLaneRef.current];
       const indices = tableWeaponsRef.current
-        .filter((tw) => Math.abs(tw.root.position.x - laneX) < 1.35)
-        .map((tw) => tw.weaponIndex)
-        .sort((a, b) => a - b);
+        .slice()
+        .sort((a, b) =>
+          a.root.position.x === b.root.position.x
+            ? a.root.position.z - b.root.position.z
+            : a.root.position.x - b.root.position.x
+        )
+        .map((tw) => tw.weaponIndex);
       return indices.length ? indices : WEAPONS.map((_, index) => index);
     }
 
+    function canSwitchWeapons() {
+      return phaseRef.current === 'pick' || phaseRef.current === 'shoot';
+    }
+
+    function switchToWeapon(weaponIndex: number, verb = 'Switched to') {
+      selectedWeaponRef.current = weaponIndex;
+      setSelectedWeapon(weaponIndex);
+      setHeldWeapon(userLaneRef.current, weaponIndex, true);
+      highlightTableSelection();
+      setStatus(`${verb} ${WEAPONS[weaponIndex].shortName}`);
+    }
+
     function nextWeapon() {
-      if (phaseRef.current !== 'pick') return;
+      if (!canSwitchWeapons()) return;
       const visibleOnTable = tableWeaponIndicesForUser();
       const currentSlot = visibleOnTable.indexOf(selectedWeaponRef.current);
       const next =
         visibleOnTable[
           (currentSlot + 1 + visibleOnTable.length) % visibleOnTable.length
         ];
-      selectedWeaponRef.current = next;
-      setSelectedWeapon(next);
-      setHeldWeapon(userLaneRef.current, next, true);
-      highlightTableSelection();
-      setStatus(`Switched to ${WEAPONS[next].shortName}`);
+      switchToWeapon(next);
     }
 
     function prevWeapon() {
-      if (phaseRef.current !== 'pick') return;
+      if (!canSwitchWeapons()) return;
+      const visibleOnTable = tableWeaponIndicesForUser();
+      const currentSlot = visibleOnTable.indexOf(selectedWeaponRef.current);
       const next =
-        (selectedWeaponRef.current - 1 + WEAPONS.length) % WEAPONS.length;
-      selectedWeaponRef.current = next;
-      setSelectedWeapon(next);
-      setHeldWeapon(userLaneRef.current, next, true);
-      highlightTableSelection();
+        visibleOnTable[
+          (currentSlot - 1 + visibleOnTable.length) % visibleOnTable.length
+        ];
+      switchToWeapon(next);
     }
 
     function pickWeapon(index: number) {
       if (phaseRef.current !== 'pick') return;
-      selectedWeaponRef.current = index;
-      setSelectedWeapon(index);
-      setHeldWeapon(userLaneRef.current, index, true);
-      highlightTableSelection();
-      setStatus(`Picked ${WEAPONS[index].shortName}`);
+      switchToWeapon(index, 'Picked');
     }
 
     function updateAI(now: number) {
@@ -2514,6 +2689,13 @@ export default function ShootingRange() {
       if (phaseRef.current === 'pick') setViewMode('range');
     };
     actionsRef.current.restart = () => window.location.reload();
+    actionsRef.current.select = (index: number) => {
+      if (phaseRef.current === 'pick') {
+        pickWeapon(index);
+      } else if (phaseRef.current === 'shoot') {
+        switchToWeapon(index);
+      }
+    };
 
     resize();
     animate();
@@ -2620,7 +2802,7 @@ export default function ShootingRange() {
                 {phase === 'pick'
                   ? `Pick any weapon from any table · ${pickTimer}s`
                   : phase === 'shoot'
-                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · bullet holes are saved on targets`
+                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} distance · red dot precision`
                     : phase === 'results'
                       ? winnerText
                       : 'Loading range...'}
@@ -2683,6 +2865,9 @@ export default function ShootingRange() {
           >
             <span>Weapon: {selectedEntry.shortName}</span>
             <span>Type: {selectedEntry.weaponClass.toUpperCase()}</span>
+            <span>
+              Distance: {RANGE_DISTANCE_CONFIG[queryConfig.distance].label}
+            </span>
             <span>
               Ammo: {ammo}/{selectedStats.mag}
             </span>
@@ -2774,6 +2959,58 @@ export default function ShootingRange() {
         </div>
       )}
 
+      {(phase === 'pick' || phase === 'shoot') && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            right: 12,
+            bottom: 92,
+            display: 'flex',
+            gap: 6,
+            overflowX: 'auto',
+            padding: '6px 2px',
+            zIndex: 10,
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          {WEAPONS.map((weapon, index) => {
+            const active = index === selectedWeapon;
+            return (
+              <button
+                key={weapon.id}
+                type="button"
+                onClick={() => actionsRef.current.select(index)}
+                style={{
+                  minWidth: 64,
+                  borderRadius: 14,
+                  border: active
+                    ? '1px solid rgba(250,204,21,.95)'
+                    : '1px solid rgba(255,255,255,.18)',
+                  background: active
+                    ? 'rgba(250,204,21,.18)'
+                    : 'rgba(15,23,42,.72)',
+                  color: active ? '#fde68a' : '#e5e7eb',
+                  padding: '4px 5px',
+                  fontSize: 9,
+                  fontWeight: 900,
+                  cursor: 'pointer'
+                }}
+              >
+                {weaponIconUris[index] && (
+                  <img
+                    src={weaponIconUris[index]}
+                    alt=""
+                    style={{ width: 50, height: 25, objectFit: 'contain' }}
+                  />
+                )}
+                <div>{weapon.shortName}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div
         style={{
           position: 'absolute',
@@ -2790,7 +3027,7 @@ export default function ShootingRange() {
         <button
           onClick={() => actionsRef.current.next()}
           style={buttonStyle}
-          disabled={phase !== 'pick'}
+          disabled={phase !== 'pick' && phase !== 'shoot'}
         >
           Switch
         </button>
