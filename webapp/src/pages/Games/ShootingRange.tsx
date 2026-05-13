@@ -409,6 +409,64 @@ function makeFallbackCharacter(color = '#e5e7eb') {
   return g;
 }
 
+
+function makeFallbackWeapon(entry: WeaponEntry) {
+  const group = new THREE.Group();
+  const accentByClass: Record<WeaponClass, string> = {
+    pistol: '#94a3b8',
+    revolver: '#c084fc',
+    shotgun: '#f97316',
+    rifle: '#38bdf8',
+    smg: '#22c55e',
+    sniper: '#facc15'
+  };
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#171923', roughness: 0.55, metalness: 0.55 });
+  const gripMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.86, metalness: 0.1 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accentByClass[entry.weaponClass], roughness: 0.42, metalness: 0.45 });
+
+  const longGun = entry.weaponClass === 'rifle' || entry.weaponClass === 'shotgun' || entry.weaponClass === 'sniper';
+  const bodyLength = longGun ? (entry.weaponClass === 'sniper' ? 1.25 : 0.98) : 0.54;
+  const barrelLength = longGun ? (entry.weaponClass === 'shotgun' ? 0.68 : 0.86) : 0.34;
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, bodyLength), bodyMat);
+  body.position.z = -0.18;
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, barrelLength, 16), accentMat);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.z = -bodyLength / 2 - barrelLength / 2 + 0.05;
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.36, 0.16), gripMat);
+  grip.position.set(0, -0.25, 0.08);
+  grip.rotation.x = -0.34;
+  const trigger = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 18), accentMat);
+  trigger.rotation.x = Math.PI / 2;
+  trigger.position.set(0, -0.11, -0.03);
+
+  group.add(body, barrel, grip, trigger);
+
+  if (longGun) {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.34), gripMat);
+    stock.position.z = bodyLength / 2 + 0.1;
+    group.add(stock);
+  }
+
+  if (entry.weaponClass === 'sniper') {
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.42, 16), accentMat);
+    scope.rotation.z = Math.PI / 2;
+    scope.position.set(0, 0.16, -0.2);
+    group.add(scope);
+  }
+
+  group.userData.isFallbackWeapon = true;
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
+
+  return group;
+}
+
 function createSilhouetteTargetTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -915,12 +973,8 @@ export default function ShootingRange() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
-    async function buildCharacters() {
+    function buildCharacters() {
       const randomizedLanes = shuffle([0, 1, 2, 3]);
-      const characterResults = await Promise.all(
-        CHARACTERS.map((spec) => loadGLTF(spec.name, spec.urls).catch(() => null))
-      );
-
       const lanes: LaneRuntime[] = [];
 
       for (let playerId = 0; playerId < LANE_COUNT; playerId += 1) {
@@ -930,33 +984,10 @@ export default function ShootingRange() {
         root.position.set(x, 0, 3.05);
         scene.add(root);
 
-        let visual: THREE.Object3D | null = null;
-        let mixer: THREE.AnimationMixer | null = null;
-
         const spec = CHARACTERS[playerId];
-        const loaded = characterResults[playerId];
-
-        if (loaded) {
-          visual = cloneScene(loaded.scene);
-          configureModel(visual, renderer);
-          normalizeToLength(visual, spec.scale);
-          groundObject(visual, 0);
-          visual.rotation.y = spec.yaw;
-          root.add(visual);
-
-          if (loaded.animations?.length) {
-            mixer = new THREE.AnimationMixer(visual);
-            const idle =
-              loaded.animations.find((a) => /idle/i.test(a.name)) ||
-              loaded.animations.find((a) => /walk|run/i.test(a.name)) ||
-              loaded.animations[0];
-            mixer.clipAction(idle).play();
-          }
-        } else {
-          visual = makeFallbackCharacter(spec.fallbackColor);
-          visual.rotation.y = Math.PI;
-          root.add(visual);
-        }
+        const visual = makeFallbackCharacter(spec.fallbackColor);
+        visual.rotation.y = Math.PI;
+        root.add(visual);
 
         const weaponMount = new THREE.Group();
         weaponMount.position.set(0.34, 1.27, -0.12);
@@ -969,7 +1000,7 @@ export default function ShootingRange() {
           controller: laneIndex === USER_LANE ? 'USER' : 'AI',
           root,
           visual,
-          mixer,
+          mixer: null,
           weaponMount,
           tableGroup: new THREE.Group(),
           heldWeapon: null,
@@ -983,6 +1014,41 @@ export default function ShootingRange() {
       }
 
       lanesRef.current = lanes;
+
+      CHARACTERS.forEach((spec, playerId) => {
+        void loadGLTF(spec.name, spec.urls)
+          .then((loaded) => {
+            if (disposed) return;
+            const lane = lanesRef.current.find((candidate) => candidate?.playerId === playerId);
+            if (!lane) return;
+
+            const loadedVisual = cloneScene(loaded.scene);
+            configureModel(loadedVisual, renderer);
+            normalizeToLength(loadedVisual, spec.scale);
+            groundObject(loadedVisual, 0);
+            loadedVisual.rotation.y = spec.yaw;
+
+            if (lane.visual) {
+              lane.root.remove(lane.visual);
+              disposeObject(lane.visual);
+            }
+            lane.root.add(loadedVisual);
+            lane.visual = loadedVisual;
+
+            if (loaded.animations?.length) {
+              const mixer = new THREE.AnimationMixer(loadedVisual);
+              const idle =
+                loaded.animations.find((a) => /idle/i.test(a.name)) ||
+                loaded.animations.find((a) => /walk|run/i.test(a.name)) ||
+                loaded.animations[0];
+              mixer.clipAction(idle).play();
+              lane.mixer = mixer;
+            }
+          })
+          .catch((error) => {
+            console.warn('Character model failed, keeping fallback:', spec.name, error);
+          });
+      });
     }
 
     function setHeldWeapon(laneIndex: number, weaponIndex: number, lift = true) {
@@ -1036,54 +1102,74 @@ export default function ShootingRange() {
       });
     }
 
-    async function loadWeaponsAndTables() {
-      weaponSourcesRef.current = new Array(WEAPONS.length).fill(null);
+    function loadWeaponsAndTables() {
+      weaponSourcesRef.current = WEAPONS.map((entry) => makeFallbackWeapon(entry));
       tableWeaponsRef.current = [];
       pickTargetsRef.current = [];
 
-      await buildCharacters();
+      buildCharacters();
 
-      await Promise.allSettled(
-        WEAPONS.map(async (entry, index) => {
-          const gltf = await loadGLTF(entry.name, entry.urls);
-          if (disposed) return;
+      WEAPONS.forEach((entry, index) => {
+        const tableIndex = index % LANE_COUNT;
+        const group = new THREE.Group();
+        group.userData.pickWeaponIndex = index;
 
-          configureModel(gltf.scene, renderer);
-          weaponSourcesRef.current[index] = gltf.scene;
+        const model = cloneScene(weaponSourcesRef.current[index] as THREE.Object3D);
+        configureModel(model, renderer);
+        normalizeToLength(model, 0.62);
+        layWeaponFlatOnTable(model);
+        group.add(model);
 
-          const tableIndex = index % LANE_COUNT;
-          const group = new THREE.Group();
-          group.userData.pickWeaponIndex = index;
+        const card = new THREE.Mesh(
+          new THREE.BoxGeometry(0.92, 0.035, 0.42),
+          new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.84, metalness: 0.14 })
+        );
+        card.position.y = -0.018;
+        card.receiveShadow = true;
+        group.add(card);
 
-          const model = cloneScene(gltf.scene);
-          configureModel(model, renderer);
-          normalizeToLength(model, 0.62);
-          layWeaponFlatOnTable(model);
-          group.add(model);
+        const localIndex = Math.floor(index / LANE_COUNT);
+        const col = localIndex % 2;
+        const row = Math.floor(localIndex / 2);
 
-          const card = new THREE.Mesh(
-            new THREE.BoxGeometry(0.92, 0.035, 0.42),
-            new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.84, metalness: 0.14 })
-          );
-          card.position.y = -0.018;
-          card.receiveShadow = true;
-          group.add(card);
+        group.position.set(
+          LANE_X[tableIndex] + (col === 0 ? -0.46 : 0.46),
+          TABLE_TOP_Y + 0.03,
+          TABLE_Z - 0.28 + row * 0.25
+        );
 
-          const localIndex = Math.floor(index / LANE_COUNT);
-          const col = localIndex % 2;
-          const row = Math.floor(localIndex / 2);
+        scene.add(group);
+        tableWeaponsRef.current.push({ root: group, card, model, weaponIndex: index });
+        pickTargetsRef.current.push(group);
 
-          group.position.set(
-            LANE_X[tableIndex] + (col === 0 ? -0.46 : 0.46),
-            TABLE_TOP_Y + 0.03,
-            TABLE_Z - 0.28 + row * 0.25
-          );
+        void loadGLTF(entry.name, entry.urls)
+          .then((gltf) => {
+            if (disposed) return;
+            configureModel(gltf.scene, renderer);
+            weaponSourcesRef.current[index] = gltf.scene;
 
-          scene.add(group);
-          tableWeaponsRef.current.push({ root: group, card, model, weaponIndex: index });
-          pickTargetsRef.current.push(group);
-        })
-      );
+            const tableWeapon = tableWeaponsRef.current.find((tw) => tw.weaponIndex === index);
+            if (tableWeapon) {
+              tableWeapon.root.remove(tableWeapon.model);
+              disposeObject(tableWeapon.model);
+
+              const loadedTableModel = cloneScene(gltf.scene);
+              configureModel(loadedTableModel, renderer);
+              normalizeToLength(loadedTableModel, 0.62);
+              layWeaponFlatOnTable(loadedTableModel);
+              tableWeapon.root.add(loadedTableModel);
+              tableWeapon.model = loadedTableModel;
+            }
+
+            lanesRef.current.forEach((lane) => {
+              if (!lane || lane.activeWeaponIndex !== index) return;
+              setHeldWeapon(lane.laneIndex, index, false);
+            });
+          })
+          .catch((error) => {
+            console.warn('Weapon model failed, keeping fallback:', entry.name, error);
+          });
+      });
 
       setHeldWeapon(USER_LANE, 0, false);
       highlightTableSelection();
