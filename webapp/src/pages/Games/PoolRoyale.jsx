@@ -27042,7 +27042,6 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (selectedCharacter?.scale || 1),
             humanVisualYawFix: behavior.visualYawFix ?? POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
-            originalSkeletonLogic: Boolean(behavior.originalSkeletonLogic),
             // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
             // as the portrait camera lowers into the ready-to-shoot view. Local -Z is the
             // original rig forward axis, so the fallback bend sign folds belly/chest/head
@@ -27071,7 +27070,7 @@ const shotPowerRef = useRef(0);
             stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
             chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: behavior.originalSkeletonLogic ? 0 : 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             footLockStrength: 1.25,
             kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
             desiredShootDistance: behavior.desiredShootDistance * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -27285,60 +27284,30 @@ const shotPowerRef = useRef(0);
             const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
             const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
             const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            // Original-skeleton profile values come from the standalone ReadyPlayer demo scale.
-            // Root placement in this scene must stay in Pool Royale table units, otherwise the
-            // shooter is pushed far past the rail instead of taking the playable cue-side stance.
-            const humanEdgeMargin = behavior.originalSkeletonLogic
-              ? HUMAN_EDGE_MARGIN
-              : (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const humanShootDistance = behavior.originalSkeletonLogic
-              ? HUMAN_DESIRED_SHOOT_DISTANCE
-              : (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const desiredRoot = behavior.originalSkeletonLogic
-              ? (() => {
-                  const desired = cueWorld.clone().addScaledVector(aimForward, -humanShootDistance);
-                  const xEdge = TABLE.W / 2 + humanEdgeMargin;
-                  const zEdge = TABLE.H / 2 + humanEdgeMargin;
-                  const candidates = [
-                    new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-                    new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-                    new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
-                    new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
-                  ];
-                  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
-                })()
-              : chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-                  tableW: TABLE.W,
-                  tableL: TABLE.H,
-                  edgeMargin: humanEdgeMargin,
-                  desiredShootDistance: humanShootDistance
-                }).setY(floorY);
-            const perimeterRoot = behavior.originalSkeletonLogic
-              ? desiredRoot.clone()
-              : clampToWalkPerimeter(desiredRoot);
-            if (!behavior.originalSkeletonLogic && isInsideTableBlocker(perimeterRoot)) {
+            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
+              tableW: TABLE.W,
+              tableL: TABLE.H,
+              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
+              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
+            }).setY(floorY);
+            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
+            if (isInsideTableBlocker(perimeterRoot)) {
               perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
             }
             if (!Number.isFinite(human.walkPerimeterT)) {
               human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
             }
-            let walkRoot;
-            if (behavior.originalSkeletonLogic) {
-              walkRoot = perimeterRoot.clone();
-              human.walkPerimeterT = pointToPerimeterT(walkRoot);
-            } else {
-              const humanTargetT = pointToPerimeterT(perimeterRoot);
-              const humanLoopDelta =
-                THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
-              const humanMaxStepT =
-                ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
-                (4 * (walkHalfX + walkHalfZ));
-              human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
-                human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
-                1
-              );
-              walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            }
+            const humanTargetT = pointToPerimeterT(perimeterRoot);
+            const humanLoopDelta =
+              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
+            const humanMaxStepT =
+              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
+              (4 * (walkHalfX + walkHalfZ));
+            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
+              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
+              1
+            );
+            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
             const shouldRestAtChair = !isHumanShooter;
             let walkingToChair = false;
             let seatedAtChair = false;
