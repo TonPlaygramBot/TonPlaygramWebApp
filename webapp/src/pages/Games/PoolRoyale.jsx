@@ -2272,7 +2272,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.16; // add more cue drive while preserving slider feel
+const SHOT_POWER_BOOST = 1.36; // add stronger cue drive while preserving slider feel
 const SHOT_GLOBAL_POWER_SCALE = 0.76; // keep Pool Royale stronger than before without over-speeding the table
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -2402,21 +2402,21 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     label: 'Classic Pro',
     summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
     bendMode: 'forward',
-    desiredShootDistance: 1.58,
-    edgeMargin: 0.82,
+    desiredShootDistance: 1.74,
+    edgeMargin: 0.92,
     stanceWidth: 0.62,
-    bridgeBack: 0.095,
+    bridgeBack: 0.11,
     bridgeSide: -0.024,
     bridgeLift: 0.006,
     gripFromBack: 0.58,
-    rightElbowRise: 0.32,
-    rightElbowSide: -0.52,
-    rightElbowBack: -0.94,
+    rightElbowRise: 0.38,
+    rightElbowSide: -0.50,
+    rightElbowBack: -1.02,
     forearmOutward: 0.42,
-    forearmBack: 0.56,
-    forearmDown: 0.58,
+    forearmBack: 0.62,
+    forearmDown: 0.56,
     strokePull: 0.42,
-    strokePush: 0.18,
+    strokePush: 0.24,
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
@@ -2671,14 +2671,14 @@ const resolvePoolRoyaleHumanCharacter = (id) =>
   POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
 const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
 const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 38; // larger pool-side player table matching the Showood table's bigger stage presence.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 20.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 84; // larger, taller portrait-readable chairs for each player lounge.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 82;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 82;
-// Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
-// the visible player faces inward toward the table instead of showing their back in portrait play.
-const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = 0;
+const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 29; // smaller pool-side Murlan table so it no longer competes with the Showood match table.
+const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 17.2;
+const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 62; // smaller portrait-readable chairs for each player lounge.
+const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 76;
+const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 66;
+// Ready Player Me avatars face the opposite local axis from the billiards rig; rotate the
+// visual child 180° so the visible player faces the table/cue ball during every shot.
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -2686,14 +2686,14 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 2.18; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
-const HUMAN_DESIRED_SHOOT_DISTANCE = 2.42; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_EDGE_MARGIN = 2.34; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
+const HUMAN_DESIRED_SHOOT_DISTANCE = 2.64; // keep the shooter farther back on the cue-butt side like a real pool stance
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.15; // move the low cue camera closer toward the bridge hand/cue ball while staying behind the shot line
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 3.85; // move the low cue camera closer toward the bridge hand/cue ball while staying behind the shot line
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
@@ -6876,11 +6876,11 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
-  landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.76, broadcast: 1, margin: 0.93 }),
-  ultraPortrait: Object.freeze({ cue: 0.74, broadcast: 1, margin: 0.92 })
+  default: Object.freeze({ cue: 0.78, broadcast: 0.9, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.76, broadcast: 0.88, margin: 0.97 }),
+  landscape: Object.freeze({ cue: 0.74, broadcast: 0.86, margin: 0.965 }),
+  portrait: Object.freeze({ cue: 0.68, broadcast: 1, margin: 0.93 }),
+  ultraPortrait: Object.freeze({ cue: 0.66, broadcast: 1, margin: 0.92 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -6998,7 +6998,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0088; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_RADIUS_RATIO = 0.0072; // move cue camera closer for a tighter portrait aiming view
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -27015,10 +27015,10 @@ const shotPowerRef = useRef(0);
             unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
             humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (selectedCharacter?.scale || 1),
             humanVisualYawFix: behavior.visualYawFix ?? POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
-            // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Local -Z is the
-            // original rig forward axis, so the fallback bend sign folds belly/chest/head
-            // toward the cue ball instead of bending the whole body backward.
+            // Real pool stance: stand slightly back from the rail, bridge on the cloth near the
+            // cue ball, keep the cue on the shot line, and fold belly/chest/head toward the table.
+            // Local -Z is the original rig forward axis, so the fallback bend sign keeps the
+            // shooting body facing the table instead of bending backward.
             shootBendDirection: -1,
             shootBendTowardCueStick: true,
             shootBendMode: behavior.bendMode || 'forward',
