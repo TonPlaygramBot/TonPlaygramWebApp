@@ -21,6 +21,13 @@ type ViewMode = 'tables' | 'range' | 'results';
 type ControllerType = 'USER' | 'AI';
 type MatchMode = 'ai' | 'online';
 type RangeDistance = 'standard' | 'long' | 'extreme';
+type BulletProfile =
+  | 'service-handgun'
+  | 'revolver-magnum'
+  | 'shotgun-shell'
+  | 'rifle-round'
+  | 'smg-round'
+  | 'sniper-round';
 
 type WeaponEntry = {
   id: string;
@@ -28,6 +35,7 @@ type WeaponEntry = {
   shortName: string;
   urls: string[];
   weaponClass: WeaponClass;
+  bulletProfile: BulletProfile;
 };
 
 type WeaponStats = {
@@ -74,6 +82,7 @@ type TableWeaponRuntime = {
   model: THREE.Object3D;
   card: THREE.Mesh;
   weaponIndex: number;
+  tableIndex: number;
 };
 
 type BulletHole = {
@@ -105,6 +114,7 @@ type BulletRuntime = {
   t: number;
   speed: number;
   cinematic: boolean;
+  profile: BulletProfile;
 };
 
 type ShellRuntime = {
@@ -112,6 +122,7 @@ type ShellRuntime = {
   vel: THREE.Vector3;
   spin: THREE.Vector3;
   life: number;
+  profile: BulletProfile;
 };
 
 const USER_LANE = 0;
@@ -151,6 +162,10 @@ const OVER_SHOULDER_LOOK = new THREE.Vector3(0.05, 1.38, -12.5);
 
 const HDRI_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr';
+const SECURITY_CAMERA_URL =
+  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/security_camera_01/security_camera_01_1k.gltf';
+const SERVICE_PISTOL_URL =
+  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf';
 
 const TEXTURES = {
   floor: {
@@ -216,6 +231,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Shotgun',
     shortName: 'Shotgun',
     weaponClass: 'shotgun',
+    bulletProfile: 'shotgun-shell',
     urls: [polyGlb('032e6589-3188-41bc-b92b-e25528344275')]
   },
   {
@@ -223,6 +239,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Assault Rifle',
     shortName: 'Assault',
     weaponClass: 'rifle',
+    bulletProfile: 'rifle-round',
     urls: [polyGlb('b3e6be61-0299-4866-a227-58f5f3fe610b')]
   },
   {
@@ -230,6 +247,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Pistol',
     shortName: 'Pistol',
     weaponClass: 'pistol',
+    bulletProfile: 'service-handgun',
     urls: [polyGlb('3b53f0fe-f86e-451c-816d-6ab9bd265cdc')]
   },
   {
@@ -237,6 +255,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Heavy Revolver',
     shortName: 'Heavy Rev',
     weaponClass: 'revolver',
+    bulletProfile: 'service-handgun',
     urls: [polyGlb('9e728565-67a3-44db-9567-982320abff09')]
   },
   {
@@ -244,6 +263,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Sawed-Off Shotgun',
     shortName: 'Sawed-Off',
     weaponClass: 'shotgun',
+    bulletProfile: 'shotgun-shell',
     urls: [polyGlb('9a6ee0ee-068b-4774-8b0f-679c3cef0b6e')]
   },
   {
@@ -251,6 +271,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Revolver Silver',
     shortName: 'Silver Rev',
     weaponClass: 'revolver',
+    bulletProfile: 'service-handgun',
     urls: [polyGlb('7951b3b9-d3a5-4ec8-81b7-11111f1c8e88')]
   },
   {
@@ -258,6 +279,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Long Shotgun',
     shortName: 'Long Shotgun',
     weaponClass: 'shotgun',
+    bulletProfile: 'shotgun-shell',
     urls: [polyGlb('f71d6771-f512-4374-bd23-ba00b564db68')]
   },
   {
@@ -265,6 +287,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Pump Shotgun',
     shortName: 'Pump',
     weaponClass: 'shotgun',
+    bulletProfile: 'shotgun-shell',
     urls: [polyGlb('08f27141-8e64-425a-9161-1bbd6956dfca')]
   },
   {
@@ -272,6 +295,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Quaternius Submachine Gun',
     shortName: 'SMG',
     weaponClass: 'smg',
+    bulletProfile: 'smg-round',
     urls: [polyGlb('fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710')]
   },
   {
@@ -279,6 +303,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'AK47 GLTF',
     shortName: 'AK47',
     weaponClass: 'rifle',
+    bulletProfile: 'rifle-round',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
@@ -291,6 +316,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'KRSV GLTF',
     shortName: 'KRSV',
     weaponClass: 'rifle',
+    bulletProfile: 'rifle-round',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
@@ -303,6 +329,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Smith GLTF',
     shortName: 'Smith',
     weaponClass: 'pistol',
+    bulletProfile: 'service-handgun',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
@@ -315,6 +342,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Mosin GLTF',
     shortName: 'Mosin',
     weaponClass: 'sniper',
+    bulletProfile: 'sniper-round',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
@@ -327,6 +355,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'Uzi GLTF',
     shortName: 'Uzi',
     weaponClass: 'smg',
+    bulletProfile: 'smg-round',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
@@ -339,6 +368,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'SigSauer GLTF',
     shortName: 'SigSauer',
     weaponClass: 'pistol',
+    bulletProfile: 'service-handgun',
     urls: [
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf',
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
@@ -351,6 +381,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'AWP Sniper GLB',
     shortName: 'AWP',
     weaponClass: 'sniper',
+    bulletProfile: 'sniper-round',
     urls: [KNOWN.awp, KNOWN.awpRaw]
   },
   {
@@ -358,6 +389,7 @@ const WEAPONS: WeaponEntry[] = [
     name: 'MRTK Gun GLB',
     shortName: 'MRTK',
     weaponClass: 'rifle',
+    bulletProfile: 'rifle-round',
     urls: [KNOWN.mrtk, KNOWN.mrtkRaw, KNOWN.mrtkMaster]
   },
   {
@@ -365,7 +397,16 @@ const WEAPONS: WeaponEntry[] = [
     name: 'FPS Gun GLTF',
     shortName: 'FPS Shotgun',
     weaponClass: 'shotgun',
+    bulletProfile: 'shotgun-shell',
     urls: [KNOWN.fps, KNOWN.fpsRaw, KNOWN.awp, KNOWN.awpRaw]
+  },
+  {
+    id: 'service-pistol',
+    name: 'Poly Haven Service Pistol',
+    shortName: 'Service Pistol',
+    weaponClass: 'pistol',
+    bulletProfile: 'service-handgun',
+    urls: [SERVICE_PISTOL_URL, KNOWN.pistolHolster, KNOWN.pistolHolsterRaw]
   }
 ];
 
@@ -441,6 +482,60 @@ const STATS: Record<WeaponClass, WeaponStats> = {
     fairPellets: 1,
     bulletSpeed: 6.6,
     shellPower: 1.25
+  }
+};
+
+const BULLET_STYLE: Record<
+  BulletProfile,
+  {
+    bulletColor: string;
+    trailColor: string;
+    shellColor: string;
+    shellSize: [number, number];
+    bulletScale: [number, number, number];
+  }
+> = {
+  'service-handgun': {
+    bulletColor: '#f8d37a',
+    trailColor: '#ffb84d',
+    shellColor: '#c0892f',
+    shellSize: [0.025, 0.12],
+    bulletScale: [0.74, 0.74, 1.35]
+  },
+  'revolver-magnum': {
+    bulletColor: '#ffe6a6',
+    trailColor: '#ff9f1c',
+    shellColor: '#d4a13f',
+    shellSize: [0.03, 0.15],
+    bulletScale: [0.86, 0.86, 1.5]
+  },
+  'shotgun-shell': {
+    bulletColor: '#ffefe0',
+    trailColor: '#ff6b35',
+    shellColor: '#b91c1c',
+    shellSize: [0.038, 0.2],
+    bulletScale: [1.08, 1.08, 0.9]
+  },
+  'rifle-round': {
+    bulletColor: '#dbeafe',
+    trailColor: '#60a5fa',
+    shellColor: '#b7791f',
+    shellSize: [0.023, 0.16],
+    bulletScale: [0.62, 0.62, 1.85]
+  },
+  'smg-round': {
+    bulletColor: '#dcfce7',
+    trailColor: '#22c55e',
+    shellColor: '#b88a2f',
+    shellSize: [0.021, 0.105],
+    bulletScale: [0.58, 0.58, 1.25]
+  },
+  'sniper-round': {
+    bulletColor: '#fef3c7',
+    trailColor: '#facc15',
+    shellColor: '#a16207',
+    shellSize: [0.031, 0.24],
+    bulletScale: [0.72, 0.72, 2.45]
   }
 };
 
@@ -626,7 +721,7 @@ function configureModel(root: THREE.Object3D, renderer: THREE.WebGLRenderer) {
         if (key === 'map' || key === 'emissiveMap')
           tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        tex.needsUpdate = true;
+        if (tex) tex.needsUpdate = true;
       });
       material.needsUpdate = true;
     });
@@ -698,20 +793,106 @@ function layWeaponFlatOnTable(root: THREE.Object3D) {
   root.updateMatrixWorld(true);
 }
 
-function pickAiWeaponIndex(aiOrder: number) {
-  const preferred: WeaponClass[][] = [
-    ['sniper', 'rifle'],
-    ['rifle', 'smg'],
-    ['pistol', 'revolver', 'shotgun']
-  ];
-  const classes = preferred[aiOrder % preferred.length];
-  const candidates = WEAPONS.map((weapon, index) => ({ weapon, index })).filter(
-    ({ weapon }) => classes.includes(weapon.weaponClass)
+function applySelectedWeaponPose(root: THREE.Object3D) {
+  orientWeaponForward(root);
+  root.position.y += 0.09;
+}
+
+function makeFallbackSecurityCamera() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: '#d8dee9',
+    roughness: 0.58,
+    metalness: 0.22
+  });
+  const lensMat = new THREE.MeshStandardMaterial({
+    color: '#050816',
+    roughness: 0.18,
+    metalness: 0.62
+  });
+  const bracketMat = new THREE.MeshStandardMaterial({
+    color: '#6b7280',
+    roughness: 0.7,
+    metalness: 0.55
+  });
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.28), bodyMat);
+  const hood = new THREE.Mesh(
+    new THREE.BoxGeometry(0.58, 0.055, 0.36),
+    bodyMat
   );
-  const pool = candidates.length
-    ? candidates
-    : WEAPONS.map((weapon, index) => ({ weapon, index }));
-  return pool[Math.floor(Math.random() * pool.length)].index;
+  hood.position.y = 0.14;
+  hood.position.z = -0.02;
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.075, 0.075, 0.05, 24),
+    lensMat
+  );
+  lens.rotation.x = Math.PI / 2;
+  lens.position.z = -0.165;
+  const arm = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 0.34, 12),
+    bracketMat
+  );
+  arm.rotation.x = Math.PI / 2;
+  arm.position.z = 0.32;
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 0.24, 0.035),
+    bracketMat
+  );
+  plate.position.z = 0.52;
+
+  group.add(body, hood, lens, arm, plate);
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
+  return group;
+}
+
+function placeSecurityCameras(
+  scene: THREE.Scene,
+  renderer: THREE.WebGLRenderer,
+  targetZ: number
+) {
+  const positions = [
+    new THREE.Vector3(-7.15, 4.62, 2.15),
+    new THREE.Vector3(7.15, 4.62, 2.15),
+    new THREE.Vector3(-7.15, 4.62, targetZ - 8.45),
+    new THREE.Vector3(7.15, 4.62, targetZ - 8.45)
+  ];
+
+  const mountCamera = (source: THREE.Object3D) => {
+    positions.forEach((position) => {
+      const cameraModel = cloneScene(source);
+      configureModel(cameraModel, renderer);
+      normalizeToLength(cameraModel, 0.62);
+      cameraModel.position.copy(position);
+      cameraModel.lookAt(new THREE.Vector3(0, 1.25, targetZ * 0.45));
+      cameraModel.rotation.y += Math.PI;
+      scene.add(cameraModel);
+    });
+  };
+
+  const fallback = makeFallbackSecurityCamera();
+  fallback.userData.securityCameraFallback = true;
+  mountCamera(fallback);
+
+  void loadGLTF('Security Camera 01', [SECURITY_CAMERA_URL])
+    .then((gltf) => {
+      scene.children
+        .filter((child) => child.userData.securityCameraFallback)
+        .forEach((child) => {
+          scene.remove(child);
+          disposeObject(child);
+        });
+      mountCamera(gltf.scene);
+    })
+    .catch((error) => {
+      console.warn('Security Camera 01 failed, keeping fallback:', error);
+    });
 }
 
 function makeFallbackCharacter(color = '#e5e7eb') {
@@ -1052,7 +1233,7 @@ function updateLabelSprite(sprite: THREE.Sprite, text: string) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 256, 80);
-  tex.needsUpdate = true;
+  if (tex) tex.needsUpdate = true;
 }
 
 function createPaperTarget(
@@ -1155,19 +1336,27 @@ function createBullet(
   start: THREE.Vector3,
   end: THREE.Vector3,
   cinematic: boolean,
-  speed: number
+  speed: number,
+  profile: BulletProfile
 ) {
+  const style = BULLET_STYLE[profile];
   const bullet = new THREE.Mesh(
     new THREE.SphereGeometry(0.027, 10, 10),
-    new THREE.MeshBasicMaterial({ color: '#ffe8a3' })
+    new THREE.MeshBasicMaterial({ color: style.bulletColor })
   );
-  const length = Math.min(1.2, start.distanceTo(end));
+  bullet.scale.set(...style.bulletScale);
+  bullet.lookAt(end);
+
+  const length = Math.min(
+    profile === 'sniper-round' ? 1.55 : 1.2,
+    start.distanceTo(end)
+  );
   const trail = new THREE.Mesh(
     new THREE.CylinderGeometry(0.007, 0.007, length, 8),
     new THREE.MeshBasicMaterial({
-      color: '#ffb84d',
+      color: style.trailColor,
       transparent: true,
-      opacity: 0.58
+      opacity: profile === 'shotgun-shell' ? 0.45 : 0.58
     })
   );
 
@@ -1183,21 +1372,29 @@ function createBullet(
     end,
     t: 0,
     speed,
-    cinematic
+    cinematic,
+    profile
   } as BulletRuntime;
 }
 
 function createShell(
   scene: THREE.Scene,
   position: THREE.Vector3,
-  power: number
+  power: number,
+  profile: BulletProfile
 ) {
+  const style = BULLET_STYLE[profile];
   const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025, 0.025, 0.12, 16),
+    new THREE.CylinderGeometry(
+      style.shellSize[0],
+      style.shellSize[0],
+      style.shellSize[1],
+      16
+    ),
     new THREE.MeshStandardMaterial({
-      color: '#c0892f',
-      roughness: 0.34,
-      metalness: 0.92
+      color: style.shellColor,
+      roughness: profile === 'shotgun-shell' ? 0.42 : 0.34,
+      metalness: profile === 'shotgun-shell' ? 0.38 : 0.92
     })
   );
   mesh.rotation.z = Math.PI / 2;
@@ -1213,7 +1410,8 @@ function createShell(
       Math.random() * 12,
       Math.random() * 8
     ),
-    life: 2.4
+    life: profile === 'shotgun-shell' ? 2.8 : 2.4,
+    profile
   } as ShellRuntime;
 }
 
@@ -1250,6 +1448,9 @@ export default function ShootingRange() {
   const [winnerText, setWinnerText] = useState('');
   const [userLane, setUserLane] = useState(USER_LANE);
   const [lastHitText, setLastHitText] = useState('');
+  const [userLaneWeaponIndices, setUserLaneWeaponIndices] = useState<number[]>(
+    () => WEAPONS.map((_, index) => index)
+  );
 
   const queryConfig = useMemo(() => {
     if (typeof window === 'undefined')
@@ -1531,6 +1732,8 @@ export default function ShootingRange() {
     darkBackstop.castShadow = true;
     scene.add(darkBackstop);
 
+    placeSecurityCameras(scene, renderer, activeTargetZ);
+
     for (let lane = 0; lane < LANE_COUNT; lane += 1) {
       const x = LANE_X[lane];
 
@@ -1798,8 +2001,15 @@ export default function ShootingRange() {
 
     function highlightTableSelection() {
       tableWeaponsRef.current.forEach((tw) => {
-        const selected = tw.weaponIndex === selectedWeaponRef.current;
-        tw.root.position.y = selected ? TABLE_TOP_Y + 0.05 : TABLE_TOP_Y + 0.03;
+        const selected =
+          tw.weaponIndex === selectedWeaponRef.current &&
+          tw.tableIndex === userLaneRef.current;
+        tw.root.position.y = selected ? TABLE_TOP_Y + 0.08 : TABLE_TOP_Y + 0.03;
+        if (selected) {
+          applySelectedWeaponPose(tw.model);
+        } else {
+          layWeaponFlatOnTable(tw.model);
+        }
         (tw.card.material as THREE.MeshStandardMaterial).color.set(
           selected ? '#38506d' : '#1c1c1c'
         );
@@ -1878,7 +2088,8 @@ export default function ShootingRange() {
           root: group,
           card,
           model,
-          weaponIndex: index
+          weaponIndex: index,
+          tableIndex
         });
         pickTargetsRef.current.push(group);
 
@@ -1917,13 +2128,18 @@ export default function ShootingRange() {
           });
       });
 
-      const firstUserTableWeapon = tableWeaponIndicesForUser()[0] ?? 0;
+      const userLaneWeapons = tableWeaponIndicesForUser();
+      setUserLaneWeaponIndices(userLaneWeapons);
+      const firstUserTableWeapon = userLaneWeapons[0] ?? 0;
       setHeldWeapon(userLaneRef.current, firstUserTableWeapon, false);
       highlightTableSelection();
 
       lanesRef.current.forEach((lane) => {
         if (!lane || lane.controller !== 'AI') return;
-        const chosen = pickAiWeaponIndex(lane.playerId - 1);
+        const chosen = pickAiWeaponIndexForLane(
+          lane.laneIndex,
+          lane.playerId - 1
+        );
         setHeldWeapon(lane.laneIndex, chosen, false);
       });
 
@@ -1933,7 +2149,7 @@ export default function ShootingRange() {
     function startPickPhase() {
       setPhaseSafe('pick');
       setViewMode('tables');
-      setStatus('Pick any weapon from any table');
+      setStatus('Pick a weapon from your lane table');
       setPickTimer(PICK_SECONDS);
 
       let left = PICK_SECONDS;
@@ -1945,7 +2161,7 @@ export default function ShootingRange() {
         setPickTimer(left);
 
         if (left > 0) {
-          setStatus(`Pick any weapon from the tables · ${left}s`);
+          setStatus(`Pick a weapon from your lane table · ${left}s`);
         } else {
           if (pickInterval) window.clearInterval(pickInterval);
           pickInterval = null;
@@ -1959,7 +2175,7 @@ export default function ShootingRange() {
           window.setTimeout(
             () => {
               if (disposed || phaseRef.current !== 'pick') return;
-              const aiPick = pickAiWeaponIndex(idx);
+              const aiPick = pickAiWeaponIndexForLane(lane.laneIndex, idx);
               setHeldWeapon(lane.laneIndex, aiPick, true);
             },
             850 + idx * 650
@@ -2214,7 +2430,9 @@ export default function ShootingRange() {
 
       const shellPos = new THREE.Vector3();
       lane.shellPort.getWorldPosition(shellPos);
-      shellsRef.current.push(createShell(scene, shellPos, stats.shellPower));
+      shellsRef.current.push(
+        createShell(scene, shellPos, stats.shellPower, weapon.bulletProfile)
+      );
 
       let bestPoints = 0;
       let bestLabel = 'Miss';
@@ -2231,7 +2449,8 @@ export default function ShootingRange() {
             muzzlePos.clone(),
             result.point.clone(),
             cinematic,
-            stats.bulletSpeed
+            stats.bulletSpeed,
+            weapon.bulletProfile
           )
         );
 
@@ -2283,16 +2502,40 @@ export default function ShootingRange() {
       }, stats.reloadMs);
     }
 
-    function tableWeaponIndicesForUser() {
+    function tableWeaponIndicesForLane(laneIndex: number) {
       const indices = tableWeaponsRef.current
+        .filter((tw) => tw.tableIndex === laneIndex)
         .slice()
         .sort((a, b) =>
-          a.root.position.x === b.root.position.x
-            ? a.root.position.z - b.root.position.z
-            : a.root.position.x - b.root.position.x
+          a.root.position.z === b.root.position.z
+            ? a.root.position.x - b.root.position.x
+            : a.root.position.z - b.root.position.z
         )
         .map((tw) => tw.weaponIndex);
       return indices.length ? indices : WEAPONS.map((_, index) => index);
+    }
+
+    function tableWeaponIndicesForUser() {
+      return tableWeaponIndicesForLane(userLaneRef.current);
+    }
+
+    function pickAiWeaponIndexForLane(laneIndex: number, aiOrder: number) {
+      const laneWeaponIndices = tableWeaponIndicesForLane(laneIndex);
+      const preferred: WeaponClass[][] = [
+        ['sniper', 'rifle'],
+        ['rifle', 'smg'],
+        ['pistol', 'revolver', 'shotgun']
+      ];
+      const classes = preferred[aiOrder % preferred.length];
+      const candidates = laneWeaponIndices.filter((index) =>
+        classes.includes(WEAPONS[index].weaponClass)
+      );
+      const pool = candidates.length ? candidates : laneWeaponIndices;
+      return (
+        pool[Math.floor(Math.random() * pool.length)] ??
+        laneWeaponIndices[0] ??
+        0
+      );
     }
 
     function canSwitchWeapons() {
@@ -2300,6 +2543,10 @@ export default function ShootingRange() {
     }
 
     function switchToWeapon(weaponIndex: number, verb = 'Switched to') {
+      if (!tableWeaponIndicesForUser().includes(weaponIndex)) {
+        setStatus('You can switch only weapons from your lane table');
+        return;
+      }
       selectedWeaponRef.current = weaponIndex;
       setSelectedWeapon(weaponIndex);
       setHeldWeapon(userLaneRef.current, weaponIndex, true);
@@ -2331,6 +2578,10 @@ export default function ShootingRange() {
 
     function pickWeapon(index: number) {
       if (phaseRef.current !== 'pick') return;
+      if (!tableWeaponIndicesForUser().includes(index)) {
+        setStatus('Pick only weapons from your lane table');
+        return;
+      }
       switchToWeapon(index, 'Picked');
     }
 
@@ -2648,8 +2899,10 @@ export default function ShootingRange() {
     const clock = new THREE.Clock();
 
     function resize() {
-      const w = Math.max(1, mount.clientWidth);
-      const h = Math.max(1, mount.clientHeight);
+      const mountEl = mountRef.current;
+      if (!mountEl) return;
+      const w = Math.max(1, mountEl.clientWidth);
+      const h = Math.max(1, mountEl.clientHeight);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -2800,7 +3053,7 @@ export default function ShootingRange() {
               </div>
               <div style={{ marginTop: 3, fontSize: 11, opacity: 0.88 }}>
                 {phase === 'pick'
-                  ? `Pick any weapon from any table · ${pickTimer}s`
+                  ? `Pick a weapon from your lane table · ${pickTimer}s`
                   : phase === 'shoot'
                     ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} distance · red dot precision`
                     : phase === 'results'
@@ -2974,7 +3227,8 @@ export default function ShootingRange() {
             WebkitOverflowScrolling: 'touch'
           }}
         >
-          {WEAPONS.map((weapon, index) => {
+          {userLaneWeaponIndices.map((index) => {
+            const weapon = WEAPONS[index];
             const active = index === selectedWeapon;
             return (
               <button
