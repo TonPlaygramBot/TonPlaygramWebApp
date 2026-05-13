@@ -117,16 +117,16 @@ const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TI
 const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
 const CAPTURE_PAWN_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_PAWN_TRAVEL_TIME;
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.48; // rebalance weapon units closer to human/chess-piece proportions
-const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER * 1.4;
-const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // includes +40% global vehicle upscale via CAPTURE_DRONE_SCALE
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // includes +40% global vehicle upscale via CAPTURE_DRONE_SCALE
-const CAPTURE_DRONE_ALTITUDE = 2.92; // lift drone lane higher so it clearly flies above piece crowns on portrait screens
+const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER * 1.58;
+const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.22; // keep jet larger and more readable during the higher flyover pass
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.3; // keep helicopter larger and more readable during the higher flyover pass
+const CAPTURE_DRONE_ALTITUDE = 3.28; // lift drone lane higher so it clearly flies above piece crowns on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 6.4; // push jet/helicopter flight lanes higher for a more pronounced top-screen flyover
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 7.18; // push jet/helicopter flight lanes higher for a more pronounced top-screen flyover
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.12; // keep helicopter a touch above jet while both fly higher
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.22; // keep helicopter a touch above jet while both fly higher
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
@@ -151,7 +151,7 @@ const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line tow
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.195; // truck/pawn missiles cruise just below aerial missile altitude
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.55; // keep ground-launched truck/pawn missiles on a lower lane than aircraft
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for stricter precision strike alignment
@@ -160,11 +160,13 @@ const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates 
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.55; // raise shared missile lane to keep aerial/truck strikes at a higher altitude
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
+const CAPTURE_TRUCK_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.35; // truck missile should skim lower than drone/jet/helicopter attacks
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.96; // keep jet/helicopter on the long arc for a longer pass before strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
+const CAPTURE_AIR_JAVELIN_MISSILE_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.82; // jet/helicopter missiles should read smaller than the aircraft
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
 const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.12; // enlarge truck missile to match launcher missile presence
 const CAPTURE_PAWN_STRIKE_TARGET_LIFT = 0.14; // pawn strike lands slightly above target head
@@ -433,7 +435,7 @@ const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
-const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
+const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(58); // lower seated 3D angle that looks upward across the table.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.9; // keep the table readable while the lower 3D camera sits closer to the player.
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
@@ -457,7 +459,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28; // Lower the 3D player c
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.22; // Aim slightly upward from the lower camera toward the pieces/opponent.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 3.55; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 4.1; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -975,6 +977,23 @@ function computeSeatedHumanScale(actorTemplate) {
     (SEATED_HUMAN_TARGET_HEIGHT / Math.max(measuredHeight, 0.01)) *
     SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER
   );
+}
+
+function positionSeatedHumanChestAvatarAnchor(chair, actor) {
+  const anchor = chair?.anchor;
+  const chairGroup = chair?.group;
+  if (!anchor?.isObject3D || !chairGroup?.isObject3D || !actor?.isObject3D) return;
+  actor.updateMatrixWorld(true);
+  chairGroup.updateMatrixWorld(true);
+  const box = getRenderableMeshBounds(actor) || new THREE.Box3().setFromObject(actor);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return;
+  const height = Math.max(0.01, box.max.y - box.min.y);
+  const chestWorld = new THREE.Vector3(
+    (box.min.x + box.max.x) * 0.5,
+    box.min.y + height * 0.58,
+    (box.min.z + box.max.z) * 0.5
+  );
+  anchor.position.copy(chairGroup.worldToLocal(chestWorld));
 }
 
 async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 1) {
@@ -8941,7 +8960,8 @@ function Chess3D({
               else if (/(arm|hand|wrist|finger)/.test(meshName)) fpvMeshes.arms.push(obj);
               else fpvMeshes.body.push(obj);
             });
-            nextActors.push({ playerIndex, actor, rig, fpvMeshes });
+            positionSeatedHumanChestAvatarAnchor(chair, actor);
+            nextActors.push({ playerIndex, chair, actor, rig, fpvMeshes });
           });
           seatedHumanActorsRef.current.forEach((entry) => {
             if (!entry?.actor) return;
@@ -9540,7 +9560,8 @@ function Chess3D({
           else if (/(arm|hand|wrist|finger)/.test(meshName)) fpvMeshes.arms.push(obj);
           else fpvMeshes.body.push(obj);
         });
-        seatedHumanActorsRef.current.push({ playerIndex, actor, rig, fpvMeshes });
+        positionSeatedHumanChestAvatarAnchor(chair, actor);
+        seatedHumanActorsRef.current.push({ playerIndex, chair, actor, rig, fpvMeshes });
       });
       arena.selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
     } catch (error) {
@@ -11318,7 +11339,7 @@ function Chess3D({
           strictPrecision: true,
           longArc: true,
           verticalStrike: true,
-          strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE,
+          strikeAltitude: CAPTURE_TRUCK_STRIKE_ALTITUDE,
           targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
         return withAuto3d({
@@ -11386,7 +11407,7 @@ function Chess3D({
         helicopterFx.root.position.copy(launchBase.clone());
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
-          missile.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
+          missile.root.scale.setScalar(CAPTURE_AIR_JAVELIN_MISSILE_SCALE);
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
@@ -11435,7 +11456,7 @@ function Chess3D({
         jetFx.root.position.copy(launchBase.clone());
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
-          missile.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
+          missile.root.scale.setScalar(CAPTURE_AIR_JAVELIN_MISSILE_SCALE);
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
@@ -13307,6 +13328,11 @@ function Chess3D({
           lastCameraRadiusRef.current = radius;
           syncSkyboxToCamera();
         }
+      }
+      if (seatedHumanActorsRef.current.length) {
+        seatedHumanActorsRef.current.forEach((entry) => {
+          positionSeatedHumanChestAvatarAnchor(entry?.chair, entry?.actor);
+        });
       }
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
