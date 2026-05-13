@@ -1074,7 +1074,14 @@ export function updateHumanPose(human, dt, frameData) {
     ? tableForward
     : resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
   const targetRootYaw = yawFromForward(facingForward) - (cfg.humanVisualYawFix || 0);
-  human.yaw = dampAngle(human.yaw, targetRootYaw, shootingPoseActive ? cfg.rotLambda * 1.35 : cfg.rotLambda, dt);
+  if (shootingPoseActive) {
+    // Lock aiming/striking frames exactly onto the table-facing shot line. A slow
+    // damp here can leave the avatar visibly aimed at the opposite rail for a few
+    // frames after the cue camera drops.
+    human.yaw = targetRootYaw;
+  } else {
+    human.yaw = dampAngle(human.yaw, targetRootYaw, cfg.rotLambda, dt);
+  }
   ensureHumanFacingTable(human, frameData, cfg);
 
   const t = easeInOut(human.poseT);
