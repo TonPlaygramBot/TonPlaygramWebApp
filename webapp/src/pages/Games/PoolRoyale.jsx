@@ -2394,10 +2394,293 @@ const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
   'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
 });
 const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
+const POOL_ROYALE_SHOOTING_POSITION_IDS = Object.freeze([
+  'stance-open-low-chin',
+  'stance-rail-open',
+  'stance-closed-bridge',
+  'stance-power-elbow',
+  'stance-compact-safety',
+  'stance-long-reach',
+  'stance-side-rail',
+  'stance-tripod-over-ball',
+  'stance-soft-feather',
+  'stance-break-wide'
+]);
 const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
+  ...POOL_ROYALE_SHOOTING_POSITION_IDS,
   'rpm-current'
 ]);
 const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
+  'stance-open-low-chin': Object.freeze({
+    label: '01 Open Low Chin',
+    summary: 'Attempt 1: open bridge, chin close to cue, left palm planted near the cue ball, right hand gripping the cue with both feet grounded.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.34,
+    edgeMargin: 0.7,
+    stanceWidth: 0.56,
+    bridgeBack: 0.082,
+    bridgeSide: -0.018,
+    bridgeLift: 0.004,
+    bridgeCueLift: 0.012,
+    gripFromBack: 0.62,
+    rightElbowRise: 0.13,
+    rightElbowSide: -0.4,
+    rightElbowBack: -0.82,
+    forearmOutward: 0.3,
+    forearmBack: 0.5,
+    forearmDown: 0.54,
+    strokePull: 0.36,
+    strokePush: 0.13,
+    practiceStroke: 0.018,
+    cueGap: 0.009,
+    strikeMs: 155,
+    walkSpeed: 3.2,
+    shootForwardBendScale: 0.66,
+    shootUpperBodyCounterLean: 0.66
+  }),
+  'stance-rail-open': Object.freeze({
+    label: '02 Rail Open',
+    summary: 'Attempt 2: rail-style open bridge with the left hand flattened on the cushion/table edge and the cue kept level.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.42,
+    edgeMargin: 0.78,
+    stanceWidth: 0.54,
+    bridgeBack: 0.072,
+    bridgeSide: -0.044,
+    bridgeLift: 0.002,
+    bridgeCueLift: 0.010,
+    gripFromBack: 0.66,
+    rightElbowRise: 0.16,
+    rightElbowSide: -0.38,
+    rightElbowBack: -0.86,
+    forearmOutward: 0.28,
+    forearmBack: 0.52,
+    forearmDown: 0.5,
+    strokePull: 0.32,
+    strokePush: 0.12,
+    practiceStroke: 0.014,
+    cueGap: 0.008,
+    strikeMs: 165,
+    walkSpeed: 3.0,
+    shootForwardBendScale: 0.7,
+    shootUpperBodyCounterLean: 0.58
+  }),
+  'stance-closed-bridge': Object.freeze({
+    label: '03 Closed Bridge',
+    summary: 'Attempt 3: closed bridge simulation with the left fingers wrapping the cue lane, low head, and compact cue delivery.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.3,
+    edgeMargin: 0.68,
+    stanceWidth: 0.5,
+    bridgeBack: 0.095,
+    bridgeSide: -0.014,
+    bridgeLift: 0.007,
+    bridgeCueLift: 0.014,
+    gripFromBack: 0.6,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.42,
+    rightElbowBack: -0.74,
+    forearmOutward: 0.32,
+    forearmBack: 0.44,
+    forearmDown: 0.52,
+    strokePull: 0.38,
+    strokePush: 0.16,
+    practiceStroke: 0.02,
+    cueGap: 0.01,
+    strikeMs: 150,
+    walkSpeed: 3.4,
+    shootForwardBendScale: 0.62,
+    shootUpperBodyCounterLean: 0.72
+  }),
+  'stance-power-elbow': Object.freeze({
+    label: '04 Power 90 Elbow',
+    summary: 'Attempt 4: stronger 90-degree back-elbow feel, right grip behind the bridge, and planted wide feet for power shots.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.52,
+    edgeMargin: 0.82,
+    stanceWidth: 0.72,
+    bridgeBack: 0.078,
+    bridgeSide: -0.026,
+    bridgeLift: 0.01,
+    bridgeCueLift: 0.018,
+    gripFromBack: 0.54,
+    rightElbowRise: 0.3,
+    rightElbowSide: -0.56,
+    rightElbowBack: -0.96,
+    forearmOutward: 0.46,
+    forearmBack: 0.6,
+    forearmDown: 0.43,
+    strokePull: 0.64,
+    strokePush: 0.3,
+    practiceStroke: 0.038,
+    cueGap: 0.016,
+    strikeMs: 95,
+    walkSpeed: 4.6,
+    shootForwardBendScale: 0.5,
+    shootUpperBodyCounterLean: 0.88
+  }),
+  'stance-compact-safety': Object.freeze({
+    label: '05 Compact Safety',
+    summary: 'Attempt 5: compact safety stance with short bridge distance, soft right-hand pull, and quiet grounded knees.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.22,
+    edgeMargin: 0.62,
+    stanceWidth: 0.46,
+    bridgeBack: 0.055,
+    bridgeSide: -0.012,
+    bridgeLift: 0.006,
+    bridgeCueLift: 0.011,
+    gripFromBack: 0.7,
+    rightElbowRise: 0.1,
+    rightElbowSide: -0.32,
+    rightElbowBack: -0.62,
+    forearmOutward: 0.24,
+    forearmBack: 0.34,
+    forearmDown: 0.56,
+    strokePull: 0.25,
+    strokePush: 0.09,
+    practiceStroke: 0.01,
+    cueGap: 0.007,
+    strikeMs: 190,
+    walkSpeed: 2.7,
+    shootForwardBendScale: 0.74,
+    shootUpperBodyCounterLean: 0.42
+  }),
+  'stance-long-reach': Object.freeze({
+    label: '06 Long Reach',
+    summary: 'Attempt 6: long table reach with extended left bridge arm, torso folded forward, and feet locked off the table.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.62,
+    edgeMargin: 0.9,
+    stanceWidth: 0.62,
+    bridgeBack: 0.12,
+    bridgeSide: -0.03,
+    bridgeLift: 0.005,
+    bridgeCueLift: 0.012,
+    gripFromBack: 0.68,
+    rightElbowRise: 0.2,
+    rightElbowSide: -0.46,
+    rightElbowBack: -0.9,
+    forearmOutward: 0.36,
+    forearmBack: 0.54,
+    forearmDown: 0.49,
+    strokePull: 0.42,
+    strokePush: 0.15,
+    practiceStroke: 0.018,
+    cueGap: 0.01,
+    strikeMs: 160,
+    walkSpeed: 3.1,
+    shootForwardBendScale: 0.48,
+    shootUpperBodyCounterLean: 0.96
+  }),
+  'stance-side-rail': Object.freeze({
+    label: '07 Side Rail',
+    summary: 'Attempt 7: side-rail cross-step, bridge hand on the rail line near the cue ball, and cue under the dominant eye.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.46,
+    edgeMargin: 0.86,
+    stanceWidth: 0.58,
+    bridgeBack: 0.07,
+    bridgeSide: -0.056,
+    bridgeLift: 0.004,
+    bridgeCueLift: 0.011,
+    gripFromBack: 0.64,
+    rightElbowRise: 0.17,
+    rightElbowSide: -0.5,
+    rightElbowBack: -0.8,
+    forearmOutward: 0.4,
+    forearmBack: 0.48,
+    forearmDown: 0.48,
+    strokePull: 0.4,
+    strokePush: 0.14,
+    practiceStroke: 0.022,
+    cueGap: 0.01,
+    strikeMs: 150,
+    walkSpeed: 3.5,
+    shootForwardBendScale: 0.58,
+    shootUpperBodyCounterLean: 0.78
+  }),
+  'stance-tripod-over-ball': Object.freeze({
+    label: '08 Tripod Over Ball',
+    summary: 'Attempt 8: raised tripod bridge for obstructed shots while keeping the left fingertips on the cloth and cue controlled.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.32,
+    edgeMargin: 0.72,
+    stanceWidth: 0.52,
+    bridgeBack: 0.09,
+    bridgeSide: -0.018,
+    bridgeLift: 0.024,
+    bridgeCueLift: 0.032,
+    gripFromBack: 0.61,
+    rightElbowRise: 0.22,
+    rightElbowSide: -0.42,
+    rightElbowBack: -0.78,
+    forearmOutward: 0.34,
+    forearmBack: 0.46,
+    forearmDown: 0.46,
+    strokePull: 0.34,
+    strokePush: 0.11,
+    practiceStroke: 0.012,
+    cueGap: 0.012,
+    strikeMs: 175,
+    walkSpeed: 2.9,
+    shootForwardBendScale: 0.64,
+    shootUpperBodyCounterLean: 0.62
+  }),
+  'stance-soft-feather': Object.freeze({
+    label: '09 Soft Feather',
+    summary: 'Attempt 9: soft feathering technique with stable bridge palm, small cue rehearsal, and relaxed right wrist.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.26,
+    edgeMargin: 0.66,
+    stanceWidth: 0.5,
+    bridgeBack: 0.075,
+    bridgeSide: -0.016,
+    bridgeLift: 0.005,
+    bridgeCueLift: 0.012,
+    gripFromBack: 0.69,
+    rightElbowRise: 0.12,
+    rightElbowSide: -0.34,
+    rightElbowBack: -0.68,
+    forearmOutward: 0.27,
+    forearmBack: 0.38,
+    forearmDown: 0.55,
+    strokePull: 0.28,
+    strokePush: 0.1,
+    practiceStroke: 0.03,
+    cueGap: 0.008,
+    strikeMs: 180,
+    walkSpeed: 2.8,
+    shootForwardBendScale: 0.72,
+    shootUpperBodyCounterLean: 0.48
+  }),
+  'stance-break-wide': Object.freeze({
+    label: '10 Break Wide',
+    summary: 'Attempt 10: break-shot stance with the widest foot base, firm left bridge, high elbow, and strong right-hand drive.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.58,
+    edgeMargin: 0.86,
+    stanceWidth: 0.78,
+    bridgeBack: 0.11,
+    bridgeSide: -0.024,
+    bridgeLift: 0.012,
+    bridgeCueLift: 0.02,
+    gripFromBack: 0.52,
+    rightElbowRise: 0.34,
+    rightElbowSide: -0.58,
+    rightElbowBack: -1.0,
+    forearmOutward: 0.48,
+    forearmBack: 0.64,
+    forearmDown: 0.42,
+    strokePull: 0.7,
+    strokePush: 0.34,
+    practiceStroke: 0.042,
+    cueGap: 0.017,
+    strikeMs: 90,
+    walkSpeed: 4.9,
+    shootForwardBendScale: 0.44,
+    shootUpperBodyCounterLean: 0.92
+  }),
   'rpm-current': Object.freeze({
     label: 'Classic Pro',
     summary: 'Original ReadyPlayer skeleton logic: table-edge stance, low cloth bridge, fixed cue grip, and classic follow-through.',
@@ -2643,8 +2926,15 @@ const withPoolRoyaleHumanModelFallbacks = (theme = {}, id = theme.id) => {
     : theme.url
       ? [theme.url]
       : [];
+  const shootingAttemptIndex = POOL_ROYALE_SHOOTING_POSITION_IDS.indexOf(id);
   const primaryFallbacks = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[id] || [];
-  const rotatedFallbacks = POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.filter((url) => !primaryFallbacks.includes(url));
+  const rotatedSource = shootingAttemptIndex >= 0
+    ? [
+        ...POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.slice(shootingAttemptIndex),
+        ...POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.slice(0, shootingAttemptIndex)
+      ]
+    : POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS;
+  const rotatedFallbacks = rotatedSource.filter((url) => !primaryFallbacks.includes(url));
   // Keep each menu option visually different: try its own Murlan/RPM/Xbot source first,
   // then only use Soldier as the absolute last-resort skeleton.
   return Array.from(new Set([...urls, ...primaryFallbacks, ...rotatedFallbacks, BILARDO_SHQIP_HUMAN_URL]));
@@ -2657,12 +2947,13 @@ const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
     return Object.freeze({
       ...theme,
       id,
-      label: theme.label || logic.label,
+      label: logic.label || theme.label,
       logicLabel: logic.label,
       summary: logic.summary,
       bendMode: logic.bendMode || 'forward',
       modelUrl: modelUrls[0] || BILARDO_SHQIP_HUMAN_URL,
       modelUrls,
+      scale: theme.scale || 1,
       logic
     });
   })
@@ -27060,7 +27351,7 @@ const shotPowerRef = useRef(0);
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
             rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.11,
+            strikeTime: ((behavior.strikeMs ?? 110) / 1000),
             holdTime: 0.05,
             tableTopY: TABLE_Y + TABLE.THICK,
             groundY: floorY,
@@ -27078,8 +27369,8 @@ const shotPowerRef = useRef(0);
             edgeMargin: behavior.edgeMargin * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgeHandBackFromBall: behavior.bridgeBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
             bridgeHandSide: behavior.bridgeSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            bridgeCueLift: (behavior.bridgeCueLift ?? 0.018) * POOL_ROYALE_HUMAN_UNIT_SCALE,
+            shootCueGripFromBack: (behavior.gripFromBack ?? 0.58) * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotRise: behavior.rightElbowRise * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotSide: behavior.rightElbowSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
             rightElbowShotBack: behavior.rightElbowBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
@@ -37443,6 +37734,52 @@ const shotPowerRef = useRef(0);
                     </div>
                   </div>
                 ) : null}
+              </div>
+              <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                      Shooting Positions
+                    </h3>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                      First 10 stance attempts: feet planted, left bridge hand on table, right hand on cue.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
+                    Human IK
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.slice(0, 10).map((option, index) => {
+                    const active = option.id === humanCharacterId;
+                    const bridgeLabel = option.logic?.bridgeLift > 0.018 ? 'tripod bridge' : option.id.includes('closed') ? 'closed bridge' : 'open bridge';
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setHumanCharacterId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em]">
+                            {option.label}
+                          </span>
+                          <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${active ? 'text-black/70' : 'text-emerald-100/70'}`}>
+                            Attempt {index + 1}
+                          </span>
+                        </span>
+                        <span className={`mt-1 block text-[10px] uppercase tracking-[0.16em] ${active ? 'text-black/65' : 'text-white/60'}`}>
+                          {bridgeLabel} • feet locked • left hand table • right hand cue
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
