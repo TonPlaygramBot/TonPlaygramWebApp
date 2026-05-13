@@ -2273,7 +2273,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.82; // raise Pool Royale strike speed so full shots feel powerful
+const SHOT_GLOBAL_POWER_SCALE = 1.06; // stronger Pool Royale strike speed so shots carry more power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2400,29 +2400,30 @@ const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
 const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
   'rpm-current': Object.freeze({
     label: 'Classic Pro',
-    summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
+    summary: 'Original ReadyPlayer skeleton logic: table-edge stance, low cloth bridge, fixed cue grip, and classic follow-through.',
     bendMode: 'forward',
-    desiredShootDistance: 1.72,
-    edgeMargin: 0.9,
-    stanceWidth: 0.62,
-    bridgeBack: 0.095,
-    bridgeSide: -0.024,
+    originalSkeletonLogic: true,
+    desiredShootDistance: 1.25,
+    edgeMargin: 0.68,
+    stanceWidth: 0.52,
+    bridgeBack: 0.235,
+    bridgeSide: -0.012,
     bridgeLift: 0.006,
-    gripFromBack: 0.64,
-    rightElbowRise: 0.36,
-    rightElbowSide: -0.5,
-    rightElbowBack: -1.02,
-    forearmOutward: 0.34,
-    forearmBack: 0.48,
-    forearmDown: 0.54,
-    strokePull: 0.5,
+    gripFromBack: 0.58,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.46,
+    rightElbowBack: -0.78,
+    forearmOutward: 0.36,
+    forearmBack: 0.44,
+    forearmDown: 0.48,
+    strokePull: 0.30,
     strokePush: 0.24,
     practiceStroke: 0.035,
     cueGap: 0.012,
     strikeMs: 120,
     walkSpeed: 4.0,
-    shootForwardBendScale: 0.92,
-    shootUpperBodyCounterLean: 0.48
+    shootForwardBendScale: 1,
+    shootUpperBodyCounterLean: 0
   }),
   'rpm-67d411': Object.freeze({
     label: 'Sniper Rail',
@@ -5803,12 +5804,39 @@ function updateClothTexturesForFinish (
         edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.normalMap = null;
-    finishInfo.clothEdgeMat.roughnessMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat, {
+      preserveExisting: true
+    });
+    replaceMaterialTexture(
+      finishInfo.clothEdgeMat,
+      'normalMap',
+      textures.normal,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    replaceMaterialTexture(
+      finishInfo.clothEdgeMat,
+      'roughnessMap',
+      textures.roughness,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    if (textures.normal) {
+      finishInfo.clothEdgeMat.normalScale = targetNormalScale.clone();
+      replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', null, fallbackRepeat);
+    } else {
+      replaceMaterialTexture(
+        finishInfo.clothEdgeMat,
+        'bumpMap',
+        textures.bump,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+    }
+    finishInfo.clothEdgeMat.bumpScale = Number.isFinite(finishInfo.clothBase?.baseBumpScale)
+      ? finishInfo.clothBase.baseBumpScale
+      : finishInfo.clothMat.bumpScale;
+    finishInfo.clothEdgeMat.roughness = Math.max(finishInfo.clothMat.roughness ?? roughnessBase, 0.9);
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
@@ -9697,11 +9725,7 @@ export function Table3D(
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.normalMap = null;
-  clothEdgeMat.roughnessMap = null;
-  clothEdgeMat.bumpScale = 0;
+  clothEdgeMat.bumpScale = clothMat.bumpScale;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
@@ -9802,10 +9826,8 @@ export function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.bumpScale = 0;
-  clothEdgeMat.roughness = 1;
+  clothEdgeMat.bumpScale = clothMat.bumpScale;
+  clothEdgeMat.roughness = Math.max(clothMat.roughness ?? 0.82, 0.9);
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.envMapIntensity = 0;
@@ -10069,6 +10091,13 @@ export function Table3D(
       clothEdgeMat.bumpMap.rotation = clothEdgeMat.map?.rotation ?? clothEdgeMat.bumpMap.rotation ?? 0;
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
+    [clothEdgeMat.normalMap, clothEdgeMat.roughnessMap].forEach((texture) => {
+      if (!texture) return;
+      texture.repeat.set(Math.max(repeatAround, 1), Math.max(repeatHeight, 0.5));
+      texture.center.set(0.5, 0.5);
+      texture.rotation = clothEdgeMat.map?.rotation ?? texture.rotation ?? 0;
+      texture.needsUpdate = true;
+    });
     clothEdgeMat.needsUpdate = true;
   }
 
@@ -15063,10 +15092,8 @@ function applyTableFinishToTable(table, finish) {
   if (finishInfo.clothEdgeMat) {
     const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
     finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
+    finishInfo.clothEdgeMat.bumpScale = finishInfo.clothMat?.bumpScale ?? finishInfo.clothEdgeMat.bumpScale;
+    finishInfo.clothEdgeMat.roughness = Math.max(finishInfo.clothMat?.roughness ?? 0.82, 0.9);
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
@@ -27020,14 +27047,14 @@ const shotPowerRef = useRef(0);
             // original rig forward axis, so the fallback bend sign folds belly/chest/head
             // toward the cue ball instead of bending the whole body backward.
             shootBendDirection: -1,
-            shootBendTowardCueStick: true,
+            shootBendTowardCueStick: !behavior.originalSkeletonLogic,
             shootBendMode: behavior.bendMode || 'forward',
             shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
             shootForwardBendScale: behavior.shootForwardBendScale,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: false,
-            forceTableFacingAim: true,
+            forceTableFacingAim: !behavior.originalSkeletonLogic,
             addFaceDetails: false,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
