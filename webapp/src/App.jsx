@@ -113,6 +113,9 @@ const BowlingRealistic = React.lazy(
 const FreeKickArena = React.lazy(
   () => import('./pages/Games/FreeKickArena.tsx')
 );
+const ShootingRange = React.lazy(
+  () => import('./pages/Games/ShootingRange.tsx')
+);
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -438,6 +441,18 @@ export default function App() {
                 element={
                   <GameLiveAvatarOverlay gameSlug="bowling">
                     <BowlingRealistic />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/shootingrange/lobby"
+                element={<Navigate to="/games/shootingrange" replace />}
+              />
+              <Route
+                path="/games/shootingrange"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="shootingrange">
+                    <ShootingRange />
                   </GameLiveAvatarOverlay>
                 }
               />

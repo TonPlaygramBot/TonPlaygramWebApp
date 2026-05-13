@@ -26,6 +26,7 @@ export const gameThumbnails = {
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   tennis: '/assets/icons/tennis-icon.svg',
   tabletennis: '/assets/icons/Goal%20rush%20logo.png',
+  shootingrange: '/assets/icons/shooting-range.svg',
 };
 
 const buildLobbyIconSet = (keys, icon) =>

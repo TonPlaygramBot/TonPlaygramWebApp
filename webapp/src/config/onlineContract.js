@@ -59,6 +59,10 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
   murlanroyale: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
+  },
+  shootingrange: {
+    checks: { lobby: false, runtime: true, backend: false, security: false },
+    label: 'Beta'
   }
 });
 
