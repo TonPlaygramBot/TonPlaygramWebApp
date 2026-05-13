@@ -406,28 +406,6 @@ function updateHumanDebugArrows(human, frameData, forward, cueDir, cfg) {
   updateDebugArrow(group.userData.shotDirectionArrow, frameData.cueTip || origin, shotDir, 0xfacc15, length);
   updateDebugArrow(group.userData.characterForwardArrow, origin.clone().add(new THREE.Vector3(0, 0.08 * cfg.unit, 0)), forward, 0x22c55e, length * 0.9);
   updateDebugArrow(group.userData.cueDirectionArrow, cueOrigin, cueDir, 0xf97316, length * 1.15);
-
-  const setMarker = (marker, position, labelY = 0) => {
-    if (!marker || !position) return;
-    marker.visible = true;
-    marker.position.copy(position).add(new THREE.Vector3(0, labelY, 0));
-  };
-  const rootToBridge = frameData.bridgeTarget?.clone?.().sub(human.root.position).setY(0);
-  const localSide = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
-  const leftFoot = human.root.position.clone()
-    .addScaledVector(localSide, -cfg.stanceWidth * 0.56)
-    .addScaledVector(forward, -0.41 * cfg.unit)
-    .setY(cfg.groundY + cfg.footGroundY + 0.006 * cfg.unit);
-  const rightFoot = human.root.position.clone()
-    .addScaledVector(localSide, cfg.stanceWidth * 0.58)
-    .addScaledVector(forward, 0.39 * cfg.unit)
-    .setY(cfg.groundY + cfg.footGroundY + 0.006 * cfg.unit);
-  setMarker(group.userData.bridgePalmMarker, frameData.bridgeTarget, 0.012 * cfg.unit);
-  setMarker(group.userData.leftFootGroundMarker, leftFoot);
-  setMarker(group.userData.rightFootGroundMarker, rightFoot);
-  if (group.userData.bridgeToRootArrow && rootToBridge?.lengthSq?.() > 1e-8) {
-    updateDebugArrow(group.userData.bridgeToRootArrow, human.root.position.clone().setY(frameData.bridgeTarget.y), rootToBridge, 0xa78bfa, length * 0.8);
-  }
 }
 
 function createHumanDebugArrows() {
@@ -441,25 +419,10 @@ function createHumanDebugArrows() {
     group.add(arrow);
     return arrow;
   };
-  const makeMarker = (name, color, radius = 0.035) => {
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(radius, 16, 10),
-      new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.86 })
-    );
-    marker.name = name;
-    marker.visible = false;
-    marker.renderOrder = 30;
-    group.add(marker);
-    return marker;
-  };
   group.userData.tableCenterArrow = make('TableCenterDirection_DebugArrow_Blue', 0x38bdf8);
   group.userData.shotDirectionArrow = make('ShotDirection_DebugArrow_Yellow', 0xfacc15);
   group.userData.characterForwardArrow = make('CharacterForward_DebugArrow_Green', 0x22c55e);
   group.userData.cueDirectionArrow = make('CueDirection_DebugArrow_Orange', 0xf97316);
-  group.userData.bridgeToRootArrow = make('BridgePalmToStance_DebugArrow_Purple', 0xa78bfa);
-  group.userData.bridgePalmMarker = makeMarker('BridgePalm_TableContact_Helper', 0xfacc15, 0.032);
-  group.userData.leftFootGroundMarker = makeMarker('LeftFoot_GroundLock_Helper', 0x22c55e, 0.03);
-  group.userData.rightFootGroundMarker = makeMarker('RightFoot_GroundLock_Helper', 0x22c55e, 0.03);
   return group;
 }
 
