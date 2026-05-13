@@ -74,6 +74,7 @@ type TableWeaponRuntime = {
   model: THREE.Object3D;
   card: THREE.Mesh;
   weaponIndex: number;
+  laneIndex: number;
 };
 
 type BulletHole = {
@@ -151,6 +152,13 @@ const OVER_SHOULDER_LOOK = new THREE.Vector3(0.05, 1.38, -12.5);
 
 const HDRI_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr';
+
+const POLYHAVEN_ASSETS = {
+  securityCamera01:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/security_camera_01/security_camera_01_1k.gltf',
+  servicePistol:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf'
+};
 
 const TEXTURES = {
   floor: {
@@ -345,6 +353,13 @@ const WEAPONS: WeaponEntry[] = [
       KNOWN.pistolHolster,
       KNOWN.pistolHolsterRaw
     ]
+  },
+  {
+    id: 'service-pistol',
+    name: 'Poly Haven Service Pistol',
+    shortName: 'Service',
+    weaponClass: 'pistol',
+    urls: [POLYHAVEN_ASSETS.servicePistol, KNOWN.pistolHolster]
   },
   {
     id: 'awp',
@@ -698,19 +713,22 @@ function layWeaponFlatOnTable(root: THREE.Object3D) {
   root.updateMatrixWorld(true);
 }
 
-function pickAiWeaponIndex(aiOrder: number) {
+function pickAiWeaponIndex(aiOrder: number, allowedIndices?: number[]) {
   const preferred: WeaponClass[][] = [
     ['sniper', 'rifle'],
     ['rifle', 'smg'],
     ['pistol', 'revolver', 'shotgun']
   ];
   const classes = preferred[aiOrder % preferred.length];
-  const candidates = WEAPONS.map((weapon, index) => ({ weapon, index })).filter(
-    ({ weapon }) => classes.includes(weapon.weaponClass)
-  );
+  const allowed = allowedIndices?.length
+    ? allowedIndices
+    : WEAPONS.map((_, index) => index);
+  const candidates = allowed
+    .map((index) => ({ weapon: WEAPONS[index], index }))
+    .filter(({ weapon }) => classes.includes(weapon.weaponClass));
   const pool = candidates.length
     ? candidates
-    : WEAPONS.map((weapon, index) => ({ weapon, index }));
+    : allowed.map((index) => ({ weapon: WEAPONS[index], index }));
   return pool[Math.floor(Math.random() * pool.length)].index;
 }
 
@@ -1155,11 +1173,31 @@ function createBullet(
   start: THREE.Vector3,
   end: THREE.Vector3,
   cinematic: boolean,
-  speed: number
+  speed: number,
+  weapon: WeaponEntry
 ) {
+  const handgun =
+    weapon.weaponClass === 'pistol' || weapon.weaponClass === 'revolver';
+  const longGun =
+    weapon.weaponClass === 'rifle' || weapon.weaponClass === 'sniper';
+  const shotgun = weapon.weaponClass === 'shotgun';
+  const bulletGeometry = shotgun
+    ? new THREE.SphereGeometry(0.034, 10, 10)
+    : new THREE.CapsuleGeometry(
+        handgun ? 0.018 : longGun ? 0.015 : 0.016,
+        handgun ? 0.085 : longGun ? 0.13 : 0.1,
+        4,
+        10
+      );
   const bullet = new THREE.Mesh(
-    new THREE.SphereGeometry(0.027, 10, 10),
-    new THREE.MeshBasicMaterial({ color: '#ffe8a3' })
+    bulletGeometry,
+    new THREE.MeshStandardMaterial({
+      color: handgun ? '#c9c2b8' : shotgun ? '#d9b56d' : '#e7d7a2',
+      roughness: handgun ? 0.24 : 0.32,
+      metalness: 0.86,
+      emissive: '#3b2508',
+      emissiveIntensity: cinematic ? 0.16 : 0.06
+    })
   );
   const length = Math.min(1.2, start.distanceTo(end));
   const trail = new THREE.Mesh(
@@ -1172,6 +1210,8 @@ function createBullet(
   );
 
   bullet.position.copy(start);
+  bullet.lookAt(end);
+  bullet.rotateX(Math.PI / 2);
   trail.position.copy(start);
   trail.rotation.x = Math.PI / 2;
   scene.add(bullet, trail);
@@ -1190,14 +1230,20 @@ function createBullet(
 function createShell(
   scene: THREE.Scene,
   position: THREE.Vector3,
-  power: number
+  power: number,
+  weapon: WeaponEntry
 ) {
+  const handgun =
+    weapon.weaponClass === 'pistol' || weapon.weaponClass === 'revolver';
+  const shotgun = weapon.weaponClass === 'shotgun';
+  const shellRadius = handgun ? 0.022 : shotgun ? 0.04 : 0.026;
+  const shellLength = handgun ? 0.115 : shotgun ? 0.22 : 0.145;
   const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025, 0.025, 0.12, 16),
+    new THREE.CylinderGeometry(shellRadius, shellRadius, shellLength, 18),
     new THREE.MeshStandardMaterial({
-      color: '#c0892f',
-      roughness: 0.34,
-      metalness: 0.92
+      color: handgun ? '#b9822f' : shotgun ? '#8b1e24' : '#d0a044',
+      roughness: handgun ? 0.28 : 0.36,
+      metalness: shotgun ? 0.46 : 0.92
     })
   );
   mesh.rotation.z = Math.PI / 2;
@@ -1215,6 +1261,60 @@ function createShell(
     ),
     life: 2.4
   } as ShellRuntime;
+}
+
+function createFallbackSecurityCamera() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: '#c7c9cc',
+    roughness: 0.58,
+    metalness: 0.5
+  });
+  const lensMat = new THREE.MeshStandardMaterial({
+    color: '#05070a',
+    roughness: 0.18,
+    metalness: 0.2,
+    emissive: '#0f172a',
+    emissiveIntensity: 0.25
+  });
+
+  const housing = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.22, 0.64),
+    bodyMat
+  );
+  housing.position.z = -0.12;
+  const hood = new THREE.Mesh(
+    new THREE.BoxGeometry(0.58, 0.045, 0.74),
+    bodyMat
+  );
+  hood.position.set(0, 0.13, -0.12);
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.105, 0.105, 0.055, 24),
+    lensMat
+  );
+  lens.rotation.x = Math.PI / 2;
+  lens.position.z = -0.47;
+  const mount = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.42, 16),
+    bodyMat
+  );
+  mount.rotation.z = Math.PI / 2;
+  mount.position.set(0, 0, 0.34);
+  const wallPlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.36, 0.36, 0.04),
+    bodyMat
+  );
+  wallPlate.position.z = 0.58;
+
+  group.add(housing, hood, lens, mount, wallPlate);
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
+  return group;
 }
 
 function disposeObject(object: THREE.Object3D) {
@@ -1531,6 +1631,53 @@ export default function ShootingRange() {
     darkBackstop.castShadow = true;
     scene.add(darkBackstop);
 
+    const securityCameraAnchors = [
+      {
+        position: new THREE.Vector3(-7.18, 4.64, 2.15),
+        lookAt: new THREE.Vector3(-3.9, 2.0, -5.8)
+      },
+      {
+        position: new THREE.Vector3(7.18, 4.64, 2.15),
+        lookAt: new THREE.Vector3(3.9, 2.0, -5.8)
+      },
+      {
+        position: new THREE.Vector3(-7.18, 4.64, activeTargetZ - 9.75),
+        lookAt: new THREE.Vector3(-3.9, 1.65, activeTargetZ + 1.7)
+      },
+      {
+        position: new THREE.Vector3(7.18, 4.64, activeTargetZ - 9.75),
+        lookAt: new THREE.Vector3(3.9, 1.65, activeTargetZ + 1.7)
+      }
+    ];
+    const securityCameras = securityCameraAnchors.map(({ position, lookAt }) => {
+      const cameraObject = createFallbackSecurityCamera();
+      cameraObject.position.copy(position);
+      cameraObject.lookAt(lookAt);
+      cameraObject.scale.setScalar(0.72);
+      scene.add(cameraObject);
+      return { root: cameraObject, position, lookAt };
+    });
+
+    void loadGLTF('Security Camera 01', [POLYHAVEN_ASSETS.securityCamera01])
+      .then((gltf) => {
+        if (disposed) return;
+        securityCameras.forEach((cameraSlot) => {
+          const loadedCamera = cloneScene(gltf.scene);
+          configureModel(loadedCamera, renderer);
+          normalizeToLength(loadedCamera, 0.58);
+          centerRoot(loadedCamera);
+          loadedCamera.position.copy(cameraSlot.position);
+          loadedCamera.lookAt(cameraSlot.lookAt);
+          scene.remove(cameraSlot.root);
+          disposeObject(cameraSlot.root);
+          scene.add(loadedCamera);
+          cameraSlot.root = loadedCamera;
+        });
+      })
+      .catch((error) => {
+        console.warn('Security Camera 01 failed, keeping fallback:', error);
+      });
+
     for (let lane = 0; lane < LANE_COUNT; lane += 1) {
       const x = LANE_X[lane];
 
@@ -1798,10 +1945,16 @@ export default function ShootingRange() {
 
     function highlightTableSelection() {
       tableWeaponsRef.current.forEach((tw) => {
-        const selected = tw.weaponIndex === selectedWeaponRef.current;
+        const selected =
+          tw.laneIndex === userLaneRef.current &&
+          tw.weaponIndex === selectedWeaponRef.current;
         tw.root.position.y = selected ? TABLE_TOP_Y + 0.05 : TABLE_TOP_Y + 0.03;
         (tw.card.material as THREE.MeshStandardMaterial).color.set(
-          selected ? '#38506d' : '#1c1c1c'
+          selected
+            ? '#38506d'
+            : tw.laneIndex === userLaneRef.current
+              ? '#243042'
+              : '#1c1c1c'
         );
       });
     }
@@ -1878,7 +2031,8 @@ export default function ShootingRange() {
           root: group,
           card,
           model,
-          weaponIndex: index
+          weaponIndex: index,
+          laneIndex: tableIndex
         });
         pickTargetsRef.current.push(group);
 
@@ -1923,7 +2077,10 @@ export default function ShootingRange() {
 
       lanesRef.current.forEach((lane) => {
         if (!lane || lane.controller !== 'AI') return;
-        const chosen = pickAiWeaponIndex(lane.playerId - 1);
+        const chosen = pickAiWeaponIndex(
+          lane.playerId - 1,
+          tableWeaponIndicesForLane(lane.laneIndex)
+        );
         setHeldWeapon(lane.laneIndex, chosen, false);
       });
 
@@ -1933,7 +2090,7 @@ export default function ShootingRange() {
     function startPickPhase() {
       setPhaseSafe('pick');
       setViewMode('tables');
-      setStatus('Pick any weapon from any table');
+      setStatus('Pick a weapon from your lane table');
       setPickTimer(PICK_SECONDS);
 
       let left = PICK_SECONDS;
@@ -1945,7 +2102,7 @@ export default function ShootingRange() {
         setPickTimer(left);
 
         if (left > 0) {
-          setStatus(`Pick any weapon from the tables · ${left}s`);
+          setStatus(`Pick a weapon from your lane table · ${left}s`);
         } else {
           if (pickInterval) window.clearInterval(pickInterval);
           pickInterval = null;
@@ -1959,7 +2116,10 @@ export default function ShootingRange() {
           window.setTimeout(
             () => {
               if (disposed || phaseRef.current !== 'pick') return;
-              const aiPick = pickAiWeaponIndex(idx);
+              const aiPick = pickAiWeaponIndex(
+                idx,
+                tableWeaponIndicesForLane(lane.laneIndex)
+              );
               setHeldWeapon(lane.laneIndex, aiPick, true);
             },
             850 + idx * 650
@@ -2214,7 +2374,9 @@ export default function ShootingRange() {
 
       const shellPos = new THREE.Vector3();
       lane.shellPort.getWorldPosition(shellPos);
-      shellsRef.current.push(createShell(scene, shellPos, stats.shellPower));
+      shellsRef.current.push(
+        createShell(scene, shellPos, stats.shellPower, weapon)
+      );
 
       let bestPoints = 0;
       let bestLabel = 'Miss';
@@ -2231,7 +2393,8 @@ export default function ShootingRange() {
             muzzlePos.clone(),
             result.point.clone(),
             cinematic,
-            stats.bulletSpeed
+            stats.bulletSpeed,
+            weapon
           )
         );
 
@@ -2283,16 +2446,24 @@ export default function ShootingRange() {
       }, stats.reloadMs);
     }
 
-    function tableWeaponIndicesForUser() {
+    function tableWeaponIndicesForLane(laneIndex: number) {
       const indices = tableWeaponsRef.current
         .slice()
+        .filter((tw) => tw.laneIndex === laneIndex)
         .sort((a, b) =>
-          a.root.position.x === b.root.position.x
-            ? a.root.position.z - b.root.position.z
-            : a.root.position.x - b.root.position.x
+          a.root.position.z === b.root.position.z
+            ? a.root.position.x - b.root.position.x
+            : a.root.position.z - b.root.position.z
         )
         .map((tw) => tw.weaponIndex);
-      return indices.length ? indices : WEAPONS.map((_, index) => index);
+      return indices;
+    }
+
+    function tableWeaponIndicesForUser() {
+      const laneWeapons = tableWeaponIndicesForLane(userLaneRef.current);
+      return laneWeapons.length
+        ? laneWeapons
+        : WEAPONS.map((_, index) => index);
     }
 
     function canSwitchWeapons() {
@@ -2300,6 +2471,10 @@ export default function ShootingRange() {
     }
 
     function switchToWeapon(weaponIndex: number, verb = 'Switched to') {
+      if (!tableWeaponIndicesForUser().includes(weaponIndex)) {
+        setStatus('That weapon is assigned to another lane');
+        return;
+      }
       selectedWeaponRef.current = weaponIndex;
       setSelectedWeapon(weaponIndex);
       setHeldWeapon(userLaneRef.current, weaponIndex, true);
@@ -2331,6 +2506,10 @@ export default function ShootingRange() {
 
     function pickWeapon(index: number) {
       if (phaseRef.current !== 'pick') return;
+      if (!tableWeaponIndicesForUser().includes(index)) {
+        setStatus('Pick only weapons from your lane table');
+        return;
+      }
       switchToWeapon(index, 'Picked');
     }
 
@@ -2757,6 +2936,17 @@ export default function ShootingRange() {
     cursor: 'pointer'
   };
 
+  const visibleWeaponIndices = tableWeaponsRef.current.length
+    ? tableWeaponsRef.current
+        .filter((tw) => tw.laneIndex === userLane)
+        .sort((a, b) =>
+          a.root.position.z === b.root.position.z
+            ? a.root.position.x - b.root.position.x
+            : a.root.position.z - b.root.position.z
+        )
+        .map((tw) => tw.weaponIndex)
+    : WEAPONS.map((_, index) => index);
+
   return (
     <div
       style={{
@@ -2800,7 +2990,7 @@ export default function ShootingRange() {
               </div>
               <div style={{ marginTop: 3, fontSize: 11, opacity: 0.88 }}>
                 {phase === 'pick'
-                  ? `Pick any weapon from any table · ${pickTimer}s`
+                  ? `Pick a weapon from your Lane ${userLane + 1} table · ${pickTimer}s`
                   : phase === 'shoot'
                     ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} distance · red dot precision`
                     : phase === 'results'
@@ -2974,7 +3164,8 @@ export default function ShootingRange() {
             WebkitOverflowScrolling: 'touch'
           }}
         >
-          {WEAPONS.map((weapon, index) => {
+          {visibleWeaponIndices.map((index) => {
+            const weapon = WEAPONS[index];
             const active = index === selectedWeapon;
             return (
               <button
