@@ -113,7 +113,7 @@ const gamesCatalog = [
 
   {
     name: 'Shooting Range',
-    route: '/games/shootingrange',
+    route: '/games/shootingrange/lobby',
     slug: 'shootingrange',
     image: '/assets/icons/shooting-range.svg',
     description:

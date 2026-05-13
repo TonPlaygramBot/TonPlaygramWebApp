@@ -61,8 +61,8 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     label: 'Online Ready'
   },
   shootingrange: {
-    checks: { lobby: false, runtime: true, backend: false, security: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: false, security: false },
+    label: 'Lobby Ready'
   }
 });
 
@@ -71,7 +71,10 @@ const FALLBACK_STATE = Object.freeze({
   label: 'Coming Soon'
 });
 
-export function getOnlineReadiness(slug = '', source = ONLINE_READINESS_BY_GAME) {
+export function getOnlineReadiness(
+  slug = '',
+  source = ONLINE_READINESS_BY_GAME
+) {
   const state = source[slug] || FALLBACK_STATE;
   const checks = {
     lobby: Boolean(state.checks?.lobby),
@@ -79,7 +82,8 @@ export function getOnlineReadiness(slug = '', source = ONLINE_READINESS_BY_GAME)
     backend: Boolean(state.checks?.backend),
     security: Boolean(state.checks?.security)
   };
-  const ready = checks.lobby && checks.runtime && checks.backend && checks.security;
+  const ready =
+    checks.lobby && checks.runtime && checks.backend && checks.security;
   return {
     slug,
     checks,

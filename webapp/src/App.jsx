@@ -116,6 +116,9 @@ const FreeKickArena = React.lazy(
 const ShootingRange = React.lazy(
   () => import('./pages/Games/ShootingRange.tsx')
 );
+const ShootingRangeLobby = React.lazy(
+  () => import('./pages/Games/ShootingRangeLobby.jsx')
+);
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -446,7 +449,7 @@ export default function App() {
               />
               <Route
                 path="/games/shootingrange/lobby"
-                element={<Navigate to="/games/shootingrange" replace />}
+                element={<ShootingRangeLobby />}
               />
               <Route
                 path="/games/shootingrange"
