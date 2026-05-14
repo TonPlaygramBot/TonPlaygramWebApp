@@ -125,74 +125,6 @@ type ControlState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
-
-const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
-  denim: {
-    source: "Poly Haven denim_fabric 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg",
-    tint: 0x314d86,
-  },
-  check: {
-    source: "Poly Haven gingham_check 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg",
-    tint: 0x9f3651,
-  },
-  hessian: {
-    source: "Poly Haven hessian_230 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg",
-    tint: 0xa27445,
-  },
-  floral: {
-    source: "Poly Haven floral_jacquard 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg",
-    tint: 0x6d3f7f,
-  },
-  fleece: {
-    source: "Poly Haven knitted_fleece 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg",
-    tint: 0x4b5563,
-  },
-  picnic: {
-    source: "Poly Haven fabric_pattern_07 1k glTF CC0",
-    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf",
-    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg",
-    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg",
-    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg",
-    tint: 0xc44f42,
-  },
-});
-
-const TENNIS_CHARACTER_CLOTH_COMBOS = Object.freeze({
-  royalDenim: { upper: { material: "denim", tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: "hessian", tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: "fleece", tint: 0xd8dee9, repeat: 5.0 } },
-  casinoCheck: { upper: { material: "check", tint: 0xb7375d, repeat: 3.8 }, lower: { material: "denim", tint: 0x243e70, repeat: 4.4 }, accent: { material: "hessian", tint: 0xf4d7a1, repeat: 3.2 } },
-  linenStreet: { upper: { material: "hessian", tint: 0xb68452, repeat: 3.6 }, lower: { material: "fleece", tint: 0x374151, repeat: 5.2 }, accent: { material: "denim", tint: 0x4a6fa4, repeat: 4.0 } },
-  jacquardNight: { upper: { material: "floral", tint: 0x7c3f88, repeat: 3.2 }, lower: { material: "denim", tint: 0x1f335f, repeat: 4.5 }, accent: { material: "check", tint: 0xe3c16f, repeat: 4.0 } },
-  softFleece: { upper: { material: "fleece", tint: 0x556070, repeat: 5.3 }, lower: { material: "hessian", tint: 0x8b633f, repeat: 3.7 }, accent: { material: "floral", tint: 0xb88ab8, repeat: 3.0 } },
-  patternedRed: { upper: { material: "picnic", tint: 0xc44f42, repeat: 3.4 }, lower: { material: "denim", tint: 0x263f73, repeat: 4.7 }, accent: { material: "fleece", tint: 0xf1f5f9, repeat: 5.0 } },
-  mixedDenim: { upper: { material: "denim", tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: "check", tint: 0x4f6f93, repeat: 4.2 }, accent: { material: "hessian", tint: 0xd6a35f, repeat: 3.2 } },
-});
-
-type TennisClothMaterialId = keyof typeof POLYHAVEN_CLOTH_MATERIALS;
-type TennisClothSlot = { material?: TennisClothMaterialId; tint?: number; repeat?: number };
-type TennisCloth = (typeof POLYHAVEN_CLOTH_MATERIALS)[TennisClothMaterialId] & { repeat: number; tint: number };
-const tennisTextureLoader = new THREE.TextureLoader();
-tennisTextureLoader.setCrossOrigin("anonymous");
-const tennisCharacterTextureCache = new Map<string, THREE.Texture>();
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
@@ -566,6 +498,61 @@ function createFallbackHuman(color: number) {
   return g;
 }
 
+function clothPalette(combo?: string, accent = 0x2563eb) {
+  const palettes: Record<string, { top: number; trim: number; bottom: number; shoe: number }> = {
+    royalDenim: { top: 0x1d4ed8, trim: 0xf8d35b, bottom: 0x111827, shoe: 0xffffff },
+    casinoCheck: { top: 0x111827, trim: 0xe11d48, bottom: 0x2f3542, shoe: 0xf8fafc },
+    linenStreet: { top: 0xf4e7cf, trim: 0x0f766e, bottom: 0x334155, shoe: 0xffffff },
+    jacquardNight: { top: 0x4c1d95, trim: 0xf59e0b, bottom: 0x18181b, shoe: 0xe5e7eb },
+    softFleece: { top: 0xf9a8d4, trim: 0x7c2d12, bottom: 0x1e293b, shoe: 0xffffff },
+    patternedRed: { top: 0x991b1b, trim: 0xfacc15, bottom: 0x0f172a, shoe: 0xf8fafc },
+    mixedDenim: { top: 0x2563eb, trim: 0x38bdf8, bottom: 0x1e3a8a, shoe: 0xffffff },
+  };
+  return palettes[combo || ""] || { top: accent, trim: 0xfacc15, bottom: 0x20232a, shoe: 0xffffff };
+}
+
+function createRoyalTennisStyling(theme: CharacterTheme | undefined, accent: number) {
+  const scale = CFG.playerHeight / 1.82;
+  const g = new THREE.Group();
+  g.name = "domino-royal-tennis-hair-eyes-makeup-outfit";
+  g.scale.setScalar(scale);
+  const palette = clothPalette(theme?.clothCombo, accent);
+  const hairMat = material(theme?.hairColor ?? 0x1a100c, 0.58, 0.04);
+  const skinMat = material(theme?.skinTone ?? 0xe0ad86, 0.72, 0.02);
+  const eyeMat = material(theme?.eyeColor ?? 0x315a7c, 0.34, 0.02);
+  const linerMat = material(0x171014, 0.3, 0.01);
+  const lipMat = material(0xa83d55, 0.46, 0.02);
+  const topMat = material(palette.top, 0.64, 0.04);
+  const trimMat = material(palette.trim, 0.38, 0.18);
+  const bottomMat = material(palette.bottom, 0.68, 0.03);
+  const shoeMat = material(palette.shoe, 0.48, 0.05);
+
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.181, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat);
+  hair.position.set(0, 1.68, -0.012);
+  hair.scale.set(1.08, 0.58, 0.98);
+  g.add(hair);
+  const pony = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 12), hairMat);
+  pony.position.set(0, 1.56, 0.145);
+  pony.scale.set(0.9, 1.25, 0.72);
+  g.add(pony);
+  addBox(g, [0.11, 0.018, 0.014], [-0.062, 1.63, -0.155], linerMat);
+  addBox(g, [0.11, 0.018, 0.014], [0.062, 1.63, -0.155], linerMat);
+  addCylinder(g, 0.018, 0.018, 0.008, [-0.062, 1.628, -0.166], eyeMat, 12);
+  addCylinder(g, 0.018, 0.018, 0.008, [0.062, 1.628, -0.166], eyeMat, 12);
+  addBox(g, [0.08, 0.014, 0.012], [0, 1.57, -0.168], lipMat);
+  addCylinder(g, 0.18, 0.22, 0.24, [0, 1.1, -0.003], topMat, 28);
+  addBox(g, [0.46, 0.038, 0.032], [0, 1.235, -0.01], trimMat);
+  addBox(g, [0.34, 0.035, 0.03], [0, 0.92, -0.012], trimMat);
+  addCylinder(g, 0.218, 0.235, 0.2, [0, 0.66, 0], bottomMat, 24);
+  addBox(g, [0.18, 0.05, 0.3], [-0.13, 0.035, -0.04], shoeMat);
+  addBox(g, [0.18, 0.05, 0.3], [0.13, 0.035, -0.04], shoeMat);
+  addCylinder(g, 0.052, 0.055, 0.2, [-0.31, 1.13, 0], skinMat, 14);
+  addCylinder(g, 0.052, 0.055, 0.2, [0.31, 1.13, 0], skinMat, 14);
+  g.traverse((obj) => { obj.renderOrder = 2; });
+  enableShadow(g);
+  return g;
+}
+
 
 function createRacket(color: number) {
   const g = new THREE.Group();
@@ -730,147 +717,16 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-
-function normalizeTennisTexture(texture: THREE.Texture, { isColor = false, repeat = 3 } = {}) {
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-}
-
-function loadTennisCharacterTexture(url: string, { isColor = false, repeat = 3 } = {}) {
-  const cacheKey = `${url}|${isColor ? "srgb" : "linear"}|${repeat}`;
-  const cached = tennisCharacterTextureCache.get(cacheKey);
-  if (cached) return cached;
-  const texture = tennisTextureLoader.load(
-    url,
-    (loaded) => normalizeTennisTexture(loaded, { isColor, repeat }),
-    undefined,
-    () => tennisCharacterTextureCache.delete(cacheKey)
-  );
-  normalizeTennisTexture(texture, { isColor, repeat });
-  tennisCharacterTextureCache.set(cacheKey, texture);
-  return texture;
-}
-
-function isNearlyWhiteMaterial(mat: THREE.Material): mat is THREE.MeshStandardMaterial {
-  const standard = mat as THREE.MeshStandardMaterial;
-  if (!standard.color) return false;
-  return standard.color.r > 0.82 && standard.color.g > 0.82 && standard.color.b > 0.82 && !standard.map;
-}
-
-function isLowSaturationLightMaterial(mat: THREE.Material): mat is THREE.MeshStandardMaterial {
-  const standard = mat as THREE.MeshStandardMaterial;
-  if (!standard.color || standard.map) return false;
-  const max = Math.max(standard.color.r, standard.color.g, standard.color.b);
-  const min = Math.min(standard.color.r, standard.color.g, standard.color.b);
-  return max > 0.72 && max - min < 0.18;
-}
-
-function classifyTennisHumanSurface(obj: THREE.Object3D, mat: THREE.Material) {
-  const name = `${obj.name || ""} ${mat.name || ""}`.toLowerCase();
-  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return "eye";
-  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return "hair";
-  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return "mouth";
-  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return "shoe";
-  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return "skin";
-  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return "upperCloth";
-  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return "lowerCloth";
-  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return "accentCloth";
-  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return "upperCloth";
-  if (isNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return "upperCloth";
-  return "other";
-}
-
-function resolveTennisClothSlot(theme: CharacterTheme | undefined, slot: "upper" | "lower" | "accent"): TennisCloth {
-  const combo = TENNIS_CHARACTER_CLOTH_COMBOS[theme?.clothCombo as keyof typeof TENNIS_CHARACTER_CLOTH_COMBOS] || TENNIS_CHARACTER_CLOTH_COMBOS.royalDenim;
-  const slotConfig = (combo[slot] || combo.upper) as TennisClothSlot;
-  const cloth = POLYHAVEN_CLOTH_MATERIALS[slotConfig.material || "denim"] || POLYHAVEN_CLOTH_MATERIALS.denim;
-  return { ...cloth, tint: slotConfig.tint ?? cloth.tint, repeat: slotConfig.repeat ?? 3.5 };
-}
-
-function applyTennisClothMaterial(mat: THREE.MeshStandardMaterial, cloth: TennisCloth) {
-  mat.map = loadTennisCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat });
-  mat.normalMap = loadTennisCharacterTexture(cloth.normal, { repeat: cloth.repeat });
-  mat.roughnessMap = loadTennisCharacterTexture(cloth.roughness, { repeat: cloth.repeat });
-  mat.color = new THREE.Color(cloth.tint);
-  mat.normalScale = new THREE.Vector2(0.28, 0.28);
-  mat.roughness = 0.86;
-  mat.metalness = 0.015;
-  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
-}
-
-function enhanceTennisCharacterMaterials(model: THREE.Object3D, theme: CharacterTheme | undefined) {
-  const clothSlots = {
-    upperCloth: resolveTennisClothSlot(theme, "upper"),
-    lowerCloth: resolveTennisClothSlot(theme, "lower"),
-    accentCloth: resolveTennisClothSlot(theme, "accent"),
-  };
-  const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
-  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
-
-  model.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.material) return;
-    const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
-      if (!sourceMat) return sourceMat;
-      const mat = sourceMat.clone ? (sourceMat.clone() as THREE.MeshStandardMaterial) : new THREE.MeshStandardMaterial();
-      const surface = classifyTennisHumanSurface(obj, mat);
-      if (surface === "upperCloth" || surface === "lowerCloth" || surface === "accentCloth") {
-        applyTennisClothMaterial(mat, clothSlots[surface]);
-      } else if (surface === "hair") {
-        mat.map = null;
-        mat.color = hairColor.clone();
-        mat.roughness = 0.56;
-        mat.metalness = 0.02;
-        mat.envMapIntensity = 0.28;
-      } else if (surface === "eye") {
-        mat.map = null;
-        mat.color = eyeColor.clone();
-        mat.roughness = 0.18;
-        mat.metalness = 0;
-        mat.envMapIntensity = 1.1;
-      } else if (surface === "skin") {
-        if (isLowSaturationLightMaterial(mat)) mat.color = skinColor.clone();
-        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
-        mat.metalness = 0;
-      } else if (surface === "shoe") {
-        if (isLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827);
-        mat.roughness = 0.78;
-        mat.metalness = 0.02;
-      } else if (surface === "mouth") {
-        if (isNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc);
-        mat.roughness = 0.32;
-        mat.metalness = 0;
-      } else if (isNearlyWhiteMaterial(mat)) {
-        mat.color = skinColor.clone();
-        mat.roughness = 0.58;
-        mat.metalness = 0;
-      }
-      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-      mat.needsUpdate = true;
-      return mat;
-    });
-    mesh.material = Array.isArray(mesh.material) ? enhancedMaterials : enhancedMaterials[0];
-  });
-}
-
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, theme?: CharacterTheme): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
+  const royalStyling = createRoyalTennisStyling(theme, accent);
   const racket = createRacket(accent);
 
   root.position.copy(start);
   modelRoot.position.copy(start);
-  modelRoot.add(fallback);
+  modelRoot.add(fallback, royalStyling);
   scene.add(root, modelRoot, racket);
 
   const rig: HumanRig = {
@@ -907,12 +763,22 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
-      enhanceTennisCharacterMaterials(model, theme);
+      model.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.material) return;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach((m) => {
+          const mat = m as THREE.MeshStandardMaterial;
+          if ((mat as any).map) (mat as any).map.colorSpace = THREE.SRGBColorSpace;
+          mat.needsUpdate = true;
+        });
+      });
       enableShadow(model);
       rig.model = model;
       rig.bones = findHumanBones(model);
       rig.rest = captureRestPose(rig.bones);
       rig.fallback.visible = false;
+      royalStyling.visible = true;
       rig.modelRoot.add(model);
       rig.modelRoot.updateMatrixWorld(true);
       rig.rightArmChain = makeArmChain(rig.bones.rightShoulder, rig.bones.rightUpperArm, rig.bones.rightForeArm, rig.bones.rightHand);
@@ -922,6 +788,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
     undefined,
     () => {
       rig.fallback.visible = true;
+      royalStyling.visible = true;
       rig.racket.visible = false;
     }
   );
@@ -1136,7 +1003,7 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
   const speedScale = CFG.worldScale * 1.48;
-  const shotPowerTrim = 0.88;
+  const shotPowerTrim = 0.95;
   const baseSpeed = (serve ? 24.5 + power * 15.2 : 18.6 + power * 12.8) * speedScale * shotPowerTrim;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
   const velocity = new THREE.Vector3(
@@ -1167,7 +1034,7 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   const duration = Math.max(durationMs, 16);
   const swipeSpeed = (dist / duration) * 1000;
   const speedBoost = clamp01((swipeSpeed - 240) / 1100);
-  const power = clamp((dist / 145) * 0.52 + speedBoost * 0.94 + (isServe ? 0.6 : 0.38), isServe ? CFG.servePower.min + 0.08 : CFG.shotPower.min + 0.08, isServe ? CFG.servePower.max : CFG.shotPower.max);
+  const power = clamp((dist / 145) * 0.58 + speedBoost * 1.08 + (isServe ? 0.66 : 0.43), isServe ? 0.78 : 0.42, 1);
   const dir = new THREE.Vector2(dx, -dy);
   if (dir.lengthSq() > 1e-6) dir.normalize();
   const rawAimX = (dx / 120) * (CFG.courtW / 2);
@@ -1185,7 +1052,7 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const attackToOpen = farDefendingWide ? -Math.sign(ball.pos.x || 1) * (CFG.courtW * 0.36) : near.pos.x * 0.72;
   const x = clamp(attackToOpen + sideRead + (Math.random() - 0.5) * 0.58, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
   const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
-  const power = clamp(0.66 + pressure * 0.46 + Math.random() * 0.16, CFG.shotPower.min + 0.22, CFG.shotPower.max);
+  const power = clamp(0.72 + pressure * 0.55 + Math.random() * 0.22, 0.62, 1);
   const roll = Math.random();
   const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.62 ? "slice" : "flat";
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
@@ -1209,8 +1076,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
-    ball.vel.x += hit.swipeDir.x * (2.85 + hit.power * 2.25) * CFG.worldScale;
-    ball.vel.z += -hit.swipeDir.y * (1.18 + hit.power * 1.45) * CFG.worldScale;
+    ball.vel.x += hit.swipeDir.x * (3.15 + hit.power * 2.55) * CFG.worldScale;
+    ball.vel.z += -hit.swipeDir.y * (1.34 + hit.power * 1.65) * CFG.worldScale;
   }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
@@ -1783,7 +1650,7 @@ export default function MobileThreeTennisPrototype() {
         {menuOpen && (
           <div style={{ position: "absolute", right: 10, top: 108, width: 230, maxHeight: 330, overflow: "auto", background: "rgba(8,16,24,0.94)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 12, padding: 8, pointerEvents: "auto" }}>
             <div style={{ color: "#fff", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Domino Royal Characters</div>
-            <div style={{ color: "rgba(255,255,255,.7)", fontSize: 10, marginBottom: 8 }}>Training court uses built-in lights, sky, fence, and GLTF-mapped Poly Haven cloth textures on loaded avatars.</div>
+            <div style={{ color: "rgba(255,255,255,.7)", fontSize: 10, marginBottom: 8 }}>HDRIs removed: training court uses built-in lights, sky, fence, hair, eyes, makeup, and outfit styling.</div>
             {MURLAN_CHARACTER_THEMES.slice(0, 7).map((opt) => (
               <button key={opt.id} type="button" onClick={() => setSelectedHumanCharacterId(opt.id)} style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", marginBottom: 6, borderRadius: 10, border: selectedHumanCharacterId === opt.id ? "1px solid #7dd3fc" : "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,0.08)", padding: 6, color: "#fff" }}>
                 <span style={{ width: 42, height: 24, borderRadius: 6, background: `linear-gradient(135deg,#${(opt.hairColor ?? 0x24150f).toString(16).padStart(6, "0")},#${(opt.eyeColor ?? 0x2f5d7c).toString(16).padStart(6, "0")})`, border: "1px solid rgba(255,255,255,.2)" }} />
