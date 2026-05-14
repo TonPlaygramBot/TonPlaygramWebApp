@@ -137,8 +137,8 @@ const CFG = {
   gravity: 9.81,
   airDrag: 0.22,
   magnus: 0.00125,
-  tableRestitution: 0.9,
-  tableFriction: 0.965,
+  tableRestitution: 0.96,
+  tableFriction: 0.982,
   spinDecay: 0.72,
   playerHeight: 3.5,
   playerSpeed: 3.9,
@@ -159,8 +159,11 @@ const CFG = {
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 4.05,
-  maxShotSpeed: 10.9,
+  minShotSpeed: 7.1,
+  maxShotSpeed: 23.5,
+  netClearance: 0.18,
+  serveBounceMinLift: 3.85,
+  serveBounceMinForwardSpeed: 8.2,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -1054,10 +1057,34 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, flight: n
   );
 }
 
+function flightWithNetClearance(from: THREE.Vector3, target: THREE.Vector3, baseFlight: number, minFlight: number, maxFlight: number) {
+  if ((from.z > 0 && target.z < 0) || (from.z < 0 && target.z > 0)) {
+    const netAlpha = clamp01((0 - from.z) / (target.z - from.z));
+    const netArcWeight = netAlpha * (1 - netAlpha);
+    if (netArcWeight > 0.0001) {
+      const linearNetY = lerp(from.y, target.y, netAlpha);
+      const requiredCenterY = CFG.tableY + CFG.netH + CFG.ballR + CFG.netClearance;
+      const requiredLift = requiredCenterY - linearNetY;
+      if (requiredLift > 0) {
+        const clearanceFlight = Math.sqrt((requiredLift * 2) / (CFG.gravity * netArcWeight));
+        return clamp(Math.max(baseFlight, clearanceFlight), minFlight, maxFlight);
+      }
+    }
+  }
+  return clamp(baseFlight, minFlight, maxFlight);
+}
+
+
+function boostServeBounceTowardNet(ball: BallState, server: PlayerSide) {
+  const travelDir = server === "near" ? -1 : 1;
+  ball.vel.z = Math.max(Math.abs(ball.vel.z), CFG.serveBounceMinForwardSpeed) * travelDir;
+  ball.vel.y = Math.max(ball.vel.y, CFG.serveBounceMinLift);
+}
+
 function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean): DesiredHit {
   const dx = endX - startX;
   const dy = endY - startY;
-  const power = clamp(Math.hypot(dx, dy) / 180, isServe ? 0.56 : 0.36, 1);
+  const power = clamp(Math.hypot(dx, dy) / 95, isServe ? 0.82 : 0.68, 1);
   const lateral = clamp(dx / 170, -1, 1);
   const depth = clamp((-dy + 42) / 255, 0, 1);
   const targetX = clamp(lateral * (TABLE_HALF_W - 0.13), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
@@ -1168,8 +1195,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.56);
-    const flight = clamp(0.18 + (1 - hit.power) * 0.075, 0.17, 0.28);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.82);
+    const flight = clamp(0.16 + (1 - hit.power) * 0.055, 0.145, 0.23);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
@@ -1177,7 +1204,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const flight = clamp(dist / ((4.55 + hit.power * 4.45) * speedScale), 0.14, 0.4);
+    const baseFlight = dist / ((6.4 + hit.power * 7.25) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.16, 0.48);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1647,6 +1675,7 @@ export default function MobileRealisticTableTennisGame() {
           ball.phase.stage = "opponent";
           ball.bounceSide = side;
           ball.bounceCount = 1;
+          boostServeBounceTowardNet(ball, server);
           return;
         }
         if (side !== opposite(server)) {
