@@ -1951,7 +1951,11 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
-const POOL_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_HUMAN_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/Xbot.glb',
+  'https://threejs.org/examples/models/gltf/Soldier.glb',
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
+]);
 const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * 1.3;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
@@ -1975,7 +1979,7 @@ const POOL_HUMAN_CFG = Object.freeze({
   moveLambda: 5.6,
   rotLambda: 8.5,
   humanScale: 1.26 * POOL_HUMAN_WORLD_SCALE,
-  shotPoseAmount: 0.38,
+  shotPoseAmount: 1.0,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmTableLift: 0.006 * POOL_HUMAN_WORLD_SCALE,
@@ -2007,6 +2011,7 @@ const POOL_HUMAN_CFG = Object.freeze({
   rightHandDownPose: 0.42,
   rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(POOL_HUMAN_WORLD_SCALE)
 });
+const POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX = 0.72;
 const POOL_HUMAN_BASIS_MAT = new THREE.Matrix4();
 const cleanPoolHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const poolHumanClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2138,6 +2143,20 @@ function loadPoolHumanModel(loader, url) {
   });
 }
 
+async function loadPoolHumanModelFromCatalog(loader, urls = POOL_HUMAN_URLS) {
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const model = await loadPoolHumanModel(loader, url);
+      return { model, url };
+    } catch (error) {
+      lastError = error;
+      console.warn('Pool Royale human model failed, trying fallback', url, error);
+    }
+  }
+  throw lastError || new Error('No Pool Royale human models configured');
+}
+
 function createPoolRoyaleHumanRig(parent, renderer) {
   const human = {
     root: new THREE.Group(),
@@ -2162,8 +2181,9 @@ function createPoolRoyaleHumanRig(parent, renderer) {
   human.modelRoot.visible = false;
   parent.add(human.root, human.modelRoot);
   const loader = createPoolHumanGLTFLoader(renderer);
-  loadPoolHumanModel(loader, POOL_HUMAN_URL)
-    .then((model) => {
+  loadPoolHumanModelFromCatalog(loader)
+    .then(({ model, url }) => {
+      human.modelUrl = url;
       normalizePoolHumanModel(model);
       model.traverse((obj) => {
         if (!obj?.isMesh) return;
@@ -2200,7 +2220,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
       human.modelRoot.add(model);
       human.modelRoot.visible = human.activeGlb;
     })
-    .catch((error) => console.warn('Pool Royale ReadyPlayer human failed', error))
+    .catch((error) => console.warn('Pool Royale human rig failed', error))
     .finally(() => disposePoolHumanGLTFLoader(loader));
   return human;
 }
@@ -33178,11 +33198,16 @@ const shotPowerRef = useRef(0);
         } else {
           aimForwardForHuman.normalize();
         }
-        const humanShotState = sliderInstanceRef.current?.dragging
+        const cueCameraLoweredForHuman = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
+        const humanShotState = sliderInstanceRef.current?.dragging && cueCameraLoweredForHuman
           ? 'dragging'
           : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
             ? 'striking'
-            : canShowCue && (
+            : cueCameraLoweredForHuman && canShowCue && (
                 isPlayerTurn ||
                 previewingAiShot ||
                 aiCueViewActive ||
