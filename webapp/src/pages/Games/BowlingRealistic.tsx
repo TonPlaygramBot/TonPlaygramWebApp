@@ -293,19 +293,24 @@ const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
   pos.z >= CFG.foulZ + 0.18 &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(0, CFG.laneY, 8.18);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(5.05, CFG.laneY, 10.02);
 const BOWLING_RETURN_SIDE_X = -2.78;
 const BOWLING_RETURN_Z = 6.46;
 const BOWLING_RACK_SIDE_X = -3.38;
 const BOWLING_RACK_Z = 7.46;
-const BOWLING_TABLE_CENTERS = [new THREE.Vector3(0, CFG.laneY, 8.05)] as const;
+const BOWLING_RETURN_PIT_X = BOWLING_RETURN_SIDE_X;
+const BOWLING_RETURN_PIT_Z = CFG.backStopZ + 0.64;
+const BOWLING_RETURN_EXIT_Z = BOWLING_RACK_Z - 0.34;
+const BOWLING_TABLE_CENTERS = [
+  new THREE.Vector3(5.05, CFG.laneY, 10.02)
+] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
   ...BOWLING_TABLE_CENTERS.map((center) => ({
     x: center.x,
     z: center.z,
-    rx: 1.46,
-    rz: 1.1
+    rx: 0.92,
+    rz: 0.82
   })),
   { x: BOWLING_RETURN_SIDE_X, z: BOWLING_RETURN_Z, rx: 0.82, rz: 1.5 },
   { x: BOWLING_RACK_SIDE_X, z: BOWLING_RACK_Z, rx: 0.9, rz: 0.7 }
@@ -317,25 +322,33 @@ const PLAYER_READY_POINT = new THREE.Vector3(
   SHOOTING_READY_Z
 );
 const BOWLING_LOUNGE_CHAIRS = [
-  { pos: new THREE.Vector3(-1.28, CFG.laneY, 7.18), yaw: Math.PI * 0.2 },
-  { pos: new THREE.Vector3(1.28, CFG.laneY, 7.18), yaw: -Math.PI * 0.2 },
-  { pos: new THREE.Vector3(-1.48, CFG.laneY, 8.56), yaw: Math.PI * 0.78 },
-  { pos: new THREE.Vector3(1.48, CFG.laneY, 8.56), yaw: -Math.PI * 0.78 },
-  { pos: new THREE.Vector3(0, CFG.laneY, 9.28), yaw: Math.PI }
+  { pos: new THREE.Vector3(4.44, CFG.laneY, 9.38), yaw: Math.PI * 0.96 },
+  { pos: new THREE.Vector3(5.64, CFG.laneY, 9.38), yaw: Math.PI * 1.04 },
+  { pos: new THREE.Vector3(4.48, CFG.laneY, 10.56), yaw: Math.PI * 0.9 },
+  { pos: new THREE.Vector3(5.68, CFG.laneY, 10.56), yaw: Math.PI * 1.1 },
+  { pos: new THREE.Vector3(5.96, CFG.laneY, 10.02), yaw: Math.PI * 1.08 }
 ] as { pos: THREE.Vector3; yaw: number }[];
-const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair) => ({
-  pos: chair.pos.clone(),
-  yaw: chair.yaw,
-  stand: PLAYER_READY_POINT.clone()
-}));
+const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair, index) => {
+  const stand = new THREE.Vector3(
+    BOWLING_RACK_SIDE_X + 1.28 + index * 0.14,
+    CFG.laneY,
+    BOWLING_RACK_Z + 0.74 + index * 0.12
+  );
+  keepHumanInBowlingWalkableArea(stand, -1);
+  return {
+    pos: chair.pos.clone(),
+    yaw: chair.yaw,
+    stand
+  };
+});
 
 function keepHumanInBowlingWalkableArea(
   pos: THREE.Vector3,
   preferredSide = -1
 ) {
   // Keep bowlers off ball returns, furniture, lane caps, and other props with a light-weight ellipse navmesh.
-  pos.z = clamp(pos.z, CFG.foulZ + 0.2, 9.82);
-  const maxLoungeX = 5.9;
+  pos.z = clamp(pos.z, CFG.foulZ + 0.2, 10.86);
+  const maxLoungeX = 6.2;
   const minLoungeX = -5.9;
   pos.x = clamp(pos.x, minLoungeX, maxLoungeX);
   for (let pass = 0; pass < 2; pass++) {
@@ -2112,9 +2125,9 @@ function createEnvironment(
   );
   group.add(loungeCarpet);
 
-  const pairHalfW = CFG.laneCenterOffset + CFG.gutterHalfW + 0.32;
+  const pairHalfW = CFG.gutterHalfW + 0.72;
   const approach = new THREE.Mesh(
-    new THREE.PlaneGeometry(pairHalfW * 2, 5.05, 44, 28),
+    new THREE.PlaneGeometry(CFG.laneHalfW * 2 + 0.76, 5.05, 44, 28),
     woodMat
   );
   approach.rotation.x = -Math.PI / 2;
@@ -2259,12 +2272,12 @@ function createEnvironment(
       );
       group.add(gutter);
       const cap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.22, 23.75),
-        woodMat
+        new THREE.BoxGeometry(0.06, 0.14, 23.75),
+        gutterMat
       );
       cap.position.set(
         laneCenter + side * (CFG.laneHalfW + 0.5),
-        CFG.laneY + 0.07,
+        CFG.laneY + 0.035,
         -5.98
       );
       group.add(cap);
@@ -2320,27 +2333,27 @@ function createEnvironment(
     group.add(laneNumber);
   }
 
-  // Grounded black pinsetter wall restored behind the pins, with animated lane screens above each rack.
+  // Single-lane pinsetter mask: darker machinery and curtain details replace the old oversized black twin-lane wall.
   const backBoardMat = new THREE.MeshStandardMaterial({
-    color: 0x03050a,
-    roughness: 0.78,
-    metalness: 0.18
+    color: 0x111827,
+    roughness: 0.72,
+    metalness: 0.24
   });
   const backBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.86, 1.34, 0.14),
+    new THREE.BoxGeometry(pairHalfW * 2 + 0.24, 1.08, 0.16),
     backBoardMat
   );
-  backBoard.position.set(0, CFG.laneY + 0.74, CFG.backStopZ + 0.88);
+  backBoard.position.set(0, CFG.laneY + 0.78, CFG.backStopZ + 0.9);
   group.add(backBoard);
   const lowerBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.7, 0.58, 0.12),
+    new THREE.BoxGeometry(pairHalfW * 2 + 0.14, 0.42, 0.12),
     new THREE.MeshStandardMaterial({
-      color: 0x05070d,
+      color: 0x0b1018,
       roughness: 0.84,
       metalness: 0.12
     })
   );
-  lowerBoard.position.set(0, CFG.laneY + 0.34, CFG.backStopZ + 1.12);
+  lowerBoard.position.set(0, CFG.laneY + 0.32, CFG.backStopZ + 1.12);
   group.add(lowerBoard);
   for (const [laneIndex, laneCenter] of LANE_CENTERS.entries()) {
     const pinFocus = new THREE.Mesh(
@@ -2373,7 +2386,11 @@ function createEnvironment(
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.86, 4.2),
-        woodMat
+        new THREE.MeshStandardMaterial({
+          color: 0x202733,
+          roughness: 0.54,
+          metalness: 0.16
+        })
       );
       kickback.position.set(
         laneCenter + x * (CFG.laneHalfW + 0.52),
@@ -2439,13 +2456,13 @@ function createEnvironment(
     metalness: 0.18
   });
   const hood = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.9, 1.78, 1.72),
+    new THREE.BoxGeometry(pairHalfW * 2 + 0.28, 1.64, 1.58),
     housingMat
   );
-  hood.position.set(0, 1.42, CFG.backStopZ + 0.05);
+  hood.position.set(0, 1.38, CFG.backStopZ + 0.05);
   machineryHousing.add(hood);
   const fascia = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.72, 0.34, 0.06),
+    new THREE.BoxGeometry(pairHalfW * 2 + 0.18, 0.3, 0.06),
     new THREE.MeshStandardMaterial({
       color: 0x070b12,
       roughness: 0.7,
@@ -2467,7 +2484,7 @@ function createEnvironment(
     machineryHousing.add(slimScore);
     decor.scoreboardPanels.push(slimScore);
   }
-  for (const x of [-3.2, -1.05, 1.05, 3.2]) {
+  for (const x of [-1.42, 1.42]) {
     const servicePanel = new THREE.Mesh(
       new THREE.BoxGeometry(0.92, 0.52, 0.04),
       new THREE.MeshStandardMaterial({
@@ -2507,8 +2524,8 @@ function createEnvironment(
       createMurlanStyleTable({
         THREE,
         arena: lounge,
-        tableRadius: 0.98,
-        tableHeight: 0.74,
+        tableRadius: 0.58,
+        tableHeight: 0.66,
         pedestalHeightScale: 0.82,
         includeBase: true,
         rotationY: tableIndex % 2 ? Math.PI / 8 : -Math.PI / 8
@@ -2516,17 +2533,17 @@ function createEnvironment(
     } catch {
       // Emergency placeholder only: the real scene uses the shared Murlan Royale table builder above.
       const tableTop = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.96, 0.96, 0.08, 8),
+        new THREE.CylinderGeometry(0.58, 0.58, 0.07, 8),
         woodMat
       );
-      tableTop.position.set(0, 0.74, 0);
+      tableTop.position.set(0, 0.66, 0);
       tableTop.rotation.y = Math.PI / 8;
       lounge.add(tableTop);
       const pedestal = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16, 0.24, 0.7, 16),
+        new THREE.CylinderGeometry(0.12, 0.19, 0.62, 16),
         blackMat
       );
-      pedestal.position.y = 0.36;
+      pedestal.position.y = 0.31;
       lounge.add(pedestal);
     }
 
@@ -2562,7 +2579,7 @@ function createEnvironment(
     group.add(lounge);
 
     const loungeBoundary = new THREE.Mesh(
-      new THREE.RingGeometry(1.36, 1.44, 48),
+      new THREE.RingGeometry(0.82, 0.88, 48),
       new THREE.MeshBasicMaterial({
         color: 0x7dd3fc,
         transparent: true,
@@ -3272,7 +3289,7 @@ function updateHuman(
     const nextPos =
       k < 0.55
         ? new THREE.Vector3().lerpVectors(
-            rig.approachTo,
+            rig.approachFrom,
             safeWaypoint,
             easeInOut(k / 0.55)
           )
@@ -3550,7 +3567,11 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'toPit') {
     ball.returnT += dt / 0.48;
     ball.mesh.position.lerp(
-      new THREE.Vector3(ball.laneCenter, 0.16, CFG.backStopZ + 0.1),
+      new THREE.Vector3(
+        BOWLING_RETURN_PIT_X,
+        CFG.laneY + 0.12,
+        BOWLING_RETURN_PIT_Z
+      ),
       1 - Math.exp(-8 * dt)
     );
     if (ball.returnT >= 1) {
@@ -3566,7 +3587,11 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = 'returning';
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(0, CFG.laneY + 0.24, -0.4);
+      ball.pos.set(
+        BOWLING_RETURN_SIDE_X,
+        CFG.laneY + 0.24,
+        BOWLING_RETURN_PIT_Z + 1.05
+      );
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -3574,7 +3599,11 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'returning') {
     ball.returnT += dt / 1.75;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(0, CFG.laneY + lerp(0.24, 0.42, t), lerp(-0.4, 6.72, t));
+    ball.pos.set(
+      BOWLING_RETURN_SIDE_X,
+      CFG.laneY + lerp(0.24, 0.42, t),
+      lerp(BOWLING_RETURN_PIT_Z + 1.05, BOWLING_RETURN_EXIT_Z, t)
+    );
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.18);
     ball.mesh.rotateX(0.26);
@@ -3863,7 +3892,7 @@ function updateCamera(
         -0.08
       )
     );
-    look.x = lerp(look.x, BOWLING_LOUNGE_CENTER.x * 0.38, 0.16);
+    look.x = lerp(look.x, 0, 0.16);
     look.z += 0.82;
   }
   if (lookState) {
@@ -4408,7 +4437,7 @@ export default function MobileBowlingRealistic() {
             ? 'Game over'
             : activePlayer !== 0
               ? `${playerName} is choosing a line…`
-              : `${playerName}: walking to the rack. Pick a ball, then swipe at the shooting line`
+              : `${playerName}: walk to the side rack, pick a ball, then swipe at the shooting line`
       }));
     };
 
@@ -4756,7 +4785,7 @@ export default function MobileBowlingRealistic() {
         if (!ball.held && rackDistance > 1.9) {
           player.action = 'toRack';
           player.returnWalkT = 0.001;
-          player.approachTo.copy(player.pos);
+          player.approachFrom.copy(player.pos);
           setHud((prev) => ({
             ...prev,
             status: `${localScores[activePlayer].name} is walking to the ball rack`
@@ -4802,11 +4831,11 @@ export default function MobileBowlingRealistic() {
         if (rackDistance > 1.9) {
           playerRigs[0].action = 'toRack';
           playerRigs[0].returnWalkT = 0.001;
-          playerRigs[0].approachTo.copy(playerRigs[0].pos);
+          playerRigs[0].approachFrom.copy(playerRigs[0].pos);
           setHud((prev) => ({
             ...prev,
             status:
-              'Walking to the side rack automatically. Pick your ball, then the bowler moves to the shooting line for your swipe.'
+              'Walking directly to the side ball return/rack. Pick your ball, then the bowler moves to the shooting line for your swipe.'
           }));
         }
       }
