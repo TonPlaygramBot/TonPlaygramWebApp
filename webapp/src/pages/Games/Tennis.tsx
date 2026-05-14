@@ -1258,7 +1258,7 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
   const speedScale = CFG.worldScale * 1.48;
   const shotPowerTrim = serve ? 0.8 : 0.76;
   const matchPower = power * CFG.matchPowerMultiplier;
-  const baseSpeed = (serve ? 22.2 + matchPower * 12.6 : 15.8 + matchPower * 10.4) * speedScale * shotPowerTrim;
+  const baseSpeed = (serve ? 22.2 + power * 12.6 : 15.8 + power * 10.4) * speedScale * shotPowerTrim * CFG.matchPowerMultiplier;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
   const velocity = new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -1331,8 +1331,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
     const swipePower = hit.power * CFG.matchPowerMultiplier;
-    ball.vel.x += hit.swipeDir.x * (2.2 + swipePower * 1.85) * CFG.worldScale;
-    ball.vel.z += -hit.swipeDir.y * (0.94 + swipePower * 1.18) * CFG.worldScale;
+    ball.vel.x += hit.swipeDir.x * (2.2 + swipePower * 1.85) * CFG.worldScale * CFG.matchPowerMultiplier;
+    ball.vel.z += -hit.swipeDir.y * (0.94 + swipePower * 1.18) * CFG.worldScale * CFG.matchPowerMultiplier;
   }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
