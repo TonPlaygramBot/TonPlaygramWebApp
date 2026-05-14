@@ -29,7 +29,7 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.3;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.42;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep the camera at its prior pullback distance so the enlarged court and
 // players read about 30% bigger in the actual gameplay view.
@@ -74,8 +74,8 @@ export const gameConfig = {
   serveDuration: 0.86,
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
-  servePower: { min: 0.68, max: 0.96 },
-  shotPower: { min: 0.33, max: 0.96 },
+  servePower: { min: 0.64, max: 0.9 },
+  shotPower: { min: 0.3, max: 0.9 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
   playerVisualYawFix: Math.PI,
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
@@ -87,10 +87,10 @@ export const gameConfig = {
     moveSpeed: 11.2 * PLAYER_SCALE,
     reachRadius: 1.7 * PLAYER_SCALE,
     accuracy: 0.88,
-    power: 0.94,
+    power: 0.88,
     spin: 0.72,
     mistakeChance: 0.045,
-    serveQuality: 0.84,
+    serveQuality: 0.78,
   },
 } as const;
 
