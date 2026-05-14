@@ -41,11 +41,7 @@ export class BallPhysics {
   private accumulator = 0;
 
   resetForServe(server: Side) {
-    this.position.set(
-      server === 'player' ? -0.16 : 0.16,
-      GAME_CONFIG.table.topY + GAME_CONFIG.serveHeight,
-      server === 'player' ? 1.08 : -1.08
-    );
+    this.position.set(server === 'player' ? -0.16 : 0.16, GAME_CONFIG.table.topY + GAME_CONFIG.serveHeight, server === 'player' ? 1.08 : -1.08);
     this.velocity.set(0, 0, 0);
     this.spin.set(0, 0, 0);
     this.lastTouch = server;
@@ -56,16 +52,8 @@ export class BallPhysics {
 
   serve(server: Side) {
     this.resetBouncesAfterHit(server);
-    this.velocity.set(
-      server === 'player' ? 0.06 : -0.06,
-      1.12,
-      server === 'player' ? -2.35 : 2.35
-    );
-    this.spin.set(
-      server === 'player' ? 0.16 : -0.16,
-      0,
-      server === 'player' ? -0.95 : 0.95
-    );
+    this.velocity.set(server === 'player' ? 0.08 : -0.08, 1.25, server === 'player' ? -2.9 : 2.9);
+    this.spin.set(server === 'player' ? 0.2 : -0.2, 0, server === 'player' ? -1.2 : 1.2);
     this.state = 'flying';
   }
 
@@ -88,20 +76,11 @@ export class BallPhysics {
   }
 
   private step(dt: number): BallEvent[] {
-    if (
-      this.state === 'idle' ||
-      this.state === 'serve' ||
-      this.state === 'pointEnded'
-    )
-      return [];
+    if (this.state === 'idle' || this.state === 'serve' || this.state === 'pointEnded') return [];
 
     const events: BallEvent[] = [];
     const previous = this.position.clone();
-    const acceleration = tmp.set(
-      this.spin.z * GAME_CONFIG.spinCurve,
-      GAME_CONFIG.gravity,
-      -this.spin.x * GAME_CONFIG.spinCurve
-    );
+    const acceleration = tmp.set(this.spin.z * GAME_CONFIG.spinCurve, GAME_CONFIG.gravity, -this.spin.x * GAME_CONFIG.spinCurve);
     this.velocity.addScaledVector(acceleration, dt);
     this.velocity.multiplyScalar(1 - GAME_CONFIG.drag * dt);
     this.position.addScaledVector(this.velocity, dt);
@@ -114,11 +93,7 @@ export class BallPhysics {
 
     if (this.isClearlyOut()) {
       this.state = 'out';
-      events.push({
-        type: 'out',
-        position: this.position.clone(),
-        state: this.state
-      });
+      events.push({ type: 'out', position: this.position.clone(), state: this.state });
     } else if (this.state !== 'netHit' && this.state !== 'out') {
       this.state = 'flying';
     }
@@ -131,15 +106,10 @@ export class BallPhysics {
     const crossedTop = previous.y >= top && this.position.y <= top;
     if (!crossedTop || this.velocity.y >= 0) return null;
 
-    const t =
-      (previous.y - top) / Math.max(previous.y - this.position.y, 0.0001);
+    const t = (previous.y - top) / Math.max(previous.y - this.position.y, 0.0001);
     const xAtImpact = THREE.MathUtils.lerp(previous.x, this.position.x, t);
     const zAtImpact = THREE.MathUtils.lerp(previous.z, this.position.z, t);
-    const inside =
-      xAtImpact >= TABLE_BOUNDS.minX &&
-      xAtImpact <= TABLE_BOUNDS.maxX &&
-      zAtImpact >= TABLE_BOUNDS.minZ &&
-      zAtImpact <= TABLE_BOUNDS.maxZ;
+    const inside = xAtImpact >= TABLE_BOUNDS.minX && xAtImpact <= TABLE_BOUNDS.maxX && zAtImpact >= TABLE_BOUNDS.minZ && zAtImpact <= TABLE_BOUNDS.maxZ;
     if (!inside) return null;
 
     this.position.set(xAtImpact, top, zAtImpact);
@@ -151,33 +121,18 @@ export class BallPhysics {
     const side: Side = zAtImpact > 0 ? 'player' : 'ai';
     this.bounces[side] += 1;
     this.state = side === 'player' ? 'tableBouncePlayer' : 'tableBounceAI';
-    return {
-      type: 'bounce',
-      side,
-      position: this.position.clone(),
-      state: this.state
-    };
+    return { type: 'bounce', side, position: this.position.clone(), state: this.state };
   }
 
   private resolveNetCollision(previous: THREE.Vector3): BallEvent | null {
     const radius = GAME_CONFIG.ballRadius;
-    const crossesNet =
-      (previous.z - NET_BOUNDS.minZ) * (this.position.z - NET_BOUNDS.minZ) <=
-        0 ||
-      (previous.z - NET_BOUNDS.maxZ) * (this.position.z - NET_BOUNDS.maxZ) <= 0;
-    const insideX =
-      this.position.x + radius >= NET_BOUNDS.minX &&
-      this.position.x - radius <= NET_BOUNDS.maxX;
-    const insideY =
-      this.position.y - radius <= NET_BOUNDS.maxY &&
-      this.position.y + radius >= NET_BOUNDS.minY;
-    const insideZ =
-      this.position.z + radius >= NET_BOUNDS.minZ &&
-      this.position.z - radius <= NET_BOUNDS.maxZ;
+    const crossesNet = (previous.z - NET_BOUNDS.minZ) * (this.position.z - NET_BOUNDS.minZ) <= 0 || (previous.z - NET_BOUNDS.maxZ) * (this.position.z - NET_BOUNDS.maxZ) <= 0;
+    const insideX = this.position.x + radius >= NET_BOUNDS.minX && this.position.x - radius <= NET_BOUNDS.maxX;
+    const insideY = this.position.y - radius <= NET_BOUNDS.maxY && this.position.y + radius >= NET_BOUNDS.minY;
+    const insideZ = this.position.z + radius >= NET_BOUNDS.minZ && this.position.z - radius <= NET_BOUNDS.maxZ;
     if (!crossesNet || !insideX || !insideY || !insideZ) return null;
 
-    this.position.z =
-      previous.z > 0 ? NET_BOUNDS.maxZ + radius : NET_BOUNDS.minZ - radius;
+    this.position.z = previous.z > 0 ? NET_BOUNDS.maxZ + radius : NET_BOUNDS.minZ - radius;
     this.velocity.z *= -0.42;
     this.velocity.y = Math.max(this.velocity.y, 0.35);
     this.spin.multiplyScalar(0.55);
@@ -187,11 +142,7 @@ export class BallPhysics {
 
   private isClearlyOut() {
     const margin = 0.44;
-    return (
-      this.position.y < GAME_CONFIG.table.topY - 0.42 ||
-      Math.abs(this.position.x) > TABLE_BOUNDS.maxX + margin ||
-      Math.abs(this.position.z) > TABLE_BOUNDS.maxZ + 1.0
-    );
+    return this.position.y < GAME_CONFIG.table.topY - 0.42 || Math.abs(this.position.x) > TABLE_BOUNDS.maxX + margin || Math.abs(this.position.z) > TABLE_BOUNDS.maxZ + 1.0;
   }
 
   private resetBouncesAfterHit(side: Side) {
@@ -207,14 +158,7 @@ export class BallPhysics {
 
     for (let i = 0; i < 240; i += 1) {
       const prev = simPos.clone();
-      simVel.addScaledVector(
-        new THREE.Vector3(
-          simSpin.z * GAME_CONFIG.spinCurve,
-          GAME_CONFIG.gravity,
-          -simSpin.x * GAME_CONFIG.spinCurve
-        ),
-        GAME_CONFIG.fixedDt
-      );
+      simVel.addScaledVector(new THREE.Vector3(simSpin.z * GAME_CONFIG.spinCurve, GAME_CONFIG.gravity, -simSpin.x * GAME_CONFIG.spinCurve), GAME_CONFIG.fixedDt);
       simVel.multiplyScalar(1 - GAME_CONFIG.drag * GAME_CONFIG.fixedDt);
       simPos.addScaledVector(simVel, GAME_CONFIG.fixedDt);
       if (prev.y >= top && simPos.y <= top && simVel.y < 0) {
@@ -222,13 +166,7 @@ export class BallPhysics {
         const x = THREE.MathUtils.lerp(prev.x, simPos.x, t);
         const z = THREE.MathUtils.lerp(prev.z, simPos.z, t);
         const side: Side = z > 0 ? 'player' : 'ai';
-        if (
-          x >= TABLE_BOUNDS.minX &&
-          x <= TABLE_BOUNDS.maxX &&
-          z >= TABLE_BOUNDS.minZ &&
-          z <= TABLE_BOUNDS.maxZ &&
-          (!targetSide || side === targetSide)
-        ) {
+        if (x >= TABLE_BOUNDS.minX && x <= TABLE_BOUNDS.maxX && z >= TABLE_BOUNDS.minZ && z <= TABLE_BOUNDS.maxZ && (!targetSide || side === targetSide)) {
           return new THREE.Vector3(x, top, z);
         }
       }
@@ -243,7 +181,7 @@ export class BallPhysics {
       spin: this.spin.clone(),
       state: this.state,
       bounces: { ...this.bounces },
-      lastTouch: this.lastTouch
+      lastTouch: this.lastTouch,
     };
   }
 }
