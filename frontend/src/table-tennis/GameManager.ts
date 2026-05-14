@@ -1,0 +1,313 @@
+import * as THREE from 'three';
+import { AIController } from './AIController';
+import { BallPhysics } from './BallPhysics';
+import { CameraController } from './CameraController';
+import { GAME_CONFIG, ShotType } from './gameConfig';
+import { PaddleHitDetector } from './PaddleHitDetector';
+import { PlayerController } from './PlayerController';
+import { ReplayManager } from './ReplayManager';
+import { ScoreManager } from './ScoreManager';
+
+export interface GameHudState {
+  playerScore: number;
+  aiScore: number;
+  server: string;
+  lastShot: string;
+  lastReason: string;
+  replaying: boolean;
+  debug: {
+    ballState: string;
+    bounces: string;
+    hitValidity: string;
+    predictedLanding: string;
+  };
+}
+
+export class GameManager {
+  readonly scene = new THREE.Scene();
+  readonly camera: THREE.PerspectiveCamera;
+  readonly renderer: THREE.WebGLRenderer;
+  readonly ball = new BallPhysics();
+  readonly score = new ScoreManager();
+  readonly replay = new ReplayManager();
+  private readonly hitDetector = new PaddleHitDetector();
+  private readonly cameraController: CameraController;
+  private readonly player: PlayerController;
+  private readonly ai: AIController;
+  private readonly clock = new THREE.Clock();
+  private readonly ballMesh: THREE.Mesh;
+  private readonly predictedMarker: THREE.Mesh;
+  private animationId = 0;
+  private rallyTime = 0;
+  private pointResetTimer = 0;
+  private lastShot = '';
+  private lastHitValidity = 'waiting';
+  private onHud?: (hud: GameHudState) => void;
+
+  constructor(private mount: HTMLElement) {
+    this.camera = new THREE.PerspectiveCamera(48, mount.clientWidth / mount.clientHeight, 0.1, 100);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(mount.clientWidth, mount.clientHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.appendChild(this.renderer.domElement);
+
+    this.scene.background = new THREE.Color('#07162e');
+    this.scene.fog = new THREE.Fog('#07162e', 5.5, 9.5);
+    this.cameraController = new CameraController(this.camera);
+    this.createLights();
+    this.createTable();
+    const playerVisuals = this.createAvatar('player');
+    const aiVisuals = this.createAvatar('ai');
+    this.player = new PlayerController(playerVisuals);
+    this.ai = new AIController(aiVisuals.root, aiVisuals.hand, aiVisuals.paddle);
+    this.ballMesh = this.createBall();
+    this.predictedMarker = this.createPredictionMarker();
+    this.resetPoint();
+  }
+
+  start(onHud: (hud: GameHudState) => void) {
+    this.onHud = onHud;
+    this.clock.start();
+    const loop = () => {
+      this.animationId = requestAnimationFrame(loop);
+      this.update(Math.min(this.clock.getDelta(), 0.05));
+    };
+    loop();
+  }
+
+  dispose() {
+    cancelAnimationFrame(this.animationId);
+    this.renderer.dispose();
+    this.mount.removeChild(this.renderer.domElement);
+  }
+
+  setPointer(normalizedX: number) {
+    if (!this.replay.isReplaying) this.player.setInput(normalizedX);
+  }
+
+  replayLastRally() {
+    this.replay.beginReplay();
+  }
+
+  resetMatch() {
+    this.score.resetMatch();
+    this.resetPoint();
+  }
+
+  private update(dt: number) {
+    if (this.replay.isReplaying) {
+      const replayBall = this.replay.update(dt);
+      if (replayBall) this.ballMesh.position.copy(replayBall);
+      this.cameraController.update(dt, this.ballMesh.position, new THREE.Vector3(0, 0, GAME_CONFIG.player.z));
+      this.renderer.render(this.scene, this.camera);
+      this.emitHud();
+      return;
+    }
+
+    this.rallyTime += dt;
+    this.player.update(dt, this.ball.position);
+    this.ai.update(dt, this.ball);
+
+    if (this.ball.state === 'serve') this.ball.serve(this.score.state.server);
+    const events = this.ball.update(dt);
+    events.filter((event) => event.type === 'bounce').forEach((event) => this.replay.recordBounce(this.rallyTime, event.side, event.position));
+
+    this.tryPlayerHit();
+    this.tryAiHit();
+
+    const pointWinner = this.score.evaluate(events, this.ball);
+    if (pointWinner) {
+      this.replay.recordScore(this.rallyTime, pointWinner, { player: this.score.state.player, ai: this.score.state.ai }, this.score.state.lastReason);
+      this.pointResetTimer = 1.35;
+    }
+
+    if (this.ball.state === 'pointEnded') {
+      this.pointResetTimer -= dt;
+      if (this.pointResetTimer <= 0 && !this.score.state.winner) this.resetPoint();
+    }
+
+    this.ballMesh.position.copy(this.ball.position);
+    this.updatePredictionMarker();
+    this.replay.recordBall(this.rallyTime, this.ball.position, this.ball.state);
+    this.cameraController.update(dt, this.ball.position, new THREE.Vector3(this.playerPositionX(), 0, GAME_CONFIG.player.z));
+    this.renderer.render(this.scene, this.camera);
+    this.emitHud();
+  }
+
+  private tryPlayerHit() {
+    if (this.ball.lastTouch === 'player' || this.ball.bounces.player < 1 || this.ball.bounces.player > 1) return;
+    const result = this.hitDetector.detect({
+      side: 'player',
+      paddlePosition: this.player.getPaddleWorldPosition(),
+      paddleForward: this.player.getPaddleForward(),
+      ballPosition: this.ball.position,
+      ballVelocity: this.ball.velocity,
+      ballSpin: this.ball.spin,
+      requestedShot: this.player.currentShot,
+    });
+    this.lastHitValidity = result.valid ? 'valid player hit' : result.reason ?? 'invalid';
+    if (result.valid && result.velocity && result.spin && result.shotType) {
+      this.ball.applyPaddleHit('player', result.velocity, result.spin);
+      this.player.triggerHit();
+      this.lastShot = result.shotType;
+      this.replay.recordHit(this.rallyTime, 'player', result.shotType, this.ball.position);
+    }
+  }
+
+  private tryAiHit() {
+    if (this.ball.lastTouch === 'ai' || this.ball.bounces.ai < 1 || this.ball.bounces.ai > 1 || !this.ai.canReach(this.ball.position) || this.ai.shouldMiss()) return;
+    const shot = this.ai.currentShot as ShotType;
+    const result = this.hitDetector.detect({
+      side: 'ai',
+      paddlePosition: this.ai.getPaddleWorldPosition(),
+      paddleForward: this.ai.getPaddleForward(),
+      ballPosition: this.ball.position,
+      ballVelocity: this.ball.velocity,
+      ballSpin: this.ball.spin,
+      requestedShot: shot,
+      accuracy: GAME_CONFIG.ai.difficulty.accuracy,
+      powerScale: GAME_CONFIG.ai.difficulty.shotPower,
+    });
+    this.lastHitValidity = result.valid ? 'valid AI hit' : result.reason ?? 'invalid';
+    if (result.valid && result.velocity && result.spin && result.shotType) {
+      this.ball.applyPaddleHit('ai', result.velocity, result.spin);
+      this.lastShot = result.shotType;
+      this.replay.recordHit(this.rallyTime, 'ai', result.shotType, this.ball.position);
+    }
+  }
+
+  private resetPoint() {
+    this.rallyTime = 0;
+    this.lastShot = '';
+    this.lastHitValidity = 'waiting';
+    this.replay.startRecording();
+    this.ball.resetForServe(this.score.state.server);
+  }
+
+  private emitHud() {
+    const landing = this.ball.predictLandingPoint();
+    this.onHud?.({
+      playerScore: this.score.state.player,
+      aiScore: this.score.state.ai,
+      server: this.score.state.server === 'player' ? 'YOU' : 'AI',
+      lastShot: this.lastShot,
+      lastReason: this.score.state.lastReason,
+      replaying: this.replay.isReplaying,
+      debug: {
+        ballState: this.ball.state,
+        bounces: `P:${this.ball.bounces.player} AI:${this.ball.bounces.ai}`,
+        hitValidity: this.lastHitValidity,
+        predictedLanding: landing ? `${landing.x.toFixed(2)}, ${landing.z.toFixed(2)}` : 'none',
+      },
+    });
+  }
+
+  private playerPositionX() {
+    return this.player.getPaddleWorldPosition().x;
+  }
+
+  private updatePredictionMarker() {
+    const landing = this.ball.predictLandingPoint();
+    this.predictedMarker.visible = Boolean(landing);
+    if (landing) this.predictedMarker.position.set(landing.x, GAME_CONFIG.table.topY + 0.006, landing.z);
+  }
+
+  private createLights() {
+    this.scene.add(new THREE.HemisphereLight('#dbeafe', '#0f172a', 1.15));
+    const key = new THREE.DirectionalLight('#ffffff', 2.25);
+    key.position.set(2.8, 5.2, 3.4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 12;
+    this.scene.add(key);
+  }
+
+  private createTable() {
+    const table = new THREE.Group();
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(GAME_CONFIG.table.width, GAME_CONFIG.table.thickness, GAME_CONFIG.table.length),
+      new THREE.MeshStandardMaterial({ color: GAME_CONFIG.table.color, roughness: 0.58, metalness: 0.05 }),
+    );
+    top.position.y = GAME_CONFIG.table.topY - GAME_CONFIG.table.thickness / 2;
+    top.receiveShadow = true;
+    table.add(top);
+
+    const lineMat = new THREE.MeshBasicMaterial({ color: GAME_CONFIG.table.lineColor });
+    const addLine = (w: number, l: number, x: number, z: number) => {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(w, 0.006, l), lineMat);
+      line.position.set(x, GAME_CONFIG.table.topY + 0.004, z);
+      table.add(line);
+    };
+    addLine(GAME_CONFIG.table.width, 0.012, 0, 0);
+    addLine(0.012, GAME_CONFIG.table.length, 0, 0);
+    addLine(GAME_CONFIG.table.width, 0.016, 0, GAME_CONFIG.table.length / 2 - 0.01);
+    addLine(GAME_CONFIG.table.width, 0.016, 0, -GAME_CONFIG.table.length / 2 + 0.01);
+    addLine(0.016, GAME_CONFIG.table.length, GAME_CONFIG.table.width / 2 - 0.01, 0);
+    addLine(0.016, GAME_CONFIG.table.length, -GAME_CONFIG.table.width / 2 + 0.01, 0);
+
+    const net = new THREE.Mesh(
+      new THREE.BoxGeometry(GAME_CONFIG.table.width + GAME_CONFIG.net.overhang * 2, GAME_CONFIG.net.height, GAME_CONFIG.net.thickness),
+      new THREE.MeshStandardMaterial({ color: '#dbeafe', transparent: true, opacity: 0.72, roughness: 0.35 }),
+    );
+    net.position.y = GAME_CONFIG.table.topY + GAME_CONFIG.net.height / 2;
+    net.castShadow = true;
+    table.add(net);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 7), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    this.scene.add(floor, table);
+  }
+
+  private createAvatar(side: 'player' | 'ai') {
+    const root = new THREE.Group();
+    root.position.set(0, 0, side === 'player' ? GAME_CONFIG.player.z : GAME_CONFIG.ai.z);
+    root.rotation.y = side === 'player' ? 0 : Math.PI;
+    const material = new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.72, metalness: 0.02 });
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.44, 5, 12), material);
+    torso.position.y = 0.72;
+    torso.castShadow = true;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16), material);
+    head.position.y = 1.16;
+    head.castShadow = true;
+    const hand = new THREE.Group();
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.34, 4, 8), material);
+    arm.rotation.x = Math.PI / 2;
+    arm.castShadow = true;
+    hand.add(arm);
+    const paddle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.115, 0.115, 0.018, 28),
+      new THREE.MeshStandardMaterial({ color: '#d72638', roughness: 0.48 }),
+    );
+    paddle.rotation.x = Math.PI / 2;
+    paddle.castShadow = true;
+    hand.add(paddle);
+    root.add(torso, head, hand);
+    this.scene.add(root);
+    return { root, torso, head, hand, paddle };
+  }
+
+  private createBall() {
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(GAME_CONFIG.ballRadius, 24, 18),
+      new THREE.MeshStandardMaterial({ color: '#fff8b5', emissive: '#facc15', emissiveIntensity: 0.22, roughness: 0.36 }),
+    );
+    ball.castShadow = true;
+    this.scene.add(ball);
+    return ball;
+  }
+
+  private createPredictionMarker() {
+    const marker = new THREE.Mesh(
+      new THREE.RingGeometry(0.09, 0.12, 32),
+      new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.65, side: THREE.DoubleSide }),
+    );
+    marker.rotation.x = -Math.PI / 2;
+    marker.visible = false;
+    this.scene.add(marker);
+    return marker;
+  }
+}
