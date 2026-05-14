@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BallPhysics } from './BallPhysics';
-import { GAME_CONFIG, ShotType, TABLE_BOUNDS } from './gameConfig';
+import { GAME_CONFIG, ShotType } from './gameConfig';
 
 export class AIController {
   readonly targetX = { value: 0 };
@@ -33,11 +33,7 @@ export class AIController {
   }
 
   canReach(ballPosition: THREE.Vector3) {
-    return (
-      Math.abs(ballPosition.x - this.root.position.x) <= GAME_CONFIG.ai.maxReach
-      && ballPosition.z < TABLE_BOUNDS.minZ + 0.48
-      && ballPosition.z > GAME_CONFIG.ai.z - 0.32
-    );
+    return Math.abs(ballPosition.x - this.root.position.x) <= GAME_CONFIG.ai.maxReach && ballPosition.z < -1.3 && ballPosition.z > -2.68;
   }
 
   shouldMiss() {

@@ -67,9 +67,7 @@ export class PlayerController {
     const hand = this.visuals.hand;
     const paddle = this.visuals.paddle;
     const side = this.currentShot === 'backhand drive' ? -1 : 1;
-    const reach = this.isRecovering
-      ? GAME_CONFIG.player.reach * 0.65
-      : THREE.MathUtils.clamp((GAME_CONFIG.player.z - ballPosition.z) * 0.24, 0.08, GAME_CONFIG.player.reach * 0.73);
+    const reach = this.isRecovering ? 0.34 : THREE.MathUtils.clamp((GAME_CONFIG.player.z - ballPosition.z) * 0.24, 0.08, 0.38);
     hand.position.set(0.16 * side, 0.92, -0.12 - reach);
     hand.rotation.y = THREE.MathUtils.damp(hand.rotation.y, side * 0.28, 12, dt);
     hand.rotation.x = THREE.MathUtils.damp(hand.rotation.x, this.isRecovering ? -0.45 : -0.2, 12, dt);
