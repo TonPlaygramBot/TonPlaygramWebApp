@@ -1050,9 +1050,9 @@ export default function MobileThreeTennisPrototype() {
     let activeEnvMap: THREE.Texture | null = null;
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 70);
-    const cameraTarget = new THREE.Vector3(0, 0.95 * CFG.worldScale, -1.45 * CFG.worldScale);
-    const cameraOffset = new THREE.Vector3(0, 4.95 * CFG.worldScale, 7.7 * CFG.worldScale);
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
+    const cameraTarget = new THREE.Vector3(0, 0.95 * CFG.cameraViewScale, -1.45 * CFG.cameraViewScale);
+    const cameraOffset = new THREE.Vector3(0, 4.95 * CFG.cameraViewScale, 7.7 * CFG.cameraViewScale);
     const cameraPosTarget = new THREE.Vector3();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.62));
@@ -1183,8 +1183,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45 * CFG.worldScale, 8.55 * CFG.worldScale);
-      else cameraOffset.set(0, 4.95 * CFG.worldScale, 7.7 * CFG.worldScale);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45 * CFG.cameraViewScale, 8.55 * CFG.cameraViewScale);
+      else cameraOffset.set(0, 4.95 * CFG.cameraViewScale, 7.7 * CFG.cameraViewScale);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
