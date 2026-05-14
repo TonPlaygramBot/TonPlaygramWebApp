@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-10-domino-player-hand-gap-v36';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-14-domino-arms-hand-lower-v37';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
