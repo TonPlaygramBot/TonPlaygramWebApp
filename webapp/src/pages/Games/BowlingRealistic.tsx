@@ -254,15 +254,15 @@ const CFG = {
   pinR: 0.17,
   pinToppleThreshold: 0.58,
   pinSpotSpacing: 0.56,
-  approachDuration: 0.72,
+  approachDuration: 0.88,
   throwDuration: 1.08,
   replayDuration: 3.2,
   recoverDuration: 0.28,
   celebrateDuration: 0.68,
-  seatWalkDuration: 0.95,
-  standDuration: 0.42,
-  returnWalkDuration: 1.08,
-  pickDuration: 0.52,
+  seatWalkDuration: 1.25,
+  standDuration: 0.5,
+  returnWalkDuration: 1.72,
+  pickDuration: 0.58,
   releaseT: 0.56
 };
 
@@ -277,6 +277,7 @@ const BOWLING_RULE_SUMMARY =
   'Ten-pin rules: 10 frames · strike resets the rack · spare earns next-ball bonus · 10th frame allows bonus balls.';
 const SHOOTING_ZONE_DEPTH = 1.85;
 const SHOOTING_ZONE_SIDE_PAD = 0.42;
+const SHOOTING_READY_Z = CFG.foulZ + 1.12;
 const SPIN_CONTROL_SIZE = 126;
 const SPIN_DOT_SIZE = 26;
 const LANE_BOARD_COUNT = 39;
@@ -313,7 +314,7 @@ const HUMAN_CLEARANCE = 0.34;
 const PLAYER_READY_POINT = new THREE.Vector3(
   laneCenterForPlayer(0),
   CFG.laneY,
-  CFG.playerStartZ
+  SHOOTING_READY_Z
 );
 const BOWLING_LOUNGE_CHAIRS = [
   { pos: new THREE.Vector3(-1.28, CFG.laneY, 7.18), yaw: Math.PI * 0.2 },
@@ -367,6 +368,14 @@ function returnPickupPointForRig(rig: HumanRig) {
     BOWLING_RACK_SIDE_X + 0.62,
     CFG.laneY,
     BOWLING_RACK_Z
+  );
+}
+
+function shootingReadyPointForRig(rig: HumanRig, laneCenter = 0) {
+  return new THREE.Vector3(
+    laneCenter + clamp(rig.standPos.x - laneCenter, -0.18, 0.18),
+    CFG.laneY,
+    SHOOTING_READY_Z
   );
 }
 
@@ -984,9 +993,28 @@ function smoothFacing(rig: HumanRig, nextPos: THREE.Vector3, dt: number) {
   let delta = rig.targetYaw - rig.yaw;
   while (delta > Math.PI) delta -= Math.PI * 2;
   while (delta < -Math.PI) delta += Math.PI * 2;
-  const yawStep = delta * (1 - Math.pow(0.0008, dt));
+  const yawStep = delta * (1 - Math.pow(0.0025, dt));
   rig.yaw += yawStep;
   rig.yawVelocity = yawStep / Math.max(0.0001, dt);
+}
+
+function applyHumanWalkMotion(
+  rig: HumanRig,
+  stride: number,
+  turnScale = 0.003,
+  lateralScale = 1
+) {
+  if (!rig.model) return;
+  const phase = rig.walkCycle;
+  const step = Math.sin(phase);
+  const counter = Math.sin(phase + Math.PI);
+  const footfall = Math.abs(step);
+  const turnLean = clamp(rig.yawVelocity * turnScale, -0.1, 0.1);
+  rig.model.position.y = footfall * stride * 0.18;
+  rig.model.position.x = Math.sin(phase * 0.5) * stride * 0.055 * lateralScale;
+  rig.model.rotation.x = 0.018 + counter * stride * 0.08;
+  rig.model.rotation.y = step * stride * 0.42;
+  rig.model.rotation.z = step * stride * 0.17 - turnLean;
 }
 
 function findRightHand(modelRoot: THREE.Object3D | null) {
@@ -2692,7 +2720,11 @@ function createEnvironment(
     new THREE.BoxGeometry(1.18, 0.18, 2.7),
     returnShellMat
   );
-  returnBase.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.11, BOWLING_RETURN_Z);
+  returnBase.position.set(
+    BOWLING_RETURN_SIDE_X,
+    CFG.laneY + 0.11,
+    BOWLING_RETURN_Z
+  );
   group.add(returnBase);
   const returnCover = new THREE.Mesh(
     new THREE.CylinderGeometry(0.31, 0.31, 2.68, 48, 1, false, 0, Math.PI),
@@ -2702,7 +2734,11 @@ function createEnvironment(
   // CylinderGeometry's height axis starts on local Y; map it to world Z and keep the
   // half-cylinder arch rising on world Y so the cover matches the lane direction.
   returnCover.rotation.set(Math.PI / 2, 0, 0);
-  returnCover.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.34, BOWLING_RETURN_Z);
+  returnCover.position.set(
+    BOWLING_RETURN_SIDE_X,
+    CFG.laneY + 0.34,
+    BOWLING_RETURN_Z
+  );
   returnCover.scale.y = 1.02;
   group.add(returnCover);
   const returnMouth = new THREE.Mesh(
@@ -2723,21 +2759,33 @@ function createEnvironment(
     })
   );
   returnMouth.rotation.x = Math.PI / 2;
-  returnMouth.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.37, BOWLING_RACK_Z - 0.14);
+  returnMouth.position.set(
+    BOWLING_RETURN_SIDE_X,
+    CFG.laneY + 0.37,
+    BOWLING_RACK_Z - 0.14
+  );
   group.add(returnMouth);
   for (const x of [-0.52, 0.52]) {
     const sideRubber = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.13, 2.24),
       returnRubberMat
     );
-    sideRubber.position.set(BOWLING_RETURN_SIDE_X + x, CFG.laneY + 0.31, BOWLING_RETURN_Z);
+    sideRubber.position.set(
+      BOWLING_RETURN_SIDE_X + x,
+      CFG.laneY + 0.31,
+      BOWLING_RETURN_Z
+    );
     group.add(sideRubber);
     const trim = new THREE.Mesh(
       new THREE.CylinderGeometry(0.026, 0.026, 2.18, 16),
       returnTrimMat
     );
     trim.rotation.x = Math.PI / 2;
-    trim.position.set(BOWLING_RETURN_SIDE_X + x, CFG.laneY + 0.43, BOWLING_RETURN_Z);
+    trim.position.set(
+      BOWLING_RETURN_SIDE_X + x,
+      CFG.laneY + 0.43,
+      BOWLING_RETURN_Z
+    );
     group.add(trim);
   }
   const channel = new THREE.Mesh(
@@ -2832,11 +2880,7 @@ function createEnvironment(
     ],
     makeBallMaterial
   );
-  commercialRack.position.set(
-    BOWLING_RACK_SIDE_X,
-    CFG.laneY,
-    BOWLING_RACK_Z
-  );
+  commercialRack.position.set(BOWLING_RACK_SIDE_X, CFG.laneY, BOWLING_RACK_Z);
   commercialRack.rotation.y = 0;
   group.add(commercialRack);
 
@@ -3140,8 +3184,7 @@ function updateHuman(
       keepHumanInBowlingWalkableArea(nextPos, rig.standPos.x < 0 ? -1 : 1)
     );
     if (rig.model) {
-      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.035;
-      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.035;
+      applyHumanWalkMotion(rig, 0.22, 0.0025, 0.55);
     }
     if (rig.seatT >= 1) applySeatedPose(rig);
   } else if (rig.action === 'approach') {
@@ -3155,10 +3198,8 @@ function updateHuman(
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
-      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.046;
-      rig.model.rotation.x = 0.035;
-      const turnLean = clamp(rig.yawVelocity * 0.0032, -0.12, 0.12);
-      rig.model.rotation.z = Math.sin(rig.walkCycle) * 0.02 - turnLean;
+      applyHumanWalkMotion(rig, 0.28, 0.0032, 0.7);
+      rig.model.rotation.x += 0.035;
     }
     animateFallbackHuman(rig, 'walk', rig.walkCycle);
     if (rig.approachT >= 1) {
@@ -3243,11 +3284,7 @@ function updateHuman(
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
-      const swing = Math.sin(rig.walkCycle) * 0.18;
-      const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
-      rig.model.rotation.y = swing * 0.22;
-      rig.model.rotation.z = swing * 0.08 - turnLean;
-      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
+      applyHumanWalkMotion(rig, 0.3, 0.003, 1);
     }
     animateFallbackHuman(rig, 'walk', rig.walkCycle);
     if (rig.returnWalkT >= 1) {
@@ -3288,20 +3325,21 @@ function updateHuman(
           )
         : new THREE.Vector3().lerpVectors(
             safeWaypoint,
-            rig.standPos,
+            shootingReadyPointForRig(rig, ball.laneCenter || rig.standPos.x),
             easeInOut((k - 0.45) / 0.55)
           );
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
-      const swing = Math.sin(rig.walkCycle) * 0.18;
-      const turnLean = clamp(rig.yawVelocity * 0.003, -0.1, 0.1);
-      rig.model.rotation.y = swing * 0.18;
-      rig.model.rotation.z = -swing * 0.06 - turnLean;
-      rig.model.position.y = Math.abs(Math.sin(rig.walkCycle)) * 0.05;
+      applyHumanWalkMotion(rig, 0.3, 0.003, 1);
     }
     animateFallbackHuman(rig, 'walk', rig.walkCycle);
-    if (rig.returnWalkT >= 1) rig.action = 'idle';
+    if (rig.returnWalkT >= 1) {
+      rig.pos.copy(
+        shootingReadyPointForRig(rig, ball.laneCenter || rig.standPos.x)
+      );
+      rig.action = 'idle';
+    }
   } else if (rig.action === 'idle') {
     rig.walkCycle += dt * 1.25;
     const breath = Math.sin(rig.walkCycle) * 0.012;
@@ -4257,8 +4295,8 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({
         ...prev,
         activePlayer,
-        p1: localScores[0].total,
-        p2: localScores[1].total,
+        p1: localScores[0]?.total || 0,
+        p2: localScores[1]?.total || 0,
         frame: turn.frame,
         roll: turn.roll
       }));
@@ -4565,7 +4603,7 @@ export default function MobileBowlingRealistic() {
           setHud((prev) => ({
             ...prev,
             status:
-              'Wait for the bowler to reach the shooting line, then swipe to shoot.'
+              'Wait for the bowler to finish at the shooting line. The spin controller appears there, then swipe anywhere on the lane view to shoot.'
           }));
         }
         return;
@@ -4591,7 +4629,7 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({
         ...prev,
         power: 0,
-        status: 'Swipe up. Slide left/right to aim.'
+        status: 'Swipe up on the screen to shoot. Slide left/right to aim.'
       }));
     };
 
@@ -4768,7 +4806,7 @@ export default function MobileBowlingRealistic() {
           setHud((prev) => ({
             ...prev,
             status:
-              'Walking to the ball rack automatically. Pick your ball when the rack opens.'
+              'Walking to the side rack automatically. Pick your ball, then the bowler moves to the shooting line for your swipe.'
           }));
         }
       }
