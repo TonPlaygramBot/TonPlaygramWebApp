@@ -25,8 +25,7 @@ export class CameraController {
     const ballVel = context.ballVel ?? new THREE.Vector3();
     const predictedLanding = context.predictedLanding ?? ballPos;
     const receiverSide = context.receiverSide ?? "near";
-    const receiverSign = receiverSide === "near" ? 1 : -1;
-    const incomingToReceiver = !preServe && (sideOfZ(ballPos.z) === receiverSide || sideOfZ(predictedLanding.z) === receiverSide) && ballVel.z * receiverSign > -0.45;
+    const incomingToReceiver = !preServe && (sideOfZ(ballPos.z) === receiverSide || sideOfZ(predictedLanding.z) === receiverSide) && ballVel.z * (receiverSide === "near" ? 1 : -1) > -0.45;
     const ballSpeed = ballVel.length();
     const rallyEnergy = clamp(ballSpeed / (10.5 * gameConfig.worldScale), 0, 1);
     const lateral = clamp((ballPos.x * 0.055 + predictedLanding.x * 0.035) * (0.65 + rallyEnergy * 0.35), -0.72 * gameConfig.worldScale, 0.72 * gameConfig.worldScale);
@@ -37,10 +36,8 @@ export class CameraController {
       cameraTarget.y += ((1.12 + rallyEnergy * 0.12) * gameConfig.cameraViewScale - cameraTarget.y) * smooth(4.4, dt);
       cameraTarget.z += ((-gameConfig.courtL * 0.24) - cameraTarget.z) * smooth(5.1, dt);
     } else {
-      const contactDepth = predictedLanding.clone();
-      contactDepth.z += receiverSign * (incomingToReceiver ? 0.52 : 0.28) * gameConfig.worldScale;
-      const landingLead = contactDepth.lerp(ballPos, incomingToReceiver ? 0.34 : 0.64);
-      const receiverFocus = playerTarget.clone().lerp(landingLead, incomingToReceiver ? 0.7 : 0.42);
+      const landingLead = predictedLanding.clone().lerp(ballPos, incomingToReceiver ? 0.38 : 0.64);
+      const receiverFocus = playerTarget.clone().lerp(landingLead, incomingToReceiver ? 0.64 : 0.42);
       receiverFocus.x += lateral;
       receiverFocus.y = (0.9 + rallyEnergy * 0.28) * gameConfig.cameraViewScale + clamp(ballPos.y * 0.18, 0, 0.72 * gameConfig.cameraViewScale);
       receiverFocus.z = clamp(
@@ -49,9 +46,8 @@ export class CameraController {
         gameConfig.courtL * 0.42
       );
 
-      const dolly = 1 - rallyEnergy * 0.1 + (incomingToReceiver ? 0.075 : 0.045);
-      const retreat = incomingToReceiver ? receiverSign * 0.46 * gameConfig.cameraViewScale : 0;
-      cameraPosTarget.copy(playerTarget).addScaledVector(cameraOffset, dolly).add(new THREE.Vector3(lateral * 0.58, incomingToReceiver ? 0.36 * gameConfig.cameraViewScale : 0, retreat));
+      const dolly = 1 - rallyEnergy * 0.1 + (incomingToReceiver ? -0.035 : 0.045);
+      cameraPosTarget.copy(playerTarget).addScaledVector(cameraOffset, dolly).add(new THREE.Vector3(lateral * 0.58, incomingToReceiver ? 0.36 * gameConfig.cameraViewScale : 0, 0));
       cameraTarget.lerp(receiverFocus, smooth(incomingToReceiver ? 6.8 : 4.8, dt));
     }
 

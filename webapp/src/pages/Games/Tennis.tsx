@@ -37,7 +37,6 @@ type ShotTechnique = "flat" | "topspin" | "slice" | "lob" | "drop" | "block";
 type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique; swipeDir?: THREE.Vector2; serveSide?: "deuce" | "ad" };
 
 type BonePack = {
-  hips?: THREE.Bone;
   spine?: THREE.Bone;
   chest?: THREE.Bone;
   neck?: THREE.Bone;
@@ -49,12 +48,6 @@ type BonePack = {
   leftUpperArm?: THREE.Bone;
   leftForeArm?: THREE.Bone;
   leftHand?: THREE.Bone;
-  rightUpLeg?: THREE.Bone;
-  rightLeg?: THREE.Bone;
-  rightFoot?: THREE.Bone;
-  leftUpLeg?: THREE.Bone;
-  leftLeg?: THREE.Bone;
-  leftFoot?: THREE.Bone;
 };
 
 type BoneRest = { bone: THREE.Bone; q: THREE.Quaternion };
@@ -113,8 +106,6 @@ type HumanRig = {
   desiredHit: DesiredHit | null;
   hitThisSwing: boolean;
   speed: number;
-  walkClock: number;
-  lastMoveSpeed: number;
 };
 
 type HudState = { nearScore: number; farScore: number; nearLabel?: string; farLabel?: string; nearGames?: number; farGames?: number; status: string; power: number; server?: PlayerSide; serveSide?: "deuce" | "ad"; firstServe?: boolean; debug?: string };
@@ -855,7 +846,6 @@ function findFirstBone(root: THREE.Object3D, tests: string[]) {
 
 function findHumanBones(model: THREE.Object3D): BonePack {
   return {
-    hips: findFirstBone(model, ["hips", "pelvis"]),
     spine: findFirstBone(model, ["spine"]),
     chest: findFirstBone(model, ["chest", "spine2", "upperchest"]),
     neck: findFirstBone(model, ["neck"]),
@@ -867,12 +857,6 @@ function findHumanBones(model: THREE.Object3D): BonePack {
     leftUpperArm: findFirstBone(model, ["leftarm", "leftupperarm", "larm", "lupperarm"]),
     leftForeArm: findFirstBone(model, ["leftforearm", "leftlowerarm", "lforearm", "llowerarm"]),
     leftHand: findFirstBone(model, ["lefthand", "lhand"]),
-    rightUpLeg: findFirstBone(model, ["rightupleg", "rightthigh", "rupleg"]),
-    rightLeg: findFirstBone(model, ["rightleg", "rightcalf", "rlowerleg"]),
-    rightFoot: findFirstBone(model, ["rightfoot", "rfoot"]),
-    leftUpLeg: findFirstBone(model, ["leftupleg", "leftthigh", "lupleg"]),
-    leftLeg: findFirstBone(model, ["leftleg", "leftcalf", "llowerleg"]),
-    leftFoot: findFirstBone(model, ["leftfoot", "lfoot"]),
   };
 }
 
@@ -997,8 +981,6 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
     desiredHit: null,
     hitThisSwing: false,
     speed: side === "near" ? CFG.playerSpeed : CFG.aiSpeed,
-    walkClock: side === "near" ? 0 : Math.PI,
-    lastMoveSpeed: 0,
   };
 
   modelRoot.rotation.y = rig.yaw;
@@ -1075,10 +1057,6 @@ function baseVectors(player: HumanRig) {
   return { forward, right };
 }
 
-function prepForServeSwing(trophy: number, drop: number) {
-  return clamp01(trophy * (1 - drop * 0.45));
-}
-
 function strokePose(player: HumanRig, ball: BallState): StrokePose {
   const { forward, right } = baseVectors(player);
   const tRaw = player.swingT > 0 ? clamp01(player.swingT) : 0;
@@ -1111,15 +1089,9 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = -0.08 - 0.2 * trophy + 0.28 * contact;
     shoulderLift = 0.28 * trophy + 0.32 * contact;
 
-    const shoulderCoil = easeInOut(prepForServeSwing(trophy, drop));
-    const acceleration = easeOutCubic(contact);
-    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.42, 0.12, acceleration) * poseScale).addScaledVector(forward, lerp(-0.5, 0.04, acceleration) * poseScale).setY((lerp(1.0, 1.58, trophy) - 0.28 * drop + 0.26 * acceleration) * poseScale);
-    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.58, 0.18, acceleration) * poseScale).addScaledVector(forward, lerp(-0.62, 0.58, acceleration) * poseScale).setY((lerp(0.9, 1.82, trophy) - 0.66 * drop + 0.82 * acceleration) * poseScale);
-    if (shoulderCoil > 0.08 && contact < 0.18) {
-      rightHand.addScaledVector(forward, -0.26 * shoulderCoil * poseScale);
-      rightElbow.addScaledVector(right, 0.12 * shoulderCoil * poseScale);
-    }
-    racketHead = rightHand.clone().addScaledVector(right, lerp(0.16, -0.24, follow) * poseScale).addScaledVector(forward, (lerp(-0.24, 0.62, acceleration) - 0.24 * follow) * poseScale).setY((lerp(1.36, 2.48, acceleration) - 1.02 * follow) * poseScale);
+    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.34, 0.18, drop) * poseScale).addScaledVector(forward, lerp(-0.28, -0.02, contact) * poseScale).setY((lerp(0.96, 1.55, trophy) - 0.18 * drop + 0.22 * contact) * poseScale);
+    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.48, 0.24, contact) * poseScale).addScaledVector(forward, lerp(-0.32, 0.46, contact) * poseScale).setY((lerp(0.82, 1.76, trophy) - 0.56 * drop + 0.78 * contact) * poseScale);
+    racketHead = rightHand.clone().addScaledVector(right, lerp(0.1, -0.2, follow) * poseScale).addScaledVector(forward, (lerp(-0.12, 0.52, contact) - 0.22 * follow) * poseScale).setY((lerp(1.34, 2.38, contact) - 0.95 * follow) * poseScale);
 
     leftElbow = leftShoulder.clone().addScaledVector(right, -0.12 * poseScale).addScaledVector(forward, 0.12 * poseScale).setY((lerp(1.0, 1.7, toss) - 0.68 * contact) * poseScale);
     leftHand = leftShoulder.clone().addScaledVector(right, -0.16 * poseScale).addScaledVector(forward, 0.28 * poseScale).setY((lerp(0.86, 2.02, toss) - 1.1 * contact) * poseScale);
@@ -1141,20 +1113,17 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = -0.1 * prep + 0.08 * contact;
     shoulderLift = 0.12 * contact;
 
-    const takeBack = easeOutCubic(prep);
-    const drive = easeOutCubic(contact);
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.74 * poseScale + ballSide).addScaledVector(forward, -0.62 * poseScale).setY(1.16 * poseScale);
-    const slotHand = rightShoulder.clone().addScaledVector(right, 0.58 * poseScale + ballSide).addScaledVector(forward, -0.18 * poseScale).setY(0.78 * poseScale);
-    const contactHand = player.pos.clone().addScaledVector(right, 0.42 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.78 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.28 * poseScale));
-    const followHand = player.pos.clone().addScaledVector(right, -0.48 * poseScale).addScaledVector(forward, 0.42 * poseScale).setY(1.46 * poseScale);
+    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 * poseScale + ballSide).addScaledVector(forward, -0.35 * poseScale).setY(1.05 * poseScale);
+    const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 * poseScale + ballSide).addScaledVector(forward, -0.05 * poseScale).setY(0.82 * poseScale);
+    const contactHand = player.pos.clone().addScaledVector(right, 0.38 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.72 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.24 * poseScale));
+    const followHand = player.pos.clone().addScaledVector(right, -0.42 * poseScale).addScaledVector(forward, 0.34 * poseScale).setY(1.38 * poseScale);
 
-    rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, drive).lerp(followHand, follow);
-    if (takeBack > 0.1 && contact < 0.12) rightHand.addScaledVector(forward, -0.18 * takeBack * poseScale);
-    rightElbow = rightShoulder.clone().lerp(rightHand, 0.48).addScaledVector(right, 0.16 * poseScale * (1 - follow)).addScaledVector(forward, -0.08 * poseScale * (1 - contact)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.16 * poseScale);
+    rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, contact).lerp(followHand, follow);
+    rightElbow = rightShoulder.clone().lerp(rightHand, 0.52).addScaledVector(right, 0.1 * poseScale * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.12 * poseScale);
 
-    const lagHead = rightHand.clone().addScaledVector(right, 0.42 * poseScale).addScaledVector(forward, -0.38 * poseScale).setY(1.24 * poseScale);
-    const contactHead = ball.pos.clone().addScaledVector(forward, 0.04 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.34 * poseScale));
-    const followHead = player.pos.clone().addScaledVector(right, -0.76 * poseScale).addScaledVector(forward, 0.28 * poseScale).setY(1.62 * poseScale);
+    const lagHead = rightHand.clone().addScaledVector(right, 0.35 * poseScale).addScaledVector(forward, -0.26 * poseScale).setY(1.25 * poseScale);
+    const contactHead = ball.pos.clone().addScaledVector(forward, 0.02 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.3 * poseScale));
+    const followHead = player.pos.clone().addScaledVector(right, -0.68 * poseScale).addScaledVector(forward, 0.22 * poseScale).setY(1.56 * poseScale);
     racketHead.copy(lagHead).lerp(contactHead, contact).lerp(followHead, follow);
 
     leftElbow = leftShoulder.clone().addScaledVector(right, -0.23 * poseScale).addScaledVector(forward, 0.08 * poseScale).setY((1.08 + 0.12 * follow) * poseScale);
@@ -1216,36 +1185,9 @@ function updateSkeletonTorso(player: HumanRig, pose: StrokePose) {
   addLocalRotation(player.bones.neck, -pose.torsoLean * 0.45, -pose.torsoYaw * 0.18, 0);
 }
 
-
-function applySoldierStyleWalk(player: HumanRig, moveSpeed: number) {
-  const moving = clamp01(moveSpeed / (player.speed * 0.58));
-  if (moving <= 0.01 || player.swingT > 0) return;
-
-  // Matches the Goal Rush Soldier.glb technique: alternating thigh drive,
-  // counter calf bend, foot roll, subtle hips/spine counter-rotation. Keeping
-  // this procedural layer on all imported humans gives identical walk behavior
-  // even when selected characters use different source GLTF files.
-  const stride = Math.sin(player.walkClock);
-  const counter = Math.sin(player.walkClock + Math.PI);
-  const lift = Math.max(0, Math.sin(player.walkClock));
-  const counterLift = Math.max(0, Math.sin(player.walkClock + Math.PI));
-  const amp = moving;
-
-  addLocalRotation(player.bones.hips, 0, 0, 0.035 * stride * amp);
-  addLocalRotation(player.bones.spine, -0.025 * amp, -0.045 * stride * amp, -0.025 * stride * amp);
-
-  addLocalRotation(player.bones.rightUpLeg, 0.42 * stride * amp, 0.015 * amp, -0.035 * amp);
-  addLocalRotation(player.bones.leftUpLeg, 0.42 * counter * amp, -0.015 * amp, 0.035 * amp);
-  addLocalRotation(player.bones.rightLeg, 0.34 * lift * amp - 0.14 * counterLift * amp, 0, 0);
-  addLocalRotation(player.bones.leftLeg, 0.34 * counterLift * amp - 0.14 * lift * amp, 0, 0);
-  addLocalRotation(player.bones.rightFoot, -0.24 * lift * amp + 0.08 * counterLift * amp, 0, 0.025 * stride * amp);
-  addLocalRotation(player.bones.leftFoot, -0.24 * counterLift * amp + 0.08 * lift * amp, 0, -0.025 * stride * amp);
-}
-
 function updateModelRigWithCharacterHands(player: HumanRig, pose: StrokePose) {
   if (!player.model) return false;
   restoreRestPose(player);
-  applySoldierStyleWalk(player, player.lastMoveSpeed);
   updateSkeletonTorso(player, pose);
 
   const rightSolved = solveTwoBoneArm(player.rightArmChain, pose.rightShoulder, pose.rightElbow, pose.rightHand);
@@ -1323,14 +1265,13 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   return { target: ShotTargeting.clampTarget(new THREE.Vector3(aimX, CFG.ballR, targetZ), "near", isServe), power, technique: ShotTargeting.techniqueFromSwipe(dx, dy), swipeDir: isServe ? undefined : dir, serveSide: isServe ? serveSide : undefined };
 }
 
-function makeAiTarget(near: HumanRig, ball: BallState, aiController?: AIController): DesiredHit {
-  if (aiController) {
-    const intercept = aiController.predictIntercept(ball.pos, ball.vel, ball.spin, near.pos);
-    const picked = aiController.chooseReturnTarget(near.pos, ball.pos, ball.vel, { receiverPos: near.pos, prediction: intercept, hasBounced: ball.bounceCount > 0 });
-    return { target: picked.target, power: picked.power, technique: picked.technique };
-  }
+function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0 * CFG.worldScale) / (CFG.courtL / 2 - 1.0 * CFG.worldScale));
-  const x = clamp(near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15 * CFG.worldScale, -CFG.courtW / 2 + 0.45 * CFG.worldScale, CFG.courtW / 2 - 0.45 * CFG.worldScale);
+  const x = clamp(
+    near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15 * CFG.worldScale,
+    -CFG.courtW / 2 + 0.45 * CFG.worldScale,
+    CFG.courtW / 2 - 0.45 * CFG.worldScale
+  );
   const z = lerp(1.35 * CFG.worldScale, CFG.courtL / 2 - 1.0 * CFG.worldScale, 0.35 + pressure * 0.55);
   const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, CFG.shotPower.min, CFG.shotPower.max);
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique: "flat" };
@@ -1414,11 +1355,7 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   const to = player.target.clone().sub(player.pos);
   const dist = to.length();
   const maxStep = player.speed * dt;
-  const step = dist > 0.0001 ? Math.min(maxStep, dist) : 0;
-  if (step > 0) player.pos.addScaledVector(to.normalize(), step);
-  const frameMoveSpeed = dt > 0 ? step / dt : 0;
-  player.lastMoveSpeed = THREE.MathUtils.damp(player.lastMoveSpeed, frameMoveSpeed, 16, dt);
-  player.walkClock += player.lastMoveSpeed * dt * 4.65;
+  if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   PlayerController.clampMovement(player.pos, player.side);
 
@@ -1439,14 +1376,14 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const runAmount = clamp01(player.lastMoveSpeed / (player.speed * 0.68));
+    const runAmount = clamp01(dist / 0.42);
     const moveDir = dist > 0.0001 ? to.clone().normalize() : new THREE.Vector3();
     const localForward = forwardFromYaw(player.yaw);
     const localRight = rightFromForward(localForward);
     const forwardDot = moveDir.dot(localForward);
     const sideDot = moveDir.dot(localRight);
-    const walkT = player.walkClock;
-    const bob = Math.max(0, Math.sin(walkT)) * 0.026 * runAmount;
+    const walkT = performance.now() * 0.015 + (player.side === "near" ? 0 : Math.PI);
+    const bob = Math.sin(walkT) * 0.03 * runAmount;
     const strafeLean = sideDot * 0.1 * runAmount;
     player.model.position.y = bob;
     player.model.rotation.x = 0.05 * runAmount * Math.max(0, forwardDot) - 0.03 * runAmount * Math.max(0, -forwardDot);
@@ -1529,30 +1466,6 @@ function predictPlayerIntercept(ball: BallState, side: PlayerSide, receiverPos: 
 
   const finalContact = foundLanding ? firstLanding.clone().setY(CFG.minContactHeight) : p.clone();
   return { contact: finalContact, landing: firstLanding, contactT: 300 * dt, reachable: false, postBounce };
-}
-
-function receiverStandPosition(intercept: PlayerIntercept, side: PlayerSide, receiverPos: THREE.Vector3, preferEarlyContact = false) {
-  const sideSign = side === "near" ? 1 : -1;
-  const contact = intercept.contact;
-  const landing = intercept.landing;
-  const closeEnoughForVolley = preferEarlyContact || (!intercept.postBounce && receiverPos.distanceTo(contact) < CFG.reach * 1.15);
-  const baseZ = closeEnoughForVolley
-    ? contact.z + sideSign * 0.18 * CFG.worldScale
-    : landing.z + sideSign * (0.48 + clamp01(intercept.contactT / 0.9) * 0.26) * CFG.worldScale;
-  const wideBias = clamp(contact.x * 0.04, -0.22 * CFG.worldScale, 0.22 * CFG.worldScale);
-  return PlayerController.clampMovement(new THREE.Vector3(
-    clamp(contact.x + wideBias, -CFG.courtW / 2 + 0.42 * CFG.worldScale, CFG.courtW / 2 - 0.42 * CFG.worldScale),
-    receiverPos.y,
-    baseZ
-  ), side);
-}
-
-function shouldInterveneForShot(player: HumanRig, ball: BallState, intercept: PlayerIntercept, ai = false) {
-  if (player.swingT !== 0 || player.cooldown > 0 || ball.lastHitBy === player.side) return false;
-  const timingPad = ai ? 0.18 : 0.08;
-  const closeToContact = intercept.contactT <= (ai ? 0.42 : 0.32) + timingPad;
-  const inHittingLane = player.pos.distanceTo(receiverStandPosition(intercept, player.side, player.pos, true)) <= CFG.reach * (ai ? 1.08 : 0.96);
-  return intercept.reachable && closeToContact && inHittingLane && canReachBall(player, ball);
 }
 
 export default function MobileThreeTennisPrototype() {
@@ -1857,9 +1770,12 @@ export default function MobileThreeTennisPrototype() {
       const incomingToPlayer = ball.lastHitBy === "far";
       if (incomingToPlayer) {
         const intercept = predictPlayerIntercept(ball, "near", nearPlayer.pos);
-        const stand = receiverStandPosition(intercept, "near", nearPlayer.pos, false);
-        const urgency = clamp01(1 - intercept.contactT / 1.1);
-        nearPlayer.target.lerp(stand, 0.34 + urgency * 0.44);
+        nearPlayer.target.x = clamp(intercept.contact.x, -CFG.courtW / 2 + 0.42 * CFG.worldScale, CFG.courtW / 2 - 0.42 * CFG.worldScale);
+        nearPlayer.target.z = clamp(
+          intercept.contact.z + 0.32 * CFG.worldScale,
+          0.82 * CFG.worldScale,
+          CFG.courtL / 2 - 0.54 * CFG.worldScale
+        );
         PlayerController.clampMovement(nearPlayer.target, "near");
         return;
       }
@@ -1886,18 +1802,18 @@ export default function MobileThreeTennisPrototype() {
 
       const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 * CFG.worldScale || landing.z < 0);
       if (ballComingToAi) {
-        const intercept = predictPlayerIntercept(ball, "far", farPlayer.pos);
-        const stand = receiverStandPosition(intercept, "far", farPlayer.pos, intercept.contactT < 0.46);
-        const urgency = clamp01(1 - intercept.contactT / 1.15);
-        farPlayer.target.lerp(stand, 0.38 + urgency * 0.48);
-        PlayerController.clampMovement(farPlayer.target, "far");
-
-        if (shouldInterveneForShot(farPlayer, ball, intercept, true)) {
-          const action: StrokeAction = ball.pos.x < farPlayer.pos.x ? "backhand" : "forehand";
-          startSwing(farPlayer, makeAiTarget(nearPlayer, ball, aiController), action);
-        }
+        farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
+        farPlayer.target.z = clamp(
+          Math.min(-0.95 * CFG.worldScale, landing.z + 0.22 * CFG.worldScale),
+          -CFG.courtL / 2 + 0.7 * CFG.worldScale,
+          -0.82 * CFG.worldScale
+        );
       } else {
         farPlayer.target.lerp(home, 0.035);
+      }
+
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
       }
     }
 
