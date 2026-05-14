@@ -1917,14 +1917,14 @@ const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip sligh
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.36;
-const CUE_PULL_DISTANCE_SCALE = 0.58;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
+const CUE_PULL_DISTANCE_SCALE = 0.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.94; // keep charge-up readable while letting the slider draw the cue farther back
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
@@ -28087,6 +28087,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28333,10 +28334,7 @@ const shotPowerRef = useRef(0);
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              // The slider has already pulled the cue back, so the release should
-              // immediately drive forward from that exact pull point instead of
-              // replaying another pullback first.
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: false
             };
           } else {
             applyShotImpactOnce();
