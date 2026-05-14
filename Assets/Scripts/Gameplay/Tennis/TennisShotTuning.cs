@@ -6,7 +6,8 @@ namespace TonPlaygram.Gameplay.Tennis
     public class TennisShotTuning : MonoBehaviour
     {
         [Header("Power")]
-        [Min(1f)] public float baseShotPower = 23.25f;
+        [Min(1f)] public float baseShotPower = 17.5f;
+        [Range(0.1f, 1f)] public float maxMatchPower01 = 0.82f;
         [Range(0f, 2f)] public float topspin = 0.35f;
         [Range(0f, 2f)] public float sidespin = 0.2f;
         [Range(0f, 2f)] public float curvePower = 0.5f;
@@ -16,9 +17,10 @@ namespace TonPlaygram.Gameplay.Tennis
             if (ballBody == null) return;
 
             var dir = aimDirection.sqrMagnitude > 0.0001f ? aimDirection.normalized : transform.forward;
-            float power = baseShotPower * Mathf.Clamp01(normalizedPower);
+            float matchPower = Mathf.Clamp(normalizedPower, 0f, maxMatchPower01);
+            float power = baseShotPower * matchPower;
 
-            float variantPowerMultiplier = variant == ShotVariant.Power ? 1.28f : 1.06f;
+            float variantPowerMultiplier = variant == ShotVariant.Power ? 1.08f : 1f;
             float finalPower = power * variantPowerMultiplier;
 
             ballBody.AddForce(dir * finalPower, ForceMode.Impulse);
@@ -30,7 +32,7 @@ namespace TonPlaygram.Gameplay.Tennis
             ballBody.AddTorque((Vector3.right * spinY) + (right * side * sidespin * finalPower), ForceMode.Impulse);
             if (Mathf.Abs(side) > 0f)
             {
-                ballBody.AddForce(right * side * curvePower * normalizedPower, ForceMode.Impulse);
+                ballBody.AddForce(right * side * curvePower * matchPower, ForceMode.Impulse);
             }
         }
     }
