@@ -1629,13 +1629,13 @@ const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 2.05;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -5186,8 +5186,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Pool Royale rail-overhead dista
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0165; // pull the cue camera closer to the table for a tighter cue-side view
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.065;
+const CUE_VIEW_RADIUS_RATIO = 0.0205; // match Pool Royale cue-camera radius limit for identical close-up behavior
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5813,7 +5813,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -5833,8 +5833,9 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
+      return 'TM';
     case 'BM':
-      return null;
+      return 'BM';
     default:
       return pocketId;
   }
@@ -18746,7 +18747,7 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0, preferRailOverhead: forceRailOverhead = false } = {}
+          { longShot = false, travelDistance = 0 } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -18778,7 +18779,7 @@ const powerRef = useRef(hud.power);
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = Boolean(forceRailOverhead || railNormal);
+          const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -18884,7 +18885,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
@@ -22332,30 +22332,6 @@ const powerRef = useRef(hud.power);
           predictedTravel > 0 &&
           predictedTravel < SHORT_SHOT_CAMERA_DISTANCE;
         const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
-        const predictedPocketInfo = (() => {
-          if (!prediction.targetBall || !prediction.targetDir) return null;
-          const predictedDir = prediction.targetDir.clone();
-          if (predictedDir.lengthSq() < 1e-8) return null;
-          predictedDir.normalize();
-          let bestPocket = null;
-          let bestAlignment = -Infinity;
-          for (const center of pocketCenters()) {
-            const toPocket = center.clone().sub(prediction.targetBall.pos);
-            if (toPocket.lengthSq() < 1e-8) continue;
-            const pocketDir = toPocket.normalize();
-            const alignment = predictedDir.dot(pocketDir);
-            if (alignment > bestAlignment) {
-              bestAlignment = alignment;
-              bestPocket = center;
-            }
-          }
-          if (!bestPocket) return null;
-          return {
-            pocketId: pocketIdFromCenter(bestPocket),
-            center: bestPocket.clone(),
-            alignment: bestAlignment
-          };
-        })();
         const replayTags = new Set();
         if (isLongShot) replayTags.add('long');
         shotPrediction = {
@@ -22371,10 +22347,7 @@ const powerRef = useRef(hud.power);
           longShot: isLongShot,
           targetInitialPos: prediction.targetBall
             ? prediction.targetBall.pos.clone()
-            : null,
-          pocketId: predictedPocketInfo?.pocketId ?? null,
-          pocketCenter: predictedPocketInfo?.center ?? null,
-          pocketAlignment: predictedPocketInfo?.alignment ?? null
+            : null
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
@@ -22470,27 +22443,19 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = (allowLongShotCameraSwitch || isBreakShot)
+          const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
                 shotPrediction.ballId,
                 followView,
                 shotPrediction.railNormal,
                 {
-                  longShot: isBreakShot ? false : isLongShot,
-                  travelDistance: predictedTravel,
-                  preferRailOverhead:
-                    isBreakShot ||
-                    ((predictedPocketInfo?.pocketId === 'TM' ||
-                      predictedPocketInfo?.pocketId === 'BM') &&
-                      (predictedPocketInfo?.alignment ?? 0) >= POCKET_GUARANTEED_ALIGNMENT)
+                  longShot: isLongShot,
+                  travelDistance: predictedTravel
                 }
               )
             : null;
           const earlyPocketView =
-            !isBreakShot &&
-            predictedPocketInfo?.pocketId !== 'TM' &&
-            predictedPocketInfo?.pocketId !== 'BM' &&
             !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
@@ -22667,7 +22632,7 @@ const powerRef = useRef(hud.power);
           const startPull = THREE.MathUtils.clamp(
             Math.max(pulledNow, pullTarget),
             0,
-            Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL)
+            Math.max(maxPull, 0)
           );
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
@@ -22718,15 +22683,21 @@ const powerRef = useRef(hud.power);
           const strikeDuration = 110;
           const holdDuration = 45;
           const returnDuration = 0;
-          const impactPush = 0;
+          const impactPush = THREE.MathUtils.clamp(
+            CUE_TIP_CLEARANCE,
+            BALL_R * 0.08,
+            BALL_R * 0.3
+          );
           const impactPos = buildCuePosition(-impactPush);
-          // Stop the visible cue exactly at the pre-pull start point after release.
+          // Stop the visible cue at contact so it never chases the cue ball.
           const followExtra = 0;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
             TMP_VEC3_FOLLOW_DIR.normalize();
           }
-          const settlePos = idlePos.clone();
+          const settlePos = impactPos
+            .clone()
+            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           cueStick.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
