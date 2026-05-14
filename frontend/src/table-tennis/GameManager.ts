@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { AIController } from './AIController';
 import { BallPhysics } from './BallPhysics';
 import { CameraController } from './CameraController';
-import { GAME_CONFIG, ShotType } from './gameConfig';
+import { GAME_CONFIG, ShotCommand, ShotType } from './gameConfig';
 import { PaddleHitDetector } from './PaddleHitDetector';
 import { PlayerController } from './PlayerController';
 import { ReplayManager } from './ReplayManager';
@@ -83,8 +83,13 @@ export class GameManager {
     this.mount.removeChild(this.renderer.domElement);
   }
 
-  setPointer(normalizedX: number) {
-    if (!this.replay.isReplaying) this.player.setInput(normalizedX);
+  setPointer(_normalizedX: number) {
+    // Player movement is auto-tracked now; pointer movement is reserved for swipe shooting.
+  }
+
+  shootSwipe(start: { x: number; y: number }, end: { x: number; y: number }, durationMs: number) {
+    if (this.replay.isReplaying) return;
+    this.player.queueShot(this.buildShotCommandFromSwipe(start, end, durationMs));
   }
 
   replayLastRally() {
@@ -107,7 +112,7 @@ export class GameManager {
     }
 
     this.rallyTime += dt;
-    this.player.update(dt, this.ball.position);
+    this.player.update(dt, this.ball.position, this.ball.predictLandingPoint('player'));
     this.ai.update(dt, this.ball);
 
     if (this.ball.state === 'serve') this.ball.serve(this.score.state.server);
@@ -146,9 +151,11 @@ export class GameManager {
       ballVelocity: this.ball.velocity,
       ballSpin: this.ball.spin,
       requestedShot: this.player.currentShot,
+      shotCommand: this.player.peekShotCommand(),
     });
     this.lastHitValidity = result.valid ? 'valid player hit' : result.reason ?? 'invalid';
     if (result.valid && result.velocity && result.spin && result.shotType) {
+      this.player.consumeShotCommand();
       this.ball.applyPaddleHit('player', result.velocity, result.spin);
       this.player.triggerHit();
       this.lastShot = result.shotType;
@@ -167,6 +174,7 @@ export class GameManager {
       ballVelocity: this.ball.velocity,
       ballSpin: this.ball.spin,
       requestedShot: shot,
+      shotCommand: this.ai.getShotCommand(),
       accuracy: GAME_CONFIG.ai.difficulty.accuracy,
       powerScale: GAME_CONFIG.ai.difficulty.shotPower,
     });
@@ -176,6 +184,20 @@ export class GameManager {
       this.lastShot = result.shotType;
       this.replay.recordHit(this.rallyTime, 'ai', result.shotType, this.ball.position);
     }
+  }
+
+
+  private buildShotCommandFromSwipe(start: { x: number; y: number }, end: { x: number; y: number }, durationMs: number): ShotCommand {
+    const dx = end.x - start.x;
+    const dy = start.y - end.y;
+    const distance = Math.hypot(dx, dy);
+    const fastSwipeBonus = THREE.MathUtils.clamp(320 / Math.max(durationMs, 80), 0, 1);
+    const aimX = THREE.MathUtils.clamp(end.x * 1.08, -1, 1);
+    const power = THREE.MathUtils.clamp(distance * 0.64 + fastSwipeBonus * 0.42, 0.16, 1);
+    const lift = THREE.MathUtils.clamp(0.28 + dy * 0.58, 0, 1);
+    const curve = THREE.MathUtils.clamp(dx * 0.92, -1, 1);
+    const spin = THREE.MathUtils.clamp(dy * 0.92 + power * 0.22 - Math.abs(curve) * 0.1, -1, 1);
+    return { aimX, power, lift, curve, spin };
   }
 
   private resetPoint() {

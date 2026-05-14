@@ -17,6 +17,7 @@ export function UIOverlay() {
   const managerRef = useRef<GameManager | null>(null);
   const [hud, setHud] = useState(initialHud);
   const [debug, setDebug] = useState(false);
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return undefined;
@@ -32,19 +33,50 @@ export function UIOverlay() {
       managerRef.current.renderer.setSize(mount.clientWidth, mount.clientHeight);
     };
 
-    const onPointerMove = (event: PointerEvent) => {
+    const normalizePointer = (event: PointerEvent) => {
       const bounds = mountRef.current?.getBoundingClientRect();
-      if (!bounds) return;
-      manager.setPointer(((event.clientX - bounds.left) / bounds.width) * 2 - 1);
+      if (!bounds) return null;
+      return {
+        x: ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        y: ((event.clientY - bounds.top) / bounds.height) * 2 - 1,
+      };
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const point = normalizePointer(event);
+      if (!point) return;
+      manager.setPointer(point.x);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      const point = normalizePointer(event);
+      if (!point) return;
+      swipeStartRef.current = { ...point, time: performance.now() };
+      manager.renderer.domElement.setPointerCapture(event.pointerId);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      const point = normalizePointer(event);
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      if (!point || !start) return;
+      manager.shootSwipe({ x: start.x, y: start.y }, point, performance.now() - start.time);
+      if (manager.renderer.domElement.hasPointerCapture(event.pointerId)) {
+        manager.renderer.domElement.releasePointerCapture(event.pointerId);
+      }
     };
 
     window.addEventListener('resize', onResize);
     manager.renderer.domElement.addEventListener('pointermove', onPointerMove);
-    manager.renderer.domElement.addEventListener('pointerdown', onPointerMove);
+    manager.renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    manager.renderer.domElement.addEventListener('pointerup', onPointerUp);
+    manager.renderer.domElement.addEventListener('pointercancel', onPointerUp);
     return () => {
       window.removeEventListener('resize', onResize);
       manager.renderer.domElement.removeEventListener('pointermove', onPointerMove);
-      manager.renderer.domElement.removeEventListener('pointerdown', onPointerMove);
+      manager.renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      manager.renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      manager.renderer.domElement.removeEventListener('pointercancel', onPointerUp);
       manager.dispose();
       managerRef.current = null;
     };
@@ -67,6 +99,7 @@ export function UIOverlay() {
         </section>
 
         {hud.lastShot && !hud.replaying ? <div className="tt-shot-label">{hud.lastShot}</div> : null}
+        <div className="tt-swipe-hint">Swipe to shoot · aim sideways · flick up for lift · bend for curve</div>
         {hud.replaying ? <div className="tt-replay-banner">VAR Replay: slow motion review</div> : null}
 
         <section className="tt-controls">
