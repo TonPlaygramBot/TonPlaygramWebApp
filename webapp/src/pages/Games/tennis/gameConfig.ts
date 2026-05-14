@@ -28,13 +28,20 @@ export enum TennisBallState {
   PointEnded = "PointEnded",
 }
 
-const WORLD_SCALE = 1.72;
+const BASE_WORLD_SCALE = 1.72;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.3;
+const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
+// Keep the camera at its prior pullback distance so the enlarged court and
+// players read about 30% bigger in the actual gameplay view.
+const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
 const PLAYER_CHARACTER_SCALE = 1.12;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
 
 export const gameConfig = {
   worldScale: WORLD_SCALE,
+  courtAndCharacterSizeMultiplier: COURT_AND_CHARACTER_SIZE_MULTIPLIER,
+  cameraViewScale: CAMERA_VIEW_SCALE,
   fixedTimeStep: 1 / 90,
   maxPhysicsSteps: 5,
   // Regulation court proportions in world metres, scaled as a single unit so
