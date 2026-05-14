@@ -1917,17 +1917,17 @@ const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip sligh
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.46;
-const CUE_PULL_DISTANCE_SCALE = 0.62;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
+const CUE_PULL_DISTANCE_SCALE = 0.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.96; // keep slider pullback clearly visible without over-drawing the cue
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = 0; // stop the release at the original aiming pose instead of overshooting it
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -28123,8 +28123,7 @@ const shotPowerRef = useRef(0);
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Rebuilt stroke pullback: tie visible pull directly to slider power
-          // and the currently available room behind the cue ball, with a
-          // stronger visible draw so the stick tracks the pulled slider.
+          // and the currently available room behind the cue ball.
           const pullRange = THREE.MathUtils.clamp(
             maxPull * 0.92,
             CUE_PULL_MIN_VISUAL,
@@ -28196,11 +28195,9 @@ const shotPowerRef = useRef(0);
             clampedPower
           );
           shotImpactPayload.contactAdvance = contactAdvance;
-          // The player releases from the charged pullback back to the same
-          // cue position where the slider pull began. Keep impact/contact/follow
-          // visually pinned to that original pose so the cue does not continue
-          // past its starting point after release.
-          const contactPos = impactPos.clone();
+          const contactPos = impactPos
+            .clone()
+            .addScaledVector(dir, contactAdvance);
           const followDistance = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
@@ -28297,7 +28294,7 @@ const shotPowerRef = useRef(0);
             shotRecording.cueStroke = {
               idle: serializeVector3Snapshot(idlePos),
               pull: serializeVector3Snapshot(releaseStartPos),
-              impact: serializeVector3Snapshot(impactPos),
+              impact: serializeVector3Snapshot(contactPos),
               follow: serializeVector3Snapshot(followPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
