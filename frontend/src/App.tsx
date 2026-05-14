@@ -1,5 +1,5 @@
-import ChessBattleRoyaleStore from './ChessBattleRoyaleStore';
+import { UIOverlay } from './table-tennis/UIOverlay';
 
 export function App() {
-  return <ChessBattleRoyaleStore />;
+  return <UIOverlay />;
 }
