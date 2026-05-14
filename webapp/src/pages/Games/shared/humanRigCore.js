@@ -1436,12 +1436,24 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const zEdge = tableL / 2 + cfg.edgeMargin;
   const groundY = cfg.groundY || 0;
   const behind = shotDir.clone().multiplyScalar(-1);
-  const candidate = (x, z) => new THREE.Vector3(clamp(x, -xEdge, xEdge), groundY, clamp(z, -zEdge, zEdge));
+  const normalizePreferredSide = (side) => {
+    const value = String(side || '').toLowerCase();
+    if (['west', 'left', '-x'].includes(value)) return 'west';
+    if (['east', 'right', '+x'].includes(value)) return 'east';
+    if (['north', 'top', '-z'].includes(value)) return 'north';
+    if (['south', 'bottom', '+z'].includes(value)) return 'south';
+    return null;
+  };
+  const preferredTableSide = normalizePreferredSide(opts.preferredTableSide || opts.stanceSide);
+  const candidate = (x, z, sideName = null) => ({
+    point: new THREE.Vector3(clamp(x, -xEdge, xEdge), groundY, clamp(z, -zEdge, zEdge)),
+    sideName
+  });
   const candidates = [
-    candidate(-xEdge, desired.z),
-    candidate(xEdge, desired.z),
-    candidate(desired.x, -zEdge),
-    candidate(desired.x, zEdge),
+    candidate(-xEdge, desired.z, 'west'),
+    candidate(xEdge, desired.z, 'east'),
+    candidate(desired.x, -zEdge, 'north'),
+    candidate(desired.x, zEdge, 'south'),
     candidate(cueBallWorld.x + behind.x * cfg.desiredShootDistance, cueBallWorld.z + behind.z * cfg.desiredShootDistance),
     candidate(cueBallWorld.x + behind.x * (cfg.desiredShootDistance + cfg.edgeMargin * 0.5), cueBallWorld.z + behind.z * (cfg.desiredShootDistance + cfg.edgeMargin * 0.5))
   ];
@@ -1453,23 +1465,28 @@ export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
 
   const unique = [];
   const seen = new Set();
-  for (const point of candidates) {
+  for (const entry of candidates) {
+    const point = entry.point || entry;
     const key = `${point.x.toFixed(3)}:${point.z.toFixed(3)}`;
     if (!seen.has(key)) {
       seen.add(key);
-      unique.push(point);
+      unique.push({ point, sideName: entry.sideName || null });
     }
   }
 
-  const score = (point) => {
+  const score = (entry) => {
+    const point = entry.point || entry;
     const cueToPoint = point.clone().sub(cueBallWorld).setY(0);
     const behindScore = cueToPoint.lengthSq() > 1e-8 ? Math.max(0, cueToPoint.normalize().dot(behind)) : 0;
     const sidePenalty = Math.abs(point.clone().sub(desired).dot(new THREE.Vector3(shotDir.z, 0, -shotDir.x)));
     const blockedPenalty = isBlockedStandingPoint(point, opts, cfg) ? 100000 : 0;
     const behindPenalty = (1 - behindScore) * cfg.desiredShootDistance * cfg.desiredShootDistance * 18;
-    return blockedPenalty + behindPenalty + point.distanceToSquared(desired) + sidePenalty * 0.35;
+    const sidePreferencePenalty = preferredTableSide && entry.sideName && entry.sideName !== preferredTableSide
+      ? cfg.desiredShootDistance * cfg.desiredShootDistance * 28
+      : 0;
+    return blockedPenalty + behindPenalty + sidePreferencePenalty + point.distanceToSquared(desired) + sidePenalty * 0.35;
   };
 
   const sorted = unique.sort((a, b) => score(a) - score(b));
-  return (sorted[0] || desired).clone().setY(groundY);
+  return ((sorted[0] && sorted[0].point) || desired).clone().setY(groundY);
 }
