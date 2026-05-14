@@ -266,8 +266,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
     addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
   }
 
-  const y = 0.045;
-  const thick = 0.045;
+  const y = 0.045 * CFG.worldScale;
+  const thick = 0.045 * CFG.worldScale;
   const halfW = CFG.courtW / 2;
   const halfL = CFG.courtL / 2;
 
@@ -278,8 +278,8 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [CFG.courtW, thick, thick], [0, y, -CFG.serviceLineZ], lineMat);
   addBox(group, [CFG.courtW, thick, thick], [0, y, CFG.serviceLineZ], lineMat);
   addBox(group, [thick, thick, CFG.serviceLineZ * 2], [0, y, 0], lineMat);
-  addBox(group, [thick, thick, 0.38], [0, y, -halfL + 0.18], lineMat);
-  addBox(group, [thick, thick, 0.38], [0, y, halfL - 0.18], lineMat);
+  addBox(group, [thick, thick, 0.38 * CFG.worldScale], [0, y, -halfL + 0.18 * CFG.worldScale], lineMat);
+  addBox(group, [thick, thick, 0.38 * CFG.worldScale], [0, y, halfL - 0.18 * CFG.worldScale], lineMat);
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
@@ -1063,11 +1063,13 @@ export default function MobileThreeTennisPrototype() {
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 25;
-    sun.shadow.camera.left = -8;
-    sun.shadow.camera.right = 8;
-    sun.shadow.camera.top = 9;
-    sun.shadow.camera.bottom = -9;
+    sun.shadow.camera.far = Math.max(25, CFG.courtL * 1.45);
+    const shadowHalfW = CFG.doublesW / 2 + 5.2 * CFG.worldScale;
+    const shadowHalfL = CFG.courtL / 2 + 5.8 * CFG.worldScale;
+    sun.shadow.camera.left = -shadowHalfW;
+    sun.shadow.camera.right = shadowHalfW;
+    sun.shadow.camera.top = shadowHalfL;
+    sun.shadow.camera.bottom = -shadowHalfL;
     scene.add(sun);
 
 

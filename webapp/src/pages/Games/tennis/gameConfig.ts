@@ -28,14 +28,17 @@ export enum TennisBallState {
   PointEnded = "PointEnded",
 }
 
-const WORLD_SCALE = 1.55;
+const WORLD_SCALE = 1.72;
+// Extra character scale keeps human avatars visibly bigger than the court uplift.
+const PLAYER_CHARACTER_SCALE = 1.12;
+const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
 
 export const gameConfig = {
   worldScale: WORLD_SCALE,
   fixedTimeStep: 1 / 90,
   maxPhysicsSteps: 5,
   // Regulation court proportions in world metres, scaled as a single unit so
-  // the court, net, players, rackets and ball read correctly against HDRIs.
+  // the tennis play area reads larger and more arena-like against HDRIs.
   courtW: 8.23 * WORLD_SCALE,
   doublesW: 10.97 * WORLD_SCALE,
   courtL: 23.77 * WORLD_SCALE,
@@ -48,22 +51,22 @@ export const gameConfig = {
   groundFriction: 0.86,
   minBallSpeed: 0.12 * WORLD_SCALE,
   courtFriction: 0.86,
-  playerHeight: 1.88 * WORLD_SCALE,
-  playerSpeed: 8.4 * WORLD_SCALE,
-  playerAcceleration: 28 * WORLD_SCALE,
-  playerDeceleration: 34 * WORLD_SCALE,
-  aiSpeed: 11.2 * WORLD_SCALE,
-  reach: 1.62 * WORLD_SCALE,
-  racketHitRadius: 0.56 * WORLD_SCALE,
+  playerHeight: 1.88 * PLAYER_SCALE,
+  playerSpeed: 8.4 * PLAYER_SCALE,
+  playerAcceleration: 28 * PLAYER_SCALE,
+  playerDeceleration: 34 * PLAYER_SCALE,
+  aiSpeed: 11.2 * PLAYER_SCALE,
+  reach: 1.62 * PLAYER_SCALE,
+  racketHitRadius: 0.56 * PLAYER_SCALE,
   contactAngleTolerance: 0.18,
   timingWindow: { start: 0.42, end: 0.72 },
-  minContactHeight: 0.25 * WORLD_SCALE,
-  maxContactHeight: 1.85 * WORLD_SCALE,
-  maxReachDistance: 1.62 * WORLD_SCALE,
+  minContactHeight: 0.25 * PLAYER_SCALE,
+  maxContactHeight: 1.85 * PLAYER_SCALE,
+  maxReachDistance: 1.62 * PLAYER_SCALE,
   swingDuration: 0.38,
   serveDuration: 0.86,
   serveContactT: 0.72,
-  serveTossMinHeight: 1.85 * WORLD_SCALE,
+  serveTossMinHeight: 1.85 * PLAYER_SCALE,
   servePower: { min: 0.72, max: 1 },
   shotPower: { min: 0.35, max: 1 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
@@ -74,8 +77,8 @@ export const gameConfig = {
   scoring: { gamesPerSet: 6, winByTwoGames: true },
   aiDifficulty: {
     reactionTime: 0.14,
-    moveSpeed: 11.2 * WORLD_SCALE,
-    reachRadius: 1.7 * WORLD_SCALE,
+    moveSpeed: 11.2 * PLAYER_SCALE,
+    reachRadius: 1.7 * PLAYER_SCALE,
     accuracy: 0.88,
     power: 0.94,
     spin: 0.72,
