@@ -126,7 +126,6 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import {
   createBilardoHumanRig as sharedCreateBilardoHumanRig,
-  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
   updateBilardoHumanPose as sharedUpdateBilardoHumanPose
 } from './shared/bilardoHumanRig.js';
 
@@ -559,7 +558,6 @@ function updateBilardoHumanPose(human, dt, frameData) {
 
 // Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
 const createBilardoHumanRig = sharedCreateBilardoHumanRig;
-const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
 const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -27309,8 +27307,30 @@ const shotPowerRef = useRef(0);
         };
         const isInsideTableBlocker = (point) =>
           Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
+        const resolveCueSideWalkRoot = (shotForward) => {
+          const forward = shotForward?.clone?.() ?? new THREE.Vector2(0, -1);
+          if (forward.lengthSq?.() <= 1e-6) forward.set(0, -1);
+          forward.normalize();
+          const behind = new THREE.Vector2(-forward.x, -forward.y);
+          const distances = [];
+          if (Math.abs(behind.x) > HUMAN_WALK_EPS) {
+            distances.push(((behind.x > 0 ? walkHalfX : -walkHalfX) - cueWorld.x) / behind.x);
+          }
+          if (Math.abs(behind.y) > HUMAN_WALK_EPS) {
+            distances.push(((behind.y > 0 ? walkHalfZ : -walkHalfZ) - cueWorld.z) / behind.y);
+          }
+          const edgeDistance = distances
+            .filter((distance) => Number.isFinite(distance) && distance > HUMAN_WALK_EPS)
+            .sort((a, b) => a - b)[0];
+          if (!Number.isFinite(edgeDistance)) return clampToWalkPerimeter(chooseEdgeTarget(forward));
+          return clampToWalkPerimeter(new THREE.Vector3(
+            cueWorld.x + behind.x * edgeDistance,
+            floorY,
+            cueWorld.z + behind.y * edgeDistance
+          ));
+        };
 
-        const desiredRoot = chooseEdgeTarget(normalizedAim);
+        const desiredRoot = resolveCueSideWalkRoot(normalizedAim);
         const loungeBySeat = new Map();
         rigs.forEach((entry) => {
           if (!entry?.lounge || !entry.group) return;
@@ -27372,16 +27392,8 @@ const shotPowerRef = useRef(0);
                   ];
                   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
                 })()
-              : chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-                  tableW: TABLE.W,
-                  tableL: TABLE.H,
-                  edgeMargin: humanEdgeMargin,
-                  desiredShootDistance: humanShootDistance,
-                  preferredTableSide: behavior.stanceSide || null
-                }).setY(floorY);
-            const perimeterRoot = behavior.originalSkeletonLogic
-              ? desiredRoot.clone()
-              : clampToWalkPerimeter(desiredRoot);
+              : resolveCueSideWalkRoot(new THREE.Vector2(aimForward.x, aimForward.z));
+            const perimeterRoot = desiredRoot.clone();
             if (!behavior.originalSkeletonLogic && isInsideTableBlocker(perimeterRoot)) {
               perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
             }
