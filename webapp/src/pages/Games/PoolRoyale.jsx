@@ -1951,13 +1951,7 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
-const POOL_HUMAN_URLS = Object.freeze([
-  // Prefer the Three.js soldier rig: its Mixamo bone names/orientation map more reliably
-  // to the billiards IK than the old ReadyPlayer avatar.
-  'https://threejs.org/examples/models/gltf/Soldier.glb',
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
-]);
+const POOL_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * 1.3;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
@@ -1982,7 +1976,6 @@ const POOL_HUMAN_CFG = Object.freeze({
   rotLambda: 8.5,
   humanScale: 1.26 * POOL_HUMAN_WORLD_SCALE,
   shotPoseAmount: 0.38,
-  cueCameraPoseBlendMax: 0.42,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmTableLift: 0.006 * POOL_HUMAN_WORLD_SCALE,
@@ -2145,19 +2138,6 @@ function loadPoolHumanModel(loader, url) {
   });
 }
 
-async function loadFirstPoolHumanModel(loader, urls = POOL_HUMAN_URLS) {
-  let lastError = null;
-  for (const url of urls) {
-    try {
-      return await loadPoolHumanModel(loader, url);
-    } catch (error) {
-      lastError = error;
-      console.warn('Pool Royale human rig candidate failed', url, error);
-    }
-  }
-  throw lastError || new Error('No Pool Royale human rig URLs configured');
-}
-
 function createPoolRoyaleHumanRig(parent, renderer) {
   const human = {
     root: new THREE.Group(),
@@ -2182,7 +2162,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
   human.modelRoot.visible = false;
   parent.add(human.root, human.modelRoot);
   const loader = createPoolHumanGLTFLoader(renderer);
-  loadFirstPoolHumanModel(loader, POOL_HUMAN_URLS)
+  loadPoolHumanModel(loader, POOL_HUMAN_URL)
     .then((model) => {
       normalizePoolHumanModel(model);
       model.traverse((obj) => {
@@ -2220,7 +2200,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
       human.modelRoot.add(model);
       human.modelRoot.visible = human.activeGlb;
     })
-    .catch((error) => console.warn('Pool Royale human rig load failed', error))
+    .catch((error) => console.warn('Pool Royale ReadyPlayer human failed', error))
     .finally(() => disposePoolHumanGLTFLoader(loader));
   return human;
 }
@@ -2530,7 +2510,7 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
   if (!human) return null;
   const poseForward = aimForward.clone().normalize();
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
-  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, poseForward, tableCue.back);
+  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, poseForward);
   rootTarget.y = POOL_HUMAN_CFG.floorLocalY;
   const standingYaw = poolHumanYawFromForward(poseForward);
   const aimSide = new THREE.Vector3(poseForward.z, 0, -poseForward.x).normalize();
@@ -33198,15 +33178,7 @@ const shotPowerRef = useRef(0);
         } else {
           aimForwardForHuman.normalize();
         }
-        const cameraBlendForHuman = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const cueCameraLoweredForHuman =
-          cameraBlendForHuman <= POOL_HUMAN_CFG.cueCameraPoseBlendMax ||
-          aiCueViewActive;
-        const requestedHumanShotState = sliderInstanceRef.current?.dragging
+        const humanShotState = sliderInstanceRef.current?.dragging
           ? 'dragging'
           : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
             ? 'striking'
@@ -33221,11 +33193,6 @@ const shotPowerRef = useRef(0);
               : replayActive
                 ? 'rolling'
                 : 'idle';
-        const humanShotState = cueCameraLoweredForHuman
-          ? requestedHumanShotState
-          : replayActive
-            ? 'rolling'
-            : 'idle';
         updatePoolRoyaleHumanFrame(
           humanRig,
           Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
