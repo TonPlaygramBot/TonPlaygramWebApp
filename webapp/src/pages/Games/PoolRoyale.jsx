@@ -836,6 +836,8 @@ const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fasci
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1684,7 +1686,7 @@ const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER 
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.24; // shorten the leather strap height to keep the holder assembly visually straight
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
-const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
+const POCKET_EDGE_SLEEVES_ENABLED = true; // wrap pocket cutout walls with the selected cloth texture instead of exposing rail/wood material
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
@@ -1987,6 +1989,9 @@ const POOL_HUMAN_CFG = Object.freeze({
   bridgeHandBackFromBall: 0.235 * POOL_HUMAN_WORLD_SCALE,
   bridgeHandSide: -0.012 * POOL_HUMAN_WORLD_SCALE,
   chinToCueHeight: 0.11 * POOL_HUMAN_WORLD_SCALE,
+  upperBodyCueBallLean: 0.18 * POOL_HUMAN_WORLD_SCALE,
+  chestCueBallLean: 0.24 * POOL_HUMAN_WORLD_SCALE,
+  headCueBallLean: 0.28 * POOL_HUMAN_WORLD_SCALE,
   footGroundY: 0,
   footLockStrength: 1.0,
   kneeBendShot: 0.16 * POOL_HUMAN_WORLD_SCALE,
@@ -2492,10 +2497,14 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
   rootWorld.y = POOL_HUMAN_CFG.floorLocalY;
-  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) - 0.014 * powerLean) * POOL_HUMAN_CFG.scale));
-  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) - 0.024 * powerLean) * POOL_HUMAN_CFG.scale));
-  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
-  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
+  const cueBallLean = poolHumanClamp01(t + powerLean * 0.35);
+  const torsoForwardLean = POOL_HUMAN_CFG.upperBodyCueBallLean * cueBallLean;
+  const chestForwardLean = POOL_HUMAN_CFG.chestCueBallLean * cueBallLean;
+  const headForwardLean = POOL_HUMAN_CFG.headCueBallLean * cueBallLean;
+  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) * POOL_HUMAN_CFG.scale - torsoForwardLean - 0.014 * powerLean * POOL_HUMAN_CFG.scale)));
+  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) * POOL_HUMAN_CFG.scale - chestForwardLean - 0.024 * powerLean * POOL_HUMAN_CFG.scale)));
+  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) * POOL_HUMAN_CFG.scale - headForwardLean * 0.92 - 0.028 * powerLean * POOL_HUMAN_CFG.scale)));
+  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) * POOL_HUMAN_CFG.scale - headForwardLean - 0.028 * powerLean * POOL_HUMAN_CFG.scale)));
   const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
   const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.34, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
   const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
@@ -11166,6 +11175,32 @@ export function Table3D(
       plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
       chromePlates.add(plate);
       finishParts.trimMeshes.push(plate);
+
+      const apronThickness = Math.max(
+        MICRO_EPS,
+        TABLE.THICK * CHROME_SIDE_APRON_COVER_THICKNESS_SCALE
+      );
+      const apronHeight = Math.max(
+        MICRO_EPS,
+        railH * CHROME_SIDE_APRON_COVER_HEIGHT_SCALE
+      );
+      const apronLength = Math.max(MICRO_EPS, sideChromePlateHeight * 0.96);
+      const apron = new THREE.Mesh(
+        new THREE.BoxGeometry(apronThickness, apronHeight, apronLength),
+        chromePlateMat
+      );
+      apron.userData.isChromePlate = true;
+      apron.userData.isSidePocketApronCover = true;
+      apron.position.set(
+        sx * (outerHalfW + apronThickness * 0.5 - MICRO_EPS),
+        frameTopY + railH * 0.5,
+        centerZ
+      );
+      apron.castShadow = false;
+      apron.receiveShadow = false;
+      apron.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.05;
+      chromePlates.add(apron);
+      finishParts.trimMeshes.push(apron);
     });
   }
   if (!chromePlateStyle.hideGeneratedPlates) {
