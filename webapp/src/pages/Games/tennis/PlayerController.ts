@@ -4,7 +4,10 @@ import { clamp, FootworkState, gameConfig, PlayerSide } from "./gameConfig";
 export class PlayerController {
   static clampMovement(pos: THREE.Vector3, side: PlayerSide) {
     pos.x = clamp(pos.x, -gameConfig.courtW / 2 + 0.35, gameConfig.courtW / 2 - 0.35);
-    pos.z = side === "near" ? clamp(pos.z, 0.76, gameConfig.courtL / 2 - 0.42) : clamp(pos.z, -gameConfig.courtL / 2 + 0.42, -0.76);
+    const baselineRunoff = 1.35 * gameConfig.worldScale;
+    pos.z = side === "near"
+      ? clamp(pos.z, 0.76, gameConfig.courtL / 2 + baselineRunoff)
+      : clamp(pos.z, -gameConfig.courtL / 2 - baselineRunoff, -0.76);
     return pos;
   }
 
