@@ -29,13 +29,13 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.55;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.8;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep the camera at its prior pullback distance so the enlarged court and
 // players read clearly bigger in the actual gameplay view.
 const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
-const PLAYER_CHARACTER_SCALE = 1.2;
+const PLAYER_CHARACTER_SCALE = 1.35;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
 
 export const gameConfig = {
@@ -74,10 +74,10 @@ export const gameConfig = {
   serveDuration: 0.86,
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
-  // Scales the full match shot force so player and AI strokes share a calmer, lower power ceiling.
-  matchPowerMultiplier: 0.68,
-  servePower: { min: 0.48, max: 0.72 },
-  shotPower: { min: 0.2, max: 0.66 },
+  // Scales the full match shot force so player and AI strokes share a softer, lower power ceiling.
+  matchPowerMultiplier: 0.55,
+  servePower: { min: 0.42, max: 0.62 },
+  shotPower: { min: 0.16, max: 0.56 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
   playerVisualYawFix: Math.PI,
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
@@ -89,7 +89,7 @@ export const gameConfig = {
     moveSpeed: 12.8 * PLAYER_SCALE,
     reachRadius: 1.95 * PLAYER_SCALE,
     accuracy: 0.94,
-    power: 0.62,
+    power: 0.54,
     spin: 0.88,
     mistakeChance: 0.018,
     serveQuality: 0.84,
