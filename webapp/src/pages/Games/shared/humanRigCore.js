@@ -248,6 +248,7 @@ const BASE_CFG = {
   shootUpperBodyCounterLean: 1,
   shootForwardBendScale: 1,
   plantFeetDuringShot: true,
+  standingShotStance: false,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
   showDebugArrows: true,
@@ -1134,31 +1135,31 @@ function updateOriginalSkeletonHumanPose(human, dt, frameData) {
     .addScaledVector(side, -0.012 * cfg.unit * t)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
-  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, handPoseT);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
+  const handIk = easeInOut(clamp01(handPoseT));
   const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
   const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
   const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
   const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
   const lockedRightElbow = rightShoulder.clone()
-    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, t))
-    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, t))
-    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, t));
+    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, handPoseT))
+    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, handPoseT))
+    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, handPoseT));
   const pullBack = activeState === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(frameData.power || 0) : 0;
   const pushForward = activeState === 'striking' ? cfg.rightStrokePush * strikeFollow : 0;
   const smallPractice = activeState === 'dragging' ? dragStroke * 0.035 * cfg.unit : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone()
-    .addScaledVector(side, cfg.rightForearmOutward * t)
-    .addScaledVector(UP, -cfg.rightForearmDown * t)
-    .addScaledVector(UP, cfg.rightHandShotLift * t)
-    .addScaledVector(forward, -cfg.rightForearmBack * t)
+    .addScaledVector(side, cfg.rightForearmOutward * handPoseT)
+    .addScaledVector(UP, -cfg.rightForearmDown * handPoseT)
+    .addScaledVector(UP, cfg.rightHandShotLift * handPoseT)
+    .addScaledVector(forward, -cfg.rightForearmBack * handPoseT)
     .addScaledVector(cueDirForHand, cfg.rightForearmLength);
   const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
   const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, handPoseT);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * cfg.unit * t).addScaledVector(side, -0.044 * cfg.unit * t).addScaledVector(forward, 0.065 * cfg.unit * t);
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
@@ -1287,6 +1288,10 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootForwardBendScale)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
+  const standingShotStance = cfg.standingShotStance === true;
+  const bodyPoseT = standingShotStance ? 0 : t;
+  const footPoseT = standingShotStance ? 0 : t;
+  const handPoseT = t;
   const shotBendZ = (value) => Math.abs(value) * bendDirection * forwardBendScale * poseProfile.lean;
   const shotCounterLeanX = (value) => (value + (poseProfile.hipSide || 0) * t) * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
@@ -1296,12 +1301,12 @@ export function updateHumanPose(human, dt, frameData) {
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.008 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, t) - 0.014 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, t) - 0.016 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ(lerp(0.03, -0.62, t) - 0.018 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * bodyPoseT) * cfg.unit, lerp(1.3, 1.16, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, bodyPoseT) - 0.008 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * bodyPoseT + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, bodyPoseT) - 0.014 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * bodyPoseT + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, bodyPoseT) - 0.016 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * bodyPoseT + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, bodyPoseT) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * bodyPoseT, shotBendZ(lerp(0.03, -0.62, bodyPoseT) - 0.018 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * bodyPoseT)) * cfg.unit, lerp(1.58, 1.34, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, bodyPoseT) - 0.012 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * bodyPoseT)) * cfg.unit, lerp(1.58, 1.34, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, bodyPoseT) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
@@ -1320,61 +1325,61 @@ export function updateHumanPose(human, dt, frameData) {
     -0.13 * cfg.unit,
     cfg.footGroundY,
     0.03 * cfg.unit + walk * 0.018 * cfg.unit * footWalkBlend
-  ).lerp(plantedLeftFootLocal, t));
+  ).lerp(plantedLeftFootLocal, footPoseT));
   const rightFoot = local(new THREE.Vector3(
     0.13 * cfg.unit,
     cfg.footGroundY,
     -0.03 * cfg.unit - walk * 0.018 * cfg.unit * footWalkBlend
-  ).lerp(plantedRightFootLocal, t));
+  ).lerp(plantedRightFootLocal, footPoseT));
 
   const bridgePalmSide = (cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
     : -0.012 * cfg.unit) + (poseProfile.bridgeSide || 0) * cfg.unit;
   const bridgePalmTarget = frameData.bridgeTarget.clone()
-    .addScaledVector(forward, (-0.006 + poseProfile.bridgeReach) * cfg.unit * t)
-    .addScaledVector(side, bridgePalmSide * t)
+    .addScaledVector(forward, (-0.006 + poseProfile.bridgeReach) * cfg.unit * handPoseT)
+    .addScaledVector(side, bridgePalmSide * handPoseT)
     .setY(cfg.tableTopY + cfg.bridgePalmTableLift + poseProfile.bridgeLift * cfg.unit)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
-  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, handPoseT);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
+  const handIk = easeInOut(clamp01(handPoseT));
   const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
   const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
   const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
   const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
   const lockedRightElbow = rightShoulder.clone()
-    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, t))
-    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, t))
-    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, t));
+    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, handPoseT))
+    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, handPoseT))
+    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, handPoseT));
   const pullBack = activeState === 'dragging' ? -(cfg.rightStrokePull + poseProfile.gripBack * cfg.unit) * easeOutCubic(frameData.power || 0) : 0;
   const pushForward = activeState === 'striking' ? cfg.rightStrokePush * poseProfile.followScale * strikeFollow : 0;
   const smallPractice = activeState === 'dragging' ? dragStroke * 0.035 * cfg.unit : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone()
-    .addScaledVector(side, cfg.rightForearmOutward * t)
-    .addScaledVector(UP, -cfg.rightForearmDown * t)
-    .addScaledVector(UP, cfg.rightHandShotLift * t)
-    .addScaledVector(forward, -cfg.rightForearmBack * t)
+    .addScaledVector(side, cfg.rightForearmOutward * handPoseT)
+    .addScaledVector(UP, -cfg.rightForearmDown * handPoseT)
+    .addScaledVector(UP, cfg.rightHandShotLift * handPoseT)
+    .addScaledVector(forward, -cfg.rightForearmBack * handPoseT)
     .addScaledVector(cueDirForHand, cfg.rightForearmLength);
   const liveCueGripPoint = forearmBase.clone()
-    .addScaledVector(cueDirForHand, forearmStroke + poseProfile.gripBack * cfg.unit * t)
-    .addScaledVector(UP, poseProfile.cueLift * cfg.unit * t);
-  if (frameData.gripTarget) liveCueGripPoint.lerp(frameData.gripTarget, 0.72 * t);
+    .addScaledVector(cueDirForHand, forearmStroke + poseProfile.gripBack * cfg.unit * handPoseT)
+    .addScaledVector(UP, poseProfile.cueLift * cfg.unit * handPoseT);
+  if (frameData.gripTarget) liveCueGripPoint.lerp(frameData.gripTarget, 0.72 * handPoseT);
   const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, handPoseT);
   const bridgeArmDownElbow = leftHand.clone()
     .addScaledVector(UP, 0.39 * cfg.unit)
     .addScaledVector(side, -0.01 * cfg.unit)
     .addScaledVector(forward, 0.012 * cfg.unit);
   const extendedBridgeElbow = leftShoulder.clone()
     .lerp(leftHand, 0.58)
-    .addScaledVector(UP, -0.035 * cfg.unit * t)
-    .addScaledVector(side, -0.028 * cfg.unit * t)
-    .addScaledVector(forward, -0.055 * cfg.unit * t);
-  const leftElbow = extendedBridgeElbow.lerp(bridgeArmDownElbow, cfg.bridgeArmStraightDown ? t : 0);
-  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
-  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 1.02, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
+    .addScaledVector(UP, -0.035 * cfg.unit * handPoseT)
+    .addScaledVector(side, -0.028 * cfg.unit * handPoseT)
+    .addScaledVector(forward, -0.055 * cfg.unit * handPoseT);
+  const leftElbow = extendedBridgeElbow.lerp(bridgeArmDownElbow, cfg.bridgeArmStraightDown ? handPoseT : 0);
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, footPoseT)).addScaledVector(forward, 0.04 * cfg.unit * footPoseT).addScaledVector(side, -0.012 * cfg.unit * footPoseT);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 1.02, footPoseT)).addScaledVector(forward, -0.03 * cfg.unit * footPoseT).addScaledVector(side, 0.014 * cfg.unit * footPoseT);
 
   human.root.visible = true;
   driveHuman(human, {
