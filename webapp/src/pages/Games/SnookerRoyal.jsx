@@ -22692,8 +22692,17 @@ const powerRef = useRef(hud.power);
           const strikeDuration = 110;
           const holdDuration = 45;
           const returnDuration = 0;
-          // Stop exactly at the original address position after the forward stroke.
-          const impactPos = buildCuePosition(0);
+          // Keep the no-character cue stroke matching the old human-rig shot:
+          // drive the tip forward from pullback into cue-ball contact instead
+          // of stopping at the original address gap.
+          const impactPush = THREE.MathUtils.clamp(
+            CUE_TIP_CLEARANCE,
+            BALL_R * 0.08,
+            BALL_R * 0.3
+          );
+          const impactPos = buildCuePosition(-impactPush);
+          // Stop the visible cue at contact so it reads as a push without
+          // chasing the moving cue ball after physics takes over.
           const followExtra = 0;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
