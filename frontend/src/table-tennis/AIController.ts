@@ -33,7 +33,7 @@ export class AIController {
   }
 
   canReach(ballPosition: THREE.Vector3) {
-    return Math.abs(ballPosition.x - this.root.position.x) <= GAME_CONFIG.ai.maxReach && ballPosition.z < -1.18 && ballPosition.z > -2.45;
+    return Math.abs(ballPosition.x - this.root.position.x) <= GAME_CONFIG.ai.maxReach && ballPosition.z < -1.3 && ballPosition.z > -2.68;
   }
 
   shouldMiss() {

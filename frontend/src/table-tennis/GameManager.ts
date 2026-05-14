@@ -251,7 +251,7 @@ export class GameManager {
     const net = this.createNet();
     table.add(net);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 7), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 8.4), new THREE.ShadowMaterial({ opacity: 0.24 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor, table);
@@ -347,7 +347,7 @@ export class GameManager {
     arm.castShadow = true;
     hand.add(arm);
     const paddle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.115, 0.115, 0.018, 28),
+      new THREE.CylinderGeometry(0.13, 0.13, 0.018, 32),
       new THREE.MeshStandardMaterial({ color: '#d72638', roughness: 0.48 }),
     );
     paddle.rotation.x = Math.PI / 2;
