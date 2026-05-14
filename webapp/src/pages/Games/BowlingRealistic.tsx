@@ -17,7 +17,11 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { getCachedPoolRoyalInventory } from '../../utils/poolRoyalInventory.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
-import { mapSpinForPhysics } from './poolRoyaleSpinUtils.js';
+import {
+  MAX_SPIN_OFFSET,
+  computeQuantizedOffsetScaled,
+  mapSpinForPhysics
+} from './poolRoyaleSpinUtils.js';
 
 type PlayerAction =
   | 'idle'
@@ -162,7 +166,7 @@ const DEFAULT_HUMAN_CHARACTER_ID =
   BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current-domino';
 const HUMAN_CHARACTER_OPTIONS =
   BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
-const HUMAN_INITIAL_SCALE = 1.26;
+const HUMAN_INITIAL_SCALE = 1.34;
 const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
   id: h.id,
   name: h.name,
@@ -274,7 +278,7 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ['8k', '4k', '2k', '1k'] as const;
 const BOWLING_RULE_SUMMARY =
-  'Ten-pin rules: 10 frames · strike resets the rack · spare earns next-ball bonus · 10th frame allows bonus balls.';
+  'Official ten-pin: 10 frames · strike = 10 + next two rolls · spare = 10 + next roll · open = pinfall · foul/gutter = 0 · 10th-frame strike/spare earns bonus balls.';
 const SHOOTING_ZONE_DEPTH = 1.85;
 const SHOOTING_ZONE_SIDE_PAD = 0.42;
 const SHOOTING_READY_Z = CFG.foulZ + 1.12;
@@ -293,12 +297,14 @@ const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
   pos.z >= CFG.foulZ + 0.18 &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(0, CFG.laneY, 8.18);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.86, CFG.laneY, 7.48);
 const BOWLING_RETURN_SIDE_X = -2.78;
 const BOWLING_RETURN_Z = 6.46;
 const BOWLING_RACK_SIDE_X = -3.38;
 const BOWLING_RACK_Z = 7.46;
-const BOWLING_TABLE_CENTERS = [new THREE.Vector3(0, CFG.laneY, 8.05)] as const;
+const BOWLING_TABLE_CENTERS = [
+  new THREE.Vector3(-4.86, CFG.laneY, 7.48)
+] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
   ...BOWLING_TABLE_CENTERS.map((center) => ({
@@ -317,11 +323,11 @@ const PLAYER_READY_POINT = new THREE.Vector3(
   SHOOTING_READY_Z
 );
 const BOWLING_LOUNGE_CHAIRS = [
-  { pos: new THREE.Vector3(-1.28, CFG.laneY, 7.18), yaw: Math.PI * 0.2 },
-  { pos: new THREE.Vector3(1.28, CFG.laneY, 7.18), yaw: -Math.PI * 0.2 },
-  { pos: new THREE.Vector3(-1.48, CFG.laneY, 8.56), yaw: Math.PI * 0.78 },
-  { pos: new THREE.Vector3(1.48, CFG.laneY, 8.56), yaw: -Math.PI * 0.78 },
-  { pos: new THREE.Vector3(0, CFG.laneY, 9.28), yaw: Math.PI }
+  { pos: new THREE.Vector3(-5.42, CFG.laneY, 6.68), yaw: Math.PI * 0.18 },
+  { pos: new THREE.Vector3(-4.18, CFG.laneY, 6.72), yaw: -Math.PI * 0.16 },
+  { pos: new THREE.Vector3(-5.58, CFG.laneY, 8.24), yaw: Math.PI * 0.78 },
+  { pos: new THREE.Vector3(-4.08, CFG.laneY, 8.22), yaw: -Math.PI * 0.76 },
+  { pos: new THREE.Vector3(-4.86, CFG.laneY, 9.02), yaw: Math.PI }
 ] as { pos: THREE.Vector3; yaw: number }[];
 const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair) => ({
   pos: chair.pos.clone(),
@@ -336,7 +342,7 @@ function keepHumanInBowlingWalkableArea(
   // Keep bowlers off ball returns, furniture, lane caps, and other props with a light-weight ellipse navmesh.
   pos.z = clamp(pos.z, CFG.foulZ + 0.2, 9.82);
   const maxLoungeX = 5.9;
-  const minLoungeX = -5.9;
+  const minLoungeX = -6.35;
   pos.x = clamp(pos.x, minLoungeX, maxLoungeX);
   for (let pass = 0; pass < 2; pass++) {
     for (const obstacle of HUMAN_NAV_OBSTACLES) {
@@ -360,7 +366,7 @@ function keepHumanInBowlingWalkableArea(
 
 function returnSafeWaypointForRig(rig: HumanRig) {
   const side = rig.standPos.x < 0 ? -1 : 1;
-  return new THREE.Vector3(side * 1.42, CFG.laneY, 6.12);
+  return new THREE.Vector3(side * 1.62, CFG.laneY, 6.08);
 }
 
 function returnPickupPointForRig(rig: HumanRig) {
@@ -485,26 +491,46 @@ function recomputePlayerTotals(player: ScorePlayer) {
   player.total = running;
 }
 
+const OFFICIAL_TEN_PIN = {
+  framesPerGame: 10,
+  pinsPerRack: 10,
+  strikeBonusRolls: 2,
+  spareBonusRolls: 1,
+  maxRollsInTenth: 3
+} as const;
+
+function maxPinsAllowedForRoll(frame: BowlingFrame, frameIndex: number) {
+  const rollIndex = frame.rolls.length;
+  const pins = OFFICIAL_TEN_PIN.pinsPerRack;
+  if (frameIndex < OFFICIAL_TEN_PIN.framesPerGame - 1) {
+    return rollIndex === 0 ? pins : pins - (frame.rolls[0] || 0);
+  }
+  if (rollIndex === 0) return pins;
+  if (rollIndex === 1)
+    return frame.rolls[0] === pins ? pins : pins - frame.rolls[0];
+  if (rollIndex === 2 && frame.rolls[0] === pins && frame.rolls[1] !== pins) {
+    return pins - frame.rolls[1];
+  }
+  return pins;
+}
+
+function sanitizeOfficialPinfall(
+  frame: BowlingFrame,
+  frameIndex: number,
+  knocked: number
+) {
+  // Fouls and gutter balls score zero, and no roll can exceed the live rack count.
+  return clamp(knocked, 0, maxPinsAllowedForRoll(frame, frameIndex));
+}
+
 function addRollToPlayer(player: ScorePlayer, knocked: number): RollDecision {
   const frameIndex = currentFrameIndex(player);
   const frame = player.frames[frameIndex];
   const rollIndex = frame.rolls.length;
 
-  if (frameIndex < 9) {
-    if (rollIndex === 0) frame.rolls.push(clamp(knocked, 0, 10));
-    else if (rollIndex === 1)
-      frame.rolls.push(clamp(knocked, 0, 10 - frame.rolls[0]));
-  } else {
-    if (rollIndex === 0) frame.rolls.push(clamp(knocked, 0, 10));
-    else if (rollIndex === 1) {
-      const max = frame.rolls[0] === 10 ? 10 : 10 - frame.rolls[0];
-      frame.rolls.push(clamp(knocked, 0, max));
-    } else if (rollIndex === 2) {
-      let max = 10;
-      if (frame.rolls[0] === 10 && frame.rolls[1] !== 10)
-        max = 10 - frame.rolls[1];
-      frame.rolls.push(clamp(knocked, 0, max));
-    }
+  const scoredPinfall = sanitizeOfficialPinfall(frame, frameIndex, knocked);
+  if (rollIndex < (frameIndex < 9 ? 2 : OFFICIAL_TEN_PIN.maxRollsInTenth)) {
+    frame.rolls.push(scoredPinfall);
   }
 
   recomputePlayerTotals(player);
@@ -517,7 +543,7 @@ function addRollToPlayer(player: ScorePlayer, knocked: number): RollDecision {
       frame,
       frameIndex,
       rollIndex,
-      knocked,
+      scoredPinfall,
       frameEnded
     ),
     gameFinished: playerFinished(player)
@@ -1015,6 +1041,7 @@ function applyHumanWalkMotion(
   rig.model.rotation.x = 0.018 + counter * stride * 0.08;
   rig.model.rotation.y = step * stride * 0.42;
   rig.model.rotation.z = step * stride * 0.17 - turnLean;
+  applySoldierStyleWalkPose(rig, stride);
 }
 
 function findRightHand(modelRoot: THREE.Object3D | null) {
@@ -1137,6 +1164,173 @@ function applyRotationOffset(bone: THREE.Object3D | null, x = 0, y = 0, z = 0) {
   bone.rotation.x += x;
   bone.rotation.y += y;
   bone.rotation.z += z;
+}
+
+function applySoldierStyleWalkPose(rig: HumanRig, stride: number) {
+  if (!rig.model) return;
+  captureBowlingHumanDefaultPose(rig.model);
+  resetBowlingHumanBonePose(rig.model);
+  const phase = rig.walkCycle;
+  const swing = Math.sin(phase);
+  const counterSwing = Math.sin(phase + Math.PI);
+  const lift = Math.max(0, Math.sin(phase + Math.PI / 2));
+  const counterLift = Math.max(0, Math.sin(phase + Math.PI * 1.5));
+  const turnLean = clamp(rig.yawVelocity * 0.0028, -0.08, 0.08);
+
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'hips'),
+    0.02 * stride,
+    0,
+    -turnLean
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'spine'),
+    -0.045 * stride,
+    swing * 0.035 * stride,
+    -turnLean * 0.6
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftUpperArm'),
+    counterSwing * 0.5 * stride,
+    0,
+    -0.06 * stride
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightUpperArm'),
+    swing * 0.5 * stride,
+    0,
+    0.06 * stride
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftForeArm'),
+    Math.max(0, -counterSwing) * 0.22 * stride,
+    0,
+    0
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightForeArm'),
+    Math.max(0, -swing) * 0.22 * stride,
+    0,
+    0
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftThigh'),
+    swing * 0.48 * stride,
+    0,
+    0.025 * stride
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightThigh'),
+    counterSwing * 0.48 * stride,
+    0,
+    -0.025 * stride
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftCalf'),
+    -lift * 0.46 * stride,
+    0,
+    0
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightCalf'),
+    -counterLift * 0.46 * stride,
+    0,
+    0
+  );
+}
+
+function applyBowlingReleaseBonePose(rig: HumanRig, t: number) {
+  if (!rig.model) return;
+  captureBowlingHumanDefaultPose(rig.model);
+  resetBowlingHumanBonePose(rig.model);
+  const deg = THREE.MathUtils.degToRad;
+  const windup = clamp01(t / 0.3);
+  const drive = clamp01((t - 0.28) / (CFG.releaseT - 0.28));
+  const follow = clamp01((t - CFG.releaseT) / (1 - CFG.releaseT));
+  const plant = easeInOut(clamp01(t / CFG.releaseT));
+  const finish = easeOutCubic(follow);
+
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'hips'),
+    deg(lerp(0, -13, plant)),
+    deg(lerp(-7, 16, drive)),
+    deg(lerp(0, -6, plant))
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'spine'),
+    deg(lerp(2, 18, plant) - finish * 7),
+    deg(lerp(4, -12, drive)),
+    deg(lerp(0, 10, plant))
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'head'),
+    deg(lerp(0, -5, plant)),
+    0,
+    deg(lerp(0, -4, plant))
+  );
+
+  // Left foot plants just behind the foul line while the right trail foot lifts slightly.
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftThigh'),
+    deg(lerp(10, -34, plant)),
+    deg(4),
+    deg(3)
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftCalf'),
+    deg(lerp(-4, 18, plant)),
+    0,
+    0
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightThigh'),
+    deg(lerp(-8, 30, plant) + finish * 14),
+    deg(-8),
+    deg(-12)
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightCalf'),
+    deg(lerp(2, -42, plant) - finish * 16),
+    0,
+    deg(5)
+  );
+
+  // Right hand carries the ball back, drives through release, then follows forward/up.
+  const rightBack = lerp(-18, 72, windup);
+  const rightForward = lerp(rightBack, -118, drive);
+  const rightFinish = lerp(rightForward, 58, finish);
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightUpperArm'),
+    deg(rightFinish),
+    deg(lerp(8, -6, drive)),
+    deg(lerp(8, 20, finish))
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightForeArm'),
+    deg(lerp(18, -22, drive) + finish * 22),
+    deg(0),
+    deg(lerp(0, 10, finish))
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'rightHand'),
+    deg(lerp(8, -24, drive) + finish * 18),
+    0,
+    deg(lerp(0, 16, finish))
+  );
+
+  // Left arm counter-balances low/back like a real right-handed bowler.
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftUpperArm'),
+    deg(lerp(-8, -46, plant) + finish * 10),
+    deg(lerp(-8, -24, plant)),
+    deg(lerp(-10, -36, plant))
+  );
+  applyRotationOffset(
+    bowlingPoseBone(rig.model, 'leftForeArm'),
+    deg(lerp(8, 24, plant)),
+    deg(-8),
+    deg(-8)
+  );
 }
 
 function applyMurlanSeatedBonePose(model: THREE.Object3D | null) {
@@ -2071,9 +2265,9 @@ function createEnvironment(
     metalness: 0.01
   });
   const sideFloorMat = new THREE.MeshStandardMaterial({
-    color: 0x171417,
-    roughness: 0.78,
-    metalness: 0.02
+    color: 0x2f3235,
+    roughness: 0.86,
+    metalness: 0.015
   });
   const rubberMat = new THREE.MeshStandardMaterial({
     color: 0x05070a,
@@ -2094,14 +2288,14 @@ function createEnvironment(
   });
 
   const sideFloor = new THREE.Mesh(
-    new THREE.PlaneGeometry(8.4, 27.8),
+    new THREE.PlaneGeometry(12.8, 27.8),
     sideFloorMat
   );
   sideFloor.rotation.x = -Math.PI / 2;
   sideFloor.position.set(0, CFG.laneY - 0.024, -3.72);
   group.add(sideFloor);
   const loungeCarpet = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, 4.95),
+    new THREE.PlaneGeometry(3.45, 4.25),
     carpetMat
   );
   loungeCarpet.rotation.x = -Math.PI / 2;
@@ -2114,7 +2308,7 @@ function createEnvironment(
 
   const pairHalfW = CFG.laneCenterOffset + CFG.gutterHalfW + 0.32;
   const approach = new THREE.Mesh(
-    new THREE.PlaneGeometry(pairHalfW * 2, 5.05, 44, 28),
+    new THREE.PlaneGeometry(CFG.laneHalfW * 2 + 0.62, 5.05, 44, 28),
     woodMat
   );
   approach.rotation.x = -Math.PI / 2;
@@ -2258,16 +2452,6 @@ function createEnvironment(
         -5.98
       );
       group.add(gutter);
-      const cap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.22, 23.75),
-        woodMat
-      );
-      cap.position.set(
-        laneCenter + side * (CFG.laneHalfW + 0.5),
-        CFG.laneY + 0.07,
-        -5.98
-      );
-      group.add(cap);
     }
     const foulLine = new THREE.Mesh(
       new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.08, 0.018, 0.055),
@@ -2373,7 +2557,7 @@ function createEnvironment(
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.86, 4.2),
-        woodMat
+        blackMat
       );
       kickback.position.set(
         laneCenter + x * (CFG.laneHalfW + 0.52),
@@ -3211,7 +3395,8 @@ function updateHuman(
     animateFallbackHuman(rig, 'bowl', clamp01(rig.throwT));
     if (rig.model) {
       const t = clamp01(rig.throwT);
-      // right-handed delivery with anticipation, shoulder/hip separation, slide, and follow-through.
+      // right-handed delivery with a planted left foot, trailing right foot, and a forward release.
+      applyBowlingReleaseBonePose(rig, t);
       const windup = clamp01(t / 0.32);
       const drive = clamp01((t - 0.26) / (CFG.releaseT - 0.26));
       const follow = clamp01((t - CFG.releaseT) / (1 - CFG.releaseT));
@@ -3230,22 +3415,6 @@ function updateHuman(
       rig.model.position.x = lerp(0.04, -0.12, drive) + follow * 0.08;
       rig.model.position.z =
         lerp(0.07, -0.18, drive) + follow * 0.12 + slideDrag;
-      const rightHand = findRightHand(rig.model) as THREE.Object3D | null;
-      if (rightHand) {
-        if (t < 0.3) {
-          const k = easeInOut(t / 0.3);
-          rightHand.rotation.x = lerp(0.08, 0.82, k);
-          rightHand.rotation.z = lerp(0, -0.2, k);
-        } else if (t < CFG.releaseT) {
-          const k = easeInOut((t - 0.3) / (CFG.releaseT - 0.3));
-          rightHand.rotation.x = lerp(0.82, -2.04, k);
-          rightHand.rotation.z = lerp(-0.2, 0.12, k);
-        } else {
-          const k = easeOutCubic(follow);
-          rightHand.rotation.x = lerp(-2.04, 1.12, k);
-          rightHand.rotation.z = lerp(0.12, 0.34, k);
-        }
-      }
     }
     if (rig.throwT >= 1) {
       rig.action = 'recover';
@@ -4040,10 +4209,11 @@ export default function MobileBowlingRealistic() {
     const rawY = -(e.clientY - cy) / max;
     const len = Math.hypot(rawX, rawY);
     const scale = len > 1 ? 1 / len : 1;
-    const value = {
-      x: clamp(rawX * scale, -1, 1),
-      y: clamp(rawY * scale, -1, 1)
-    };
+    const value = computeQuantizedOffsetScaled(
+      clamp(rawX * scale, -1, 1),
+      clamp(rawY * scale, -1, 1),
+      { maxOffset: MAX_SPIN_OFFSET }
+    );
     spinControlRef.current = value;
     setSpinKnob({ x: value.x * max, y: -value.y * max });
   };
