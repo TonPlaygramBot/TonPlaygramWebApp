@@ -1,2633 +1,1036 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { MURLAN_CHARACTER_THEMES } from '../config/murlanCharacterThemes.js';
 
 type Team = 'blue' | 'red';
-type AnimName = 'Idle' | 'Walk' | 'Run';
+type MatchPhase = 'ready' | 'playing' | 'goal' | 'finished';
 
-type Bones = {
-  hips?: THREE.Bone;
-  spine?: THREE.Bone;
-  rightUpLeg?: THREE.Bone;
-  rightLeg?: THREE.Bone;
-  rightFoot?: THREE.Bone;
-  leftUpLeg?: THREE.Bone;
-  leftLeg?: THREE.Bone;
-  leftFoot?: THREE.Bone;
-};
-
-type KickFoot = 'left' | 'right';
-type Player = {
+type PlayerState = {
   team: Team;
-  root: THREE.Group;
-  model: THREE.Object3D | null;
-  fallback: THREE.Group;
-  mixer: THREE.AnimationMixer | null;
-  actions: Partial<Record<AnimName, THREE.AnimationAction>>;
-  current: AnimName;
-  bones: Bones;
-  bind: WeakMap<THREE.Bone, THREE.Quaternion>;
+  group: THREE.Group;
+  body: THREE.Mesh;
+  head: THREE.Mesh;
+  leftFoot: THREE.Mesh;
+  rightFoot: THREE.Mesh;
+  arrow: THREE.Mesh;
+  shadow: THREE.Mesh;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
-  dir: THREE.Vector3;
-  targetDir: THREE.Vector3;
-  speed: number;
+  facing: THREE.Vector3;
   radius: number;
-  kickTime: number;
-  kickQueued: boolean;
-  kickFired: boolean;
-  kickFoot: KickFoot;
-  queuedShotDir: THREE.Vector3 | null;
-  queuedShotPower: number;
-  queuedShotLift: number;
+  stamina: number;
+  dashCooldown: number;
+  tackleCooldown: number;
   tackleTime: number;
-  tackleQueued: boolean;
-  tackleFired: boolean;
-  fallTime: number;
-  fallDir: THREE.Vector3;
-  loaded: boolean;
+  kickCooldown: number;
+  stunTime: number;
+  possession: number;
+  target: THREE.Vector3;
+  name: string;
 };
 
-type InputState = { x: number; y: number; sprint: boolean; tackle: boolean };
+type BallState = {
+  mesh: THREE.Mesh;
+  halo: THREE.Mesh;
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  spin: THREE.Vector3;
+  radius: number;
+  owner: Team | null;
+};
+
+type InputState = {
+  x: number;
+  y: number;
+  sprint: boolean;
+  tackle: boolean;
+  shoot: boolean;
+};
 
 type SwipeShot = {
   dir: THREE.Vector3;
   power: number;
-  lift: number;
-  screenPower: number;
+  curve: number;
 };
 
-type SwipeState = {
-  pointerId: number | null;
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  active: boolean;
+type HudState = {
+  blue: number;
+  red: number;
+  clock: number;
+  phase: MatchPhase;
+  status: string;
+  stamina: number;
+  boost: string;
 };
 
-type SeatedSpectator = {
-  root: THREE.Group;
-  fallback: THREE.Group;
-  instance: THREE.Object3D | null;
-  bones: Partial<
-    Record<
-      | 'hips'
-      | 'spine'
-      | 'head'
-      | 'leftUpperArm'
-      | 'leftForeArm'
-      | 'leftHand'
-      | 'rightUpperArm'
-      | 'rightForeArm'
-      | 'rightHand'
-      | 'leftThigh'
-      | 'leftCalf'
-      | 'rightThigh'
-      | 'rightCalf',
-      THREE.Bone
-    >
-  >;
-  base: Partial<
-    Record<
-      | 'hips'
-      | 'spine'
-      | 'head'
-      | 'leftUpperArm'
-      | 'leftForeArm'
-      | 'leftHand'
-      | 'rightUpperArm'
-      | 'rightForeArm'
-      | 'rightHand'
-      | 'leftThigh'
-      | 'leftCalf'
-      | 'rightThigh'
-      | 'rightCalf',
-      THREE.Euler
-    >
-  >;
-  index: number;
+type MatchRuntime = {
+  scene: THREE.Scene;
+  renderer: THREE.WebGLRenderer;
+  camera: THREE.PerspectiveCamera;
+  blue: PlayerState;
+  red: PlayerState;
+  ball: BallState;
+  clock: number;
+  blueScore: number;
+  redScore: number;
+  phase: MatchPhase;
+  phaseTimer: number;
+  lastGoalTeam: Team | null;
+  cameraTarget: THREE.Vector3;
+  particles: THREE.Group;
+  crowd: THREE.Group;
 };
 
-type StadiumRig = { spectators: SeatedSpectator[]; cheerTime: number };
-
-type ReplayFrame = {
-  ball: THREE.Vector3;
-  ballQuat: THREE.Quaternion;
-  blue: THREE.Vector3;
-  blueRot: THREE.Euler;
-  red: THREE.Vector3;
-  redRot: THREE.Euler;
-  cam: THREE.Vector3;
-  look: THREE.Vector3;
-};
-
-type BallState = {
-  object: THREE.Group;
-  vel: THREE.Vector3;
-  spin: THREE.Vector3;
-  lastSafe: THREE.Vector3;
-  stuckTimer: number;
-};
-
-const HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-const MURLAN_CHARACTER_URLS = MURLAN_CHARACTER_THEMES.map(
-  (theme) => theme.modelUrls?.[0] ?? theme.url
-).filter(Boolean);
-const MURLAN_CHARACTER_COLORS = [
-  0x1d69ff, 0xdc2626, 0x16a34a, 0xfacc15, 0x7c3aed, 0xf97316, 0x0891b2
-];
-const SPECTATOR_ROWS_FILLED = 4;
-const SPECTATORS_PER_ROW_TARGET = 12;
-const SPECTATOR_SCALE = 0.095;
-const SPECTATOR_FALLBACK_SCALE = 0.105;
-const SPECTATOR_SEAT_Y = 0.03;
-const SPECTATOR_SEAT_Z = 0.03;
-const SEATED_CHARACTER_TEMPLATE_CACHE = new Map<
-  string,
-  Promise<THREE.Object3D>
->();
-
-const FIELD_W = 3.35;
-const FIELD_H = 5.05;
-const GOAL_W = 1.12;
-const GOAL_H = 0.58;
-const GOAL_D = 0.46;
-const PLAYER_RADIUS = 0.115;
-const BALL_RADIUS = 0.078;
-const WALK_SPEED = 1.05;
-const SPRINT_SPEED = 1.78;
-const AI_SPEED = 1.16;
-const KICK_RANGE = 0.56;
-const DRIBBLE_ASSIST_RANGE = 0.34;
-const MATCH_TARGET_SCORE = 3;
-const GROUND_Y = 0;
-const DT_MAX = 1 / 30;
+const FIELD_W = 7.4;
+const FIELD_H = 11.4;
+const GOAL_W = 2.28;
+const GOAL_DEPTH = 0.62;
+const PLAYER_RADIUS = 0.28;
+const BALL_RADIUS = 0.16;
+const MATCH_SECONDS = 90;
+const TARGET_SCORE = 5;
+const WALK_SPEED = 3.05;
+const SPRINT_SPEED = 4.85;
+const AI_SPEED = 3.55;
+const BALL_DAMPING = 0.985;
+const WALL_BOUNCE = 0.78;
+const TOUCH_RANGE = 0.62;
+const KICK_RANGE = 0.78;
+const DT_CAP = 1 / 32;
 const TMP = new THREE.Vector3();
 const TMP2 = new THREE.Vector3();
 const TMP3 = new THREE.Vector3();
-const QTMP = new THREE.Quaternion();
+const BLUE = 0x21a7ff;
+const RED = 0xff315a;
 
-function mat(color: number, roughness = 0.78, metalness = 0.02) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+const buttonStyle: React.CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.26)',
+  borderRadius: 20,
+  minWidth: 88,
+  height: 56,
+  padding: '0 16px',
+  color: '#fff',
+  fontWeight: 900,
+  letterSpacing: 0.2,
+  background: 'linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.9))',
+  boxShadow: '0 16px 34px rgba(0,0,0,0.35)',
+  touchAction: 'none'
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
-function shadow<T extends THREE.Object3D>(o: T) {
-  o.traverse((c) => {
-    const m = c as THREE.Mesh;
-    if (m.isMesh) {
-      m.castShadow = true;
-      m.receiveShadow = true;
-      m.frustumCulled = false;
-    }
-  });
-  return o;
+function damp(value: number, target: number, lambda: number, dt: number) {
+  return THREE.MathUtils.damp(value, target, lambda, dt);
 }
 
-function clean(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+function flat(v: THREE.Vector3) {
+  v.y = 0;
+  return v;
 }
 
-function findBones(model: THREE.Object3D): Bones {
-  const b: Bones = {};
-  model.traverse((o) => {
-    const bone = o as THREE.Bone;
-    if (!bone.isBone) return;
-    const n = clean(bone.name);
-    if (!b.hips && n.includes('hips')) b.hips = bone;
-    if (!b.spine && n.includes('spine')) b.spine = bone;
-    if (
-      !b.rightUpLeg &&
-      (n.includes('rightupleg') ||
-        n.includes('rightthigh') ||
-        n.includes('rthigh'))
-    )
-      b.rightUpLeg = bone;
-    if (
-      !b.leftUpLeg &&
-      (n.includes('leftupleg') ||
-        n.includes('leftthigh') ||
-        n.includes('lthigh'))
-    )
-      b.leftUpLeg = bone;
-    if (
-      !b.rightLeg &&
-      !n.includes('foot') &&
-      !n.includes('upleg') &&
-      (n.includes('rightleg') ||
-        n.includes('rightcalf') ||
-        n.includes('rightshin'))
-    )
-      b.rightLeg = bone;
-    if (
-      !b.leftLeg &&
-      !n.includes('foot') &&
-      !n.includes('upleg') &&
-      (n.includes('leftleg') ||
-        n.includes('leftcalf') ||
-        n.includes('leftshin'))
-    )
-      b.leftLeg = bone;
-    if (!b.rightFoot && n.includes('rightfoot')) b.rightFoot = bone;
-    if (!b.leftFoot && n.includes('leftfoot')) b.leftFoot = bone;
-  });
-  return b;
-}
-
-function saveBind(model: THREE.Object3D) {
-  const bind = new WeakMap<THREE.Bone, THREE.Quaternion>();
-  model.traverse((o) => {
-    const bone = o as THREE.Bone;
-    if (bone.isBone) bind.set(bone, bone.quaternion.clone());
-  });
-  return bind;
-}
-
-function normalizeAnimatedHuman(model: THREE.Object3D, height = 0.92) {
-  model.rotation.set(0, Math.PI, 0);
-  model.scale.setScalar(1);
-  model.updateMatrixWorld(true);
-  let box = new THREE.Box3().setFromObject(model);
-  const h = Math.max(0.001, box.max.y - box.min.y);
-  model.scale.setScalar(height / h);
-  model.updateMatrixWorld(true);
-  box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.x -= center.x;
-  model.position.z -= center.z;
-  model.position.y -= box.min.y;
-  model.updateMatrixWorld(true);
-}
-
-function tintPlayer(model: THREE.Object3D, team: Team) {
-  const tint = new THREE.Color(team === 'blue' ? 0x1d69ff : 0xd92f2f);
-  model.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    mats.forEach((raw) => {
-      const material = raw as THREE.MeshStandardMaterial;
-      if (material.color) material.color.lerp(tint, 0.32);
-      material.needsUpdate = true;
-    });
-  });
-}
-
-function createSoccerBallTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#111827';
-  ctx.lineWidth = 5;
-  ctx.fillStyle = '#111827';
-  for (let y = 34; y < 256; y += 64) {
-    for (let x = (y / 64) % 2 ? 32 : 76; x < 512; x += 96) {
-      ctx.beginPath();
-      for (let i = 0; i < 5; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
-        const px = x + Math.cos(a) * 18;
-        const py = y + Math.sin(a) * 18;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      for (let i = 0; i < 5; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
-        ctx.beginPath();
-        ctx.moveTo(x + Math.cos(a) * 20, y + Math.sin(a) * 20);
-        ctx.lineTo(x + Math.cos(a) * 42, y + Math.sin(a) * 42);
-        ctx.stroke();
-      }
-    }
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-  return tex;
-}
-
-function findBoneByHints(root: THREE.Object3D, hints: string[] = []) {
-  let matched: THREE.Bone | null = null;
-  root.traverse((obj) => {
-    const bone = obj as THREE.Bone;
-    if (matched || !bone.isBone) return;
-    const name = String(bone.name || '').toLowerCase();
-    if (name && hints.some((hint) => name.includes(hint))) matched = bone;
-  });
-  return matched;
-}
-
-function captureBoneRotation(bone: THREE.Bone | null | undefined) {
-  return bone ? bone.rotation.clone() : new THREE.Euler();
-}
-
-function applyRotationOffset(
-  bone: THREE.Bone | null | undefined,
-  x = 0,
-  y = 0,
-  z = 0
-) {
-  if (!bone) return;
-  bone.rotation.x += x;
-  bone.rotation.y += y;
-  bone.rotation.z += z;
-}
-
-function normalizeCharacterPivot(characterRoot: THREE.Object3D) {
-  characterRoot.scale.setScalar(1);
-  characterRoot.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(characterRoot);
-  if (box.isEmpty()) return;
-  const h = Math.max(0.001, box.max.y - box.min.y);
-  characterRoot.scale.setScalar(SPECTATOR_SCALE / h);
-  characterRoot.updateMatrixWorld(true);
-  const scaledBox = new THREE.Box3().setFromObject(characterRoot);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  characterRoot.position.x -= center.x;
-  characterRoot.position.y -= scaledBox.min.y;
-  characterRoot.position.z -= center.z;
-}
-
-function applyMurlanSeatedPose(instance: THREE.Object3D) {
-  const bones = {
-    hips: findBoneByHints(instance, [
-      'hips',
-      'pelvis',
-      'pelvisjoint',
-      'hip_joint'
-    ]),
-    spine: findBoneByHints(instance, ['spine', 'chest', 'torso']),
-    head: findBoneByHints(instance, [
-      'head',
-      'neck',
-      'headjoint',
-      'head_joint'
-    ]),
-    rightUpperArm: findBoneByHints(instance, [
-      'rightarm',
-      'arm.r',
-      'r_upperarm',
-      'rightshoulder',
-      'armjointr',
-      'arm_joint_r_1',
-      'arm_joint_r',
-      'shoulderr'
-    ]),
-    rightForeArm: findBoneByHints(instance, [
-      'rightforearm',
-      'r_forearm',
-      'rightlowerarm',
-      'forearmr',
-      'elbowr',
-      'arm_joint_r_2',
-      'arm_joint_r_3'
-    ]),
-    rightHand: findBoneByHints(instance, [
-      'righthand',
-      'hand.r',
-      'r_hand',
-      'handjointr',
-      'hand_joint_r'
-    ]),
-    leftUpperArm: findBoneByHints(instance, [
-      'leftarm',
-      'arm.l',
-      'l_upperarm',
-      'leftshoulder',
-      'armjointl',
-      'arm_joint_l_1',
-      'arm_joint_l',
-      'shoulderl'
-    ]),
-    leftForeArm: findBoneByHints(instance, [
-      'leftforearm',
-      'l_forearm',
-      'leftlowerarm',
-      'forearml',
-      'elbowl',
-      'arm_joint_l_2',
-      'arm_joint_l_3'
-    ]),
-    leftHand: findBoneByHints(instance, [
-      'lefthand',
-      'hand.l',
-      'l_hand',
-      'handjointl',
-      'hand_joint_l'
-    ]),
-    leftThigh: findBoneByHints(instance, [
-      'leftupleg',
-      'leftthigh',
-      'l_thigh',
-      'legjointl1',
-      'leg_joint_l_1',
-      'leg_joint_l'
-    ]),
-    leftCalf: findBoneByHints(instance, [
-      'leftleg',
-      'leftcalf',
-      'l_calf',
-      'legjointl2',
-      'leg_joint_l_2',
-      'leg_joint_l_3'
-    ]),
-    rightThigh: findBoneByHints(instance, [
-      'rightupleg',
-      'rightthigh',
-      'r_thigh',
-      'legjointr1',
-      'leg_joint_r_1',
-      'leg_joint_r'
-    ]),
-    rightCalf: findBoneByHints(instance, [
-      'rightleg',
-      'rightcalf',
-      'r_calf',
-      'legjointr2',
-      'leg_joint_r_2',
-      'leg_joint_r_3'
-    ])
-  };
-  applyRotationOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
-  applyRotationOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
-  applyRotationOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(
-    bones.leftUpperArm,
-    THREE.MathUtils.degToRad(-53),
-    THREE.MathUtils.degToRad(-6),
-    THREE.MathUtils.degToRad(-2)
-  );
-  applyRotationOffset(
-    bones.leftForeArm,
-    THREE.MathUtils.degToRad(40),
-    THREE.MathUtils.degToRad(-3),
-    THREE.MathUtils.degToRad(-2)
-  );
-  applyRotationOffset(
-    bones.leftHand,
-    THREE.MathUtils.degToRad(11),
-    THREE.MathUtils.degToRad(-4),
-    THREE.MathUtils.degToRad(-2)
-  );
-  applyRotationOffset(
-    bones.rightUpperArm,
-    THREE.MathUtils.degToRad(-57),
-    THREE.MathUtils.degToRad(6),
-    THREE.MathUtils.degToRad(2)
-  );
-  applyRotationOffset(
-    bones.rightForeArm,
-    THREE.MathUtils.degToRad(44),
-    THREE.MathUtils.degToRad(3),
-    THREE.MathUtils.degToRad(2)
-  );
-  applyRotationOffset(
-    bones.rightHand,
-    THREE.MathUtils.degToRad(13),
-    THREE.MathUtils.degToRad(4),
-    THREE.MathUtils.degToRad(2)
-  );
-  applyRotationOffset(
-    bones.leftThigh,
-    THREE.MathUtils.degToRad(-90.5),
-    THREE.MathUtils.degToRad(9.2),
-    THREE.MathUtils.degToRad(2.9)
-  );
-  applyRotationOffset(
-    bones.rightThigh,
-    THREE.MathUtils.degToRad(-90.5),
-    THREE.MathUtils.degToRad(1.7),
-    THREE.MathUtils.degToRad(-1.1)
-  );
-  applyRotationOffset(
-    bones.leftCalf,
-    THREE.MathUtils.degToRad(-95.1),
-    THREE.MathUtils.degToRad(1.1),
-    THREE.MathUtils.degToRad(0.6)
-  );
-  applyRotationOffset(
-    bones.rightCalf,
-    THREE.MathUtils.degToRad(-95.1),
-    THREE.MathUtils.degToRad(-1.1),
-    THREE.MathUtils.degToRad(-0.6)
-  );
-  return {
-    bones,
-    base: Object.fromEntries(
-      Object.entries(bones).map(([key, bone]) => [
-        key,
-        captureBoneRotation(bone)
-      ])
-    )
-  };
-}
-
-function createSeatedFallbackSpectator(color: number) {
-  const group = new THREE.Group();
-  group.name = 'murlan-seated-fallback';
-  group.scale.setScalar(SPECTATOR_FALLBACK_SCALE);
-  group.position.set(0, SPECTATOR_SEAT_Y, SPECTATOR_SEAT_Z);
-  const shirt = mat(color, 0.72, 0.02);
-  const skin = mat(0xf1d6bd, 0.7, 0.02);
-  const dark = mat(0x171717, 0.68, 0.03);
-  const sleeve = mat(0xe5e7eb, 0.68, 0.02);
-  const torso = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.18, 0.54, 8, 12),
-    shirt
-  );
-  torso.position.set(0, 0.78, -0.05);
-  torso.rotation.x = THREE.MathUtils.degToRad(-9);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 12), skin);
-  head.position.set(0, 1.22, -0.1);
-  const leftThigh = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.055, 0.42, 6, 10),
-    dark
-  );
-  const rightThigh = leftThigh.clone();
-  leftThigh.position.set(-0.085, 0.45, 0.14);
-  rightThigh.position.set(0.085, 0.45, 0.14);
-  leftThigh.rotation.x = THREE.MathUtils.degToRad(88);
-  rightThigh.rotation.x = THREE.MathUtils.degToRad(88);
-  const leftCalf = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.052, 0.46, 6, 10),
-    dark
-  );
-  const rightCalf = leftCalf.clone();
-  leftCalf.position.set(-0.085, 0.22, 0.34);
-  rightCalf.position.set(0.085, 0.22, 0.34);
-  leftCalf.rotation.x = THREE.MathUtils.degToRad(8);
-  rightCalf.rotation.x = THREE.MathUtils.degToRad(8);
-  const leftArm = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.04, 0.4, 6, 10),
-    sleeve
-  );
-  leftArm.name = 'leftCheerArm';
-  const rightArm = leftArm.clone();
-  rightArm.name = 'rightCheerArm';
-  leftArm.position.set(-0.22, 0.72, 0.02);
-  rightArm.position.set(0.22, 0.72, 0.02);
-  leftArm.rotation.set(
-    THREE.MathUtils.degToRad(-53),
-    THREE.MathUtils.degToRad(-6),
-    THREE.MathUtils.degToRad(-8)
-  );
-  rightArm.rotation.set(
-    THREE.MathUtils.degToRad(-57),
-    THREE.MathUtils.degToRad(6),
-    THREE.MathUtils.degToRad(8)
-  );
-  group.add(
-    shadow(torso),
-    shadow(head),
-    shadow(leftThigh),
-    shadow(rightThigh),
-    shadow(leftCalf),
-    shadow(rightCalf),
-    shadow(leftArm),
-    shadow(rightArm)
-  );
-  return group;
-}
-
-function loadSeatedCharacterTemplate(loader: GLTFLoader, modelUrl: string) {
-  const cached = SEATED_CHARACTER_TEMPLATE_CACHE.get(modelUrl);
-  if (cached) return cached;
-  const promise = new Promise<THREE.Object3D>((resolve, reject) => {
-    loader
-      .setCrossOrigin('anonymous')
-      .load(modelUrl, (gltf) => resolve(gltf.scene), undefined, reject);
-  });
-  SEATED_CHARACTER_TEMPLATE_CACHE.set(modelUrl, promise);
-  return promise;
-}
-
-function makeChair(color: number) {
-  const chair = new THREE.Group();
-  const shell = mat(color, 0.74, 0.03);
-  const metal = mat(0x94a3b8, 0.44, 0.18);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.018, 0.13), shell);
-  seat.position.set(0, 0.035, 0.02);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.11, 0.018), shell);
-  back.position.set(0, 0.095, -0.045);
-  back.rotation.x = THREE.MathUtils.degToRad(-8);
-  [-0.055, 0.055].forEach((x) =>
-    [-0.035, 0.07].forEach((z) => {
-      const leg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.006, 0.006, 0.08, 8),
-        metal
-      );
-      leg.position.set(x, -0.005, z);
-      chair.add(shadow(leg));
-    })
-  );
-  chair.add(shadow(seat), shadow(back));
-  return chair;
-}
-
-function attachMurlanSeatedSpectator(
-  chair: THREE.Group,
-  loader: GLTFLoader,
-  modelUrl: string,
-  index: number,
-  kitColor: number
-) {
-  const root = new THREE.Group();
-  root.name = 'murlan-seated-spectator';
-  root.position.set(0, SPECTATOR_SEAT_Y, SPECTATOR_SEAT_Z);
-  root.rotation.y = Math.PI;
-  const fallback = createSeatedFallbackSpectator(kitColor);
-  fallback.rotation.y = Math.PI;
-  const spectator: SeatedSpectator = {
-    root,
-    fallback,
-    instance: null,
-    bones: {},
-    base: {},
-    index
-  };
-  chair.add(root, fallback);
-  loadSeatedCharacterTemplate(loader, modelUrl)
-    .then((template) => {
-      const instance = cloneSkeleton(template);
-      instance.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.frustumCulled = false;
-        const mats = Array.isArray(mesh.material)
-          ? mesh.material
-          : [mesh.material];
-        mats.forEach((raw) => {
-          const matRef = raw as THREE.MeshStandardMaterial;
-          if (matRef?.map) matRef.map.colorSpace = THREE.SRGBColorSpace;
-          if (matRef) matRef.needsUpdate = true;
-        });
-      });
-      normalizeCharacterPivot(instance);
-      instance.position.y -= 0.01;
-      const rig = applyMurlanSeatedPose(instance);
-      spectator.instance = instance;
-      spectator.bones = rig.bones;
-      spectator.base = rig.base;
-      root.add(instance);
-      fallback.visible = false;
-    })
-    .catch(() => {
-      fallback.visible = true;
-    });
-  return spectator;
-}
-
-function applySeatedSpectatorPose(spectator: SeatedSpectator, cheerTime = 0) {
-  const cheer = cheerTime > 0;
-  const phase = performance.now() * 0.008 + spectator.index * 0.73;
-  const wave = Math.sin(phase);
-  const standUp = cheer
-    ? THREE.MathUtils.smoothstep(cheerTime, 0.34, 0.95) *
-      THREE.MathUtils.smoothstep(3.0 - cheerTime, 0.12, 0.5)
-    : 0;
-  const bounce = Math.abs(wave) * (cheer ? 0.007 : 0.0025);
-  spectator.root.position.y = SPECTATOR_SEAT_Y + standUp * 0.11 + bounce;
-  spectator.root.position.z = SPECTATOR_SEAT_Z - standUp * 0.03;
-  spectator.fallback.position.y = SPECTATOR_SEAT_Y + standUp * 0.11 + bounce;
-  spectator.fallback.position.z = SPECTATOR_SEAT_Z - standUp * 0.03;
-  spectator.fallback.scale.y = SPECTATOR_FALLBACK_SCALE * (1 + standUp * 0.18);
-  const leftUpperArm = spectator.bones.leftUpperArm;
-  const rightUpperArm = spectator.bones.rightUpperArm;
-  const leftForeArm = spectator.bones.leftForeArm;
-  const rightForeArm = spectator.bones.rightForeArm;
-  if (leftUpperArm && spectator.base.leftUpperArm) {
-    leftUpperArm.rotation.x = THREE.MathUtils.lerp(
-      spectator.base.leftUpperArm.x,
-      -2.75 + wave * 0.14,
-      standUp
-    );
-    leftUpperArm.rotation.z = THREE.MathUtils.lerp(
-      spectator.base.leftUpperArm.z - Math.abs(wave) * 0.18,
-      -0.32 + wave * 0.16,
-      standUp
-    );
-  }
-  if (rightUpperArm && spectator.base.rightUpperArm) {
-    rightUpperArm.rotation.x = THREE.MathUtils.lerp(
-      spectator.base.rightUpperArm.x,
-      -2.75 - wave * 0.14,
-      standUp
-    );
-    rightUpperArm.rotation.z = THREE.MathUtils.lerp(
-      spectator.base.rightUpperArm.z + Math.abs(wave) * 0.18,
-      0.32 + wave * 0.16,
-      standUp
-    );
-  }
-  if (leftForeArm && spectator.base.leftForeArm)
-    leftForeArm.rotation.x = THREE.MathUtils.lerp(
-      spectator.base.leftForeArm.x,
-      -0.3 + wave * 0.22,
-      standUp
-    );
-  if (rightForeArm && spectator.base.rightForeArm)
-    rightForeArm.rotation.x = THREE.MathUtils.lerp(
-      spectator.base.rightForeArm.x,
-      -0.3 - wave * 0.22,
-      standUp
-    );
-  spectator.fallback.children.forEach((child) => {
-    if (child.name === 'leftCheerArm')
-      child.rotation.x = THREE.MathUtils.lerp(
-        THREE.MathUtils.degToRad(-53),
-        -2.55 + wave * 0.18,
-        standUp
-      );
-    if (child.name === 'rightCheerArm')
-      child.rotation.x = THREE.MathUtils.lerp(
-        THREE.MathUtils.degToRad(-57),
-        -2.55 - wave * 0.18,
-        standUp
-      );
-  });
-}
-
-function triggerCrowdCheer(stadium: StadiumRig) {
-  stadium.cheerTime = 3.0;
-}
-
-function updateStadiumCrowd(stadium: StadiumRig, dt: number) {
-  stadium.cheerTime = Math.max(0, stadium.cheerTime - dt);
-  stadium.spectators.forEach((spectator) =>
-    applySeatedSpectatorPose(spectator, stadium.cheerTime)
-  );
-}
-
-function clampPlayerPosition(p: THREE.Vector3) {
-  const x = FIELD_W / 2 - PLAYER_RADIUS - 0.08;
-  const z = FIELD_H / 2 - PLAYER_RADIUS - 0.08;
-  p.x = THREE.MathUtils.clamp(p.x, -x, x);
-  p.z = THREE.MathUtils.clamp(p.z, -z, z);
-  p.y = GROUND_Y;
-}
-
-function makeFallback(team: Team) {
-  const g = new THREE.Group();
-  const color = team === 'blue' ? 0x1d69ff : 0xd92f2f;
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.1, 0.35, 8, 14),
-    mat(color)
-  );
-  body.position.y = 0.55;
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 18, 12),
-    mat(0xf1d6bd)
-  );
-  head.position.y = 0.83;
-  const legL = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.03, 0.32, 6, 10),
-    mat(0x202020)
-  );
-  const legR = legL.clone();
-  legL.position.set(-0.045, 0.22, 0);
-  legR.position.set(0.045, 0.22, 0);
-  g.add(shadow(body), shadow(head), shadow(legL), shadow(legR));
-  return g;
-}
-
-function createPlayer(
-  scene: THREE.Scene,
-  loader: GLTFLoader,
-  team: Team,
-  start: THREE.Vector3,
-  onLoaded: () => void
-): Player {
-  const root = new THREE.Group();
-  root.position.copy(start).setY(GROUND_Y);
-  scene.add(root);
-
-  const fallback = makeFallback(team);
-  root.add(fallback);
-
-  const p: Player = {
-    team,
-    root,
-    model: null,
-    fallback,
-    mixer: null,
-    actions: {},
-    current: 'Idle',
-    bones: {},
-    bind: new WeakMap(),
-    pos: start.clone().setY(GROUND_Y),
-    vel: new THREE.Vector3(),
-    dir:
-      team === 'blue'
-        ? new THREE.Vector3(0, 0, -1)
-        : new THREE.Vector3(0, 0, 1),
-    targetDir:
-      team === 'blue'
-        ? new THREE.Vector3(0, 0, -1)
-        : new THREE.Vector3(0, 0, 1),
-    speed: 0,
-    radius: PLAYER_RADIUS,
-    kickTime: 0,
-    kickQueued: false,
-    kickFired: false,
-    kickFoot: 'right',
-    queuedShotDir: null,
-    queuedShotPower: 0,
-    queuedShotLift: 0,
-    tackleTime: 0,
-    tackleQueued: false,
-    tackleFired: false,
-    fallTime: 0,
-    fallDir: new THREE.Vector3(),
-    loaded: false
-  };
-
-  loader.setCrossOrigin('anonymous').load(
-    HUMAN_URL,
-    (gltf) => {
-      const model = gltf.scene;
-      normalizeAnimatedHuman(model, 0.92);
-      tintPlayer(model, team);
-      shadow(model);
-      root.add(model);
-      fallback.visible = false;
-      p.model = model;
-      p.bones = findBones(model);
-      p.bind = saveBind(model);
-      p.mixer = new THREE.AnimationMixer(model);
-
-      const clipByName = new Map(
-        gltf.animations.map((clip) => [clip.name.toLowerCase(), clip])
-      );
-      const aliases: Record<AnimName, string[]> = {
-        Idle: ['idle'],
-        Walk: ['walk', 'walking'],
-        Run: ['run', 'running']
-      };
-
-      (Object.keys(aliases) as AnimName[]).forEach((name) => {
-        const clip = aliases[name].map((a) => clipByName.get(a)).find(Boolean);
-        if (!clip || !p.mixer) return;
-        const action = p.mixer.clipAction(clip);
-        action.enabled = true;
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.clampWhenFinished = false;
-        action.setEffectiveWeight(name === 'Idle' ? 1 : 0);
-        action.play();
-        p.actions[name] = action;
-      });
-
-      p.loaded = true;
-      onLoaded();
-    },
-    undefined,
-    () => {
-      p.loaded = false;
-      fallback.visible = true;
-      onLoaded();
-    }
-  );
-
-  return p;
-}
-
-function setAction(p: Player, next: AnimName, blend = 0.18) {
-  if (p.current === next || !p.actions[next]) return;
-  const prev = p.actions[p.current];
-  const nextAction = p.actions[next];
-  if (prev && nextAction) {
-    nextAction.enabled = true;
-    nextAction.reset();
-    nextAction.setEffectiveTimeScale(1);
-    nextAction.setEffectiveWeight(1);
-    prev.crossFadeTo(nextAction, blend, false);
-    nextAction.play();
-  }
-  p.current = next;
-}
-
-function wantedAction(p: Player): AnimName {
-  if (p.fallTime > 0 || p.kickTime > 0 || p.tackleTime > 0) return 'Idle';
-  if (p.speed > WALK_SPEED * 1.02) return 'Run';
-  if (p.speed > 0.07) return 'Walk';
-  return 'Idle';
-}
-
-function tuneActionSpeed(p: Player) {
-  const walk = p.actions.Walk;
-  const run = p.actions.Run;
-  if (walk)
-    walk.timeScale = THREE.MathUtils.clamp(p.speed / WALK_SPEED, 0.7, 1.35);
-  if (run)
-    run.timeScale = THREE.MathUtils.clamp(p.speed / SPRINT_SPEED, 0.75, 1.28);
-}
-
-function applyKickOverlay(p: Player) {
-  if (!p.model || p.kickTime <= 0) return;
-  const t = 1 - p.kickTime / 0.48;
-  const drawBack = Math.max(
-    0,
-    Math.sin(THREE.MathUtils.clamp(t / 0.42, 0, 1) * Math.PI)
-  );
-  const strike = Math.max(
-    0,
-    Math.sin(THREE.MathUtils.clamp((t - 0.2) / 0.62, 0, 1) * Math.PI)
-  );
-  const follow = Math.max(
-    0,
-    Math.sin(THREE.MathUtils.clamp((t - 0.52) / 0.48, 0, 1) * Math.PI)
-  );
-  const kickUpLeg =
-    p.kickFoot === 'left' ? p.bones.leftUpLeg : p.bones.rightUpLeg;
-  const kickLeg = p.kickFoot === 'left' ? p.bones.leftLeg : p.bones.rightLeg;
-  const kickFoot = p.kickFoot === 'left' ? p.bones.leftFoot : p.bones.rightFoot;
-  const plantUpLeg =
-    p.kickFoot === 'left' ? p.bones.rightUpLeg : p.bones.leftUpLeg;
-  const plantLeg = p.kickFoot === 'left' ? p.bones.rightLeg : p.bones.leftLeg;
-  const mirror = p.kickFoot === 'left' ? -1 : 1;
-
-  if (p.bones.hips) {
-    p.bones.hips.rotation.x += -0.04 * strike;
-    p.bones.hips.rotation.z += mirror * 0.06 * strike;
-  }
-  if (p.bones.spine) {
-    p.bones.spine.rotation.x += -0.06 * strike;
-    p.bones.spine.rotation.z += -mirror * 0.05 * strike;
-  }
-  if (kickUpLeg)
-    kickUpLeg.rotation.x += -0.86 * drawBack + 1.55 * strike + 0.45 * follow;
-  if (kickLeg)
-    kickLeg.rotation.x += 0.5 * drawBack - 0.94 * strike - 0.25 * follow;
-  if (kickFoot) kickFoot.rotation.x += -0.58 * strike - 0.22 * follow;
-  if (plantUpLeg) plantUpLeg.rotation.x += -0.18 * strike;
-  if (plantLeg) plantLeg.rotation.x += 0.14 * strike;
-}
-
-function applyTackleOverlay(p: Player) {
-  if (!p.model || p.tackleTime <= 0) return;
-  const t = 1 - p.tackleTime / 0.56;
-  const lunge = Math.sin(THREE.MathUtils.clamp(t, 0, 1) * Math.PI);
-  const slide = THREE.MathUtils.smoothstep(t, 0.15, 0.9);
-  if (p.bones.hips) {
-    p.bones.hips.rotation.x += -0.48 * lunge;
-    p.bones.hips.position.y -= 0.05 * lunge;
-  }
-  if (p.bones.spine) p.bones.spine.rotation.x += 0.42 * lunge;
-  if (p.bones.rightUpLeg) p.bones.rightUpLeg.rotation.x += 1.15 * lunge;
-  if (p.bones.rightLeg) p.bones.rightLeg.rotation.x += -0.35 * lunge;
-  if (p.bones.leftUpLeg) p.bones.leftUpLeg.rotation.x += -0.82 * lunge;
-  if (p.bones.leftLeg) p.bones.leftLeg.rotation.x += 0.72 * lunge;
-  p.root.position.addScaledVector(p.dir, 0.035 * slide);
-}
-
-function applyFallPose(p: Player) {
-  if (p.fallTime <= 0) return;
-  const t = 1 - p.fallTime / 1.45;
-  const down = THREE.MathUtils.smoothstep(t, 0.0, 0.45);
-  const recover = THREE.MathUtils.smoothstep(t, 0.72, 1.0);
-  const fallAmount = down * (1 - recover);
-  p.root.rotation.x = -Math.PI * 0.5 * fallAmount;
-  p.root.rotation.z = (p.fallDir.x >= 0 ? -1 : 1) * 0.25 * fallAmount;
-  p.root.position.y = GROUND_Y + 0.03 * fallAmount;
-  if (p.bones.hips) p.bones.hips.rotation.x += 0.35 * fallAmount;
-  if (p.bones.spine) p.bones.spine.rotation.x += -0.28 * fallAmount;
-  if (p.bones.rightUpLeg) p.bones.rightUpLeg.rotation.x += 0.6 * fallAmount;
-  if (p.bones.leftUpLeg) p.bones.leftUpLeg.rotation.x += -0.35 * fallAmount;
-}
-
-function updateFallbackWalk(p: Player) {
-  const legs = p.fallback.children
-    .filter((o) => o instanceof THREE.Mesh)
-    .slice(-2) as THREE.Mesh[];
-  const t = performance.now() * (p.speed > WALK_SPEED ? 0.013 : 0.009);
-  const s = Math.sin(t);
-  if (legs[0]) legs[0].rotation.x = s * p.speed * 0.62;
-  if (legs[1]) legs[1].rotation.x = -s * p.speed * 0.62;
-  if (p.fallTime > 0)
-    p.fallback.rotation.x = -Math.PI * 0.48 * (1 - p.fallTime / 1.45);
-  else p.fallback.rotation.x = 0;
-}
-
-function updatePlayerAnimation(p: Player, dt: number) {
-  p.pos.y = GROUND_Y;
-  p.root.position.copy(p.pos);
-  p.root.rotation.x = 0;
-  p.root.rotation.z = 0;
-
-  if (p.fallTime <= 0 && p.targetDir.lengthSq() > 0.001)
-    p.dir.lerp(p.targetDir, 1 - Math.pow(0.001, dt)).normalize();
-  p.root.rotation.y = Math.atan2(p.dir.x, p.dir.z);
-
-  const next = wantedAction(p);
-  setAction(p, next);
-  tuneActionSpeed(p);
-  p.mixer?.update(dt);
-  applyKickOverlay(p);
-  applyTackleOverlay(p);
-  applyFallPose(p);
-  updateFallbackWalk(p);
-
-  if (p.kickTime > 0) p.kickTime = Math.max(0, p.kickTime - dt);
-  if (p.tackleTime > 0) p.tackleTime = Math.max(0, p.tackleTime - dt);
-  if (p.fallTime > 0) p.fallTime = Math.max(0, p.fallTime - dt);
-}
-
-function getFootWorld(p: Player, footSide: KickFoot) {
-  const foot = footSide === 'left' ? p.bones.leftFoot : p.bones.rightFoot;
-  if (foot) {
-    foot.updateWorldMatrix(true, false);
-    return foot.getWorldPosition(new THREE.Vector3());
-  }
-  const side = new THREE.Vector3(p.dir.z, 0, -p.dir.x)
-    .normalize()
-    .multiplyScalar(footSide === 'left' ? -0.055 : 0.055);
-  return p.pos.clone().addScaledVector(p.dir, 0.18).add(side).setY(0.08);
-}
-
-function chooseKickFoot(
-  p: Player,
-  ball: BallState,
-  shotDir?: THREE.Vector3 | null
-): KickFoot {
-  const left = getFootWorld(p, 'left');
-  const right = getFootWorld(p, 'right');
-  const ballPos = ball.object.position;
-  const dLeft = left.distanceToSquared(ballPos);
-  const dRight = right.distanceToSquared(ballPos);
-  if (
-    shotDir &&
-    shotDir.lengthSq() > 0.001 &&
-    Math.abs(dLeft - dRight) < 0.01
-  ) {
-    const side = new THREE.Vector3(shotDir.z, 0, -shotDir.x).normalize();
-    const rel = ballPos.clone().sub(p.pos).setY(0);
-    return rel.dot(side) < 0 ? 'left' : 'right';
-  }
-  return dLeft <= dRight ? 'left' : 'right';
-}
-
-function makeNetPlane(
-  width: number,
-  height: number,
-  rows: number,
-  cols: number,
-  color = 0xffffff
-) {
-  const group = new THREE.Group();
-  const lineMat = new THREE.LineBasicMaterial({
+function makeMat(color: number, roughness = 0.72, metalness = 0.03) {
+  return new THREE.MeshStandardMaterial({
     color,
-    transparent: true,
-    opacity: 0.55
+    roughness,
+    metalness,
+    emissive: new THREE.Color(color).multiplyScalar(0.035)
   });
-  for (let i = 0; i <= cols; i++) {
-    const x = -width / 2 + (i / cols) * width;
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(x, 0, 0),
-          new THREE.Vector3(x, height, 0)
-        ]),
-        lineMat
-      )
-    );
-  }
-  for (let j = 0; j <= rows; j++) {
-    const y = (j / rows) * height;
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-width / 2, y, 0),
-          new THREE.Vector3(width / 2, y, 0)
-        ]),
-        lineMat
-      )
-    );
-  }
-  for (let i = -cols; i <= cols; i += 2) {
-    const x1 = THREE.MathUtils.clamp(
-      -width / 2 + i * (width / cols) * 0.5,
-      -width / 2,
-      width / 2
-    );
-    const x2 = THREE.MathUtils.clamp(x1 + width / 3, -width / 2, width / 2);
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(x1, 0, 0),
-          new THREE.Vector3(x2, height, 0)
-        ]),
-        lineMat
-      )
-    );
-  }
-  return group;
 }
 
-function makeSaggingNet(
-  width: number,
-  height: number,
-  depth: number,
-  dir: number
-) {
-  const group = new THREE.Group();
-  const lineMat = new THREE.LineBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.52
-  });
-  const cols = 12;
-  const rows = 7;
-  for (let i = 0; i <= cols; i++) {
-    const x = -width / 2 + (i / cols) * width;
-    const pts: THREE.Vector3[] = [];
-    for (let j = 0; j <= rows; j++) {
-      const v = j / rows;
-      const sag = Math.sin(v * Math.PI) * 0.045;
-      pts.push(new THREE.Vector3(x, v * height, dir * (depth + sag)));
-    }
-    group.add(
-      new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat)
-    );
-  }
-  for (let j = 0; j <= rows; j++) {
-    const v = j / rows;
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= cols; i++) {
-      const u = i / cols;
-      const x = -width / 2 + u * width;
-      const sag = Math.sin(v * Math.PI) * 0.045;
-      pts.push(new THREE.Vector3(x, v * height, dir * (depth + sag)));
-    }
-    group.add(
-      new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat)
-    );
-  }
-  return group;
-}
-
-function makeFencePanel(width: number, height: number) {
-  const group = new THREE.Group();
-  const lineMat = new THREE.LineBasicMaterial({
-    color: 0xb8c5c7,
-    transparent: true,
-    opacity: 0.42
-  });
-  const cols = Math.max(6, Math.round(width / 0.16));
-  for (let i = 0; i <= cols; i++) {
-    const x = -width / 2 + (i / cols) * width;
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(x, 0, 0),
-          new THREE.Vector3(x, height, 0)
-        ]),
-        lineMat
-      )
-    );
-  }
-  for (let j = 0; j <= 5; j++) {
-    const y = (j / 5) * height;
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-width / 2, y, 0),
-          new THREE.Vector3(width / 2, y, 0)
-        ]),
-        lineMat
-      )
-    );
-  }
-  return group;
-}
-
-function billboard(
-  scene: THREE.Scene,
-  text: string,
-  x: number,
-  z: number,
-  rotY: number,
-  color: number
-) {
+function canvasTexture(draw: (ctx: CanvasRenderingContext2D, size: number) => void) {
+  const size = 512;
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'white';
-  ctx.font = '900 46px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 256, 64);
-  const tex = new THREE.CanvasTexture(canvas);
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.82, 0.21),
-    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
-  );
-  mesh.position.set(x, 0.24, z);
-  mesh.rotation.y = rotY;
-  scene.add(mesh);
+  draw(ctx, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
 }
 
-function flag(scene: THREE.Scene, x: number, z: number) {
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.01, 0.01, 0.46, 10),
-    mat(0xffffff, 0.55, 0.05)
-  );
-  pole.position.set(x, 0.23, z);
-  const cloth = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.16, 0.09),
-    new THREE.MeshStandardMaterial({ color: 0xfff200, side: THREE.DoubleSide })
-  );
-  cloth.position.set(x + (x > 0 ? -0.08 : 0.08), 0.4, z);
-  cloth.rotation.y = x > 0 ? Math.PI / 2 : -Math.PI / 2;
-  scene.add(shadow(pole), shadow(cloth));
-}
-
-function lamp(scene: THREE.Scene, x: number, z: number) {
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.018, 0.024, 1.9, 12),
-    mat(0x50575d, 0.45, 0.35)
-  );
-  pole.position.set(x, 0.95, z);
-  const head = new THREE.Mesh(
-    new THREE.BoxGeometry(0.22, 0.08, 0.12),
-    mat(0x22282d, 0.45, 0.2)
-  );
-  head.position.set(x, 1.9, z);
-  const light = new THREE.PointLight(0xdbefff, 0.55, 3.2);
-  light.position.set(x, 1.82, z);
-  scene.add(shadow(pole), shadow(head), light);
-}
-
-function makeCylinderBetween(
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  radius: number,
-  matRef: THREE.Material
-) {
-  const dir = b.clone().sub(a);
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      radius,
-      radius,
-      Math.max(0.001, dir.length()),
-      18
-    ),
-    matRef
-  );
-  mesh.position.copy(a).addScaledVector(dir, 0.5);
-  mesh.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    dir.normalize()
-  );
-  return shadow(mesh);
-}
-
-function netPoint(
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-  d: THREE.Vector3,
-  u: number,
-  v: number
-) {
-  const bottom = a.clone().lerp(b, u);
-  const top = d.clone().lerp(c, u);
-  return bottom.lerp(top, v);
-}
-
-function makeFreeKickNetSurface(
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-  d: THREE.Vector3,
-  cols: number,
-  rows: number
-) {
-  const group = new THREE.Group();
-  const lineMat = new THREE.LineBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.58
-  });
-  const add = (p1: THREE.Vector3, p2: THREE.Vector3) =>
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([p1, p2]),
-        lineMat
-      )
-    );
-  for (let i = 0; i <= cols; i++) {
-    const u = i / cols;
-    add(netPoint(a, b, c, d, u, 0), netPoint(a, b, c, d, u, 1));
-  }
-  for (let j = 0; j <= rows; j++) {
-    const v = j / rows;
-    add(netPoint(a, b, c, d, 0, v), netPoint(a, b, c, d, 1, v));
-  }
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const u0 = i / cols;
-      const u1 = (i + 1) / cols;
-      const v0 = j / rows;
-      const v1 = (j + 1) / rows;
-      add(
-        netPoint(a, b, c, d, (u0 + u1) / 2, v0),
-        netPoint(a, b, c, d, u1, (v0 + v1) / 2)
-      );
-      add(
-        netPoint(a, b, c, d, u1, (v0 + v1) / 2),
-        netPoint(a, b, c, d, (u0 + u1) / 2, v1)
-      );
-      add(
-        netPoint(a, b, c, d, (u0 + u1) / 2, v1),
-        netPoint(a, b, c, d, u0, (v0 + v1) / 2)
-      );
-      add(
-        netPoint(a, b, c, d, u0, (v0 + v1) / 2),
-        netPoint(a, b, c, d, (u0 + u1) / 2, v0)
-      );
+function createPitchTexture() {
+  return canvasTexture((ctx, size) => {
+    const stripeW = size / 8;
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? '#15803d' : '#16a34a';
+      ctx.fillRect(i * stripeW, 0, stripeW, size);
     }
-  }
-  return group;
-}
-
-function makeGoal(scene: THREE.Scene, z: number, dir: number) {
-  const root = new THREE.Group();
-  root.position.z = z;
-  const white = mat(0xffffff, 0.4, 0.18);
-  const rear = mat(0xcbd5e1, 0.46, 0.28);
-  const postR = 0.034;
-  const backScale = 0.82;
-  const backW = GOAL_W * backScale;
-  const backH = GOAL_H * backScale;
-  const FL = new THREE.Vector3(-GOAL_W / 2, 0, 0);
-  const FR = new THREE.Vector3(GOAL_W / 2, 0, 0);
-  const FLT = new THREE.Vector3(-GOAL_W / 2, GOAL_H, 0);
-  const FRT = new THREE.Vector3(GOAL_W / 2, GOAL_H, 0);
-  const BL = new THREE.Vector3(-backW / 2, 0.03, dir * GOAL_D);
-  const BR = new THREE.Vector3(backW / 2, 0.03, dir * GOAL_D);
-  const BLT = new THREE.Vector3(-backW / 2, backH, dir * GOAL_D);
-  const BRT = new THREE.Vector3(backW / 2, backH, dir * GOAL_D);
-  root.add(
-    makeCylinderBetween(FL, FLT, postR, white),
-    makeCylinderBetween(FR, FRT, postR, white),
-    makeCylinderBetween(FLT, FRT, postR, white),
-    makeCylinderBetween(BL, BLT, postR * 0.48, rear),
-    makeCylinderBetween(BR, BRT, postR * 0.48, rear),
-    makeCylinderBetween(BLT, BRT, postR * 0.48, rear),
-    makeCylinderBetween(FLT, BLT, postR * 0.42, rear),
-    makeCylinderBetween(FRT, BRT, postR * 0.42, rear),
-    makeCylinderBetween(FL, BL, postR * 0.36, rear),
-    makeCylinderBetween(FR, BR, postR * 0.36, rear),
-    makeFreeKickNetSurface(BL, BR, BRT, BLT, 18, 10),
-    makeFreeKickNetSurface(FLT, FRT, BRT, BLT, 18, 8),
-    makeFreeKickNetSurface(FL, BL, BLT, FLT, 8, 10),
-    makeFreeKickNetSurface(FR, BR, BRT, FRT, 8, 10)
-  );
-  scene.add(root);
-}
-
-function makePitch(scene: THREE.Scene) {
-  const grassA = mat(0x1f843d, 0.96, 0);
-  const grassB = mat(0x176f31, 0.96, 0);
-  const grassC = mat(0x229447, 0.98, 0);
-  for (let i = 0; i < 10; i++) {
-    const stripe = new THREE.Mesh(
-      new THREE.PlaneGeometry(FIELD_W, FIELD_H / 10),
-      i % 2 ? grassA : grassB
-    );
-    stripe.rotation.x = -Math.PI / 2;
-    stripe.position.z = -FIELD_H / 2 + FIELD_H / 20 + (i * FIELD_H) / 10;
-    stripe.receiveShadow = true;
-    scene.add(stripe);
-  }
-  for (let x = -3; x <= 3; x++) {
-    const grain = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.018, FIELD_H),
-      grassC
-    );
-    grain.rotation.x = -Math.PI / 2;
-    grain.position.set((x * FIELD_W) / 7, 0.002, 0);
-    grain.receiveShadow = true;
-    scene.add(grain);
-  }
-
-  const lineMat = new THREE.LineBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.93
-  });
-  const addLine = (pts: THREE.Vector3[]) =>
-    scene.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(
-          pts.map((p) => new THREE.Vector3(p.x, 0.016, p.z))
-        ),
-        lineMat
-      )
-    );
-  const addCircle = (
-    x: number,
-    z: number,
-    rx: number,
-    rz = rx,
-    a0 = 0,
-    a1 = Math.PI * 2
-  ) =>
-    addLine(
-      new THREE.EllipseCurve(x, z, rx, rz, a0, a1)
-        .getPoints(72)
-        .map((p) => new THREE.Vector3(p.x, 0, p.y))
-    );
-  const addBox = (
-    halfW: number,
-    depth: number,
-    z: number,
-    towardCenter: number
-  ) =>
-    addLine([
-      new THREE.Vector3(-halfW, 0, z),
-      new THREE.Vector3(-halfW, 0, z + depth * towardCenter),
-      new THREE.Vector3(halfW, 0, z + depth * towardCenter),
-      new THREE.Vector3(halfW, 0, z)
-    ]);
-  const w = FIELD_W / 2;
-  const h = FIELD_H / 2;
-  addLine([
-    new THREE.Vector3(-w, 0, -h),
-    new THREE.Vector3(w, 0, -h),
-    new THREE.Vector3(w, 0, h),
-    new THREE.Vector3(-w, 0, h),
-    new THREE.Vector3(-w, 0, -h)
-  ]);
-  addLine([new THREE.Vector3(-w, 0, 0), new THREE.Vector3(w, 0, 0)]);
-  addCircle(0, 0, 0.46);
-  addCircle(0, 0, 0.035);
-  addBox(0.82, 0.66, -h, 1);
-  addBox(0.82, 0.66, h, -1);
-  addBox(1.18, 1.03, -h, 1);
-  addBox(1.18, 1.03, h, -1);
-  addCircle(0, -h + 0.78, 0.045);
-  addCircle(0, h - 0.78, 0.045);
-  addCircle(0, -h + 0.78, 0.42, 0.42, 0.18, Math.PI - 0.18);
-  addCircle(0, h - 0.78, 0.42, 0.42, Math.PI + 0.18, Math.PI * 2 - 0.18);
-  [
-    [-w, -h, 0, Math.PI / 2],
-    [w, -h, Math.PI / 2, Math.PI],
-    [-w, h, -Math.PI / 2, 0],
-    [w, h, Math.PI, Math.PI * 1.5]
-  ].forEach(([x, z, a0, a1]) => addCircle(x, z, 0.16, 0.16, a0, a1));
-
-  makeGoal(scene, -h - 0.01, -1);
-  makeGoal(scene, h + 0.01, 1);
-
-  const wallMat = mat(0x0e3f22, 0.82, 0.02);
-  const north = new THREE.Mesh(
-    new THREE.BoxGeometry(FIELD_W + 0.32, 0.1, 0.08),
-    wallMat
-  );
-  const south = north.clone();
-  const east = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.1, FIELD_H + 0.32),
-    wallMat
-  );
-  const west = east.clone();
-  north.position.set(0, 0.05, -h - 0.16);
-  south.position.set(0, 0.05, h + 0.16);
-  east.position.set(w + 0.16, 0.05, 0);
-  west.position.set(-w - 0.16, 0.05, 0);
-  scene.add(shadow(north), shadow(south), shadow(east), shadow(west));
-
-  const fn = makeFencePanel(FIELD_W + 0.32, 0.82);
-  const fs = makeFencePanel(FIELD_W + 0.32, 0.82);
-  const fe = makeFencePanel(FIELD_H + 0.32, 0.82);
-  const fw = makeFencePanel(FIELD_H + 0.32, 0.82);
-  fn.position.set(0, 0.1, -h - 0.2);
-  fs.position.set(0, 0.1, h + 0.2);
-  fe.position.set(w + 0.2, 0.1, 0);
-  fw.position.set(-w - 0.2, 0.1, 0);
-  fe.rotation.y = Math.PI / 2;
-  fw.rotation.y = Math.PI / 2;
-  scene.add(fn, fs, fe, fw);
-
-  const poleMat = mat(0x879196, 0.46, 0.34);
-  [
-    [-w - 0.2, -h - 0.2],
-    [w + 0.2, -h - 0.2],
-    [-w - 0.2, h + 0.2],
-    [w + 0.2, h + 0.2],
-    [0, -h - 0.2],
-    [0, h + 0.2],
-    [-w - 0.2, 0],
-    [w + 0.2, 0]
-  ].forEach(([x, z]) => {
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.022, 0.98, 12),
-      poleMat
-    );
-    pole.position.set(x, 0.49, z);
-    scene.add(shadow(pole));
-  });
-
-  flag(scene, -w, -h);
-  flag(scene, w, -h);
-  flag(scene, -w, h);
-  flag(scene, w, h);
-  lamp(scene, -w - 0.34, -h - 0.34);
-  lamp(scene, w + 0.34, -h - 0.34);
-  lamp(scene, -w - 0.34, h + 0.34);
-  lamp(scene, w + 0.34, h + 0.34);
-  billboard(scene, 'REAL WALK', -0.75, -h - 0.215, 0, 0x1d69ff);
-  billboard(scene, 'TACKLE', 0.2, -h - 0.215, 0, 0xd92f2f);
-  billboard(scene, 'BALL SPIN', 1.05, -h - 0.215, 0, 0x0f172a);
-  billboard(scene, 'SAG NETS', -0.45, h + 0.215, Math.PI, 0x166534);
-  billboard(scene, 'MOBILE 1V1', 0.55, h + 0.215, Math.PI, 0x7c2d12);
-}
-
-function makeGoalRushStadium(
-  scene: THREE.Scene,
-  loader: GLTFLoader
-): StadiumRig {
-  const spectators: SeatedSpectator[] = [];
-  const concrete = mat(0x64748b, 0.86, 0.04);
-  const riserMat = mat(0x475569, 0.8, 0.04);
-  const aisleMat = mat(0xf8fafc, 0.72, 0.01);
-  const railMat = mat(0xdbe4ec, 0.42, 0.18);
-  const chairColors = [0x1d4ed8, 0xffffff];
-  const rows = 5;
-  const rowDepth = 0.22;
-  const rowRise = 0.11;
-  const sides = [
-    {
-      name: 'north',
-      pos: new THREE.Vector3(0, 0, -FIELD_H / 2 - 0.72),
-      rot: 0,
-      width: FIELD_W + 1.1
-    },
-    {
-      name: 'south',
-      pos: new THREE.Vector3(0, 0, FIELD_H / 2 + 0.72),
-      rot: Math.PI,
-      width: FIELD_W + 1.1
-    },
-    {
-      name: 'east',
-      pos: new THREE.Vector3(FIELD_W / 2 + 0.72, 0, 0),
-      rot: Math.PI / 2,
-      width: FIELD_H + 0.8
-    },
-    {
-      name: 'west',
-      pos: new THREE.Vector3(-FIELD_W / 2 - 0.72, 0, 0),
-      rot: -Math.PI / 2,
-      width: FIELD_H + 0.8
+    ctx.globalAlpha = 0.16;
+    for (let y = 0; y < size; y += 18) {
+      ctx.fillStyle = y % 36 === 0 ? '#dcfce7' : '#052e16';
+      ctx.fillRect(0, y, size, 2);
     }
-  ];
-  let characterIndex = 0;
-  sides.forEach((side) => {
-    const stands = new THREE.Group();
-    stands.name = `goal-rush-${side.name}-free-kick-stands`;
-    stands.position.copy(side.pos);
-    stands.rotation.y = side.rot;
-    const cols = Math.max(8, Math.floor(side.width / 0.22));
-    const aisleCols = [Math.floor(cols * 0.28), Math.floor(cols * 0.72)];
-    for (let row = 0; row < rows; row++) {
-      const z = -row * rowDepth;
-      const y = 0.14 + row * rowRise;
-      const tread = new THREE.Mesh(
-        new THREE.BoxGeometry(side.width, 0.06, rowDepth),
-        concrete
-      );
-      tread.position.set(0, y, z);
-      const riser = new THREE.Mesh(
-        new THREE.BoxGeometry(side.width, rowRise, 0.035),
-        riserMat
-      );
-      riser.position.set(0, y - 0.015, z + rowDepth * 0.46);
-      stands.add(shadow(tread), shadow(riser));
-    }
-    for (let col = 0; col < cols; col++) {
-      if (aisleCols.some((aisle) => Math.abs(col - aisle) <= 1)) continue;
-      const x = (col - (cols - 1) / 2) * (side.width / cols);
-      let rowSpectators = 0;
-      for (let row = 0; row < rows; row++) {
-        const chair = makeChair(chairColors[(row + col) % chairColors.length]);
-        chair.position.set(x, 0.18 + row * rowRise, -row * rowDepth + 0.02);
-        stands.add(chair);
-        const shouldSeatHuman =
-          row < SPECTATOR_ROWS_FILLED &&
-          rowSpectators < SPECTATORS_PER_ROW_TARGET &&
-          (col + row) % 2 === 0;
-        if (shouldSeatHuman) {
-          const kit =
-            MURLAN_CHARACTER_COLORS[
-              characterIndex % MURLAN_CHARACTER_COLORS.length
-            ];
-          const url =
-            MURLAN_CHARACTER_URLS[
-              characterIndex % Math.max(1, MURLAN_CHARACTER_URLS.length)
-            ] ?? HUMAN_URL;
-          spectators.push(
-            attachMurlanSeatedSpectator(chair, loader, url, characterIndex, kit)
-          );
-          characterIndex += 1;
-          rowSpectators += 1;
+    ctx.globalAlpha = 1;
+  });
+}
+
+function createBallTexture() {
+  return canvasTexture((ctx, size) => {
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#111827';
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 5;
+    for (let y = 44; y < size; y += 92) {
+      for (let x = (Math.round(y / 92) % 2 ? 68 : 24); x < size; x += 106) {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
+          const px = x + Math.cos(a) * 18;
+          const py = y + Math.sin(a) * 18;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(a) * 22, y + Math.sin(a) * 22);
+          ctx.lineTo(x + Math.cos(a) * 48, y + Math.sin(a) * 48);
+          ctx.stroke();
         }
       }
     }
-    aisleCols.forEach((aisle) => {
-      const x = (aisle - (cols - 1) / 2) * (side.width / cols);
-      for (let row = 0; row < rows; row++) {
-        const stair = new THREE.Mesh(
-          new THREE.BoxGeometry(0.28, 0.045, rowDepth * 0.76),
-          aisleMat
-        );
-        stair.position.set(x, 0.22 + row * rowRise, -row * rowDepth + 0.02);
-        stands.add(shadow(stair));
-      }
-      [-0.16, 0.16].forEach((offset) => {
-        const rail = makeCylinderBetween(
-          new THREE.Vector3(x + offset, 0.36, rowDepth * 0.28),
-          new THREE.Vector3(
-            x + offset,
-            0.36 + rows * rowRise,
-            -(rows - 1) * rowDepth + rowDepth * 0.25
-          ),
-          0.008,
-          railMat
-        );
-        stands.add(rail);
-      });
-    });
-    const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(side.width + 0.25, rows * rowRise + 0.38, 0.08),
-      riserMat
-    );
-    backWall.position.set(
-      0,
-      0.5 + rows * rowRise * 0.45,
-      -(rows - 1) * rowDepth - 0.22
-    );
-    const frontRail = new THREE.Mesh(
-      new THREE.BoxGeometry(side.width + 0.18, 0.035, 0.035),
-      railMat
-    );
-    frontRail.position.set(0, 0.42, 0.24);
-    stands.add(shadow(backWall), shadow(frontRail));
-    scene.add(stands);
   });
-  return { spectators, cheerTime: 0 };
 }
 
-function makeBall(scene: THREE.Scene): BallState {
-  const object = new THREE.Group();
-  const ballMat = new THREE.MeshStandardMaterial({
-    map: createSoccerBallTexture(),
-    roughness: 0.42,
-    metalness: 0.02
-  });
-  const ball = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_RADIUS, 48, 32),
-    ballMat
+function addLine(scene: THREE.Scene, points: THREE.Vector3[], color = 0xffffff, opacity = 0.8) {
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity })
   );
-  object.add(shadow(ball));
-  object.position.set(0, BALL_RADIUS, 0);
-  scene.add(object);
+  line.position.y = 0.014;
+  scene.add(line);
+  return line;
+}
+
+function addBox(
+  parent: THREE.Object3D,
+  size: [number, number, number],
+  pos: [number, number, number],
+  color: number,
+  roughness = 0.65,
+  metalness = 0.05
+) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), makeMat(color, roughness, metalness));
+  mesh.position.set(...pos);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function makeNet(width: number, height: number, depth: number, team: Team) {
+  const group = new THREE.Group();
+  const color = team === 'blue' ? BLUE : RED;
+  const matLine = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.56 });
+  const glow = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.72 });
+  for (let i = 0; i <= 10; i++) {
+    const x = -width / 2 + (i / 10) * width;
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, 0, 0),
+      new THREE.Vector3(x, height, -depth)
+    ]), i === 0 || i === 10 ? glow : matLine));
+  }
+  for (let j = 0; j <= 6; j++) {
+    const y = (j / 6) * height;
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-width / 2, y, -depth * 0.12),
+      new THREE.Vector3(width / 2, y, -depth * 0.12)
+    ]), matLine));
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-width / 2, y, -depth),
+      new THREE.Vector3(width / 2, y, -depth)
+    ]), matLine));
+  }
+  return group;
+}
+
+function buildArena(scene: THREE.Scene) {
+  scene.background = new THREE.Color(0x06130d);
+  scene.fog = new THREE.Fog(0x06130d, 12, 23);
+
+  const pitchTexture = createPitchTexture();
+  pitchTexture.wrapS = THREE.RepeatWrapping;
+  pitchTexture.wrapT = THREE.RepeatWrapping;
+  pitchTexture.repeat.set(1.5, 2.2);
+  const pitch = new THREE.Mesh(
+    new THREE.PlaneGeometry(FIELD_W, FIELD_H),
+    new THREE.MeshStandardMaterial({ map: pitchTexture, roughness: 0.92 })
+  );
+  pitch.rotation.x = -Math.PI / 2;
+  pitch.receiveShadow = true;
+  scene.add(pitch);
+
+  const board = new THREE.Group();
+  scene.add(board);
+  addBox(board, [FIELD_W + 0.42, 0.36, 0.16], [0, 0.18, FIELD_H / 2 + 0.08], 0x0f172a, 0.42, 0.15);
+  addBox(board, [FIELD_W + 0.42, 0.36, 0.16], [0, 0.18, -FIELD_H / 2 - 0.08], 0x0f172a, 0.42, 0.15);
+  addBox(board, [0.16, 0.36, FIELD_H + 0.32], [FIELD_W / 2 + 0.08, 0.18, 0], 0x0f172a, 0.42, 0.15);
+  addBox(board, [0.16, 0.36, FIELD_H + 0.32], [-FIELD_W / 2 - 0.08, 0.18, 0], 0x0f172a, 0.42, 0.15);
+
+  addLine(scene, [new THREE.Vector3(-FIELD_W / 2, 0, 0), new THREE.Vector3(FIELD_W / 2, 0, 0)], 0xffffff, 0.78);
+  const circle: THREE.Vector3[] = [];
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
+    circle.push(new THREE.Vector3(Math.cos(a) * 1.05, 0, Math.sin(a) * 1.05));
+  }
+  addLine(scene, circle, 0xffffff, 0.62);
+  const blueBox = [
+    new THREE.Vector3(-1.65, 0, FIELD_H / 2 - 1.34),
+    new THREE.Vector3(1.65, 0, FIELD_H / 2 - 1.34),
+    new THREE.Vector3(1.65, 0, FIELD_H / 2),
+    new THREE.Vector3(-1.65, 0, FIELD_H / 2),
+    new THREE.Vector3(-1.65, 0, FIELD_H / 2 - 1.34)
+  ];
+  addLine(scene, blueBox, BLUE, 0.7);
+  addLine(scene, blueBox.map((p) => p.clone().multiply(new THREE.Vector3(1, 1, -1))), RED, 0.7);
+
+  const goalBlue = new THREE.Group();
+  goalBlue.position.set(0, 0.02, FIELD_H / 2 + 0.08);
+  goalBlue.rotation.y = Math.PI;
+  goalBlue.add(makeNet(GOAL_W, 0.9, GOAL_DEPTH, 'blue'));
+  addBox(goalBlue, [GOAL_W + 0.12, 0.08, 0.08], [0, 0.86, -0.02], BLUE, 0.3, 0.35);
+  addBox(goalBlue, [0.08, 0.9, 0.08], [-GOAL_W / 2, 0.45, -0.02], BLUE, 0.3, 0.35);
+  addBox(goalBlue, [0.08, 0.9, 0.08], [GOAL_W / 2, 0.45, -0.02], BLUE, 0.3, 0.35);
+  scene.add(goalBlue);
+
+  const goalRed = new THREE.Group();
+  goalRed.position.set(0, 0.02, -FIELD_H / 2 - 0.08);
+  goalRed.add(makeNet(GOAL_W, 0.9, GOAL_DEPTH, 'red'));
+  addBox(goalRed, [GOAL_W + 0.12, 0.08, 0.08], [0, 0.86, -0.02], RED, 0.3, 0.35);
+  addBox(goalRed, [0.08, 0.9, 0.08], [-GOAL_W / 2, 0.45, -0.02], RED, 0.3, 0.35);
+  addBox(goalRed, [0.08, 0.9, 0.08], [GOAL_W / 2, 0.45, -0.02], RED, 0.3, 0.35);
+  scene.add(goalRed);
+
+  const crowd = new THREE.Group();
+  scene.add(crowd);
+  for (let side = -1; side <= 1; side += 2) {
+    for (let row = 0; row < 3; row++) {
+      for (let i = 0; i < 22; i++) {
+        const fan = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.055, 0.12, 4, 8),
+          makeMat([BLUE, RED, 0xfacc15, 0x22c55e, 0xa855f7][(i + row) % 5], 0.8)
+        );
+        fan.position.set(-FIELD_W / 2 + (i / 21) * FIELD_W, 0.46 + row * 0.2, side * (FIELD_H / 2 + 0.72 + row * 0.18));
+        fan.rotation.x = (Math.random() - 0.5) * 0.12;
+        fan.castShadow = true;
+        crowd.add(fan);
+      }
+    }
+  }
+
+  const particles = new THREE.Group();
+  scene.add(particles);
+  return { crowd, particles };
+}
+
+function makePlayer(team: Team, name: string, x: number, z: number) {
+  const group = new THREE.Group();
+  const color = team === 'blue' ? BLUE : RED;
+  const dark = team === 'blue' ? 0x0f3b85 : 0x7f1d1d;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.42, 7, 14), makeMat(color, 0.58, 0.08));
+  body.position.y = 0.52;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), makeMat(0xf6c8a6, 0.82));
+  head.position.y = 0.96;
+  const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.27), makeMat(dark, 0.62));
+  leftFoot.position.set(-0.11, 0.06, 0.11);
+  const rightFoot = leftFoot.clone();
+  rightFoot.position.x = 0.11;
+  const arrow = new THREE.Mesh(
+    new THREE.ConeGeometry(0.12, 0.42, 3),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.78 })
+  );
+  arrow.position.set(0, 1.26, 0.1);
+  arrow.rotation.x = Math.PI / 2;
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.34, 28),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow, body, head, leftFoot, rightFoot, arrow);
+  group.position.set(x, 0, z);
+  group.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
   return {
-    object,
+    team,
+    group,
+    body,
+    head,
+    leftFoot,
+    rightFoot,
+    arrow,
+    shadow,
+    pos: new THREE.Vector3(x, 0, z),
+    vel: new THREE.Vector3(),
+    facing: new THREE.Vector3(0, 0, team === 'blue' ? -1 : 1),
+    radius: PLAYER_RADIUS,
+    stamina: 1,
+    dashCooldown: 0,
+    tackleCooldown: 0,
+    tackleTime: 0,
+    kickCooldown: 0,
+    stunTime: 0,
+    possession: 0,
+    target: new THREE.Vector3(x, 0, z),
+    name
+  } satisfies PlayerState;
+}
+
+function makeBall() {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(BALL_RADIUS, 32, 18),
+    new THREE.MeshStandardMaterial({ map: createBallTexture(), roughness: 0.5, metalness: 0.02 })
+  );
+  mesh.position.y = BALL_RADIUS;
+  mesh.castShadow = true;
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.24, 0.32, 36),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, side: THREE.DoubleSide })
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.022;
+  return {
+    mesh,
+    halo,
+    pos: new THREE.Vector3(0, BALL_RADIUS, 0),
     vel: new THREE.Vector3(),
     spin: new THREE.Vector3(),
-    lastSafe: object.position.clone(),
-    stuckTimer: 0
-  };
+    radius: BALL_RADIUS,
+    owner: null
+  } satisfies BallState;
 }
 
-function movePlayer(
-  p: Player,
-  inputDir: THREE.Vector3,
-  speed: number,
-  dt: number
-) {
-  if (p.fallTime > 0) {
-    p.vel.multiplyScalar(Math.pow(0.04, dt));
-    p.speed = 0;
-    return;
+function resetKickoff(match: MatchRuntime, nextAttack: Team | null = null) {
+  const blueZ = nextAttack === 'blue' ? 1.05 : 2.1;
+  const redZ = nextAttack === 'red' ? -1.05 : -2.1;
+  match.blue.pos.set(-0.72, 0, blueZ);
+  match.red.pos.set(0.72, 0, redZ);
+  match.blue.vel.set(0, 0, 0);
+  match.red.vel.set(0, 0, 0);
+  match.blue.facing.set(0, 0, -1);
+  match.red.facing.set(0, 0, 1);
+  match.blue.stunTime = 0;
+  match.red.stunTime = 0;
+  match.ball.pos.set(0, BALL_RADIUS, 0);
+  match.ball.vel.set(nextAttack === 'red' ? 0.45 : nextAttack === 'blue' ? -0.45 : 0, 0, nextAttack === 'red' ? -0.2 : 0.2);
+  match.ball.owner = null;
+  match.phase = 'playing';
+  match.phaseTimer = 0;
+}
+
+function kickBall(ball: BallState, p: PlayerState, dir: THREE.Vector3, power: number, curve = 0) {
+  const shotDir = flat(dir.clone()).normalize();
+  if (shotDir.lengthSq() < 0.1) shotDir.copy(p.facing);
+  ball.owner = null;
+  ball.vel.copy(shotDir.multiplyScalar(power));
+  ball.vel.x += curve * 0.55;
+  ball.spin.set(curve * 3.4, 0, -ball.vel.x * 1.5);
+  p.kickCooldown = 0.22;
+  p.pos.addScaledVector(shotDir, -0.045);
+}
+
+function movePlayer(p: PlayerState, desired: THREE.Vector3, topSpeed: number, dt: number) {
+  if (p.stunTime > 0) {
+    p.stunTime = Math.max(0, p.stunTime - dt);
+    desired.multiplyScalar(0.15);
   }
-  if (inputDir.lengthSq() > 0.001) {
-    p.targetDir.copy(inputDir).normalize();
-    p.vel.lerp(
-      inputDir.clone().normalize().multiplyScalar(speed),
-      1 - Math.pow(0.005, dt)
-    );
-  } else {
-    p.vel.multiplyScalar(Math.pow(0.0008, dt));
-  }
-  if (p.tackleTime > 0) p.vel.addScaledVector(p.dir, 0.018);
-  p.speed = p.vel.length();
+  const len = desired.length();
+  if (len > 1) desired.multiplyScalar(1 / len);
+  const speed = topSpeed * clamp(len, 0, 1);
+  TMP.copy(desired).multiplyScalar(speed);
+  p.vel.lerp(TMP, 1 - Math.pow(0.0007, dt));
   p.pos.addScaledVector(p.vel, dt);
-  clampPlayerPosition(p.pos);
+  p.pos.x = clamp(p.pos.x, -FIELD_W / 2 + p.radius, FIELD_W / 2 - p.radius);
+  p.pos.z = clamp(p.pos.z, -FIELD_H / 2 + p.radius, FIELD_H / 2 - p.radius);
+  if (p.vel.lengthSq() > 0.02) p.facing.lerp(p.vel.clone().normalize(), 1 - Math.pow(0.02, dt)).normalize();
+  p.group.position.copy(p.pos);
+  p.group.rotation.y = Math.atan2(p.facing.x, p.facing.z);
+  const walk = performance.now() * (speed > WALK_SPEED ? 0.018 : 0.012);
+  const stride = Math.sin(walk) * clamp(p.vel.length() / SPRINT_SPEED, 0, 1);
+  p.leftFoot.rotation.x = stride * 0.8;
+  p.rightFoot.rotation.x = -stride * 0.8;
+  p.body.rotation.z = -p.vel.x * 0.035;
+  p.arrow.visible = p.team === 'blue';
+  (p.arrow.material as THREE.MeshBasicMaterial).opacity = 0.56 + Math.sin(performance.now() * 0.008) * 0.12;
+  p.dashCooldown = Math.max(0, p.dashCooldown - dt);
+  p.tackleCooldown = Math.max(0, p.tackleCooldown - dt);
+  p.tackleTime = Math.max(0, p.tackleTime - dt);
+  p.kickCooldown = Math.max(0, p.kickCooldown - dt);
 }
 
-function separatePlayers(a: Player, b: Player) {
-  if (a.fallTime > 0 || b.fallTime > 0) return;
+function resolvePlayerCollision(a: PlayerState, b: PlayerState) {
   TMP.copy(a.pos).sub(b.pos);
-  TMP.y = 0;
-  const d = TMP.length();
-  const minD = a.radius + b.radius;
-  if (d > 0.0001 && d < minD) {
-    TMP.normalize();
-    const push = (minD - d) * 0.5;
-    a.pos.addScaledVector(TMP, push);
-    b.pos.addScaledVector(TMP, -push);
-    clampPlayerPosition(a.pos);
-    clampPlayerPosition(b.pos);
-  }
+  const distance = TMP.length();
+  const minDistance = a.radius + b.radius;
+  if (distance <= 0.001 || distance >= minDistance) return;
+  TMP.multiplyScalar((minDistance - distance) / distance / 2);
+  a.pos.add(TMP);
+  b.pos.sub(TMP);
+  const shove = a.vel.clone().sub(b.vel).dot(TMP.normalize());
+  if (shove < 0) return;
+  a.vel.addScaledVector(TMP, -shove * 0.25);
+  b.vel.addScaledVector(TMP, shove * 0.25);
 }
 
-function playerBallCollision(p: Player, ball: BallState) {
-  TMP.set(
-    ball.object.position.x - p.pos.x,
-    0,
-    ball.object.position.z - p.pos.z
-  );
-  const d = TMP.length();
-  const minD = p.radius + BALL_RADIUS;
-  if (d > 0.0001 && d < minD) {
-    TMP.normalize();
-    ball.object.position.x = p.pos.x + TMP.x * minD;
-    ball.object.position.z = p.pos.z + TMP.z * minD;
-    const along = p.vel.dot(TMP);
-    const push = Math.max(0.18, along * 0.65);
-    ball.vel.x += TMP.x * push;
-    ball.vel.z += TMP.z * push;
-    ball.spin.z -= TMP.x * push * 8;
-    ball.spin.x += TMP.z * push * 8;
-  }
+function nearestGoalDir(team: Team, from: THREE.Vector3) {
+  return new THREE.Vector3(0, 0, team === 'blue' ? -FIELD_H / 2 - 0.45 : FIELD_H / 2 + 0.45).sub(from).setY(0).normalize();
 }
 
-function dribbleAssist(p: Player, ball: BallState, dt: number) {
-  if (
-    p.fallTime > 0 ||
-    p.kickTime > 0 ||
-    ball.object.position.y > BALL_RADIUS + 0.035
-  )
-    return;
-  TMP.set(
-    ball.object.position.x - p.pos.x,
-    0,
-    ball.object.position.z - p.pos.z
-  );
-  const dist = TMP.length();
-  if (dist > DRIBBLE_ASSIST_RANGE || p.speed < 0.12) return;
-  TMP2.copy(p.dir).normalize();
-  const targetX = p.pos.x + TMP2.x * (p.radius + BALL_RADIUS + 0.07);
-  const targetZ = p.pos.z + TMP2.z * (p.radius + BALL_RADIUS + 0.07);
-  ball.object.position.x = THREE.MathUtils.lerp(
-    ball.object.position.x,
-    targetX,
-    1 - Math.pow(0.015, dt)
-  );
-  ball.object.position.z = THREE.MathUtils.lerp(
-    ball.object.position.z,
-    targetZ,
-    1 - Math.pow(0.015, dt)
-  );
-  ball.vel.x = THREE.MathUtils.lerp(
-    ball.vel.x,
-    p.vel.x * 0.82,
-    1 - Math.pow(0.05, dt)
-  );
-  ball.vel.z = THREE.MathUtils.lerp(
-    ball.vel.z,
-    p.vel.z * 0.82,
-    1 - Math.pow(0.05, dt)
-  );
-  ball.spin.z -= p.vel.x * dt * 8;
-  ball.spin.x += p.vel.z * dt * 8;
-}
-
-function tryKickAtFoot(p: Player, ball: BallState, fallbackPower: number) {
-  const shotDir = p.queuedShotDir?.clone();
-  p.kickFoot = chooseKickFoot(p, ball, shotDir);
-  const foot = getFootWorld(p, p.kickFoot);
-  TMP.copy(ball.object.position).sub(foot);
-  TMP.y = 0;
-  if (TMP.length() > BALL_RADIUS + 0.2) return false;
-  const goalDir =
-    p.team === 'blue'
-      ? new THREE.Vector3(0, 0, -1)
-      : new THREE.Vector3(0, 0, 1);
-  const strikeDir = (
-    shotDir && shotDir.lengthSq() > 0.001
-      ? shotDir
-      : p.dir.clone().multiplyScalar(0.72).add(goalDir.multiplyScalar(0.62))
-  ).normalize();
-  const power = Math.max(fallbackPower, p.queuedShotPower || 0);
-  const lift = p.queuedShotLift || 0.28;
-  ball.object.position
-    .copy(foot)
-    .addScaledVector(strikeDir, BALL_RADIUS + 0.08);
-  ball.object.position.y = BALL_RADIUS;
-  ball.vel.copy(strikeDir).multiplyScalar(power);
-  ball.vel.y = lift;
-  ball.spin.set(strikeDir.z * power * 8.8, 0, -strikeDir.x * power * 8.8);
-  p.queuedShotDir = null;
-  p.queuedShotPower = 0;
-  p.queuedShotLift = 0;
-  return true;
-}
-
-function tryTackle(attacker: Player, defender: Player, ball: BallState) {
-  if (attacker.tackleFired || attacker.tackleTime <= 0 || defender.fallTime > 0)
-    return false;
-  TMP.copy(defender.pos).sub(attacker.pos);
-  TMP.y = 0;
-  const dist = TMP.length();
-  if (dist > 0.42 || dist < 0.001) return false;
-  TMP.normalize();
-  const facing = attacker.dir.dot(TMP);
-  if (facing < 0.35) return false;
-
-  attacker.tackleFired = true;
-  defender.fallTime = 1.45;
-  defender.fallDir.copy(TMP);
-  defender.vel.addScaledVector(TMP, 0.95);
-  defender.kickQueued = false;
-  defender.kickFired = false;
-  defender.kickTime = 0;
-  defender.queuedShotDir = null;
-  defender.queuedShotPower = 0;
-  defender.queuedShotLift = 0;
-
-  TMP2.set(
-    ball.object.position.x - defender.pos.x,
-    0,
-    ball.object.position.z - defender.pos.z
-  );
-  if (TMP2.length() < 0.55) {
-    const loose = TMP.clone()
-      .add(
-        new THREE.Vector3(
-          (Math.random() - 0.5) * 0.55,
-          0,
-          (Math.random() - 0.5) * 0.55
-        )
-      )
-      .normalize();
-    ball.vel.addScaledVector(loose, 1.7);
-    ball.vel.y = 0.16;
-    ball.spin.set(loose.z * 12, 0, -loose.x * 12);
-  }
-  return true;
-}
-
-function updateBall(ball: BallState, dt: number) {
-  ball.vel.y -= 1.85 * dt;
-  ball.object.position.addScaledVector(ball.vel, dt);
-
-  if (ball.object.position.y < BALL_RADIUS) {
-    ball.object.position.y = BALL_RADIUS;
-    if (ball.vel.y < 0) ball.vel.y *= -0.24;
-    ball.vel.x *= Math.pow(0.55, dt);
-    ball.vel.z *= Math.pow(0.55, dt);
+function updateBall(match: MatchRuntime, dt: number) {
+  const { ball } = match;
+  if (ball.owner) {
+    const owner = ball.owner === 'blue' ? match.blue : match.red;
+    ball.pos.copy(owner.pos).addScaledVector(owner.facing, 0.42).setY(BALL_RADIUS);
+    ball.vel.copy(owner.vel).addScaledVector(owner.facing, 0.7);
+    owner.possession = Math.min(1, owner.possession + dt * 2.2);
   } else {
-    ball.vel.multiplyScalar(Math.pow(0.82, dt));
+    ball.vel.x += ball.spin.x * dt * 0.22;
+    ball.pos.addScaledVector(ball.vel, dt);
+    ball.vel.multiplyScalar(Math.pow(BALL_DAMPING, dt * 60));
+    ball.spin.multiplyScalar(Math.pow(0.965, dt * 60));
   }
 
-  ball.spin.multiplyScalar(Math.pow(0.62, dt));
-  const spinLen = ball.spin.length();
-  if (spinLen > 0.0001) {
-    QTMP.setFromAxisAngle(ball.spin.clone().normalize(), spinLen * dt);
-    ball.object.quaternion.premultiply(QTMP);
+  if (Math.abs(ball.pos.x) > FIELD_W / 2 - BALL_RADIUS) {
+    ball.pos.x = Math.sign(ball.pos.x) * (FIELD_W / 2 - BALL_RADIUS);
+    ball.vel.x *= -WALL_BOUNCE;
+    ball.owner = null;
+  }
+
+  const inGoalMouth = Math.abs(ball.pos.x) < GOAL_W / 2;
+  if (ball.pos.z < -FIELD_H / 2 - BALL_RADIUS * 0.2 && inGoalMouth) scoreGoal(match, 'blue');
+  else if (ball.pos.z > FIELD_H / 2 + BALL_RADIUS * 0.2 && inGoalMouth) scoreGoal(match, 'red');
+  else if (Math.abs(ball.pos.z) > FIELD_H / 2 - BALL_RADIUS) {
+    ball.pos.z = Math.sign(ball.pos.z) * (FIELD_H / 2 - BALL_RADIUS);
+    ball.vel.z *= -WALL_BOUNCE;
+    ball.owner = null;
+  }
+
+  ball.mesh.position.copy(ball.pos);
+  ball.mesh.rotation.x += ball.vel.z * dt * 3.2;
+  ball.mesh.rotation.z -= ball.vel.x * dt * 3.2;
+  ball.halo.position.set(ball.pos.x, 0.025, ball.pos.z);
+  (ball.halo.material as THREE.MeshBasicMaterial).opacity = ball.owner ? 0.36 : 0.18;
+}
+
+function tryAcquireBall(match: MatchRuntime, p: PlayerState, dt: number) {
+  if (match.ball.owner && match.ball.owner !== p.team) return;
+  const distance = flat(match.ball.pos.clone().sub(p.pos)).length();
+  if (distance > TOUCH_RANGE || p.kickCooldown > 0 || p.stunTime > 0) return;
+  const goalDir = nearestGoalDir(p.team, p.pos);
+  const facingTouch = p.facing.dot(goalDir) > -0.5 || distance < 0.42;
+  if (!match.ball.owner && (facingTouch || match.ball.vel.length() < 2.3)) {
+    match.ball.owner = p.team;
+    p.possession = Math.max(p.possession, 0.18);
   }
 }
 
-function clampBall(ball: BallState) {
-  const p = ball.object.position;
-  const xLimit = FIELD_W / 2 - BALL_RADIUS - 0.012;
-  const zLimit = FIELD_H / 2 + GOAL_D - BALL_RADIUS;
-  const goalMouth = Math.abs(p.x) < GOAL_W / 2;
-  const before = p.clone();
-
-  if (p.x < -xLimit || p.x > xLimit) {
-    p.x = THREE.MathUtils.clamp(p.x, -xLimit, xLimit);
-    ball.vel.x =
-      Math.abs(ball.vel.x) < 0.08
-        ? -Math.sign(before.x || 1) * 0.22
-        : ball.vel.x * -0.68;
-    ball.vel.z += (Math.random() - 0.5) * 0.06;
-    ball.spin.z *= -0.55;
-  }
-  if (p.z < -zLimit || p.z > zLimit) {
-    if (goalMouth) return;
-    p.z = THREE.MathUtils.clamp(p.z, -zLimit, zLimit);
-    ball.vel.z =
-      Math.abs(ball.vel.z) < 0.08
-        ? -Math.sign(before.z || 1) * 0.22
-        : ball.vel.z * -0.62;
-    ball.vel.x += (Math.random() - 0.5) * 0.06;
-    ball.spin.x *= -0.55;
-  }
-
-  const nearSide =
-    Math.abs(Math.abs(p.x) - xLimit) < 0.006 ||
-    Math.abs(Math.abs(p.z) - zLimit) < 0.006;
-  if (nearSide && ball.vel.lengthSq() < 0.012) ball.stuckTimer += 1 / 60;
-  else ball.stuckTimer = 0;
-  if (ball.stuckTimer > 0.22) {
-    TMP.copy(p).setY(0);
-    if (TMP.lengthSq() < 0.001) TMP.set(0, 0, 1);
-    TMP.multiplyScalar(-1).normalize();
-    ball.vel.addScaledVector(TMP, 0.38);
-    ball.object.position.addScaledVector(TMP, 0.025);
-    ball.stuckTimer = 0;
-  }
-
-  if (Math.abs(p.x) < xLimit - 0.08 && Math.abs(p.z) < FIELD_H / 2 - 0.08)
-    ball.lastSafe.copy(p);
+function scoreGoal(match: MatchRuntime, team: Team) {
+  if (match.phase === 'goal' || match.phase === 'finished') return;
+  if (team === 'blue') match.blueScore += 1;
+  else match.redScore += 1;
+  match.lastGoalTeam = team;
+  match.phase = match.blueScore >= TARGET_SCORE || match.redScore >= TARGET_SCORE ? 'finished' : 'goal';
+  match.phaseTimer = match.phase === 'finished' ? 4 : 1.6;
+  match.ball.owner = null;
+  match.ball.vel.set(0, 0, 0);
+  emitGoalBurst(match, team);
 }
 
-function resetAfterGoal(ball: BallState, blue: Player, red: Player) {
-  ball.object.position.set(0, BALL_RADIUS, 0);
-  ball.vel.set(0, 0, 0);
-  ball.spin.set(0, 0, 0);
-  ball.lastSafe.copy(ball.object.position);
-  ball.stuckTimer = 0;
-  blue.pos.set(0, GROUND_Y, 1.45);
-  red.pos.set(0, GROUND_Y, -1.45);
-  blue.vel.set(0, 0, 0);
-  red.vel.set(0, 0, 0);
-  blue.dir.set(0, 0, -1);
-  red.dir.set(0, 0, 1);
-  blue.targetDir.copy(blue.dir);
-  red.targetDir.copy(red.dir);
-  blue.kickQueued = red.kickQueued = false;
-  blue.kickFired = red.kickFired = false;
-  blue.tackleQueued = red.tackleQueued = false;
-  blue.tackleFired = red.tackleFired = false;
-  blue.tackleTime = red.tackleTime = 0;
-  blue.fallTime = red.fallTime = 0;
+function emitGoalBurst(match: MatchRuntime, team: Team) {
+  const color = team === 'blue' ? BLUE : RED;
+  const z = team === 'blue' ? -FIELD_H / 2 : FIELD_H / 2;
+  for (let i = 0; i < 28; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.035, 8, 6),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 })
+    );
+    mesh.position.set((Math.random() - 0.5) * GOAL_W, 0.35 + Math.random() * 0.8, z);
+    mesh.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 2.8, Math.random() * 2.2, (team === 'blue' ? 1 : -1) * (1.2 + Math.random() * 2.2));
+    mesh.userData.life = 1.1;
+    match.particles.add(mesh);
+  }
+}
+
+function updateParticles(group: THREE.Group, dt: number) {
+  [...group.children].forEach((child) => {
+    const mesh = child as THREE.Mesh;
+    const vel = mesh.userData.vel as THREE.Vector3 | undefined;
+    if (!vel) return;
+    vel.y -= 2.4 * dt;
+    mesh.position.addScaledVector(vel, dt);
+    mesh.userData.life -= dt;
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    material.opacity = clamp(mesh.userData.life, 0, 1);
+    if (mesh.userData.life <= 0) group.remove(mesh);
+  });
+}
+
+function updateAi(match: MatchRuntime, dt: number) {
+  const ai = match.red;
+  const ball = match.ball;
+  const attacking = ball.owner === 'red' || ball.pos.z < 0.9;
+  const danger = ball.pos.z > FIELD_H / 2 - 2.6;
+
+  if (ball.owner === 'red') {
+    const lane = Math.abs(ai.pos.x) < 0.62 ? (ai.pos.x >= 0 ? 1 : -1) : -Math.sign(ai.pos.x);
+    ai.target.set(lane * 0.95, 0, FIELD_H / 2 - 0.9);
+    if (ai.pos.z > FIELD_H / 2 - 1.65 || ai.possession > 0.52) {
+      const aim = new THREE.Vector3(clamp(-ai.pos.x * 0.42, -0.75, 0.75), 0, 1).normalize();
+      kickBall(ball, ai, aim, 5.3 + Math.random() * 0.9, (Math.random() - 0.5) * 0.8);
+      ai.possession = 0;
+    }
+  } else if (attacking) {
+    ai.target.copy(ball.pos).setY(0).add(new THREE.Vector3(clamp(ball.pos.x * 0.2, -0.3, 0.3), 0, -0.25));
+  } else if (danger) {
+    ai.target.set(clamp(ball.pos.x, -1.18, 1.18), 0, FIELD_H / 2 - 1.05);
+  } else {
+    ai.target.set(clamp(ball.pos.x * 0.55, -1.55, 1.55), 0, 1.1);
+  }
+
+  TMP.copy(ai.target).sub(ai.pos).setY(0);
+  const desired = TMP.length() > 0.05 ? TMP.normalize() : TMP.set(0, 0, 0);
+  const burst = danger || ball.owner === 'red' ? 0.35 : 0;
+  movePlayer(ai, desired, AI_SPEED + burst, dt);
+
+  const distance = flat(ball.pos.clone().sub(ai.pos)).length();
+  const blueDistance = flat(match.blue.pos.clone().sub(ai.pos)).length();
+  if (ball.owner === 'blue' && blueDistance < 0.66 && ai.tackleCooldown <= 0) {
+    ai.tackleCooldown = 0.9;
+    ai.tackleTime = 0.24;
+    match.blue.stunTime = 0.26;
+    ball.owner = null;
+    ball.vel.copy(ai.facing).multiplyScalar(2.1);
+  } else if (distance < KICK_RANGE && !ball.owner && ai.kickCooldown <= 0 && ball.pos.z < ai.pos.z + 0.25) {
+    kickBall(ball, ai, nearestGoalDir('red', ai.pos), 4.8, (Math.random() - 0.5) * 0.7);
+  }
+}
+
+function updateHuman(match: MatchRuntime, input: InputState, shot: SwipeShot | null, dt: number) {
+  const p = match.blue;
+  const desired = new THREE.Vector3(input.x, 0, input.y);
+  const sprinting = input.sprint && p.stamina > 0.08 && desired.lengthSq() > 0.08;
+  const topSpeed = sprinting ? SPRINT_SPEED : WALK_SPEED;
+  if (sprinting) p.stamina = Math.max(0, p.stamina - dt * 0.34);
+  else p.stamina = Math.min(1, p.stamina + dt * 0.22);
+
+  if (input.tackle && p.tackleCooldown <= 0 && p.stamina > 0.16) {
+    p.tackleTime = 0.28;
+    p.tackleCooldown = 0.82;
+    p.stamina -= 0.14;
+    p.vel.addScaledVector(p.facing, 2.25);
+    const rival = match.red;
+    if (flat(rival.pos.clone().sub(p.pos)).length() < 0.78 && p.facing.dot(rival.pos.clone().sub(p.pos).normalize()) > 0.1) {
+      rival.stunTime = 0.48;
+      if (match.ball.owner === 'red') {
+        match.ball.owner = null;
+        match.ball.vel.copy(p.facing).multiplyScalar(2.6);
+      }
+    }
+  }
+
+  movePlayer(p, desired, topSpeed, dt);
+
+  const ballDistance = flat(match.ball.pos.clone().sub(p.pos)).length();
+  if (shot && ballDistance < KICK_RANGE && p.kickCooldown <= 0) {
+    const adjusted = shot.dir.clone();
+    if (adjusted.z > -0.2) adjusted.z = -0.35;
+    kickBall(match.ball, p, adjusted.normalize(), shot.power, shot.curve);
+    p.possession = 0;
+  } else if (input.shoot && ballDistance < KICK_RANGE && p.kickCooldown <= 0) {
+    kickBall(match.ball, p, nearestGoalDir('blue', p.pos), 4.35, -p.pos.x * 0.22);
+    p.possession = 0;
+  }
+}
+
+function updateCamera(match: MatchRuntime, dt: number) {
+  match.cameraTarget.lerp(match.ball.pos, 1 - Math.pow(0.015, dt));
+  const targetZ = clamp(match.cameraTarget.z + 5.5, -0.9, 6.4);
+  const targetX = clamp(match.cameraTarget.x * 0.45 + match.blue.pos.x * 0.2, -2.1, 2.1);
+  match.camera.position.x = damp(match.camera.position.x, targetX, 4.5, dt);
+  match.camera.position.y = damp(match.camera.position.y, 8.8, 4.5, dt);
+  match.camera.position.z = damp(match.camera.position.z, targetZ, 4.5, dt);
+  TMP.set(match.cameraTarget.x * 0.18, 0, clamp(match.cameraTarget.z - 0.65, -3.1, 2.7));
+  match.camera.lookAt(TMP);
+}
+
+function updateMatch(match: MatchRuntime, input: InputState, pendingShot: React.MutableRefObject<SwipeShot | null>, dt: number) {
+  if (match.phase === 'ready') {
+    match.phaseTimer -= dt;
+    if (match.phaseTimer <= 0) resetKickoff(match);
+    return;
+  }
+
+  if (match.phase === 'goal') {
+    match.phaseTimer -= dt;
+    updateParticles(match.particles, dt);
+    updateCamera(match, dt);
+    if (match.phaseTimer <= 0) resetKickoff(match, match.lastGoalTeam === 'blue' ? 'red' : 'blue');
+    return;
+  }
+
+  if (match.phase === 'finished') {
+    match.phaseTimer -= dt;
+    updateParticles(match.particles, dt);
+    updateCamera(match, dt);
+    if (match.phaseTimer <= 0) {
+      match.blueScore = 0;
+      match.redScore = 0;
+      match.clock = MATCH_SECONDS;
+      resetKickoff(match);
+    }
+    return;
+  }
+
+  match.clock = Math.max(0, match.clock - dt);
+  if (match.clock <= 0) {
+    match.phase = 'finished';
+    match.phaseTimer = 4;
+  }
+
+  const shot = pendingShot.current;
+  pendingShot.current = null;
+  updateHuman(match, input, shot, dt);
+  updateAi(match, dt);
+  resolvePlayerCollision(match.blue, match.red);
+  tryAcquireBall(match, match.blue, dt);
+  tryAcquireBall(match, match.red, dt);
+  updateBall(match, dt);
+  updateParticles(match.particles, dt);
+  updateCamera(match, dt);
+
+  match.crowd.children.forEach((fan, i) => {
+    fan.position.y += Math.sin(performance.now() * 0.004 + i) * 0.0008;
+  });
+}
+
+function createMatch(canvas: HTMLCanvasElement, host: HTMLElement) {
+  const scene = new THREE.Scene();
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+  renderer.setSize(host.clientWidth, host.clientHeight, false);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  const camera = new THREE.PerspectiveCamera(46, host.clientWidth / Math.max(1, host.clientHeight), 0.1, 80);
+  camera.position.set(0, 8.8, 5.5);
+
+  scene.add(new THREE.HemisphereLight(0xa7f3d0, 0x07110b, 1.4));
+  const key = new THREE.DirectionalLight(0xffffff, 2.4);
+  key.position.set(-3.6, 8.6, 5.6);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1536, 1536);
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 22;
+  key.shadow.camera.left = -8;
+  key.shadow.camera.right = 8;
+  key.shadow.camera.top = 10;
+  key.shadow.camera.bottom = -10;
+  scene.add(key);
+
+  const { crowd, particles } = buildArena(scene);
+  const blue = makePlayer('blue', 'You', -0.72, 2.1);
+  const red = makePlayer('red', 'Rival', 0.72, -2.1);
+  const ball = makeBall();
+  scene.add(blue.group, red.group, ball.mesh, ball.halo);
+
+  const match: MatchRuntime = {
+    scene,
+    renderer,
+    camera,
+    blue,
+    red,
+    ball,
+    clock: MATCH_SECONDS,
+    blueScore: 0,
+    redScore: 0,
+    phase: 'ready',
+    phaseTimer: 1.0,
+    lastGoalTeam: null,
+    cameraTarget: new THREE.Vector3(),
+    particles,
+    crowd
+  };
+
+  return match;
+}
+
+function formatClock(seconds: number) {
+  const s = Math.ceil(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function hudFromMatch(match: MatchRuntime): HudState {
+  const leader = match.blueScore === match.redScore ? 'Next goal shifts momentum' : match.blueScore > match.redScore ? 'Blue is leading' : 'Red is leading';
+  const status =
+    match.phase === 'ready'
+      ? 'Kickoff loading — drag the stick and swipe to shoot.'
+      : match.phase === 'goal'
+        ? `${match.lastGoalTeam === 'blue' ? 'BLUE' : 'RED'} GOAL! Resetting kickoff.`
+        : match.phase === 'finished'
+          ? match.blueScore === match.redScore
+            ? 'Full time draw — instant rematch.'
+            : `${match.blueScore > match.redScore ? 'BLUE' : 'RED'} wins — instant rematch.`
+          : match.ball.owner === 'blue'
+            ? 'Dribble, sprint into space, then swipe toward goal.'
+            : match.ball.owner === 'red'
+              ? 'Chase back and tap tackle to steal possession.'
+              : leader;
+  return {
+    blue: match.blueScore,
+    red: match.redScore,
+    clock: match.clock,
+    phase: match.phase,
+    status,
+    stamina: match.blue.stamina,
+    boost: match.blue.tackleCooldown > 0 ? 'Recovering' : match.blue.stamina < 0.2 ? 'Low stamina' : 'Ready'
+  };
 }
 
 export default function GoalRush3DUpgrade() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const input = useRef<InputState>({
-    x: 0,
-    y: 0,
-    sprint: false,
-    tackle: false
-  });
-  const swipe = useRef<SwipeState>({
-    pointerId: null,
-    startX: 0,
-    startY: 0,
-    endX: 0,
-    endY: 0,
-    active: false
-  });
-  const pendingShot = useRef<SwipeShot | null>(null);
   const joyBase = useRef<HTMLDivElement | null>(null);
   const joyKnob = useRef<HTMLDivElement | null>(null);
-  const touchId = useRef<number | null>(null);
-  const [hud, setHud] = useState({
-    blue: 0,
-    red: 0,
-    status: 'Loading animated GLTF players…'
-  });
+  const input = useRef<InputState>({ x: 0, y: 0, sprint: false, tackle: false, shoot: false });
+  const stickPointer = useRef<number | null>(null);
+  const swipe = useRef({ pointerId: null as number | null, x: 0, y: 0, active: false });
+  const pendingShot = useRef<SwipeShot | null>(null);
+  const matchRef = useRef<MatchRuntime | null>(null);
+  const [hud, setHud] = useState<HudState>({ blue: 0, red: 0, clock: MATCH_SECONDS, phase: 'ready', status: 'Building arena…', stamina: 1, boost: 'Ready' });
+
+  const researchNotes = useMemo(
+    () => [
+      'Fast 90-second rounds',
+      '1v1 duels with boards always in play',
+      'Swipe shots, sprint stamina, tackle recovery',
+      'AI rotates between keeper, press, and counter-attack lanes'
+    ],
+    []
+  );
 
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
-
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setClearColor(0x07110b, 1);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x07110b, 4.4, 10.5);
-
-    const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 40);
-    camera.position.set(0, 3.2, 3.65);
-
-    const controls = new OrbitControls(camera, canvas);
-    controls.enabled = false;
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.66));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.35);
-    sun.position.set(2.5, 5, 2.2);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    scene.add(sun);
-
-    const loader = new GLTFLoader();
-    makePitch(scene);
-    const stadium = makeGoalRushStadium(scene, loader);
-    const ball = makeBall(scene);
-    const aimLineMaterial = new THREE.LineBasicMaterial({
-      color: 0x9cff6d,
-      transparent: true,
-      opacity: 0.82
-    });
-    const aimLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3()
-      ]),
-      aimLineMaterial
-    );
-    aimLine.visible = false;
-    scene.add(aimLine);
-
-    let loadedCount = 0;
-    const onLoaded = () => {
-      loadedCount += 1;
-      if (loadedCount >= 2)
-        setHud((h) => ({
-          ...h,
-          status:
-            'Left stick moves. Green arrow = in range. Swipe up to shoot. First to 3 wins.'
-        }));
-    };
-
-    const blue = createPlayer(
-      scene,
-      loader,
-      'blue',
-      new THREE.Vector3(0, GROUND_Y, 1.45),
-      onLoaded
-    );
-    const red = createPlayer(
-      scene,
-      loader,
-      'red',
-      new THREE.Vector3(0, GROUND_Y, -1.45),
-      onLoaded
-    );
-
-    let scoreBlue = 0;
-    let scoreRed = 0;
-    let goalCooldown = 0;
-    let tackleLatch = false;
-    let replayCooldown = 0;
-    let replayFrames: ReplayFrame[] = [];
-    let replayCursor = -1;
-    let lastLook = new THREE.Vector3();
+    const match = createMatch(canvas, host);
+    matchRef.current = match;
+    let raf = 0;
     let last = performance.now();
-    let frame = 0;
+    let hudTimer = 0;
 
     const resize = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const width = Math.max(1, host.clientWidth);
+      const height = Math.max(1, host.clientHeight);
+      match.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+      match.renderer.setSize(width, height, false);
+      match.camera.aspect = width / height;
+      match.camera.updateProjectionMatrix();
     };
-    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
     window.addEventListener('resize', resize);
+    resize();
 
-    const loop = () => {
-      frame = requestAnimationFrame(loop);
-      const now = performance.now();
-      const dt = Math.min(DT_MAX, (now - last) / 1000);
+    const loop = (now: number) => {
+      const dt = Math.min(DT_CAP, Math.max(0.001, (now - last) / 1000));
       last = now;
-      goalCooldown = Math.max(0, goalCooldown - dt);
-
-      const joy = input.current;
-      const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(
-        camera.quaternion
-      );
-      camForward.y = 0;
-      camForward.normalize();
-      const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(
-        camera.quaternion
-      );
-      camRight.y = 0;
-      camRight.normalize();
-      const moveDir = camRight
-        .clone()
-        .multiplyScalar(joy.x)
-        .addScaledVector(camForward, -joy.y);
-
-      const shot = pendingShot.current;
-      if (
-        shot &&
-        blue.fallTime <= 0 &&
-        blue.kickTime <= 0 &&
-        replayCooldown <= 0
-      ) {
-        pendingShot.current = null;
-        TMP.set(
-          ball.object.position.x - blue.pos.x,
-          0,
-          ball.object.position.z - blue.pos.z
-        );
-        if (TMP.length() < KICK_RANGE) {
-          const strikeDir = camRight
-            .clone()
-            .multiplyScalar(shot.dir.x)
-            .addScaledVector(camForward, shot.dir.z)
-            .normalize();
-          blue.targetDir.copy(strikeDir);
-          blue.kickFoot = chooseKickFoot(blue, ball, strikeDir);
-          blue.queuedShotDir = strikeDir;
-          blue.queuedShotPower = shot.power;
-          blue.queuedShotLift = shot.lift;
-          blue.kickTime = 0.48;
-          blue.kickQueued = true;
-          blue.kickFired = false;
-          setHud((h) => ({
-            ...h,
-            status: `Swipe shot ${Math.round(shot.screenPower * 100)}% with ${blue.kickFoot} foot`
-          }));
-        } else {
-          setHud((h) => ({
-            ...h,
-            status:
-              'Move closer to the ball: the green aim arrow appears when you can shoot.'
-          }));
-        }
+      updateMatch(match, input.current, pendingShot, dt);
+      match.renderer.render(match.scene, match.camera);
+      hudTimer += dt;
+      if (hudTimer > 0.08) {
+        hudTimer = 0;
+        setHud(hudFromMatch(match));
       }
-
-      movePlayer(blue, moveDir, joy.sprint ? SPRINT_SPEED : WALK_SPEED, dt);
-
-      TMP.set(
-        ball.object.position.x - red.pos.x,
-        0,
-        ball.object.position.z - red.pos.z
-      );
-      const aiToBall = TMP.length();
-      const defend =
-        ball.object.position.z > -0.15
-          ? new THREE.Vector3(0, 0, -1.22).sub(red.pos)
-          : TMP.clone();
-      movePlayer(
-        red,
-        aiToBall < 0.92 || ball.object.position.z < 0.45 ? TMP.clone() : defend,
-        AI_SPEED,
-        dt
-      );
-
-      separatePlayers(blue, red);
-
-      if (
-        joy.tackle &&
-        !tackleLatch &&
-        blue.fallTime <= 0 &&
-        blue.tackleTime <= 0
-      ) {
-        tackleLatch = true;
-        blue.tackleTime = 0.56;
-        blue.tackleQueued = true;
-        blue.tackleFired = false;
-      }
-      if (!joy.tackle) tackleLatch = false;
-
-      TMP.set(
-        ball.object.position.x - red.pos.x,
-        0,
-        ball.object.position.z - red.pos.z
-      );
-      if (
-        TMP.length() < 0.38 &&
-        goalCooldown <= 0 &&
-        red.kickTime <= 0 &&
-        red.fallTime <= 0
-      ) {
-        const aiGoalDir = new THREE.Vector3(0, 0, 1);
-        red.kickFoot = chooseKickFoot(red, ball, aiGoalDir);
-        red.queuedShotDir = red.dir
-          .clone()
-          .multiplyScalar(0.55)
-          .add(aiGoalDir.multiplyScalar(0.72))
-          .normalize();
-        red.queuedShotPower = 3.05;
-        red.queuedShotLift = 0.24;
-        red.kickTime = 0.48;
-        red.kickQueued = true;
-        red.kickFired = false;
-      }
-
-      if (red.fallTime <= 0 && blue.fallTime <= 0) {
-        TMP.copy(blue.pos).sub(red.pos).setY(0);
-        if (
-          TMP.length() < 0.44 &&
-          red.tackleTime <= 0 &&
-          Math.random() < 0.012
-        ) {
-          red.tackleTime = 0.56;
-          red.tackleQueued = true;
-          red.tackleFired = false;
-        }
-      }
-
-      updatePlayerAnimation(blue, dt);
-      updatePlayerAnimation(red, dt);
-      updateStadiumCrowd(stadium, dt);
-
-      if (blue.tackleQueued && !blue.tackleFired && blue.tackleTime < 0.38)
-        tryTackle(blue, red, ball);
-      if (red.tackleQueued && !red.tackleFired && red.tackleTime < 0.38)
-        tryTackle(red, blue, ball);
-      if (blue.tackleTime <= 0) blue.tackleQueued = false;
-      if (red.tackleTime <= 0) red.tackleQueued = false;
-
-      if (blue.kickQueued && !blue.kickFired && blue.kickTime < 0.29)
-        blue.kickFired = tryKickAtFoot(blue, ball, 3.25);
-      if (red.kickQueued && !red.kickFired && red.kickTime < 0.29)
-        red.kickFired = tryKickAtFoot(red, ball, 2.45);
-      if (blue.kickTime <= 0) blue.kickQueued = false;
-      if (red.kickTime <= 0) red.kickQueued = false;
-
-      playerBallCollision(blue, ball);
-      playerBallCollision(red, ball);
-      dribbleAssist(blue, ball, dt);
-      dribbleAssist(red, ball, dt);
-      updateBall(ball, dt);
-
-      lastLook.copy(blue.pos).lerp(ball.object.position, 0.38).setY(0.17);
-      if (replayCursor < 0) {
-        replayFrames.push({
-          ball: ball.object.position.clone(),
-          ballQuat: ball.object.quaternion.clone(),
-          blue: blue.root.position.clone(),
-          blueRot: blue.root.rotation.clone(),
-          red: red.root.position.clone(),
-          redRot: red.root.rotation.clone(),
-          cam: camera.position.clone(),
-          look: lastLook.clone()
-        });
-        if (replayFrames.length > 130) replayFrames.shift();
-      }
-
-      const goalZ = FIELD_H / 2 + GOAL_D - BALL_RADIUS * 0.5;
-      const inGoal =
-        Math.abs(ball.object.position.x) < GOAL_W / 2 &&
-        ball.object.position.y < GOAL_H + BALL_RADIUS * 0.8;
-      if (
-        Math.abs(ball.object.position.z) > goalZ &&
-        inGoal &&
-        goalCooldown <= 0
-      ) {
-        if (ball.object.position.z < 0) scoreBlue += 1;
-        else scoreRed += 1;
-        const winner =
-          scoreBlue >= MATCH_TARGET_SCORE
-            ? 'BLUE wins the match!'
-            : scoreRed >= MATCH_TARGET_SCORE
-              ? 'RED wins the match!'
-              : null;
-        goalCooldown = 2.25;
-        replayCooldown = winner ? 1.75 : 1.35;
-        replayCursor = Math.max(0, replayFrames.length - 78);
-        triggerCrowdCheer(stadium);
-        setHud({
-          blue: scoreBlue,
-          red: scoreRed,
-          status:
-            winner ??
-            (ball.object.position.z < 0
-              ? 'BLUE scored! Replay…'
-              : 'RED scored! Replay…')
-        });
-        if (winner) {
-          scoreBlue = 0;
-          scoreRed = 0;
-        }
-      } else {
-        clampBall(ball);
-      }
-
-      const canShoot =
-        replayCursor < 0 &&
-        blue.fallTime <= 0 &&
-        blue.kickTime <= 0 &&
-        TMP.set(
-          ball.object.position.x - blue.pos.x,
-          0,
-          ball.object.position.z - blue.pos.z
-        ).length() < KICK_RANGE;
-      aimLine.visible = canShoot;
-      if (canShoot) {
-        const aimForward =
-          ball.vel.lengthSq() > 0.08
-            ? ball.vel.clone().setY(0).normalize()
-            : blue.dir.clone().setY(0).normalize();
-        const p0 = ball.object.position.clone().setY(0.045);
-        const p1 = p0.clone().addScaledVector(aimForward, 0.62);
-        aimLine.geometry.dispose();
-        aimLine.geometry = new THREE.BufferGeometry().setFromPoints([p0, p1]);
-      }
-
-      if (replayCursor >= 0 && replayFrames[replayCursor]) {
-        const r = replayFrames[replayCursor];
-        ball.object.position.copy(r.ball);
-        ball.object.quaternion.copy(r.ballQuat);
-        blue.root.position.copy(r.blue);
-        blue.root.rotation.copy(r.blueRot);
-        red.root.position.copy(r.red);
-        red.root.rotation.copy(r.redRot);
-        camera.position.lerp(
-          r.cam.clone().add(new THREE.Vector3(0, 0.18, 0.28)),
-          0.34
-        );
-        camera.lookAt(r.look);
-        replayCursor += 2;
-        replayCooldown = Math.max(0, replayCooldown - dt);
-        if (replayCursor >= replayFrames.length || replayCooldown <= 0) {
-          replayCursor = -1;
-          replayFrames = [];
-          resetAfterGoal(ball, blue, red);
-          setHud({
-            blue: scoreBlue,
-            red: scoreRed,
-            status:
-              'Green arrow means ready: swipe up/diagonal for a placed shot. First to 3.'
-          });
-        }
-      } else {
-        TMP.copy(blue.pos).lerp(ball.object.position, 0.38);
-        camera.position.lerp(
-          new THREE.Vector3(TMP.x, 2.9, TMP.z + 3.05),
-          1 - Math.pow(0.002, dt)
-        );
-        camera.lookAt(TMP.x, 0.17, TMP.z - 0.15);
-      }
-      renderer.render(scene, camera);
+      raf = requestAnimationFrame(loop);
     };
+    raf = requestAnimationFrame(loop);
 
-    loop();
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(raf);
+      ro.disconnect();
       window.removeEventListener('resize', resize);
-      controls.dispose();
-      renderer.dispose();
+      match.scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach((material) => material?.dispose());
+      });
+      match.renderer.dispose();
+      matchRef.current = null;
     };
   }, []);
 
-  const updateStick = (clientX: number, clientY: number) => {
-    const base = joyBase.current;
-    const knob = joyKnob.current;
-    if (!base || !knob) return;
-    const r = base.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const dx = clientX - cx;
-    const dy = clientY - cy;
-    const max = r.width * 0.36;
-    const len = Math.min(max, Math.hypot(dx, dy));
-    const a = Math.atan2(dy, dx);
-    const x = Math.cos(a) * len;
-    const y = Math.sin(a) * len;
-    knob.style.transform = `translate(${x}px, ${y}px)`;
-    input.current.x = x / max;
-    input.current.y = y / max;
+  useEffect(() => {
+    const keyDown = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'KeyW'].includes(e.code)) input.current.y = -1;
+      if (['ArrowDown', 'KeyS'].includes(e.code)) input.current.y = 1;
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) input.current.x = -1;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) input.current.x = 1;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') input.current.sprint = true;
+      if (e.code === 'Space') input.current.shoot = true;
+      if (e.code === 'KeyE') input.current.tackle = true;
+    };
+    const keyUp = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'KeyW'].includes(e.code) && input.current.y < 0) input.current.y = 0;
+      if (['ArrowDown', 'KeyS'].includes(e.code) && input.current.y > 0) input.current.y = 0;
+      if (['ArrowLeft', 'KeyA'].includes(e.code) && input.current.x < 0) input.current.x = 0;
+      if (['ArrowRight', 'KeyD'].includes(e.code) && input.current.x > 0) input.current.x = 0;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') input.current.sprint = false;
+      if (e.code === 'Space') input.current.shoot = false;
+      if (e.code === 'KeyE') input.current.tackle = false;
+    };
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
+    return () => {
+      window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
+    };
+  }, []);
+
+  const updateStick = (x: number, y: number) => {
+    const rect = joyBase.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const max = rect.width * 0.34;
+    const distance = Math.min(max, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+    const nx = max > 0 ? (Math.cos(angle) * distance) / max : 0;
+    const ny = max > 0 ? (Math.sin(angle) * distance) / max : 0;
+    input.current.x = clamp(nx, -1, 1);
+    input.current.y = clamp(ny, -1, 1);
+    if (joyKnob.current) joyKnob.current.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
   };
 
-  const endStick = () => {
-    touchId.current = null;
+  const resetStick = () => {
+    stickPointer.current = null;
     input.current.x = 0;
     input.current.y = 0;
-    if (joyKnob.current) joyKnob.current.style.transform = 'translate(0px,0px)';
+    if (joyKnob.current) joyKnob.current.style.transform = 'translate(0, 0)';
   };
 
   const beginSwipe = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (touchId.current !== null) return;
-    swipe.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      endX: e.clientX,
-      endY: e.clientY,
-      active: true
-    };
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-control="true"]')) return;
+    swipe.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, active: true };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const moveSwipe = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!swipe.current.active || swipe.current.pointerId !== e.pointerId)
-      return;
-    swipe.current.endX = e.clientX;
-    swipe.current.endY = e.clientY;
-  };
-
-  const finishSwipe = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!swipe.current.active || swipe.current.pointerId !== e.pointerId)
-      return;
-    swipe.current.endX = e.clientX;
-    swipe.current.endY = e.clientY;
-    const dx = swipe.current.endX - swipe.current.startX;
-    const dy = swipe.current.startY - swipe.current.endY;
-    const distance = Math.hypot(dx, dy);
+  const endSwipe = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!swipe.current.active || swipe.current.pointerId !== e.pointerId) return;
+    const dx = e.clientX - swipe.current.x;
+    const dy = e.clientY - swipe.current.y;
+    const length = Math.hypot(dx, dy);
     swipe.current.active = false;
     swipe.current.pointerId = null;
-    if (distance < 24) return;
-    const screenPower = THREE.MathUtils.clamp(distance / 210, 0.28, 1.35);
-    const lateral = THREE.MathUtils.clamp(
-      dx / Math.max(1, distance),
-      -0.9,
-      0.9
-    );
-    const forward = THREE.MathUtils.clamp(
-      dy / Math.max(1, distance),
-      -0.35,
-      1.0
-    );
-    const normalizedForward = forward > 0.08 ? forward : 0.24;
+    if (length < 22) {
+      input.current.shoot = true;
+      window.setTimeout(() => (input.current.shoot = false), 120);
+      return;
+    }
+    const lateral = clamp(dx / Math.max(length, 1), -0.85, 0.85);
+    const forward = clamp(dy / Math.max(length, 1), -1, 0.45);
     pendingShot.current = {
-      dir: new THREE.Vector3(lateral, 0, normalizedForward).normalize(),
-      power: 3.7 + screenPower * 2.45,
-      lift: THREE.MathUtils.clamp(
-        0.18 + Math.max(0, dy) / 520 + screenPower * 0.18,
-        0.2,
-        0.86
-      ),
-      screenPower
+      dir: new THREE.Vector3(lateral, 0, forward < 0.08 ? forward : -0.32).normalize(),
+      power: clamp(3.4 + length / 34, 4.1, 7.9),
+      curve: clamp(dx / 240, -1.1, 1.1)
     };
   };
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#07110b',
-        overflow: 'hidden',
-        touchAction: 'none',
-        userSelect: 'none'
-      }}
+      ref={hostRef}
+      onPointerDown={beginSwipe}
+      onPointerUp={endSwipe}
+      onPointerCancel={endSwipe}
+      style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#06130d', touchAction: 'none', userSelect: 'none' }}
     >
-      <div
-        ref={hostRef}
-        onPointerDown={beginSwipe}
-        onPointerMove={moveSwipe}
-        onPointerUp={finishSwipe}
-        onPointerCancel={finishSwipe}
-        style={{ position: 'absolute', inset: 0 }}
-      >
-        <canvas
-          ref={canvasRef}
-          style={{ width: '100%', height: '100%', display: 'block' }}
-        />
-      </div>
+      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
 
-      <div
-        style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          top: 0,
-          padding: '12px 14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pointerEvents: 'none',
-          color: 'white',
-          fontFamily: 'system-ui,sans-serif',
-          textShadow: '0 2px 8px #000'
-        }}
-      >
-        <div style={{ fontWeight: 900, fontSize: 18 }}>
-          BLUE {hud.blue} - {hud.red} RED
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 50% 72%, transparent 45%, rgba(2,6,23,0.5) 100%)' }} />
+
+      <header style={{ position: 'fixed', left: 12, right: 12, top: 10, display: 'grid', gap: 8, pointerEvents: 'none', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: '9px 12px', borderRadius: 18, background: 'rgba(2,6,23,0.64)', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 16px 36px rgba(0,0,0,0.28)' }}>
+            <div style={{ fontSize: 11, opacity: 0.72, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.4 }}>Goal Rush 1v1</div>
+            <div style={{ fontSize: 24, fontWeight: 1000, lineHeight: 1 }}><span style={{ color: '#38bdf8' }}>BLUE</span> {hud.blue} - {hud.red} <span style={{ color: '#fb7185' }}>RED</span></div>
+          </div>
+          <div style={{ minWidth: 92, textAlign: 'center', padding: '10px 12px', borderRadius: 18, background: 'rgba(2,6,23,0.64)', border: '1px solid rgba(255,255,255,0.14)' }}>
+            <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 800 }}>CLOCK</div>
+            <div style={{ fontSize: 22, fontWeight: 1000 }}>{formatClock(hud.clock)}</div>
+          </div>
         </div>
+        <div style={{ justifySelf: 'center', maxWidth: 390, padding: '8px 12px', borderRadius: 999, textAlign: 'center', background: 'rgba(15,23,42,0.58)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12, fontWeight: 800, textShadow: '0 2px 10px #000' }}>{hud.status}</div>
+      </header>
+
+      <aside style={{ position: 'fixed', left: 14, top: 112, width: 176, display: 'grid', gap: 7, pointerEvents: 'none', color: '#e2e8f0', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        {researchNotes.map((note) => (
+          <div key={note} style={{ padding: '7px 9px', borderRadius: 14, background: 'rgba(2,6,23,0.45)', border: '1px solid rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 750 }}>⚽ {note}</div>
+        ))}
+      </aside>
+
+      <div data-control="true" style={{ position: 'fixed', left: 20, right: 20, bottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'end', pointerEvents: 'none' }}>
         <div
-          style={{
-            fontSize: 11,
-            maxWidth: 190,
-            textAlign: 'right',
-            lineHeight: 1.25
-          }}
-        >
-          {hud.status}
-        </div>
-      </div>
-
-      <div
-        ref={joyBase}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          touchId.current = e.pointerId;
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          updateStick(e.clientX, e.clientY);
-        }}
-        onPointerMove={(e) => {
-          e.stopPropagation();
-          if (touchId.current === e.pointerId)
+          ref={joyBase}
+          data-control="true"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            stickPointer.current = e.pointerId;
+            e.currentTarget.setPointerCapture(e.pointerId);
             updateStick(e.clientX, e.clientY);
-        }}
-        onPointerUp={(e) => {
-          e.stopPropagation();
-          endStick();
-        }}
-        onPointerCancel={(e) => {
-          e.stopPropagation();
-          endStick();
-        }}
-        style={{
-          position: 'fixed',
-          left: 22,
-          bottom: 28,
-          width: 126,
-          height: 126,
-          borderRadius: 999,
-          background: 'rgba(255,255,255,0.13)',
-          border: '1px solid rgba(255,255,255,0.22)',
-          pointerEvents: 'auto',
-          display: 'grid',
-          placeItems: 'center',
-          boxShadow: '0 18px 34px rgba(0,0,0,0.35)'
-        }}
-      >
-        <div
-          ref={joyKnob}
-          style={{
-            width: 54,
-            height: 54,
-            borderRadius: 999,
-            background: 'rgba(255,255,255,0.86)',
-            boxShadow: '0 8px 18px rgba(0,0,0,0.35)',
-            transition: 'transform 80ms linear'
           }}
-        />
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            if (stickPointer.current === e.pointerId) updateStick(e.clientX, e.clientY);
+          }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+            resetStick();
+          }}
+          onPointerCancel={(e) => {
+            e.stopPropagation();
+            resetStick();
+          }}
+          style={{ width: 132, height: 132, borderRadius: 999, pointerEvents: 'auto', background: 'radial-gradient(circle, rgba(255,255,255,0.2), rgba(15,23,42,0.54))', border: '1px solid rgba(255,255,255,0.23)', display: 'grid', placeItems: 'center', boxShadow: '0 22px 42px rgba(0,0,0,0.34)' }}
+        >
+          <div ref={joyKnob} style={{ width: 56, height: 56, borderRadius: 999, background: 'linear-gradient(180deg,#fff,#cbd5e1)', boxShadow: '0 10px 20px rgba(0,0,0,0.36)', transition: 'transform 60ms linear' }} />
+        </div>
+
+        <div style={{ display: 'grid', justifyItems: 'center', gap: 10, color: 'white', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <div style={{ width: 154, height: 12, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)' }}>
+            <div style={{ width: `${Math.round(hud.stamina * 100)}%`, height: '100%', background: hud.stamina > 0.25 ? 'linear-gradient(90deg,#22c55e,#facc15)' : 'linear-gradient(90deg,#ef4444,#f97316)', transition: 'width 120ms linear' }} />
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.86 }}>{hud.boost} • WASD/Arrows supported</div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 10, pointerEvents: 'auto' }}>
+          <button data-control="true" style={buttonStyle} onPointerDown={() => (input.current.sprint = true)} onPointerUp={() => (input.current.sprint = false)} onPointerCancel={() => (input.current.sprint = false)}>Sprint</button>
+          <button data-control="true" style={{ ...buttonStyle, background: 'linear-gradient(180deg, rgba(239,68,68,0.95), rgba(127,29,29,0.94))' }} onPointerDown={() => (input.current.tackle = true)} onPointerUp={() => (input.current.tackle = false)} onPointerCancel={() => (input.current.tackle = false)}>Tackle</button>
+        </div>
       </div>
 
-      <div
-        style={{
-          position: 'fixed',
-          left: '50%',
-          bottom: 26,
-          transform: 'translateX(-50%)',
-          width: 'min(46vw, 190px)',
-          padding: '9px 10px',
-          borderRadius: 18,
-          background: 'rgba(2,6,23,0.48)',
-          border: '1px solid rgba(255,255,255,0.16)',
-          color: 'white',
-          font: '700 11px system-ui,sans-serif',
-          textAlign: 'center',
-          pointerEvents: 'none',
-          boxShadow: '0 14px 28px rgba(0,0,0,0.28)'
-        }}
-      >
-        Hold left stick • swipe field • first to 3
-      </div>
-
-      <div
-        style={{
-          position: 'fixed',
-          right: 18,
-          bottom: 24,
-          display: 'grid',
-          gap: 10,
-          pointerEvents: 'auto'
-        }}
-      >
-        <button
-          onPointerDown={() => (input.current.sprint = true)}
-          onPointerUp={() => (input.current.sprint = false)}
-          onPointerCancel={() => (input.current.sprint = false)}
-          style={buttonStyle}
-        >
-          Sprint
-        </button>
-        <button
-          onPointerDown={() => (input.current.tackle = true)}
-          onPointerUp={() => (input.current.tackle = false)}
-          onPointerCancel={() => (input.current.tackle = false)}
-          style={{ ...buttonStyle, background: 'rgba(220,38,38,0.9)' }}
-        >
-          Tackle
-        </button>
-      </div>
+      <footer style={{ position: 'fixed', left: '50%', bottom: 166, transform: 'translateX(-50%)', width: 'min(86vw, 430px)', padding: '9px 12px', borderRadius: 18, background: 'rgba(2,6,23,0.52)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.12)', textAlign: 'center', font: '800 12px Inter, system-ui, sans-serif', pointerEvents: 'none' }}>
+        Drag left stick to move • tap field for a quick shot • swipe toward goal for a curved power strike • first to {TARGET_SCORE}
+      </footer>
     </div>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  width: 92,
-  height: 52,
-  border: '1px solid rgba(255,255,255,0.28)',
-  borderRadius: 18,
-  color: 'white',
-  background: 'rgba(15,23,42,0.86)',
-  fontWeight: 900,
-  boxShadow: '0 12px 24px rgba(0,0,0,0.35)'
-};
