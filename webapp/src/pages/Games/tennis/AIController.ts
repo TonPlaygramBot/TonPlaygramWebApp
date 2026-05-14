@@ -32,7 +32,7 @@ export class AIController {
     const z = lerp(gameConfig.serviceLineZ * 0.42, gameConfig.courtL / 2 - 1.05, 0.36 + pressure * 0.54);
     const roll = Math.random();
     const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.9 ? "lob" : roll > 0.7 ? "slice" : "flat";
-    return { target: new THREE.Vector3(x, gameConfig.ballR, z), power: clamp(0.6 + pressure * 0.32 + gameConfig.aiDifficulty.power * 0.18, gameConfig.shotPower.min + 0.24, gameConfig.shotPower.max), technique };
+    return { target: new THREE.Vector3(x, gameConfig.ballR, z), power: clamp(0.64 + pressure * 0.38 + gameConfig.aiDifficulty.power * 0.2, 0.62, 1), technique };
   }
 
   chooseServeTarget(side: ServeSide, server: PlayerSide = "far") {
@@ -43,7 +43,7 @@ export class AIController {
     const targetX = laneSign * lerp(gameConfig.courtW * 0.16, gameConfig.courtW * 0.36, Math.random());
     return {
       target: new THREE.Vector3(targetX, gameConfig.ballR, targetZ),
-      power: clamp(0.74 + gameConfig.aiDifficulty.serveQuality * 0.18 + Math.random() * 0.04, gameConfig.servePower.min + 0.1, gameConfig.servePower.max),
+      power: clamp(0.8 + gameConfig.aiDifficulty.serveQuality * 0.22 + Math.random() * 0.06, 0.78, 1),
       technique: "topspin" as ShotTechnique,
     };
   }
