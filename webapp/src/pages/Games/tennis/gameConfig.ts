@@ -74,6 +74,8 @@ export const gameConfig = {
   serveDuration: 0.86,
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
+  // Scales match shot force so player and AI strokes share a calmer 80% power ceiling.
+  matchPowerMultiplier: 0.8,
   servePower: { min: 0.56, max: 0.82 },
   shotPower: { min: 0.24, max: 0.78 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
