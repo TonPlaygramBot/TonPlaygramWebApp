@@ -316,12 +316,13 @@ const PLAYER_READY_POINT = new THREE.Vector3(
   CFG.laneY,
   SHOOTING_READY_Z
 );
+const FIELD_FACING_YAW = Math.PI;
 const BOWLING_LOUNGE_CHAIRS = [
-  { pos: new THREE.Vector3(-1.28, CFG.laneY, 7.18), yaw: Math.PI * 0.2 },
-  { pos: new THREE.Vector3(1.28, CFG.laneY, 7.18), yaw: -Math.PI * 0.2 },
-  { pos: new THREE.Vector3(-1.48, CFG.laneY, 8.56), yaw: Math.PI * 0.78 },
-  { pos: new THREE.Vector3(1.48, CFG.laneY, 8.56), yaw: -Math.PI * 0.78 },
-  { pos: new THREE.Vector3(0, CFG.laneY, 9.28), yaw: Math.PI }
+  { pos: new THREE.Vector3(-1.72, CFG.laneY, 8.92), yaw: FIELD_FACING_YAW },
+  { pos: new THREE.Vector3(-0.56, CFG.laneY, 9.16), yaw: FIELD_FACING_YAW },
+  { pos: new THREE.Vector3(0.56, CFG.laneY, 9.16), yaw: FIELD_FACING_YAW },
+  { pos: new THREE.Vector3(1.72, CFG.laneY, 8.92), yaw: FIELD_FACING_YAW },
+  { pos: new THREE.Vector3(0, CFG.laneY, 7.08), yaw: FIELD_FACING_YAW }
 ] as { pos: THREE.Vector3; yaw: number }[];
 const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair) => ({
   pos: chair.pos.clone(),
@@ -359,8 +360,13 @@ function keepHumanInBowlingWalkableArea(
 }
 
 function returnSafeWaypointForRig(rig: HumanRig) {
-  const side = rig.standPos.x < 0 ? -1 : 1;
-  return new THREE.Vector3(side * 1.42, CFG.laneY, 6.12);
+  const pickupPoint = returnPickupPointForRig(rig);
+  const readyPoint = shootingReadyPointForRig(rig, rig.standPos.x);
+  return new THREE.Vector3(
+    lerp(pickupPoint.x, readyPoint.x, 0.62),
+    CFG.laneY,
+    lerp(pickupPoint.z, readyPoint.z, 0.62)
+  );
 }
 
 function returnPickupPointForRig(rig: HumanRig) {
@@ -2071,9 +2077,9 @@ function createEnvironment(
     metalness: 0.01
   });
   const sideFloorMat = new THREE.MeshStandardMaterial({
-    color: 0x171417,
-    roughness: 0.78,
-    metalness: 0.02
+    color: 0x070a0f,
+    roughness: 0.86,
+    metalness: 0.03
   });
   const rubberMat = new THREE.MeshStandardMaterial({
     color: 0x05070a,
@@ -2112,7 +2118,7 @@ function createEnvironment(
   );
   group.add(loungeCarpet);
 
-  const pairHalfW = CFG.laneCenterOffset + CFG.gutterHalfW + 0.32;
+  const pairHalfW = CFG.gutterHalfW + 0.1;
   const approach = new THREE.Mesh(
     new THREE.PlaneGeometry(pairHalfW * 2, 5.05, 44, 28),
     woodMat
@@ -2259,8 +2265,8 @@ function createEnvironment(
       );
       group.add(gutter);
       const cap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.22, 23.75),
-        woodMat
+        new THREE.BoxGeometry(0.1, 0.2, 23.75),
+        gutterMat
       );
       cap.position.set(
         laneCenter + side * (CFG.laneHalfW + 0.5),
@@ -2320,28 +2326,41 @@ function createEnvironment(
     group.add(laneNumber);
   }
 
-  // Grounded black pinsetter wall restored behind the pins, with animated lane screens above each rack.
+  // Realistic single-lane pinsetter: compact masking unit, pit curtain, and service doors instead of the old oversized black panel.
   const backBoardMat = new THREE.MeshStandardMaterial({
-    color: 0x03050a,
-    roughness: 0.78,
-    metalness: 0.18
+    color: 0x111827,
+    roughness: 0.72,
+    metalness: 0.22
+  });
+  const curtainMat = new THREE.MeshStandardMaterial({
+    color: 0x07090f,
+    roughness: 0.96,
+    metalness: 0.04
   });
   const backBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.86, 1.34, 0.14),
+    new THREE.BoxGeometry(CFG.laneHalfW * 2 + 1.06, 0.72, 0.12),
     backBoardMat
   );
-  backBoard.position.set(0, CFG.laneY + 0.74, CFG.backStopZ + 0.88);
+  backBoard.position.set(0, CFG.laneY + 0.98, CFG.backStopZ + 0.88);
   group.add(backBoard);
-  const lowerBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.7, 0.58, 0.12),
-    new THREE.MeshStandardMaterial({
-      color: 0x05070d,
-      roughness: 0.84,
-      metalness: 0.12
-    })
+  const pitCurtain = new THREE.Mesh(
+    new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.72, 0.86, 0.08),
+    curtainMat
   );
-  lowerBoard.position.set(0, CFG.laneY + 0.34, CFG.backStopZ + 1.12);
-  group.add(lowerBoard);
+  pitCurtain.position.set(0, CFG.laneY + 0.43, CFG.backStopZ + 1.02);
+  group.add(pitCurtain);
+  for (const x of [-0.84, 0.84]) {
+    const serviceDoor = new THREE.Mesh(
+      new THREE.BoxGeometry(0.68, 0.48, 0.035),
+      new THREE.MeshStandardMaterial({
+        color: 0x1f2937,
+        roughness: 0.68,
+        metalness: 0.24
+      })
+    );
+    serviceDoor.position.set(x, CFG.laneY + 0.98, CFG.backStopZ + 0.955);
+    group.add(serviceDoor);
+  }
   for (const [laneIndex, laneCenter] of LANE_CENTERS.entries()) {
     const pinFocus = new THREE.Mesh(
       new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.38, 0.1, 0.08),
@@ -2439,13 +2458,13 @@ function createEnvironment(
     metalness: 0.18
   });
   const hood = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.9, 1.78, 1.72),
+    new THREE.BoxGeometry(CFG.laneHalfW * 2 + 1.32, 1.56, 1.52),
     housingMat
   );
   hood.position.set(0, 1.42, CFG.backStopZ + 0.05);
   machineryHousing.add(hood);
   const fascia = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.72, 0.34, 0.06),
+    new THREE.BoxGeometry(CFG.laneHalfW * 2 + 1.18, 0.34, 0.06),
     new THREE.MeshStandardMaterial({
       color: 0x070b12,
       roughness: 0.7,
@@ -2467,7 +2486,7 @@ function createEnvironment(
     machineryHousing.add(slimScore);
     decor.scoreboardPanels.push(slimScore);
   }
-  for (const x of [-3.2, -1.05, 1.05, 3.2]) {
+  for (const x of [-1.18, 0, 1.18]) {
     const servicePanel = new THREE.Mesh(
       new THREE.BoxGeometry(0.92, 0.52, 0.04),
       new THREE.MeshStandardMaterial({
@@ -2643,6 +2662,7 @@ function createEnvironment(
     metalness: 0.05,
     clearcoat: 0.35
   });
+  // Chairs and seated bowlers face the field/pins so the lounge reads like a spectator row.
   for (const seat of BOWLING_LOUNGE_CHAIRS.slice(
     0,
     clamp(Math.round(Number(playerCount) || 2), 1, 5)
@@ -2788,18 +2808,28 @@ function createEnvironment(
     );
     group.add(trim);
   }
+  const returnChannelLength = 3.18;
+  const returnChannelCenterZ = BOWLING_RETURN_Z - 0.86;
   const channel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.62, 0.09, 12.9),
+    new THREE.BoxGeometry(0.62, 0.09, returnChannelLength),
     returnShellMat
   );
-  channel.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.065, 0.12);
+  channel.position.set(
+    BOWLING_RETURN_SIDE_X,
+    CFG.laneY + 0.065,
+    returnChannelCenterZ
+  );
   group.add(channel);
   for (const x of [-0.32, 0.32]) {
     const rail = new THREE.Mesh(
-      new THREE.BoxGeometry(0.055, 0.075, 12.96),
+      new THREE.BoxGeometry(0.055, 0.075, returnChannelLength + 0.06),
       returnTrimMat
     );
-    rail.position.set(BOWLING_RETURN_SIDE_X + x, CFG.laneY + 0.18, 0.12);
+    rail.position.set(
+      BOWLING_RETURN_SIDE_X + x,
+      CFG.laneY + 0.18,
+      returnChannelCenterZ
+    );
     group.add(rail);
   }
   for (const z of [4.92, 6.86]) {
@@ -3269,18 +3299,20 @@ function updateHuman(
     const k = easeInOut(rig.returnWalkT);
     const safeWaypoint = returnSafeWaypointForRig(rig);
     const pickupPoint = returnPickupPointForRig(rig);
-    const nextPos =
-      k < 0.55
+    const bend = Math.abs(rig.approachTo.x - pickupPoint.x) > 1.2;
+    const nextPos = bend
+      ? k < 0.36
         ? new THREE.Vector3().lerpVectors(
             rig.approachTo,
             safeWaypoint,
-            easeInOut(k / 0.55)
+            easeInOut(k / 0.36)
           )
         : new THREE.Vector3().lerpVectors(
             safeWaypoint,
             pickupPoint,
-            easeInOut((k - 0.55) / 0.45)
-          );
+            easeInOut((k - 0.36) / 0.64)
+          )
+      : new THREE.Vector3().lerpVectors(rig.approachTo, pickupPoint, k);
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
@@ -3316,18 +3348,24 @@ function updateHuman(
     const k = easeInOut(rig.returnWalkT);
     const safeWaypoint = returnSafeWaypointForRig(rig);
     const pickupPoint = returnPickupPointForRig(rig);
-    const nextPos =
-      k < 0.45
+    const readyPoint = shootingReadyPointForRig(
+      rig,
+      ball.laneCenter || rig.standPos.x
+    );
+    const bend = Math.abs(pickupPoint.x - readyPoint.x) > 1.2;
+    const nextPos = bend
+      ? k < 0.36
         ? new THREE.Vector3().lerpVectors(
             pickupPoint,
             safeWaypoint,
-            easeInOut(k / 0.45)
+            easeInOut(k / 0.36)
           )
         : new THREE.Vector3().lerpVectors(
             safeWaypoint,
-            shootingReadyPointForRig(rig, ball.laneCenter || rig.standPos.x),
-            easeInOut((k - 0.45) / 0.55)
-          );
+            readyPoint,
+            easeInOut((k - 0.36) / 0.64)
+          )
+      : new THREE.Vector3().lerpVectors(pickupPoint, readyPoint, k);
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
     if (rig.model) {
@@ -3550,7 +3588,7 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'toPit') {
     ball.returnT += dt / 0.48;
     ball.mesh.position.lerp(
-      new THREE.Vector3(ball.laneCenter, 0.16, CFG.backStopZ + 0.1),
+      new THREE.Vector3(ball.laneCenter, CFG.laneY + 0.16, CFG.backStopZ + 0.1),
       1 - Math.exp(-8 * dt)
     );
     if (ball.returnT >= 1) {
@@ -3566,7 +3604,7 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = 'returning';
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(0, CFG.laneY + 0.24, -0.4);
+      ball.pos.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.24, 4.18);
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -3574,7 +3612,11 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'returning') {
     ball.returnT += dt / 1.75;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(0, CFG.laneY + lerp(0.24, 0.42, t), lerp(-0.4, 6.72, t));
+    ball.pos.set(
+      BOWLING_RETURN_SIDE_X,
+      CFG.laneY + lerp(0.24, 0.42, t),
+      lerp(4.18, BOWLING_RETURN_Z + 0.26, t)
+    );
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.18);
     ball.mesh.rotateX(0.26);
