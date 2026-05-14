@@ -28,7 +28,7 @@ export enum TennisBallState {
   PointEnded = "PointEnded",
 }
 
-const WORLD_SCALE = 1.12;
+const WORLD_SCALE = 1.55;
 
 export const gameConfig = {
   worldScale: WORLD_SCALE,
@@ -49,17 +49,17 @@ export const gameConfig = {
   minBallSpeed: 0.12 * WORLD_SCALE,
   courtFriction: 0.86,
   playerHeight: 1.88 * WORLD_SCALE,
-  playerSpeed: 7.6 * WORLD_SCALE,
+  playerSpeed: 8.4 * WORLD_SCALE,
   playerAcceleration: 28 * WORLD_SCALE,
   playerDeceleration: 34 * WORLD_SCALE,
-  aiSpeed: 10.2 * WORLD_SCALE,
-  reach: 1.45 * WORLD_SCALE,
-  racketHitRadius: 0.48 * WORLD_SCALE,
+  aiSpeed: 11.2 * WORLD_SCALE,
+  reach: 1.62 * WORLD_SCALE,
+  racketHitRadius: 0.56 * WORLD_SCALE,
   contactAngleTolerance: 0.18,
   timingWindow: { start: 0.42, end: 0.72 },
-  minContactHeight: 0.25,
-  maxContactHeight: 1.85,
-  maxReachDistance: 1.45 * WORLD_SCALE,
+  minContactHeight: 0.25 * WORLD_SCALE,
+  maxContactHeight: 1.85 * WORLD_SCALE,
+  maxReachDistance: 1.62 * WORLD_SCALE,
   swingDuration: 0.38,
   serveDuration: 0.86,
   serveContactT: 0.72,
@@ -73,11 +73,11 @@ export const gameConfig = {
   cameraDamping: 5.5,
   scoring: { gamesPerSet: 6, winByTwoGames: true },
   aiDifficulty: {
-    reactionTime: 0.16,
-    moveSpeed: 10.2 * WORLD_SCALE,
-    reachRadius: 1.55 * WORLD_SCALE,
+    reactionTime: 0.14,
+    moveSpeed: 11.2 * WORLD_SCALE,
+    reachRadius: 1.7 * WORLD_SCALE,
     accuracy: 0.88,
-    power: 0.86,
+    power: 0.94,
     spin: 0.72,
     mistakeChance: 0.045,
     serveQuality: 0.84,
