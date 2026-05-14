@@ -142,17 +142,21 @@ const CFG = {
   spinDecay: 0.72,
   playerHeight: 3.12,
   playerSpeed: 3.5,
-  aiSpeed: 4.45,
-  reach: 0.98,
+  aiSpeed: 6.15,
+  aiServeReceiveBoost: 1.24,
+  aiOutBallConfidenceCutoff: 0.22,
+  reach: 1.04,
   swingDuration: 0.31,
   backhandDuration: 0.27,
   serveDuration: 0.82,
   hitWindowStart: 0.35,
   hitWindowEnd: 0.8,
   serveContactT: 0.68,
-  netTopRestitution: 0.34,
-  netFaceRestitution: 0.18,
-  netPowerRetention: 0.2,
+  netTopRestitution: 0.42,
+  netFaceRestitution: 0.08,
+  netPowerRetention: 0.18,
+  netClipPowerRetention: 0.58,
+  netTangentDamping: 0.42,
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
@@ -192,6 +196,83 @@ function material(color: number, roughness = 0.72, metalness = 0.02) {
 function transparentMaterial(color: number, opacity: number, roughness = 0.72) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02, transparent: true, opacity, depthWrite: false });
 }
+
+
+const humanTextureLoader = new THREE.TextureLoader();
+humanTextureLoader.setCrossOrigin("anonymous");
+const TABLE_TENNIS_HUMAN_TEXTURE_CACHE = new Map<string, THREE.Texture>();
+
+type HumanSurface = "upperCloth" | "lowerCloth" | "accentCloth" | "hair" | "eye" | "skin" | "shoe" | "mouth" | "other";
+type ClothTextureDef = { source: string; gltf: string; color: string; normal: string; roughness: string; tint: number; repeat?: number };
+type HumanTheme = { clothCombo: keyof typeof DOMINO_CHARACTER_CLOTH_COMBOS; hairColor: number; eyeColor: number; skinTone: number };
+
+const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: "Poly Haven denim_fabric 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg",
+    tint: 0x314d86,
+  },
+  check: {
+    source: "Poly Haven gingham_check 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg",
+    tint: 0x9f3651,
+  },
+  hessian: {
+    source: "Poly Haven hessian_230 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg",
+    tint: 0xa27445,
+  },
+  floral: {
+    source: "Poly Haven floral_jacquard 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg",
+    tint: 0x6d3f7f,
+  },
+  fleece: {
+    source: "Poly Haven knitted_fleece 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg",
+    tint: 0x4b5563,
+  },
+  picnic: {
+    source: "Poly Haven fabric_pattern_07 1k glTF CC0",
+    gltf: "https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf",
+    color: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg",
+    normal: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg",
+    roughness: "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg",
+    tint: 0xc44f42,
+  },
+} satisfies Record<string, ClothTextureDef>);
+
+const DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: "denim", tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: "hessian", tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: "fleece", tint: 0xd8dee9, repeat: 5.0 } },
+  casinoCheck: { upper: { material: "check", tint: 0xb7375d, repeat: 3.8 }, lower: { material: "denim", tint: 0x243e70, repeat: 4.4 }, accent: { material: "hessian", tint: 0xf4d7a1, repeat: 3.2 } },
+  linenStreet: { upper: { material: "hessian", tint: 0xb68452, repeat: 3.6 }, lower: { material: "fleece", tint: 0x374151, repeat: 5.2 }, accent: { material: "denim", tint: 0x4a6fa4, repeat: 4.0 } },
+  jacquardNight: { upper: { material: "floral", tint: 0x7c3f88, repeat: 3.2 }, lower: { material: "denim", tint: 0x1f335f, repeat: 4.5 }, accent: { material: "check", tint: 0xe3c16f, repeat: 4.0 } },
+  softFleece: { upper: { material: "fleece", tint: 0x556070, repeat: 5.3 }, lower: { material: "hessian", tint: 0x8b633f, repeat: 3.7 }, accent: { material: "floral", tint: 0xb88ab8, repeat: 3.0 } },
+  patternedRed: { upper: { material: "picnic", tint: 0xc44f42, repeat: 3.4 }, lower: { material: "denim", tint: 0x263f73, repeat: 4.7 }, accent: { material: "fleece", tint: 0xf1f5f9, repeat: 5.0 } },
+  mixedDenim: { upper: { material: "denim", tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: "check", tint: 0x4f6f93, repeat: 4.2 }, accent: { material: "hessian", tint: 0xd6a35f, repeat: 3.2 } },
+});
+
+const TABLE_TENNIS_HUMAN_THEMES: HumanTheme[] = [
+  { clothCombo: "royalDenim", hairColor: 0x24150f, eyeColor: 0x2f5d7c, skinTone: 0xd9a27d },
+  { clothCombo: "casinoCheck", hairColor: 0x14100c, eyeColor: 0x5a3d2b, skinTone: 0xc78f68 },
+  { clothCombo: "linenStreet", hairColor: 0x2c1b12, eyeColor: 0x406a45, skinTone: 0xe0b18d },
+  { clothCombo: "jacquardNight", hairColor: 0x3a2418, eyeColor: 0x364f7d, skinTone: 0xb87957 },
+];
 
 function enableShadow(obj: THREE.Object3D) {
   obj.traverse((child) => {
@@ -349,34 +430,135 @@ function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
 }
 
 
-function applyHumanOriginalTextureMapping(root: THREE.Object3D) {
+function normalizeHumanTexture(texture: THREE.Texture | null | undefined, { isColor = false, repeat = 1, maxAnisotropy = 8 } = {}) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapT = repeat === 1 ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+}
+
+function loadTableTennisHumanTexture(url: string, { isColor = false, repeat = 3.5, maxAnisotropy = 8 } = {}) {
+  const cacheKey = `${url}|${isColor ? "srgb" : "linear"}|${repeat}|${maxAnisotropy}`;
+  const cached = TABLE_TENNIS_HUMAN_TEXTURE_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const texture = humanTextureLoader.load(url, undefined, undefined, () => TABLE_TENNIS_HUMAN_TEXTURE_CACHE.delete(cacheKey));
+  normalizeHumanTexture(texture, { isColor, repeat, maxAnisotropy });
+  TABLE_TENNIS_HUMAN_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function isNearlyWhiteHumanMaterial(mat: THREE.Material): mat is THREE.MeshStandardMaterial {
+  const standard = mat as THREE.MeshStandardMaterial;
+  return Boolean(standard.color && standard.color.r > 0.82 && standard.color.g > 0.82 && standard.color.b > 0.82 && !standard.map);
+}
+
+function isLowSaturationLightHumanMaterial(mat: THREE.Material): mat is THREE.MeshStandardMaterial {
+  const standard = mat as THREE.MeshStandardMaterial;
+  if (!standard.color || standard.map) return false;
+  const max = Math.max(standard.color.r, standard.color.g, standard.color.b);
+  const min = Math.min(standard.color.r, standard.color.g, standard.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyHumanSurface(obj: THREE.Object3D, mat: THREE.Material): HumanSurface {
+  const name = `${obj.name || ""} ${(mat as THREE.Material).name || ""}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return "eye";
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return "hair";
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return "mouth";
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return "shoe";
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return "skin";
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return "upperCloth";
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return "lowerCloth";
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return "accentCloth";
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return "upperCloth";
+  if (isNearlyWhiteHumanMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return "upperCloth";
+  return "other";
+}
+
+function resolveHumanCloth(theme: HumanTheme, slot: "upper" | "lower" | "accent", repeatBoost = 0) {
+  const combo = DOMINO_CHARACTER_CLOTH_COMBOS[theme.clothCombo] || DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo[slot] || combo.upper;
+  const cloth = POLYHAVEN_CLOTH_MATERIALS[slotConfig.material as keyof typeof POLYHAVEN_CLOTH_MATERIALS] || POLYHAVEN_CLOTH_MATERIALS.denim;
+  return { ...cloth, tint: slotConfig.tint ?? cloth.tint, repeat: (slotConfig.repeat ?? 3.5) + repeatBoost };
+}
+
+function applyTableTennisClothMaterial(mat: THREE.MeshStandardMaterial, cloth: ClothTextureDef, maxAnisotropy: number) {
+  const repeat = cloth.repeat ?? 3.5;
+  mat.map = loadTableTennisHumanTexture(cloth.color, { isColor: true, repeat, maxAnisotropy });
+  mat.normalMap = loadTableTennisHumanTexture(cloth.normal, { repeat, maxAnisotropy });
+  mat.roughnessMap = loadTableTennisHumanTexture(cloth.roughness, { repeat, maxAnisotropy });
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf, preservesOriginalUvMapping: true };
+}
+
+function applyHumanOriginalTextureMapping(root: THREE.Object3D, renderer: THREE.WebGLRenderer, themeIndex = 0) {
+  const theme = TABLE_TENNIS_HUMAN_THEMES[themeIndex % TABLE_TENNIS_HUMAN_THEMES.length] || TABLE_TENNIS_HUMAN_THEMES[0];
+  const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 8;
+  const clothSlots = {
+    upperCloth: resolveHumanCloth(theme, "upper", themeIndex === 0 ? 0.75 : 0),
+    lowerCloth: resolveHumanCloth(theme, "lower", themeIndex === 0 ? 0.75 : 0),
+    accentCloth: resolveHumanCloth(theme, "accent", themeIndex === 0 ? 0.75 : 0),
+  };
+  const skinColor = new THREE.Color(theme.skinTone);
+  const hairColor = new THREE.Color(theme.hairColor);
+  const eyeColor = new THREE.Color(theme.eyeColor);
+
   root.traverse((node) => {
     const mesh = node as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
-    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-    materials.forEach((mat) => {
-      const material = mat as THREE.MeshStandardMaterial;
-      if (material.map) {
-        material.map.colorSpace = THREE.SRGBColorSpace;
-        material.map.flipY = false;
-        material.map.needsUpdate = true;
+    const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
+      const mat = (sourceMat as THREE.MeshStandardMaterial).clone ? (sourceMat as THREE.MeshStandardMaterial).clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyHumanSurface(mesh, mat);
+      if (clothSlots[surface as keyof typeof clothSlots]) {
+        applyTableTennisClothMaterial(mat, clothSlots[surface as keyof typeof clothSlots], maxAnisotropy);
+      } else if (surface === "hair") {
+        mat.map = null;
+        mat.color = hairColor.clone();
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
+      } else if (surface === "eye") {
+        mat.map = null;
+        mat.color = eyeColor.clone();
+        mat.roughness = 0.18;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+      } else if (surface === "skin") {
+        if (isLowSaturationLightHumanMaterial(mat)) mat.color = skinColor.clone();
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = 0;
+      } else if (surface === "shoe") {
+        if (isLowSaturationLightHumanMaterial(mat)) mat.color = new THREE.Color(0x111827);
+        mat.roughness = 0.78;
+        mat.metalness = 0.02;
+      } else if (surface === "mouth") {
+        if (isNearlyWhiteHumanMaterial(mat)) mat.color = new THREE.Color(0xf8fafc);
+        mat.roughness = 0.32;
+        mat.metalness = 0;
+      } else if (isNearlyWhiteHumanMaterial(mat)) {
+        mat.color = skinColor.clone();
+        mat.roughness = 0.58;
+        mat.metalness = 0;
       }
-      if (material.emissiveMap) {
-        material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-        material.emissiveMap.flipY = false;
-        material.emissiveMap.needsUpdate = true;
-      }
-      const utilityMaps = [material.normalMap, material.roughnessMap, material.metalnessMap, material.aoMap, material.alphaMap];
-      utilityMaps.forEach((tex) => {
-        if (!tex) return;
-        tex.flipY = false;
-        tex.needsUpdate = true;
-      });
-      material.needsUpdate = true;
+      normalizeHumanTexture(mat.map, { isColor: true, maxAnisotropy });
+      [mat.emissiveMap, mat.normalMap, mat.roughnessMap, mat.metalnessMap, mat.aoMap, mat.alphaMap].forEach((tex) => normalizeHumanTexture(tex, { maxAnisotropy }));
+      mat.needsUpdate = true;
+      return mat;
     });
+    mesh.material = Array.isArray(mesh.material) ? enhancedMaterials : enhancedMaterials[0];
   });
 }
 
@@ -601,7 +783,7 @@ function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: Playe
     (gltf) => {
       const model = gltf.scene;
       normalizeHuman(model, CFG.playerHeight);
-      applyHumanOriginalTextureMapping(model);
+      applyHumanOriginalTextureMapping(model, renderer, side === "near" ? 0 : 1);
       enableShadow(model);
       rig.model = model;
       rig.bones = findHumanBones(model);
@@ -1029,7 +1211,8 @@ function canReachBall(player: HumanRig, ball: BallState) {
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   const to = player.target.clone().sub(player.pos);
   const dist = to.length();
-  const maxStep = player.speed * dt;
+  const receivingServe = player.side === "far" && ball.lastHitBy === "near" && (ball.phase.kind === "serve" || ball.bounceSide === "near");
+  const maxStep = player.speed * (receivingServe ? CFG.aiServeReceiveBoost : 1) * dt;
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   player.pos.x = clamp(player.pos.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
@@ -1094,6 +1277,9 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
   const dt = 1 / 120;
   let landing = predictNextTableBounce(ball);
   let hasFarBounce = ball.bounceSide === "far" && ball.bounceCount >= 1;
+  let firstSurfaceTouch: THREE.Vector3 | null = null;
+  let firstSurfaceTouchLegal = false;
+  let firstSurfaceTouchSide: PlayerSide | null = null;
   let best: THREE.Vector3 | null = null;
   let bestTime = 0;
   let bestReachScore = Number.POSITIVE_INFINITY;
@@ -1106,7 +1292,16 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
     v.z += (magnus.z - v.z * CFG.airDrag) * dt;
     p.addScaledVector(v, dt);
 
-    if (prevY > BALL_SURFACE_Y && p.y <= BALL_SURFACE_Y && isOverTable(p.x, p.z, 0.04)) {
+    if (prevY > BALL_SURFACE_Y && p.y <= BALL_SURFACE_Y) {
+      if (!firstSurfaceTouch) {
+        firstSurfaceTouch = p.clone();
+        firstSurfaceTouchLegal = isOverTable(p.x, p.z, 0.04);
+        firstSurfaceTouchSide = firstSurfaceTouchLegal ? sideOfZ(p.z) : null;
+      }
+      if (!isOverTable(p.x, p.z, 0.04)) {
+        if (i > 8) break;
+        continue;
+      }
       landing = p.clone();
       if (sideOfZ(p.z) === "far") hasFarBounce = true;
       v.y = Math.abs(v.y) * CFG.tableRestitution;
@@ -1141,7 +1336,9 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
     strike,
     landing,
     time: bestTime || 0.32,
-    confidence: clamp01(0.78 - Math.max(0, bestReachScore) * 0.35 + (hasFarBounce ? 0.18 : -0.28)),
+    confidence: clamp01(0.78 - Math.max(0, bestReachScore) * 0.35 + (hasFarBounce ? 0.18 : -0.28) + (firstSurfaceTouch && !firstSurfaceTouchLegal ? -0.45 : 0)),
+    willLandFarLegal: hasFarBounce || (firstSurfaceTouchLegal && firstSurfaceTouchSide === "far"),
+    firstSurfaceTouch,
   };
 }
 
@@ -1488,28 +1685,38 @@ export default function MobileRealisticTableTennisGame() {
       }
 
       const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
-      if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
-        ball.pos.z = ball.pos.z >= 0 ? 0.024 : -0.024;
-        ball.vel.z *= -CFG.netFaceRestitution;
-        ball.vel.y = Math.max(0.12, Math.abs(ball.vel.y) * 0.24);
-        ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
-        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
+      const netTopY = CFG.tableY + CFG.netH;
+      const netSpanHit = Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside;
+      const ballBottom = ball.pos.y - CFG.ballR;
+      const ballCenterNearNet = Math.abs(ball.pos.z) <= Math.max(0.022, Math.abs(ball.vel.z) * dt + CFG.ballR * 0.25);
+      const netContact = ball.lastHitBy && netSpanHit && (crossedNet || ballCenterNearNet) && ballBottom < netTopY;
+      if (netContact) {
+        const travelDir = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1));
+        const approachSide = travelDir === 0 ? (ball.lastHitBy === "near" ? 1 : -1) : -travelDir;
+        const clipDepth = clamp01((ball.pos.y + CFG.ballR - (netTopY - CFG.ballR * 0.25)) / (CFG.ballR * 1.6));
+        const topClip = clipDepth > 0.45 && Math.abs(ball.vel.z) > 0.35;
+        const lateralDeflect = clamp(ball.vel.x * 0.05 + ball.spin.y * 0.0009 + (Math.random() - 0.5) * 0.08, -0.22, 0.22);
+
+        ball.pos.z = approachSide * 0.032;
+        if (topClip) {
+          const crawlsOver = ball.vel.y > -0.85 && Math.abs(ball.vel.z) > 1.1 && clipDepth > 0.58;
+          ball.vel.z = Math.abs(ball.vel.z) * (crawlsOver ? CFG.netClipPowerRetention : CFG.netTopRestitution) * (crawlsOver ? travelDir : approachSide);
+          ball.vel.y = Math.max(crawlsOver ? 0.055 : 0.02, Math.abs(ball.vel.y) * 0.18 + clipDepth * 0.08);
+          ball.vel.x = ball.vel.x * 0.62 + lateralDeflect;
+          reduceImpactPower(ball.vel, crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention, crawlsOver ? 0.42 : 0.24);
+        } else {
+          ball.vel.z = Math.abs(ball.vel.z) * CFG.netFaceRestitution * approachSide;
+          ball.vel.x = ball.vel.x * CFG.netTangentDamping + lateralDeflect;
+          ball.vel.y = Math.min(0.06, ball.vel.y * 0.18) - 0.06;
+          reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.18);
+        }
+        ball.spin.multiplyScalar(topClip ? 0.55 : 0.35);
         netWobble.amount = 1;
-        netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
+        netWobble.side = approachSide;
         playFx(netFx);
       }
 
       const descendingThroughSurface = prev.y > BALL_SURFACE_Y && ball.pos.y <= BALL_SURFACE_Y && ball.vel.y < 0;
-      const nearNetTop = Math.abs(ball.pos.z) < 0.02 && ball.pos.y <= CFG.tableY + CFG.netH + CFG.ballR * 0.24 && ball.pos.y > CFG.tableY + CFG.netH - CFG.ballR * 0.5;
-      if (nearNetTop && ball.lastHitBy) {
-        ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
-        ball.vel.z *= -CFG.netTopRestitution;
-        ball.vel.y = Math.max(0.03, ball.vel.y * 0.3);
-        ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
-        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
-        netWobble.amount = 1;
-        netWobble.side = Math.sign(ball.pos.z);
-      }
 
       for (const player of [nearPlayer, farPlayer]) {
         const torsoCenter = player.pos.clone().setY(CFG.tableY + 0.34);
@@ -1588,16 +1795,21 @@ export default function MobileRealisticTableTennisGame() {
 
       const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.42;
       const read = incoming ? predictAiStrikeRead(ball, farPlayer) : null;
-      if (incoming && read) {
-        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.34 : 0.24);
-        const anticipationX = clamp(read.strike.x + ball.vel.x * 0.045, -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
-        farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
-        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.42, -TABLE_HALF_L - 0.36);
+      if (incoming && read && !read.willLandFarLegal && ball.bounceSide !== "far") {
+        farPlayer.target.lerp(home, 0.08);
+        if (read.confidence <= CFG.aiOutBallConfidenceCutoff) setHudSafe({ status: "AI lets the out ball go" });
+      } else if (incoming && read) {
+        const serviceReceive = ball.phase.kind === "serve" || ball.bounceSide === "near";
+        const speedBoost = serviceReceive ? CFG.aiServeReceiveBoost : 1;
+        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.42 : 0.3);
+        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? 0.075 : 0.045), -TABLE_HALF_W * 0.94, TABLE_HALF_W * 0.94);
+        farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.55 * speedBoost, -TABLE_HALF_L - 0.28);
       } else {
         farPlayer.target.lerp(home, 0.055);
       }
 
-      const aiReadyToStrike = incoming && read && read.confidence > 0.34 && (canReachBall(farPlayer, ball) || (read.time < 0.18 && ball.bounceSide === "far"));
+      const aiReadyToStrike = incoming && read && read.willLandFarLegal && read.confidence > 0.28 && (canReachBall(farPlayer, ball) || (read.time < 0.24 && ball.bounceSide === "far"));
       if (aiReadyToStrike && farPlayer.swingT === 0) {
         const plan = makeAiTarget(nearPlayer, ball, read);
         const backhandBias = ball.pos.x - farPlayer.pos.x > 0.08 || plan.tactic === "push" || (read.strike.x > farPlayer.pos.x && Math.abs(read.strike.x) > TABLE_HALF_W * 0.32);
