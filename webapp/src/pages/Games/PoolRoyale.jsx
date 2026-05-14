@@ -2003,7 +2003,7 @@ const POOL_HUMAN_CFG = Object.freeze({
   rightForearmDown: 0.48 * POOL_HUMAN_WORLD_SCALE,
   rightForearmLength: 0.34 * POOL_HUMAN_WORLD_SCALE,
   rightStrokePull: 0.30 * POOL_HUMAN_WORLD_SCALE,
-  rightStrokePush: 0,
+  rightStrokePush: 0.26 * POOL_HUMAN_WORLD_SCALE,
   rightHandShotLift: -0.30 * POOL_HUMAN_WORLD_SCALE,
   shootCueGripFromBack: 0.58 * POOL_HUMAN_WORLD_SCALE,
   idleRightHandY: 0.8 * POOL_HUMAN_WORLD_SCALE,
@@ -2483,7 +2483,15 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   poolHumanDampVector(human.root.position, rootGoal, activeState === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / POOL_HUMAN_CFG.scale));
-  human.yaw = poolHumanDampScalar(human.yaw, activeState === 'striking' ? human.strikeYaw : poolHumanYawFromForward(aimForward), POOL_HUMAN_CFG.rotLambda, dt);
+  const rootToCueBall = bridgeTarget.clone().sub(human.root.position);
+  rootToCueBall.y = 0;
+  const tableFacingForward = rootToCueBall.lengthSq() > 1e-8
+    ? rootToCueBall.normalize()
+    : aimForward.clone().normalize();
+  const targetYaw = poolHumanYawFromForward(tableFacingForward);
+  human.yaw = activeState === 'striking'
+    ? human.strikeYaw
+    : poolHumanDampScalar(human.yaw, targetYaw, POOL_HUMAN_CFG.rotLambda, dt);
   const t = poolHumanEaseInOut(human.poseT) * POOL_HUMAN_CFG.shotPoseAmount;
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * POOL_HUMAN_CFG.scale);
@@ -2494,19 +2502,24 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).add(human.root.position);
+  const upperBodyForward = tableFacingForward.lengthSq() > 1e-8 ? tableFacingForward : forward;
+  const upperBodyPoint = (x, y, lean) => human.root.position.clone()
+    .addScaledVector(side, x)
+    .addScaledVector(POOL_HUMAN_UP, y)
+    .addScaledVector(upperBodyForward, lean);
   const powerLean = power * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
+  const rootWorld = human.root.position.clone();
   rootWorld.y = POOL_HUMAN_CFG.floorLocalY;
   const cueBallLean = poolHumanClamp01(t + powerLean * 0.35);
   const torsoForwardLean = POOL_HUMAN_CFG.upperBodyCueBallLean * cueBallLean;
   const chestForwardLean = POOL_HUMAN_CFG.chestCueBallLean * cueBallLean;
   const headForwardLean = POOL_HUMAN_CFG.headCueBallLean * cueBallLean;
-  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) * POOL_HUMAN_CFG.scale - torsoForwardLean - 0.014 * powerLean * POOL_HUMAN_CFG.scale)));
-  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) * POOL_HUMAN_CFG.scale - chestForwardLean - 0.024 * powerLean * POOL_HUMAN_CFG.scale)));
-  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) * POOL_HUMAN_CFG.scale - headForwardLean * 0.92 - 0.028 * powerLean * POOL_HUMAN_CFG.scale)));
-  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) * POOL_HUMAN_CFG.scale - headForwardLean - 0.028 * powerLean * POOL_HUMAN_CFG.scale)));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
-  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.34, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const torso = upperBodyPoint(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, poolHumanLerp(0, 0.14, t) * POOL_HUMAN_CFG.scale + torsoForwardLean + 0.014 * powerLean * POOL_HUMAN_CFG.scale);
+  const chest = upperBodyPoint(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, poolHumanLerp(0, 0.36, t) * POOL_HUMAN_CFG.scale + chestForwardLean + 0.024 * powerLean * POOL_HUMAN_CFG.scale);
+  const neck = upperBodyPoint(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, poolHumanLerp(0, 0.52, t) * POOL_HUMAN_CFG.scale + headForwardLean * 0.92 + 0.028 * powerLean * POOL_HUMAN_CFG.scale);
+  const head = upperBodyPoint(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, poolHumanLerp(0, 0.62, t) * POOL_HUMAN_CFG.scale + headForwardLean + 0.028 * powerLean * POOL_HUMAN_CFG.scale);
+  const leftShoulder = upperBodyPoint(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, 0.42, t) + 0.018 * human.settleT) * POOL_HUMAN_CFG.scale);
+  const rightShoulder = upperBodyPoint(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, 0.34, t) + 0.018 * human.settleT) * POOL_HUMAN_CFG.scale);
   const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
   const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
@@ -2521,7 +2534,7 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const liveGripUp = POOL_HUMAN_UP.clone().multiplyScalar(poolHumanLerp(-1.0, 0.12, handIk)).addScaledVector(side, poolHumanLerp(-0.64, -0.04, handIk)).addScaledVector(forward, poolHumanLerp(0.2, -0.48, handIk)).normalize();
   const lockedRightElbow = rightShoulder.clone().addScaledVector(POOL_HUMAN_UP, poolHumanLerp(0.04 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotRise, t)).addScaledVector(side, poolHumanLerp(-0.18 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotSide, t)).addScaledVector(forward, poolHumanLerp(-0.04 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotBack, t));
   const pullBack = activeState === 'dragging' ? -POOL_HUMAN_CFG.rightStrokePull * poolHumanEaseOutCubic(power) : 0;
-  const pushForward = 0;
+  const pushForward = activeState === 'striking' ? POOL_HUMAN_CFG.rightStrokePush * strikeFollow : 0;
   const smallPractice = activeState === 'dragging' ? dragStroke * 0.035 * POOL_HUMAN_CFG.scale : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, POOL_HUMAN_CFG.rightForearmOutward * t).addScaledVector(POOL_HUMAN_UP, -POOL_HUMAN_CFG.rightForearmDown * t).addScaledVector(POOL_HUMAN_UP, POOL_HUMAN_CFG.rightHandShotLift * t).addScaledVector(forward, -POOL_HUMAN_CFG.rightForearmBack * t).addScaledVector(cueDirForHand, POOL_HUMAN_CFG.rightForearmLength);
@@ -33242,17 +33255,9 @@ const shotPowerRef = useRef(0);
           ? 'dragging'
           : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
             ? 'striking'
-            : cueCameraLoweredForHuman && canShowCue && (
-                isPlayerTurn ||
-                previewingAiShot ||
-                aiCueViewActive ||
-                showingRemoteAim ||
-                activeAiPlan
-              )
-              ? 'dragging'
-              : replayActive
-                ? 'rolling'
-                : 'idle';
+            : replayActive
+              ? 'rolling'
+              : 'idle';
         updatePoolRoyaleHumanFrame(
           humanRig,
           Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
