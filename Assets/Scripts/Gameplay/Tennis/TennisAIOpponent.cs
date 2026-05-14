@@ -10,8 +10,8 @@ namespace TonPlaygram.Gameplay.Tennis
         [SerializeField, Min(0.01f)] private float reactionTime = 0.1f;
         [SerializeField, Min(0f)] private float anticipationTime = 0.14f;
         [SerializeField, Min(0.01f)] private float minReactionTime = 0.05f;
-        [SerializeField, Min(0.1f)] private float minShotPower01 = 0.55f;
-        [SerializeField, Min(0.1f)] private float maxShotPower01 = 1f;
+        [SerializeField, Min(0.1f)] private float minShotPower01 = 0.45f;
+        [SerializeField, Min(0.1f)] private float maxShotPower01 = 0.82f;
 
         private float _nextHitTime;
 
