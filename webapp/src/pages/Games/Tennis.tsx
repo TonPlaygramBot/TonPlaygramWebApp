@@ -620,10 +620,10 @@ function addTrainingCourtSurrounds(group: THREE.Group) {
 function addTrainingCourtLighting(scene: THREE.Scene) {
   scene.background = createSkyGradientTexture();
   scene.environment = null;
-  scene.add(new THREE.AmbientLight(0xfff4df, 0.42));
-  scene.add(new THREE.HemisphereLight(0xd8ecff, 0x385443, 0.52));
+  scene.add(new THREE.AmbientLight(0xfff8ec, 0.72));
+  scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x5d745a, 0.86));
 
-  const keySun = new THREE.DirectionalLight(0xfff1cf, 0.82);
+  const keySun = new THREE.DirectionalLight(0xfff5d8, 1.2);
   keySun.position.set(-6.5, 9.5, 6.2);
   keySun.castShadow = true;
   keySun.shadow.mapSize.width = 2048;
@@ -659,13 +659,17 @@ function addTrainingCourtLighting(scene: THREE.Scene) {
         glow.lookAt(0, 0.5 * CFG.worldScale, z * 0.2);
         scene.add(glow);
       }
-      const spot = new THREE.SpotLight(0xfff2d0, 1.45, CFG.courtL * 1.15, Math.PI / 5.8, 0.58, 1.05);
+      const spot = new THREE.SpotLight(0xfff6df, 2.05, CFG.courtL * 1.25, Math.PI / 5.4, 0.52, 0.95);
       spot.position.set(x - side * 0.95 * CFG.worldScale, poleH - 0.28 * CFG.worldScale, z);
       spot.target.position.set(0, 0.05, z * 0.14);
       spot.castShadow = true;
       spot.shadow.mapSize.width = 1024;
       spot.shadow.mapSize.height = 1024;
       scene.add(spot, spot.target);
+
+      const fill = new THREE.PointLight(0xfff7df, 0.58, CFG.courtL * 0.72, 1.4);
+      fill.position.set(x - side * 0.72 * CFG.worldScale, poleH - 0.34 * CFG.worldScale, z);
+      scene.add(fill);
     });
   });
 }
@@ -769,8 +773,8 @@ function createRacket(color: number) {
   g.add(handle);
 
   const throatA = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.29, 12), frameMat);
-  throatA.position.set(-0.048, 0.22, 0);
-  throatA.rotation.z = -0.18;
+  throatA.position.set(-0.052, 0.24, -0.026);
+  throatA.rotation.z = 0.24;
   enableShadow(throatA);
   g.add(throatA);
   const throatB = throatA.clone();
@@ -1194,8 +1198,8 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
   const speedScale = CFG.worldScale * 1.48;
-  const shotPowerTrim = 0.88;
-  const baseSpeed = (serve ? 24.5 + power * 15.2 : 18.6 + power * 12.8) * speedScale * shotPowerTrim;
+  const shotPowerTrim = serve ? 0.8 : 0.76;
+  const baseSpeed = (serve ? 22.2 + power * 12.6 : 15.8 + power * 10.4) * speedScale * shotPowerTrim;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
   const velocity = new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -1225,7 +1229,7 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   const duration = Math.max(durationMs, 16);
   const swipeSpeed = (dist / duration) * 1000;
   const speedBoost = clamp01((swipeSpeed - 240) / 1100);
-  const power = clamp((dist / 145) * 0.5 + speedBoost * 0.92 + (isServe ? 0.58 : 0.36), isServe ? CFG.servePower.min : CFG.shotPower.min, isServe ? CFG.servePower.max : CFG.shotPower.max);
+  const power = clamp((dist / 170) * 0.42 + speedBoost * 0.68 + (isServe ? 0.46 : 0.27), isServe ? CFG.servePower.min : CFG.shotPower.min, isServe ? CFG.servePower.max : CFG.shotPower.max);
   const dir = new THREE.Vector2(dx, -dy);
   if (dir.lengthSq() > 1e-6) dir.normalize();
   const rawAimX = (dx / 120) * (CFG.courtW / 2);
@@ -1267,12 +1271,12 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
-    ball.vel.x += hit.swipeDir.x * (3.15 + hit.power * 2.55) * CFG.worldScale;
-    ball.vel.z += -hit.swipeDir.y * (1.34 + hit.power * 1.65) * CFG.worldScale;
+    ball.vel.x += hit.swipeDir.x * (2.2 + hit.power * 1.85) * CFG.worldScale;
+    ball.vel.z += -hit.swipeDir.y * (0.94 + hit.power * 1.18) * CFG.worldScale;
   }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
-    ball.vel.y += (2.25 + hit.power * 1.05) * CFG.worldScale;
+    ball.vel.y += (1.85 + hit.power * 0.86) * CFG.worldScale;
     ball.vel.multiplyScalar(0.86);
     ball.spin = 0.8 + hit.power * 0.7;
   } else if (technique === "drop") {
@@ -1283,10 +1287,10 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.multiplyScalar(0.72);
     ball.spin = 0.25;
   } else if (technique === "topspin") {
-    ball.vel.y += (0.48 + hit.power * 0.46) * CFG.worldScale;
+    ball.vel.y += (0.38 + hit.power * 0.34) * CFG.worldScale;
     ball.spin = 1.05 + hit.power * 1.1;
   } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.6;
+    ball.vel.x += (Math.random() - 0.5) * 1.15;
     ball.vel.y -= 0.12;
     ball.spin = -1.15 - hit.power * 0.62;
   } else {
@@ -1412,6 +1416,8 @@ export default function MobileThreeTennisPrototype() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.28;
     const scene = new THREE.Scene();
     scene.fog = null;
 
@@ -1677,9 +1683,10 @@ export default function MobileThreeTennisPrototype() {
 
     function updateAi() {
       const prediction = aiController.predictLanding(ball.pos, ball.vel, ball.spin);
+      const intercept = aiController.predictIntercept(ball.pos, ball.vel, ball.spin, farPlayer.pos);
       const landing = prediction.landing;
       const aiHomeZ = scoreManager.snapshot().server === "far" && ball.lastHitBy === null ? -CFG.serveNearBaselineZ : -CFG.courtL / 2 + 1.25 * CFG.worldScale;
-      const home = new THREE.Vector3(0, 0, aiHomeZ);
+      const home = new THREE.Vector3(clamp(ball.pos.x * 0.16, -CFG.courtW * 0.16, CFG.courtW * 0.16), 0, aiHomeZ);
 
       if (ball.lastHitBy === null && scoreManager.snapshot().server === "far") {
         farPlayer.target.copy(home);
@@ -1690,20 +1697,33 @@ export default function MobileThreeTennisPrototype() {
         return;
       }
 
-      const ballComingToAi = ball.lastHitBy === "near" && (landing.z < -CFG.serviceBuffer || ball.pos.z < -0.05);
+      const ballComingToAi = ball.lastHitBy === "near" && (landing.z < -CFG.serviceBuffer || intercept.contact.z < -CFG.serviceBuffer || ball.pos.z < -0.05);
       if (ballComingToAi) {
-        farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
-        farPlayer.target.z = clamp(Math.min(-0.92 * CFG.worldScale, landing.z + 0.32 * CFG.worldScale), -CFG.courtL / 2 - 0.6 * CFG.worldScale, -0.82 * CFG.worldScale);
+        const readPoint = intercept.reachable ? intercept.contact : landing;
+        farPlayer.target.x = clamp(readPoint.x, -CFG.courtW / 2 + 0.38, CFG.courtW / 2 - 0.38);
+        farPlayer.target.z = clamp(
+          Math.min(-0.78 * CFG.worldScale, readPoint.z + 0.34 * CFG.worldScale),
+          -CFG.courtL / 2 - 0.9 * CFG.worldScale,
+          -0.72 * CFG.worldScale
+        );
       } else {
-        farPlayer.target.lerp(home, 0.045);
+        farPlayer.target.lerp(home, 0.055);
       }
 
       const distanceToIntercept = farPlayer.pos.distanceTo(new THREE.Vector3(farPlayer.target.x, farPlayer.pos.y, farPlayer.target.z));
-      const canArrive = distanceToIntercept <= CFG.aiDifficulty.moveSpeed * Math.max(0.08, prediction.t + 0.12);
-      const contactSoon = prediction.t < 0.62 || ball.pos.z < -CFG.serviceLineZ * 0.45;
+      const timeToContact = Math.max(0.04, intercept.contactT - CFG.aiDifficulty.reactionTime);
+      const canArrive = intercept.reachable || distanceToIntercept <= CFG.aiDifficulty.moveSpeed * (timeToContact + 0.22) + CFG.aiDifficulty.reachRadius * 0.38;
+      const ballInStrikeZone = ball.pos.z < -CFG.serviceBuffer * 0.35 && ball.pos.y > CFG.minContactHeight * 0.72 && ball.pos.y < CFG.maxContactHeight * 1.12;
+      const contactSoon = intercept.contactT < 0.54 || ballInStrikeZone || ball.pos.z < -CFG.serviceLineZ * 0.32;
       const aiCanSwingNow = farPlayer.swingT === 0 && farPlayer.cooldown <= 0;
-      if (ballComingToAi && aiCanSwingNow && canArrive && contactSoon && !aiController.mistakeRoll()) {
-        startSwing(farPlayer, aiController.chooseReturnTarget(nearPlayer.pos, ball.pos, ball.vel), ball.pos.x < farPlayer.pos.x ? "backhand" : "forehand");
+      const pressure = clamp01(distanceToIntercept / Math.max(CFG.worldScale, CFG.courtW * 0.42));
+      const canReturnServe = !awaitingServeResult || ball.bounceSide === "far";
+      if (canReturnServe && ballComingToAi && aiCanSwingNow && canArrive && contactSoon && !aiController.mistakeRoll(pressure)) {
+        startSwing(
+          farPlayer,
+          aiController.chooseReturnTarget(nearPlayer.pos, ball.pos, ball.vel, { receiverPos: farPlayer.pos, prediction, hasBounced: ball.bounceSide === "far" }),
+          ball.pos.x < farPlayer.pos.x ? "backhand" : "forehand"
+        );
       }
     }
 
