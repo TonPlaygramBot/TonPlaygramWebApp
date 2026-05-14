@@ -577,6 +577,8 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
 
   modelRoot.rotation.y = rig.yaw;
   modelRoot.scale.setScalar(1);
+  fallback.scale.setScalar(CFG.playerHeight / 1.82);
+  racket.scale.setScalar(CFG.worldScale * 1.18);
   racket.visible = false;
 
   new GLTFLoader().setCrossOrigin("anonymous").load(
@@ -661,15 +663,16 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
   const { forward, right } = baseVectors(player);
   const tRaw = player.swingT > 0 ? clamp01(player.swingT) : 0;
   const sideSign = player.side === "near" ? 1 : -1;
+  const poseScale = CFG.worldScale;
   const base = player.pos.clone();
-  const rightShoulder = base.clone().addScaledVector(right, 0.31).addScaledVector(forward, -0.02).setY(1.43);
-  const leftShoulder = base.clone().addScaledVector(right, -0.31).addScaledVector(forward, -0.02).setY(1.43);
+  const rightShoulder = base.clone().addScaledVector(right, 0.31 * poseScale).addScaledVector(forward, -0.02 * poseScale).setY(1.43 * poseScale);
+  const leftShoulder = base.clone().addScaledVector(right, -0.31 * poseScale).addScaledVector(forward, -0.02 * poseScale).setY(1.43 * poseScale);
 
-  let rightElbow = rightShoulder.clone().addScaledVector(right, 0.24).addScaledVector(forward, -0.15).setY(1.08);
-  let rightHand = rightShoulder.clone().addScaledVector(right, 0.47).addScaledVector(forward, 0.04).setY(0.88);
-  let leftElbow = leftShoulder.clone().addScaledVector(right, -0.18).addScaledVector(forward, 0.0).setY(1.05);
-  let leftHand = leftShoulder.clone().addScaledVector(right, -0.25).addScaledVector(forward, 0.18).setY(0.82);
-  let racketHead = rightHand.clone().addScaledVector(right, 0.1).setY(1.45);
+  let rightElbow = rightShoulder.clone().addScaledVector(right, 0.24 * poseScale).addScaledVector(forward, -0.15 * poseScale).setY(1.08 * poseScale);
+  let rightHand = rightShoulder.clone().addScaledVector(right, 0.47 * poseScale).addScaledVector(forward, 0.04 * poseScale).setY(0.88 * poseScale);
+  let leftElbow = leftShoulder.clone().addScaledVector(right, -0.18 * poseScale).addScaledVector(forward, 0.0).setY(1.05 * poseScale);
+  let leftHand = leftShoulder.clone().addScaledVector(right, -0.25 * poseScale).addScaledVector(forward, 0.18 * poseScale).setY(0.82 * poseScale);
+  let racketHead = rightHand.clone().addScaledVector(right, 0.1 * poseScale).setY(1.45 * poseScale);
   let torsoYaw = 0;
   let torsoLean = 0;
   let shoulderLift = 0;
@@ -688,17 +691,17 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = -0.08 - 0.2 * trophy + 0.28 * contact;
     shoulderLift = 0.28 * trophy + 0.32 * contact;
 
-    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.34, 0.18, drop)).addScaledVector(forward, lerp(-0.28, -0.02, contact)).setY(lerp(0.96, 1.55, trophy) - 0.18 * drop + 0.22 * contact);
-    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.48, 0.24, contact)).addScaledVector(forward, lerp(-0.32, 0.46, contact)).setY(lerp(0.82, 1.76, trophy) - 0.56 * drop + 0.78 * contact);
-    racketHead = rightHand.clone().addScaledVector(right, lerp(0.1, -0.2, follow)).addScaledVector(forward, lerp(-0.12, 0.52, contact) - 0.22 * follow).setY(lerp(1.34, 2.38, contact) - 0.95 * follow);
+    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.34, 0.18, drop) * poseScale).addScaledVector(forward, lerp(-0.28, -0.02, contact) * poseScale).setY((lerp(0.96, 1.55, trophy) - 0.18 * drop + 0.22 * contact) * poseScale);
+    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.48, 0.24, contact) * poseScale).addScaledVector(forward, lerp(-0.32, 0.46, contact) * poseScale).setY((lerp(0.82, 1.76, trophy) - 0.56 * drop + 0.78 * contact) * poseScale);
+    racketHead = rightHand.clone().addScaledVector(right, lerp(0.1, -0.2, follow) * poseScale).addScaledVector(forward, (lerp(-0.12, 0.52, contact) - 0.22 * follow) * poseScale).setY((lerp(1.34, 2.38, contact) - 0.95 * follow) * poseScale);
 
-    leftElbow = leftShoulder.clone().addScaledVector(right, -0.12).addScaledVector(forward, 0.12).setY(lerp(1.0, 1.7, toss) - 0.68 * contact);
-    leftHand = leftShoulder.clone().addScaledVector(right, -0.16).addScaledVector(forward, 0.28).setY(lerp(0.86, 2.02, toss) - 1.1 * contact);
+    leftElbow = leftShoulder.clone().addScaledVector(right, -0.12 * poseScale).addScaledVector(forward, 0.12 * poseScale).setY((lerp(1.0, 1.7, toss) - 0.68 * contact) * poseScale);
+    leftHand = leftShoulder.clone().addScaledVector(right, -0.16 * poseScale).addScaledVector(forward, 0.28 * poseScale).setY((lerp(0.86, 2.02, toss) - 1.1 * contact) * poseScale);
 
     if (follow > 0) {
-      rightHand.lerp(base.clone().addScaledVector(right, -0.34).addScaledVector(forward, 0.38).setY(1.07), easeOutCubic(follow));
-      rightElbow.lerp(base.clone().addScaledVector(right, -0.08).addScaledVector(forward, 0.2).setY(1.18), follow);
-      racketHead.lerp(base.clone().addScaledVector(right, -0.58).addScaledVector(forward, 0.18).setY(0.78), easeOutCubic(follow));
+      rightHand.lerp(base.clone().addScaledVector(right, -0.34 * poseScale).addScaledVector(forward, 0.38 * poseScale).setY(1.07 * poseScale), easeOutCubic(follow));
+      rightElbow.lerp(base.clone().addScaledVector(right, -0.08 * poseScale).addScaledVector(forward, 0.2 * poseScale).setY(1.18 * poseScale), follow);
+      racketHead.lerp(base.clone().addScaledVector(right, -0.58 * poseScale).addScaledVector(forward, 0.18 * poseScale).setY(0.78 * poseScale), easeOutCubic(follow));
     }
     wristPronation = 1.2 * contact - 0.55 * follow;
   } else {
@@ -706,27 +709,27 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     const slot = clamp01((tRaw - 0.18) / 0.26);
     const contact = clamp01((tRaw - 0.42) / 0.18);
     const follow = clamp01((tRaw - 0.58) / 0.42);
-    const ballSide = clamp((ball.pos.x - player.pos.x) * 0.9, -0.4, 0.4);
+    const ballSide = clamp((ball.pos.x - player.pos.x) * 0.9, -0.4 * poseScale, 0.4 * poseScale);
 
     torsoYaw = -0.52 * prep + 0.88 * contact - 0.25 * follow;
     torsoLean = -0.1 * prep + 0.08 * contact;
     shoulderLift = 0.12 * contact;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 + ballSide).addScaledVector(forward, -0.35).setY(1.05);
-    const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 + ballSide).addScaledVector(forward, -0.05).setY(0.82);
-    const contactHand = player.pos.clone().addScaledVector(right, 0.38 + ballSide * 0.45).addScaledVector(forward, 0.72).setY(clamp(ball.pos.y, 0.72, 1.24));
-    const followHand = player.pos.clone().addScaledVector(right, -0.42).addScaledVector(forward, 0.34).setY(1.38);
+    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 * poseScale + ballSide).addScaledVector(forward, -0.35 * poseScale).setY(1.05 * poseScale);
+    const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 * poseScale + ballSide).addScaledVector(forward, -0.05 * poseScale).setY(0.82 * poseScale);
+    const contactHand = player.pos.clone().addScaledVector(right, 0.38 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.72 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.24 * poseScale));
+    const followHand = player.pos.clone().addScaledVector(right, -0.42 * poseScale).addScaledVector(forward, 0.34 * poseScale).setY(1.38 * poseScale);
 
     rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, contact).lerp(followHand, follow);
-    rightElbow = rightShoulder.clone().lerp(rightHand, 0.52).addScaledVector(right, 0.1 * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.12);
+    rightElbow = rightShoulder.clone().lerp(rightHand, 0.52).addScaledVector(right, 0.1 * poseScale * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.12 * poseScale);
 
-    const lagHead = rightHand.clone().addScaledVector(right, 0.35).addScaledVector(forward, -0.26).setY(1.25);
-    const contactHead = ball.pos.clone().addScaledVector(forward, 0.02).setY(clamp(ball.pos.y, 0.74, 1.3));
-    const followHead = player.pos.clone().addScaledVector(right, -0.68).addScaledVector(forward, 0.22).setY(1.56);
+    const lagHead = rightHand.clone().addScaledVector(right, 0.35 * poseScale).addScaledVector(forward, -0.26 * poseScale).setY(1.25 * poseScale);
+    const contactHead = ball.pos.clone().addScaledVector(forward, 0.02 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.3 * poseScale));
+    const followHead = player.pos.clone().addScaledVector(right, -0.68 * poseScale).addScaledVector(forward, 0.22 * poseScale).setY(1.56 * poseScale);
     racketHead.copy(lagHead).lerp(contactHead, contact).lerp(followHead, follow);
 
-    leftElbow = leftShoulder.clone().addScaledVector(right, -0.23).addScaledVector(forward, 0.08).setY(1.08 + 0.12 * follow);
-    leftHand = leftShoulder.clone().addScaledVector(right, -0.42 + 0.34 * follow).addScaledVector(forward, 0.15).setY(0.92 + 0.46 * follow);
+    leftElbow = leftShoulder.clone().addScaledVector(right, -0.23 * poseScale).addScaledVector(forward, 0.08 * poseScale).setY((1.08 + 0.12 * follow) * poseScale);
+    leftHand = leftShoulder.clone().addScaledVector(right, (-0.42 + 0.34 * follow) * poseScale).addScaledVector(forward, 0.15 * poseScale).setY((0.92 + 0.46 * follow) * poseScale);
     wristPronation = 1.15 * contact + 0.25 * follow;
   }
 
@@ -736,17 +739,17 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
 function serveTossPosition(player: HumanRig, tRaw: number) {
   const { forward, right } = baseVectors(player);
   const arc = easeOutCubic(clamp01(tRaw / 0.36));
-  return player.pos.clone().addScaledVector(right, -0.18).addScaledVector(forward, lerp(0.22, 0.46, arc)).setY(lerp(0.96, 2.36, arc));
+  return player.pos.clone().addScaledVector(right, -0.18 * CFG.worldScale).addScaledVector(forward, lerp(0.22, 0.46, arc) * CFG.worldScale).setY(lerp(0.96, 2.36, arc) * CFG.worldScale);
 }
 
 function serveContactPosition(player: HumanRig) {
   const { forward, right } = baseVectors(player);
-  return player.pos.clone().addScaledVector(right, 0.16).addScaledVector(forward, 0.52).setY(2.22 * CFG.worldScale);
+  return player.pos.clone().addScaledVector(right, 0.16 * CFG.worldScale).addScaledVector(forward, 0.52 * CFG.worldScale).setY(2.22 * CFG.worldScale);
 }
 
 function serveReadyBallPosition(player: HumanRig) {
   const { forward, right } = baseVectors(player);
-  return player.pos.clone().addScaledVector(right, -0.14).addScaledVector(forward, 0.26).setY(1.12 * CFG.worldScale);
+  return player.pos.clone().addScaledVector(right, -0.14 * CFG.worldScale).addScaledVector(forward, 0.26 * CFG.worldScale).setY(1.12 * CFG.worldScale);
 }
 
 function resetBallForServe(ball: BallState, serverPlayer: HumanRig, serveSide: "deuce" | "ad") {
@@ -820,14 +823,28 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const speedScale = CFG.worldScale * 1.22;
-  const baseSpeed = (serve ? 20.8 + power * 11.6 : 15.2 + power * 9.2) * speedScale;
-  const flight = clamp(flatDist / baseSpeed, serve ? 0.42 : 0.58, serve ? 0.92 : 1.22);
-  return new THREE.Vector3(
+  const speedScale = CFG.worldScale * 1.48;
+  const baseSpeed = (serve ? 24.5 + power * 15.2 : 18.6 + power * 12.8) * speedScale;
+  const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
+  const velocity = new THREE.Vector3(
     (target.x - from.x) / flight,
     (target.y - from.y + 0.5 * CFG.gravity * flight * flight) / flight,
     (target.z - from.z) / flight
   );
+
+  const crossesNet = (from.z > 0 && target.z < 0) || (from.z < 0 && target.z > 0);
+  if (crossesNet && Math.abs(target.z - from.z) > 0.001) {
+    const tToNet = (-from.z / (target.z - from.z)) * flight;
+    if (tToNet > 0 && tToNet < flight) {
+      const yAtNet = from.y + velocity.y * tToNet - 0.5 * CFG.gravity * tToNet * tToNet;
+      const desiredClearance = CFG.netH + CFG.ballR * (serve ? 2.45 : 2.05) + power * 0.22 * CFG.worldScale;
+      if (yAtNet < desiredClearance) {
+        velocity.y += (desiredClearance - yAtNet) / tToNet;
+      }
+    }
+  }
+
+  return velocity;
 }
 
 function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, durationMs: number, isServe: boolean, serveSide: "deuce" | "ad") {
@@ -837,7 +854,7 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
   const duration = Math.max(durationMs, 16);
   const swipeSpeed = (dist / duration) * 1000;
   const speedBoost = clamp01((swipeSpeed - 240) / 1100);
-  const power = clamp((dist / 170) * 0.45 + speedBoost * 0.95 + (isServe ? 0.58 : 0.36), isServe ? 0.72 : 0.35, 1);
+  const power = clamp((dist / 145) * 0.58 + speedBoost * 1.08 + (isServe ? 0.66 : 0.43), isServe ? 0.78 : 0.42, 1);
   const dir = new THREE.Vector2(dx, -dy);
   if (dir.lengthSq() > 1e-6) dir.normalize();
   const rawAimX = (dx / 120) * (CFG.courtW / 2);
@@ -855,7 +872,7 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const attackToOpen = farDefendingWide ? -Math.sign(ball.pos.x || 1) * (CFG.courtW * 0.36) : near.pos.x * 0.72;
   const x = clamp(attackToOpen + sideRead + (Math.random() - 0.5) * 0.58, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
   const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
-  const power = clamp(0.66 + pressure * 0.52 + Math.random() * 0.2, 0.56, 1);
+  const power = clamp(0.72 + pressure * 0.55 + Math.random() * 0.22, 0.62, 1);
   const roll = Math.random();
   const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.62 ? "slice" : "flat";
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
@@ -879,12 +896,12 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
-    ball.vel.x += hit.swipeDir.x * (2.6 + hit.power * 2.1);
-    ball.vel.z += -hit.swipeDir.y * (1.1 + hit.power * 1.4);
+    ball.vel.x += hit.swipeDir.x * (3.4 + hit.power * 2.8) * CFG.worldScale;
+    ball.vel.z += -hit.swipeDir.y * (1.45 + hit.power * 1.8) * CFG.worldScale;
   }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
-    ball.vel.y += 2.1 + hit.power * 0.9;
+    ball.vel.y += (2.25 + hit.power * 1.05) * CFG.worldScale;
     ball.vel.multiplyScalar(0.86);
     ball.spin = 0.8 + hit.power * 0.7;
   } else if (technique === "drop") {
@@ -895,7 +912,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.multiplyScalar(0.72);
     ball.spin = 0.25;
   } else if (technique === "topspin") {
-    ball.vel.y += 0.35 + hit.power * 0.35;
+    ball.vel.y += (0.48 + hit.power * 0.46) * CFG.worldScale;
     ball.spin = 1.05 + hit.power * 1.1;
   } else if (technique === "slice") {
     ball.vel.x += (Math.random() - 0.5) * 1.6;
