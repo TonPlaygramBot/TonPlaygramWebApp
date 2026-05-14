@@ -248,12 +248,7 @@ export class GameManager {
     addLine(0.016, GAME_CONFIG.table.length, GAME_CONFIG.table.width / 2 - 0.01, 0);
     addLine(0.016, GAME_CONFIG.table.length, -GAME_CONFIG.table.width / 2 + 0.01, 0);
 
-    const net = new THREE.Mesh(
-      new THREE.BoxGeometry(GAME_CONFIG.table.width + GAME_CONFIG.net.overhang * 2, GAME_CONFIG.net.height, GAME_CONFIG.net.thickness),
-      new THREE.MeshStandardMaterial({ color: '#dbeafe', transparent: true, opacity: 0.72, roughness: 0.35 }),
-    );
-    net.position.y = GAME_CONFIG.table.topY + GAME_CONFIG.net.height / 2;
-    net.castShadow = true;
+    const net = this.createNet();
     table.add(net);
 
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 7), new THREE.ShadowMaterial({ opacity: 0.22 }));
@@ -262,10 +257,83 @@ export class GameManager {
     this.scene.add(floor, table);
   }
 
+  private createNet() {
+    const netGroup = new THREE.Group();
+    const netWidth = GAME_CONFIG.table.width + GAME_CONFIG.net.overhang * 2;
+    const netHeight = GAME_CONFIG.net.height;
+    const netTexture = this.createHexNetTexture();
+    const netMaterial = new THREE.MeshBasicMaterial({
+      map: netTexture,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const netPanel = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, netHeight), netMaterial);
+    netPanel.position.y = GAME_CONFIG.table.topY + netHeight / 2;
+    netPanel.rotation.y = Math.PI;
+    netPanel.castShadow = true;
+    netGroup.add(netPanel);
+
+    const stripeMaterial = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.42, metalness: 0.02 });
+    const stripeHeight = 0.018;
+    const stripeDepth = GAME_CONFIG.net.thickness * 1.35;
+    const topStripe = new THREE.Mesh(new THREE.BoxGeometry(netWidth, stripeHeight, stripeDepth), stripeMaterial);
+    topStripe.position.y = GAME_CONFIG.table.topY + netHeight - stripeHeight / 2;
+    topStripe.castShadow = true;
+    const bottomStripe = topStripe.clone();
+    bottomStripe.position.y = GAME_CONFIG.table.topY + stripeHeight / 2;
+    netGroup.add(topStripe, bottomStripe);
+
+    return netGroup;
+  }
+
+  private createHexNetTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 96;
+    const context = canvas.getContext('2d');
+    if (!context) return new THREE.CanvasTexture(canvas);
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = 'rgba(219, 234, 254, 0.92)';
+    context.lineWidth = 3;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+
+    const radius = 14;
+    const hexWidth = Math.sqrt(3) * radius;
+    const verticalStep = radius * 1.5;
+    for (let y = radius; y < canvas.height + radius; y += verticalStep) {
+      const row = Math.round((y - radius) / verticalStep);
+      const xOffset = row % 2 === 0 ? radius : radius + hexWidth / 2;
+      for (let x = -hexWidth; x < canvas.width + hexWidth; x += hexWidth) {
+        this.drawHexagon(context, x + xOffset, y, radius);
+      }
+    }
+
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  private drawHexagon(context: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) {
+    context.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const angle = Math.PI / 6 + (Math.PI / 3) * i;
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius;
+      if (i === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.closePath();
+    context.stroke();
+  }
+
   private createAvatar(side: 'player' | 'ai') {
     const root = new THREE.Group();
     root.position.set(0, 0, side === 'player' ? GAME_CONFIG.player.z : GAME_CONFIG.ai.z);
     root.rotation.y = side === 'player' ? 0 : Math.PI;
+    const avatarScale = side === 'player' ? GAME_CONFIG.player.avatarScale : GAME_CONFIG.ai.avatarScale;
+    root.scale.setScalar(avatarScale);
     const material = new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.72, metalness: 0.02 });
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.44, 5, 12), material);
     torso.position.y = 0.72;
