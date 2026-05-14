@@ -142,10 +142,10 @@ const CFG = {
   spinDecay: 0.72,
   playerHeight: 3.5,
   playerSpeed: 3.9,
-  aiSpeed: 6.85,
-  aiServeReceiveBoost: 1.24,
-  aiOutBallConfidenceCutoff: 0.22,
-  reach: 1.16,
+  aiSpeed: 4.95,
+  aiServeReceiveBoost: 1.08,
+  aiOutBallConfidenceCutoff: 0.18,
+  reach: 1.09,
   swingDuration: 0.31,
   backhandDuration: 0.27,
   serveDuration: 0.82,
@@ -159,11 +159,9 @@ const CFG = {
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 7.1,
-  maxShotSpeed: 23.5,
-  netClearance: 0.18,
-  serveBounceMinLift: 3.85,
-  serveBounceMinForwardSpeed: 8.2,
+  minShotSpeed: 4.1,
+  maxShotSpeed: 11.0,
+  netClearance: 0.16,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -1074,17 +1072,10 @@ function flightWithNetClearance(from: THREE.Vector3, target: THREE.Vector3, base
   return clamp(baseFlight, minFlight, maxFlight);
 }
 
-
-function boostServeBounceTowardNet(ball: BallState, server: PlayerSide) {
-  const travelDir = server === "near" ? -1 : 1;
-  ball.vel.z = Math.max(Math.abs(ball.vel.z), CFG.serveBounceMinForwardSpeed) * travelDir;
-  ball.vel.y = Math.max(ball.vel.y, CFG.serveBounceMinLift);
-}
-
 function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean): DesiredHit {
   const dx = endX - startX;
   const dy = endY - startY;
-  const power = clamp(Math.hypot(dx, dy) / 95, isServe ? 0.82 : 0.68, 1);
+  const power = clamp(Math.hypot(dx, dy) / 180, isServe ? 0.56 : 0.36, 1);
   const lateral = clamp(dx / 170, -1, 1);
   const depth = clamp((-dy + 42) / 255, 0, 1);
   const targetX = clamp(lateral * (TABLE_HALF_W - 0.13), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
@@ -1195,8 +1186,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.82);
-    const flight = clamp(0.16 + (1 - hit.power) * 0.055, 0.145, 0.23);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
+    const flight = clamp(0.18 + (1 - hit.power) * 0.075, 0.17, 0.28);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
@@ -1204,8 +1195,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const baseFlight = dist / ((6.4 + hit.power * 7.25) * speedScale);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.16, 0.48);
+    const baseFlight = dist / ((4.2 + hit.power * 4.1) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.14, 0.42);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1675,7 +1666,6 @@ export default function MobileRealisticTableTennisGame() {
           ball.phase.stage = "opponent";
           ball.bounceSide = side;
           ball.bounceCount = 1;
-          boostServeBounceTowardNet(ball, server);
           return;
         }
         if (side !== opposite(server)) {
@@ -1836,15 +1826,15 @@ export default function MobileRealisticTableTennisGame() {
       } else if (incoming && read) {
         const serviceReceive = ball.phase.kind === "serve" || ball.bounceSide === "near";
         const speedBoost = serviceReceive ? CFG.aiServeReceiveBoost : 1;
-        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.42 : 0.3);
-        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? 0.075 : 0.045), -TABLE_HALF_W * 0.94, TABLE_HALF_W * 0.94);
-        farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
-        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.55 * speedBoost, -TABLE_HALF_L - 0.28);
+        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.38 : 0.27);
+        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? 0.055 : 0.045), -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
+        farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.42 * speedBoost, -TABLE_HALF_L - 0.34);
       } else {
         farPlayer.target.lerp(home, 0.055);
       }
 
-      const aiReadyToStrike = incoming && read && read.willLandFarLegal && read.confidence > 0.28 && (canReachBall(farPlayer, ball) || (read.time < 0.24 && ball.bounceSide === "far"));
+      const aiReadyToStrike = incoming && read && read.willLandFarLegal && read.confidence > 0.34 && (canReachBall(farPlayer, ball) || (read.time < 0.2 && ball.bounceSide === "far"));
       if (aiReadyToStrike && farPlayer.swingT === 0) {
         const plan = makeAiTarget(nearPlayer, ball, read);
         const backhandBias = ball.pos.x - farPlayer.pos.x > 0.08 || plan.tactic === "push" || (read.strike.x > farPlayer.pos.x && Math.abs(read.strike.x) > TABLE_HALF_W * 0.32);
