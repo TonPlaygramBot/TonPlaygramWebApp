@@ -1629,13 +1629,13 @@ const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
+const CUE_PULL_VISUAL_MULTIPLIER = 2.08;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -5186,8 +5186,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Pool Royale rail-overhead dista
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0205; // match Pool Royale cue-camera radius limit for identical close-up behavior
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
+const CUE_VIEW_RADIUS_RATIO = 0.0175; // pull the cue camera closer to the table for tighter address framing
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.064; // allow a closer minimum cue-camera radius before rail safety clamps apply
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5813,7 +5813,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -18876,6 +18876,8 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
+          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -18884,7 +18886,6 @@ const powerRef = useRef(hud.power);
             pos
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
-          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
@@ -22289,7 +22290,7 @@ const powerRef = useRef(hud.power);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -22367,9 +22368,13 @@ const powerRef = useRef(hud.power);
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          powerImpactHoldRef.current = isMaxPowerShot
+          const maxPowerHoldUntil = isMaxPowerShot
             ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
             : 0;
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            maxPowerHoldUntil
+          );
           if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -22388,6 +22393,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const isBreakCameraShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
@@ -22456,7 +22462,10 @@ const powerRef = useRef(hud.power);
               )
             : null;
           const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
+            !isBreakCameraShot &&
+            !suppressPocketCameras &&
+            shotPrediction.ballId &&
+            followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -22632,7 +22641,7 @@ const powerRef = useRef(hud.power);
           const startPull = THREE.MathUtils.clamp(
             Math.max(pulledNow, pullTarget),
             0,
-            Math.max(maxPull, 0)
+            Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL)
           );
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
@@ -22683,13 +22692,8 @@ const powerRef = useRef(hud.power);
           const strikeDuration = 110;
           const holdDuration = 45;
           const returnDuration = 0;
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE,
-            BALL_R * 0.08,
-            BALL_R * 0.3
-          );
-          const impactPos = buildCuePosition(-impactPush);
-          // Stop the visible cue at contact so it never chases the cue ball.
+          // Stop exactly at the original address position after the forward stroke.
+          const impactPos = buildCuePosition(0);
           const followExtra = 0;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
@@ -26213,7 +26217,12 @@ const powerRef = useRef(hud.power);
           activeShotView = null;
           updatePocketCameraState(false);
         }
+        const frameSnapshotForCamera = frameRef.current ?? frameState;
+        const breakShotCameraActive = Boolean(
+          frameSnapshotForCamera?.meta?.breakInProgress
+        );
         if (
+          !breakShotCameraActive &&
           !suppressPocketCameras &&
           shooting &&
           !topViewRef.current
