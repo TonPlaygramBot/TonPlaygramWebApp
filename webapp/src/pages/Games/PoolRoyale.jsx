@@ -27379,11 +27379,42 @@ const shotPowerRef = useRef(0);
                   desiredShootDistance: humanShootDistance,
                   preferredTableSide: behavior.stanceSide || null
                 }).setY(floorY);
+            const enforceCueSideStance = (point) => {
+              const rootToCue = cueWorld.clone().sub(point).setY(0);
+              const behindAlignment = rootToCue.lengthSq() > 1e-8
+                ? rootToCue.normalize().dot(aimForward)
+                : -1;
+              if (behindAlignment > 0.2) return point;
+
+              const behindPoint = cueWorld.clone().addScaledVector(aimForward, -humanShootDistance).setY(floorY);
+              const corrected = behavior.originalSkeletonLogic
+                ? behindPoint
+                : clampToWalkPerimeter(behindPoint);
+              const correctedToCue = cueWorld.clone().sub(corrected).setY(0);
+              const correctedAlignment = correctedToCue.lengthSq() > 1e-8
+                ? correctedToCue.normalize().dot(aimForward)
+                : -1;
+              if (correctedAlignment > 0.2) return corrected;
+
+              const cueSideCandidates = [
+                new THREE.Vector3(-walkHalfX, floorY, THREE.MathUtils.clamp(cueWorld.z, -walkHalfZ, walkHalfZ)),
+                new THREE.Vector3(walkHalfX, floorY, THREE.MathUtils.clamp(cueWorld.z, -walkHalfZ, walkHalfZ)),
+                new THREE.Vector3(THREE.MathUtils.clamp(cueWorld.x, -walkHalfX, walkHalfX), floorY, -walkHalfZ),
+                new THREE.Vector3(THREE.MathUtils.clamp(cueWorld.x, -walkHalfX, walkHalfX), floorY, walkHalfZ)
+              ];
+              cueSideCandidates.sort((a, b) => {
+                const alignA = cueWorld.clone().sub(a).setY(0).normalize().dot(aimForward);
+                const alignB = cueWorld.clone().sub(b).setY(0).normalize().dot(aimForward);
+                return alignB - alignA || a.distanceToSquared(behindPoint) - b.distanceToSquared(behindPoint);
+              });
+              return cueSideCandidates[0].clone();
+            };
+            const cueSideRoot = isHumanShooter ? enforceCueSideStance(desiredRoot) : desiredRoot;
             const perimeterRoot = behavior.originalSkeletonLogic
-              ? desiredRoot.clone()
-              : clampToWalkPerimeter(desiredRoot);
+              ? cueSideRoot.clone()
+              : clampToWalkPerimeter(cueSideRoot);
             if (!behavior.originalSkeletonLogic && isInsideTableBlocker(perimeterRoot)) {
-              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
+              perimeterRoot.copy(enforceCueSideStance(clampToWalkPerimeter(perimeterRoot)));
             }
             if (!Number.isFinite(human.walkPerimeterT)) {
               human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
@@ -27437,6 +27468,17 @@ const shotPowerRef = useRef(0);
             const state = seatedAtChair
               ? 'seated'
               : mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+            if (isHumanShooter && (state === 'dragging' || state === 'striking')) {
+              const liveRootToCue = cueWorld.clone().sub(walkRoot).setY(0);
+              const liveCueSideAlignment = liveRootToCue.lengthSq() > 1e-8
+                ? liveRootToCue.normalize().dot(aimForward)
+                : -1;
+              if (liveCueSideAlignment <= 0.2) {
+                walkRoot.copy(perimeterRoot);
+                human.walkPerimeterT = pointToPerimeterT(perimeterRoot);
+                human.perimeterT = human.walkPerimeterT;
+              }
+            }
             const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
             const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
             const activePower = state === 'dragging' ? draggingPower : strikingPower;
