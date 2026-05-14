@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GAME_CONFIG, ShotType, Side, TABLE_BOUNDS } from './gameConfig';
+import { GAME_CONFIG, ShotCommand, ShotType, Side, TABLE_BOUNDS } from './gameConfig';
 
 export interface PaddleHitInput {
   side: Side;
@@ -9,6 +9,7 @@ export interface PaddleHitInput {
   ballVelocity: THREE.Vector3;
   ballSpin: THREE.Vector3;
   requestedShot: ShotType;
+  shotCommand?: ShotCommand;
   accuracy?: number;
   powerScale?: number;
 }
@@ -22,12 +23,15 @@ export interface PaddleHitResult {
 }
 
 const shotProfiles: Record<ShotType, { lift: number; speed: number; spin: number; arc: number }> = {
-  'forehand drive': { lift: 1.55, speed: GAME_CONFIG.paddle.drivePower, spin: 2.2, arc: 0.18 },
-  'backhand drive': { lift: 1.45, speed: GAME_CONFIG.paddle.drivePower * 0.95, spin: 1.9, arc: 0.12 },
-  push: { lift: 1.15, speed: GAME_CONFIG.paddle.pushPower, spin: -1.6, arc: 0.24 },
-  'brush/topspin': { lift: 1.75, speed: GAME_CONFIG.paddle.drivePower * 0.92, spin: GAME_CONFIG.paddle.spin, arc: 0.04 },
-  lob: { lift: 2.75, speed: GAME_CONFIG.paddle.lobPower, spin: 0.7, arc: 0.42 },
+  'forehand drive': { lift: 1.68, speed: GAME_CONFIG.paddle.drivePower, spin: 2.35, arc: 0.16 },
+  'backhand drive': { lift: 1.58, speed: GAME_CONFIG.paddle.drivePower * 0.96, spin: 2.05, arc: 0.12 },
+  push: { lift: 1.12, speed: GAME_CONFIG.paddle.pushPower, spin: -1.85, arc: 0.2 },
+  'brush/topspin': { lift: 1.78, speed: GAME_CONFIG.paddle.drivePower * 0.98, spin: GAME_CONFIG.paddle.spin, arc: 0.05 },
+  lob: { lift: 2.85, speed: GAME_CONFIG.paddle.lobPower, spin: 0.75, arc: 0.46 },
+  'swerve power': { lift: 1.62, speed: GAME_CONFIG.paddle.drivePower * GAME_CONFIG.paddle.powerShotMultiplier, spin: GAME_CONFIG.paddle.spin * 0.9, arc: 0.08 },
 };
+
+const DEFAULT_COMMAND: ShotCommand = { aimX: 0, power: 0.58, lift: 0.45, curve: 0, spin: 0.25 };
 
 export class PaddleHitDetector {
   detect(input: PaddleHitInput): PaddleHitResult {
@@ -41,18 +45,28 @@ export class PaddleHitDetector {
     const ballComingToPaddle = input.side === 'player' ? input.ballVelocity.z > 0.4 : input.ballVelocity.z < -0.4;
     if (!ballComingToPaddle) return { valid: false, reason: 'ball moving away' };
 
+    const command = input.shotCommand ?? DEFAULT_COMMAND;
     const profile = shotProfiles[input.requestedShot];
-    const targetZ = input.side === 'player' ? THREE.MathUtils.randFloat(-1.08, -0.42) : THREE.MathUtils.randFloat(0.42, 1.08);
-    const targetXBase = THREE.MathUtils.clamp(-input.ballPosition.x * 0.55, TABLE_BOUNDS.minX + 0.12, TABLE_BOUNDS.maxX - 0.12);
-    const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * 0.42;
-    const target = new THREE.Vector3(targetXBase + THREE.MathUtils.randFloatSpread(error), GAME_CONFIG.table.topY + profile.arc, targetZ);
+    const targetZ = input.side === 'player' ? THREE.MathUtils.randFloat(-1.2, -0.34) : THREE.MathUtils.randFloat(0.34, 1.2);
+    const screenAim = input.side === 'player' ? command.aimX : -command.aimX;
+    const targetXBase = THREE.MathUtils.lerp(TABLE_BOUNDS.minX + 0.1, TABLE_BOUNDS.maxX - 0.1, (screenAim + 1) / 2);
+    const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * THREE.MathUtils.lerp(0.48, 0.22, command.power);
+    const target = new THREE.Vector3(
+      THREE.MathUtils.clamp(targetXBase + THREE.MathUtils.randFloatSpread(error), TABLE_BOUNDS.minX + 0.08, TABLE_BOUNDS.maxX - 0.08),
+      GAME_CONFIG.table.topY + profile.arc + command.lift * 0.32,
+      targetZ,
+    );
     const direction = target.sub(input.ballPosition).normalize();
-    const power = profile.speed * (input.powerScale ?? 1);
+    const commandPower = THREE.MathUtils.lerp(0.72, 1.28, command.power);
+    const power = profile.speed * commandPower * (input.powerScale ?? 1);
     const velocity = direction.multiplyScalar(power);
-    velocity.y = Math.max(velocity.y + profile.lift, input.requestedShot === 'lob' ? 2.2 : 1.05);
+    const minLift = input.requestedShot === 'lob' ? 2.18 : THREE.MathUtils.lerp(0.9, 1.24, command.lift);
+    velocity.y = Math.max(velocity.y + profile.lift + command.lift * 0.58, minLift);
 
     const sideSign = input.side === 'player' ? -1 : 1;
-    const spin = new THREE.Vector3(profile.spin * sideSign, 0, -input.paddleForward.x * 1.2);
+    const topOrBackSpin = profile.spin + command.spin * GAME_CONFIG.paddle.spin;
+    const sideSpin = command.curve * GAME_CONFIG.paddle.sideSpin;
+    const spin = new THREE.Vector3(topOrBackSpin * sideSign, 0, sideSpin * sideSign - input.paddleForward.x * 1.1);
     return { valid: true, shotType: input.requestedShot, velocity, spin };
   }
 }

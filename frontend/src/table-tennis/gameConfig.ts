@@ -1,7 +1,20 @@
 import * as THREE from 'three';
 
 export type Side = 'player' | 'ai';
-export type ShotType = 'forehand drive' | 'backhand drive' | 'push' | 'brush/topspin' | 'lob';
+export type ShotType = 'forehand drive' | 'backhand drive' | 'push' | 'brush/topspin' | 'lob' | 'swerve power';
+
+export interface ShotCommand {
+  /** -1 aims to the left sideline, +1 aims to the right sideline from the striker's screen perspective. */
+  aimX: number;
+  /** 0 is a soft touch, 1 is the strongest drive. */
+  power: number;
+  /** 0 is a flat/low shot, 1 is a higher clearance arc. */
+  lift: number;
+  /** -1 bends left, +1 bends right with side spin. */
+  curve: number;
+  /** -1 slices/backspins, +1 brushes heavy topspin. */
+  spin: number;
+}
 
 export interface DifficultyConfig {
   reactionTime: number;
@@ -15,7 +28,7 @@ export const GAME_CONFIG = {
   fixedDt: 1 / 120,
   gravity: -9.8,
   drag: 0.09,
-  spinCurve: 0.08,
+  spinCurve: 0.11,
   ballRadius: 0.055,
   serveHeight: 0.34,
   table: {
@@ -36,8 +49,9 @@ export const GAME_CONFIG = {
     minX: -1.02,
     maxX: 1.02,
     safeZ: 2.22,
-    moveSpeed: 2.55,
-    reach: 0.52,
+    moveSpeed: 4.25,
+    reach: 0.66,
+    autoTrackLead: 0.34,
     recoveryTime: 0.28,
     avatarScale: 1.42,
   },
@@ -48,21 +62,23 @@ export const GAME_CONFIG = {
     maxReach: 0.66,
     avatarScale: 1.42,
     difficulty: {
-      reactionTime: 0.24,
-      moveSpeed: 2.05,
-      accuracy: 0.78,
-      shotPower: 1,
+      reactionTime: 0.18,
+      moveSpeed: 2.85,
+      accuracy: 0.8,
+      shotPower: 1.08,
       mistakeChance: 0.14,
     } satisfies DifficultyConfig,
   },
   paddle: {
-    hitRadius: 0.21,
+    hitRadius: 0.28,
     timingWindow: 0.12,
-    minFacingDot: 0.22,
-    drivePower: 3.75,
-    pushPower: 2.85,
-    lobPower: 2.95,
-    spin: 3.6,
+    minFacingDot: 0.1,
+    drivePower: 4.35,
+    pushPower: 3.15,
+    lobPower: 3.25,
+    powerShotMultiplier: 1.34,
+    spin: 4.6,
+    sideSpin: 5.2,
     accuracy: 0.9,
   },
   camera: {
