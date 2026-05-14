@@ -127,42 +127,40 @@ const Y_AXIS = UP;
 
 const CFG = {
   // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
-  tableL: 6.45,
-  tableW: 3.55,
-  tableY: 1.52,
+  tableL: 7.2,
+  tableW: 3.96,
+  tableY: 1.7,
   tableTopThickness: 0.088,
-  netH: 0.19,
-  netPostOutside: 0.19,
-  ballR: 0.046,
+  netH: 0.21,
+  netPostOutside: 0.21,
+  ballR: 0.052,
   gravity: 9.81,
   airDrag: 0.22,
   magnus: 0.00125,
   tableRestitution: 0.9,
   tableFriction: 0.965,
   spinDecay: 0.72,
-  playerHeight: 3.12,
-  playerSpeed: 3.5,
-  aiSpeed: 6.15,
+  playerHeight: 3.5,
+  playerSpeed: 3.9,
+  aiSpeed: 6.85,
   aiServeReceiveBoost: 1.24,
   aiOutBallConfidenceCutoff: 0.22,
-  reach: 1.04,
+  reach: 1.16,
   swingDuration: 0.31,
   backhandDuration: 0.27,
   serveDuration: 0.82,
   hitWindowStart: 0.35,
   hitWindowEnd: 0.8,
   serveContactT: 0.68,
-  netTopRestitution: 0.42,
-  netFaceRestitution: 0.08,
-  netPowerRetention: 0.18,
-  netClipPowerRetention: 0.58,
+  netPowerRetention: 0.2,
+  netClipPowerRetention: 0.2,
   netTangentDamping: 0.42,
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 3.7,
-  maxShotSpeed: 9.8,
+  minShotSpeed: 4.05,
+  maxShotSpeed: 10.9,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -186,6 +184,13 @@ function reduceImpactPower(velocity: THREE.Vector3, keepRatio: number, minSpeed 
   const speed = velocity.length();
   if (speed <= 0.0001) return;
   const capped = Math.max(minSpeed, speed * clamp(keepRatio, 0.05, 1));
+  velocity.multiplyScalar(capped / speed);
+}
+
+function retainSourceImpactPower(velocity: THREE.Vector3, sourceSpeed: number, keepRatio: number, minSpeed = 0.35) {
+  const speed = velocity.length();
+  if (speed <= 0.0001 || sourceSpeed <= 0.0001) return;
+  const capped = Math.max(minSpeed, sourceSpeed * clamp(keepRatio, 0.05, 1));
   velocity.multiplyScalar(capped / speed);
 }
 
@@ -1172,7 +1177,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const flight = clamp(dist / ((4.2 + hit.power * 4.1) * speedScale), 0.14, 0.4);
+    const flight = clamp(dist / ((4.55 + hit.power * 4.45) * speedScale), 0.14, 0.4);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1544,7 +1549,7 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 44 : 39;
-      camera.position.set(0, camera.aspect < 0.72 ? 6.35 : 5.55, camera.aspect < 0.72 ? 7.65 : 6.75);
+      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1696,19 +1701,20 @@ export default function MobileRealisticTableTennisGame() {
         const clipDepth = clamp01((ball.pos.y + CFG.ballR - (netTopY - CFG.ballR * 0.25)) / (CFG.ballR * 1.6));
         const topClip = clipDepth > 0.45 && Math.abs(ball.vel.z) > 0.35;
         const lateralDeflect = clamp(ball.vel.x * 0.05 + ball.spin.y * 0.0009 + (Math.random() - 0.5) * 0.08, -0.22, 0.22);
+        const incomingSpeed = ball.vel.length();
 
-        ball.pos.z = approachSide * 0.032;
+        ball.pos.z = travelDir * 0.032;
         if (topClip) {
           const crawlsOver = ball.vel.y > -0.85 && Math.abs(ball.vel.z) > 1.1 && clipDepth > 0.58;
-          ball.vel.z = Math.abs(ball.vel.z) * (crawlsOver ? CFG.netClipPowerRetention : CFG.netTopRestitution) * (crawlsOver ? travelDir : approachSide);
+          ball.vel.z = Math.abs(ball.vel.z) * (crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention) * travelDir;
           ball.vel.y = Math.max(crawlsOver ? 0.055 : 0.02, Math.abs(ball.vel.y) * 0.18 + clipDepth * 0.08);
           ball.vel.x = ball.vel.x * 0.62 + lateralDeflect;
-          reduceImpactPower(ball.vel, crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention, crawlsOver ? 0.42 : 0.24);
+          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.24);
         } else {
-          ball.vel.z = Math.abs(ball.vel.z) * CFG.netFaceRestitution * approachSide;
+          ball.vel.z = Math.abs(ball.vel.z) * CFG.netPowerRetention * travelDir;
           ball.vel.x = ball.vel.x * CFG.netTangentDamping + lateralDeflect;
           ball.vel.y = Math.min(0.06, ball.vel.y * 0.18) - 0.06;
-          reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.18);
+          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.18);
         }
         ball.spin.multiplyScalar(topClip ? 0.55 : 0.35);
         netWobble.amount = 1;
@@ -1899,7 +1905,7 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 6.35 : 5.55, camera.aspect < 0.72 ? 7.65 : 6.75);
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
       camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
       cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.22, -0.08), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
