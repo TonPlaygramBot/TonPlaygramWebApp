@@ -42,7 +42,12 @@ export class PaddleHitDetector {
     if (!ballComingToPaddle) return { valid: false, reason: 'ball moving away' };
 
     const profile = shotProfiles[input.requestedShot];
-    const targetZ = input.side === 'player' ? THREE.MathUtils.randFloat(-1.08, -0.42) : THREE.MathUtils.randFloat(0.42, 1.08);
+    const opponentHalfMinZ = input.side === 'player' ? TABLE_BOUNDS.minZ : 0.42;
+    const opponentHalfMaxZ = input.side === 'player' ? -0.42 : TABLE_BOUNDS.maxZ;
+    const targetZ = THREE.MathUtils.randFloat(
+      opponentHalfMinZ + 0.18,
+      opponentHalfMaxZ - 0.18,
+    );
     const targetXBase = THREE.MathUtils.clamp(-input.ballPosition.x * 0.55, TABLE_BOUNDS.minX + 0.12, TABLE_BOUNDS.maxX - 0.12);
     const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * 0.42;
     const target = new THREE.Vector3(targetXBase + THREE.MathUtils.randFloatSpread(error), GAME_CONFIG.table.topY + profile.arc, targetZ);
