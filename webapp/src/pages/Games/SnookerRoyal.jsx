@@ -22685,35 +22685,25 @@ const powerRef = useRef(hud.power);
           };
           const idlePos = buildCuePosition(0);
           const pullPos = buildCuePosition(visualPull);
-          // Start the visible release from the player's pulled cue depth so the
-          // stick drives forward on its own, matching the former human-shot
-          // follow-through without needing to render the human character.
-          cueStick.position.copy(pullPos);
+          cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const pullbackDuration = 0;
-          const strikeDuration = 130;
-          const holdDuration = 120;
+          const strikeDuration = 110;
+          const holdDuration = 45;
           const returnDuration = 0;
+          // Stop exactly at the original address position after the forward stroke.
           const impactPos = buildCuePosition(0);
-          const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.28,
-            BALL_R * 0.62,
-            clampedPower
-          );
-          const contactPos = impactPos
+          const followExtra = 0;
+          TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
+          if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_FOLLOW_DIR.normalize();
+          }
+          const settlePos = impactPos
             .clone()
-            .addScaledVector(dir, contactAdvance);
-          const followExtra = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const settlePos = contactPos
-            .clone()
-            .addScaledVector(dir, followExtra);
+            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           cueStick.visible = true;
-          cueStick.position.copy(pullPos);
+          cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + strikeDuration;
@@ -22763,7 +22753,7 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(contactPos),
+              impact: serializeVector3Snapshot(impactPos),
               settle: serializeVector3Snapshot(settlePos),
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
@@ -22797,9 +22787,14 @@ const powerRef = useRef(hud.power);
               cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
             } else if (sample.phase === 'release' || sample.phase === 'strike') {
               const strikeEase = easeOutCubic(sample.t);
-              cueStick.position.lerpVectors(pullPos, contactPos, strikeEase);
+              const dynamicFollow =
+                followExtra * (0.55 + 0.45 * Math.sin(sample.t * Math.PI));
+              cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
+              if (dynamicFollow > 1e-6) {
+                cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
+              }
             } else if (sample.phase === 'hold') {
-              cueStick.position.lerpVectors(contactPos, settlePos, easeInOutQuad(sample.t));
+              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
             } else if (now <= returnTime && returnDuration > 0) {
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
