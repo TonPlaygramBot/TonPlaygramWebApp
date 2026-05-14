@@ -761,11 +761,61 @@ function createFallbackHuman(color: number) {
 }
 
 
+
+function makeRacketHexStringTexture() {
+  const size = 512;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d")!;
+  const center = size / 2;
+  const radius = size * 0.46;
+  const hexRadius = size * 0.048;
+  const hexHeight = Math.sqrt(3) * hexRadius;
+  const stepX = hexRadius * 1.5;
+  const stepY = hexHeight;
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = "rgba(255,255,255,0.74)";
+  ctx.lineWidth = 4.5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  for (let y = center - radius - stepY; y <= center + radius + stepY; y += stepY) {
+    const row = Math.round((y - (center - radius - stepY)) / stepY);
+    const offsetX = row % 2 === 0 ? 0 : stepX / 2;
+    for (let x = center - radius - stepX; x <= center + radius + stepX; x += stepX) {
+      const cx = x + offsetX;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 6 + (Math.PI / 3) * i;
+        const px = cx + Math.cos(angle) * hexRadius;
+        const py = y + Math.sin(angle) * hexRadius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = "rgba(255,255,255,0.92)";
+  ctx.lineWidth = 5.5;
+  ctx.beginPath();
+  ctx.arc(center, center, radius - 2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  return c;
+}
+
 function createRacket(color: number) {
   const g = new THREE.Group();
   const handleMat = material(0x1d1d1f, 0.55, 0.1);
   const frameMat = material(color, 0.36, 0.45);
-  const stringMat = transparentMaterial(0xffffff, 0.5, 0.42);
 
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.42, 16), handleMat);
   handle.position.y = -0.11;
@@ -782,24 +832,32 @@ function createRacket(color: number) {
   throatB.rotation.z *= -1;
   g.add(throatB);
 
-  const head = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.019, 12, 52), frameMat);
-  head.scale.y = 1.34;
+  const headRadius = 0.205;
+  const frameTubeRadius = 0.019;
+  const headScaleY = 1.34;
+  const innerHeadRadius = headRadius - frameTubeRadius;
+  const head = new THREE.Mesh(new THREE.TorusGeometry(headRadius, frameTubeRadius, 12, 52), frameMat);
+  head.scale.y = headScaleY;
   head.position.y = 0.56;
   enableShadow(head);
   g.add(head);
 
-  const stringPlane = new THREE.Mesh(new THREE.CircleGeometry(0.182, 36), stringMat);
-  stringPlane.scale.y = 1.3;
-  stringPlane.position.y = 0.56;
+  const stringTexture = new THREE.CanvasTexture(makeRacketHexStringTexture());
+  stringTexture.colorSpace = THREE.SRGBColorSpace;
+  stringTexture.anisotropy = 4;
+  const stringMat = new THREE.MeshStandardMaterial({
+    map: stringTexture,
+    transparent: true,
+    opacity: 0.82,
+    roughness: 0.42,
+    metalness: 0.02,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const stringPlane = new THREE.Mesh(new THREE.CircleGeometry(innerHeadRadius, 72), stringMat);
+  stringPlane.scale.y = headScaleY;
+  stringPlane.position.set(0, 0.56, 0.007);
   g.add(stringPlane);
-  for (let i = -3; i <= 3; i++) {
-    const v = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.48, 0.005), stringMat);
-    v.position.set(i * 0.052, 0.56, 0.007);
-    g.add(v);
-    const h = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.005, 0.005), stringMat);
-    h.position.set(0, 0.56 + i * 0.065, 0.007);
-    g.add(h);
-  }
   return g;
 }
 
@@ -1199,7 +1257,8 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
   const speedScale = CFG.worldScale * 1.48;
   const shotPowerTrim = serve ? 0.8 : 0.76;
-  const baseSpeed = (serve ? 22.2 + power * 12.6 : 15.8 + power * 10.4) * speedScale * shotPowerTrim;
+  const matchPower = power * CFG.matchPowerMultiplier;
+  const baseSpeed = (serve ? 22.2 + matchPower * 12.6 : 15.8 + matchPower * 10.4) * speedScale * shotPowerTrim;
   const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
   const velocity = new THREE.Vector3(
     (target.x - from.x) / flight,
@@ -1212,7 +1271,7 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
     const tToNet = (-from.z / (target.z - from.z)) * flight;
     if (tToNet > 0 && tToNet < flight) {
       const yAtNet = from.y + velocity.y * tToNet - 0.5 * CFG.gravity * tToNet * tToNet;
-      const desiredClearance = CFG.netH + CFG.ballR * (serve ? 2.45 : 2.05) + power * 0.22 * CFG.worldScale;
+      const desiredClearance = CFG.netH + CFG.ballR * (serve ? 2.45 : 2.05) + matchPower * 0.22 * CFG.worldScale;
       if (yAtNet < desiredClearance) {
         velocity.y += (desiredClearance - yAtNet) / tToNet;
       }
@@ -1271,12 +1330,13 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
   if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
-    ball.vel.x += hit.swipeDir.x * (2.2 + hit.power * 1.85) * CFG.worldScale;
-    ball.vel.z += -hit.swipeDir.y * (0.94 + hit.power * 1.18) * CFG.worldScale;
+    const swipePower = hit.power * CFG.matchPowerMultiplier;
+    ball.vel.x += hit.swipeDir.x * (2.2 + swipePower * 1.85) * CFG.worldScale;
+    ball.vel.z += -hit.swipeDir.y * (0.94 + swipePower * 1.18) * CFG.worldScale;
   }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
-    ball.vel.y += (1.85 + hit.power * 0.86) * CFG.worldScale;
+    ball.vel.y += (1.85 + hit.power * CFG.matchPowerMultiplier * 0.86) * CFG.worldScale;
     ball.vel.multiplyScalar(0.86);
     ball.spin = 0.8 + hit.power * 0.7;
   } else if (technique === "drop") {
@@ -1287,14 +1347,14 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.multiplyScalar(0.72);
     ball.spin = 0.25;
   } else if (technique === "topspin") {
-    ball.vel.y += (0.38 + hit.power * 0.34) * CFG.worldScale;
-    ball.spin = 1.05 + hit.power * 1.1;
+    ball.vel.y += (0.38 + hit.power * CFG.matchPowerMultiplier * 0.34) * CFG.worldScale;
+    ball.spin = 1.05 + hit.power * CFG.matchPowerMultiplier * 1.1;
   } else if (technique === "slice") {
     ball.vel.x += (Math.random() - 0.5) * 1.15;
     ball.vel.y -= 0.12;
-    ball.spin = -1.15 - hit.power * 0.62;
+    ball.spin = -1.15 - hit.power * CFG.matchPowerMultiplier * 0.62;
   } else {
-    ball.spin = serve ? 0.95 + hit.power * 0.9 : 0.6 + hit.power * 1.25;
+    ball.spin = serve ? 0.95 + hit.power * CFG.matchPowerMultiplier * 0.9 : 0.6 + hit.power * CFG.matchPowerMultiplier * 1.25;
   }
   ball.lastHitBy = player.side;
   ball.state = serve ? TennisBallState.ServeHit : (player.side === "near" ? TennisBallState.RacketHitPlayer : TennisBallState.RacketHitAI);
