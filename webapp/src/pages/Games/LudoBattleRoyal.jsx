@@ -946,9 +946,14 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     shellEjectOffset: [0.03, 0.016, 0.118]
   }
 });
-const FIREARM_UNIFIED_DIRECTION_ROTATION =
-  FIREARM_HAND_ATTACH_TUNING.assaultRifleAttack?.rotation ||
-  FIREARM_HAND_ATTACH_TUNING.default.rotation;
+const SHOOTING_RANGE_UZI_SELECTED_WEAPON_ROTATION = Object.freeze([
+  // Matches ShootingRange.tsx's selected-Uzi hand pose: orientWeaponForward()
+  // plus the selected held-weapon trim applied in setHeldWeapon().
+  -0.035 - 0.05,
+  Math.PI,
+  0.012 + 0.02
+]);
+const FIREARM_UNIFIED_DIRECTION_ROTATION = SHOOTING_RANGE_UZI_SELECTED_WEAPON_ROTATION;
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // Keep glock as the grip-size baseline and upscale all other firearms so
@@ -1631,6 +1636,8 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
+  // Keep every selected firearm imported in the same screen-facing orientation as
+  // the selected Uzi in ShootingRange before the Ludo aim solver takes over.
   weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
   const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
     ? SHOTGUN_HAND_SCALE
@@ -3117,21 +3124,21 @@ function createCaptureShellCasingFx() {
 
 function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
   const kind = profile.projectileKind || 'jacketed-round';
-  const radius = profile.bulletRadius || 0.0036;
-  const length = profile.bulletLength || radius * 9;
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
-  const isLongGun = kind.includes('sniper') || kind.includes('marksman') || kind.includes('rifle') || kind.includes('smg');
-  const metalMaterial = new THREE.MeshStandardMaterial({
-    color: isExplosive ? '#556b2f' : isLongGun || kind.includes('pistol') || kind.includes('revolver') ? '#b87333' : '#d9dde2',
-    metalness: kind.includes('buckshot') ? 0.72 : 0.95,
-    roughness: isExplosive ? 0.34 : 0.16
-  });
+  const isBuckshot = kind.includes('buckshot');
+  const useSmallPistolRound = !isExplosive && !isBuckshot;
+  const radius = useSmallPistolRound ? 0.0032 : profile.bulletRadius || 0.0036;
+  const length = useSmallPistolRound ? 0.028 : profile.bulletLength || radius * 9;
   const root = new THREE.Group();
-  root.name = `caliber-projectile-${kind}`;
-  if (kind.includes('buckshot')) {
-    const pellet = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 14), metalMaterial);
+  root.name = `caliber-projectile-${useSmallPistolRound ? '9mm-small-pistol-gltf-style' : kind}`;
+  if (isBuckshot) {
+    const pellet = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 14, 14),
+      new THREE.MeshStandardMaterial({ color: '#d9b56d', metalness: 0.72, roughness: 0.32 })
+    );
     root.add(pellet);
   } else if (isExplosive) {
+    const metalMaterial = new THREE.MeshStandardMaterial({ color: '#556b2f', metalness: 0.82, roughness: 0.34 });
     const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 0.88, length * 0.62, 16), metalMaterial);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.1, length * 0.28, 16), metalMaterial);
     const tail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.72, radius * 0.92, length * 0.18, 16), metalMaterial);
@@ -3144,17 +3151,24 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
     band.position.y = -length * 0.12;
     root.add(body, nose, tail, band);
   } else {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.92, radius, length * 0.58, 18), metalMaterial);
-    const ogive = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.01, length * (isLongGun ? 0.34 : 0.28), 18), metalMaterial);
-    const boatTail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.9, length * 0.14, 18), metalMaterial);
-    const cannelure = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.92, radius * 0.075, 6, 20),
-      new THREE.MeshStandardMaterial({ color: '#f6c453', metalness: 0.92, roughness: 0.18 })
-    );
-    ogive.position.y = length * 0.44;
-    boatTail.position.y = -length * 0.36;
-    cannelure.position.y = -length * 0.18;
-    root.add(body, ogive, boatTail, cannelure);
+    // Procedural glTF-style 9mm pistol bullet copied from the cinematic range sample:
+    // brass case/body, copper bullet head, rifling glints, and its own PBR materials.
+    const brass = new THREE.MeshStandardMaterial({ color: '#c9953d', roughness: 0.34, metalness: 0.5 });
+    const copper = new THREE.MeshStandardMaterial({ color: '#b66b35', roughness: 0.34, metalness: 0.32 });
+    const yellow = new THREE.MeshStandardMaterial({ color: '#ffd166', emissive: '#ffd166', emissiveIntensity: 1.15, roughness: 0.25, metalness: 0.04 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.96, radius * 0.96, length * 0.62, 24), brass);
+    const head = new THREE.Mesh(new THREE.ConeGeometry(radius, length * 0.36, 24), copper);
+    head.position.y = length * 0.49;
+    const riflingMark1 = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.26, length * 0.7, radius * 0.26), yellow);
+    riflingMark1.position.set(radius, length * 0.04, 0);
+    riflingMark1.rotation.y = 0.7;
+    const riflingMark2 = riflingMark1.clone();
+    riflingMark2.position.x = -radius;
+    riflingMark2.rotation.y = -0.7;
+    const tracer = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.62, radius * 0.13, 8, 24), yellow);
+    tracer.rotation.x = Math.PI / 2;
+    tracer.position.y = -length * 0.16;
+    root.add(body, head, riflingMark1, riflingMark2, tracer);
   }
   root.userData.dispose = () => {
     root.traverse((node) => {
@@ -3170,26 +3184,39 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
 
 function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
   const kind = profile.projectileKind || '';
-  const radius = profile.shellRadius || 0.004;
-  const length = profile.shellLength || 0.016;
   const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
+  const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
+  const useSmallPistolShell = !isShotgun && !isExplosive;
+  const radius = useSmallPistolShell ? 0.0024 : profile.shellRadius || 0.004;
+  const length = useSmallPistolShell ? 0.014 : profile.shellLength || 0.016;
   const brassMaterial = new THREE.MeshStandardMaterial({
-    color: isShotgun ? '#b91c1c' : '#d4a64a',
-    metalness: isShotgun ? 0.42 : 0.9,
-    roughness: isShotgun ? 0.32 : 0.2
+    color: isShotgun ? '#b91c1c' : '#c9953d',
+    metalness: isShotgun ? 0.42 : 0.5,
+    roughness: isShotgun ? 0.32 : 0.34
   });
-  const darkMouthMaterial = new THREE.MeshStandardMaterial({ color: '#171717', metalness: 0.5, roughness: 0.36 });
+  const primerMaterial = new THREE.MeshStandardMaterial({ color: '#4b3422', metalness: 0.22, roughness: 0.45 });
   const root = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.05, length * 0.08, 16), brassMaterial);
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.91, radius * 0.075, 6, 18), brassMaterial);
-  const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, length * 0.018, 14), darkMouthMaterial);
-  body.position.y = length * 0.02;
-  rim.position.y = -length * 0.47;
-  primer.position.y = -length * 0.515;
-  mouth.position.y = length * 0.47;
-  root.add(body, rim, primer, mouth);
-  root.name = `caliber-shell-${profile.caliberLabel || 'round'}`;
+  root.name = `caliber-shell-${useSmallPistolShell ? '9mm-small-pistol-gltf-style' : profile.caliberLabel || 'round'}`;
+  if (useSmallPistolShell) {
+    // Procedural glTF-style spent casing from the supplied slow-motion sample.
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.95, length * 0.86, 18, 1, true), brassMaterial);
+    const back = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.06, radius * 1.06, length * 0.06, 18), primerMaterial);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.145, 8, 18), brassMaterial);
+    back.position.y = -length * 0.5;
+    lip.rotation.x = Math.PI / 2;
+    lip.position.y = -length * 0.52;
+    root.add(tube, back, lip);
+  } else {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.05, length * 0.08, 16), brassMaterial);
+    const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.91, radius * 0.075, 6, 18), brassMaterial);
+    const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, length * 0.018, 14), primerMaterial);
+    body.position.y = length * 0.02;
+    rim.position.y = -length * 0.47;
+    primer.position.y = -length * 0.515;
+    mouth.position.y = length * 0.47;
+    root.add(body, rim, primer, mouth);
+  }
   root.castShadow = true;
   root.receiveShadow = true;
   root.visible = false;
