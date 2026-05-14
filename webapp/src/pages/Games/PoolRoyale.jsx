@@ -2437,7 +2437,7 @@ const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
     label: 'Classic Pro',
     summary: 'Original ReadyPlayer skeleton logic: table-edge stance, low cloth bridge, fixed cue grip, and classic follow-through.',
     bendMode: 'forward',
-    originalSkeletonLogic: true,
+    originalSkeletonLogic: false,
     desiredShootDistance: 1.25,
     edgeMargin: 0.68,
     stanceWidth: 0.52,
@@ -27110,7 +27110,7 @@ const shotPowerRef = useRef(0);
             // original rig forward axis, so the fallback bend sign folds belly/chest/head
             // toward the cue ball instead of bending the whole body backward.
             shootBendDirection: -1,
-            shootBendTowardCueStick: !behavior.originalSkeletonLogic,
+            shootBendTowardCueStick: true,
             shootBendMode: behavior.bendMode || 'forward',
             shootCounterLeanSide: behavior.shootCounterLeanSide ?? -1,
             shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
@@ -27118,7 +27118,7 @@ const shotPowerRef = useRef(0);
             standingShotStance: Boolean(behavior.standingShotStance),
             plantFeetDuringShot: true,
             bridgeArmStraightDown: false,
-            forceTableFacingAim: !behavior.originalSkeletonLogic,
+            forceTableFacingAim: true,
             addFaceDetails: false,
             poseLambda: HUMAN_POSE_LAMBDA,
             moveLambda: HUMAN_MOVE_LAMBDA,
