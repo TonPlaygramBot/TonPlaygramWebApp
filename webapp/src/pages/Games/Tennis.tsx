@@ -11,7 +11,6 @@ import { CourtRules } from "./tennis/CourtRules";
 import { AIController } from "./tennis/AIController";
 import { AudioVFXManager } from "./tennis/AudioVFXManager";
 import { PlayerController } from "./tennis/PlayerController";
-import { RacketHitDetector } from "./tennis/RacketHitDetector";
 import { ScoreManager } from "./tennis/ScoreManager";
 import { ServeController } from "./tennis/ServeController";
 import { ShotTargeting } from "./tennis/ShotTargeting";
@@ -1300,16 +1299,15 @@ function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, e
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
-  const farDefendingWide = Math.abs(ball.pos.x) > CFG.courtW * 0.32;
-  const pressure = clamp01((Math.abs(ball.pos.z) - 0.6) / (CFG.courtL / 2 - 0.8));
-  const sideRead = clamp((ball.vel.x || 0) * 0.26, -0.5, 0.5);
-  const attackToOpen = farDefendingWide ? -Math.sign(ball.pos.x || 1) * (CFG.courtW * 0.36) : near.pos.x * 0.72;
-  const x = clamp(attackToOpen + sideRead + (Math.random() - 0.5) * 0.58, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-  const z = lerp(1.2, CFG.courtL / 2 - 0.7, 0.42 + pressure * 0.5);
-  const power = clamp(0.64 + pressure * 0.46 + Math.random() * 0.16, CFG.shotPower.min, CFG.shotPower.max);
-  const roll = Math.random();
-  const technique: ShotTechnique = pressure > 0.72 ? "topspin" : roll > 0.62 ? "slice" : "flat";
-  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
+  const pressure = clamp01((Math.abs(ball.pos.z) - 1.0 * CFG.worldScale) / (CFG.courtL / 2 - 1.0 * CFG.worldScale));
+  const x = clamp(
+    near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15 * CFG.worldScale,
+    -CFG.courtW / 2 + 0.45 * CFG.worldScale,
+    CFG.courtW / 2 - 0.45 * CFG.worldScale
+  );
+  const z = lerp(1.35 * CFG.worldScale, CFG.courtL / 2 - 1.0 * CFG.worldScale, 0.35 + pressure * 0.55);
+  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, CFG.shotPower.min, CFG.shotPower.max);
+  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique: "flat" };
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
@@ -1367,15 +1365,16 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 function canReachBall(player: HumanRig, ball: BallState) {
   if (player.cooldown > 0) return false;
   if (sideOfZ(ball.pos.z) !== player.side && ball.lastHitBy !== null) return false;
+  if (ball.pos.y < 0.16 * CFG.worldScale || ball.pos.y > 1.62 * CFG.playerHeight / 1.82) return false;
   const pose = strokePose(player, ball);
-  return RacketHitDetector.validate({
-    racketHead: pose.racketHead,
-    racketGrip: pose.racketGrip,
-    playerPos: player.pos,
-    ballPos: ball.pos,
-    ballVel: ball.vel,
-    swingT: player.swingT,
-  }).valid;
+  const dx = ball.pos.x - pose.racketHead.x;
+  const dy = ball.pos.y - pose.racketHead.y;
+  const dz = ball.pos.z - pose.racketHead.z;
+  const racketRadius = 0.48 * CFG.playerHeight / 1.82;
+  const racketNear = dx * dx + dy * dy * 0.45 + dz * dz < racketRadius * racketRadius;
+  const bodyDx = ball.pos.x - player.pos.x;
+  const bodyDz = ball.pos.z - player.pos.z;
+  return racketNear || bodyDx * bodyDx + bodyDz * bodyDz < CFG.reach * CFG.reach;
 }
 
 function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeAction) {
@@ -1742,11 +1741,9 @@ export default function MobileThreeTennisPrototype() {
     }
 
     function updateAi() {
-      const prediction = aiController.predictLanding(ball.pos, ball.vel, ball.spin);
-      const intercept = aiController.predictIntercept(ball.pos, ball.vel, ball.spin, farPlayer.pos);
-      const landing = prediction.landing;
-      const aiHomeZ = scoreManager.snapshot().server === "far" && ball.lastHitBy === null ? -CFG.serveNearBaselineZ : -CFG.courtL / 2 + 1.25 * CFG.worldScale;
-      const home = new THREE.Vector3(clamp(ball.pos.x * 0.16, -CFG.courtW * 0.16, CFG.courtW * 0.16), 0, aiHomeZ);
+      const landing = predictLanding(ball);
+      const aiHomeZ = scoreManager.snapshot().server === "far" && ball.lastHitBy === null ? -CFG.serveNearBaselineZ : -CFG.courtL / 2 + 1.2 * CFG.worldScale;
+      const home = new THREE.Vector3(0, 0, aiHomeZ);
 
       if (ball.lastHitBy === null && scoreManager.snapshot().server === "far") {
         farPlayer.target.copy(home);
@@ -1757,33 +1754,20 @@ export default function MobileThreeTennisPrototype() {
         return;
       }
 
-      const ballComingToAi = ball.lastHitBy === "near" && (landing.z < -CFG.serviceBuffer || intercept.contact.z < -CFG.serviceBuffer || ball.pos.z < -0.05);
+      const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 * CFG.worldScale || landing.z < 0);
       if (ballComingToAi) {
-        const readPoint = intercept.reachable ? intercept.contact : landing;
-        farPlayer.target.x = clamp(readPoint.x, -CFG.courtW / 2 + 0.38, CFG.courtW / 2 - 0.38);
+        farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
         farPlayer.target.z = clamp(
-          Math.min(-0.78 * CFG.worldScale, readPoint.z + 0.34 * CFG.worldScale),
-          -CFG.courtL / 2 - 0.9 * CFG.worldScale,
-          -0.72 * CFG.worldScale
+          Math.min(-0.95 * CFG.worldScale, landing.z + 0.22 * CFG.worldScale),
+          -CFG.courtL / 2 + 0.7 * CFG.worldScale,
+          -0.82 * CFG.worldScale
         );
       } else {
-        farPlayer.target.lerp(home, 0.055);
+        farPlayer.target.lerp(home, 0.035);
       }
 
-      const distanceToIntercept = farPlayer.pos.distanceTo(new THREE.Vector3(farPlayer.target.x, farPlayer.pos.y, farPlayer.target.z));
-      const timeToContact = Math.max(0.04, intercept.contactT - CFG.aiDifficulty.reactionTime);
-      const canArrive = intercept.reachable || distanceToIntercept <= CFG.aiDifficulty.moveSpeed * (timeToContact + 0.22) + CFG.aiDifficulty.reachRadius * 0.38;
-      const ballInStrikeZone = ball.pos.z < -CFG.serviceBuffer * 0.35 && ball.pos.y > CFG.minContactHeight * 0.72 && ball.pos.y < CFG.maxContactHeight * 1.12;
-      const contactSoon = intercept.contactT < 0.54 || ballInStrikeZone || ball.pos.z < -CFG.serviceLineZ * 0.32;
-      const aiCanSwingNow = farPlayer.swingT === 0 && farPlayer.cooldown <= 0;
-      const pressure = clamp01(distanceToIntercept / Math.max(CFG.worldScale, CFG.courtW * 0.42));
-      const canReturnServe = !awaitingServeResult || ball.bounceSide === "far";
-      if (canReturnServe && ballComingToAi && aiCanSwingNow && canArrive && contactSoon && !aiController.mistakeRoll(pressure)) {
-        startSwing(
-          farPlayer,
-          aiController.chooseReturnTarget(nearPlayer.pos, ball.pos, ball.vel, { receiverPos: farPlayer.pos, prediction, hasBounced: ball.bounceSide === "far" }),
-          ball.pos.x < farPlayer.pos.x ? "backhand" : "forehand"
-        );
+      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
       }
     }
 
