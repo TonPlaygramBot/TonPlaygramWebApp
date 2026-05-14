@@ -2400,12 +2400,10 @@ const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
 ]);
 const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'front-open-bridge-low',
-    label: 'Attempt 1 • Front Bend Open Bridge',
-    menuLabel: '1 Front • Open Bridge Low',
-    directionLabel: 'Front bend',
-    techniqueLabel: 'Open bridge',
-    sourceNote: 'Front bend/open bridge: palm flat, fingers spread, chest and chin lowered over cue.',
+    id: 'open-bridge-table-low',
+    label: 'Attempt 1 • Open Bridge Low',
+    menuLabel: '1 Open Bridge Low',
+    sourceNote: 'Open bridge: palm flat, fingers spread, chest and chin lowered over cue.',
     shotType: 'standard',
     bridgeBack: 0.082,
     bridgeSide: -0.016,
@@ -2420,20 +2418,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.5,
     strokePull: 0.38,
     strokePush: 0.16,
-    shootForwardBendScale: 1.02,
+    shootForwardBendScale: 0.82,
     shootUpperBodyCounterLean: 0.46,
-    shootSideBendScale: 0.08,
-    shootSideBendDirection: -1,
-    shootCounterLeanSide: -1,
     cueGap: 0.009
   }),
   Object.freeze({
-    id: 'right-closed-bridge-power-line',
-    label: 'Attempt 2 • Right Bend Closed Bridge Power',
-    menuLabel: '2 Right • Closed Power',
-    directionLabel: 'Right bend',
-    techniqueLabel: 'Closed bridge power',
-    sourceNote: 'Right-side power bend: closed bridge/grip, wider planted feet, elbow high over the cue.',
+    id: 'closed-bridge-power-line',
+    label: 'Attempt 2 • Closed Bridge Power',
+    menuLabel: '2 Closed Bridge Power',
+    sourceNote: 'Closed bridge/grip: stronger back arm, wider planted feet, elbow high over the cue.',
     shotType: 'power',
     bridgeBack: 0.07,
     bridgeSide: -0.028,
@@ -2448,20 +2441,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.43,
     strokePull: 0.58,
     strokePush: 0.28,
-    shootForwardBendScale: 0.72,
-    shootUpperBodyCounterLean: 0.82,
-    shootSideBendScale: 0.86,
-    shootSideBendDirection: 1,
-    shootCounterLeanSide: 1,
+    shootForwardBendScale: 0.58,
+    shootUpperBodyCounterLean: 0.86,
     cueGap: 0.015
   }),
   Object.freeze({
-    id: 'back-rail-bridge-near-cushion',
-    label: 'Attempt 3 • Back-Weighted Rail Bridge',
-    menuLabel: '3 Back • Rail Bridge',
-    directionLabel: 'Back weight',
-    techniqueLabel: 'Rail bridge',
-    sourceNote: 'Back-weighted rail bridge: raised hand near cushion with hips sitting back for control.',
+    id: 'rail-bridge-near-cushion',
+    label: 'Attempt 3 • Rail Bridge',
+    menuLabel: '3 Rail Bridge',
+    sourceNote: 'Rail bridge: raised bridge hand for balls near cushion while keeping palm/table contact.',
     shotType: 'rail',
     bridgeBack: 0.06,
     bridgeSide: -0.02,
@@ -2476,20 +2464,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.46,
     strokePull: 0.3,
     strokePush: 0.11,
-    shootForwardBendScale: 0.42,
-    shootUpperBodyCounterLean: 0.72,
-    shootSideBendScale: 0.12,
-    shootSideBendDirection: -1,
-    shootCounterLeanSide: -1,
+    shootForwardBendScale: 0.72,
+    shootUpperBodyCounterLean: 0.58,
     cueGap: 0.012
   }),
   Object.freeze({
-    id: 'left-long-reach-snooker-stretch',
-    label: 'Attempt 4 • Left Bend Long Reach',
-    menuLabel: '4 Left • Long Reach',
-    directionLabel: 'Left bend',
-    techniqueLabel: 'Long reach',
-    sourceNote: 'Left-side long reach: extended bridge arm, back foot anchored, torso stretched to cue ball.',
+    id: 'long-reach-snooker-stretch',
+    label: 'Attempt 4 • Long Reach Stretch',
+    menuLabel: '4 Long Reach Stretch',
+    sourceNote: 'Long reach: extended bridge arm, back foot anchored, upper body stretched toward cue ball.',
     shotType: 'longReach',
     bridgeBack: 0.105,
     bridgeSide: -0.024,
@@ -2504,20 +2487,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.54,
     strokePull: 0.42,
     strokePush: 0.15,
-    shootForwardBendScale: 0.88,
+    shootForwardBendScale: 0.9,
     shootUpperBodyCounterLean: 0.5,
-    shootSideBendScale: 0.78,
-    shootSideBendDirection: -1,
-    shootCounterLeanSide: -1,
     cueGap: 0.008
   }),
   Object.freeze({
-    id: 'front-compact-soft-touch',
-    label: 'Attempt 5 • Front Compact Soft Touch',
-    menuLabel: '5 Front • Soft Touch',
-    directionLabel: 'Front bend',
-    techniqueLabel: 'Soft touch',
-    sourceNote: 'Front compact precision: shorter cue travel and stable open bridge close to cue ball.',
+    id: 'compact-soft-touch',
+    label: 'Attempt 5 • Compact Soft Touch',
+    menuLabel: '5 Compact Soft Touch',
+    sourceNote: 'Soft precision: compact stance, shorter cue travel, stable open bridge close to cue ball.',
     shotType: 'softPrecision',
     bridgeBack: 0.055,
     bridgeSide: -0.014,
@@ -2532,20 +2510,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.56,
     strokePull: 0.22,
     strokePush: 0.08,
-    shootForwardBendScale: 0.78,
+    shootForwardBendScale: 0.7,
     shootUpperBodyCounterLean: 0.34,
-    shootSideBendScale: 0.2,
-    shootSideBendDirection: 1,
-    shootCounterLeanSide: 1,
     cueGap: 0.006
   }),
   Object.freeze({
-    id: 'back-chin-over-cue-line',
-    label: 'Attempt 6 • Back-Balanced Chin Over Cue',
-    menuLabel: '6 Back • Chin Over Cue',
-    directionLabel: 'Back balance',
-    techniqueLabel: 'Chin-over-cue sighting',
-    sourceNote: 'Back-balanced sight line: chin follows cue axis while weight stays over the rear shoe.',
+    id: 'chin-over-cue-line',
+    label: 'Attempt 6 • Chin Over Cue',
+    menuLabel: '6 Chin Over Cue',
+    sourceNote: 'Low sight line: head/chin follows cue axis with forward torso bend and planted shoes.',
     shotType: 'standard',
     bridgeBack: 0.074,
     bridgeSide: -0.01,
@@ -2560,20 +2533,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.55,
     strokePull: 0.32,
     strokePush: 0.13,
-    shootForwardBendScale: 0.56,
-    shootUpperBodyCounterLean: 0.62,
-    shootSideBendScale: 0.1,
-    shootSideBendDirection: 1,
-    shootCounterLeanSide: 1,
+    shootForwardBendScale: 1.02,
+    shootUpperBodyCounterLean: 0.4,
     cueGap: 0.008
   }),
   Object.freeze({
-    id: 'right-side-cut-open-stance',
-    label: 'Attempt 7 • Right Bend Side Cut',
-    menuLabel: '7 Right • Side Cut',
-    directionLabel: 'Right bend',
-    techniqueLabel: 'Side cut stance',
-    sourceNote: 'Right-side cut stance: bridge shifts off line while hips counter-lean and feet stay grounded.',
+    id: 'side-cut-open-stance',
+    label: 'Attempt 7 • Side Cut Stance',
+    menuLabel: '7 Side Cut Stance',
+    sourceNote: 'Difficult cut: bridge shifts slightly off line while hips counter-lean and feet stay grounded.',
     shotType: 'difficultAngle',
     bridgeBack: 0.078,
     bridgeSide: 0.044,
@@ -2590,18 +2558,13 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     strokePush: 0.12,
     shootForwardBendScale: 0.78,
     shootUpperBodyCounterLean: 0.74,
-    shootSideBendScale: 0.9,
-    shootSideBendDirection: 1,
-    shootCounterLeanSide: 1,
     cueGap: 0.011
   }),
   Object.freeze({
-    id: 'left-bridge-hand-flat-table',
-    label: 'Attempt 8 • Left Bend Flat Palm Bridge',
-    menuLabel: '8 Left • Flat Palm',
-    directionLabel: 'Left bend',
-    techniqueLabel: 'Flat palm bridge',
-    sourceNote: 'Left-side flat-palm bridge: hand glued to cloth with cue sliding over thumb/index groove.',
+    id: 'bridge-hand-flat-table',
+    label: 'Attempt 8 • Flat Palm Bridge',
+    menuLabel: '8 Flat Palm Bridge',
+    sourceNote: 'Palm-down bridge: emphasizes left hand glued to cloth and cue sliding over thumb/index groove.',
     shotType: 'standard',
     bridgeBack: 0.048,
     bridgeSide: -0.006,
@@ -2616,20 +2579,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.58,
     strokePull: 0.28,
     strokePush: 0.1,
-    shootForwardBendScale: 0.84,
+    shootForwardBendScale: 0.86,
     shootUpperBodyCounterLean: 0.36,
-    shootSideBendScale: 0.72,
-    shootSideBendDirection: -1,
-    shootCounterLeanSide: -1,
     cueGap: 0.006
   }),
   Object.freeze({
-    id: 'back-upright-elbow-90',
-    label: 'Attempt 9 • Back Upright 90° Elbow',
-    menuLabel: '9 Back • 90° Elbow',
-    directionLabel: 'Back upright',
-    techniqueLabel: '90-degree back arm',
-    sourceNote: 'Back-upright arm: vertical forearm/near-90-degree elbow with less chest drop.',
+    id: 'upright-elbow-90',
+    label: 'Attempt 9 • Back Arm 90°',
+    menuLabel: '9 Back Arm 90°',
+    sourceNote: 'Dominant arm: recreates the vertical forearm/near-90-degree elbow shown in coaching diagrams.',
     shotType: 'power',
     bridgeBack: 0.088,
     bridgeSide: -0.018,
@@ -2644,20 +2602,15 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.62,
     strokePull: 0.4,
     strokePush: 0.18,
-    shootForwardBendScale: 0.38,
-    shootUpperBodyCounterLean: 0.86,
-    shootSideBendScale: 0.18,
-    shootSideBendDirection: 1,
-    shootCounterLeanSide: 1,
+    shootForwardBendScale: 0.66,
+    shootUpperBodyCounterLean: 0.66,
     cueGap: 0.012
   }),
   Object.freeze({
-    id: 'front-beginner-balanced-guide',
-    label: 'Attempt 10 • Front Balanced Beginner',
-    menuLabel: '10 Front • Beginner',
-    directionLabel: 'Front bend',
-    techniqueLabel: 'Balanced beginner',
-    sourceNote: 'Front balanced guide: medium stance width, comfortable reach, flat bridge and easy follow-through.',
+    id: 'beginner-balanced-guide',
+    label: 'Attempt 10 • Balanced Beginner',
+    menuLabel: '10 Balanced Beginner',
+    sourceNote: 'Beginner guide: medium stance width, comfortable reach, flat bridge and easy follow-through.',
     shotType: 'standard',
     bridgeBack: 0.092,
     bridgeSide: -0.018,
@@ -2672,11 +2625,8 @@ const POOL_ROYALE_SHOOTING_POSITION_OPTIONS = Object.freeze([
     forearmDown: 0.5,
     strokePull: 0.34,
     strokePush: 0.14,
-    shootForwardBendScale: 0.92,
+    shootForwardBendScale: 0.74,
     shootUpperBodyCounterLean: 0.52,
-    shootSideBendScale: 0.06,
-    shootSideBendDirection: -1,
-    shootCounterLeanSide: -1,
     cueGap: 0.009
   })
 ]);
@@ -15817,7 +15767,7 @@ function PoolRoyaleGame({
         return stored;
       }
     }
-    return POOL_ROYALE_SHOOTING_POSITION_OPTIONS[0]?.id || 'front-open-bridge-low';
+    return POOL_ROYALE_SHOOTING_POSITION_OPTIONS[0]?.id || 'open-bridge-table-low';
   });
   const activeShootingPosition = useMemo(
     () => resolvePoolRoyaleShootingPosition(shootingPositionId),
@@ -27360,14 +27310,12 @@ const shotPowerRef = useRef(0);
             // as the portrait camera lowers into the ready-to-shoot view. Local -Z is the
             // original rig forward axis, so the fallback bend sign folds belly/chest/head
             // toward the cue ball instead of bending the whole body backward.
-            shootBendDirection: behavior.shootBendDirection ?? -1,
-            shootBendTowardCueStick: behavior.shootBendTowardCueStick ?? !behavior.originalSkeletonLogic,
+            shootBendDirection: -1,
+            shootBendTowardCueStick: !behavior.originalSkeletonLogic,
             shootBendMode: behavior.bendMode || 'forward',
-            shootCounterLeanSide: behavior.shootCounterLeanSide ?? -1,
+            shootCounterLeanSide: -1,
             shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
             shootForwardBendScale: behavior.shootForwardBendScale,
-            shootSideBendScale: behavior.shootSideBendScale ?? 0,
-            shootSideBendDirection: behavior.shootSideBendDirection ?? -1,
             plantFeetDuringShot: true,
             bridgeArmStraightDown: false,
             forceTableFacingAim: !behavior.originalSkeletonLogic,
@@ -37531,7 +37479,7 @@ const shotPowerRef = useRef(0);
                       Shooting Positions
                     </h3>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
-                      10 attempts • 4 bend directions • feet grounded • bridge hand on table
+                      10 attempts • feet grounded • left bridge on table • right hand grips cue
                     </p>
                   </div>
                   <span className="rounded-full border border-amber-200/40 bg-amber-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100">
@@ -37557,9 +37505,6 @@ const shotPowerRef = useRef(0);
                           {option.menuLabel || option.label}
                         </span>
                         <span className={`mt-1 block text-[9px] font-semibold uppercase tracking-[0.12em] ${active ? 'text-black/70' : 'text-white/50'}`}>
-                          {option.directionLabel ? `${option.directionLabel} • ${option.techniqueLabel}` : option.sourceNote}
-                        </span>
-                        <span className={`mt-1 block text-[9px] font-medium leading-relaxed ${active ? 'text-black/65' : 'text-white/45'}`}>
                           {option.sourceNote}
                         </span>
                       </button>
