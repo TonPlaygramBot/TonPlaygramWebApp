@@ -642,21 +642,6 @@ const FIREARM_SHOTGUN_IDS = new Set([
 ]);
 const FIREARM_MARKSMAN_IDS = new Set(['sniperShotAttack', 'mosinMarksmanAttack', 'marksmanDmrAttack']);
 const FIREARM_SCATTER_PROJECTILE_IDS = new Set([...FIREARM_SHOTGUN_IDS]);
-const SERVICE_PISTOL_FATAL_BULLET_FIREARM_IDS = new Set([
-  'glockSidearmAttack',
-  'pistolSidearmAttack',
-  'pistolHolsterAttack',
-  'smithSidearmAttack',
-  'sigsauerTacticalAttack',
-  'uziSprayAttack',
-  'smgBurstAttack',
-  'polyPistol01Attack',
-  'polyRevolver01Attack',
-  'polyRevolver02Attack',
-  'polySmg01Attack'
-]);
-const SERVICE_PISTOL_FATAL_BULLET_MUZZLE_HOLD_MS = 180;
-const SERVICE_PISTOL_FATAL_BULLET_CAMERA_RELEASE_MS = 260;
 const FIREARM_MAGAZINE_SHOTS = Object.freeze({
   mrtkGunAttack: 22,
   pistolHolsterAttack: 14,
@@ -3141,11 +3126,11 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
   const kind = profile.projectileKind || 'jacketed-round';
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
   const isBuckshot = kind.includes('buckshot');
-  const usesServicePistolRound = !isExplosive && !isBuckshot && (kind.includes('pistol') || kind.includes('revolver') || kind.includes('smg'));
-  const radius = usesServicePistolRound ? 0.0032 : profile.bulletRadius || 0.0036;
-  const length = usesServicePistolRound ? 0.028 : profile.bulletLength || radius * 9;
+  const useSmallPistolRound = !isExplosive && !isBuckshot;
+  const radius = useSmallPistolRound ? 0.0032 : profile.bulletRadius || 0.0036;
+  const length = useSmallPistolRound ? 0.028 : profile.bulletLength || radius * 9;
   const root = new THREE.Group();
-  root.name = `caliber-projectile-${usesServicePistolRound ? 'service-pistol-9mm-fmj' : kind}`;
+  root.name = `caliber-projectile-${useSmallPistolRound ? '9mm-small-pistol-gltf-style' : kind}`;
   if (isBuckshot) {
     const pellet = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 14, 14),
@@ -3165,32 +3150,25 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
     tail.position.y = -length * 0.4;
     band.position.y = -length * 0.12;
     root.add(body, nose, tail, band);
-  } else if (usesServicePistolRound) {
-    // Service-pistol 9x19mm FMJ bullet from the supplied cinematic: copper jacket,
-    // rounded nose, darker base and two narrow cannelure/groove rings. Keep the mesh
-    // oriented on +Y because the Ludo firearm director aligns projectiles with +Y.
-    const copper = new THREE.MeshStandardMaterial({ color: '#b66b35', roughness: 0.34, metalness: 0.32 });
-    const copperDark = new THREE.MeshStandardMaterial({ color: '#7d3e1f', roughness: 0.42, metalness: 0.25 });
-    const jacket = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length * 0.72, 32), copper);
-    jacket.position.y = -length * 0.02;
-    const roundedNose = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.02, 32, 16), copper);
-    roundedNose.scale.set(1, 0.72, 1);
-    roundedNose.position.y = length * 0.36;
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length * 0.052, 32), copperDark);
-    base.position.y = -length * 0.43;
-    const groove1 = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, radius * 0.058, 8, 32), copperDark);
-    groove1.rotation.x = Math.PI / 2;
-    groove1.position.y = -length * 0.08;
-    const groove2 = groove1.clone();
-    groove2.position.y = -length * 0.24;
-    root.add(jacket, roundedNose, base, groove1, groove2);
   } else {
+    // Procedural glTF-style 9mm pistol bullet copied from the cinematic range sample:
+    // brass case/body, copper bullet head, rifling glints, and its own PBR materials.
     const brass = new THREE.MeshStandardMaterial({ color: '#c9953d', roughness: 0.34, metalness: 0.5 });
     const copper = new THREE.MeshStandardMaterial({ color: '#b66b35', roughness: 0.34, metalness: 0.32 });
+    const yellow = new THREE.MeshStandardMaterial({ color: '#ffd166', emissive: '#ffd166', emissiveIntensity: 1.15, roughness: 0.25, metalness: 0.04 });
     const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.96, radius * 0.96, length * 0.62, 24), brass);
     const head = new THREE.Mesh(new THREE.ConeGeometry(radius, length * 0.36, 24), copper);
     head.position.y = length * 0.49;
-    root.add(body, head);
+    const riflingMark1 = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.26, length * 0.7, radius * 0.26), yellow);
+    riflingMark1.position.set(radius, length * 0.04, 0);
+    riflingMark1.rotation.y = 0.7;
+    const riflingMark2 = riflingMark1.clone();
+    riflingMark2.position.x = -radius;
+    riflingMark2.rotation.y = -0.7;
+    const tracer = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.62, radius * 0.13, 8, 24), yellow);
+    tracer.rotation.x = Math.PI / 2;
+    tracer.position.y = -length * 0.16;
+    root.add(body, head, riflingMark1, riflingMark2, tracer);
   }
   root.userData.dispose = () => {
     root.traverse((node) => {
@@ -3208,9 +3186,9 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
   const kind = profile.projectileKind || '';
   const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
-  const useServicePistolShell = !isShotgun && !isExplosive && (kind.includes('pistol') || kind.includes('revolver') || kind.includes('smg'));
-  const radius = useServicePistolShell ? 0.0024 : profile.shellRadius || 0.004;
-  const length = useServicePistolShell ? 0.014 : profile.shellLength || 0.016;
+  const useSmallPistolShell = !isShotgun && !isExplosive;
+  const radius = useSmallPistolShell ? 0.0024 : profile.shellRadius || 0.004;
+  const length = useSmallPistolShell ? 0.014 : profile.shellLength || 0.016;
   const brassMaterial = new THREE.MeshStandardMaterial({
     color: isShotgun ? '#b91c1c' : '#c9953d',
     metalness: isShotgun ? 0.42 : 0.5,
@@ -3218,18 +3196,16 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
   });
   const primerMaterial = new THREE.MeshStandardMaterial({ color: '#4b3422', metalness: 0.22, roughness: 0.45 });
   const root = new THREE.Group();
-  root.name = `caliber-shell-${useServicePistolShell ? 'service-pistol-9mm-casing' : profile.caliberLabel || 'round'}`;
-  if (useServicePistolShell) {
-    // Brass 9x19mm casing copied from the service-pistol slow-motion sample.
-    const casing = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.93, length, 32, 1, true), brassMaterial);
-    const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.97, radius * 0.1, 8, 32), brassMaterial);
-    mouth.rotation.x = Math.PI / 2;
-    mouth.position.y = length * 0.5;
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.07, radius * 1.07, length * 0.07, 32), brassMaterial);
-    rim.position.y = -length * 0.54;
-    const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.43, radius * 0.43, length * 0.075, 24), primerMaterial);
-    primer.position.y = -length * 0.58;
-    root.add(casing, mouth, rim, primer);
+  root.name = `caliber-shell-${useSmallPistolShell ? '9mm-small-pistol-gltf-style' : profile.caliberLabel || 'round'}`;
+  if (useSmallPistolShell) {
+    // Procedural glTF-style spent casing from the supplied slow-motion sample.
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.95, length * 0.86, 18, 1, true), brassMaterial);
+    const back = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.06, radius * 1.06, length * 0.06, 18), primerMaterial);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.145, 8, 18), brassMaterial);
+    back.position.y = -length * 0.5;
+    lip.rotation.x = Math.PI / 2;
+    lip.position.y = -length * 0.52;
+    root.add(tube, back, lip);
   } else {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.05, length * 0.08, 16), brassMaterial);
@@ -11393,7 +11369,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           muzzleTarget.copy(resolveCinematicHeadshotPoint(targetToken, targetPosition, tableSurfaceY));
           const shots = FIREARM_MAGAZINE_SHOTS[resolvedCaptureAnimationId] ?? 18;
-          const usesServicePistolFatalBullet = SERVICE_PISTOL_FATAL_BULLET_FIREARM_IDS.has(resolvedCaptureAnimationId);
           const ballisticsProfile = resolveFirearmBallisticsProfile(resolvedCaptureAnimationId);
           const bridgeBallisticsBias =
             directorWeaponType === 'Sniper'
@@ -11413,7 +11388,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const cadenceMs = (FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId) ? 155 : FIREARM_SHOTGUN_IDS.has(resolvedCaptureAnimationId) ? 92 : 56) * FIREARM_VOLLEY_SLOW_FACTOR;
           const volleyStart = performance.now();
           const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
-          const durationMs = preFireLeadMs + shots * cadenceMs + (usesServicePistolFatalBullet ? SERVICE_PISTOL_FATAL_BULLET_CAMERA_RELEASE_MS : 0) + UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.impactHoldTtl * 1000;
+          const durationMs = preFireLeadMs + shots * cadenceMs + UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.impactHoldTtl * 1000;
           seatedHumanActionRef.current = {
             ...seatedHumanActionRef.current,
             captureEndMs: volleyStart + durationMs
@@ -11432,7 +11407,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             mesh.userData.shotIndex = Math.floor(index / pelletsPerShot);
             mesh.userData.pelletIndex = index % pelletsPerShot;
             mesh.userData.spawnAt = preFireLeadMs + mesh.userData.shotIndex * cadenceMs;
-            mesh.userData.servicePistolFatal = usesServicePistolFatalBullet && index >= Math.max(0, projectileCount - pelletsPerShot);
             mesh.userData.completed = false;
             scene.add(mesh);
             return mesh;
@@ -11571,31 +11545,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const shoulderCameraBlend = clamp(elapsed / Math.max(1, preFireLeadMs), 0, 1);
             // FPS-style shoulder aiming view: stay just behind the hand and barrel, with the
             // muzzle, supporting hand and target reticle all aligned in the same sight picture.
-            if (elapsed < pickupLeadMs && rackWorld.lengthSq() > 1e-8) {
-              // First show the human physically taking the parked weapon from the rack,
-              // then move into the barrel-forward slow-motion shooting composition.
-              const grabFocus = rackWorld.clone().lerp(muzzleOrigin, clamp(elapsed / Math.max(1, pickupLeadMs), 0, 1));
-              cinematicPosition
-                .copy(grabFocus)
-                .addScaledVector(cinematicAimDir, -0.18)
-                .addScaledVector(cinematicSide, 0.11)
-                .addScaledVector(cameraWorldUp, 0.085);
-              cinematicTarget.copy(grabFocus).addScaledVector(cameraWorldUp, 0.018);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.16);
-            } else {
-              const barrelFrontPullback = usesServicePistolFatalBullet ? (singleShotFirearm ? 0.22 : 0.255) : (singleShotFirearm ? 0.27 : 0.32);
-              const barrelSide = usesServicePistolFatalBullet ? 0.025 : (singleShotFirearm ? 0.034 : 0.046);
-              cinematicPosition
-                .copy(muzzleOrigin)
-                .addScaledVector(cinematicAimDir, -barrelFrontPullback)
-                .addScaledVector(cinematicSide, barrelSide)
-                .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(-0.018, usesServicePistolFatalBullet ? 0.006 : (singleShotFirearm ? 0.014 : 0.024), shoulderCameraBlend));
-              cinematicTarget
-                .copy(muzzleOrigin)
-                .lerp(muzzleTarget, THREE.MathUtils.lerp(0.72, usesServicePistolFatalBullet ? 0.88 : 0.94, shoulderCameraBlend))
-                .addScaledVector(cameraWorldUp, 0.004);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.18);
-            }
+            cinematicPosition
+              .copy(muzzleOrigin)
+              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.27 : 0.32))
+              .addScaledVector(cinematicSide, singleShotFirearm ? 0.034 : 0.046)
+              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(-0.028, singleShotFirearm ? 0.014 : 0.024, shoulderCameraBlend));
+            cinematicTarget
+              .copy(muzzleOrigin)
+              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.78, 0.94, shoulderCameraBlend))
+              .addScaledVector(cameraWorldUp, 0.004);
+            setFirearmCinematicPose(cinematicPosition, cinematicTarget, elapsed < pickupLeadMs ? 0.1 : 0.18);
             muzzleFx.root.position.copy(muzzleOrigin);
             muzzleFx.root.visible = elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
             targetReticle.root.position.copy(muzzleTarget);
@@ -11653,11 +11612,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return;
               }
               const isFinalProjectile = idx >= finalProjectileStartIndex;
-              const isServicePistolFatal = Boolean(bulletMesh.userData?.servicePistolFatal);
-              const muzzleHoldMs = isServicePistolFatal ? SERVICE_PISTOL_FATAL_BULLET_MUZZLE_HOLD_MS : 0;
-              const travelLife = Math.max(0, life - muzzleHoldMs);
               const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? FIREARM_FINAL_BULLET_SLOWMO_FACTOR : FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR);
-              const rawShotProgress = clamp((travelLife * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 2.18 : 0.82)), 0, 1);
+              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 2.18 : 0.82)), 0, 1);
               const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
               const start = muzzleOrigin.clone();
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
@@ -11677,7 +11633,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               bulletMesh.rotateY(life * (isFinalProjectile ? FIREARM_FINAL_BULLET_SPIN_RATE : 0.032));
               bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
               if (isFinalProjectile) bulletMesh.rotateZ(life * 0.036);
-              bulletMesh.visible = (isServicePistolFatal && life < muzzleHoldMs) || shotProgress < 0.995;
+              bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
                 chipDamageDone = true;
@@ -11702,7 +11658,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (
                 !leadBulletPos &&
                 idx >= bulletFollowStartIndex &&
-                ((Boolean(bulletMesh.userData?.servicePistolFatal) && life < SERVICE_PISTOL_FATAL_BULLET_MUZZLE_HOLD_MS) || shotProgress > FIREARM_BROADCAST_PROFILE.bulletFollowStart) &&
+                shotProgress > FIREARM_BROADCAST_PROFILE.bulletFollowStart &&
                 shotProgress < FIREARM_BROADCAST_PROFILE.bulletFollowEnd
               ) {
                 leadBulletPos = bulletPos.clone();
@@ -11717,28 +11673,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
               cinematicSide.normalize();
               const followingFinalBullet = leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1;
-              const heldAtMuzzle = Boolean(leadBulletMesh?.userData?.servicePistolFatal) && (elapsed - Number(leadBulletMesh.userData?.spawnAt ?? 0)) < SERVICE_PISTOL_FATAL_BULLET_MUZZLE_HOLD_MS;
-              if (heldAtMuzzle) {
-                cinematicPosition
-                  .copy(muzzleOrigin)
-                  .addScaledVector(bulletDir, -0.045)
-                  .addScaledVector(cinematicSide, 0.018)
-                  .addScaledVector(cameraWorldUp, 0.026);
-                cinematicTarget.copy(muzzleOrigin).addScaledVector(bulletDir, 0.26).addScaledVector(cameraWorldUp, 0.004);
-                setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.96, {
-                  focusDistance: cinematicPosition.distanceTo(muzzleOrigin)
-                });
-              } else {
-                cinematicPosition
-                  .copy(leadBulletPos)
-                  .addScaledVector(bulletDir, followingFinalBullet ? -UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraPullback : -0.15)
-                  .addScaledVector(cinematicSide, followingFinalBullet ? UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraSideDrift : singleShotFirearm ? 0.018 : 0.03);
-                cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraLift : singleShotFirearm ? 0.07 : 0.082);
-                cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.13 : 0.34);
-                setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.94 : 0.72, {
-                  focusDistance: followingFinalBullet ? leadBulletPos.distanceTo(muzzleTarget) : null
-                });
-              }
+              cinematicPosition
+                .copy(leadBulletPos)
+                .addScaledVector(bulletDir, followingFinalBullet ? -UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraPullback : -0.15)
+                .addScaledVector(cinematicSide, followingFinalBullet ? UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraSideDrift : singleShotFirearm ? 0.018 : 0.03);
+              cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.cameraLift : singleShotFirearm ? 0.07 : 0.082);
+              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.13 : 0.34);
+              setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.94 : 0.72, {
+                focusDistance: followingFinalBullet ? leadBulletPos.distanceTo(muzzleTarget) : null
+              });
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
@@ -11791,7 +11734,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const impactPhase = clamp((elapsedShooting - shots * cadenceMs * 0.72) / Math.max(140, shots * cadenceMs * 0.28), 0, 1);
             if (!shatterDone && (finalImpactDone || impactPhase >= 0.98)) {
               shatterDone = true;
-              playMissileImpactSound();
+              playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
               const shotDir = muzzleTarget.clone().sub(muzzleOrigin);
               spawnTokenBreakDebris({
@@ -11823,7 +11766,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               requestAnimationFrame(tickFirearm);
               return;
             }
-            if (hideTarget && !shatterDone) hideTarget.visible = true;
+            if (hideTarget) hideTarget.visible = true;
             [muzzleFx.root, targetReticle.root, aerodynamicRings, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
