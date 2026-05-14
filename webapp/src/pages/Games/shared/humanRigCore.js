@@ -247,11 +247,6 @@ const BASE_CFG = {
   shootCounterLeanSide: -1,
   shootUpperBodyCounterLean: 1,
   shootForwardBendScale: 1,
-  // Optional side-bend layer lets individual Pool Royale shooting positions
-  // bias the fold to the left or right while the main chest/head bend still
-  // tracks the live cue line.
-  shootSideBendScale: 0,
-  shootSideBendDirection: -1,
   plantFeetDuringShot: true,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
@@ -1291,14 +1286,9 @@ export function updateHumanPose(human, dt, frameData) {
   const forwardBendScale = Number.isFinite(cfg.shootForwardBendScale)
     ? Math.max(0, cfg.shootForwardBendScale)
     : 1;
-  const sideBendScale = Number.isFinite(cfg.shootSideBendScale)
-    ? Math.max(0, cfg.shootSideBendScale)
-    : 0;
-  const sideBendDirection = cfg.shootSideBendDirection >= 0 ? 1 : -1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
   const shotBendZ = (value) => Math.abs(value) * bendDirection * forwardBendScale * poseProfile.lean;
   const shotCounterLeanX = (value) => (value + (poseProfile.hipSide || 0) * t) * counterLeanSide * upperBodyCounterLean;
-  const shotSideBendX = (value) => Math.abs(value) * sideBendDirection * sideBendScale * poseProfile.lean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
   if (activeState === 'striking' && poseProfile.recoil) rootWorld.addScaledVector(forward, -poseProfile.recoil * cfg.unit * strikeFollow);
@@ -1306,12 +1296,12 @@ export function updateHumanPose(human, dt, frameData) {
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3((shotCounterLeanX(0.012 * t) + shotSideBendX(0.01 * t)) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.008 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3((shotCounterLeanX(0.038 * t + 0.006 * powerLean) + shotSideBendX(0.032 * t)) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, t) - 0.014 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3((shotCounterLeanX(0.055 * t + 0.008 * powerLean) + shotSideBendX(0.048 * t)) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, t) - 0.016 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3((shotCounterLeanX(0.066 * t + 0.01 * powerLean) + shotSideBendX(0.06 * t)) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ(lerp(0.03, -0.62, t) - 0.018 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t) + shotSideBendX(0.026 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t) + shotSideBendX(0.022 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.16, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, t) - 0.008 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, t) - 0.014 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, t) - 0.016 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * t, shotBendZ(lerp(0.03, -0.62, t) - 0.018 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, t) - 0.012 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.34, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, t) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
