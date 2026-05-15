@@ -29,11 +29,11 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.95;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 2.15;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
-// Keep the camera at its prior pullback distance so the enlarged court and
-// players read clearly bigger in the actual gameplay view.
-const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE;
+// Keep camera scaling independent from world scale so camera framing can be
+// tuned precisely while the enlarged court keeps its regulation proportions.
+const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.08;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
 const PLAYER_CHARACTER_SCALE = 1.35;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
