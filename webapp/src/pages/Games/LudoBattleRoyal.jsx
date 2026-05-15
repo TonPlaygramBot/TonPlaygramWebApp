@@ -80,13 +80,6 @@ const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   truck: 'green_metal_rust'
 });
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
-const SERVICE_PISTOL_AMMO_MODEL_ROOT = 'https://dl.polyhaven.org/file/ph-assets/Models';
-const SERVICE_PISTOL_AMMO_MODEL_URLS = Object.freeze([
-  `${SERVICE_PISTOL_AMMO_MODEL_ROOT}/gltf/2k/service_pistol/service_pistol_2k.gltf`,
-  `${SERVICE_PISTOL_AMMO_MODEL_ROOT}/gltf/1k/service_pistol/service_pistol_1k.gltf`,
-  `${SERVICE_PISTOL_AMMO_MODEL_ROOT}/gltf/4k/service_pistol/service_pistol_4k.gltf`
-]);
-let servicePistolAmmoTemplatePromise = null;
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -245,9 +238,6 @@ const SMALL_SERVICE_PISTOL_FATAL_BULLET_IDS = new Set([
   'smgBurstAttack',
   'polySmg01Attack'
 ]);
-const SMALL_9MM_PROJECTILE_KINDS = new Set(['pistol-round', 'smg-round', 'revolver-round']);
-const SERVICE_PISTOL_BULLET_SPIN_PER_MS = 0.245;
-const SERVICE_PISTOL_WAKE_SCALE = 0.16;
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
@@ -3117,259 +3107,6 @@ function createCaptureExplosionFx() {
   return { root, flash, fire, smoke };
 }
 
-
-function markServicePistolAmmoRenderable(root) {
-  root?.traverse?.((child) => {
-    if (!child?.isMesh && !child?.isSkinnedMesh) return;
-    child.castShadow = true;
-    child.receiveShadow = true;
-    child.frustumCulled = false;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    materials.forEach((material) => {
-      if (!material) return;
-      if (material.map) applySRGBColorSpace(material.map);
-      if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-      material.needsUpdate = true;
-    });
-  });
-  return root;
-}
-
-function cloneServicePistolAmmoObject(root) {
-  return markServicePistolAmmoRenderable(root.clone(true));
-}
-
-function centerServicePistolAmmoObject(root) {
-  root.updateMatrixWorld?.(true);
-  const center = new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3());
-  root.position.add(center.multiplyScalar(-1));
-}
-
-function normalizeServicePistolAmmoObject(root, size = 1) {
-  root.updateMatrixWorld?.(true);
-  const box = new THREE.Box3().setFromObject(root);
-  const dims = box.getSize(new THREE.Vector3());
-  root.scale.multiplyScalar(size / (Math.max(dims.x, dims.y, dims.z) || 1));
-  root.updateMatrixWorld?.(true);
-  const box2 = new THREE.Box3().setFromObject(root);
-  const center = box2.getCenter(new THREE.Vector3());
-  root.position.add(new THREE.Vector3(-center.x, -center.y, -center.z));
-}
-
-function servicePistolAmmoLabelOf(object) {
-  const materials = Array.isArray(object?.material) ? object.material : [object?.material];
-  return `${object?.name || ''} ${materials.map((material) => material?.name || '').join(' ')}`.toLowerCase();
-}
-
-function servicePistolAmmoScoreLabel(label, words, reject = []) {
-  if (reject.some((word) => label.includes(word))) return -999;
-  return words.reduce((sum, word, index) => sum + (label.includes(word) ? 24 - index : 0), 0);
-}
-
-function servicePistolAmmoBestMesh(root, words, reject = []) {
-  let best = null;
-  let bestScore = -Infinity;
-  root?.traverse?.((child) => {
-    if ((!child?.isMesh && !child?.isSkinnedMesh) || !child.visible) return;
-    const score = servicePistolAmmoScoreLabel(servicePistolAmmoLabelOf(child), words, reject);
-    if (score > bestScore) {
-      best = child;
-      bestScore = score;
-    }
-  });
-  return bestScore > 0 ? best : null;
-}
-
-function servicePistolAmmoMaterialFrom(object, fallback = 0xc48a35) {
-  let found = null;
-  if (object?.isMesh || object?.isSkinnedMesh) found = Array.isArray(object.material) ? object.material.find(Boolean) : object.material;
-  object?.traverse?.((child) => {
-    if (found || (!child?.isMesh && !child?.isSkinnedMesh)) return;
-    found = Array.isArray(child.material) ? child.material.find(Boolean) : child.material;
-  });
-  const material = found?.clone ? found.clone() : new THREE.MeshStandardMaterial({ color: fallback });
-  material.metalness = Math.max(material.metalness ?? 0.5, 0.48);
-  material.roughness = Math.min(Math.max(material.roughness ?? 0.38, 0.24), 0.68);
-  material.envMapIntensity = 3;
-  material.needsUpdate = true;
-  return material;
-}
-
-function splitServicePistolAmmoMesh(mesh, keep = 'front', size = 0.028) {
-  if (!mesh?.geometry?.attributes?.position) return null;
-  const source = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
-  const pos = source.attributes.position;
-  const normal = source.attributes.normal;
-  const uv = source.attributes.uv;
-  const box = new THREE.Box3().setFromBufferAttribute(pos);
-  const dims = box.getSize(new THREE.Vector3());
-  const axis = dims.x >= dims.y && dims.x >= dims.z ? 0 : dims.y >= dims.z ? 1 : 2;
-  const min = axis === 0 ? box.min.x : axis === 1 ? box.min.y : box.min.z;
-  const max = axis === 0 ? box.max.x : axis === 1 ? box.max.y : box.max.z;
-  const cut = min + (max - min) * 0.52;
-  const p = [];
-  const n = [];
-  const u = [];
-  const vertex = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i += 3) {
-    let avg = 0;
-    for (let j = 0; j < 3; j += 1) {
-      vertex.fromBufferAttribute(pos, i + j);
-      avg += axis === 0 ? vertex.x : axis === 1 ? vertex.y : vertex.z;
-    }
-    avg /= 3;
-    const choose = keep === 'front' ? avg >= cut : avg < cut;
-    if (!choose) continue;
-    for (let j = 0; j < 3; j += 1) {
-      p.push(pos.getX(i + j), pos.getY(i + j), pos.getZ(i + j));
-      if (normal) n.push(normal.getX(i + j), normal.getY(i + j), normal.getZ(i + j));
-      if (uv) u.push(uv.getX(i + j), uv.getY(i + j));
-    }
-  }
-  if (p.length < 9) return null;
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-  if (n.length) geometry.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
-  else geometry.computeVertexNormals();
-  if (u.length) geometry.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  const group = new THREE.Group();
-  group.add(new THREE.Mesh(geometry, servicePistolAmmoMaterialFrom(mesh, keep === 'front' ? 0xb66b35 : 0xc48a35)));
-  normalizeServicePistolAmmoObject(group, size);
-  return markServicePistolAmmoRenderable(group);
-}
-
-function findServicePistolAmmoCarrier(root) {
-  const modelBox = new THREE.Box3().setFromObject(root);
-  const diag = modelBox.getSize(new THREE.Vector3()).length() || 1;
-  const modelCenter = modelBox.getCenter(new THREE.Vector3());
-  const candidates = [];
-  root?.traverse?.((child) => {
-    if ((!child?.isMesh && !child?.isSkinnedMesh) || !child.visible) return;
-    const label = servicePistolAmmoLabelOf(child);
-    if (/magazine|\bmag\b|slide|grip|trigger|barrel|frame|receiver|sight|rail|screw|bolt/.test(label)) return;
-    const box = new THREE.Box3().setFromObject(child);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const sorted = [size.x, size.y, size.z].sort((a, b) => a - b);
-    const rel = sorted[2] / diag;
-    if (rel > 0.38 || rel < 0.018) return;
-    const longRatio = sorted[2] / Math.max(sorted[0], 0.0001);
-    const score =
-      servicePistolAmmoScoreLabel(label, ['cartridge', 'round', 'ammo', 'bullet', 'shell', 'casing', 'case', 'brass', 'projectile']) +
-      Math.min(longRatio, 8) * 2.2 +
-      (center.distanceTo(modelCenter) / diag) * 12;
-    candidates.push({ child, score });
-  });
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0]?.child || null;
-}
-
-function alignServicePistolProjectileTip(root, targetSize = 0.028) {
-  normalizeServicePistolAmmoObject(root, targetSize);
-  root.updateMatrixWorld?.(true);
-  const box = new THREE.Box3().setFromObject(root);
-  if (Number.isFinite(box.min.z)) root.position.z -= box.min.z;
-  return markServicePistolAmmoRenderable(root);
-}
-
-function makeServicePistolGlbBulletHead(source) {
-  if (!source) return createServicePistolProjectileGroup();
-  const group = new THREE.Group();
-  group.add(cloneServicePistolAmmoObject(source));
-  centerServicePistolAmmoObject(group);
-  group.updateMatrixWorld?.(true);
-  const size = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3());
-  const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
-  if (axis === 'x') group.rotation.y = -Math.PI / 2;
-  if (axis === 'y') group.rotation.x = Math.PI / 2;
-  group.rotateY(-Math.PI);
-  centerServicePistolAmmoObject(group);
-  return alignServicePistolProjectileTip(group, 0.028);
-}
-
-function makeServicePistolGlbShell(source) {
-  const split = source ? splitServicePistolAmmoMesh(source, 'back', 0.014) : null;
-  if (split) return split;
-  const group = createCaliberShellCasingFx({ projectileKind: 'pistol-round', caliberLabel: '9mm service pistol GLB fallback' });
-  group.visible = true;
-  return group;
-}
-
-function extractServicePistolGlbAmmo(root) {
-  const explicitBullet = servicePistolAmmoBestMesh(
-    root,
-    ['bullet_head', 'bullet head', 'projectile', 'bullet', 'round'],
-    ['shell', 'casing', 'case', 'magazine', 'mag', 'slide', 'grip', 'barrel', 'trigger']
-  );
-  const explicitShell = servicePistolAmmoBestMesh(
-    root,
-    ['shell', 'casing', 'case', 'brass'],
-    ['bullet_head', 'bullet head', 'projectile', 'magazine', 'mag', 'slide', 'grip', 'barrel', 'trigger']
-  );
-  if (explicitBullet && explicitShell) {
-    return {
-      bullet: makeServicePistolGlbBulletHead(explicitBullet),
-      shell: makeServicePistolGlbShell(explicitShell)
-    };
-  }
-  const carrier = findServicePistolAmmoCarrier(root);
-  if (carrier) {
-    const splitBullet = splitServicePistolAmmoMesh(carrier, 'front', 0.028);
-    return {
-      bullet: makeServicePistolGlbBulletHead(splitBullet || carrier),
-      shell: makeServicePistolGlbShell(carrier)
-    };
-  }
-  return { bullet: createServicePistolProjectileGroup(), shell: createCaliberShellCasingFx({ projectileKind: 'pistol-round' }) };
-}
-
-async function loadServicePistolAmmoTemplates() {
-  if (servicePistolAmmoTemplatePromise) return servicePistolAmmoTemplatePromise;
-  servicePistolAmmoTemplatePromise = (async () => {
-    const loader = createConfiguredGLTFLoader();
-    loader.setCrossOrigin?.('anonymous');
-    for (const url of SERVICE_PISTOL_AMMO_MODEL_URLS) {
-      try {
-        const gltf = await Promise.race([
-          loader.loadAsync(url),
-          new Promise((_, reject) => globalThis.setTimeout(() => reject(new Error('service pistol ammo timeout')), CAPTURE_WEAPON_LOAD_TIMEOUT_MS))
-        ]);
-        const scene = gltf?.scene || gltf?.scenes?.[0];
-        if (!scene?.isObject3D) continue;
-        markServicePistolAmmoRenderable(scene);
-        return extractServicePistolGlbAmmo(scene);
-      } catch {
-        // Try the next Poly Haven service-pistol resolution.
-      }
-    }
-    return { bullet: createServicePistolProjectileGroup(), shell: createCaliberShellCasingFx({ projectileKind: 'pistol-round' }) };
-  })();
-  return servicePistolAmmoTemplatePromise;
-}
-
-function cloneServicePistolAmmoTemplate(template, targetSize) {
-  if (!template?.isObject3D) return null;
-  const clone = cloneServicePistolAmmoObject(template);
-  if (Number.isFinite(targetSize) && targetSize > 0) {
-    const box = new THREE.Box3().setFromObject(clone);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    if (Number.isFinite(maxDim) && maxDim > 0) clone.scale.multiplyScalar(targetSize / maxDim);
-  }
-  clone.userData.dispose = () => {
-    clone.traverse((node) => {
-      if (!node?.isMesh) return;
-      node.geometry?.dispose?.();
-      if (Array.isArray(node.material)) node.material.forEach((material) => material?.dispose?.());
-      else node.material?.dispose?.();
-    });
-  };
-  clone.visible = false;
-  return clone;
-}
-
 function createCaptureBulletTracerFx(color = '#ffe8a3') {
   const root = new THREE.Group();
   const core = new THREE.Mesh(
@@ -3399,43 +3136,36 @@ function createCaptureShellCasingFx() {
 }
 
 function createServicePistolProjectileGroup(radius = 0.0032, length = 0.028) {
-  // Service-pistol reference projectile: bullet-head only, with its nose at the
-  // local origin and local -Z as the flight direction so the head reaches target first.
+  // 9x19mm-style service-pistol projectile from the supplied slow-motion reference:
+  // copper FMJ cylinder, rounded nose, dark base, and two cannelure/groove rings.
   const root = new THREE.Group();
-  const copper = new THREE.MeshStandardMaterial({ color: '#b66b35', roughness: 0.36, metalness: 0.52 });
-  const rearMetal = new THREE.MeshStandardMaterial({ color: '#59616a', roughness: 0.36, metalness: 0.78, envMapIntensity: 2.8 });
-  const bodyLength = length * 0.58;
-  const noseLength = length * 0.34;
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, bodyLength, 48), copper);
-  body.rotation.x = Math.PI / 2;
-  body.position.z = noseLength + bodyLength * 0.5;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(radius, noseLength, 48), copper.clone());
-  tip.rotation.x = -Math.PI / 2;
-  tip.position.z = noseLength * 0.5;
-  const rearCap = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.98, 48, 20), rearMetal);
-  rearCap.scale.set(1, 1, 0.5);
-  rearCap.position.z = noseLength + bodyLength + radius * 0.16;
-  const groove1 = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, radius * 0.055, 8, 32), copper.clone());
-  groove1.position.z = noseLength + bodyLength * 0.35;
+  const copper = new THREE.MeshStandardMaterial({ color: '#b66b35', roughness: 0.34, metalness: 0.32 });
+  const copperDark = new THREE.MeshStandardMaterial({ color: '#7d3e1f', roughness: 0.42, metalness: 0.25 });
+  const jacket = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length * 0.62, 32), copper);
+  jacket.position.y = length * 0.03;
+  const roundedNose = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.02, 32, 16), copper);
+  roundedNose.scale.set(1, 0.72, 1);
+  roundedNose.position.y = length * 0.42;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length * 0.06, 32), copperDark);
+  base.position.y = -length * 0.42;
+  const groove1 = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, radius * 0.055, 8, 32), copperDark);
+  groove1.rotation.x = Math.PI / 2;
+  groove1.position.y = -length * 0.02;
   const groove2 = groove1.clone();
-  groove2.position.z = noseLength + bodyLength * 0.58;
-  root.add(body, tip, rearCap, groove1, groove2);
+  groove2.position.y = -length * 0.18;
+  root.add(jacket, roundedNose, base, groove1, groove2);
   return root;
 }
 
-function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default, servicePistolAmmoTemplates = null) {
+function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
   const kind = profile.projectileKind || 'jacketed-round';
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
   const isBuckshot = kind.includes('buckshot');
-  const isMarksman = kind.includes('marksman') || kind.includes('sniper');
-  const useServicePistolRound = SMALL_9MM_PROJECTILE_KINDS.has(kind);
+  const useServicePistolRound = !isExplosive && !isBuckshot;
   const radius = useServicePistolRound ? 0.0032 : profile.bulletRadius || 0.0036;
   const length = useServicePistolRound ? 0.028 : profile.bulletLength || radius * 9;
   const root = new THREE.Group();
   root.name = `caliber-projectile-${useServicePistolRound ? 'service-pistol-fmj-reference' : kind}`;
-  if (useServicePistolRound && servicePistolAmmoTemplates?.bullet?.isObject3D) {
-    return cloneServicePistolAmmoTemplate(servicePistolAmmoTemplates.bullet, length);
-  }
   if (isBuckshot) {
     const pellet = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 14, 14),
@@ -3456,29 +3186,8 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default,
     band.rotation.x = Math.PI / 2;
     band.position.y = -length * 0.12;
     root.add(body, nose, tail, band);
-  } else if (useServicePistolRound) {
-    root.add(createServicePistolProjectileGroup(radius, length));
   } else {
-    // Long guns keep their own caliber silhouette while using the same slow-motion
-    // projectile flight, camera follow, spin, muzzle flash, shell ejection, and air-wake concept.
-    const jacketMaterial = new THREE.MeshStandardMaterial({ color: isMarksman ? '#a16207' : '#b7791f', metalness: 0.48, roughness: 0.3 });
-    const tipMaterial = new THREE.MeshStandardMaterial({ color: '#b66b35', metalness: 0.42, roughness: 0.34 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.92, radius, length * 0.58, 24), jacketMaterial);
-    body.rotation.x = Math.PI / 2;
-    const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.72, radius * 0.94, length * 0.16, 24), jacketMaterial.clone());
-    shoulder.rotation.x = Math.PI / 2;
-    const pointedTip = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.74, length * 0.24, 24), tipMaterial);
-    pointedTip.rotation.x = -Math.PI / 2;
-    const darkBase = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius * 0.96, radius * 0.96, length * 0.045, 24),
-      new THREE.MeshStandardMaterial({ color: '#6f3f18', metalness: 0.3, roughness: 0.46 })
-    );
-    darkBase.rotation.x = Math.PI / 2;
-    pointedTip.position.z = length * 0.12;
-    shoulder.position.z = length * 0.32;
-    body.position.z = length * 0.55;
-    darkBase.position.z = length * 0.86;
-    root.add(body, shoulder, pointedTip, darkBase);
+    root.add(createServicePistolProjectileGroup(radius, length));
   }
   root.userData.dispose = () => {
     root.traverse((node) => {
@@ -3492,16 +3201,13 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default,
   return root;
 }
 
-function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default, servicePistolAmmoTemplates = null) {
+function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default) {
   const kind = profile.projectileKind || '';
   const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
-  const useSmallPistolShell = SMALL_9MM_PROJECTILE_KINDS.has(kind);
+  const useSmallPistolShell = !isShotgun && !isExplosive;
   const radius = useSmallPistolShell ? 0.0024 : profile.shellRadius || 0.004;
   const length = useSmallPistolShell ? 0.014 : profile.shellLength || 0.016;
-  if (useSmallPistolShell && servicePistolAmmoTemplates?.shell?.isObject3D) {
-    return cloneServicePistolAmmoTemplate(servicePistolAmmoTemplates.shell, length);
-  }
   const brassMaterial = new THREE.MeshStandardMaterial({
     color: isShotgun ? '#b91c1c' : '#c9953d',
     metalness: isShotgun ? 0.42 : 0.5,
@@ -3512,16 +3218,14 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
   root.name = `caliber-shell-${useSmallPistolShell ? '9mm-small-pistol-gltf-style' : profile.caliberLabel || 'round'}`;
   if (useSmallPistolShell) {
     // Brass 9x19mm casing matching the service-pistol reference: open mouth, rim, primer.
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.94, length * 0.86, 48, 1, true), brassMaterial);
-    tube.rotation.x = Math.PI / 2;
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.94, length * 0.86, 32, 1, true), brassMaterial);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.96, radius * 0.1, 8, 32), brassMaterial);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.08, radius * 1.08, length * 0.07, 48), brassMaterial);
-    rim.rotation.x = Math.PI / 2;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.08, radius * 1.08, length * 0.07, 32), brassMaterial);
     const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.44, radius * 0.44, length * 0.08, 24), primerMaterial);
-    primer.rotation.x = Math.PI / 2;
-    mouth.position.z = -length * 0.48;
-    rim.position.z = length * 0.48;
-    primer.position.z = length * 0.525;
+    mouth.rotation.x = Math.PI / 2;
+    mouth.position.y = length * 0.48;
+    rim.position.y = -length * 0.48;
+    primer.position.y = -length * 0.525;
     root.add(tube, mouth, rim, primer);
   } else {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
@@ -3542,63 +3246,21 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
 
 function createBulletAerodynamicRingsFx() {
   const root = new THREE.Group();
-  root.scale.setScalar(SERVICE_PISTOL_WAKE_SCALE);
-  const airConeMaterial = new THREE.MeshBasicMaterial({
-    color: '#bff5ff',
-    transparent: true,
-    opacity: 0.1,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide
-  });
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.62, 48, 1, true), airConeMaterial);
-  cone.rotation.x = Math.PI / 2;
-  cone.position.z = 0.34;
-  root.add(cone);
-
-  const strands = Array.from({ length: 4 }, (_, strand) => {
-    const points = [];
-    const phase = (strand / 4) * Math.PI * 2;
-    for (let i = 0; i < 32; i += 1) {
-      const t = i / 31;
-      const radius = 0.024 + t * 0.09;
-      const angle = phase + t * Math.PI * 4.4;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.04 + t * 0.62));
-    }
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.MeshBasicMaterial({
-        color: '#e8fcff',
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
-      })
-    );
-    root.add(line);
-    return line;
-  });
-
-  const rings = Array.from({ length: 2 }, (_, idx) => {
+  const rings = Array.from({ length: 4 }, (_, idx) => {
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.105 + idx * 0.085, 0.0035, 8, 56),
+      new THREE.TorusGeometry(0.018 + idx * 0.006, 0.00085, 8, 42),
       new THREE.MeshBasicMaterial({
-        color: '#d7fbff',
+        color: idx % 2 === 0 ? '#dbeafe' : '#ffffff',
         transparent: true,
-        opacity: 0.11,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide
+        opacity: 0.34 - idx * 0.055,
+        depthWrite: false
       })
     );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.z = 0.14 + idx * 0.16;
+    ring.position.y = -idx * 0.018;
     root.add(ring);
     return ring;
   });
   root.userData.rings = rings;
-  root.userData.strands = strands;
-  root.userData.cone = cone;
   root.visible = false;
   return root;
 }
@@ -11752,18 +11414,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ...seatedHumanActionRef.current,
             captureEndMs: volleyStart + durationMs
           };
-          const servicePistolAmmoTemplates = SMALL_SERVICE_PISTOL_FATAL_BULLET_IDS.has(resolvedCaptureAnimationId)
-            ? await loadServicePistolAmmoTemplates()
-            : null;
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
-          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () =>
-            createCaliberShellCasingFx(mergedBallistics, servicePistolAmmoTemplates)
-          );
+          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaliberShellCasingFx(mergedBallistics));
           const pelletsPerShot = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? 14 : 1;
           const projectileCount = shots * pelletsPerShot;
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
-            const mesh = createCaliberProjectileFx(mergedBallistics, servicePistolAmmoTemplates);
+            const mesh = createCaliberProjectileFx(mergedBallistics);
             mesh.castShadow = false;
             mesh.receiveShadow = false;
             mesh.userData.caliberLabel = mergedBallistics.caliberLabel;
@@ -12013,8 +11670,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const projectileDir = end.clone().sub(muzzleOrigin);
               if (projectileDir.lengthSq() < 1e-7) projectileDir.set(0, 1, 0);
               projectileDir.normalize();
-              bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), projectileDir);
-              bulletMesh.rotateZ(life * (useServicePistolFatalBullet ? SERVICE_PISTOL_BULLET_SPIN_PER_MS : 0.076));
+              bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
+              bulletMesh.rotateY(life * (isFinalProjectile && useServicePistolFatalBullet ? 0.076 : isFinalProjectile ? FIREARM_FINAL_BULLET_SPIN_RATE : 0.032));
+              bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
+              if (isFinalProjectile) bulletMesh.rotateZ(life * (useServicePistolFatalBullet ? 0.076 : 0.036));
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
@@ -12067,21 +11726,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
-                aerodynamicRings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), bulletDir);
+                aerodynamicRings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bulletDir);
                 const ringPulse = 0.82 + Math.sin(elapsed * 0.028) * 0.18;
-                const wakeFade = 1 - Math.max(0, (elapsedShooting - shots * cadenceMs) / 420);
                 aerodynamicRings.userData.rings?.forEach((ring, ringIdx) => {
                   ring.rotation.z += 0.08 + ringIdx * 0.018;
                   ring.scale.setScalar(ringPulse + ringIdx * 0.08);
-                  ring.material.opacity = clamp((0.11 - ringIdx * 0.02) * wakeFade, 0, 0.14);
+                  ring.material.opacity = clamp((0.34 - ringIdx * 0.055) * (1 - Math.max(0, (elapsedShooting - shots * cadenceMs) / 420)), 0, 0.42);
                 });
-                aerodynamicRings.userData.strands?.forEach((strand) => {
-                  strand.rotation.z += 0.045;
-                  strand.material.opacity = clamp(0.22 * wakeFade, 0, 0.24);
-                });
-                if (aerodynamicRings.userData.cone?.material) {
-                  aerodynamicRings.userData.cone.material.opacity = clamp(0.1 * wakeFade, 0, 0.14);
-                }
               } else {
                 aerodynamicRings.visible = false;
               }
