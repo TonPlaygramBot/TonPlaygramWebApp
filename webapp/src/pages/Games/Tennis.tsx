@@ -124,6 +124,32 @@ type ControlState = {
 };
 
 const HUMAN_URL = "https://threejs.org/examples/models/gltf/readyplayer.me.glb";
+const COURT_ENVIRONMENT_ASSETS = [
+  {
+    name: "courtside-chair",
+    source: "Khronos glTF Sample Assets Chair Damask Purplegold (CC BY 4.0)",
+    url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ChairDamaskPurplegold/glTF-Binary/ChairDamaskPurplegold.glb",
+    position: new THREE.Vector3(-1, 0, 0),
+    rotationY: Math.PI / 2,
+    scale: 1.15,
+  },
+  {
+    name: "warmup-boombox",
+    source: "Khronos glTF Sample Assets Boom Box (CC0)",
+    url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/BoomBox/glTF-Binary/BoomBox.glb",
+    position: new THREE.Vector3(1, 0, 0),
+    rotationY: -Math.PI / 2,
+    scale: 0.0085,
+  },
+  {
+    name: "potted-plant",
+    source: "Khronos glTF Sample Assets Diffuse Transmission Plant (CC BY 4.0 / CC0 original)",
+    url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/DiffuseTransmissionPlant/glTF-Binary/DiffuseTransmissionPlant.glb",
+    position: new THREE.Vector3(0, 0, -1),
+    rotationY: -Math.PI / 5,
+    scale: 0.72,
+  },
+] as const;
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
@@ -545,7 +571,18 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const courtMat = new THREE.MeshStandardMaterial({ map: courtTex, roughness: 0.82, metalness: 0.01, color: new THREE.Color(0x4f93a7) });
   const serviceMat = new THREE.MeshStandardMaterial({ map: serviceTex, roughness: 0.8, metalness: 0.01, color: new THREE.Color(0x5ea7ba) });
   const lineMat = material(0xf8fbf7, 0.36, 0.0);
-  const netMat = transparentMaterial(0x101010, 0.34, 0.58);
+  const netTexture = new THREE.CanvasTexture(makeCourtNetTexture());
+  netTexture.colorSpace = THREE.SRGBColorSpace;
+  netTexture.anisotropy = 8;
+  const netMat = new THREE.MeshStandardMaterial({
+    map: netTexture,
+    transparent: true,
+    opacity: 0.9,
+    roughness: 0.5,
+    metalness: 0.02,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
   const netWhite = material(0xf7f7f7, 0.44, 0.0);
   const postMat = material(0x2a2f33, 0.32, 0.28);
 
@@ -573,12 +610,17 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   addBox(group, [thick, thick, CFG.courtL + thick], [-CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
   addBox(group, [thick, thick, CFG.courtL + thick], [CFG.doublesW / 2, y, 0], transparentMaterial(0xffffff, 0.34));
 
-  const netBody = addBox(group, [CFG.doublesW + 0.35, CFG.netH, 0.025], [0, CFG.netH / 2, 0], netMat);
-  addBox(group, [CFG.doublesW + 0.55, 0.052, 0.075], [0, CFG.netH + 0.025, 0], netWhite);
-  addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [-(CFG.doublesW / 2 + 0.22), (CFG.netH + 0.36) / 2, 0], postMat, 22);
-  addCylinder(group, 0.045, 0.052, CFG.netH + 0.36, [CFG.doublesW / 2 + 0.22, (CFG.netH + 0.36) / 2, 0], postMat, 22);
-  for (let i = -5; i <= 5; i++) addBox(group, [0.012, CFG.netH * 0.92, 0.03], [(i * CFG.doublesW) / 10, CFG.netH * 0.46, 0.018], transparentMaterial(0xffffff, 0.28));
-  for (let j = 1; j <= 3; j++) addBox(group, [CFG.doublesW + 0.12, 0.011, 0.032], [0, (j * CFG.netH) / 4, 0.019], transparentMaterial(0xffffff, 0.24));
+  const netBody = new THREE.Mesh(new THREE.PlaneGeometry(CFG.doublesW + 0.42 * CFG.worldScale, CFG.netH), netMat);
+  netBody.position.set(0, CFG.netH / 2, 0);
+  enableShadow(netBody);
+  group.add(netBody);
+  addBox(group, [CFG.doublesW + 0.75 * CFG.worldScale, 0.085 * CFG.worldScale, 0.09 * CFG.worldScale], [0, CFG.netH + 0.03 * CFG.worldScale, 0], netWhite);
+  addBox(group, [CFG.doublesW + 0.55 * CFG.worldScale, 0.065 * CFG.worldScale, 0.07 * CFG.worldScale], [0, 0.06 * CFG.worldScale, 0], netWhite);
+  addBox(group, [0.09 * CFG.worldScale, CFG.netH + 0.12 * CFG.worldScale, 0.085 * CFG.worldScale], [-(CFG.doublesW / 2 + 0.28 * CFG.worldScale), CFG.netH / 2, 0], netWhite);
+  addBox(group, [0.09 * CFG.worldScale, CFG.netH + 0.12 * CFG.worldScale, 0.085 * CFG.worldScale], [CFG.doublesW / 2 + 0.28 * CFG.worldScale, CFG.netH / 2, 0], netWhite);
+  const postHeight = CFG.netH + 0.36 * CFG.worldScale;
+  addCylinder(group, 0.045 * CFG.worldScale, 0.052 * CFG.worldScale, postHeight, [-(CFG.doublesW / 2 + 0.22 * CFG.worldScale), postHeight / 2, 0], postMat, 22);
+  addCylinder(group, 0.045 * CFG.worldScale, 0.052 * CFG.worldScale, postHeight, [CFG.doublesW / 2 + 0.22 * CFG.worldScale, postHeight / 2, 0], postMat, 22);
 
   return { group, netBody };
 }
@@ -671,6 +713,60 @@ function addTrainingCourtLighting(scene: THREE.Scene) {
       scene.add(fill);
     });
   });
+}
+
+function addOnlineCourtEnvironmentAssets(scene: THREE.Scene) {
+  const group = new THREE.Group();
+  group.name = "online-tennis-court-environment-assets";
+  scene.add(group);
+
+  const loader = new GLTFLoader().setCrossOrigin("anonymous");
+  const placements = [
+    new THREE.Vector3(-(CFG.doublesW / 2 + 2.75 * CFG.worldScale), 0.08 * CFG.worldScale, CFG.courtL * 0.16),
+    new THREE.Vector3(CFG.doublesW / 2 + 2.65 * CFG.worldScale, 0.08 * CFG.worldScale, CFG.courtL * 0.1),
+    new THREE.Vector3(-(CFG.doublesW / 2 + 2.85 * CFG.worldScale), 0.08 * CFG.worldScale, -CFG.courtL * 0.24),
+  ];
+
+  COURT_ENVIRONMENT_ASSETS.forEach((asset, idx) => {
+    loader.load(
+      asset.url,
+      (gltf) => {
+        const root = gltf.scene;
+        root.name = asset.name;
+        root.userData.source = asset.source;
+        root.position.copy(placements[idx] || asset.position);
+        root.rotation.y = asset.rotationY;
+        root.scale.setScalar(1);
+        root.updateMatrixWorld(true);
+
+        const box = new THREE.Box3().setFromObject(root);
+        const size = box.getSize(new THREE.Vector3());
+        const maxAxis = Math.max(size.x, size.y, size.z, 0.001);
+        root.scale.setScalar((asset.scale * CFG.worldScale) / maxAxis);
+        root.updateMatrixWorld(true);
+        const scaledBox = new THREE.Box3().setFromObject(root);
+        root.position.y += 0.08 * CFG.worldScale - scaledBox.min.y;
+
+        root.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          enableShadow(mesh);
+          if (mesh.material instanceof THREE.MeshStandardMaterial) {
+            mesh.material.roughness = Math.max(mesh.material.roughness ?? 0, 0.48);
+          }
+        });
+        group.add(root);
+      },
+      undefined,
+      () => {
+        const fallbackMat = material(idx === 0 ? 0x8c5a38 : idx === 1 ? 0x2f3540 : 0x2f6f44, 0.56, 0.05);
+        const fallback = addBox(group, [0.6 * CFG.worldScale, 0.42 * CFG.worldScale, 0.42 * CFG.worldScale], placements[idx]?.toArray() || asset.position.toArray(), fallbackMat);
+        fallback.name = `${asset.name}-fallback`;
+      }
+    );
+  });
+
+  return group;
 }
 
 
@@ -808,6 +904,41 @@ function makeRacketHexStringTexture() {
   ctx.arc(center, center, radius - 2, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+  return c;
+}
+
+function makeCourtNetTexture(width = 1024, height = 256) {
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext("2d")!;
+  const hexRadius = 17;
+  const stepX = hexRadius * 1.5;
+  const stepY = Math.sqrt(3) * hexRadius;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.strokeStyle = "rgba(245,248,244,0.86)";
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  for (let y = -stepY; y <= height + stepY; y += stepY) {
+    const row = Math.round((y + stepY) / stepY);
+    const offsetX = row % 2 === 0 ? 0 : stepX / 2;
+    for (let x = -stepX; x <= width + stepX; x += stepX) {
+      const cx = x + offsetX;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 6 + (Math.PI / 3) * i;
+        const px = cx + Math.cos(angle) * hexRadius;
+        const py = y + Math.sin(angle) * hexRadius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
   return c;
 }
 
@@ -1471,9 +1602,12 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
 function predictLanding(ball: BallState) {
   const p = ball.pos.clone();
   const v = ball.vel.clone();
+  let spin = ball.spin;
   const dt = 1 / 45;
   for (let i = 0; i < 95; i++) {
-    v.y -= CFG.gravity * dt;
+    v.y -= CFG.gravity * (1 + Math.max(0, spin) * 0.12) * dt;
+    v.multiplyScalar(Math.exp(-CFG.airDrag * dt));
+    spin *= Math.exp(-1.25 * dt);
     p.addScaledVector(v, dt);
     if (p.y <= CFG.ballR) return p;
   }
@@ -1519,6 +1653,7 @@ export default function MobileThreeTennisPrototype() {
 
     addTrainingCourtLighting(scene);
     const courtVisual = addCourt(scene, { hideFloor: false });
+    addOnlineCourtEnvironmentAssets(scene);
     const updateBillboards = () => {};
 
     const nearHuman = MURLAN_CHARACTER_THEMES.find((c) => c.id === selectedHumanCharacterId) || MURLAN_CHARACTER_THEMES[0];
@@ -1700,10 +1835,17 @@ export default function MobileThreeTennisPrototype() {
 
     function updateBall(dt: number) {
       const prevZ = ball.pos.z;
-      ball.vel.y -= CFG.gravity * (1 + ball.spin * 0.18) * dt;
+      const spinDip = Math.max(0, ball.spin) * 0.16;
+      const spinLift = Math.max(0, -ball.spin) * 0.05;
+      ball.vel.y -= CFG.gravity * (1 + spinDip - spinLift) * dt;
+      if (ball.lastHitBy && Math.abs(ball.vel.z) > 0.001) {
+        const forwardSign = ball.lastHitBy === "near" ? -1 : 1;
+        ball.vel.z += forwardSign * ball.spin * 0.18 * CFG.worldScale * dt;
+        ball.vel.x += Math.sin(ball.spin * 0.65) * 0.018 * CFG.worldScale * dt;
+      }
       ball.vel.multiplyScalar(Math.exp(-CFG.airDrag * dt));
       ball.pos.addScaledVector(ball.vel, dt);
-      ball.spin *= Math.exp(-0.95 * dt);
+      ball.spin *= Math.exp(-1.25 * dt);
 
       if (ball.vel.length() > 0.02) {
         const rollAxis = new THREE.Vector3(ball.vel.z, 0, -ball.vel.x);
@@ -1726,9 +1868,16 @@ export default function MobileThreeTennisPrototype() {
       if (ball.pos.y <= CFG.ballR) {
         ball.pos.y = CFG.ballR;
         if (ball.vel.y < 0) {
+          const incomingZ = ball.vel.z;
+          const forwardSign = ball.lastHitBy === "near" ? -1 : ball.lastHitBy === "far" ? 1 : Math.sign(ball.vel.z || 1);
           ball.vel.y = -ball.vel.y * CFG.bounceRestitution;
           ball.vel.x *= CFG.groundFriction;
           ball.vel.z *= CFG.groundFriction;
+          ball.vel.z += forwardSign * ball.spin * 0.33 * CFG.worldScale;
+          ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.045 * CFG.worldScale;
+          ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.055, 0.78, 1.08);
+          if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
+          ball.spin *= -0.38;
           const bounceSide = sideOfZ(ball.pos.z);
           audioVfx.play("bounce");
           if (ball.bounceSide === bounceSide) ball.bounceCount += 1;
