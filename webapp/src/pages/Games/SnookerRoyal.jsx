@@ -70,7 +70,10 @@ import {
   SNOOKER_ROYALE_OPTION_LABELS
 } from '../../config/snookerRoyalInventoryConfig.js';
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from '../../config/snookerRoyalClothPresets.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
+import {
+  SNOOKER_ROYAL_HUMAN_CHARACTER_THEME,
+  buildSnookerRoyalHumanModelUrls
+} from './shared/snookerRoyalHumanCharacter.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   getCachedSnookerRoyalInventory,
@@ -1659,9 +1662,7 @@ const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cu
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
 
-const SNOOKER_HUMAN_CHARACTER_THEME =
-  MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
-  MURLAN_CHARACTER_THEMES[0];
+const SNOOKER_HUMAN_CHARACTER_THEME = SNOOKER_ROYAL_HUMAN_CHARACTER_THEME;
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
 const SNOOKER_HUMAN_BASIS_MAT = new THREE.Matrix4();
@@ -1937,18 +1938,7 @@ function loadSnookerHumanModel(loader, url) {
 }
 
 function buildSnookerHumanModelUrls(theme = SNOOKER_HUMAN_CHARACTER_THEME) {
-  const urls = [
-    ...(theme?.modelUrls || []),
-    theme?.url,
-    ...MURLAN_CHARACTER_THEMES.flatMap((entry) => [
-      ...(entry?.modelUrls || []),
-      entry?.url
-    ]),
-    'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-    'https://threejs.org/examples/models/gltf/Xbot.glb',
-    'https://threejs.org/examples/models/gltf/Soldier.glb'
-  ].filter(Boolean);
-  return [...new Set(urls)];
+  return buildSnookerRoyalHumanModelUrls(theme);
 }
 
 async function loadSnookerHumanModelFromCatalog(loader, urls = buildSnookerHumanModelUrls()) {
