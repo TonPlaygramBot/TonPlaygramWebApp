@@ -2029,6 +2029,18 @@ const poolHumanDampScalar = (current, target, lambda, dt) =>
 const poolHumanDampVector = (current, target, lambda, dt) =>
   current.lerp(target, 1 - Math.exp(-lambda * dt));
 const poolHumanYawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
+const poolHumanDampAngle = (current, target, lambda, dt) => {
+  const delta = THREE.MathUtils.euclideanModulo(target - current + Math.PI, Math.PI * 2) - Math.PI;
+  return current + delta * (1 - Math.exp(-lambda * dt));
+};
+
+function poolHumanSafePlanarForward(forward, fallback = new THREE.Vector3(0, 0, -1)) {
+  const out = forward?.clone?.() || fallback.clone();
+  out.y = 0;
+  if (out.lengthSq() < 1e-8) out.copy(fallback).setY(0);
+  if (out.lengthSq() < 1e-8) out.set(0, 0, -1);
+  return out.normalize();
+}
 
 function makePoolHumanBasisQuaternion(side, up, forward) {
   POOL_HUMAN_BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
@@ -2338,20 +2350,46 @@ function posePoolHumanFingers(fingers, mode, weight) {
 }
 
 function choosePoolHumanEdgePosition(cueBallWorld, aimForward, cueBackWorld = null) {
+  const shotDir = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, -1));
+  const behindDir = shotDir.clone().multiplyScalar(-1);
   const cueBackValid = cueBackWorld && Number.isFinite(cueBackWorld.x) && Number.isFinite(cueBackWorld.z);
   const desired = cueBackValid
     ? cueBackWorld.clone()
-    : cueBallWorld.clone().addScaledVector(aimForward, -POOL_HUMAN_CFG.desiredShootDistance);
+    : cueBallWorld.clone().addScaledVector(behindDir, POOL_HUMAN_CFG.desiredShootDistance);
   desired.y = 0;
   const xEdge = POOL_HUMAN_CFG.tableW / 2 + POOL_HUMAN_CFG.edgeMargin;
   const zEdge = POOL_HUMAN_CFG.tableL / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const lateral = new THREE.Vector3(shotDir.z, 0, -shotDir.x).normalize();
+  const candidate = (x, z) => new THREE.Vector3(poolHumanClamp(x, -xEdge, xEdge), 0, poolHumanClamp(z, -zEdge, zEdge));
   const candidates = [
-    new THREE.Vector3(-xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, -zEdge),
-    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, zEdge)
+    candidate(-xEdge, desired.z),
+    candidate(xEdge, desired.z),
+    candidate(desired.x, -zEdge),
+    candidate(desired.x, zEdge),
+    candidate(cueBallWorld.x + behindDir.x * POOL_HUMAN_CFG.desiredShootDistance, cueBallWorld.z + behindDir.z * POOL_HUMAN_CFG.desiredShootDistance),
+    candidate(cueBallWorld.x + behindDir.x * (POOL_HUMAN_CFG.desiredShootDistance + POOL_HUMAN_CFG.edgeMargin * 0.55), cueBallWorld.z + behindDir.z * (POOL_HUMAN_CFG.desiredShootDistance + POOL_HUMAN_CFG.edgeMargin * 0.55))
   ];
-  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+  for (let i = -3; i <= 3; i += 1) {
+    const offset = i * POOL_HUMAN_CFG.edgeMargin * 0.42;
+    candidates.push(candidate(desired.x + lateral.x * offset, desired.z + lateral.z * offset));
+  }
+  const unique = [];
+  const seen = new Set();
+  candidates.forEach((point) => {
+    const key = `${point.x.toFixed(3)}:${point.z.toFixed(3)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(point);
+    }
+  });
+  const score = (point) => {
+    const cueToPoint = point.clone().sub(cueBallWorld).setY(0);
+    const behindScore = cueToPoint.lengthSq() > 1e-8 ? Math.max(0, cueToPoint.normalize().dot(behindDir)) : 0;
+    const lateralMiss = Math.abs(point.clone().sub(desired).dot(lateral));
+    const insideTablePenalty = Math.abs(point.x) < POOL_HUMAN_CFG.tableW / 2 && Math.abs(point.z) < POOL_HUMAN_CFG.tableL / 2 ? 100000 : 0;
+    return insideTablePenalty + point.distanceToSquared(desired) + lateralMiss * 0.35 + (1 - behindScore) * POOL_HUMAN_CFG.desiredShootDistance * POOL_HUMAN_CFG.desiredShootDistance * 20;
+  };
+  return unique.sort((a, b) => score(a) - score(b))[0].clone();
 }
 
 function drivePoolRoyaleHuman(human, frame) {
@@ -2487,11 +2525,15 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   rootToCueBall.y = 0;
   const tableFacingForward = rootToCueBall.lengthSq() > 1e-8
     ? rootToCueBall.normalize()
-    : aimForward.clone().normalize();
+    : poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, -1));
   const targetYaw = poolHumanYawFromForward(tableFacingForward);
-  human.yaw = activeState === 'striking'
-    ? human.strikeYaw
-    : poolHumanDampScalar(human.yaw, targetYaw, POOL_HUMAN_CFG.rotLambda, dt);
+  // A billiards player walks behind the shot, then squares the eyes/bridge/cue
+  // directly toward the cue ball before practice strokes.  Use wrapped angle
+  // damping while walking, but lock aim/strike frames to the table-facing line so
+  // the avatar never shoots while visually rotated toward the wrong rail.
+  human.yaw = activeState === 'dragging' || activeState === 'striking'
+    ? targetYaw
+    : poolHumanDampAngle(human.yaw, targetYaw, POOL_HUMAN_CFG.rotLambda, dt);
   const t = poolHumanEaseInOut(human.poseT) * POOL_HUMAN_CFG.shotPoseAmount;
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * POOL_HUMAN_CFG.scale);
@@ -2499,7 +2541,10 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const walkAmount = poolHumanClamp01(moveAmountRaw * 18 / POOL_HUMAN_CFG.scale) * idle;
   const dragStroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0;
   const strikeFollow = activeState === 'striking' ? Math.sin(poolHumanClamp01(human.strikeClock / (POOL_HUMAN_CFG.strikeTime + POOL_HUMAN_CFG.holdTime)) * Math.PI) : 0;
-  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
+  const visualForward = new THREE.Vector3(0, 0, -1).applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
+  const forward = activeState === 'dragging' || activeState === 'striking'
+    ? tableFacingForward.clone().normalize()
+    : visualForward;
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).add(human.root.position);
   const upperBodyForward = tableFacingForward.lengthSq() > 1e-8 ? tableFacingForward : forward;
@@ -2550,9 +2595,10 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
 
 function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
   if (!human) return null;
-  const poseForward = aimForward.clone().normalize();
+  const poseForward = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
-  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, poseForward);
+  const cueBackForStance = shotState === 'dragging' || shotState === 'striking' ? tableCue.back : null;
+  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, poseForward, cueBackForStance);
   rootTarget.y = POOL_HUMAN_CFG.floorLocalY;
   const standingYaw = poolHumanYawFromForward(poseForward);
   const aimSide = new THREE.Vector3(poseForward.z, 0, -poseForward.x).normalize();
