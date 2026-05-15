@@ -619,10 +619,10 @@ function addTrainingCourtSurrounds(group: THREE.Group) {
 function addTrainingCourtLighting(scene: THREE.Scene) {
   scene.background = createSkyGradientTexture();
   scene.environment = null;
-  scene.add(new THREE.AmbientLight(0xfff8ec, 0.72));
-  scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x5d745a, 0.86));
+  scene.add(new THREE.AmbientLight(0xfff8ec, 0.82));
+  scene.add(new THREE.HemisphereLight(0xf0f8ff, 0x6f835f, 0.98));
 
-  const keySun = new THREE.DirectionalLight(0xfff5d8, 1.2);
+  const keySun = new THREE.DirectionalLight(0xfff5d8, 1.32);
   keySun.position.set(-6.5, 9.5, 6.2);
   keySun.castShadow = true;
   keySun.shadow.mapSize.width = 2048;
@@ -658,7 +658,7 @@ function addTrainingCourtLighting(scene: THREE.Scene) {
         glow.lookAt(0, 0.5 * CFG.worldScale, z * 0.2);
         scene.add(glow);
       }
-      const spot = new THREE.SpotLight(0xfff6df, 2.05, CFG.courtL * 1.25, Math.PI / 5.4, 0.52, 0.95);
+      const spot = new THREE.SpotLight(0xfff6df, 2.22, CFG.courtL * 1.25, Math.PI / 5.4, 0.52, 0.95);
       spot.position.set(x - side * 0.95 * CFG.worldScale, poleH - 0.28 * CFG.worldScale, z);
       spot.target.position.set(0, 0.05, z * 0.14);
       spot.castShadow = true;
@@ -666,7 +666,7 @@ function addTrainingCourtLighting(scene: THREE.Scene) {
       spot.shadow.mapSize.height = 1024;
       scene.add(spot, spot.target);
 
-      const fill = new THREE.PointLight(0xfff7df, 0.58, CFG.courtL * 0.72, 1.4);
+      const fill = new THREE.PointLight(0xfff7df, 0.66, CFG.courtL * 0.72, 1.4);
       fill.position.set(x - side * 0.72 * CFG.worldScale, poleH - 0.34 * CFG.worldScale, z);
       scene.add(fill);
     });
@@ -1280,22 +1280,60 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: nu
   return velocity;
 }
 
-function makeUserTargetFromSwipe(startX: number, startY: number, endX: number, endY: number, durationMs: number, isServe: boolean, serveSide: "deuce" | "ad") {
+function makeUserTargetFromSwipe(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  durationMs: number,
+  isServe: boolean,
+  serveSide: "deuce" | "ad",
+  viewportW = 390,
+  viewportH = 720
+) {
   const dx = endX - startX;
   const dy = endY - startY;
   const dist = Math.hypot(dx, dy);
   const duration = Math.max(durationMs, 16);
-  const swipeSpeed = (dist / duration) * 1000;
-  const speedBoost = clamp01((swipeSpeed - 240) / 1100);
-  const power = clamp((dist / 170) * 0.42 + speedBoost * 0.68 + (isServe ? 0.46 : 0.27), isServe ? CFG.servePower.min : CFG.shotPower.min, isServe ? CFG.servePower.max : CFG.shotPower.max);
-  const dir = new THREE.Vector2(dx, -dy);
-  if (dir.lengthSq() > 1e-6) dir.normalize();
-  const rawAimX = (dx / 120) * (CFG.courtW / 2);
-  const serveBounds = serveTargetBoundsX(serveSide, "near");
-  const aimX = isServe ? clamp(rawAimX, Math.min(serveBounds.min, serveBounds.max), Math.max(serveBounds.min, serveBounds.max)) : clamp(rawAimX, -CFG.courtW / 2 + 0.36, CFG.courtW / 2 - 0.36);
-  const upward = clamp((-dy + 22) / 210, 0, 1);
-  const targetZ = isServe ? lerp(-CFG.serviceLineZ + 0.76 * CFG.worldScale, -1.25 * CFG.worldScale, upward) : lerp(-1.25, -CFG.courtL / 2 + 0.78, upward);
-  return { target: ShotTargeting.clampTarget(new THREE.Vector3(aimX, CFG.ballR, targetZ), "near", isServe), power, technique: ShotTargeting.techniqueFromSwipe(dx, dy), swipeDir: isServe ? undefined : dir, serveSide: isServe ? serveSide : undefined };
+  const shortAxis = Math.max(1, Math.min(viewportW, viewportH));
+  const longAxis = Math.max(1, Math.max(viewportW, viewportH));
+
+  // Aim is intentionally deterministic: horizontal swipe controls court width,
+  // upward swipe controls depth, and release distance/speed controls power.
+  const lateral = clamp(dx / (shortAxis * 0.42), -1, 1);
+  const forward = clamp((-dy) / (longAxis * 0.44), 0, 1);
+  const travelPower = clamp01(dist / (shortAxis * 0.58));
+  const speedPower = clamp01(((dist / duration) * 1000 - 180) / 1180);
+  const intentPower = clamp01(travelPower * 0.78 + speedPower * 0.22);
+  const power = clamp(
+    lerp(isServe ? CFG.servePower.min : CFG.shotPower.min, isServe ? CFG.servePower.max : CFG.shotPower.max, intentPower),
+    isServe ? CFG.servePower.min : CFG.shotPower.min,
+    isServe ? CFG.servePower.max : CFG.shotPower.max
+  );
+
+  let aimX: number;
+  let targetZ: number;
+  if (isServe) {
+    const serveBounds = serveTargetBoundsX(serveSide, "near");
+    const minX = Math.min(serveBounds.min, serveBounds.max);
+    const maxX = Math.max(serveBounds.min, serveBounds.max);
+    const centerX = (minX + maxX) * 0.5;
+    const halfRange = (maxX - minX) * 0.5;
+    aimX = clamp(centerX + lateral * halfRange, minX, maxX);
+    targetZ = lerp(-CFG.serviceLineZ + 0.72 * CFG.worldScale, -CFG.serviceBuffer - 0.48 * CFG.worldScale, forward);
+  } else {
+    aimX = clamp(lateral * (CFG.courtW / 2 - 0.52 * CFG.worldScale), -CFG.courtW / 2 + 0.52 * CFG.worldScale, CFG.courtW / 2 - 0.52 * CFG.worldScale);
+    const minimumDepth = lerp(-0.9 * CFG.worldScale, -CFG.serviceLineZ * 0.55, intentPower);
+    const maximumDepth = -CFG.courtL / 2 + 0.78 * CFG.worldScale;
+    targetZ = lerp(minimumDepth, maximumDepth, forward);
+  }
+
+  return {
+    target: ShotTargeting.clampTarget(new THREE.Vector3(aimX, CFG.ballR, targetZ), "near", isServe),
+    power,
+    technique: ShotTargeting.techniqueFromSwipe(dx, dy),
+    serveSide: isServe ? serveSide : undefined,
+  };
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
@@ -1327,11 +1365,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
 
   ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
-  if (hit.swipeDir && hit.swipeDir.lengthSq() > 0) {
-    const swipePower = hit.power * CFG.matchPowerMultiplier;
-    ball.vel.x += hit.swipeDir.x * (2.2 + swipePower * 1.85) * CFG.worldScale * CFG.matchPowerMultiplier;
-    ball.vel.z += -hit.swipeDir.y * (0.94 + swipePower * 1.18) * CFG.worldScale * CFG.matchPowerMultiplier;
-  }
   const technique = hit.technique || "flat";
   if (technique === "lob") {
     ball.vel.y += (1.85 + hit.power * CFG.matchPowerMultiplier * 0.86) * CFG.worldScale;
@@ -1348,7 +1381,6 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.y += (0.38 + hit.power * CFG.matchPowerMultiplier * 0.34) * CFG.worldScale;
     ball.spin = 1.05 + hit.power * CFG.matchPowerMultiplier * 1.1;
   } else if (technique === "slice") {
-    ball.vel.x += (Math.random() - 0.5) * 1.15;
     ball.vel.y -= 0.12;
     ball.spin = -1.15 - hit.power * CFG.matchPowerMultiplier * 0.62;
   } else {
@@ -1476,13 +1508,13 @@ export default function MobileThreeTennisPrototype() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.28;
+    renderer.toneMappingExposure = 1.38;
     const scene = new THREE.Scene();
     scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
-    const cameraTarget = new THREE.Vector3(0, 0.95 * CFG.cameraViewScale, -1.45 * CFG.cameraViewScale);
-    const cameraOffset = new THREE.Vector3(0, 4.95 * CFG.cameraViewScale, 7.7 * CFG.cameraViewScale);
+    const cameraTarget = new THREE.Vector3(0, 1.12 * CFG.cameraViewScale, -1.7 * CFG.cameraViewScale);
+    const cameraOffset = new THREE.Vector3(0, 5.9 * CFG.cameraViewScale, 9.1 * CFG.cameraViewScale);
     const cameraPosTarget = new THREE.Vector3();
 
     addTrainingCourtLighting(scene);
@@ -1574,9 +1606,9 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 5.45 * CFG.cameraViewScale, 8.55 * CFG.cameraViewScale);
-      else cameraOffset.set(0, 4.95 * CFG.cameraViewScale, 7.7 * CFG.cameraViewScale);
+      camera.fov = camera.aspect < 0.72 ? 50 : 44;
+      if (camera.aspect < 0.72) cameraOffset.set(0, 6.35 * CFG.cameraViewScale, 9.95 * CFG.cameraViewScale);
+      else cameraOffset.set(0, 5.9 * CFG.cameraViewScale, 9.1 * CFG.cameraViewScale);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1627,7 +1659,7 @@ export default function MobileThreeTennisPrototype() {
       const isServe = ball.lastHitBy === null && scoreManager.snapshot().server === "near";
       if (ball.lastHitBy === null && scoreManager.snapshot().server !== "near") return;
       const endTs = performance.now();
-      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe, currentServeSide);
+      const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe, currentServeSide, canvas.clientWidth, canvas.clientHeight);
       startSwing(nearPlayer, hit, isServe ? "serve" : "forehand");
       setHudSafe({ status: isServe ? "Serve motion" : "Forehand swing", power: 0 });
     };
