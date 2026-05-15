@@ -6716,17 +6716,17 @@ const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 // May 10, 2026: keep player-hand dominoes compact while placing them farther
-// beyond the rail while keeping them lower near the tabletop for clearer Battle Royal seating.
+// beyond the rail and higher above the tabletop for clearer Battle Royal seating.
 const PLAYER_HAND_TILE_SCALE = 0.9;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 10.6;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 1.65;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.2;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 1.85;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.7;
 // Keep the bottom player's upright tiles separated by a small visible gap.
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 1.04;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -7975,8 +7975,8 @@ const DOMINO_CHARACTER_PROPORTION_SCALE = 2.55;
 const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.55;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
-const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
-const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0;
+const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.1;
+const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.04;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
 const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
 const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
@@ -8003,11 +8003,11 @@ function buildDominoFallbackCharacterTemplate() {
   torso.rotation.x = THREE.MathUtils.degToRad(-7);
   const makeLimb = (radius, depth, material) => new THREE.Mesh(new THREE.CapsuleGeometry(radius, depth, 6, 12), material);
   const leftArm = makeLimb(0.045, 0.46, suit);
-  leftArm.position.set(-0.22, 0.8, 0.24);
-  leftArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(-14));
+  leftArm.position.set(-0.22, 0.93, 0.18);
+  leftArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(-18));
   const rightArm = makeLimb(0.045, 0.46, suit);
-  rightArm.position.set(0.22, 0.8, 0.24);
-  rightArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(14));
+  rightArm.position.set(0.22, 0.93, 0.18);
+  rightArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(18));
   const leftLeg = makeLimb(0.055, 0.56, dark);
   leftLeg.position.set(-0.1, 0.48, 0.27);
   leftLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(-4));
@@ -8344,7 +8344,7 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
   addDominoBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
   rig.seatedPose = captureDominoPose(bones);
-  instance.position.y -= 0.24 * MODEL_SCALE;
+  instance.position.y -= 0.09 * MODEL_SCALE;
   refreshDominoRigRack(rig, player?.hand || []);
   return rig;
 }
@@ -9215,7 +9215,7 @@ function computeHandSlotPosition(
 
   const gapBase =
     (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
-  const handY = openFlat ? CLOTH_TOP + 0.006 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
+  const handY = openFlat ? CLOTH_TOP + 0.016 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
   const safeCount = Math.max(1, handCount | 0);
   const safeSlot = THREE.MathUtils.clamp(slotIndex | 0, 0, safeCount - 1);
   const seatLength = Math.hypot(x0, z0) || 1;
