@@ -29,7 +29,7 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 2.38;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 2.72;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep camera scaling independent from world scale so camera framing can be
 // tuned precisely while the enlarged court keeps its regulation proportions.
@@ -52,12 +52,12 @@ export const gameConfig = {
   serviceLineZ: 6.4 * WORLD_SCALE,
   netH: 0.914 * WORLD_SCALE,
   ballR: 0.085 * WORLD_SCALE,
-  gravity: 9.8,
-  airDrag: 0.078,
-  bounceRestitution: 0.74,
-  groundFriction: 0.86,
+  gravity: 24.5,
+  airDrag: 0.105,
+  bounceRestitution: 0.66,
+  groundFriction: 0.78,
   minBallSpeed: 0.12 * WORLD_SCALE,
-  courtFriction: 0.86,
+  courtFriction: 0.78,
   playerHeight: 1.88 * PLAYER_SCALE,
   playerSpeed: 8.4 * PLAYER_SCALE,
   playerAcceleration: 28 * PLAYER_SCALE,
