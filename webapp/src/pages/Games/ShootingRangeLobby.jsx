@@ -21,21 +21,27 @@ const AI_FLAG_STORAGE_KEY = 'shootingRangeAiFlag';
 const RANGE_DISTANCES = [
   {
     id: 'standard',
-    label: 'Standard',
-    desc: 'Current shooting range distance',
+    label: 'Closed-door lanes',
+    desc: 'Indoor controlled-lighting precision bay',
     icon: '🎯'
   },
   {
-    id: 'long',
-    label: 'Long',
-    desc: 'Further targets for steadier aim',
-    icon: '🏹'
+    id: 'swat',
+    label: 'SWAT building',
+    desc: 'Empty rooms, doors, cover, no-shoot marks',
+    icon: '🚪'
   },
   {
-    id: 'extreme',
-    label: 'Extreme',
-    desc: 'Farthest precision challenge',
-    icon: '🔭'
+    id: 'nature',
+    label: 'Nature range',
+    desc: 'Outdoor forest lane with long sight lines',
+    icon: '🌲'
+  },
+  {
+    id: 'moving',
+    label: 'Moving rails',
+    desc: 'Motorized targets for tracking drills',
+    icon: '🏃'
   }
 ];
 
@@ -254,10 +260,10 @@ export default function ShootingRangeLobby() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Range Distance</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              3 distances
+              4 ranges
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {RANGE_DISTANCES.map(({ id, label, desc, icon }) => {
               const active = distance === id;
               return (

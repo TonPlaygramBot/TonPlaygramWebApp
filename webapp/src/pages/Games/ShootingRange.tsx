@@ -20,7 +20,9 @@ type GamePhase = 'loading' | 'pick' | 'shoot' | 'results';
 type ViewMode = 'tables' | 'range' | 'results';
 type ControllerType = 'USER' | 'AI';
 type MatchMode = 'ai' | 'online';
-type RangeDistance = 'standard' | 'long' | 'extreme';
+type RangeDistance = 'standard' | 'swat' | 'nature' | 'moving';
+type RangeScene = 'indoor' | 'swat' | 'nature' | 'moving';
+type TargetStyle = 'silhouette' | 'hostage' | 'gong' | 'runner';
 
 type WeaponEntry = {
   id: string;
@@ -96,6 +98,10 @@ type PaperTargetRuntime = {
   startY: number;
   startZ: number;
   resultZ: number;
+  movementAmplitude: number;
+  movementSpeed: number;
+  movementPhase: number;
+  targetStyle: TargetStyle;
 };
 
 type BulletRuntime = {
@@ -179,22 +185,46 @@ const SERVICE_PISTOL_AIM = {
 
 const RANGE_DISTANCE_CONFIG: Record<
   RangeDistance,
-  { label: string; targetZ: number; subtitle: string }
+  {
+    label: string;
+    targetZ: number;
+    subtitle: string;
+    scene: RangeScene;
+    targetStyle: TargetStyle;
+    moving: boolean;
+  }
 > = {
   standard: {
-    label: 'Standard',
+    label: 'Closed-door lanes',
     targetZ: TARGET_Z,
-    subtitle: 'Current range distance'
+    subtitle: 'Indoor precision range with controlled lighting',
+    scene: 'indoor',
+    targetStyle: 'silhouette',
+    moving: false
   },
-  long: {
-    label: 'Long',
-    targetZ: -29.6,
-    subtitle: 'Further target rails'
+  swat: {
+    label: 'SWAT building',
+    targetZ: -28.8,
+    subtitle: 'Empty-building room clearing with doors and cover',
+    scene: 'swat',
+    targetStyle: 'hostage',
+    moving: false
   },
-  extreme: {
-    label: 'Extreme',
-    targetZ: -37.2,
-    subtitle: 'Maximum precision lane'
+  nature: {
+    label: 'Nature range',
+    targetZ: -34.8,
+    subtitle: 'Outdoor Poly Haven forest range with long sight lines',
+    scene: 'nature',
+    targetStyle: 'gong',
+    moving: false
+  },
+  moving: {
+    label: 'Moving rails',
+    targetZ: -31.4,
+    subtitle: 'Motorized lateral targets for tracking practice',
+    scene: 'moving',
+    targetStyle: 'runner',
+    moving: true
   }
 };
 
@@ -208,7 +238,13 @@ const POLYHAVEN_ASSETS = {
   securityCamera01:
     'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/security_camera_01/security_camera_01_1k.gltf',
   servicePistol:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf'
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf',
+  woodenCrate02:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_crate_02/wooden_crate_02_1k.gltf',
+  treeStump01:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_stump_01/tree_stump_01_1k.gltf',
+  firTree01:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_tree_01/fir_tree_01_1k.gltf'
 };
 
 const SERVICE_PISTOL_TEXTURES = {
@@ -255,6 +291,30 @@ const TEXTURES = {
     rough:
       'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/dark_wood/dark_wood_rough_4k.jpg',
     ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/dark_wood/dark_wood_ao_4k.jpg'
+  },
+  forest: {
+    diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_diff_4k.jpg',
+    normal:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_nor_gl_4k.jpg',
+    rough:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_rough_4k.jpg',
+    ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_ao_4k.jpg'
+  },
+  plaster: {
+    diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_diff_4k.jpg',
+    normal:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_nor_gl_4k.jpg',
+    rough:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_rough_4k.jpg',
+    ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_ao_4k.jpg'
+  },
+  asphalt: {
+    diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_diff_4k.jpg',
+    normal:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_nor_gl_4k.jpg',
+    rough:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_rough_4k.jpg',
+    ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_ao_4k.jpg'
   }
 };
 
@@ -661,9 +721,15 @@ function loadServicePistolTexture(
   return tex;
 }
 
-function makeServicePistolTextureMaps(loader: THREE.TextureLoader): ServicePistolTextureMaps {
+function makeServicePistolTextureMaps(
+  loader: THREE.TextureLoader
+): ServicePistolTextureMaps {
   return {
-    diff: loadServicePistolTexture(loader, SERVICE_PISTOL_TEXTURES.diff, THREE.SRGBColorSpace),
+    diff: loadServicePistolTexture(
+      loader,
+      SERVICE_PISTOL_TEXTURES.diff,
+      THREE.SRGBColorSpace
+    ),
     normal: loadServicePistolTexture(loader, SERVICE_PISTOL_TEXTURES.normal),
     rough: loadServicePistolTexture(loader, SERVICE_PISTOL_TEXTURES.rough),
     metal: loadServicePistolTexture(loader, SERVICE_PISTOL_TEXTURES.metal),
@@ -687,18 +753,20 @@ function applyServicePistolTextureMaps(
       : (mesh as any).material
         ? [(mesh as any).material]
         : [new THREE.MeshStandardMaterial()];
-    const texturedMaterials = sourceMaterials.map((material: THREE.Material) => {
-      const mat = material.clone() as THREE.MeshStandardMaterial;
-      mat.map = maps.diff;
-      mat.normalMap = maps.normal;
-      mat.roughnessMap = maps.rough;
-      mat.metalnessMap = maps.metal;
-      mat.aoMap = maps.ao;
-      mat.metalness = Math.max(mat.metalness ?? 0.55, 0.48);
-      mat.roughness = Math.min(Math.max(mat.roughness ?? 0.38, 0.24), 0.68);
-      mat.needsUpdate = true;
-      return mat;
-    });
+    const texturedMaterials = sourceMaterials.map(
+      (material: THREE.Material) => {
+        const mat = material.clone() as THREE.MeshStandardMaterial;
+        mat.map = maps.diff;
+        mat.normalMap = maps.normal;
+        mat.roughnessMap = maps.rough;
+        mat.metalnessMap = maps.metal;
+        mat.aoMap = maps.ao;
+        mat.metalness = Math.max(mat.metalness ?? 0.55, 0.48);
+        mat.roughness = Math.min(Math.max(mat.roughness ?? 0.38, 0.24), 0.68);
+        mat.needsUpdate = true;
+        return mat;
+      }
+    );
     (mesh as any).material = Array.isArray((mesh as any).material)
       ? texturedMaterials
       : texturedMaterials[0];
@@ -826,7 +894,6 @@ function orientWeaponForward(root: THREE.Object3D) {
   centerRoot(root);
 }
 
-
 function cloneRenderable(root: THREE.Object3D) {
   const cloned = cloneScene(root);
   cloned.traverse((child) => {
@@ -882,7 +949,10 @@ function bestMesh(
   let bestScore = -Infinity;
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh || !child.visible)
+    if (
+      (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) ||
+      !child.visible
+    )
       return;
     const score = scoreLabel(labelOf(child), words, reject);
     if (score > bestScore) {
@@ -901,12 +971,15 @@ function materialFrom(
   let found: THREE.Material | null = null;
   object?.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (found || (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh)) return;
+    if (found || (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh))
+      return;
     found = Array.isArray((mesh as any).material)
       ? (mesh as any).material.find(Boolean)
       : (mesh as any).material;
   });
-  const foundMaterial = found as (THREE.Material & { clone?: () => THREE.Material }) | null;
+  const foundMaterial = found as
+    | (THREE.Material & { clone?: () => THREE.Material })
+    | null;
   const mat = foundMaterial?.clone
     ? (foundMaterial.clone() as THREE.MeshStandardMaterial)
     : new THREE.MeshStandardMaterial({ color: fallback });
@@ -930,13 +1003,18 @@ function splitMesh(
   maps: ServicePistolTextureMaps | null = null
 ) {
   if (!mesh?.geometry?.attributes?.position) return null;
-  const source = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+  const source = mesh.geometry.index
+    ? mesh.geometry.toNonIndexed()
+    : mesh.geometry.clone();
   const pos = source.attributes.position;
   const nor = source.attributes.normal;
   const uv = source.attributes.uv;
-  const box = new THREE.Box3().setFromBufferAttribute(pos as THREE.BufferAttribute);
+  const box = new THREE.Box3().setFromBufferAttribute(
+    pos as THREE.BufferAttribute
+  );
   const dims = box.getSize(new THREE.Vector3());
-  const axis = dims.x >= dims.y && dims.x >= dims.z ? 0 : dims.y >= dims.z ? 1 : 2;
+  const axis =
+    dims.x >= dims.y && dims.x >= dims.z ? 0 : dims.y >= dims.z ? 1 : 2;
   const min = axis === 0 ? box.min.x : axis === 1 ? box.min.y : box.min.z;
   const max = axis === 0 ? box.max.x : axis === 1 ? box.max.y : box.max.z;
   const cut = min + (max - min) * 0.52;
@@ -964,13 +1042,19 @@ function splitMesh(
   if (p.length < 9) return null;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-  if (n.length) geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
+  if (n.length)
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
   else geo.computeVertexNormals();
   if (u.length) geo.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
   const group = new THREE.Group();
-  group.add(new THREE.Mesh(geo, materialFrom(mesh, keep === 'front' ? 0xb66b35 : 0xc48a35, maps)));
+  group.add(
+    new THREE.Mesh(
+      geo,
+      materialFrom(mesh, keep === 'front' ? 0xb66b35 : 0xc48a35, maps)
+    )
+  );
   normalizeToLength(group, size);
   return group;
 }
@@ -983,10 +1067,17 @@ function findAmmoCarrier(root: THREE.Object3D) {
   const candidates: { child: THREE.Mesh; score: number }[] = [];
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh || !child.visible)
+    if (
+      (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) ||
+      !child.visible
+    )
       return;
     const label = labelOf(child);
-    if (/magazine|\bmag\b|slide|grip|trigger|barrel|frame|receiver|sight|rail|screw|bolt/.test(label))
+    if (
+      /magazine|\bmag\b|slide|grip|trigger|barrel|frame|receiver|sight|rail|screw|bolt/.test(
+        label
+      )
+    )
       return;
     const box = new THREE.Box3().setFromObject(child);
     const size = box.getSize(new THREE.Vector3());
@@ -996,7 +1087,17 @@ function findAmmoCarrier(root: THREE.Object3D) {
     if (rel > 0.38 || rel < 0.018) return;
     const longRatio = sorted[2] / Math.max(sorted[0], 0.0001);
     const score =
-      scoreLabel(label, ['cartridge', 'round', 'ammo', 'bullet', 'shell', 'casing', 'case', 'brass', 'projectile']) +
+      scoreLabel(label, [
+        'cartridge',
+        'round',
+        'ammo',
+        'bullet',
+        'shell',
+        'casing',
+        'case',
+        'brass',
+        'projectile'
+      ]) +
       Math.min(longRatio, 8) * 2.2 +
       (center.distanceTo(modelCenter) / diag) * 12;
     candidates.push({ child: mesh, score });
@@ -1016,7 +1117,10 @@ function addRoundedRearCap(root: THREE.Object3D) {
     roughness: 0.36,
     metalness: 0.78
   });
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.82, radius * 0.72, radius * 0.32, 44), mat.clone());
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.82, radius * 0.72, radius * 0.32, 44),
+    mat.clone()
+  );
   base.rotation.x = Math.PI / 2;
   base.position.z = box.max.z - radius * 0.48;
   const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 28), mat);
@@ -1032,9 +1136,14 @@ function bulletTipIsAtPositiveZ(root: THREE.Object3D) {
   const inverseRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    const position = mesh.geometry?.attributes?.position as THREE.BufferAttribute | undefined;
+    const position = mesh.geometry?.attributes?.position as
+      | THREE.BufferAttribute
+      | undefined;
     if (!(mesh as any).isMesh || !position) return;
-    const matrix = new THREE.Matrix4().multiplyMatrices(inverseRoot, mesh.matrixWorld);
+    const matrix = new THREE.Matrix4().multiplyMatrices(
+      inverseRoot,
+      mesh.matrixWorld
+    );
     const v = new THREE.Vector3();
     for (let i = 0; i < position.count; i += 1) {
       v.fromBufferAttribute(position, i).applyMatrix4(matrix);
@@ -1084,10 +1193,16 @@ function orientBulletTipForward(root: THREE.Object3D) {
 function makeFallbackBulletHead(maps: ServicePistolTextureMaps | null = null) {
   const mat = materialFrom(null, 0xb66b35, maps);
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 48), mat);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.06, 48),
+    mat
+  );
   body.rotation.x = Math.PI / 2;
   body.position.z = 0.012;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 48), mat.clone());
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.03, 0.06, 48),
+    mat.clone()
+  );
   tip.rotation.x = -Math.PI / 2;
   tip.position.z = -0.048;
   group.add(body, tip);
@@ -1105,8 +1220,11 @@ function makeBulletHead(
   applyServicePistolTextureMaps(group, maps);
   centerRoot(group);
   group.updateMatrixWorld(true);
-  const size = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3());
-  const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
+  const size = new THREE.Box3()
+    .setFromObject(group)
+    .getSize(new THREE.Vector3());
+  const axis =
+    size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
   if (axis === 'x') group.rotation.y = -Math.PI / 2;
   if (axis === 'y') group.rotation.x = Math.PI / 2;
   orientBulletTipForward(group);
@@ -1116,19 +1234,32 @@ function makeBulletHead(
   return group;
 }
 
-function makeShell(source: THREE.Mesh | null, maps: ServicePistolTextureMaps | null = null) {
+function makeShell(
+  source: THREE.Mesh | null,
+  maps: ServicePistolTextureMaps | null = null
+) {
   const split = splitMesh(source, 'back', 0.22, maps);
   if (split) return split;
   const group = new THREE.Group();
   const mat = materialFrom(source, 0xc9953d, maps);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.074, 0.28, 48), mat);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.062, 0.074, 0.28, 48),
+    mat
+  );
   body.rotation.x = Math.PI / 2;
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.03, 48), mat.clone());
+  const rim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.082, 0.082, 0.03, 48),
+    mat.clone()
+  );
   rim.rotation.x = Math.PI / 2;
   rim.position.z = 0.155;
   const primer = new THREE.Mesh(
     new THREE.CylinderGeometry(0.035, 0.035, 0.008, 32),
-    new THREE.MeshStandardMaterial({ color: 0x1c1711, roughness: 0.65, metalness: 0.18 })
+    new THREE.MeshStandardMaterial({
+      color: 0x1c1711,
+      roughness: 0.65,
+      metalness: 0.18
+    })
   );
   primer.rotation.x = Math.PI / 2;
   primer.position.z = -0.146;
@@ -1144,12 +1275,32 @@ function extractServicePistolAmmo(
   const explicitBullet = bestMesh(
     root,
     ['bullet_head', 'bullet head', 'projectile', 'bullet', 'round'],
-    ['shell', 'casing', 'case', 'magazine', 'mag', 'slide', 'grip', 'barrel', 'trigger']
+    [
+      'shell',
+      'casing',
+      'case',
+      'magazine',
+      'mag',
+      'slide',
+      'grip',
+      'barrel',
+      'trigger'
+    ]
   );
   const explicitShell = bestMesh(
     root,
     ['shell', 'casing', 'case', 'brass'],
-    ['bullet_head', 'bullet head', 'projectile', 'magazine', 'mag', 'slide', 'grip', 'barrel', 'trigger']
+    [
+      'bullet_head',
+      'bullet head',
+      'projectile',
+      'magazine',
+      'mag',
+      'slide',
+      'grip',
+      'barrel',
+      'trigger'
+    ]
   );
 
   if (explicitBullet && explicitShell) {
@@ -1211,8 +1362,14 @@ function spawnMuzzleEffects(
     transparent: true,
     opacity: 1
   });
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.08 * power, 12, 8), fireMat.clone());
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.14 * power, 0.5 * power, 7), fireMat.clone());
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08 * power, 12, 8),
+    fireMat.clone()
+  );
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.14 * power, 0.5 * power, 7),
+    fireMat.clone()
+  );
   cone.rotation.x = -Math.PI / 2;
   cone.position.z = -0.24 * power;
   const ring = new THREE.Mesh(
@@ -1283,7 +1440,13 @@ function makeWake() {
       const t = i / 31;
       const radius = 0.024 + t * 0.09;
       const angle = phase + t * Math.PI * 4.4;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.04 + t * 0.62));
+      points.push(
+        new THREE.Vector3(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius,
+          0.04 + t * 0.62
+        )
+      );
     }
     group.add(
       new THREE.Line(
@@ -1559,77 +1722,128 @@ function weaponIconDataUri(entry: WeaponEntry) {
   return createWeaponIconCanvas(entry).toDataURL('image/png');
 }
 
-function createSilhouetteTargetTexture() {
+function createTargetTexture(style: TargetStyle = 'silhouette') {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 768;
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  ctx.fillStyle = '#faf7f2';
+  const paperGradient = ctx.createLinearGradient(0, 0, 512, 768);
+  paperGradient.addColorStop(0, style === 'gong' ? '#dbeafe' : '#faf7f2');
+  paperGradient.addColorStop(1, style === 'gong' ? '#94a3b8' : '#e7e0d4');
+  ctx.fillStyle = paperGradient;
   ctx.fillRect(0, 0, 512, 768);
   ctx.strokeStyle = 'rgba(30,30,30,.4)';
   ctx.lineWidth = 8;
   ctx.strokeRect(8, 8, 496, 752);
 
-  ctx.fillStyle = '#222222';
-  ctx.beginPath();
-  ctx.arc(256, 160, 68, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(162, 246);
-  ctx.lineTo(350, 246);
-  ctx.lineTo(390, 442);
-  ctx.lineTo(330, 690);
-  ctx.lineTo(286, 690);
-  ctx.lineTo(256, 560);
-  ctx.lineTo(226, 690);
-  ctx.lineTo(182, 690);
-  ctx.lineTo(122, 442);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(166, 286);
-  ctx.lineTo(84, 420);
-  ctx.lineTo(122, 446);
-  ctx.lineTo(204, 340);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(346, 286);
-  ctx.lineTo(428, 420);
-  ctx.lineTo(390, 446);
-  ctx.lineTo(308, 340);
-  ctx.closePath();
-  ctx.fill();
-
-  const rings = [
-    { r: 92, color: '#6b7280', w: 14 },
-    { r: 68, color: '#d1d5db', w: 10 },
-    { r: 44, color: '#9ca3af', w: 8 },
-    { r: 22, color: '#ef4444', w: 10 }
-  ];
-  rings.forEach((ring) => {
+  if (style === 'gong') {
+    ctx.fillStyle = '#1f2937';
     ctx.beginPath();
-    ctx.arc(256, 356, ring.r, 0, Math.PI * 2);
-    ctx.strokeStyle = ring.color;
-    ctx.lineWidth = ring.w;
-    ctx.stroke();
-  });
-  ctx.fillStyle = '#ef4444';
-  ctx.beginPath();
-  ctx.arc(256, 356, 18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fef3c7';
-  ctx.font = 'bold 22px system-ui';
-  ctx.textAlign = 'center';
-  ctx.fillText('100', 256, 364);
-  ctx.fillStyle = '#22c55e';
-  ctx.font = 'bold 20px system-ui';
-  ctx.fillText('95', 256, 166);
+    ctx.arc(256, 360, 178, 0, Math.PI * 2);
+    ctx.fill();
+    ['#6b7280', '#d1d5db', '#f97316', '#ef4444'].forEach((color, index) => {
+      ctx.beginPath();
+      ctx.arc(256, 360, 148 - index * 34, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = index === 3 ? 18 : 14;
+      ctx.stroke();
+    });
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = 'bold 34px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('STEEL', 256, 126);
+    ctx.fillText('100', 256, 372);
+  } else {
+    ctx.fillStyle = '#222222';
+    ctx.beginPath();
+    ctx.arc(256, 160, style === 'runner' ? 56 : 68, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    if (style === 'runner') {
+      ctx.moveTo(188, 238);
+      ctx.lineTo(330, 238);
+      ctx.lineTo(374, 500);
+      ctx.lineTo(302, 500);
+      ctx.lineTo(332, 694);
+      ctx.lineTo(282, 704);
+      ctx.lineTo(244, 544);
+      ctx.lineTo(196, 690);
+      ctx.lineTo(150, 672);
+      ctx.lineTo(210, 504);
+      ctx.lineTo(144, 446);
+      ctx.closePath();
+    } else {
+      ctx.moveTo(162, 246);
+      ctx.lineTo(350, 246);
+      ctx.lineTo(390, 442);
+      ctx.lineTo(330, 690);
+      ctx.lineTo(286, 690);
+      ctx.lineTo(256, 560);
+      ctx.lineTo(226, 690);
+      ctx.lineTo(182, 690);
+      ctx.lineTo(122, 442);
+      ctx.closePath();
+    }
+    ctx.fill();
+
+    if (style === 'hostage') {
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(74, 268, 120, 292);
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 28px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('NO', 134, 390);
+      ctx.fillText('SHOOT', 134, 426);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 7;
+      ctx.strokeRect(74, 268, 120, 292);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(166, 286);
+      ctx.lineTo(84, 420);
+      ctx.lineTo(122, 446);
+      ctx.lineTo(204, 340);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(346, 286);
+    ctx.lineTo(428, 420);
+    ctx.lineTo(390, 446);
+    ctx.lineTo(308, 340);
+    ctx.closePath();
+    ctx.fill();
+
+    const ringY = style === 'runner' ? 412 : 356;
+    const rings = [
+      { r: 92, color: '#6b7280', w: 14 },
+      { r: 68, color: '#d1d5db', w: 10 },
+      { r: 44, color: '#9ca3af', w: 8 },
+      { r: 22, color: '#ef4444', w: 10 }
+    ];
+    rings.forEach((ring) => {
+      ctx.beginPath();
+      ctx.arc(256, ringY, ring.r, 0, Math.PI * 2);
+      ctx.strokeStyle = ring.color;
+      ctx.lineWidth = ring.w;
+      ctx.stroke();
+    });
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(256, ringY, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = 'bold 22px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('100', 256, ringY + 8);
+    ctx.fillStyle = style === 'hostage' ? '#38bdf8' : '#22c55e';
+    ctx.font = 'bold 20px system-ui';
+    ctx.fillText(style === 'hostage' ? 'SWAT' : '95', 256, 166);
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -1693,7 +1907,9 @@ function updateLabelSprite(sprite: THREE.Sprite, text: string) {
 
 function createPaperTarget(
   laneIndex: number,
-  targetZ = TARGET_Z
+  targetZ = TARGET_Z,
+  targetStyle: TargetStyle = 'silhouette',
+  moving = false
 ): PaperTargetRuntime {
   const root = new THREE.Group();
   const railMat = new THREE.MeshStandardMaterial({
@@ -1726,7 +1942,7 @@ function createPaperTarget(
   const paper = new THREE.Mesh(
     new THREE.PlaneGeometry(1.05, 1.58),
     new THREE.MeshStandardMaterial({
-      map: createSilhouetteTargetTexture(),
+      map: createTargetTexture(targetStyle),
       roughness: 0.88,
       metalness: 0.02,
       side: THREE.DoubleSide
@@ -1766,7 +1982,11 @@ function createPaperTarget(
     startX: LANE_X[laneIndex],
     startY: 0.65,
     startZ: targetZ,
-    resultZ: -4.1
+    resultZ: -4.1,
+    movementAmplitude: moving ? 0.72 + laneIndex * 0.14 : 0,
+    movementSpeed: moving ? 0.95 + laneIndex * 0.18 : 0,
+    movementPhase: laneIndex * Math.PI * 0.5,
+    targetStyle
   };
 }
 
@@ -1786,7 +2006,11 @@ function createBulletHole(localPoint: THREE.Vector3, points: number) {
   return mesh;
 }
 
-function makePointedRifleBullet(longGun: boolean, shotgun: boolean, cinematic: boolean) {
+function makePointedRifleBullet(
+  longGun: boolean,
+  shotgun: boolean,
+  cinematic: boolean
+) {
   if (shotgun) {
     return new THREE.Mesh(
       new THREE.SphereGeometry(0.034, 10, 10),
@@ -1821,10 +2045,16 @@ function makePointedRifleBullet(longGun: boolean, shotgun: boolean, cinematic: b
     emissiveIntensity: cinematic ? 0.18 : 0.07
   });
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.019, 0.16, 32), mat);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.018, 0.019, 0.16, 32),
+    mat
+  );
   body.rotation.x = Math.PI / 2;
   body.position.z = 0.015;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.095, 32), mat.clone());
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.018, 0.095, 32),
+    mat.clone()
+  );
   tip.rotation.x = -Math.PI / 2;
   tip.position.z = -0.112;
   group.add(body, tip);
@@ -1865,7 +2095,12 @@ function createBullet(
 
   const length = Math.min(1.2, start.distanceTo(end));
   const trail = new THREE.Mesh(
-    new THREE.CylinderGeometry(nineMm ? 0.005 : 0.007, nineMm ? 0.005 : 0.007, length, 8),
+    new THREE.CylinderGeometry(
+      nineMm ? 0.005 : 0.007,
+      nineMm ? 0.005 : 0.007,
+      length,
+      8
+    ),
     new THREE.MeshBasicMaterial({
       color: nineMm ? '#e8fcff' : '#ffb84d',
       transparent: true,
@@ -1943,8 +2178,16 @@ function createShell(
     root.rotation.z = Math.PI / 2;
   }
 
-  const shellStart = position.clone().addScaledVector(right, -0.1).addScaledVector(up, -0.01).addScaledVector(dir, 0.02);
-  const shellOut = position.clone().addScaledVector(right, 0.5 * power).addScaledVector(up, 0.22 * power).addScaledVector(dir, 0.08);
+  const shellStart = position
+    .clone()
+    .addScaledVector(right, -0.1)
+    .addScaledVector(up, -0.01)
+    .addScaledVector(dir, 0.02);
+  const shellOut = position
+    .clone()
+    .addScaledVector(right, 0.5 * power)
+    .addScaledVector(up, 0.22 * power)
+    .addScaledVector(dir, 0.08);
   root.position.copy(cinematic && nineMm ? shellStart : shellOut);
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -1957,8 +2200,16 @@ function createShell(
     pos: root.position.clone(),
     start: shellStart,
     end: shellOut,
-    vel: right.clone().multiplyScalar(1.25 * power).add(up.clone().multiplyScalar(0.82 * power)).add(dir.clone().multiplyScalar(0.12)),
-    spin: new THREE.Vector3(4 + Math.random() * 2, 6 + Math.random() * 2, 4 + Math.random() * 2),
+    vel: right
+      .clone()
+      .multiplyScalar(1.25 * power)
+      .add(up.clone().multiplyScalar(0.82 * power))
+      .add(dir.clone().multiplyScalar(0.12)),
+    spin: new THREE.Vector3(
+      4 + Math.random() * 2,
+      6 + Math.random() * 2,
+      4 + Math.random() * 2
+    ),
     life: nineMm ? 45 : 24,
     age: 0,
     launched: !(cinematic && nineMm),
@@ -2020,6 +2271,235 @@ function createFallbackSecurityCamera() {
     }
   });
   return group;
+}
+
+function addBox(
+  scene: THREE.Scene,
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+  position: THREE.Vector3,
+  scale = new THREE.Vector3(1, 1, 1),
+  rotation = new THREE.Euler()
+) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(position);
+  mesh.scale.copy(scale);
+  mesh.rotation.copy(rotation);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+function addDoorFrame(
+  scene: THREE.Scene,
+  x: number,
+  z: number,
+  wallMat: THREE.Material,
+  metalMat: THREE.Material,
+  label: string
+) {
+  const jambGeo = new THREE.BoxGeometry(0.14, 2.45, 0.16);
+  addBox(scene, jambGeo, wallMat, new THREE.Vector3(x - 0.62, 1.23, z));
+  addBox(scene, jambGeo, wallMat, new THREE.Vector3(x + 0.62, 1.23, z));
+  addBox(
+    scene,
+    new THREE.BoxGeometry(1.38, 0.16, 0.16),
+    wallMat,
+    new THREE.Vector3(x, 2.52, z)
+  );
+  const door = addBox(
+    scene,
+    new THREE.BoxGeometry(1.08, 2.15, 0.08),
+    metalMat,
+    new THREE.Vector3(x + 0.28, 1.1, z + 0.12),
+    new THREE.Vector3(1, 1, 1),
+    new THREE.Euler(0, 0.42, 0)
+  );
+  door.name = label;
+  return door;
+}
+
+function addScenarioTrainingGeometry(
+  scene: THREE.Scene,
+  rangeConfig: (typeof RANGE_DISTANCE_CONFIG)[RangeDistance],
+  wallMat: THREE.Material,
+  laneMat: THREE.Material,
+  tableMat: THREE.Material,
+  metalMat: THREE.Material,
+  forestMat: THREE.Material,
+  plasterMat: THREE.Material,
+  asphaltMat: THREE.Material
+) {
+  const sceneType = rangeConfig.scene;
+
+  if (sceneType === 'swat') {
+    for (let room = 0; room < 3; room += 1) {
+      const z = -8.4 - room * 6.4;
+      addBox(
+        scene,
+        new THREE.BoxGeometry(13.0, 0.14, 0.22),
+        plasterMat,
+        new THREE.Vector3(0, 2.45, z)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(0.18, 2.35, 5.6),
+        plasterMat,
+        new THREE.Vector3(-3.1, 1.18, z - 2.65)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(0.18, 2.35, 5.6),
+        plasterMat,
+        new THREE.Vector3(3.1, 1.18, z - 2.65)
+      );
+      addDoorFrame(
+        scene,
+        -1.2,
+        z,
+        plasterMat,
+        metalMat,
+        `SWAT close-door ${room + 1}A`
+      );
+      addDoorFrame(
+        scene,
+        1.2,
+        z - 2.8,
+        plasterMat,
+        metalMat,
+        `SWAT close-door ${room + 1}B`
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(1.4, 0.9, 0.9),
+        tableMat,
+        new THREE.Vector3(-5.05, 0.45, z - 2.2)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(1.1, 1.2, 0.65),
+        laneMat,
+        new THREE.Vector3(5.05, 0.6, z - 3.3)
+      );
+    }
+    return;
+  }
+
+  if (sceneType === 'nature') {
+    const outdoorGround = new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 78),
+      forestMat
+    );
+    outdoorGround.rotation.x = -Math.PI / 2;
+    outdoorGround.position.set(0, 0.011, -25);
+    outdoorGround.receiveShadow = true;
+    scene.add(outdoorGround);
+
+    for (let i = 0; i < 14; i += 1) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const z = -4 - i * 3.8;
+      addBox(
+        scene,
+        new THREE.CylinderGeometry(0.18, 0.28, 2.4, 12),
+        tableMat,
+        new THREE.Vector3(side * (7.6 + (i % 3) * 1.1), 1.2, z)
+      );
+      addBox(
+        scene,
+        new THREE.ConeGeometry(1.3, 3.1, 10),
+        laneMat,
+        new THREE.Vector3(side * (7.6 + (i % 3) * 1.1), 3.35, z)
+      );
+    }
+
+    for (let i = 0; i < 7; i += 1) {
+      addBox(
+        scene,
+        new THREE.BoxGeometry(1.75, 0.75, 0.55),
+        metalMat,
+        new THREE.Vector3(
+          -6.1 + i * 2.0,
+          0.38,
+          rangeConfig.targetZ + 4.6 + (i % 2) * 0.75
+        )
+      );
+    }
+    return;
+  }
+
+  if (sceneType === 'moving') {
+    const asphaltStrip = new THREE.Mesh(
+      new THREE.PlaneGeometry(15.8, 62),
+      asphaltMat
+    );
+    asphaltStrip.rotation.x = -Math.PI / 2;
+    asphaltStrip.position.set(0, 0.016, -18.5);
+    asphaltStrip.receiveShadow = true;
+    scene.add(asphaltStrip);
+
+    for (let i = 0; i < 5; i += 1) {
+      const z = -8 - i * 5.4;
+      addBox(
+        scene,
+        new THREE.BoxGeometry(13.4, 0.12, 0.12),
+        metalMat,
+        new THREE.Vector3(0, 2.96, z)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(0.12, 0.42, 0.12),
+        metalMat,
+        new THREE.Vector3(-6.1, 2.76, z)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(0.12, 0.42, 0.12),
+        metalMat,
+        new THREE.Vector3(6.1, 2.76, z)
+      );
+    }
+  }
+}
+
+function addPolyHavenProp(
+  scene: THREE.Scene,
+  renderer: THREE.WebGLRenderer,
+  url: string,
+  position: THREE.Vector3,
+  length: number,
+  yaw = 0,
+  fallback?: THREE.Object3D,
+  isDisposed: () => boolean = () => false
+) {
+  const slot = fallback ?? new THREE.Group();
+  slot.position.copy(position);
+  slot.rotation.y = yaw;
+  if (fallback) scene.add(slot);
+
+  void loadGLTF('Poly Haven training prop', [url])
+    .then((gltf) => {
+      if (isDisposed()) return;
+      const prop = cloneScene(gltf.scene);
+      configureModel(prop, renderer);
+      normalizeToLength(prop, length);
+      groundObject(prop, 0);
+      prop.position.copy(position);
+      prop.rotation.y = yaw;
+      if (fallback) {
+        scene.remove(slot);
+        disposeObject(slot);
+      }
+      scene.add(prop);
+    })
+    .catch((error) => {
+      if (!isDisposed())
+        console.warn(
+          'Poly Haven prop failed, keeping procedural fallback:',
+          url,
+          error
+        );
+    });
 }
 
 function disposeObject(object: THREE.Object3D) {
@@ -2187,11 +2667,20 @@ export default function ShootingRange() {
       noise.buffer = makeNoiseBuffer(ctx, duration);
       const crackFilter = ctx.createBiquadFilter();
       crackFilter.type = 'bandpass';
-      crackFilter.frequency.setValueAtTime(longGun ? 1850 : shotgun ? 720 : 1250, ctx.currentTime);
+      crackFilter.frequency.setValueAtTime(
+        longGun ? 1850 : shotgun ? 720 : 1250,
+        ctx.currentTime
+      );
       crackFilter.Q.setValueAtTime(longGun ? 1.9 : 1.25, ctx.currentTime);
       const crackGain = ctx.createGain();
-      crackGain.gain.setValueAtTime((shotgun ? 0.42 : longGun ? 0.34 : 0.24) * power, ctx.currentTime);
-      crackGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      crackGain.gain.setValueAtTime(
+        (shotgun ? 0.42 : longGun ? 0.34 : 0.24) * power,
+        ctx.currentTime
+      );
+      crackGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + duration
+      );
       noise.connect(crackFilter);
       crackFilter.connect(crackGain);
       crackGain.connect(ctx.destination);
@@ -2199,19 +2688,37 @@ export default function ShootingRange() {
       const thump = ctx.createOscillator();
       const thumpGain = ctx.createGain();
       thump.type = shotgun ? 'sawtooth' : 'triangle';
-      thump.frequency.setValueAtTime(shotgun ? 82 : longGun ? 118 : 150, ctx.currentTime);
-      thump.frequency.exponentialRampToValueAtTime(shotgun ? 31 : 42, ctx.currentTime + duration);
-      thumpGain.gain.setValueAtTime((shotgun ? 0.22 : 0.14) * power, ctx.currentTime);
-      thumpGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration * 0.9);
+      thump.frequency.setValueAtTime(
+        shotgun ? 82 : longGun ? 118 : 150,
+        ctx.currentTime
+      );
+      thump.frequency.exponentialRampToValueAtTime(
+        shotgun ? 31 : 42,
+        ctx.currentTime + duration
+      );
+      thumpGain.gain.setValueAtTime(
+        (shotgun ? 0.22 : 0.14) * power,
+        ctx.currentTime
+      );
+      thumpGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + duration * 0.9
+      );
       thump.connect(thumpGain);
       thumpGain.connect(ctx.destination);
 
       const metal = ctx.createOscillator();
       const metalGain = ctx.createGain();
       metal.type = 'square';
-      metal.frequency.setValueAtTime(longGun ? 510 : 390, ctx.currentTime + 0.018);
+      metal.frequency.setValueAtTime(
+        longGun ? 510 : 390,
+        ctx.currentTime + 0.018
+      );
       metalGain.gain.setValueAtTime(0.025 * power, ctx.currentTime + 0.018);
-      metalGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+      metalGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + 0.09
+      );
       metal.connect(metalGain);
       metalGain.connect(ctx.destination);
 
@@ -2233,9 +2740,18 @@ export default function ShootingRange() {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(frequency + Math.random() * 140, now + index * 0.012);
-        gain.gain.setValueAtTime(0.035 * power / (index + 1), now + index * 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18 + index * 0.035);
+        osc.frequency.setValueAtTime(
+          frequency + Math.random() * 140,
+          now + index * 0.012
+        );
+        gain.gain.setValueAtTime(
+          (0.035 * power) / (index + 1),
+          now + index * 0.012
+        );
+        gain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + 0.18 + index * 0.035
+        );
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now + index * 0.012);
@@ -2243,7 +2759,6 @@ export default function ShootingRange() {
       });
     } catch {}
   }
-
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -2262,7 +2777,7 @@ export default function ShootingRange() {
     scene.fog = new THREE.Fog(
       '#111827',
       18,
-      queryConfig.distance === 'extreme' ? 92 : 76
+      rangeConfig.scene === 'nature' ? 118 : 86
     );
 
     const camera = new THREE.PerspectiveCamera(
@@ -2328,8 +2843,11 @@ export default function ShootingRange() {
 
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin('anonymous');
-    const servicePistolTextureMaps = makeServicePistolTextureMaps(textureLoader);
-    ammoTemplatesRef.current = createFallbackAmmoTemplates(servicePistolTextureMaps);
+    const servicePistolTextureMaps =
+      makeServicePistolTextureMaps(textureLoader);
+    ammoTemplatesRef.current = createFallbackAmmoTemplates(
+      servicePistolTextureMaps
+    );
     const floorMat = makePbrMaterial(
       textureLoader,
       TEXTURES.floor,
@@ -2365,18 +2883,43 @@ export default function ShootingRange() {
       '#48515a',
       1
     );
+    const forestMat = makePbrMaterial(
+      textureLoader,
+      TEXTURES.forest,
+      [8, 18],
+      '#36533b',
+      0.01
+    );
+    const plasterMat = makePbrMaterial(
+      textureLoader,
+      TEXTURES.plaster,
+      [5, 3],
+      '#b7b0a4',
+      0.01
+    );
+    const asphaltMat = makePbrMaterial(
+      textureLoader,
+      TEXTURES.asphalt,
+      [5, 16],
+      '#2d3034',
+      0.02
+    );
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 58), floorMat);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 68), floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.z = -16;
+    floor.position.z = rangeConfig.scene === 'nature' ? -20 : -18;
     floor.receiveShadow = true;
     scene.add(floor);
 
     const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(0.25, 4.2, 52),
+      new THREE.BoxGeometry(
+        0.25,
+        4.2,
+        rangeConfig.scene === 'nature' ? 22 : 62
+      ),
       wallMat
     );
-    leftWall.position.set(-7.6, 2.1, -16);
+    leftWall.position.set(-7.6, 2.1, rangeConfig.scene === 'nature' ? -3 : -18);
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
@@ -2392,10 +2935,11 @@ export default function ShootingRange() {
     backWall.receiveShadow = true;
     scene.add(backWall);
 
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.2, 52), wallMat);
-    roof.position.set(0, 5.2, -16);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.2, 62), wallMat);
+    roof.position.set(0, 5.2, -18);
     roof.receiveShadow = true;
     roof.castShadow = true;
+    roof.visible = rangeConfig.scene !== 'nature';
     scene.add(roof);
 
     const darkBackstop = new THREE.Mesh(
@@ -2407,6 +2951,67 @@ export default function ShootingRange() {
     darkBackstop.receiveShadow = true;
     darkBackstop.castShadow = true;
     scene.add(darkBackstop);
+
+    addScenarioTrainingGeometry(
+      scene,
+      rangeConfig,
+      wallMat,
+      laneMat,
+      tableMat,
+      metalMat,
+      forestMat,
+      plasterMat,
+      asphaltMat
+    );
+
+    const propFallbackMat = new THREE.MeshStandardMaterial({
+      color: '#8b5e34',
+      roughness: 0.78,
+      metalness: 0.08
+    });
+    [-5.7, 5.7, -3.2, 3.2].forEach((x, index) => {
+      const crateFallback = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.72, 0.78),
+        propFallbackMat.clone()
+      );
+      addPolyHavenProp(
+        scene,
+        renderer,
+        POLYHAVEN_ASSETS.woodenCrate02,
+        new THREE.Vector3(x, 0, -7.5 - index * 5.4),
+        1.15,
+        index * 0.5,
+        crateFallback,
+        () => disposed
+      );
+    });
+
+    if (rangeConfig.scene === 'nature') {
+      [-8.2, 8.2, -9.6, 9.6].forEach((x, index) => {
+        addPolyHavenProp(
+          scene,
+          renderer,
+          POLYHAVEN_ASSETS.firTree01,
+          new THREE.Vector3(x, 0, -10 - index * 8.2),
+          6.2 + (index % 2) * 1.2,
+          index * 0.45,
+          undefined,
+          () => disposed
+        );
+      });
+      [-4.5, 0, 4.5].forEach((x, index) => {
+        addPolyHavenProp(
+          scene,
+          renderer,
+          POLYHAVEN_ASSETS.treeStump01,
+          new THREE.Vector3(x, 0, rangeConfig.targetZ + 8 + index * 1.1),
+          1.35,
+          index * 0.7,
+          undefined,
+          () => disposed
+        );
+      });
+    }
 
     const securityCameraAnchors = [
       {
@@ -2426,7 +3031,11 @@ export default function ShootingRange() {
         lookAt: new THREE.Vector3(3.9, 1.65, activeTargetZ + 1.7)
       }
     ];
-    const securityCameras: { root: THREE.Object3D; position: THREE.Vector3; lookAt: THREE.Vector3 }[] = securityCameraAnchors.map(({ position, lookAt }) => {
+    const securityCameras: {
+      root: THREE.Object3D;
+      position: THREE.Vector3;
+      lookAt: THREE.Vector3;
+    }[] = securityCameraAnchors.map(({ position, lookAt }) => {
       const cameraObject = createFallbackSecurityCamera();
       cameraObject.position.copy(position);
       cameraObject.lookAt(lookAt);
@@ -2554,7 +3163,12 @@ export default function ShootingRange() {
     }
 
     const targets = Array.from({ length: LANE_COUNT }, (_, i) =>
-      createPaperTarget(i, activeTargetZ)
+      createPaperTarget(
+        i,
+        activeTargetZ,
+        rangeConfig.targetStyle,
+        rangeConfig.moving
+      )
     );
     targets.forEach((t) => scene.add(t.root));
     paperTargetsRef.current = targets;
@@ -2709,11 +3323,19 @@ export default function ShootingRange() {
       lane.pickupLift = lift ? 1 : 0;
 
       const muzzle = new THREE.Object3D();
-      muzzle.position.copy(nineMm ? SERVICE_PISTOL_AIM.muzzle : new THREE.Vector3(0.02, 0.02, -0.95));
+      muzzle.position.copy(
+        nineMm
+          ? SERVICE_PISTOL_AIM.muzzle
+          : new THREE.Vector3(0.02, 0.02, -0.95)
+      );
       held.add(muzzle);
 
       const shellPort = new THREE.Object3D();
-      shellPort.position.copy(nineMm ? SERVICE_PISTOL_AIM.shellPort : new THREE.Vector3(0.12, 0.03, -0.42));
+      shellPort.position.copy(
+        nineMm
+          ? SERVICE_PISTOL_AIM.shellPort
+          : new THREE.Vector3(0.12, 0.03, -0.42)
+      );
       held.add(shellPort);
 
       lane.muzzle = muzzle;
@@ -2826,7 +3448,10 @@ export default function ShootingRange() {
             if (disposed) return;
             configureModel(gltf.scene, renderer);
             if (entry.id === 'service-pistol') {
-              ammoTemplatesRef.current = extractServicePistolAmmo(gltf.scene, servicePistolTextureMaps);
+              ammoTemplatesRef.current = extractServicePistolAmmo(
+                gltf.scene,
+                servicePistolTextureMaps
+              );
             }
             weaponSourcesRef.current[index] = gltf.scene;
 
@@ -3151,7 +3776,13 @@ export default function ShootingRange() {
 
       if (!isAI) {
         recoilRef.current = stats.recoil;
-        followUntilRef.current = performance.now() + (isNineMmWeapon(weapon) ? 9000 : usesRifleCinematic(weapon) ? 7000 : 500);
+        followUntilRef.current =
+          performance.now() +
+          (isNineMmWeapon(weapon)
+            ? 9000
+            : usesRifleCinematic(weapon)
+              ? 7000
+              : 500);
       }
 
       playShot(Math.max(0.6, stats.recoil), weapon);
@@ -3163,12 +3794,26 @@ export default function ShootingRange() {
       const shellPos = new THREE.Vector3();
       lane.shellPort.getWorldPosition(shellPos);
       const weaponQuat = lane.muzzle.getWorldQuaternion(new THREE.Quaternion());
-      const muzzleDir = new THREE.Vector3(0, 0, -1).applyQuaternion(weaponQuat).normalize();
-      const weaponRight = new THREE.Vector3(1, 0, 0).applyQuaternion(weaponQuat).normalize();
-      const weaponUp = new THREE.Vector3(0, 1, 0).applyQuaternion(weaponQuat).normalize();
-      spawnMuzzleEffects(scene, muzzlePos, muzzleDir, shotEffectsRef.current, Math.max(0.8, stats.recoil));
-      const ammoTemplates = ammoTemplatesRef.current ?? createFallbackAmmoTemplates();
-      const shotCinematic = !isAI && (isNineMmWeapon(weapon) || usesRifleCinematic(weapon));
+      const muzzleDir = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(weaponQuat)
+        .normalize();
+      const weaponRight = new THREE.Vector3(1, 0, 0)
+        .applyQuaternion(weaponQuat)
+        .normalize();
+      const weaponUp = new THREE.Vector3(0, 1, 0)
+        .applyQuaternion(weaponQuat)
+        .normalize();
+      spawnMuzzleEffects(
+        scene,
+        muzzlePos,
+        muzzleDir,
+        shotEffectsRef.current,
+        Math.max(0.8, stats.recoil)
+      );
+      const ammoTemplates =
+        ammoTemplatesRef.current ?? createFallbackAmmoTemplates();
+      const shotCinematic =
+        !isAI && (isNineMmWeapon(weapon) || usesRifleCinematic(weapon));
       shellsRef.current.push(
         createShell(
           scene,
@@ -3353,14 +3998,32 @@ export default function ShootingRange() {
     void loadWeaponsAndTables();
 
     const activePointers = new Set<number>();
+    const lastPointerById = new Map<number, THREE.Vector2>();
 
-    function updateAim(event: PointerEvent) {
+    function updateAim(event: PointerEvent, absolute = false) {
       const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+      const normalizedX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const normalizedY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+      if (absolute) {
+        aimRef.current.set(
+          THREE.MathUtils.clamp(normalizedX * 0.72, -0.95, 0.95),
+          THREE.MathUtils.clamp(normalizedY * 0.58, -0.7, 0.7)
+        );
+        return;
+      }
+
+      const previous = lastPointerById.get(event.pointerId);
+      const dx = previous ? event.clientX - previous.x : event.movementX || 0;
+      const dy = previous ? event.clientY - previous.y : event.movementY || 0;
+      lastPointerById.set(
+        event.pointerId,
+        new THREE.Vector2(event.clientX, event.clientY)
+      );
+
+      const fineScale = event.shiftKey ? 0.00085 : 0.00185;
       aimRef.current.set(
-        THREE.MathUtils.clamp(x * 0.86, -0.95, 0.95),
-        THREE.MathUtils.clamp(y * 0.7, -0.7, 0.7)
+        THREE.MathUtils.clamp(aimRef.current.x + dx * fineScale, -0.95, 0.95),
+        THREE.MathUtils.clamp(aimRef.current.y - dy * fineScale, -0.7, 0.7)
       );
     }
 
@@ -3387,11 +4050,15 @@ export default function ShootingRange() {
     function onPointerDown(event: PointerEvent) {
       activePointers.add(event.pointerId);
       renderer.domElement.setPointerCapture?.(event.pointerId);
+      lastPointerById.set(
+        event.pointerId,
+        new THREE.Vector2(event.clientX, event.clientY)
+      );
 
       if (phaseRef.current === 'pick' && viewModeRef.current === 'tables') {
         tryPick(event);
-      } else {
-        updateAim(event);
+      } else if (viewModeRef.current !== 'range') {
+        updateAim(event, true);
       }
     }
 
@@ -3402,6 +4069,7 @@ export default function ShootingRange() {
 
     function onPointerUp(event: PointerEvent) {
       activePointers.delete(event.pointerId);
+      lastPointerById.delete(event.pointerId);
       renderer.domElement.releasePointerCapture?.(event.pointerId);
     }
 
@@ -3457,7 +4125,10 @@ export default function ShootingRange() {
           bullet.wake.quaternion.copy(bullet.flightQuat);
         }
 
-        if ((bullet.impacted && bullet.impactAge > 0.45) || bullet.age >= bullet.life) {
+        if (
+          (bullet.impacted && bullet.impactAge > 0.45) ||
+          bullet.age >= bullet.life
+        ) {
           scene.remove(bullet.root, bullet.trail);
           if (bullet.wake) scene.remove(bullet.wake);
           disposeObject(bullet.root);
@@ -3475,10 +4146,16 @@ export default function ShootingRange() {
         shell.life -= dt;
 
         if (!shell.launched) {
-          shell.pos.copy(shell.start).lerp(
-            shell.end,
-            THREE.MathUtils.smoothstep(Math.min(1, shell.age / shell.pre), 0, 1)
-          );
+          shell.pos
+            .copy(shell.start)
+            .lerp(
+              shell.end,
+              THREE.MathUtils.smoothstep(
+                Math.min(1, shell.age / shell.pre),
+                0,
+                1
+              )
+            );
           if (shell.age >= shell.pre) shell.launched = true;
         } else if (!shell.grounded) {
           shell.vel.y -= dt * 2.8;
@@ -3490,7 +4167,9 @@ export default function ShootingRange() {
             shell.vel.z *= 0.82;
             if (!shell.hitPlayed) {
               shell.hitPlayed = true;
-              playShellImpact(Math.min(1.35, Math.max(0.35, shell.spin.length() / 12)));
+              playShellImpact(
+                Math.min(1.35, Math.max(0.35, shell.spin.length() / 12))
+              );
             }
             if (Math.abs(shell.vel.y) < 0.08) shell.grounded = true;
           }
@@ -3526,7 +4205,9 @@ export default function ShootingRange() {
           const material = mesh.material as THREE.Material | undefined;
           if (!material || !('opacity' in material)) return;
           material.transparent = true;
-          material.opacity = Math.max(0, 1 - effect.age / effect.life) * (effect.velocity ? 0.28 : 1);
+          material.opacity =
+            Math.max(0, 1 - effect.age / effect.life) *
+            (effect.velocity ? 0.28 : 1);
         });
         if (effect.age > effect.life) {
           scene.remove(effect.root);
@@ -3546,8 +4227,12 @@ export default function ShootingRange() {
         const recoil = isUser ? recoilRef.current : 0;
         const weapon = WEAPONS[lane.activeWeaponIndex];
         const nineMm = isNineMmWeapon(weapon);
-        const kick = Math.sin(Math.max(0, Math.min(1, recoil)) * Math.PI) * (nineMm ? 0.09 : recoil);
-        const baseMount = nineMm ? SERVICE_PISTOL_AIM.mount : new THREE.Vector3(0.34, 1.27, -0.12);
+        const kick =
+          Math.sin(Math.max(0, Math.min(1, recoil)) * Math.PI) *
+          (nineMm ? 0.09 : recoil);
+        const baseMount = nineMm
+          ? SERVICE_PISTOL_AIM.mount
+          : new THREE.Vector3(0.34, 1.27, -0.12);
 
         lane.weaponMount.position.x = THREE.MathUtils.lerp(
           lane.weaponMount.position.x,
@@ -3556,7 +4241,10 @@ export default function ShootingRange() {
         );
         lane.weaponMount.position.y = THREE.MathUtils.lerp(
           lane.weaponMount.position.y,
-          baseMount.y + lane.pickupLift * 0.18 + aim.y * (nineMm ? 0.03 : 0.06) - kick * (nineMm ? 0.09 : 0.05),
+          baseMount.y +
+            lane.pickupLift * 0.18 +
+            aim.y * (nineMm ? 0.03 : 0.06) -
+            kick * (nineMm ? 0.09 : 0.05),
           nineMm ? 0.22 : 0.16
         );
         lane.weaponMount.position.z = THREE.MathUtils.lerp(
@@ -3586,6 +4274,23 @@ export default function ShootingRange() {
     }
 
     function updateTargets() {
+      if (phaseRef.current === 'shoot') {
+        const time = performance.now() * 0.001;
+        paperTargetsRef.current.forEach((target) => {
+          if (!target.movementAmplitude) return;
+          const offset =
+            Math.sin(time * target.movementSpeed + target.movementPhase) *
+            target.movementAmplitude;
+          const bob =
+            Math.sin(time * target.movementSpeed * 1.7 + target.movementPhase) *
+            0.08;
+          target.root.position.x = target.startX + offset;
+          target.root.position.y = target.startY + bob;
+          target.root.rotation.y =
+            Math.sin(time * target.movementSpeed + target.movementPhase) * 0.08;
+        });
+      }
+
       if (phaseRef.current === 'results') {
         const best = Math.max(...laneScoresRef.current);
         const winnerLane =
@@ -3688,7 +4393,11 @@ export default function ShootingRange() {
       }
 
       const cinematicBullet = bulletsRef.current.find(
-        (b) => b.cinematic && (!b.impacted || b.impactAge < 0.45 || performance.now() < followUntilRef.current)
+        (b) =>
+          b.cinematic &&
+          (!b.impacted ||
+            b.impactAge < 0.45 ||
+            performance.now() < followUntilRef.current)
       );
       if (cinematicBullet) {
         const dir = cinematicBullet.end
@@ -3706,12 +4415,16 @@ export default function ShootingRange() {
             .addScaledVector(dir, 0.46)
             .addScaledVector(cinematicBullet.right, 0.15);
         } else {
-          const followPoint = cinematicBullet.impacted ? cinematicBullet.end : cinematicBullet.root.position;
+          const followPoint = cinematicBullet.impacted
+            ? cinematicBullet.end
+            : cinematicBullet.root.position;
           tempPos
             .copy(followPoint)
             .addScaledVector(dir, -0.92)
             .add(new THREE.Vector3(0.2, 0.16, 0.3));
-          tempLook.copy(followPoint).addScaledVector(dir, cinematicBullet.impacted ? 0.18 : 0.9);
+          tempLook
+            .copy(followPoint)
+            .addScaledVector(dir, cinematicBullet.impacted ? 0.18 : 0.9);
         }
         camera.position.lerp(tempPos, cinematicBullet.launched ? 0.115 : 0.075);
         camera.lookAt(tempLook);
