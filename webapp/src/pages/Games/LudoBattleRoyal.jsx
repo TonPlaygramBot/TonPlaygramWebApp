@@ -141,8 +141,6 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'fpsGunAttack',
   'glockSidearmAttack',
-  'pistolSidearmAttack',
-  'pistolHolsterAttack',
   'uziSprayAttack',
   'ak47VolleyAttack',
   'krsvBurstAttack',
@@ -240,7 +238,6 @@ const SMALL_SERVICE_PISTOL_FATAL_BULLET_IDS = new Set([
   'smgBurstAttack',
   'polySmg01Attack'
 ]);
-const SMALL_9MM_PROJECTILE_KINDS = new Set(['pistol-round', 'smg-round', 'revolver-round']);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
@@ -3164,8 +3161,7 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
   const kind = profile.projectileKind || 'jacketed-round';
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
   const isBuckshot = kind.includes('buckshot');
-  const isMarksman = kind.includes('marksman') || kind.includes('sniper');
-  const useServicePistolRound = SMALL_9MM_PROJECTILE_KINDS.has(kind);
+  const useServicePistolRound = !isExplosive && !isBuckshot;
   const radius = useServicePistolRound ? 0.0032 : profile.bulletRadius || 0.0036;
   const length = useServicePistolRound ? 0.028 : profile.bulletLength || radius * 9;
   const root = new THREE.Group();
@@ -3190,25 +3186,8 @@ function createCaliberProjectileFx(profile = FIREARM_BALLISTICS_PROFILE.default)
     band.rotation.x = Math.PI / 2;
     band.position.y = -length * 0.12;
     root.add(body, nose, tail, band);
-  } else if (useServicePistolRound) {
-    root.add(createServicePistolProjectileGroup(radius, length));
   } else {
-    // Long guns keep their own caliber silhouette while using the same slow-motion
-    // projectile flight, camera follow, spin, muzzle flash, shell ejection, and air-wake concept.
-    const jacketMaterial = new THREE.MeshStandardMaterial({ color: isMarksman ? '#a16207' : '#b7791f', metalness: 0.48, roughness: 0.3 });
-    const tipMaterial = new THREE.MeshStandardMaterial({ color: '#b66b35', metalness: 0.42, roughness: 0.34 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.92, radius, length * 0.58, 24), jacketMaterial);
-    const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.72, radius * 0.94, length * 0.16, 24), jacketMaterial.clone());
-    const pointedTip = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.74, length * 0.24, 24), tipMaterial);
-    const darkBase = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius * 0.96, radius * 0.96, length * 0.045, 24),
-      new THREE.MeshStandardMaterial({ color: '#6f3f18', metalness: 0.3, roughness: 0.46 })
-    );
-    body.position.y = -length * 0.04;
-    shoulder.position.y = length * 0.27;
-    pointedTip.position.y = length * 0.47;
-    darkBase.position.y = -length * 0.43;
-    root.add(body, shoulder, pointedTip, darkBase);
+    root.add(createServicePistolProjectileGroup(radius, length));
   }
   root.userData.dispose = () => {
     root.traverse((node) => {
@@ -3226,7 +3205,7 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
   const kind = profile.projectileKind || '';
   const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
   const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
-  const useSmallPistolShell = SMALL_9MM_PROJECTILE_KINDS.has(kind);
+  const useSmallPistolShell = !isShotgun && !isExplosive;
   const radius = useSmallPistolShell ? 0.0024 : profile.shellRadius || 0.004;
   const length = useSmallPistolShell ? 0.014 : profile.shellLength || 0.016;
   const brassMaterial = new THREE.MeshStandardMaterial({
@@ -3267,42 +3246,6 @@ function createCaliberShellCasingFx(profile = FIREARM_BALLISTICS_PROFILE.default
 
 function createBulletAerodynamicRingsFx() {
   const root = new THREE.Group();
-  const airConeMaterial = new THREE.MeshBasicMaterial({
-    color: '#bff5ff',
-    transparent: true,
-    opacity: 0.1,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide
-  });
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.1, 40, 1, true), airConeMaterial);
-  cone.rotation.x = Math.PI;
-  cone.position.y = -0.052;
-  root.add(cone);
-
-  const strands = Array.from({ length: 4 }, (_, strand) => {
-    const points = [];
-    const phase = (strand / 4) * Math.PI * 2;
-    for (let i = 0; i < 28; i += 1) {
-      const t = i / 27;
-      const radius = 0.004 + t * 0.016;
-      const angle = phase + t * Math.PI * 4.4;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, -0.008 - t * 0.092, Math.sin(angle) * radius));
-    }
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.MeshBasicMaterial({
-        color: '#e8fcff',
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
-      })
-    );
-    root.add(line);
-    return line;
-  });
-
   const rings = Array.from({ length: 4 }, (_, idx) => {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.018 + idx * 0.006, 0.00085, 8, 42),
@@ -3310,18 +3253,14 @@ function createBulletAerodynamicRingsFx() {
         color: idx % 2 === 0 ? '#dbeafe' : '#ffffff',
         transparent: true,
         opacity: 0.34 - idx * 0.055,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
+        depthWrite: false
       })
     );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = -0.012 - idx * 0.018;
+    ring.position.y = -idx * 0.018;
     root.add(ring);
     return ring;
   });
   root.userData.rings = rings;
-  root.userData.strands = strands;
-  root.userData.cone = cone;
   root.visible = false;
   return root;
 }
@@ -11789,19 +11728,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 aerodynamicRings.position.copy(leadBulletPos);
                 aerodynamicRings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bulletDir);
                 const ringPulse = 0.82 + Math.sin(elapsed * 0.028) * 0.18;
-                const wakeFade = 1 - Math.max(0, (elapsedShooting - shots * cadenceMs) / 420);
                 aerodynamicRings.userData.rings?.forEach((ring, ringIdx) => {
                   ring.rotation.z += 0.08 + ringIdx * 0.018;
                   ring.scale.setScalar(ringPulse + ringIdx * 0.08);
-                  ring.material.opacity = clamp((0.34 - ringIdx * 0.055) * wakeFade, 0, 0.42);
+                  ring.material.opacity = clamp((0.34 - ringIdx * 0.055) * (1 - Math.max(0, (elapsedShooting - shots * cadenceMs) / 420)), 0, 0.42);
                 });
-                aerodynamicRings.userData.strands?.forEach((strand, strandIdx) => {
-                  strand.rotation.y += 0.035 + strandIdx * 0.008;
-                  strand.material.opacity = clamp((0.2 - strandIdx * 0.018) * wakeFade, 0, 0.24);
-                });
-                if (aerodynamicRings.userData.cone?.material) {
-                  aerodynamicRings.userData.cone.material.opacity = clamp(0.1 * wakeFade, 0, 0.14);
-                }
               } else {
                 aerodynamicRings.visible = false;
               }
