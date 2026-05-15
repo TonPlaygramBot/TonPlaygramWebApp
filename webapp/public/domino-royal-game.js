@@ -6715,18 +6715,18 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// May 14, 2026: keep player-hand dominoes compact but lower and closer to
-// the seated human reach so the arms/hands visually meet the domino rack.
+// May 10, 2026: keep player-hand dominoes compact while placing them farther
+// beyond the rail and higher above the tabletop for clearer Battle Royal seating.
 const PLAYER_HAND_TILE_SCALE = 0.9;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 10.6;
-const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.2;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.8;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.6;
-const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.35;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.85;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 3.65;
+const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.2;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
+const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.7;
 // Keep the bottom player's upright tiles separated by a small visible gap.
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 1.04;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -8003,10 +8003,10 @@ function buildDominoFallbackCharacterTemplate() {
   torso.rotation.x = THREE.MathUtils.degToRad(-7);
   const makeLimb = (radius, depth, material) => new THREE.Mesh(new THREE.CapsuleGeometry(radius, depth, 6, 12), material);
   const leftArm = makeLimb(0.045, 0.46, suit);
-  leftArm.position.set(-0.22, 0.87, 0.24);
+  leftArm.position.set(-0.22, 0.93, 0.18);
   leftArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(-18));
   const rightArm = makeLimb(0.045, 0.46, suit);
-  rightArm.position.set(0.22, 0.87, 0.24);
+  rightArm.position.set(0.22, 0.93, 0.18);
   rightArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(18));
   const leftLeg = makeLimb(0.055, 0.56, dark);
   leftLeg.position.set(-0.1, 0.48, 0.27);
@@ -8333,14 +8333,12 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  // Lower both resting arms and bend the forearms farther toward the in-front
-  // dominoes so hands sit closer to the player's rack instead of hovering high.
-  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-82), THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(-3));
-  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(54), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
-  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-1));
-  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-88), THREE.MathUtils.degToRad(13), THREE.MathUtils.degToRad(6));
-  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(56), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(3));
-  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(3));
+  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-65), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(39), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-72), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(5));
+  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(41), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(12), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
   addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
