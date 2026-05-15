@@ -132,8 +132,9 @@ type ShellRuntime = {
   age: number;
   launched: boolean;
   grounded: boolean;
-  hitPlayed: boolean;
+  impactPlayed: boolean;
   pre: number;
+  weaponClass: WeaponClass;
 };
 
 type ServicePistolTextureMaps = {
@@ -148,13 +149,6 @@ type AmmoTemplates = {
   bullet: THREE.Object3D;
   shell: THREE.Object3D;
   source: string;
-};
-
-type ShotEffectRuntime = {
-  root: THREE.Object3D;
-  age: number;
-  life: number;
-  velocity?: THREE.Vector3;
 };
 
 const USER_LANE = 0;
@@ -1189,71 +1183,6 @@ function alignToDirection(object: THREE.Object3D, dir: THREE.Vector3) {
   );
 }
 
-function spawnMuzzleEffects(
-  scene: THREE.Scene,
-  position: THREE.Vector3,
-  dir: THREE.Vector3,
-  effects: ShotEffectRuntime[],
-  power = 1
-) {
-  const flash = new THREE.Group();
-  const fireMat = new THREE.MeshStandardMaterial({
-    color: 0xff8a1c,
-    emissive: 0xff8a1c,
-    emissiveIntensity: 1.8 * power,
-    roughness: 0.22,
-    metalness: 0.05,
-    transparent: true,
-    opacity: 1
-  });
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.08 * power, 12, 8), fireMat.clone());
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.14 * power, 0.5 * power, 7), fireMat.clone());
-  cone.rotation.x = -Math.PI / 2;
-  cone.position.z = -0.24 * power;
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.16 * power, 0.014 * power, 8, 28),
-    new THREE.MeshStandardMaterial({
-      color: 0xffd166,
-      emissive: 0xffd166,
-      emissiveIntensity: 1.2,
-      transparent: true,
-      opacity: 1
-    })
-  );
-  ring.rotation.x = Math.PI / 2;
-  flash.add(core, cone, ring);
-  flash.position.copy(position);
-  alignToDirection(flash, dir);
-  scene.add(flash);
-  effects.push({ root: flash, age: 0, life: 0.08 });
-
-  const up = new THREE.Vector3(0, 1, 0);
-  const right = new THREE.Vector3().crossVectors(dir, up).normalize();
-  for (let i = 0; i < 4; i += 1) {
-    const smoke = new THREE.Mesh(
-      new THREE.SphereGeometry(0.03 + i * 0.004, 8, 6),
-      new THREE.MeshStandardMaterial({
-        color: 0x8b8f94,
-        roughness: 0.92,
-        transparent: true,
-        opacity: 0.28
-      })
-    );
-    smoke.position.copy(position).addScaledVector(dir, 0.05 + i * 0.018);
-    scene.add(smoke);
-    effects.push({
-      root: smoke,
-      age: 0,
-      life: 0.75,
-      velocity: dir
-        .clone()
-        .multiplyScalar(0.55 + i * 0.08)
-        .add(up.clone().multiplyScalar(0.2))
-        .add(right.clone().multiplyScalar((Math.random() - 0.5) * 0.22))
-    });
-  }
-}
-
 function makeWake() {
   const group = new THREE.Group();
   const cone = new THREE.Mesh(
@@ -1781,51 +1710,6 @@ function createBulletHole(localPoint: THREE.Vector3, points: number) {
   return mesh;
 }
 
-function makePointedRifleBullet(longGun: boolean, shotgun: boolean, cinematic: boolean) {
-  if (shotgun) {
-    return new THREE.Mesh(
-      new THREE.SphereGeometry(0.034, 10, 10),
-      new THREE.MeshStandardMaterial({
-        color: '#d9b56d',
-        roughness: 0.32,
-        metalness: 0.86,
-        emissive: '#3b2508',
-        emissiveIntensity: cinematic ? 0.16 : 0.06
-      })
-    );
-  }
-
-  if (!longGun) {
-    return new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.016, 0.1, 4, 10),
-      new THREE.MeshStandardMaterial({
-        color: '#e7d7a2',
-        roughness: 0.32,
-        metalness: 0.86,
-        emissive: '#3b2508',
-        emissiveIntensity: cinematic ? 0.16 : 0.06
-      })
-    );
-  }
-
-  const mat = new THREE.MeshStandardMaterial({
-    color: '#d7b572',
-    roughness: 0.28,
-    metalness: 0.9,
-    emissive: '#3b2508',
-    emissiveIntensity: cinematic ? 0.18 : 0.07
-  });
-  const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.019, 0.16, 32), mat);
-  body.rotation.x = Math.PI / 2;
-  body.position.z = 0.015;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.095, 32), mat.clone());
-  tip.rotation.x = -Math.PI / 2;
-  tip.position.z = -0.112;
-  group.add(body, tip);
-  return group;
-}
-
 function createBullet(
   scene: THREE.Scene,
   start: THREE.Vector3,
@@ -1848,9 +1732,30 @@ function createBullet(
   if (nineMm) {
     visual = cloneRenderable(ammoTemplates.bullet);
     visual.scale.multiplyScalar(cinematic ? 1.08 : 1);
-    orientBulletTipForward(visual);
   } else {
-    visual = makePointedRifleBullet(longGun, shotgun, cinematic);
+    const bulletMat = new THREE.MeshStandardMaterial({
+      color: shotgun ? '#d9b56d' : '#e7d7a2',
+      roughness: 0.32,
+      metalness: 0.86,
+      emissive: '#3b2508',
+      emissiveIntensity: cinematic ? 0.16 : 0.06
+    });
+    if (longGun) {
+      const pointed = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, 0.14, 32), bulletMat);
+      body.rotation.x = Math.PI / 2;
+      body.position.z = 0.02;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 32), bulletMat.clone());
+      tip.rotation.x = -Math.PI / 2;
+      tip.position.z = -0.095;
+      pointed.add(body, tip);
+      visual = pointed;
+    } else {
+      const bulletGeometry = shotgun
+        ? new THREE.SphereGeometry(0.034, 10, 10)
+        : new THREE.CapsuleGeometry(0.016, 0.1, 4, 10);
+      visual = new THREE.Mesh(bulletGeometry, bulletMat);
+    }
   }
 
   spinGroup.add(visual);
@@ -1922,9 +1827,9 @@ function createShell(
     root.scale.multiplyScalar(cinematic ? 3 : 2.2);
   } else {
     const shotgun = weapon.weaponClass === 'shotgun';
-    const longGun = usesRifleCinematic(weapon);
+    const longGun = weapon.weaponClass === 'rifle' || weapon.weaponClass === 'sniper';
     const shellRadius = shotgun ? 0.04 : longGun ? 0.024 : 0.026;
-    const shellLength = shotgun ? 0.22 : longGun ? 0.24 : 0.145;
+    const shellLength = shotgun ? 0.22 : longGun ? 0.25 : 0.145;
     root = new THREE.Mesh(
       new THREE.CylinderGeometry(shellRadius, shellRadius, shellLength, 18),
       new THREE.MeshStandardMaterial({
@@ -1952,12 +1857,13 @@ function createShell(
     end: shellOut,
     vel: right.clone().multiplyScalar(1.25 * power).add(up.clone().multiplyScalar(0.82 * power)).add(dir.clone().multiplyScalar(0.12)),
     spin: new THREE.Vector3(4 + Math.random() * 2, 6 + Math.random() * 2, 4 + Math.random() * 2),
-    life: nineMm ? 45 : 24,
+    life: nineMm ? 22 : usesRifleCinematic(weapon) ? 18 : 14,
     age: 0,
     launched: !(cinematic && nineMm),
     grounded: false,
-    hitPlayed: false,
-    pre: nineMm ? 0.18 : 0
+    impactPlayed: false,
+    pre: nineMm ? 0.18 : 0,
+    weaponClass: weapon.weaponClass
   } as ShellRuntime;
 }
 
@@ -2106,7 +2012,6 @@ export default function ShootingRange() {
   const paperTargetsRef = useRef<PaperTargetRuntime[]>([]);
   const bulletsRef = useRef<BulletRuntime[]>([]);
   const shellsRef = useRef<ShellRuntime[]>([]);
-  const shotEffectsRef = useRef<ShotEffectRuntime[]>([]);
   const weaponSourcesRef = useRef<(THREE.Object3D | null)[]>([]);
   const ammoTemplatesRef = useRef<AmmoTemplates | null>(null);
   const tableWeaponsRef = useRef<TableWeaponRuntime[]>([]);
@@ -2151,92 +2056,115 @@ export default function ShootingRange() {
     setPhase(next);
   }
 
-  function audioContext() {
+  function getAudioContext() {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     return Ctx ? new Ctx() : null;
   }
 
-  function makeNoiseBuffer(ctx: AudioContext, seconds: number) {
-    const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  function makeNoiseBuffer(ctx: AudioContext, duration: number) {
+    const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < length; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = Math.random() * 2 - 1;
     }
     return buffer;
   }
 
-  function playShot(power: number, weapon?: WeaponEntry) {
+  function playWeaponShot(weapon: WeaponEntry, power: number) {
     try {
-      const ctx = audioContext();
+      const ctx = getAudioContext();
       if (!ctx) return;
-      const weaponClass = weapon?.weaponClass ?? 'pistol';
-      const longGun = weaponClass === 'rifle' || weaponClass === 'sniper';
-      const shotgun = weaponClass === 'shotgun';
-      const smg = weaponClass === 'smg';
-      const duration = shotgun ? 0.34 : longGun ? 0.24 : smg ? 0.13 : 0.16;
+      const now = ctx.currentTime;
+      const nineMm = isNineMmWeapon(weapon);
+      const rifle = weapon.weaponClass === 'rifle' || weapon.weaponClass === 'sniper';
+      const shotgun = weapon.weaponClass === 'shotgun';
+      const master = ctx.createGain();
+      const compressor = ctx.createDynamicsCompressor();
+      master.gain.setValueAtTime(shotgun ? 0.64 : rifle ? 0.58 : nineMm ? 0.46 : 0.5, now);
+      compressor.threshold.setValueAtTime(-18, now);
+      compressor.knee.setValueAtTime(12, now);
+      compressor.ratio.setValueAtTime(8, now);
+      compressor.attack.setValueAtTime(0.002, now);
+      compressor.release.setValueAtTime(0.16, now);
+      master.connect(compressor);
+      compressor.connect(ctx.destination);
 
-      const noise = ctx.createBufferSource();
-      noise.buffer = makeNoiseBuffer(ctx, duration);
+      const crack = ctx.createBufferSource();
+      crack.buffer = makeNoiseBuffer(ctx, shotgun ? 0.22 : rifle ? 0.16 : 0.11);
       const crackFilter = ctx.createBiquadFilter();
       crackFilter.type = 'bandpass';
-      crackFilter.frequency.setValueAtTime(longGun ? 1850 : shotgun ? 720 : 1250, ctx.currentTime);
-      crackFilter.Q.setValueAtTime(longGun ? 1.9 : 1.25, ctx.currentTime);
+      crackFilter.frequency.setValueAtTime(nineMm ? 1650 : rifle ? 1180 : shotgun ? 760 : 980, now);
+      crackFilter.Q.setValueAtTime(shotgun ? 0.72 : 1.05, now);
       const crackGain = ctx.createGain();
-      crackGain.gain.setValueAtTime((shotgun ? 0.42 : longGun ? 0.34 : 0.24) * power, ctx.currentTime);
-      crackGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      noise.connect(crackFilter);
+      crackGain.gain.setValueAtTime(0.0001, now);
+      crackGain.gain.exponentialRampToValueAtTime(1.0 * power, now + 0.006);
+      crackGain.gain.exponentialRampToValueAtTime(0.0001, now + (shotgun ? 0.2 : rifle ? 0.13 : 0.09));
+      crack.connect(crackFilter);
       crackFilter.connect(crackGain);
-      crackGain.connect(ctx.destination);
+      crackGain.connect(master);
+      crack.start(now);
+      crack.stop(now + (shotgun ? 0.24 : rifle ? 0.18 : 0.12));
 
       const thump = ctx.createOscillator();
       const thumpGain = ctx.createGain();
-      thump.type = shotgun ? 'sawtooth' : 'triangle';
-      thump.frequency.setValueAtTime(shotgun ? 82 : longGun ? 118 : 150, ctx.currentTime);
-      thump.frequency.exponentialRampToValueAtTime(shotgun ? 31 : 42, ctx.currentTime + duration);
-      thumpGain.gain.setValueAtTime((shotgun ? 0.22 : 0.14) * power, ctx.currentTime);
-      thumpGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration * 0.9);
+      thump.type = 'triangle';
+      thump.frequency.setValueAtTime(shotgun ? 74 : rifle ? 92 : 128, now);
+      thump.frequency.exponentialRampToValueAtTime(shotgun ? 36 : rifle ? 44 : 58, now + 0.16);
+      thumpGain.gain.setValueAtTime(0.18 * power, now);
+      thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + (shotgun ? 0.28 : 0.18));
       thump.connect(thumpGain);
-      thumpGain.connect(ctx.destination);
+      thumpGain.connect(master);
+      thump.start(now);
+      thump.stop(now + 0.3);
 
-      const metal = ctx.createOscillator();
-      const metalGain = ctx.createGain();
-      metal.type = 'square';
-      metal.frequency.setValueAtTime(longGun ? 510 : 390, ctx.currentTime + 0.018);
-      metalGain.gain.setValueAtTime(0.025 * power, ctx.currentTime + 0.018);
-      metalGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
-      metal.connect(metalGain);
-      metalGain.connect(ctx.destination);
+      const action = ctx.createBufferSource();
+      action.buffer = makeNoiseBuffer(ctx, 0.035);
+      const actionFilter = ctx.createBiquadFilter();
+      actionFilter.type = 'highpass';
+      actionFilter.frequency.setValueAtTime(2800, now);
+      const actionGain = ctx.createGain();
+      actionGain.gain.setValueAtTime(nineMm ? 0.16 : 0.1, now + 0.028);
+      actionGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      action.connect(actionFilter);
+      actionFilter.connect(actionGain);
+      actionGain.connect(master);
+      action.start(now + 0.018);
+      action.stop(now + 0.09);
 
-      noise.start();
-      thump.start();
-      metal.start(ctx.currentTime + 0.018);
-      noise.stop(ctx.currentTime + duration);
-      thump.stop(ctx.currentTime + duration);
-      metal.stop(ctx.currentTime + 0.11);
+      window.setTimeout(() => ctx.close().catch(() => {}), 700);
     } catch {}
   }
 
-  function playShellImpact(power = 1) {
+  function playShellFloorSound(shell: ShellRuntime) {
     try {
-      const ctx = audioContext();
+      const ctx = getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
-      [1480, 2350, 3260].forEach((frequency, index) => {
+      const longGun = shell.weaponClass === 'rifle' || shell.weaponClass === 'sniper';
+      const shotgun = shell.weaponClass === 'shotgun';
+      const hitCount = shotgun ? 2 : longGun ? 3 : 4;
+      for (let i = 0; i < hitCount; i += 1) {
+        const t = now + i * (shotgun ? 0.07 : 0.045);
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(frequency + Math.random() * 140, now + index * 0.012);
-        gain.gain.setValueAtTime(0.035 * power / (index + 1), now + index * 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18 + index * 0.035);
-        osc.connect(gain);
+        osc.frequency.setValueAtTime((shotgun ? 620 : longGun ? 1450 : 2200) * (1 + Math.random() * 0.12), t);
+        osc.frequency.exponentialRampToValueAtTime(shotgun ? 180 : longGun ? 620 : 900, t + 0.12);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(shotgun ? 820 : longGun ? 1800 : 2600, t);
+        filter.Q.setValueAtTime(2.6, t);
+        gain.gain.setValueAtTime((shotgun ? 0.045 : longGun ? 0.038 : 0.03) / (i + 1), t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + index * 0.012);
-        osc.stop(now + 0.22 + index * 0.035);
-      });
+        osc.start(t);
+        osc.stop(t + 0.18);
+      }
+      window.setTimeout(() => ctx.close().catch(() => {}), 600);
     } catch {}
   }
-
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -3147,7 +3075,7 @@ export default function ShootingRange() {
         followUntilRef.current = performance.now() + (isNineMmWeapon(weapon) ? 4200 : usesRifleCinematic(weapon) ? 2300 : 500);
       }
 
-      playShot(Math.max(0.6, stats.recoil), weapon);
+      playWeaponShot(weapon, Math.max(0.6, stats.recoil));
       lane.pickupLift = 0.35;
 
       const muzzlePos = new THREE.Vector3();
@@ -3159,7 +3087,6 @@ export default function ShootingRange() {
       const muzzleDir = new THREE.Vector3(0, 0, -1).applyQuaternion(weaponQuat).normalize();
       const weaponRight = new THREE.Vector3(1, 0, 0).applyQuaternion(weaponQuat).normalize();
       const weaponUp = new THREE.Vector3(0, 1, 0).applyQuaternion(weaponQuat).normalize();
-      spawnMuzzleEffects(scene, muzzlePos, muzzleDir, shotEffectsRef.current, Math.max(0.8, stats.recoil));
       const ammoTemplates = ammoTemplatesRef.current ?? createFallbackAmmoTemplates();
       const shotCinematic = !isAI && (isNineMmWeapon(weapon) || usesRifleCinematic(weapon));
       shellsRef.current.push(
@@ -3175,13 +3102,6 @@ export default function ShootingRange() {
           shotCinematic
         )
       );
-      while (shellsRef.current.length > 72) {
-        const oldShell = shellsRef.current.shift();
-        if (oldShell) {
-          scene.remove(oldShell.root);
-          disposeObject(oldShell.root);
-        }
-      }
 
       let bestPoints = 0;
       let bestLabel = 'Miss';
@@ -3456,7 +3376,7 @@ export default function ShootingRange() {
       for (let i = shellsRef.current.length - 1; i >= 0; i -= 1) {
         const shell = shellsRef.current[i];
         shell.age += dt;
-        shell.life -= dt;
+        shell.life -= shell.grounded ? dt * 0.08 : dt;
 
         if (!shell.launched) {
           shell.pos.copy(shell.start).lerp(
@@ -3469,13 +3389,13 @@ export default function ShootingRange() {
           shell.pos.addScaledVector(shell.vel, dt);
           if (shell.pos.y < 0.08) {
             shell.pos.y = 0.08;
+            if (!shell.impactPlayed) {
+              playShellFloorSound(shell);
+              shell.impactPlayed = true;
+            }
             shell.vel.y *= -0.18;
             shell.vel.x *= 0.82;
             shell.vel.z *= 0.82;
-            if (!shell.hitPlayed) {
-              shell.hitPlayed = true;
-              playShellImpact(Math.min(1.35, Math.max(0.35, shell.spin.length() / 12)));
-            }
             if (Math.abs(shell.vel.y) < 0.08) shell.grounded = true;
           }
         } else {
@@ -3487,35 +3407,10 @@ export default function ShootingRange() {
         shell.root.rotation.y += shell.spin.y * dt;
         shell.root.rotation.z += shell.spin.z * dt;
 
-        if (shell.life <= 0 && !shell.grounded) {
+        if (shell.life <= 0) {
           scene.remove(shell.root);
           disposeObject(shell.root);
           shellsRef.current.splice(i, 1);
-        }
-      }
-    }
-
-    function updateShotEffects(dt: number) {
-      for (let i = shotEffectsRef.current.length - 1; i >= 0; i -= 1) {
-        const effect = shotEffectsRef.current[i];
-        effect.age += dt;
-        if (effect.velocity) {
-          effect.root.position.addScaledVector(effect.velocity, dt);
-          effect.root.scale.setScalar(1 + effect.age * 3);
-        } else {
-          effect.root.scale.setScalar(1 + (effect.age / effect.life) * 1.8);
-        }
-        effect.root.traverse((child) => {
-          const mesh = child as THREE.Mesh;
-          const material = mesh.material as THREE.Material | undefined;
-          if (!material || !('opacity' in material)) return;
-          material.transparent = true;
-          material.opacity = Math.max(0, 1 - effect.age / effect.life) * (effect.velocity ? 0.28 : 1);
-        });
-        if (effect.age > effect.life) {
-          scene.remove(effect.root);
-          disposeObject(effect.root);
-          shotEffectsRef.current.splice(i, 1);
         }
       }
     }
@@ -3742,7 +3637,6 @@ export default function ShootingRange() {
       updateAI(performance.now());
       updateBullets(dt);
       updateShells(dt);
-      updateShotEffects(dt);
       updateCharacters(dt);
       updateTargets();
       updateWinnerCoins(dt);
