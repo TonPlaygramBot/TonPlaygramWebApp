@@ -121,54 +121,46 @@ const HUMAN_CARD_HAND_DEBUG_HELPERS =
 const MURLAN_CHARACTER_TEXTURE_LOADER = new THREE.TextureLoader();
 MURLAN_CHARACTER_TEXTURE_LOADER.setCrossOrigin?.('anonymous');
 const MURLAN_CHARACTER_TEXTURE_CACHE = new Map();
+const makePolyhavenTextureMaterial = (assetId, { label = assetId, tint = 0xffffff, colorSuffix = 'diff', normalScale = 0.28 } = {}) => ({
+  source: `Poly Haven ${label} 1k glTF CC0`,
+  gltf: `https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+  color: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/${assetId}/${assetId}_${colorSuffix}_1k.jpg`,
+  normal: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/${assetId}/${assetId}_nor_gl_1k.jpg`,
+  roughness: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/${assetId}/${assetId}_rough_1k.jpg`,
+  tint,
+  normalScale
+});
+
 const MURLAN_CHARACTER_CLOTH_MATERIALS = Object.freeze({
-  denim: {
-    source: 'Poly Haven denim_fabric 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
-    tint: 0x314d86
+  shirtCotton: makePolyhavenTextureMaterial('cotton_jersey', { label: 'cotton_jersey shirt fabric', tint: 0xe7edf4, normalScale: 0.22 }),
+  tshirtPique: makePolyhavenTextureMaterial('waffle_pique_cotton', { label: 'waffle_pique_cotton t-shirt fabric', tint: 0xd7e8ff, normalScale: 0.24 }),
+  denim: makePolyhavenTextureMaterial('denim_fabric', { label: 'denim_fabric jeans', tint: 0x314d86, normalScale: 0.34 }),
+  darkDenim: makePolyhavenTextureMaterial('denim_fabric_05', { label: 'denim_fabric_05 dark jeans', tint: 0x22365f, normalScale: 0.34 }),
+  jacketSuede: makePolyhavenTextureMaterial('scuba_suede', { label: 'scuba_suede jacket', tint: 0x6a4a38, normalScale: 0.3 }),
+  jacketLeather: makePolyhavenTextureMaterial('fabric_leather_01', { label: 'fabric_leather_01 jacket', tint: 0x111827, normalScale: 0.32 }),
+  dressJacquard: makePolyhavenTextureMaterial('floral_jacquard', { label: 'floral_jacquard dress', tint: 0x7c3f88, normalScale: 0.26 }),
+  tieHerringbone: makePolyhavenTextureMaterial('poly_wool_herringbone', { label: 'poly_wool_herringbone tie', tint: 0xc9a24f, normalScale: 0.22 }),
+  hatBoucle: makePolyhavenTextureMaterial('wool_boucle', { label: 'wool_boucle hat', tint: 0x2f3542, normalScale: 0.24 }),
+  shoeLeather: makePolyhavenTextureMaterial('leather_white', { label: 'leather_white shoes', tint: 0xf4f1ea, normalScale: 0.28 }),
+  shoeDarkLeather: makePolyhavenTextureMaterial('fabric_leather_01', { label: 'fabric_leather_01 dark shoes', tint: 0x1f2937, normalScale: 0.28 }),
+  accessoryCanvas: makePolyhavenTextureMaterial('hessian_230', { label: 'hessian_230 accessories', tint: 0xb88852, normalScale: 0.25 }),
+  jewelryLeather: makePolyhavenTextureMaterial('quatrefoil_jacquard_fabric', { label: 'quatrefoil_jacquard_fabric jewelry straps', tint: 0xd7b56d, normalScale: 0.2 }),
+  watchStrap: makePolyhavenTextureMaterial('fabric_leather_02', { label: 'fabric_leather_02 watch strap', tint: 0x111827, normalScale: 0.23 }),
+  check: makePolyhavenTextureMaterial('gingham_check', { label: 'gingham_check shirt', tint: 0x9f3651, normalScale: 0.25 }),
+  fleece: makePolyhavenTextureMaterial('knitted_fleece', { label: 'knitted_fleece hoodie', tint: 0x4b5563, normalScale: 0.28 }),
+  picnic: makePolyhavenTextureMaterial('fabric_pattern_07', { label: 'fabric_pattern_07 statement fabric', colorSuffix: 'col_1', tint: 0xc44f42, normalScale: 0.25 })
+});
+
+const MURLAN_CHARACTER_BODY_DETAIL_MATERIALS = Object.freeze({
+  skin: {
+    source: 'three.js LeePerrySmith open-source glTF face normal map',
+    normal: 'https://threejs.org/examples/models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg',
+    repeat: 1.35,
+    normalScale: 0.045
   },
-  check: {
-    source: 'Poly Haven gingham_check 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
-    tint: 0x9f3651
-  },
-  hessian: {
-    source: 'Poly Haven hessian_230 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
-    tint: 0xa27445
-  },
-  floral: {
-    source: 'Poly Haven floral_jacquard 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
-    tint: 0x6d3f7f
-  },
-  fleece: {
-    source: 'Poly Haven knitted_fleece 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
-    tint: 0x4b5563
-  },
-  picnic: {
-    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
-    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
-    tint: 0xc44f42
+  hair: {
+    ...makePolyhavenTextureMaterial('faux_fur_geometric', { label: 'faux_fur_geometric hair fiber detail', tint: 0xffffff, normalScale: 0.18 }),
+    repeat: 2.8
   }
 });
 
@@ -236,39 +228,109 @@ function characterThemeRosterSignature(roster = []) {
 
 const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
   royalDenim: {
-    upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
-    lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 },
-    accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 }
+    shirt: { material: 'shirtCotton', tint: 0xe7edf4, repeat: 4.1 },
+    tshirt: { material: 'tshirtPique', tint: 0xd7e8ff, repeat: 4.8 },
+    jeans: { material: 'denim', tint: 0x2f5f9f, repeat: 4.6 },
+    pants: { material: 'darkDenim', tint: 0x233a68, repeat: 4.5 },
+    jacket: { material: 'jacketLeather', tint: 0x172033, repeat: 3.5 },
+    dress: { material: 'dressJacquard', tint: 0x5d4b88, repeat: 3.1 },
+    tie: { material: 'tieHerringbone', tint: 0xd6a84b, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0x1f2937, repeat: 4.0 },
+    shoes: { material: 'shoeLeather', tint: 0xf4f1ea, repeat: 2.8 },
+    accessory: { material: 'accessoryCanvas', tint: 0xc18a52, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xe4c976, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xf2d675, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
   casinoCheck: {
-    upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
-    lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 },
-    accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 }
+    shirt: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'darkDenim', tint: 0x243e70, repeat: 4.4 },
+    pants: { material: 'denim', tint: 0x243e70, repeat: 4.6 },
+    jacket: { material: 'jacketSuede', tint: 0x5b4032, repeat: 3.4 },
+    dress: { material: 'picnic', tint: 0xbb3f4d, repeat: 3.4 },
+    tie: { material: 'tieHerringbone', tint: 0xf4d7a1, repeat: 5.4 },
+    hat: { material: 'hatBoucle', tint: 0x3f1f2c, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xf4d7a1, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xffd166, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xffd166, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x26151a, repeat: 4.5 }
   },
   linenStreet: {
-    upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 },
-    lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
-    accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 }
+    shirt: { material: 'accessoryCanvas', tint: 0xb68452, repeat: 3.6 },
+    tshirt: { material: 'tshirtPique', tint: 0xf3efe7, repeat: 4.7 },
+    jeans: { material: 'denim', tint: 0x4a6fa4, repeat: 4.1 },
+    pants: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
+    jacket: { material: 'jacketSuede', tint: 0x7a543c, repeat: 3.5 },
+    dress: { material: 'dressJacquard', tint: 0xad8b73, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x516072, repeat: 5.0 },
+    hat: { material: 'hatBoucle', tint: 0x4b5563, repeat: 4.2 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x2b211a, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xd6a35f, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd6a35f, repeat: 5.4 },
+    ring: { material: 'jewelryLeather', tint: 0xd6a35f, repeat: 5.4 },
+    watch: { material: 'watchStrap', tint: 0x3b2c22, repeat: 4.4 }
   },
   jacquardNight: {
-    upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 },
-    lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 },
-    accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 }
+    shirt: { material: 'dressJacquard', tint: 0x7c3f88, repeat: 3.2 },
+    tshirt: { material: 'shirtCotton', tint: 0xeee7ff, repeat: 4.4 },
+    jeans: { material: 'darkDenim', tint: 0x1f335f, repeat: 4.5 },
+    pants: { material: 'darkDenim', tint: 0x1f335f, repeat: 4.5 },
+    jacket: { material: 'jacketLeather', tint: 0x111827, repeat: 3.5 },
+    dress: { material: 'dressJacquard', tint: 0x7c3f88, repeat: 3.0 },
+    tie: { material: 'check', tint: 0xe3c16f, repeat: 4.0 },
+    hat: { material: 'hatBoucle', tint: 0x181824, repeat: 4.2 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x0f172a, repeat: 3.0 },
+    accessory: { material: 'jewelryLeather', tint: 0xe3c16f, repeat: 5.0 },
+    earring: { material: 'jewelryLeather', tint: 0xe3c16f, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xe3c16f, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
   softFleece: {
-    upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
-    lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 },
-    accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 }
+    shirt: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
+    tshirt: { material: 'tshirtPique', tint: 0xe5e7eb, repeat: 4.8 },
+    jeans: { material: 'denim', tint: 0x3f5f85, repeat: 4.4 },
+    pants: { material: 'accessoryCanvas', tint: 0x8b633f, repeat: 3.7 },
+    jacket: { material: 'jacketSuede', tint: 0x617084, repeat: 3.6 },
+    dress: { material: 'dressJacquard', tint: 0xb88ab8, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x94a3b8, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0x475569, repeat: 4.2 },
+    shoes: { material: 'shoeLeather', tint: 0xe7e5df, repeat: 2.9 },
+    accessory: { material: 'accessoryCanvas', tint: 0xb88a55, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd9b66d, repeat: 5.4 },
+    ring: { material: 'jewelryLeather', tint: 0xd9b66d, repeat: 5.4 },
+    watch: { material: 'watchStrap', tint: 0x334155, repeat: 4.5 }
   },
   patternedRed: {
-    upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
-    lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
-    accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 }
+    shirt: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
+    tshirt: { material: 'shirtCotton', tint: 0xfff7ed, repeat: 4.4 },
+    jeans: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
+    pants: { material: 'darkDenim', tint: 0x263f73, repeat: 4.7 },
+    jacket: { material: 'jacketLeather', tint: 0x2a1111, repeat: 3.5 },
+    dress: { material: 'picnic', tint: 0xc44f42, repeat: 3.3 },
+    tie: { material: 'tieHerringbone', tint: 0xf1f5f9, repeat: 5.0 },
+    hat: { material: 'hatBoucle', tint: 0x511b1b, repeat: 4.1 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xf1f5f9, repeat: 3.4 },
+    earring: { material: 'jewelryLeather', tint: 0xf4c95d, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xf4c95d, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
   mixedDenim: {
-    upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
-    lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
-    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
+    shirt: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
+    tshirt: { material: 'tshirtPique', tint: 0xdbeafe, repeat: 4.8 },
+    jeans: { material: 'darkDenim', tint: 0x1e3a6e, repeat: 4.8 },
+    pants: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
+    jacket: { material: 'jacketSuede', tint: 0x3b4a61, repeat: 3.5 },
+    dress: { material: 'dressJacquard', tint: 0x4f6f93, repeat: 3.1 },
+    tie: { material: 'tieHerringbone', tint: 0xd6a35f, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0x1e293b, repeat: 4.2 },
+    shoes: { material: 'shoeLeather', tint: 0xf8fafc, repeat: 2.9 },
+    accessory: { material: 'accessoryCanvas', tint: 0xd6a35f, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd6a35f, repeat: 5.4 },
+    ring: { material: 'jewelryLeather', tint: 0xd6a35f, repeat: 5.4 },
+    watch: { material: 'watchStrap', tint: 0x1f2937, repeat: 4.5 }
   }
 });
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
@@ -1025,17 +1087,17 @@ function getMurlanCharacterAnisotropyCap(renderer = null) {
   }
 }
 
-function loadMurlanCharacterTexture(url, { isColor = false, repeat = 3.5, maxAnisotropy = 8 } = {}) {
+function loadMurlanCharacterTexture(url, { isColor = false, repeat = 3.5, maxAnisotropy = 8, wrapping = THREE.RepeatWrapping } = {}) {
   if (!url) return null;
-  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}|${maxAnisotropy}`;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}|${maxAnisotropy}|${wrapping}`;
   if (MURLAN_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return MURLAN_CHARACTER_TEXTURE_CACHE.get(cacheKey);
   const normalizeLoaded = (texture) => {
     if (!texture) return;
     if (isColor) applySRGBColorSpace(texture);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
+    texture.wrapS = wrapping;
+    texture.wrapT = wrapping;
     texture.repeat.set(repeat, repeat);
-    normalizePbrTexture(texture, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
+    normalizePbrTexture(texture, maxAnisotropy, { preserveWrapping: true });
     texture.needsUpdate = true;
   };
   const texture = MURLAN_CHARACTER_TEXTURE_LOADER.load(
@@ -1067,23 +1129,41 @@ function classifyMurlanHumanSurface(obj, mat) {
   if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
   if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
   if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
-  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
+  if (/earring|ear_ring|stud|hoop/.test(name)) return 'earring';
+  if (/ring|finger_ring/.test(name)) return 'ring';
+  if (/watch|bracelet|wrist/.test(name)) return 'watch';
+  if (/hat|cap|beanie|fedora|headwear/.test(name)) return 'hat';
+  if (/tie|bowtie|bow_tie|necktie|scarf/.test(name)) return 'tie';
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoes';
+  if (/dress|skirt|gown/.test(name)) return 'dress';
+  if (/jacket|coat|blazer|hood|hoodie/.test(name)) return 'jacket';
+  if (/tshirt|t-shirt|tee/.test(name)) return 'tshirt';
+  if (/shirt|top|torso|chest|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'shirt';
+  if (/jean|denim/.test(name)) return 'jeans';
+  if (/pants|trouser|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'pants';
+  if (/belt|strap|bag|glove|sock|accessory|accent/.test(name)) return 'accessory';
   if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
-  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
-  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'lowerCloth';
-  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
-  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
-  if (isNearlyWhiteCharacterMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'shirt';
+  if (isNearlyWhiteCharacterMaterial(mat) && /torso|chest|spine|pelvis|hip|arm|body|mesh/.test(name)) return 'shirt';
+  if (isNearlyWhiteCharacterMaterial(mat) && /leg/.test(name)) return 'pants';
   return 'other';
 }
 
 function resolveMurlanCharacterClothSlot(theme, slot, seatIndex) {
   const combo = MURLAN_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || MURLAN_CHARACTER_CLOTH_COMBOS.royalDenim;
-  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
-  const material = MURLAN_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || MURLAN_CHARACTER_CLOTH_MATERIALS.denim;
+  const slotAliases = {
+    upperCloth: 'shirt',
+    lowerCloth: 'pants',
+    accentCloth: 'accessory',
+    shoe: 'shoes'
+  };
+  const resolvedSlot = slotAliases[slot] || slot;
+  const slotConfig = combo?.[resolvedSlot] || combo?.shirt || { material: 'shirtCotton' };
+  const material = MURLAN_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || MURLAN_CHARACTER_CLOTH_MATERIALS.shirtCotton;
   const repeatBoost = seatIndex === 0 ? 0.75 : 0;
   return {
     ...material,
+    slot: resolvedSlot,
     tint: slotConfig.tint ?? material.tint ?? 0xffffff,
     repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
   };
@@ -1094,19 +1174,68 @@ function applyMurlanCharacterClothMaterial(mat, cloth, maxAnisotropy = 8) {
   mat.normalMap = loadMurlanCharacterTexture(cloth.normal, { repeat: cloth.repeat, maxAnisotropy });
   mat.roughnessMap = loadMurlanCharacterTexture(cloth.roughness, { repeat: cloth.repeat, maxAnisotropy });
   mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  const normalScale = cloth.normalScale ?? 0.28;
+  mat.normalScale = new THREE.Vector2(normalScale, normalScale);
   mat.roughness = 0.86;
-  mat.metalness = 0.015;
-  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, 0.35);
-  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
+  mat.metalness = ['earring', 'ring', 'watch'].includes(cloth.slot) ? 0.08 : 0.015;
+  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.35, ['earring', 'ring', 'watch'].includes(cloth.slot) ? 0.8 : 0.35);
+  mat.userData = {
+    ...(mat.userData || {}),
+    murlanPhysicalClothingSlot: cloth.slot,
+    polyhavenCloth: cloth.source,
+    polyhavenGltf: cloth.gltf
+  };
+}
+
+function applyMurlanSkinDetailMaterial(mat, skinColor, maxAnisotropy = 8) {
+  const detail = MURLAN_CHARACTER_BODY_DETAIL_MATERIALS.skin;
+  if (!mat.map && (isLowSaturationLightCharacterMaterial(mat) || isNearlyWhiteCharacterMaterial(mat))) {
+    mat.color = skinColor.clone();
+  } else if (mat.color) {
+    mat.color.lerp(skinColor, 0.24);
+  }
+  if (!mat.normalMap) {
+    mat.normalMap = loadMurlanCharacterTexture(detail.normal, {
+      repeat: detail.repeat,
+      maxAnisotropy,
+      wrapping: THREE.MirroredRepeatWrapping
+    });
+    mat.normalScale = new THREE.Vector2(detail.normalScale, detail.normalScale);
+  }
+  mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+  mat.metalness = 0;
+  mat.userData = { ...(mat.userData || {}), murlanSkinDetail: detail.source };
+}
+
+function applyMurlanHairDetailMaterial(mat, hairColor, maxAnisotropy = 8) {
+  const detail = MURLAN_CHARACTER_BODY_DETAIL_MATERIALS.hair;
+  mat.map = loadMurlanCharacterTexture(detail.color, { isColor: true, repeat: detail.repeat, maxAnisotropy });
+  mat.normalMap = loadMurlanCharacterTexture(detail.normal, { repeat: detail.repeat, maxAnisotropy });
+  mat.roughnessMap = loadMurlanCharacterTexture(detail.roughness, { repeat: detail.repeat, maxAnisotropy });
+  mat.color = hairColor.clone();
+  mat.normalScale = new THREE.Vector2(detail.normalScale, detail.normalScale);
+  mat.roughness = 0.62;
+  mat.metalness = 0.02;
+  mat.envMapIntensity = 0.28;
+  mat.userData = { ...(mat.userData || {}), murlanHairDetail: detail.source, polyhavenGltf: detail.gltf };
 }
 
 function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, renderer = null) {
   const maxAnisotropy = getMurlanCharacterAnisotropyCap(renderer);
   const clothSlots = {
-    upperCloth: resolveMurlanCharacterClothSlot(theme, 'upper', seatIndex),
-    lowerCloth: resolveMurlanCharacterClothSlot(theme, 'lower', seatIndex),
-    accentCloth: resolveMurlanCharacterClothSlot(theme, 'accent', seatIndex)
+    shirt: resolveMurlanCharacterClothSlot(theme, 'shirt', seatIndex),
+    tshirt: resolveMurlanCharacterClothSlot(theme, 'tshirt', seatIndex),
+    jeans: resolveMurlanCharacterClothSlot(theme, 'jeans', seatIndex),
+    pants: resolveMurlanCharacterClothSlot(theme, 'pants', seatIndex),
+    jacket: resolveMurlanCharacterClothSlot(theme, 'jacket', seatIndex),
+    dress: resolveMurlanCharacterClothSlot(theme, 'dress', seatIndex),
+    tie: resolveMurlanCharacterClothSlot(theme, 'tie', seatIndex),
+    hat: resolveMurlanCharacterClothSlot(theme, 'hat', seatIndex),
+    shoes: resolveMurlanCharacterClothSlot(theme, 'shoes', seatIndex),
+    accessory: resolveMurlanCharacterClothSlot(theme, 'accessory', seatIndex),
+    earring: resolveMurlanCharacterClothSlot(theme, 'earring', seatIndex),
+    ring: resolveMurlanCharacterClothSlot(theme, 'ring', seatIndex),
+    watch: resolveMurlanCharacterClothSlot(theme, 'watch', seatIndex)
   };
   const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
   const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
@@ -1122,11 +1251,7 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
       if (clothSlots[surface]) {
         applyMurlanCharacterClothMaterial(mat, clothSlots[surface], maxAnisotropy);
       } else if (surface === 'hair') {
-        mat.map = null;
-        mat.color = hairColor.clone();
-        mat.roughness = 0.56;
-        mat.metalness = 0.02;
-        mat.envMapIntensity = 0.28;
+        applyMurlanHairDetailMaterial(mat, hairColor, maxAnisotropy);
       } else if (surface === 'eye') {
         mat.map = null;
         mat.color = eyeColor.clone();
@@ -1134,19 +1259,7 @@ function enhanceMurlanCharacterMaterials(instance, theme, seatIndex = 0, rendere
         mat.metalness = 0;
         mat.envMapIntensity = 1.1;
       } else if (surface === 'skin') {
-        if (isLowSaturationLightCharacterMaterial(mat) || isNearlyWhiteCharacterMaterial(mat)) {
-          mat.color = skinColor.clone();
-        } else if (mat.color) {
-          mat.color.lerp(skinColor, 0.24);
-        }
-        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
-        mat.metalness = 0;
-      } else if (surface === 'shoe') {
-        if (isLowSaturationLightCharacterMaterial(mat)) {
-          mat.color = new THREE.Color(0x111827);
-        }
-        mat.roughness = 0.78;
-        mat.metalness = 0.02;
+        applyMurlanSkinDetailMaterial(mat, skinColor, maxAnisotropy);
       } else if (surface === 'mouth') {
         if (isNearlyWhiteCharacterMaterial(mat)) {
           mat.color = new THREE.Color(0xf8fafc);
