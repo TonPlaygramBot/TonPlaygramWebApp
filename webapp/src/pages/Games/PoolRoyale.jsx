@@ -8,6 +8,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { DEMO_HUMAN_URL } from './shared/demoCueHumanSource.js';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -36,7 +37,6 @@ import {
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
 import {
@@ -1948,16 +1948,13 @@ const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak 
 const CUE_BUTT_LIFT = BALL_R * 0.18; // flatter table-level cue orientation so the stick stays visible on the cloth
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
-const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+const CUE_LENGTH_MULTIPLIER = 1.78 / 1.5; // demo cue length: CFG.cueLength (1.78 * scale) mapped onto the full-game cue mesh
 
-const POOL_HUMAN_CHARACTER_THEME =
-  MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
-  MURLAN_CHARACTER_THEMES[0];
+const POOL_HUMAN_URL = DEMO_HUMAN_URL;
 const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
-const POOL_HUMAN_SIZE_MULTIPLIER = 1.08; // same Snooker Royal avatar, scaled only slightly larger for Pool Royale
-const POOL_HUMAN_WORLD_SCALE = (BALL_R / 0.0525) * POOL_HUMAN_SIZE_MULTIPLIER;
-const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * CUE_LENGTH_MULTIPLIER * POOL_HUMAN_WORLD_SCALE;
+const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
+const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.78 * POOL_HUMAN_WORLD_SCALE;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * 1.2;
 const POOL_HUMAN_CFG = Object.freeze({
   scale: POOL_HUMAN_WORLD_SCALE,
@@ -1978,9 +1975,9 @@ const POOL_HUMAN_CFG = Object.freeze({
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.26 * POOL_HUMAN_WORLD_SCALE,
+  humanScale: POOL_HUMAN_TARGET_HEIGHT,
   shotPoseAmount: 1.0,
-  humanVisualYawFix: 0,
+  humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmTableLift: BALL_R * 0.12,
   bridgeCueLift: BALL_R * 0.34,
@@ -2097,19 +2094,18 @@ function collectPoolHumanFingerBones(hand) {
 }
 
 function normalizePoolHumanModel(model, targetHeight = POOL_HUMAN_CFG.targetHeight) {
+  model.rotation.set(0, POOL_HUMAN_CFG.humanVisualYawFix, 0);
+  model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const height = Math.max(size.y, 1e-4);
-  const scale = targetHeight / height;
-  model.scale.multiplyScalar(scale);
+  const height = Math.max(box.max.y - box.min.y, 0.0001);
+  model.scale.multiplyScalar(targetHeight / height);
   model.updateMatrixWorld(true);
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  model.position.y -= scaledBox.min.y - center.y;
-  model.rotation.y += POOL_HUMAN_CFG.humanVisualYawFix;
+  model.position.set(-center.x, -scaledBox.min.y, -center.z);
 }
+
 
 function createPoolHumanGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
@@ -2158,20 +2154,10 @@ function loadPoolHumanModel(loader, url) {
   });
 }
 
-function buildPoolHumanModelUrls(theme = POOL_HUMAN_CHARACTER_THEME) {
-  const urls = [
-    ...(theme?.modelUrls || []),
-    theme?.url,
-    ...MURLAN_CHARACTER_THEMES.flatMap((entry) => [
-      ...(entry?.modelUrls || []),
-      entry?.url
-    ]),
-    'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-    'https://threejs.org/examples/models/gltf/Xbot.glb',
-    'https://threejs.org/examples/models/gltf/Soldier.glb'
-  ].filter(Boolean);
-  return [...new Set(urls)];
+function buildPoolHumanModelUrls() {
+  return [POOL_HUMAN_URL];
 }
+
 
 async function loadPoolHumanModelFromCatalog(loader, urls = buildPoolHumanModelUrls()) {
   let lastError = null;
@@ -2207,8 +2193,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
-    idleCuePose: null,
-    theme: POOL_HUMAN_CHARACTER_THEME
+    idleCuePose: null
   };
   human.root.name = 'PoolRoyalHumanPlayerRoot';
   human.modelRoot.name = 'PoolRoyalSnookerSharedCharacterRoot';
@@ -2216,10 +2201,9 @@ function createPoolRoyaleHumanRig(parent, renderer) {
   human.modelRoot.visible = false;
   parent.add(human.root, human.modelRoot);
   const loader = createPoolHumanGLTFLoader(renderer);
-  const urls = buildPoolHumanModelUrls(human.theme);
-  loadPoolHumanModelFromCatalog(loader, urls)
-    .then(({ model, url }) => {
-      human.modelUrl = url;
+  loadPoolHumanModel(loader, POOL_HUMAN_URL)
+    .then((model) => {
+      if (!model) throw new Error('ReadyPlayer demo human GLTF did not contain a scene');
       normalizePoolHumanModel(model);
       model.traverse((obj) => {
         if (!obj?.isMesh) return;
@@ -2229,7 +2213,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
         const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
         mats.forEach((mat) => {
           if (mat?.map) {
-            applySRGBColorSpace(mat.map);
+            mat.map.colorSpace = THREE.SRGBColorSpace;
             mat.map.flipY = false;
             mat.map.needsUpdate = true;
           }
@@ -2248,15 +2232,13 @@ function createPoolRoyaleHumanRig(parent, renderer) {
       });
       human.activeGlb = Boolean(
         human.bones.hips && human.bones.spine && human.bones.head &&
-        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
-        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
-        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
+        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand
       );
       human.model = model;
       human.modelRoot.add(model);
       human.modelRoot.visible = human.activeGlb;
     })
-    .catch((error) => console.warn('Pool Royale shared Snooker human rig failed', error))
+    .catch((error) => console.warn('Pool Royale demo human GLTF failed', error))
     .finally(() => disposePoolHumanGLTFLoader(loader));
   return human;
 }
@@ -2613,15 +2595,18 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   drivePoolRoyaleHuman(human, { t, stroke: forearmStroke / POOL_HUMAN_CFG.scale, follow: strikeFollow, walkAmount, forward, side, up: POOL_HUMAN_UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow: lockedRightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip });
 }
 
-function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
+function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power, table = null) {
   if (!human || !cueBallWorld) return null;
   const dir = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
+  const toHumanWorld = (point) => (table?.localToWorld ? table.localToWorld(point.clone()) : point.clone());
+  const cueBallLocal = cueBallWorld.clone();
+  const cueBallWorldPos = toHumanWorld(cueBallLocal);
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
   const cueEndpoints = tableCue
-    ? { butt: tableCue.back, tip: tableCue.tip }
+    ? { butt: toHumanWorld(tableCue.back), tip: toHumanWorld(tableCue.tip) }
     : {
-        tip: cueBallWorld.clone().addScaledVector(dir, -CUE_TIP_GAP),
-        butt: cueBallWorld.clone().addScaledVector(dir, -(cueLen + CUE_TIP_GAP))
+        tip: cueBallWorldPos.clone().addScaledVector(dir, -CUE_TIP_GAP),
+        butt: cueBallWorldPos.clone().addScaledVector(dir, -(cueLen + CUE_TIP_GAP))
       };
   const cueShotDir = cueEndpoints.tip.clone().sub(cueEndpoints.butt);
   if (cueShotDir.lengthSq() > 1e-8) dir.copy(cueShotDir.normalize());
@@ -2634,7 +2619,7 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
   human.settleT = poolHumanDampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
   if (state === 'striking') {
     if (human.strikeClock === 0) {
-      human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : choosePoolHumanEdgePosition(cueBallWorld, dir));
+      human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : toHumanWorld(choosePoolHumanEdgePosition(cueBallLocal, dir)));
       human.strikeYaw = human.yaw;
     }
     human.strikeClock += dt;
@@ -2642,10 +2627,9 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
     human.strikeClock = 0;
   }
 
-  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, dir)
+  const rootTarget = toHumanWorld(choosePoolHumanEdgePosition(cueBallLocal, dir))
     .addScaledVector(dir, state === 'dragging' ? -activePower * BALL_R * 1.8 : 0)
     .addScaledVector(side, -POOL_HUMAN_CFG.stanceWidth * 0.16);
-  rootTarget.y = POOL_HUMAN_CFG.floorLocalY;
   const rootGoal = state === 'striking' ? human.strikeRoot : rootTarget;
   poolHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
   const travel = human.root.position.distanceTo(rootGoal);
@@ -2682,7 +2666,7 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
   const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, -0.03 * POOL_HUMAN_CFG.scale - walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(POOL_HUMAN_CFG.stanceWidth * 0.5, POOL_HUMAN_CFG.footGroundY, 0.34 * POOL_HUMAN_CFG.scale), t));
-  const bridgePalmTarget = cueBallWorld.clone()
+  const bridgePalmTarget = cueBallWorldPos.clone()
     .addScaledVector(dir, -POOL_HUMAN_CFG.bridgeHandBackFromBall)
     .addScaledVector(side, POOL_HUMAN_CFG.bridgeHandSide)
     .setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift)
@@ -27275,7 +27259,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = createPoolRoyaleHumanRig(table, rendererRef.current);
+      const humanRig = createPoolRoyaleHumanRig(scene, rendererRef.current);
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -33398,7 +33382,8 @@ const shotPowerRef = useRef(0);
           aimForwardForHuman,
           cueStick,
           cueLen,
-          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1),
+          table
         );
         if (humanShotState === 'idle' || humanShotState === 'rolling') {
           movePoolRoyaleCueToHumanHand(humanRig, cueStick);
