@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState
 } from 'react';
-import SnookerRoyalProvided from './SnookerRoyalProvided.jsx';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -29961,5 +29960,22 @@ export default function SnookerRoyal() {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
-  return <SnookerRoyalProvided />;
+  return (
+    <SnookerRoyalGame
+      variantKey={variantKey}
+      ballSetKey={ballSetKey}
+      tableSizeKey={tableSizeKey}
+      tableModel={tableModel}
+      playType={playType}
+      mode={mode}
+      trainingMode={trainingMode}
+      trainingRulesEnabled={trainingRulesEnabled}
+      accountId={accountId}
+      tgId={tgId}
+      playerName={playerName}
+      playerAvatar={playerAvatar}
+      opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
+    />
+  );
 }
