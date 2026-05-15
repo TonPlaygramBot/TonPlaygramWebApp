@@ -1032,7 +1032,6 @@ const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
 const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = UNIVERSAL_FINAL_HIT_IMPACT_PROFILE.slowMotionFactor;
 const FIREARM_FINAL_BULLET_SPIN_RATE = 0.118;
-const FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR = 0.46;
 const FIREARM_SERVICE_PISTOL_PRELAUNCH_MS = 1250;
 const FIREARM_SERVICE_PISTOL_FINAL_TRAVEL_MS = 1250;
 const FIREARM_SERVICE_PISTOL_INSIDE_BARREL_OFFSET = 0.053;
@@ -3134,6 +3133,87 @@ function createCaptureBulletTracerFx(color = '#ffe8a3') {
   root.add(core);
   root.visible = false;
   return { root, core };
+}
+
+
+function createShootingRangeBulletTrailFx({ nineMm = false, longGun = false, distance = 0.12 } = {}) {
+  const length = Math.min(0.12, Math.max(0.035, distance || 0.12));
+  const radius = nineMm ? 0.00055 : 0.00075;
+  const trail = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, length, 8),
+    new THREE.MeshBasicMaterial({
+      color: nineMm ? '#e8fcff' : '#ffb84d',
+      transparent: true,
+      opacity: nineMm ? 0.38 : 0.58,
+      depthWrite: false,
+      blending: nineMm ? THREE.AdditiveBlending : THREE.NormalBlending
+    })
+  );
+  trail.name = `shooting-range-${nineMm ? '9mm' : longGun ? 'long-gun' : 'caliber'}-bullet-trail`;
+  trail.visible = false;
+  return trail;
+}
+
+function createShootingRangeBulletWakeFx() {
+  const group = new THREE.Group();
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.015, 0.062, 48, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: '#bff5ff',
+      transparent: true,
+      opacity: 0.1,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    })
+  );
+  cone.rotation.x = Math.PI;
+  cone.position.y = -0.034;
+  group.add(cone);
+
+  for (let strand = 0; strand < 4; strand += 1) {
+    const points = [];
+    const phase = (strand / 4) * Math.PI * 2;
+    for (let i = 0; i < 32; i += 1) {
+      const t = i / 31;
+      const radius = 0.0024 + t * 0.009;
+      const angle = phase + t * Math.PI * 4.4;
+      points.push(new THREE.Vector3(Math.cos(angle) * radius, -0.004 - t * 0.062, Math.sin(angle) * radius));
+    }
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({
+          color: '#e8fcff',
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        })
+      )
+    );
+  }
+
+  for (let i = 0; i < 2; i += 1) {
+    const shock = new THREE.Mesh(
+      new THREE.TorusGeometry(0.0105 + i * 0.0085, 0.00035, 8, 56),
+      new THREE.MeshBasicMaterial({
+        color: '#d7fbff',
+        transparent: true,
+        opacity: 0.11,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      })
+    );
+    shock.rotation.x = Math.PI / 2;
+    shock.position.y = -0.014 - i * 0.016;
+    group.add(shock);
+  }
+
+  group.name = 'shooting-range-bullet-wake';
+  group.visible = false;
+  return group;
 }
 
 function serviceAmmoMarkRenderable(root) {
@@ -11760,7 +11840,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
-          dynamicFirearmCameraRef.current = true;
+          dynamicFirearmCameraRef.current = false;
           const directorWeaponType =
             LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[resolvedCaptureAnimationId] ?? 'Rifle';
           const attackerEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === attackerPlayer);
@@ -11825,6 +11905,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const finalProjectileStartIndex = Math.max(0, projectileCount - pelletsPerShot);
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
             const mesh = createCaliberProjectileFx(mergedBallistics, servicePistolAmmo);
+            const isFinalCinematic = index >= finalProjectileStartIndex;
+            const isLongGunRound = /rifle|marksman|sniper/.test(String(mergedBallistics.projectileKind || ''));
+            const isShotgunPellet = /shotgun|buckshot/.test(String(mergedBallistics.projectileKind || ''));
             mesh.castShadow = false;
             mesh.receiveShadow = false;
             mesh.userData.caliberLabel = mergedBallistics.caliberLabel;
@@ -11832,11 +11915,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             mesh.userData.shotIndex = Math.floor(index / pelletsPerShot);
             mesh.userData.pelletIndex = index % pelletsPerShot;
             mesh.userData.spawnAt = preFireLeadMs + mesh.userData.shotIndex * cadenceMs;
-            mesh.userData.isFinalCinematic = index >= finalProjectileStartIndex;
-            mesh.userData.prelaunchMs = useServicePistolAmmo && mesh.userData.isFinalCinematic ? FIREARM_SERVICE_PISTOL_PRELAUNCH_MS : 0;
-            mesh.userData.insideBarrelOffset = useServicePistolAmmo && mesh.userData.isFinalCinematic ? FIREARM_SERVICE_PISTOL_INSIDE_BARREL_OFFSET : 0;
+            mesh.userData.isFinalCinematic = isFinalCinematic;
+            mesh.userData.prelaunchMs = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_PRELAUNCH_MS : 0;
+            mesh.userData.insideBarrelOffset = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_INSIDE_BARREL_OFFSET : 0;
             mesh.userData.completed = false;
+            mesh.userData.trail = createShootingRangeBulletTrailFx({
+              nineMm: useServicePistolAmmo,
+              longGun: isLongGunRound,
+              distance: startPosition.distanceTo(targetPosition)
+            });
+            mesh.userData.wake = useServicePistolAmmo || isLongGunRound || isFinalCinematic
+              ? createShootingRangeBulletWakeFx()
+              : null;
+            mesh.userData.isShotgunPellet = isShotgunPellet;
             scene.add(mesh);
+            scene.add(mesh.userData.trail);
+            if (mesh.userData.wake) scene.add(mesh.userData.wake);
             return mesh;
           });
           const targetReticle = createCaptureTargetReticleFx();
@@ -11850,9 +11944,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
           const singleShotFirearm = shots <= 1 || FIREARM_MARKSMAN_IDS.has(resolvedCaptureAnimationId);
           const useServicePistolFatalBullet = SMALL_SERVICE_PISTOL_FATAL_BULLET_IDS.has(resolvedCaptureAnimationId);
-          const bulletFollowStartIndex = useServicePistolFatalBullet
-            ? Math.max(0, projectileCount - pelletsPerShot)
-            : Math.max(0, projectileCount - (singleShotFirearm || FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? pelletsPerShot : 3));
+          const bulletFollowStartIndex = finalProjectileStartIndex;
           const aerodynamicRings = createBulletAerodynamicRingsFx();
           scene.add(aerodynamicRings);
           let finalImpactDone = false;
@@ -11885,7 +11977,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const tickFirearm = () => {
             const elapsed = performance.now() - volleyStart;
             const elapsedShooting = Math.max(0, elapsed - preFireLeadMs);
-            const shotIdx = Math.floor(elapsedShooting / cadenceMs);
+            const finalShotStartMs = preFireLeadMs + Math.max(0, shots - 1) * cadenceMs;
+            const finalCinematicActive = elapsed >= finalShotStartMs && elapsed < durationMs;
+            dynamicFirearmCameraRef.current = finalCinematicActive;
+            if (!finalCinematicActive) firearmCinematicCameraPoseRef.current = null;
             const weaponAnimationActive =
               elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
             if (handWeaponAttachment?.muzzle?.isObject3D) {
@@ -11972,19 +12067,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             cinematicSide.copy(cameraWorldUp).cross(cinematicAimDir);
             if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
             cinematicSide.normalize();
-            const shoulderCameraBlend = clamp(elapsed / Math.max(1, preFireLeadMs), 0, 1);
-            if (elapsed < pickupLeadMs) {
-              const grabFocus = rackWorld.lengthSq() > 1e-8 ? rackWorld : muzzleOrigin;
-              cinematicPosition
-                .copy(grabFocus)
-                .addScaledVector(cinematicAimDir, -0.18)
-                .addScaledVector(cinematicSide, 0.09)
-                .addScaledVector(cameraWorldUp, 0.075);
-              cinematicTarget.copy(grabFocus).lerp(muzzleOrigin, 0.56).addScaledVector(cameraWorldUp, 0.022);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.1);
-            } else {
-              // Service-pistol-style muzzle view: keep the barrel in front of camera so the
-              // last fatal bullet is visibly born from the muzzle while the right hand stays in frame.
+            const shoulderCameraBlend = clamp((elapsed - finalShotStartMs) / Math.max(1, FIREARM_SERVICE_PISTOL_PRELAUNCH_MS), 0, 1);
+            if (finalCinematicActive) {
+              // ShootingRange-style fatal-shot muzzle view: only the killing round takes over the camera.
               const muzzlePullback = useServicePistolFatalBullet ? 0.18 : singleShotFirearm ? 0.27 : 0.32;
               const muzzleSide = useServicePistolFatalBullet ? 0.028 : singleShotFirearm ? 0.034 : 0.046;
               const muzzleLift = useServicePistolFatalBullet
@@ -12039,21 +12124,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               muzzleFx.root.visible = false;
               targetReticle.root.visible = false;
             }
-            tracers.forEach((entry, idx) => {
-              const active = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? idx < Math.min(tracers.length, pelletsPerShot) && shotIdx === 0 : idx <= shotIdx && idx > shotIdx - 2;
-              entry.root.visible = active;
-              if (!active) return;
-              const spread = new THREE.Vector3(
-                (Math.random() - 0.5) * mergedBallistics.tracerSpread,
-                (Math.random() - 0.5) * mergedBallistics.tracerSpread * 0.9,
-                (Math.random() - 0.5) * mergedBallistics.tracerSpread
-              );
-              const from = muzzleOrigin.clone().add(spread);
-              const to = muzzleTarget.clone().add(spread.multiplyScalar(0.3));
-              const mid = from.clone().lerp(to, 0.5);
-              const dir = to.clone().sub(from).normalize();
-              entry.root.position.copy(mid);
-              entry.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
+            tracers.forEach((entry) => {
+              // ShootingRange parity: per-projectile trail cylinders replace the older Ludo tracer streaks.
+              entry.root.visible = false;
             });
             let leadBulletPos = null;
             let leadBulletMesh = null;
@@ -12062,17 +12135,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const life = elapsed - spawnAt;
               if (life < 0) {
                 bulletMesh.visible = false;
+                if (bulletMesh.userData?.trail) bulletMesh.userData.trail.visible = false;
+                if (bulletMesh.userData?.wake) bulletMesh.userData.wake.visible = false;
                 return;
               }
               const isFinalProjectile = idx >= finalProjectileStartIndex;
               const prelaunchMs = Number(bulletMesh.userData?.prelaunchMs ?? 0);
               const insideBarrelOffset = Number(bulletMesh.userData?.insideBarrelOffset ?? 0);
               const launchedLife = Math.max(0, life - prelaunchMs);
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? FIREARM_FINAL_BULLET_SLOWMO_FACTOR : FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR);
-              const serviceFatalTimeScale = useServicePistolFatalBullet && isFinalProjectile ? 2.7 : isFinalProjectile ? 2.18 : 0.82;
+              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * FIREARM_FINAL_BULLET_SLOWMO_FACTOR;
+              const serviceFatalTimeScale = useServicePistolFatalBullet && isFinalProjectile ? 2.7 : 2.18;
               const rawShotProgress = useServicePistolAmmo && isFinalProjectile
                 ? clamp(launchedLife / FIREARM_SERVICE_PISTOL_FINAL_TRAVEL_MS, 0, 1)
-                : clamp((launchedLife * cinematicBulletSpeed) / Math.max(24, cadenceMs * serviceFatalTimeScale), 0, 1);
+                : isFinalProjectile
+                ? clamp((launchedLife * cinematicBulletSpeed) / Math.max(24, cadenceMs * serviceFatalTimeScale), 0, 1)
+                : clamp(launchedLife / Math.max(38, cadenceMs * 0.82), 0, 1);
               const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
               const pelletOffset = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) && !isFinalProjectile
@@ -12097,6 +12174,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (isFinalProjectile) bulletMesh.rotateZ(life * (useServicePistolFatalBullet ? 0.076 : 0.036));
               bulletMesh.visible = life < prelaunchMs || shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
+              const bulletTrail = bulletMesh.userData?.trail;
+              if (bulletTrail?.isObject3D) {
+                bulletTrail.visible = bulletMesh.visible && life >= prelaunchMs;
+                bulletTrail.position.copy(bulletPos).lerp(muzzleOrigin, 0.15);
+                bulletTrail.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
+              }
+              const bulletWake = bulletMesh.userData?.wake;
+              if (bulletWake?.isObject3D) {
+                bulletWake.visible = bulletMesh.visible && life >= prelaunchMs;
+                bulletWake.position.copy(bulletPos);
+                bulletWake.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
+              }
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
                 chipDamageDone = true;
                 const shotDir = muzzleTarget.clone().sub(muzzleOrigin);
@@ -12116,6 +12205,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (shotProgress >= 0.995) {
                 bulletMesh.userData.completed = true;
                 bulletMesh.visible = false;
+                if (bulletMesh.userData?.trail) bulletMesh.userData.trail.visible = false;
+                if (bulletMesh.userData?.wake) bulletMesh.userData.wake.visible = false;
               }
               if (
                 !leadBulletPos &&
@@ -12128,7 +12219,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 leadBulletMesh = bulletMesh;
               }
             });
-            if (leadBulletPos?.isVector3) {
+            if (finalCinematicActive && leadBulletPos?.isVector3) {
               const bulletDir = muzzleTarget.clone().sub(muzzleOrigin);
               if (bulletDir.lengthSq() < 1e-7) bulletDir.set(0, 0, -1);
               bulletDir.normalize();
@@ -12238,10 +12329,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               return;
             }
             if (hideTarget) hideTarget.visible = true;
-            [muzzleFx.root, targetReticle.root, aerodynamicRings, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
+            [
+              muzzleFx.root,
+              targetReticle.root,
+              aerodynamicRings,
+              ...tracers.map((entry) => entry.root),
+              ...shells,
+              ...bullets,
+              ...bullets.map((bullet) => bullet?.userData?.trail).filter(Boolean),
+              ...bullets.map((bullet) => bullet?.userData?.wake).filter(Boolean)
+            ].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
-            bullets.forEach((bullet) => bullet?.userData?.dispose?.());
+            bullets.forEach((bullet) => {
+              bullet?.userData?.dispose?.();
+              bullet?.userData?.trail?.geometry?.dispose?.();
+              bullet?.userData?.trail?.material?.dispose?.();
+              bullet?.userData?.wake?.traverse?.((node) => {
+                node.geometry?.dispose?.();
+                if (Array.isArray(node.material)) node.material.forEach((mat) => mat?.dispose?.());
+                else node.material?.dispose?.();
+              });
+            });
             handWeaponAttachment?.release?.();
             dynamicFirearmCameraRef.current = false;
             firearmCinematicCameraPoseRef.current = null;
