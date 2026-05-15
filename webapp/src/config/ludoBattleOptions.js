@@ -376,7 +376,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-current',
     label: 'Current Avatar',
-    description: 'Ready Player Me seated avatar with full PBR texture maps.',
+    description: 'Ready Player Me seated avatar enhanced with preserved face/skin maps and CC0 Poly Haven per-garment PBR textures.',
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     source: 'three.js examples',
     license: 'MIT examples bundle'
@@ -384,7 +384,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67d411',
     label: 'RPM 67d411',
-    description: 'Ready Player Me public avatar seated with the same Ludo rig logic and motion set.',
+    description: 'Ready Player Me public avatar seated with Ludo rig logic plus CC0 Poly Haven shirt, denim, leather, hat and jewelry texture slots.',
     modelUrls: [
       'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
@@ -396,7 +396,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67f433',
     label: 'RPM 67f433',
-    description: 'Ready Player Me public avatar aligned to default seated scale/orientation for Ludo.',
+    description: 'Ready Player Me public avatar aligned to Ludo with individual jacket, dress, jeans, shoes and accessory PBR texture mapping.',
     modelUrls: [
       'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
@@ -408,7 +408,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67e1b5',
     label: 'RPM 67e1b5',
-    description: 'Ready Player Me public avatar using the same seated helper offsets and animation logic.',
+    description: 'Ready Player Me public avatar using the same seated helpers with separate realistic textile and leather PBR clothing materials.',
     modelUrls: [
       'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
@@ -420,7 +420,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-vietnam-human',
     label: 'Vietnam Human',
-    description: 'Open WebGL GLB humanoid seated with the same Ludo scale/orientation/motion rig.',
+    description: 'Open WebGL GLB humanoid seated with Ludo scale and CC0 Poly Haven per-item clothing material mapping.',
     modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
     source: 'hmthanh/3d-human-model GitHub',
     license: 'Check repository license'
@@ -428,7 +428,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher',
     label: 'AI Teacher',
-    description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
+    description: 'Open-source AI Teacher avatar adapted to the seated pose pipeline with separate realistic shirt, jacket, pants, tie, shoe and accessory textures.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license'
@@ -436,7 +436,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher-1',
     label: 'AI Teacher 1',
-    description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.',
+    description: 'Second AI Teacher avatar using the same seated helpers and individual CC0 cloth, denim, leather and accessory texture roles.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license'

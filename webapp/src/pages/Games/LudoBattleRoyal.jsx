@@ -7054,102 +7054,127 @@ function applyFirearmTriggerGrip(rig, gripAmount = 0) {
 
 
 const SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze({
+  // Poly Haven assets are CC0 and expose glTF/JPG PBR maps through the public files API.
+  // These are intentionally real downloaded texture maps, not generated/procedural canvases.
   'rpm-current': {
-    cloth: 'cotton_jersey',
+    shirt: 'cotton_jersey',
+    tshirt: 'terlenka',
+    jacket: 'poly_wool_herringbone',
+    pants: 'denim_fabric_04',
+    dress: 'quatrefoil_jacquard_fabric',
+    tie: 'scuba_suede',
+    hat: 'wool_boucle',
     shoes: 'brown_leather',
     accessory: 'leather_white',
-    skin: ['#e2c3a5', '#c99974', '#8f5f42'],
-    hair: '#3b2416',
-    eyes: '#3f6f8f'
+    jewelry: 'metal_plate_02',
+    skinTone: '#c99974',
+    hairColor: '#3b2416',
+    eyeColor: '#3f6f8f'
   },
   'rpm-67d411': {
-    cloth: 'denim_fabric_04',
+    shirt: 'terlenka',
+    tshirt: 'waffle_pique_cotton',
+    jacket: 'fabric_pattern_05',
+    pants: 'denim_fabric_05',
+    dress: 'wool_boucle',
+    tie: 'leather_red_03',
+    hat: 'scuba_suede',
     shoes: 'fabric_leather_01',
     accessory: 'poly_wool_herringbone',
-    skin: ['#f0c7a8', '#cf946c', '#985d3c'],
-    hair: '#111827',
-    eyes: '#5b7c54'
+    jewelry: 'metal_plate_02',
+    skinTone: '#cf946c',
+    hairColor: '#111827',
+    eyeColor: '#5b7c54'
   },
   'rpm-67f433': {
-    cloth: 'quatrefoil_jacquard_fabric',
-    shoes: 'leather_red_03',
+    shirt: 'quatrefoil_jacquard_fabric',
+    tshirt: 'cotton_jersey',
+    jacket: 'leather_red_03',
+    pants: 'denim_fabric_04',
+    dress: 'fabric_pattern_05',
+    tie: 'poly_wool_herringbone',
+    hat: 'terry_cloth',
+    shoes: 'fabric_leather_02',
     accessory: 'fabric_leather_02',
-    skin: ['#b77955', '#8a5139', '#5a3528'],
-    hair: '#1f1712',
-    eyes: '#4b5563'
+    jewelry: 'metal_plate_02',
+    skinTone: '#8a5139',
+    hairColor: '#1f1712',
+    eyeColor: '#4b5563'
   },
   'rpm-67e1b5': {
-    cloth: 'wool_boucle',
+    shirt: 'wool_boucle',
+    tshirt: 'terlenka',
+    jacket: 'scuba_suede',
+    pants: 'denim_fabric_05',
+    dress: 'quatrefoil_jacquard_fabric',
+    tie: 'leather_red_03',
+    hat: 'poly_wool_herringbone',
     shoes: 'brown_leather',
     accessory: 'scuba_suede',
-    skin: ['#d5a17f', '#a86f4f', '#70432f'],
-    hair: '#6b3f23',
-    eyes: '#7c5f37'
+    jewelry: 'metal_plate_02',
+    skinTone: '#a86f4f',
+    hairColor: '#6b3f23',
+    eyeColor: '#7c5f37'
   },
   'webgl-vietnam-human': {
-    cloth: 'denim_fabric_05',
+    shirt: 'fabric_pattern_05',
+    tshirt: 'cotton_jersey',
+    jacket: 'terlenka',
+    pants: 'denim_fabric_05',
+    dress: 'wool_boucle',
+    tie: 'poly_wool_herringbone',
+    hat: 'terry_cloth',
     shoes: 'fabric_leather_02',
     accessory: 'terry_cloth',
-    skin: ['#d6a07c', '#a96d4c', '#6f412e'],
-    hair: '#17120f',
-    eyes: '#2f3a44'
+    jewelry: 'metal_plate_02',
+    skinTone: '#a96d4c',
+    hairColor: '#17120f',
+    eyeColor: '#2f3a44'
   },
   'webgl-ai-teacher': {
-    cloth: 'fabric_pattern_05',
+    shirt: 'fabric_pattern_05',
+    tshirt: 'waffle_pique_cotton',
+    jacket: 'poly_wool_herringbone',
+    pants: 'denim_fabric_04',
+    dress: 'quatrefoil_jacquard_fabric',
+    tie: 'leather_red_03',
+    hat: 'scuba_suede',
     shoes: 'leather_white',
     accessory: 'poly_wool_herringbone',
-    skin: ['#e7b890', '#bd7c57', '#7a4933'],
-    hair: '#21160f',
-    eyes: '#465f86'
+    jewelry: 'metal_plate_02',
+    skinTone: '#bd7c57',
+    hairColor: '#21160f',
+    eyeColor: '#465f86'
   },
   'webgl-ai-teacher-1': {
-    cloth: 'waffle_pique_cotton',
+    shirt: 'waffle_pique_cotton',
+    tshirt: 'terlenka',
+    jacket: 'wool_boucle',
+    pants: 'denim_fabric_05',
+    dress: 'fabric_pattern_05',
+    tie: 'scuba_suede',
+    hat: 'poly_wool_herringbone',
     shoes: 'fabric_leather_01',
     accessory: 'leather_red_02',
-    skin: ['#f2d0b4', '#d39d78', '#a4694d'],
-    hair: '#4a2f1c',
-    eyes: '#566b45'
+    jewelry: 'metal_plate_02',
+    skinTone: '#d39d78',
+    hairColor: '#4a2f1c',
+    eyeColor: '#566b45'
   }
 });
 
-function createDetailedSkinTexture(tone = ['#d8c0a6', '#b48d6b', '#7c4f36']) {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-  const [light, mid, deep] = tone;
-  const grad = ctx.createRadialGradient(size * 0.42, size * 0.32, size * 0.08, size * 0.5, size * 0.5, size * 0.72);
-  grad.addColorStop(0, light);
-  grad.addColorStop(0.58, mid);
-  grad.addColorStop(1, deep);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 950; i += 1) {
-    const x = (i * 137) % size;
-    const y = (i * 197) % size;
-    const r = 0.45 + ((i * 17) % 5) * 0.18;
-    ctx.globalAlpha = 0.035 + (i % 7) * 0.007;
-    ctx.fillStyle = i % 5 === 0 ? 'rgba(92,43,25,0.65)' : 'rgba(255,239,216,0.75)';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = 'rgba(255,185,165,0.9)';
-  ctx.fillRect(size * 0.08, size * 0.18, size * 0.22, size * 0.16);
-  ctx.fillRect(size * 0.7, size * 0.18, size * 0.22, size * 0.16);
-  ctx.globalAlpha = 1;
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 8;
-  texture.needsUpdate = true;
-  return texture;
-}
+const SEATED_HUMAN_TEXTURE_ROLE_KEYS = Object.freeze([
+  'shirt',
+  'tshirt',
+  'jacket',
+  'pants',
+  'dress',
+  'tie',
+  'hat',
+  'shoes',
+  'accessory',
+  'jewelry'
+]);
 
 async function loadSeatedHumanTextureProfile(renderer = null, humanOption = HUMAN_CHARACTER_OPTIONS[0]) {
   const optionId = humanOption?.id || HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
@@ -7158,42 +7183,55 @@ async function loadSeatedHumanTextureProfile(renderer = null, humanOption = HUMA
   textureLoader.setCrossOrigin?.('anonymous');
   const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || activeModelTextureAnisotropy || 1;
   const preferred = ['2k', '1k'];
-  const [cloth, shoes, accessory] = await Promise.all([
-    loadPolyhavenTextureSet(profile.cloth, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred),
-    loadPolyhavenTextureSet(profile.shoes, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred),
-    loadPolyhavenTextureSet(profile.accessory, textureLoader, maxAnisotropy, SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE, preferred)
-  ]);
+  const textureEntries = await Promise.all(
+    SEATED_HUMAN_TEXTURE_ROLE_KEYS.map(async (role) => [
+      role,
+      await loadPolyhavenTextureSet(
+        profile[role],
+        textureLoader,
+        maxAnisotropy,
+        SEATED_HUMAN_POLYHAVEN_TEXTURE_CACHE,
+        preferred
+      )
+    ])
+  );
+
   return {
-    cloth,
-    shoes,
-    accessory,
-    skinTexture: createDetailedSkinTexture(profile.skin),
-    skinTone: profile.skin?.[1] || '#c99974',
-    hairColor: profile.hair || '#2a1a10',
-    eyeColor: profile.eyes || '#3f6f8f'
+    ...Object.fromEntries(textureEntries),
+    skinTone: profile.skinTone || '#c99974',
+    hairColor: profile.hairColor || '#2a1a10',
+    eyeColor: profile.eyeColor || '#3f6f8f'
   };
 }
-
 function classifySeatedHumanSurface(meshName, materialName) {
   const label = `${meshName || ''} ${materialName || ''}`.toLowerCase();
   if (/eye|iris|pupil|cornea/.test(label)) return 'eyes';
   if (/hair|beard|mustache|moustache|brow/.test(label)) return 'hair';
   if (/shoe|boot|sneaker|sole|footwear/.test(label)) return 'shoes';
-  if (/glass|watch|ring|necklace|earring|bracelet|accessor|belt|hat|cap|bag/.test(label)) return 'accessory';
-  if (/outfit|top|shirt|jacket|hoodie|coat|bottom|pant|trouser|short|skirt|dress|cloth|fabric|sleeve|torso|bodywear/.test(label)) return 'cloth';
+  if (/watch|ring|earring|necklace|bracelet|jewel|metal|chain|cufflink/.test(label)) return 'jewelry';
+  if (/hat|cap|beanie|fedora|headwear/.test(label)) return 'hat';
+  if (/tie|bowtie|cravat|scarf/.test(label)) return 'tie';
+  if (/jacket|hoodie|coat|blazer|suit|cardigan/.test(label)) return 'jacket';
+  if (/dress|skirt|gown/.test(label)) return 'dress';
+  if (/t[-_ ]?shirt|tee|undershirt/.test(label)) return 'tshirt';
+  if (/shirt|top|sleeve|torso|bodywear|upper|blouse/.test(label)) return 'shirt';
+  if (/bottom|pant|trouser|jean|short|leggings|legwear/.test(label)) return 'pants';
+  if (/glass|accessor|belt|bag|purse/.test(label)) return 'accessory';
+  if (/outfit|cloth|fabric|garment|uniform/.test(label)) return 'shirt';
   if (/head|face|skin|neck|ear|hand|arm|leg|body/.test(label)) return 'skin';
-  return 'cloth';
+  return 'shirt';
 }
 
-function applySeatedHumanMaterialDetail(root, textureProfile, fallbackTextures = {}) {
+function applySeatedHumanMaterialDetail(root, textureProfile) {
   if (!root?.isObject3D || !textureProfile) return;
-  const assignPbrSet = (material, set, fallbackMap = null) => {
-    if (!material) return;
-    material.map = set?.diffuse || fallbackMap || material.map || null;
-    if (set?.normal) material.normalMap = set.normal;
-    if (set?.roughness) material.roughnessMap = set.roughness;
+  const assignPbrSet = (material, set) => {
+    if (!material || !set?.diffuse) return false;
+    material.map = set.diffuse;
+    if (set.normal) material.normalMap = set.normal;
+    if (set.roughness) material.roughnessMap = set.roughness;
     normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
     material.needsUpdate = true;
+    return true;
   };
 
   root.traverse((obj) => {
@@ -7205,35 +7243,35 @@ function applySeatedHumanMaterialDetail(root, textureProfile, fallbackTextures =
     materials.forEach((mat) => {
       const kind = classifySeatedHumanSurface(obj.name, mat?.name);
       if (kind === 'eyes') {
-        mat.map = mat.map || null;
         mat.color?.set?.(textureProfile.eyeColor);
         mat.roughness = 0.18;
         mat.metalness = 0.02;
       } else if (kind === 'hair') {
-        mat.map = mat.map || fallbackTextures.hairTex || null;
+        // Keep embedded GLB hair/face maps intact; only tune PBR response and color.
         mat.color?.set?.(textureProfile.hairColor);
         mat.roughness = 0.72;
         mat.metalness = 0.02;
       } else if (kind === 'skin') {
-        mat.map = textureProfile.skinTexture || fallbackTextures.skinTex || mat.map || null;
+        // Preserve original GLB skin/face textures so realistic avatar UVs stay physically mapped.
         mat.color?.set?.(textureProfile.skinTone);
         mat.roughness = 0.58;
         mat.metalness = 0;
-      } else if (kind === 'shoes') {
-        assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null);
-        mat.color?.setHex?.(0xffffff);
-        mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
-        mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
-      } else if (kind === 'accessory') {
-        assignPbrSet(mat, textureProfile.accessory, fallbackTextures.clothTex || null);
-        mat.color?.setHex?.(0xffffff);
-        mat.roughness = Math.max(mat.roughness ?? 0.48, 0.48);
-        mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.22);
       } else {
-        assignPbrSet(mat, textureProfile.cloth, fallbackTextures.clothTex || null);
-        mat.color?.setHex?.(0xffffff);
-        mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
-        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
+        const applied = assignPbrSet(mat, textureProfile[kind] || textureProfile.accessory || textureProfile.shirt);
+        if (applied) mat.color?.setHex?.(0xffffff);
+        if (kind === 'jewelry') {
+          mat.roughness = Math.max(mat.roughness ?? 0.36, 0.36);
+          mat.metalness = Math.max(mat.metalness ?? 0.72, 0.72);
+        } else if (kind === 'shoes') {
+          mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
+          mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
+        } else if (kind === 'accessory' || kind === 'hat' || kind === 'tie') {
+          mat.roughness = Math.max(mat.roughness ?? 0.5, 0.5);
+          mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.22);
+        } else {
+          mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
+          mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
+        }
       }
       normalizeMaterialTextures(mat, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
       if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
@@ -7241,43 +7279,6 @@ function applySeatedHumanMaterialDetail(root, textureProfile, fallbackTextures =
     });
   });
 }
-
-function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return new THREE.CanvasTexture(canvas);
-  }
-
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, primary);
-  grad.addColorStop(1, secondary);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 180; i += 1) {
-    const x = (i * 53) % size;
-    const y = (i * 79) % size;
-    const w = 8 + ((i * 11) % 22);
-    const h = 4 + ((i * 7) % 14);
-    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
-    ctx.fillRect(x, y, w, h);
-  }
-  ctx.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(tex);
-  tex.flipY = false;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-  tex.needsUpdate = true;
-  return tex;
-}
-
 const FRONT_SIDE_Z = 1;
 const LEG_FRONT_OFFSET_MIXAMO = 0;
 
@@ -8136,25 +8137,17 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
         if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
         const root = gltf?.scene || gltf?.scenes?.[0];
         if (!root) throw new Error('Missing seated human scene');
-        const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-        const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-        const shoesTex = createSeatedHumanFallbackTexture('#4a3324', '#1f1711');
-        const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
         let textureProfile = null;
         try {
           textureProfile = await loadSeatedHumanTextureProfile(renderer, humanOption);
         } catch (error) {
-          console.warn('Unable to load Poly Haven seated-human texture profile; using procedural fallback', optionId, error);
+          console.warn('Unable to load Poly Haven seated-human texture profile; preserving original GLB maps', optionId, error);
         }
         applySeatedHumanMaterialDetail(root, textureProfile || {
-          cloth: null,
-          shoes: null,
-          accessory: null,
-          skinTexture: skinTex,
           skinTone: '#c99974',
           hairColor: '#3f2f20',
           eyeColor: '#3f6f8f'
-        }, { skinTex, clothTex, shoesTex, hairTex });
+        });
         applyModelQualityToObject(root);
         return root;
       })()
@@ -10560,6 +10553,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     let cancelled = false;
     let onPointerDown = null;
+    let onPointerMove = null;
     let onPointerUp = null;
     let onResize = null;
 
@@ -11107,7 +11101,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
-    let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
