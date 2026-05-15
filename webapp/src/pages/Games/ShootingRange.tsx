@@ -99,20 +99,28 @@ type PaperTargetRuntime = {
 };
 
 type BulletRuntime = {
-  mesh: THREE.Mesh;
-  trail: THREE.Mesh;
+  mesh: THREE.Object3D;
+  trail: THREE.Object3D;
+  wake: THREE.Object3D | null;
+  spinGroup: THREE.Object3D | null;
   start: THREE.Vector3;
   end: THREE.Vector3;
   t: number;
   speed: number;
   cinematic: boolean;
+  spin: number;
 };
 
 type ShellRuntime = {
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
   vel: THREE.Vector3;
   spin: THREE.Vector3;
   life: number;
+};
+
+type ServiceAmmoTemplates = {
+  bullet: THREE.Object3D;
+  shell: THREE.Object3D;
 };
 
 const USER_LANE = 0;
@@ -159,6 +167,15 @@ const POLYHAVEN_ASSETS = {
   servicePistol:
     'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf'
 };
+
+const SERVICE_PISTOL_AMMO_URLS = [
+  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/service_pistol/service_pistol_2k.gltf',
+  POLYHAVEN_ASSETS.servicePistol,
+  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/service_pistol/service_pistol_4k.gltf'
+];
+
+const SERVICE_PISTOL_PRELAUNCH = 1.25;
+const SERVICE_PISTOL_BULLET_SPIN = 245;
 
 const TEXTURES = {
   floor: {
@@ -497,6 +514,18 @@ const CHARACTERS: CharacterSpec[] = [
 
 function statsFor(entry: WeaponEntry) {
   return STATS[entry.weaponClass];
+}
+
+function isNineMillimeterWeapon(entry: WeaponEntry) {
+  return (
+    entry.weaponClass === 'pistol' ||
+    entry.weaponClass === 'revolver' ||
+    entry.weaponClass === 'smg'
+  );
+}
+
+function isBigRifleWeapon(entry: WeaponEntry) {
+  return entry.weaponClass === 'rifle' || entry.weaponClass === 'sniper';
 }
 
 function parentFolder(url: string) {
@@ -1152,6 +1181,305 @@ function createPaperTarget(
   };
 }
 
+function cloneRenderable(root: THREE.Object3D) {
+  const clone = cloneScene(root);
+  clone.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+  });
+  return clone;
+}
+
+function labelOfObject(object: THREE.Object3D) {
+  const mesh = object as THREE.Mesh;
+  const materials = Array.isArray((mesh as any).material)
+    ? (mesh as any).material
+    : (mesh as any).material
+      ? [(mesh as any).material]
+      : [];
+  return `${object.name || ''} ${materials.map((m: any) => m?.name || '').join(' ')}`.toLowerCase();
+}
+
+function scoreAmmoLabel(label: string, words: string[], reject: string[] = []) {
+  if (reject.some((word) => label.includes(word))) return -999;
+  return words.reduce(
+    (sum, word, index) => sum + (label.includes(word) ? 24 - index : 0),
+    0
+  );
+}
+
+function bestAmmoMesh(root: THREE.Object3D, words: string[], reject: string[]) {
+  let best: THREE.Object3D | null = null;
+  let bestScore = -Infinity;
+  root.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) return;
+    const score = scoreAmmoLabel(labelOfObject(child), words, reject);
+    if (score > bestScore) {
+      best = child;
+      bestScore = score;
+    }
+  });
+  return bestScore > 0 ? best : null;
+}
+
+function materialFromObject(object: THREE.Object3D | null, fallback: string) {
+  let found: THREE.Material | null = null;
+  object?.traverse((child) => {
+    if (found) return;
+    const mesh = child as THREE.Mesh;
+    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) return;
+    const material = (mesh as any).material;
+    found = Array.isArray(material) ? material.find(Boolean) : material;
+  });
+  const cloned = (found as any)?.clone?.();
+  if (cloned) return cloned as THREE.Material;
+  return new THREE.MeshStandardMaterial({
+    color: fallback,
+    roughness: 0.32,
+    metalness: 0.72
+  });
+}
+
+function splitAmmoMesh(
+  mesh: THREE.Object3D | null,
+  keep: 'front' | 'back',
+  targetLength: number
+) {
+  const sourceMesh = mesh as THREE.Mesh | null;
+  if (!sourceMesh?.geometry?.attributes?.position) return null;
+  const source = sourceMesh.geometry.index
+    ? sourceMesh.geometry.toNonIndexed()
+    : sourceMesh.geometry.clone();
+  const pos = source.attributes.position;
+  const normal = source.attributes.normal;
+  const uv = source.attributes.uv;
+  const box = new THREE.Box3().setFromBufferAttribute(pos);
+  const dims = box.getSize(new THREE.Vector3());
+  const axis =
+    dims.x >= dims.y && dims.x >= dims.z ? 0 : dims.y >= dims.z ? 1 : 2;
+  const min = axis === 0 ? box.min.x : axis === 1 ? box.min.y : box.min.z;
+  const max = axis === 0 ? box.max.x : axis === 1 ? box.max.y : box.max.z;
+  const cut = min + (max - min) * 0.52;
+  const p: number[] = [];
+  const n: number[] = [];
+  const u: number[] = [];
+  const v = new THREE.Vector3();
+
+  for (let i = 0; i < pos.count; i += 3) {
+    let avg = 0;
+    for (let j = 0; j < 3; j += 1) {
+      v.fromBufferAttribute(pos, i + j);
+      avg += axis === 0 ? v.x : axis === 1 ? v.y : v.z;
+    }
+    avg /= 3;
+    const chosen = keep === 'front' ? avg >= cut : avg < cut;
+    if (!chosen) continue;
+    for (let j = 0; j < 3; j += 1) {
+      p.push(pos.getX(i + j), pos.getY(i + j), pos.getZ(i + j));
+      if (normal)
+        n.push(normal.getX(i + j), normal.getY(i + j), normal.getZ(i + j));
+      if (uv) u.push(uv.getX(i + j), uv.getY(i + j));
+    }
+  }
+
+  if (p.length < 9) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  if (n.length)
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
+  else geometry.computeVertexNormals();
+  if (u.length)
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  const group = new THREE.Group();
+  group.add(
+    new THREE.Mesh(
+      geometry,
+      materialFromObject(mesh, keep === 'front' ? '#b66b35' : '#c9953d')
+    )
+  );
+  normalizeToLength(group, targetLength);
+  return group;
+}
+
+function makeFallbackNineMillimeterBullet() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: '#b66b35',
+    roughness: 0.32,
+    metalness: 0.72
+  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.026, 0.026, 0.07, 40),
+    mat
+  );
+  body.rotation.x = Math.PI / 2;
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.026, 0.055, 40),
+    mat.clone()
+  );
+  tip.rotation.x = -Math.PI / 2;
+  tip.position.z = -0.058;
+  group.add(body, tip);
+  normalizeToLength(group, 0.14);
+  return group;
+}
+
+function makeFallbackNineMillimeterShell() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: '#c9953d',
+    roughness: 0.32,
+    metalness: 0.82
+  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.042, 0.048, 0.19, 40),
+    mat
+  );
+  body.rotation.x = Math.PI / 2;
+  const rim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.056, 0.056, 0.026, 40),
+    mat.clone()
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.z = 0.1;
+  group.add(body, rim);
+  normalizeToLength(group, 0.2);
+  return group;
+}
+
+function extractServicePistolAmmo(root: THREE.Object3D): ServiceAmmoTemplates {
+  const explicitBullet = bestAmmoMesh(
+    root,
+    ['bullet_head', 'bullet head', 'projectile', 'bullet', 'round'],
+    [
+      'shell',
+      'casing',
+      'case',
+      'magazine',
+      'mag',
+      'slide',
+      'grip',
+      'barrel',
+      'trigger'
+    ]
+  );
+  const explicitShell = bestAmmoMesh(
+    root,
+    ['shell', 'casing', 'case', 'brass'],
+    [
+      'bullet_head',
+      'bullet head',
+      'projectile',
+      'magazine',
+      'mag',
+      'slide',
+      'grip',
+      'barrel',
+      'trigger'
+    ]
+  );
+
+  const bullet = explicitBullet
+    ? cloneRenderable(explicitBullet)
+    : splitAmmoMesh(explicitShell, 'front', 0.14) ||
+      makeFallbackNineMillimeterBullet();
+  const shell = explicitShell
+    ? cloneRenderable(explicitShell)
+    : splitAmmoMesh(explicitBullet, 'back', 0.2) ||
+      makeFallbackNineMillimeterShell();
+
+  normalizeToLength(bullet, 0.14);
+  normalizeToLength(shell, 0.2);
+  orientAmmoForward(bullet);
+  orientAmmoForward(shell);
+  return { bullet, shell };
+}
+
+function orientAmmoForward(root: THREE.Object3D) {
+  centerRoot(root);
+  root.updateMatrixWorld(true);
+  const box = getRenderableBounds(root);
+  if (!box) return;
+  const size = box.getSize(new THREE.Vector3());
+  if (size.x >= size.y && size.x >= size.z) root.rotation.y = -Math.PI / 2;
+  else if (size.y >= size.z) root.rotation.x = Math.PI / 2;
+  root.rotateY(-Math.PI);
+  centerRoot(root);
+}
+
+function makeWake() {
+  const group = new THREE.Group();
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.15, 0.62, 48, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: '#bff5ff',
+      transparent: true,
+      opacity: 0.1,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    })
+  );
+  cone.rotation.x = Math.PI / 2;
+  cone.position.z = 0.34;
+  group.add(cone);
+
+  for (let strand = 0; strand < 4; strand += 1) {
+    const points: THREE.Vector3[] = [];
+    const phase = (strand / 4) * Math.PI * 2;
+    for (let i = 0; i < 32; i += 1) {
+      const t = i / 31;
+      const radius = 0.024 + t * 0.09;
+      const angle = phase + t * Math.PI * 4.4;
+      points.push(
+        new THREE.Vector3(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius,
+          0.04 + t * 0.62
+        )
+      );
+    }
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({
+          color: '#e8fcff',
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        })
+      )
+    );
+  }
+
+  for (let i = 0; i < 2; i += 1) {
+    const shock = new THREE.Mesh(
+      new THREE.TorusGeometry(0.105 + i * 0.085, 0.0035, 8, 56),
+      new THREE.MeshBasicMaterial({
+        color: '#d7fbff',
+        transparent: true,
+        opacity: 0.11,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      })
+    );
+    shock.rotation.x = Math.PI / 2;
+    shock.position.z = 0.14 + i * 0.16;
+    group.add(shock);
+  }
+
+  return group;
+}
+
 function createBulletHole(localPoint: THREE.Vector3, points: number) {
   const size = 0.03 + Math.random() * 0.018;
   const mesh = new THREE.Mesh(
@@ -1174,56 +1502,80 @@ function createBullet(
   end: THREE.Vector3,
   cinematic: boolean,
   speed: number,
-  weapon: WeaponEntry
+  weapon: WeaponEntry,
+  serviceAmmo: ServiceAmmoTemplates | null
 ) {
-  const handgun =
-    weapon.weaponClass === 'pistol' || weapon.weaponClass === 'revolver';
-  const longGun =
-    weapon.weaponClass === 'rifle' || weapon.weaponClass === 'sniper';
+  const nineMillimeter = isNineMillimeterWeapon(weapon);
+  const longGun = isBigRifleWeapon(weapon);
   const shotgun = weapon.weaponClass === 'shotgun';
-  const bulletGeometry = shotgun
-    ? new THREE.SphereGeometry(0.034, 10, 10)
-    : new THREE.CapsuleGeometry(
-        handgun ? 0.018 : longGun ? 0.015 : 0.016,
-        handgun ? 0.085 : longGun ? 0.13 : 0.1,
-        4,
-        10
-      );
-  const bullet = new THREE.Mesh(
-    bulletGeometry,
-    new THREE.MeshStandardMaterial({
-      color: handgun ? '#c9c2b8' : shotgun ? '#d9b56d' : '#e7d7a2',
-      roughness: handgun ? 0.24 : 0.32,
-      metalness: 0.86,
-      emissive: '#3b2508',
-      emissiveIntensity: cinematic ? 0.16 : 0.06
-    })
+  const root = new THREE.Group();
+  const spinGroup = new THREE.Group();
+  const visual =
+    nineMillimeter && serviceAmmo?.bullet
+      ? cloneRenderable(serviceAmmo.bullet)
+      : new THREE.Mesh(
+          shotgun
+            ? new THREE.SphereGeometry(0.034, 10, 10)
+            : new THREE.CapsuleGeometry(
+                longGun ? 0.015 : 0.016,
+                longGun ? 0.13 : 0.1,
+                4,
+                10
+              ),
+          new THREE.MeshStandardMaterial({
+            color: shotgun ? '#d9b56d' : '#e7d7a2',
+            roughness: shotgun ? 0.36 : 0.32,
+            metalness: 0.86,
+            emissive: '#3b2508',
+            emissiveIntensity: cinematic ? 0.16 : 0.06
+          })
+        );
+
+  if (nineMillimeter) visual.scale.multiplyScalar(1.08);
+  spinGroup.add(visual);
+  root.add(spinGroup);
+  root.position.copy(start);
+  root.lookAt(end);
+  scene.add(root);
+
+  const length = Math.min(
+    longGun && cinematic ? 1.55 : 1.2,
+    start.distanceTo(end)
   );
-  const length = Math.min(1.2, start.distanceTo(end));
   const trail = new THREE.Mesh(
     new THREE.CylinderGeometry(0.007, 0.007, length, 8),
     new THREE.MeshBasicMaterial({
-      color: '#ffb84d',
+      color: nineMillimeter ? '#e8fcff' : '#ffb84d',
       transparent: true,
-      opacity: 0.58
+      opacity: nineMillimeter ? 0.38 : 0.58,
+      depthWrite: false,
+      blending: nineMillimeter ? THREE.AdditiveBlending : THREE.NormalBlending
     })
   );
-
-  bullet.position.copy(start);
-  bullet.lookAt(end);
-  bullet.rotateX(Math.PI / 2);
   trail.position.copy(start);
-  trail.rotation.x = Math.PI / 2;
-  scene.add(bullet, trail);
+  trail.lookAt(end);
+  scene.add(trail);
+
+  const wake = nineMillimeter || (longGun && cinematic) ? makeWake() : null;
+  if (wake) {
+    wake.visible = !cinematic;
+    wake.position.copy(start);
+    wake.lookAt(end);
+    scene.add(wake);
+  }
 
   return {
-    mesh: bullet,
+    mesh: root,
     trail,
+    wake,
+    spinGroup,
     start,
     end,
-    t: 0,
-    speed,
-    cinematic
+    t: cinematic ? -SERVICE_PISTOL_PRELAUNCH : 0,
+    speed:
+      cinematic && (nineMillimeter || longGun) ? Math.min(speed, 0.82) : speed,
+    cinematic,
+    spin: 0
   } as BulletRuntime;
 }
 
@@ -1231,24 +1583,34 @@ function createShell(
   scene: THREE.Scene,
   position: THREE.Vector3,
   power: number,
-  weapon: WeaponEntry
+  weapon: WeaponEntry,
+  serviceAmmo: ServiceAmmoTemplates | null
 ) {
-  const handgun =
-    weapon.weaponClass === 'pistol' || weapon.weaponClass === 'revolver';
+  const nineMillimeter = isNineMillimeterWeapon(weapon);
   const shotgun = weapon.weaponClass === 'shotgun';
-  const shellRadius = handgun ? 0.022 : shotgun ? 0.04 : 0.026;
-  const shellLength = handgun ? 0.115 : shotgun ? 0.22 : 0.145;
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(shellRadius, shellRadius, shellLength, 18),
-    new THREE.MeshStandardMaterial({
-      color: handgun ? '#b9822f' : shotgun ? '#8b1e24' : '#d0a044',
-      roughness: handgun ? 0.28 : 0.36,
-      metalness: shotgun ? 0.46 : 0.92
-    })
-  );
+  const mesh =
+    nineMillimeter && serviceAmmo?.shell
+      ? cloneRenderable(serviceAmmo.shell)
+      : new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            shotgun ? 0.04 : 0.026,
+            shotgun ? 0.04 : 0.026,
+            shotgun ? 0.22 : 0.145,
+            18
+          ),
+          new THREE.MeshStandardMaterial({
+            color: shotgun ? '#8b1e24' : '#d0a044',
+            roughness: shotgun ? 0.36 : 0.32,
+            metalness: shotgun ? 0.46 : 0.92
+          })
+        );
   mesh.rotation.z = Math.PI / 2;
   mesh.position.copy(position);
-  mesh.castShadow = true;
+  mesh.scale.multiplyScalar(nineMillimeter ? 2.2 : 1);
+  mesh.traverse((obj) => {
+    const child = obj as THREE.Mesh;
+    if (child.isMesh) child.castShadow = true;
+  });
   scene.add(mesh);
 
   return {
@@ -1259,7 +1621,7 @@ function createShell(
       Math.random() * 12,
       Math.random() * 8
     ),
-    life: 2.4
+    life: nineMillimeter ? 3.8 : 2.4
   } as ShellRuntime;
 }
 
@@ -1320,7 +1682,12 @@ function createFallbackSecurityCamera() {
 function disposeObject(object: THREE.Object3D) {
   object.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) return;
+    if (
+      !(mesh as any).isMesh &&
+      !(mesh as any).isSkinnedMesh &&
+      !(mesh as any).isLine
+    )
+      return;
     mesh.geometry?.dispose?.();
     const materials = Array.isArray((mesh as any).material)
       ? (mesh as any).material
@@ -1409,6 +1776,7 @@ export default function ShootingRange() {
   const bulletsRef = useRef<BulletRuntime[]>([]);
   const shellsRef = useRef<ShellRuntime[]>([]);
   const weaponSourcesRef = useRef<(THREE.Object3D | null)[]>([]);
+  const serviceAmmoRef = useRef<ServiceAmmoTemplates | null>(null);
   const tableWeaponsRef = useRef<TableWeaponRuntime[]>([]);
   const pickTargetsRef = useRef<THREE.Object3D[]>([]);
 
@@ -1649,14 +2017,16 @@ export default function ShootingRange() {
         lookAt: new THREE.Vector3(3.9, 1.65, activeTargetZ + 1.7)
       }
     ];
-    const securityCameras = securityCameraAnchors.map(({ position, lookAt }) => {
-      const cameraObject = createFallbackSecurityCamera();
-      cameraObject.position.copy(position);
-      cameraObject.lookAt(lookAt);
-      cameraObject.scale.setScalar(0.72);
-      scene.add(cameraObject);
-      return { root: cameraObject, position, lookAt };
-    });
+    const securityCameras = securityCameraAnchors.map(
+      ({ position, lookAt }) => {
+        const cameraObject = createFallbackSecurityCamera();
+        cameraObject.position.copy(position);
+        cameraObject.lookAt(lookAt);
+        cameraObject.scale.setScalar(0.72);
+        scene.add(cameraObject);
+        return { root: cameraObject, position, lookAt };
+      }
+    );
 
     void loadGLTF('Security Camera 01', [POLYHAVEN_ASSETS.securityCamera01])
       .then((gltf) => {
@@ -1910,13 +2280,21 @@ export default function ShootingRange() {
         disposeObject(lane.heldWeapon);
       }
 
+      const weapon = WEAPONS[weaponIndex];
+      const nineMillimeter = isNineMillimeterWeapon(weapon);
+      const bigRifle = isBigRifleWeapon(weapon);
       const held = cloneScene(source);
       configureModel(held, renderer);
-      normalizeToLength(held, 1.14);
+      normalizeToLength(held, nineMillimeter ? 1.95 : bigRifle ? 1.34 : 1.14);
       orientWeaponForward(held);
-      held.position.set(-0.03, -0.02, -0.2);
-      held.rotation.x += -0.05;
-      held.rotation.z += 0.02;
+      if (nineMillimeter) {
+        held.position.set(0, -0.12, -0.02);
+        held.rotation.y += Math.PI / 2;
+      } else {
+        held.position.set(-0.03, -0.02, -0.2);
+        held.rotation.x += -0.05;
+        held.rotation.z += 0.02;
+      }
 
       lane.weaponMount.add(held);
       lane.heldWeapon = held;
@@ -1924,11 +2302,23 @@ export default function ShootingRange() {
       lane.pickupLift = lift ? 1 : 0;
 
       const muzzle = new THREE.Object3D();
-      muzzle.position.set(0.02, 0.02, -0.95);
+      muzzle.position.copy(
+        nineMillimeter
+          ? new THREE.Vector3(0.01, -0.035, -1.21)
+          : bigRifle
+            ? new THREE.Vector3(0.02, 0.04, -1.18)
+            : new THREE.Vector3(0.02, 0.02, -0.95)
+      );
       held.add(muzzle);
 
       const shellPort = new THREE.Object3D();
-      shellPort.position.set(0.12, 0.03, -0.42);
+      shellPort.position.copy(
+        nineMillimeter
+          ? new THREE.Vector3(0.46, 0.04, -0.44)
+          : bigRifle
+            ? new THREE.Vector3(0.18, 0.07, -0.38)
+            : new THREE.Vector3(0.12, 0.03, -0.42)
+      );
       held.add(shellPort);
 
       lane.muzzle = muzzle;
@@ -1967,6 +2357,26 @@ export default function ShootingRange() {
       pickTargetsRef.current = [];
 
       buildCharacters();
+
+      void loadGLTF(
+        'Poly Haven service-pistol 9mm ammo',
+        SERVICE_PISTOL_AMMO_URLS
+      )
+        .then((gltf) => {
+          if (disposed) return;
+          configureModel(gltf.scene, renderer);
+          serviceAmmoRef.current = extractServicePistolAmmo(gltf.scene);
+        })
+        .catch((error) => {
+          console.warn(
+            'Service pistol ammo failed, using procedural 9mm ammo:',
+            error
+          );
+          serviceAmmoRef.current = {
+            bullet: makeFallbackNineMillimeterBullet(),
+            shell: makeFallbackNineMillimeterShell()
+          };
+        });
 
       const randomizedSlots = shuffle(
         WEAPONS.map((_, index) => ({
@@ -2363,7 +2773,11 @@ export default function ShootingRange() {
 
       if (!isAI) {
         recoilRef.current = stats.recoil;
-        followUntilRef.current = performance.now() + 500;
+        followUntilRef.current =
+          performance.now() +
+          (isNineMillimeterWeapon(weapon) || isBigRifleWeapon(weapon)
+            ? 1850
+            : 500);
       }
 
       playShot(Math.max(0.6, stats.recoil));
@@ -2375,7 +2789,13 @@ export default function ShootingRange() {
       const shellPos = new THREE.Vector3();
       lane.shellPort.getWorldPosition(shellPos);
       shellsRef.current.push(
-        createShell(scene, shellPos, stats.shellPower, weapon)
+        createShell(
+          scene,
+          shellPos,
+          stats.shellPower,
+          weapon,
+          serviceAmmoRef.current
+        )
       );
 
       let bestPoints = 0;
@@ -2394,7 +2814,8 @@ export default function ShootingRange() {
             result.point.clone(),
             cinematic,
             stats.bulletSpeed,
-            weapon
+            weapon,
+            serviceAmmoRef.current
           )
         );
 
@@ -2601,19 +3022,29 @@ export default function ShootingRange() {
       for (let i = bulletsRef.current.length - 1; i >= 0; i -= 1) {
         const bullet = bulletsRef.current[i];
         bullet.t += dt * bullet.speed;
-        const p = THREE.MathUtils.smoothstep(Math.min(1, bullet.t), 0, 1);
+        const clampedT = THREE.MathUtils.clamp(bullet.t, 0, 1);
+        const p = THREE.MathUtils.smoothstep(clampedT, 0, 1);
         bullet.mesh.position.lerpVectors(bullet.start, bullet.end, p);
+        bullet.mesh.lookAt(bullet.end);
+        bullet.spin += SERVICE_PISTOL_BULLET_SPIN * dt;
+        if (bullet.spinGroup) bullet.spinGroup.rotation.z = bullet.spin;
+        bullet.trail.visible = bullet.t >= 0;
         bullet.trail.position
           .copy(bullet.mesh.position)
           .lerp(bullet.start, 0.15);
         bullet.trail.lookAt(bullet.end);
+        if (bullet.wake) {
+          bullet.wake.visible = bullet.t >= 0;
+          bullet.wake.position.copy(bullet.mesh.position);
+          bullet.wake.lookAt(bullet.end);
+        }
 
         if (bullet.t >= 1) {
           scene.remove(bullet.mesh, bullet.trail);
-          bullet.mesh.geometry.dispose();
-          (bullet.mesh.material as THREE.Material).dispose();
-          bullet.trail.geometry.dispose();
-          (bullet.trail.material as THREE.Material).dispose();
+          if (bullet.wake) scene.remove(bullet.wake);
+          disposeObject(bullet.mesh);
+          disposeObject(bullet.trail);
+          if (bullet.wake) disposeObject(bullet.wake);
           bulletsRef.current.splice(i, 1);
         }
       }
@@ -2631,8 +3062,7 @@ export default function ShootingRange() {
 
         if (shell.life <= 0) {
           scene.remove(shell.mesh);
-          shell.mesh.geometry.dispose();
-          (shell.mesh.material as THREE.Material).dispose();
+          disposeObject(shell.mesh);
           shellsRef.current.splice(i, 1);
         }
       }
@@ -2646,37 +3076,50 @@ export default function ShootingRange() {
         const isUser = lane.controller === 'USER';
         const aim = isUser ? aimRef.current : lane.aiAim;
         const recoil = isUser ? recoilRef.current : 0;
+        const activeWeapon = WEAPONS[lane.activeWeaponIndex];
+        const serviceAim = isNineMillimeterWeapon(activeWeapon);
+        const bigRifle = isBigRifleWeapon(activeWeapon);
+        const kick = serviceAim ? Math.sin(recoil * Math.PI) * 0.09 : recoil;
+        const targetX = serviceAim ? 0.1 + aim.x * 0.08 : 0.34 + aim.x * 0.1;
+        const targetY = serviceAim
+          ? 1.19 + lane.pickupLift * 0.14 + aim.y * 0.05 - kick * 0.09
+          : 1.27 + lane.pickupLift * 0.18 + aim.y * 0.06 - recoil * 0.05;
+        const targetZ = serviceAim
+          ? -0.34 - kick * 0.16
+          : -0.12 + recoil * (bigRifle ? 0.24 : 0.18);
 
         lane.weaponMount.position.x = THREE.MathUtils.lerp(
           lane.weaponMount.position.x,
-          0.34 + aim.x * 0.1,
-          0.16
+          targetX,
+          serviceAim ? 0.22 : 0.16
         );
         lane.weaponMount.position.y = THREE.MathUtils.lerp(
           lane.weaponMount.position.y,
-          1.27 + lane.pickupLift * 0.18 + aim.y * 0.06 - recoil * 0.05,
-          0.16
+          targetY,
+          serviceAim ? 0.22 : 0.16
         );
         lane.weaponMount.position.z = THREE.MathUtils.lerp(
           lane.weaponMount.position.z,
-          -0.12 + recoil * 0.18,
-          0.16
+          targetZ,
+          serviceAim ? 0.22 : 0.16
         );
 
         lane.weaponMount.rotation.x = THREE.MathUtils.lerp(
           lane.weaponMount.rotation.x,
-          0.02 - recoil * 0.2 + aim.y * 0.05,
-          0.16
+          serviceAim
+            ? -0.02 - kick * 0.44 + aim.y * 0.045
+            : 0.02 - recoil * 0.2 + aim.y * 0.05,
+          serviceAim ? 0.22 : 0.16
         );
         lane.weaponMount.rotation.y = THREE.MathUtils.lerp(
           lane.weaponMount.rotation.y,
-          -0.03 - aim.x * 0.08,
-          0.16
+          serviceAim ? 0.01 + kick * 0.08 - aim.x * 0.06 : -0.03 - aim.x * 0.08,
+          serviceAim ? 0.22 : 0.16
         );
         lane.weaponMount.rotation.z = THREE.MathUtils.lerp(
           lane.weaponMount.rotation.z,
-          0.1 + aim.x * 0.05,
-          0.16
+          serviceAim ? 0.005 + kick * 0.12 + aim.x * 0.04 : 0.1 + aim.x * 0.05,
+          serviceAim ? 0.22 : 0.16
         );
       });
 
