@@ -29,7 +29,7 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.8;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 1.95;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep the camera at its prior pullback distance so the enlarged court and
 // players read clearly bigger in the actual gameplay view.
@@ -83,6 +83,13 @@ export const gameConfig = {
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
   serviceBuffer: 0.28 * WORLD_SCALE,
   cameraDamping: 5.5,
+  cameraBallLookAhead: 0.58,
+  cameraPlayerFollowBlend: 0.72,
+  playerAutoChase: {
+    enabled: true,
+    anticipation: 0.74,
+    maxBlendPerSecond: 5.8,
+  },
   scoring: { gamesPerSet: 6, winByTwoGames: true },
   aiDifficulty: {
     reactionTime: 0.07,
