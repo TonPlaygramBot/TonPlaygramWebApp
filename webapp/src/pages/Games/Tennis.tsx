@@ -1514,7 +1514,7 @@ export default function MobileThreeTennisPrototype() {
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
     const cameraTarget = new THREE.Vector3(0, 1.12 * CFG.cameraViewScale, -1.7 * CFG.cameraViewScale);
-    const cameraOffset = new THREE.Vector3(0, 5.9 * CFG.cameraViewScale, 9.1 * CFG.cameraViewScale);
+    const cameraOffset = new THREE.Vector3(0, 7.35 * CFG.cameraViewScale, 11.85 * CFG.cameraViewScale);
     const cameraPosTarget = new THREE.Vector3();
 
     addTrainingCourtLighting(scene);
@@ -1606,9 +1606,9 @@ export default function MobileThreeTennisPrototype() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 50 : 44;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 6.35 * CFG.cameraViewScale, 9.95 * CFG.cameraViewScale);
-      else cameraOffset.set(0, 5.9 * CFG.cameraViewScale, 9.1 * CFG.cameraViewScale);
+      camera.fov = camera.aspect < 0.72 ? 52 : 46;
+      if (camera.aspect < 0.72) cameraOffset.set(0, 7.95 * CFG.cameraViewScale, 12.95 * CFG.cameraViewScale);
+      else cameraOffset.set(0, 7.35 * CFG.cameraViewScale, 11.85 * CFG.cameraViewScale);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
