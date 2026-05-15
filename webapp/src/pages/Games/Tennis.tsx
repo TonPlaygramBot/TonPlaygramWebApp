@@ -91,7 +91,6 @@ type HumanRig = {
   side: PlayerSide;
   root: THREE.Group;
   modelRoot: THREE.Group;
-  fallback: THREE.Group;
   racket: THREE.Group;
   model: THREE.Object3D | null;
   bones: BonePack;
@@ -734,33 +733,6 @@ function normalizeHuman(model: THREE.Object3D, targetHeight: number) {
   model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
 }
 
-function createFallbackHuman(color: number) {
-  const g = new THREE.Group();
-  const skin = material(0xf0c7a0, 0.78, 0.02);
-  const shirt = material(color, 0.74, 0.02);
-  const shorts = material(0x20232a, 0.76, 0.02);
-  const shoe = material(0xffffff, 0.55, 0.03);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 20), skin);
-  head.position.y = 1.62;
-  g.add(head);
-  addCylinder(g, 0.055, 0.06, 0.12, [0, 1.43, 0], skin, 18);
-  const torso = addCylinder(g, 0.24, 0.31, 0.72, [0, 1.04, 0], shirt, 28);
-  torso.scale.x = 0.78;
-  const hips = addCylinder(g, 0.24, 0.25, 0.24, [0, 0.61, 0], shorts, 22);
-  hips.scale.x = 0.9;
-  const leftLeg = addCylinder(g, 0.07, 0.085, 0.63, [-0.13, 0.31, 0], shorts, 16);
-  const rightLeg = addCylinder(g, 0.07, 0.085, 0.63, [0.13, 0.31, 0], shorts, 16);
-  leftLeg.rotation.z = 0.06;
-  rightLeg.rotation.z = -0.06;
-  addBox(g, [0.23, 0.055, 0.34], [-0.13, 0.035, -0.04], shoe);
-  addBox(g, [0.23, 0.055, 0.34], [0.13, 0.035, -0.04], shoe);
-  enableShadow(g);
-  return g;
-}
-
-
-
 function makeRacketHexStringTexture() {
   const size = 512;
   const c = document.createElement("canvas");
@@ -984,19 +956,16 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, theme?: CharacterTheme): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
-  const fallback = createFallbackHuman(accent);
   const racket = createRacket(accent);
 
   root.position.copy(start);
   modelRoot.position.copy(start);
-  modelRoot.add(fallback);
   scene.add(root, modelRoot, racket);
 
   const rig: HumanRig = {
     side,
     root,
     modelRoot,
-    fallback,
     racket,
     model: null,
     bones: {},
@@ -1016,7 +985,6 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
 
   modelRoot.rotation.y = rig.yaw;
   modelRoot.scale.setScalar(1);
-  fallback.scale.setScalar(CFG.playerHeight / 1.82);
   racket.scale.setScalar(CFG.worldScale * 1.18);
   racket.visible = false;
 
@@ -1031,16 +999,19 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
       rig.model = model;
       rig.bones = findHumanBones(model);
       rig.rest = captureRestPose(rig.bones);
-      rig.fallback.visible = false;
       rig.modelRoot.add(model);
       rig.modelRoot.updateMatrixWorld(true);
       rig.rightArmChain = makeArmChain(rig.bones.rightShoulder, rig.bones.rightUpperArm, rig.bones.rightForeArm, rig.bones.rightHand);
       rig.leftArmChain = makeArmChain(rig.bones.leftShoulder, rig.bones.leftUpperArm, rig.bones.leftForeArm, rig.bones.leftHand);
-      rig.racket.visible = true;
+      rig.racket.visible = Boolean(rig.bones.rightHand);
     },
     undefined,
     () => {
-      rig.fallback.visible = true;
+      rig.model = null;
+      rig.bones = {};
+      rig.rest = [];
+      rig.rightArmChain = undefined;
+      rig.leftArmChain = undefined;
       rig.racket.visible = false;
     }
   );
@@ -1448,6 +1419,59 @@ function predictLanding(ball: BallState) {
   return p;
 }
 
+type PlayerIntercept = { contact: THREE.Vector3; landing: THREE.Vector3; contactT: number; reachable: boolean; postBounce: boolean };
+
+function predictPlayerIntercept(ball: BallState, side: PlayerSide, receiverPos: THREE.Vector3): PlayerIntercept {
+  const p = ball.pos.clone();
+  const v = ball.vel.clone();
+  const dt = 1 / 90;
+  const sideSign = side === "near" ? 1 : -1;
+  const contactMin = CFG.minContactHeight * 0.86;
+  const contactMax = CFG.maxContactHeight * 1.04;
+  let firstLanding = p.clone().setY(CFG.ballR);
+  let foundLanding = false;
+  let postBounce = false;
+
+  for (let i = 1; i <= 300; i += 1) {
+    v.y -= CFG.gravity * (1 + ball.spin * 0.16) * dt;
+    v.multiplyScalar(Math.exp(-CFG.airDrag * dt));
+    p.addScaledVector(v, dt);
+    const t = i * dt;
+
+    if (p.y <= CFG.ballR && v.y < 0) {
+      if (!foundLanding) {
+        firstLanding = p.clone().setY(CFG.ballR);
+        foundLanding = true;
+      }
+      p.y = CFG.ballR;
+      v.y = -v.y * CFG.bounceRestitution;
+      v.x *= CFG.groundFriction;
+      v.z *= CFG.groundFriction;
+      postBounce = true;
+    }
+
+    const onReceiverSide = side === "near" ? p.z > CFG.serviceBuffer * 0.5 : p.z < -CFG.serviceBuffer * 0.5;
+    const movingTowardReceiver = v.z * sideSign > -CFG.worldScale * 2.1 || postBounce;
+    const hittableHeight = p.y >= contactMin && p.y <= contactMax;
+    const playableX = Math.abs(p.x) <= CFG.courtW / 2 + CFG.worldScale;
+    if (onReceiverSide && movingTowardReceiver && hittableHeight && playableX) {
+      const contact = p.clone();
+      const standingZ = contact.z + sideSign * 0.32 * CFG.worldScale;
+      const targetFoot = PlayerController.clampMovement(new THREE.Vector3(
+        clamp(contact.x, -CFG.courtW / 2 + 0.42 * CFG.worldScale, CFG.courtW / 2 - 0.42 * CFG.worldScale),
+        receiverPos.y,
+        standingZ
+      ), side);
+      const travel = receiverPos.distanceTo(targetFoot);
+      const reachable = travel <= CFG.playerSpeed * Math.max(0.08, t + 0.18) + CFG.reach * 0.62;
+      return { contact, landing: foundLanding ? firstLanding : contact.clone().setY(CFG.ballR), contactT: t, reachable, postBounce };
+    }
+  }
+
+  const fallback = foundLanding ? firstLanding.clone().setY(CFG.minContactHeight) : p.clone();
+  return { contact: fallback, landing: firstLanding, contactT: 300 * dt, reachable: false, postBounce };
+}
+
 export default function MobileThreeTennisPrototype() {
   const { search } = useLocation();
   const query = new URLSearchParams(search);
@@ -1597,7 +1621,7 @@ export default function MobileThreeTennisPrototype() {
         startTs: performance.now(),
         lastTs: performance.now(),
       };
-      setHudSafe({ status: ball.lastHitBy === null ? "Hold, aim serve, release" : "Drag to move, release to swing", power: 0 });
+      setHudSafe({ status: ball.lastHitBy === null ? "Hold, aim serve, release" : "Auto tracking ball — swipe/release to shoot", power: 0 });
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -1608,13 +1632,11 @@ export default function MobileThreeTennisPrototype() {
       control.lastTs = performance.now();
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
-      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
-      const minZ = ball.lastHitBy === null ? CFG.serveNearBaselineZ : 0.76;
       if (ball.lastHitBy === null) {
         const lane = serveLaneBoundsX(currentServeSide, "near");
         nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, Math.min(lane.min, lane.max), Math.max(lane.min, lane.max));
+        nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, CFG.serveNearBaselineZ, CFG.courtL / 2 - 0.42 * CFG.worldScale);
       }
-      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, minZ, CFG.courtL / 2 - 0.42);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 185) });
     };
 
@@ -1628,8 +1650,9 @@ export default function MobileThreeTennisPrototype() {
       if (ball.lastHitBy === null && scoreManager.snapshot().server !== "near") return;
       const endTs = performance.now();
       const hit = makeUserTargetFromSwipe(control.startX, control.startY, e.clientX, e.clientY, Math.max(16, endTs - control.startTs), isServe, currentServeSide);
-      startSwing(nearPlayer, hit, isServe ? "serve" : "forehand");
-      setHudSafe({ status: isServe ? "Serve motion" : "Forehand swing", power: 0 });
+      const swingSide: StrokeAction = isServe ? "serve" : ball.pos.x < nearPlayer.pos.x ? "backhand" : "forehand";
+      startSwing(nearPlayer, hit, swingSide);
+      setHudSafe({ status: isServe ? "Serve motion" : `${swingSide === "backhand" ? "Backhand" : "Forehand"} shot`, power: 0 });
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
@@ -1740,6 +1763,33 @@ export default function MobileThreeTennisPrototype() {
       ball.mesh.position.copy(ball.pos);
     }
 
+    function updateNearPlayerAssist() {
+      if (ball.lastHitBy === null) {
+        if (scoreManager.snapshot().server === "near") return;
+        const receiveHome = new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.34 * CFG.worldScale);
+        nearPlayer.target.lerp(receiveHome, 0.045);
+        return;
+      }
+
+      const incomingToPlayer = ball.lastHitBy === "far";
+      if (incomingToPlayer) {
+        const intercept = predictPlayerIntercept(ball, "near", nearPlayer.pos);
+        nearPlayer.target.x = clamp(intercept.contact.x, -CFG.courtW / 2 + 0.42 * CFG.worldScale, CFG.courtW / 2 - 0.42 * CFG.worldScale);
+        nearPlayer.target.z = clamp(
+          intercept.contact.z + 0.32 * CFG.worldScale,
+          0.82 * CFG.worldScale,
+          CFG.courtL / 2 - 0.54 * CFG.worldScale
+        );
+        PlayerController.clampMovement(nearPlayer.target, "near");
+        return;
+      }
+
+      const recoveryX = clamp(ball.pos.x * 0.16, -CFG.courtW * 0.16, CFG.courtW * 0.16);
+      const recovery = new THREE.Vector3(recoveryX, 0, CFG.courtL / 2 - 1.18 * CFG.worldScale);
+      nearPlayer.target.lerp(recovery, 0.04);
+      PlayerController.clampMovement(nearPlayer.target, "near");
+    }
+
     function updateAi() {
       const landing = predictLanding(ball);
       const aiHomeZ = scoreManager.snapshot().server === "far" && ball.lastHitBy === null ? -CFG.serveNearBaselineZ : -CFG.courtL / 2 + 1.2 * CFG.worldScale;
@@ -1827,6 +1877,7 @@ export default function MobileThreeTennisPrototype() {
         ballController.accumulator = Math.min(ballController.accumulator + dt, CFG.fixedTimeStep * CFG.maxPhysicsSteps);
         let steps = 0;
         while (ballController.accumulator >= CFG.fixedTimeStep && steps < CFG.maxPhysicsSteps) {
+          updateNearPlayerAssist();
           updateAi();
           const ballLockedByServe = updateServeTossLock();
           checkSwingHits();
@@ -1862,7 +1913,7 @@ export default function MobileThreeTennisPrototype() {
       (landingMarker.material as THREE.MeshBasicMaterial).opacity += ((landingUseful ? 0.55 : 0) - (landingMarker.material as THREE.MeshBasicMaterial).opacity) * (1 - Math.exp(-10 * dt));
 
       const preServe = ball.lastHitBy === null;
-      cameraController.update(camera, cameraTarget, cameraPosTarget, nearPlayer.target, ball.pos, cameraOffset, preServe, dt);
+      cameraController.update(camera, cameraTarget, cameraPosTarget, nearPlayer.target, ball.pos, cameraOffset, preServe, dt, { ballVel: ball.vel, predictedLanding, receiverSide: "near" });
       updateBillboards();
       renderer.render(scene, camera);
     }
