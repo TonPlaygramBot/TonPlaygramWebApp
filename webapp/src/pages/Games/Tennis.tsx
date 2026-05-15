@@ -1740,6 +1740,30 @@ export default function MobileThreeTennisPrototype() {
       ball.mesh.position.copy(ball.pos);
     }
 
+    function updateNearAutoChase(landing: THREE.Vector3, dt: number) {
+      if (!CFG.playerAutoChase.enabled || controlRef.current.active || pointLock) return;
+      if (ball.lastHitBy === null) return;
+      if (nearPlayer.swingT > 0) return;
+
+      const ballComingToHuman = ball.lastHitBy === "far" && (ball.pos.z > -0.35 * CFG.worldScale || landing.z > 0);
+      if (!ballComingToHuman) {
+        const home = new THREE.Vector3(0, 0, CFG.courtL / 2 - 1.18 * CFG.worldScale);
+        nearPlayer.target.lerp(home, 1 - Math.exp(-1.45 * dt));
+        PlayerController.clampMovement(nearPlayer.target, "near");
+        return;
+      }
+
+      const autoTarget = landing.clone();
+      autoTarget.x = clamp(autoTarget.x, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
+      autoTarget.z = clamp(
+        autoTarget.z + CFG.playerAutoChase.anticipation * CFG.worldScale,
+        0.82 * CFG.worldScale,
+        CFG.courtL / 2 - 0.58 * CFG.worldScale
+      );
+      nearPlayer.target.lerp(autoTarget, 1 - Math.exp(-CFG.playerAutoChase.maxBlendPerSecond * dt));
+      PlayerController.clampMovement(nearPlayer.target, "near");
+    }
+
     function updateAi() {
       const landing = predictLanding(ball);
       const aiHomeZ = scoreManager.snapshot().server === "far" && ball.lastHitBy === null ? -CFG.serveNearBaselineZ : -CFG.courtL / 2 + 1.2 * CFG.worldScale;
@@ -1836,6 +1860,9 @@ export default function MobileThreeTennisPrototype() {
         }
       }
 
+      const predictedLanding = predictLanding(ball);
+      updateNearAutoChase(predictedLanding, dt);
+
       updatePlayerMotion(nearPlayer, ball, dt);
       updatePlayerMotion(farPlayer, ball, dt);
       updatePoseAndRacket(nearPlayer, ball);
@@ -1856,13 +1883,15 @@ export default function MobileThreeTennisPrototype() {
       ghost.position.z += (nearPlayer.target.z - ghost.position.z) * (1 - Math.exp(-12 * dt));
       (ghost.material as THREE.MeshBasicMaterial).opacity = controlRef.current.active ? 0.62 : 0.28;
 
-      const predictedLanding = predictLanding(ball);
       const landingUseful = ball.lastHitBy !== null && ball.vel.lengthSq() > 0.25 && predictedLanding.y <= CFG.ballR + 0.05 && Math.abs(predictedLanding.x) <= CFG.courtW / 2 + 0.6 && Math.abs(predictedLanding.z) <= CFG.courtL / 2 + 0.8;
       landingMarker.position.set(clamp(predictedLanding.x, -CFG.courtW / 2, CFG.courtW / 2), 0.078, clamp(predictedLanding.z, -CFG.courtL / 2, CFG.courtL / 2));
       (landingMarker.material as THREE.MeshBasicMaterial).opacity += ((landingUseful ? 0.55 : 0) - (landingMarker.material as THREE.MeshBasicMaterial).opacity) * (1 - Math.exp(-10 * dt));
 
       const preServe = ball.lastHitBy === null;
-      cameraController.update(camera, cameraTarget, cameraPosTarget, nearPlayer.target, ball.pos, cameraOffset, preServe, dt);
+      cameraController.update(camera, cameraTarget, cameraPosTarget, nearPlayer.target, ball.pos, cameraOffset, preServe, dt, {
+        incomingSide: ball.lastHitBy === "far" ? "near" : ball.lastHitBy === "near" ? "far" : null,
+        predictedLanding,
+      });
       updateBillboards();
       renderer.render(scene, camera);
     }
