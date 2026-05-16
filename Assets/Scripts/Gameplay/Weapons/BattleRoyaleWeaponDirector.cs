@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Aiming.Gameplay.Rendering;
 using UnityEngine;
 
 namespace TonPlaygram.Gameplay.Weapons
@@ -130,7 +131,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private int minorPiecesPerNonFinalShot = 3;
 
         [Header("Camera anchors")]
-        [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
+        [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, 0.08f, 0.28f);
         [SerializeField] private float aimPositionLerp = 20f;
         [SerializeField] private bool followAllBullets = true;
         [SerializeField] private bool forceAttackerAimAnchor = true;
@@ -141,6 +142,9 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Vector3 swapIconWorldOffset = new Vector3(0f, 0.11f, 0f);
         [SerializeField] private bool allowDynamicCameraOnlyDuringAnimation = true;
         [SerializeField] private float turnFocusDuration = 0.22f;
+        [SerializeField] private float aimPitchDownDegrees = 8f;
+        [SerializeField] private float maxLookUpDegrees = 8f;
+        [SerializeField] private float maxLookDownDegrees = 26f;
 
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
@@ -189,6 +193,7 @@ namespace TonPlaygram.Gameplay.Weapons
             BuildProfileMap();
             CacheTokenPieces();
             CacheStaticAnchors();
+            ApplyWeaponMaterialCompatibility();
             _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
             _projectileListeners = GetComponentsInParent<ILudoProjectileBroadcastEvents>(true);
             Equip(startingWeapon);
@@ -581,7 +586,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
                 playerCamera.fieldOfView = Mathf.Lerp(startFov, weapon.aimFov, t);
                 playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetLocalPos, Mathf.Clamp01(Time.deltaTime * aimPositionLerp));
-                Quaternion toTarget = Quaternion.LookRotation((targetWorld - playerCamera.transform.position).normalized, Vector3.up);
+                Quaternion toTarget = ResolveLimitedLookRotation(targetWorld - playerCamera.transform.position);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toTarget, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
             }
@@ -613,7 +618,7 @@ namespace TonPlaygram.Gameplay.Weapons
                 t += Time.deltaTime;
                 Vector3 targetPos = bulletTransform.position - (bulletTransform.forward * bulletFollowDistance) + (Vector3.up * bulletFollowHeight);
                 playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, targetPos, Mathf.Clamp01(Time.deltaTime * cameraTrackLerp));
-                Quaternion toBullet = Quaternion.LookRotation((bulletTransform.position - playerCamera.transform.position).normalized, Vector3.up);
+                Quaternion toBullet = ResolveLimitedLookRotation(bulletTransform.position - playerCamera.transform.position, 0f);
                 playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, toBullet, Mathf.Clamp01(Time.deltaTime * cameraLookLerp));
                 yield return null;
             }
@@ -642,7 +647,7 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 t += Time.deltaTime;
                 Vector3 towardImpact = (impactPoint - playerCamera.transform.position).normalized;
-                Quaternion impactRot = Quaternion.LookRotation(towardImpact, Vector3.up);
+                Quaternion impactRot = ResolveLimitedLookRotation(towardImpact, 0f);
                 playerCamera.transform.rotation = Quaternion.Slerp(startRot, impactRot, Mathf.Clamp01(t / seconds));
                 yield return null;
             }
@@ -699,9 +704,69 @@ namespace TonPlaygram.Gameplay.Weapons
                 elapsed += Time.deltaTime;
                 Vector3 toTarget = (turnAnchor.position - playerCamera.transform.position).normalized;
                 Vector3 lerped = Vector3.Slerp(fromForward, toTarget, Mathf.Clamp01(elapsed / duration));
-                playerCamera.transform.rotation = Quaternion.LookRotation(lerped, Vector3.up);
+                playerCamera.transform.rotation = ResolveLimitedLookRotation(lerped, 0f);
                 yield return null;
             }
+        }
+
+        private Quaternion ResolveLimitedLookRotation(Vector3 worldDirection)
+        {
+            return ResolveLimitedLookRotation(worldDirection, aimPitchDownDegrees);
+        }
+
+        private Quaternion ResolveLimitedLookRotation(Vector3 worldDirection, float extraPitchDownDegrees)
+        {
+            if (worldDirection.sqrMagnitude <= 0.000001f)
+            {
+                return playerCamera != null ? playerCamera.transform.rotation : Quaternion.identity;
+            }
+
+            Vector3 direction = worldDirection.normalized;
+            Vector3 flatDirection = Vector3.ProjectOnPlane(direction, Vector3.up);
+            if (flatDirection.sqrMagnitude <= 0.000001f)
+            {
+                flatDirection = playerCamera != null ? Vector3.ProjectOnPlane(playerCamera.transform.forward, Vector3.up) : Vector3.forward;
+                if (flatDirection.sqrMagnitude <= 0.000001f)
+                {
+                    flatDirection = Vector3.forward;
+                }
+            }
+
+            flatDirection.Normalize();
+            float signedPitch = Mathf.Atan2(direction.y, flatDirection.magnitude) * Mathf.Rad2Deg - extraPitchDownDegrees;
+            signedPitch = Mathf.Clamp(signedPitch, -Mathf.Abs(maxLookDownDegrees), Mathf.Abs(maxLookUpDegrees));
+
+            Quaternion yaw = Quaternion.LookRotation(flatDirection, Vector3.up);
+            return yaw * Quaternion.AngleAxis(-signedPitch, Vector3.right);
+        }
+
+        private void ApplyWeaponMaterialCompatibility()
+        {
+            ApplyMaterialCompatibility(weaponRoot);
+
+            for (int i = 0; i < weaponProfiles.Count; i++)
+            {
+                WeaponBallisticsProfile profile = weaponProfiles[i];
+                Animator animator = profile != null && profile.gripPose != null ? profile.gripPose.animator : null;
+                if (animator != null)
+                {
+                    ApplyMaterialCompatibility(animator.transform);
+                }
+            }
+        }
+
+        private static void ApplyMaterialCompatibility(Transform root)
+        {
+            if (root == null)
+                return;
+
+            GltfMaterialCompatibilityAdapter adapter = root.GetComponent<GltfMaterialCompatibilityAdapter>();
+            if (adapter == null)
+            {
+                adapter = root.gameObject.AddComponent<GltfMaterialCompatibilityAdapter>();
+            }
+
+            adapter.ApplyCompatibilityPass();
         }
 
         private Vector3 ResolveLiveTargetPosition()
