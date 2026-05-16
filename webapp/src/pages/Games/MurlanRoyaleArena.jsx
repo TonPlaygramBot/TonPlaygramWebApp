@@ -178,10 +178,6 @@ function hasMurlanCharacterModelSource(theme) {
   return Boolean(theme && (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length)));
 }
 
-function isPreferredMurlanAiCharacterTheme(theme) {
-  return hasMurlanCharacterModelSource(theme) && (theme.id === 'rpm-current' || /^rpm-/.test(theme.id || ''));
-}
-
 function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex = 0, rosterSeed = 0) {
   const availableThemes = MURLAN_CHARACTER_THEMES.filter(hasMurlanCharacterModelSource);
   if (!availableThemes.length) return [];
@@ -192,11 +188,7 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
   const playerSignature = players
     .map((player, index) => `${index}:${player?.name || ''}:${player?.avatar || ''}:${player?.isHuman ? 'h' : 'ai'}`)
     .join('|');
-  const aiPlayerCount = players.filter((player, index) => !(player?.isHuman || index === humanSeatIndex)).length;
-  const preferredAiThemes = availableThemes.filter((theme) => theme.id !== selectedId && isPreferredMurlanAiCharacterTheme(theme));
-  const aiThemePool = preferredAiThemes.length >= aiPlayerCount
-    ? preferredAiThemes
-    : availableThemes.filter((theme) => theme.id !== selectedId);
+  const aiThemePool = availableThemes.filter((theme) => theme.id !== selectedId);
   const shuffledAiThemes = aiThemePool
     .map((theme, index) => ({
       theme,
@@ -214,7 +206,8 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
     let nextTheme = shuffledAiThemes[aiThemeIndex % Math.max(shuffledAiThemes.length, 1)] || selectedTheme;
     aiThemeIndex += 1;
     if (usedThemeIds.has(nextTheme.id)) {
-      const unusedTheme = availableThemes.find((theme) => !usedThemeIds.has(theme.id));
+      const unusedTheme = shuffledAiThemes.find((theme) => !usedThemeIds.has(theme.id)) ||
+        availableThemes.find((theme) => !usedThemeIds.has(theme.id));
       if (unusedTheme) nextTheme = unusedTheme;
     }
     if (nextTheme?.id) usedThemeIds.add(nextTheme.id);
@@ -240,6 +233,81 @@ const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
     accessory: { material: 'accessoryCanvas', tint: 0xc18a52, repeat: 3.2 },
     earring: { material: 'jewelryLeather', tint: 0xe4c976, repeat: 5.5 },
     ring: { material: 'jewelryLeather', tint: 0xf2d675, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
+  formalHitman: {
+    shirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.2 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    pants: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    jacket: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.2 },
+    dress: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x8b0f16, repeat: 5.8 },
+    hat: { material: 'hatBoucle', tint: 0x111827, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x0b0f14, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x9ca3af, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
+  leatherPortrait: {
+    shirt: { material: 'shirtCotton', tint: 0xd7c0a8, repeat: 4.0 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'darkDenim', tint: 0x26364f, repeat: 4.4 },
+    pants: { material: 'darkDenim', tint: 0x28364c, repeat: 4.3 },
+    jacket: { material: 'jacketLeather', tint: 0x4a2f20, repeat: 3.2 },
+    dress: { material: 'jacketLeather', tint: 0x4a2f20, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x8f5f38, repeat: 5.0 },
+    hat: { material: 'hatBoucle', tint: 0x1f2937, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x1c1917, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x9f7a55, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd4b27c, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xd4b27c, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x21160f, repeat: 4.6 }
+  },
+  suedeGentleman: {
+    shirt: { material: 'shirtCotton', tint: 0xf5eadc, repeat: 4.1 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'denim', tint: 0x2f4a63, repeat: 4.5 },
+    pants: { material: 'darkDenim', tint: 0x334155, repeat: 4.4 },
+    jacket: { material: 'jacketSuede', tint: 0x70452d, repeat: 3.1 },
+    dress: { material: 'jacketSuede', tint: 0x70452d, repeat: 3.1 },
+    tie: { material: 'tieHerringbone', tint: 0x3f2b1f, repeat: 5.3 },
+    hat: { material: 'hatBoucle', tint: 0x3f2b1f, repeat: 4.0 },
+    shoes: { material: 'shoeLeather', tint: 0x2b1b12, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xbe8b5a, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xc7a46b, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xc7a46b, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x2f2118, repeat: 4.6 }
+  },
+  hibiscusResort: {
+    shirt: { material: 'picnic', tint: 0xf8d7c8, repeat: 3.4 },
+    tshirt: { material: 'shirtCotton', tint: 0xfff1f2, repeat: 4.4 },
+    jeans: { material: 'denim', tint: 0x2c5f73, repeat: 4.6 },
+    pants: { material: 'linen', tint: 0xefe2c8, repeat: 4.2 },
+    jacket: { material: 'jacketSuede', tint: 0x7c2d12, repeat: 3.4 },
+    dress: { material: 'dressJacquard', tint: 0xb91c1c, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0xe11d48, repeat: 5.4 },
+    hat: { material: 'hatBoucle', tint: 0x7f1d1d, repeat: 4.0 },
+    shoes: { material: 'shoeLeather', tint: 0x78350f, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xfacc15, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xfacc15, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xfacc15, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x7f1d1d, repeat: 4.6 }
+  },
+  casualConfidence: {
+    shirt: { material: 'shirtCotton', tint: 0x1f2937, repeat: 4.0 },
+    tshirt: { material: 'tshirtPique', tint: 0xf8fafc, repeat: 4.7 },
+    jeans: { material: 'denim', tint: 0x1d4ed8, repeat: 4.6 },
+    pants: { material: 'darkDenim', tint: 0x334155, repeat: 4.4 },
+    jacket: { material: 'jacketLeather', tint: 0x111827, repeat: 3.3 },
+    dress: { material: 'linen', tint: 0x64748b, repeat: 3.4 },
+    tie: { material: 'tieHerringbone', tint: 0x38bdf8, repeat: 5.4 },
+    hat: { material: 'hatBoucle', tint: 0x111827, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x020617, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x94a3b8, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xe5e7eb, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xe5e7eb, repeat: 5.5 },
     watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
   casinoCheck: {
@@ -5120,13 +5188,16 @@ export default function MurlanRoyaleArena({ search }) {
         }
       }));
       const templatesById = new Map(templateEntries.filter(([, template]) => template));
-      const fallbackTemplate = templatesById.get(safe.id) || templatesById.values().next().value || null;
-      if (!fallbackTemplate) return;
+      if (!templatesById.size) return;
 
       store.characterThemeId = characterThemeRosterSignature(characterRoster);
       store.seatConfigs.forEach((seatConfig, seatIndex) => {
         const seatTheme = characterRoster[seatIndex] || safe;
-        const template = templatesById.get(seatTheme.id) || fallbackTemplate;
+        const template = templatesById.get(seatTheme.id);
+        if (!template) {
+          console.warn('Skipping Murlan character seat because its exact model did not load', seatTheme?.id);
+          return;
+        }
         attachSeatedCharacter({
           template,
           seatConfig,
@@ -6100,16 +6171,20 @@ export default function MurlanRoyaleArena({ search }) {
             }
           }));
           const templatesById = new Map(templateEntries.filter(([, template]) => template));
-          const fallbackTemplate = templatesById.get(characterTheme.id) || templatesById.values().next().value || null;
-          if (!fallbackTemplate) {
+          if (!templatesById.size) {
             throw new Error('No initial character templates loaded');
           }
           for (let i = 0; i < seatConfigs.length; i++) {
             const seatConfig = seatConfigs[i];
             const player = players[i] ?? null;
             const seatTheme = initialCharacterRoster[i] || characterTheme;
+            const template = templatesById.get(seatTheme.id);
+            if (!template) {
+              console.warn('Skipping initial Murlan character seat because its exact model did not load', seatTheme?.id);
+              continue;
+            }
             attachSeatedCharacter({
-              template: templatesById.get(seatTheme.id) || fallbackTemplate,
+              template,
               seatConfig,
               characterTheme: seatTheme,
               store: threeStateRef.current,
