@@ -104,7 +104,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1; // keep the original physical GLB playfield map untrimmed so physics and visuals align exactly
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 0.94; // shorter GLB cabinet framing so official baulk/D markings and balls stay visible
 const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -117,36 +117,7 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-// Pool Royale shot-force constants copied so Snooker Champion launches at the same normalized pace after table scaling.
-const POOL_ROYALE_SHOT_POWER_REDUCTION = 0.425;
-const POOL_ROYALE_SHOT_POWER_MULTIPLIER = 2.109375;
-const POOL_ROYALE_SHOT_POWER_INCREASE = 1.5;
-const POOL_ROYALE_SHOT_POWER_ADJUSTMENT = 0.72;
-const POOL_ROYALE_SHOT_POWER_BOOST = 1.32;
-const POOL_ROYALE_SHOT_GLOBAL_POWER_SCALE = 1.06;
-const POOL_ROYALE_SHOT_FORCE_BOOST =
-  1.5 *
-  0.75 *
-  0.85 *
-  0.8 *
-  1.3 *
-  0.85 *
-  POOL_ROYALE_SHOT_POWER_REDUCTION *
-  POOL_ROYALE_SHOT_POWER_MULTIPLIER *
-  POOL_ROYALE_SHOT_POWER_INCREASE *
-  POOL_ROYALE_SHOT_POWER_ADJUSTMENT *
-  POOL_ROYALE_SHOT_POWER_BOOST *
-  POOL_ROYALE_SHOT_GLOBAL_POWER_SCALE;
-const POOL_ROYALE_SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * POOL_ROYALE_SHOT_FORCE_BOOST;
-const SNOOKER_SHOT_BASE_SPEED = POOL_ROYALE_SHOT_BASE_SPEED * SNOOKER_PLAYFIELD_SCALE;
-const SNOOKER_SHOT_POWER_RANGE = 1;
-const SNOOKER_SPIN_GLOBAL_SCALE = 0.82;
-const SNOOKER_SPIN_ROLL_ACCELERATION = 1.2 * SNOOKER_PLAYFIELD_SCALE;
-const SNOOKER_TOPSPIN_FOLLOW_TRANSFER_RATE = 0.42;
-const SNOOKER_TOPSPIN_ROLL_SPEED_FACTOR = 0.72;
-const SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84;
-const SNOOKER_BACKSPIN_ROLL_BOOST = 1.35;
-const SNOOKER_CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const SNOOKER_SHOT_POWER_BOOST = 1.3; // Pool Royale-matched strike with ~30% extra headroom for snooker
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
@@ -831,30 +802,29 @@ function addTable(scene, renderer, options = {}) {
     enableShadow(model);
     model.updateMatrixWorld(true);
     const targetBounds = resolveSnookerChampionTargetBounds(proceduralTableMeshes);
-    // Fit the original physical GLB by its playable bed whenever that mesh can be identified.
-    // This keeps the ball simulation, pocket captures, baulk/D markings, and visible cloth on one exact map.
-    targetBounds.min.x = -CFG.tableW * 0.5;
-    targetBounds.max.x = CFG.tableW * 0.5;
-    targetBounds.min.z = -CFG.tableL * 0.5;
-    targetBounds.max.z = CFG.tableL * 0.5;
+    // Fit the loaded original snooker.glb to the official cushion/jaw map rather than the decorative cabinet overhang.
+    targetBounds.min.x = -CFG.tableW * CFG.tableVisualMultiplier * 0.5;
+    targetBounds.max.x = CFG.tableW * CFG.tableVisualMultiplier * 0.5;
+    targetBounds.min.z = -CFG.tableL * CFG.tableVisualMultiplier * 0.5;
+    targetBounds.max.z = CFG.tableL * CFG.tableVisualMultiplier * 0.5;
     const targetSize = targetBounds.getSize(new THREE.Vector3());
     const targetCenter = targetBounds.getCenter(new THREE.Vector3());
     const targetTopY = targetBounds.max.y;
     const fullSourceBounds = new THREE.Box3().setFromObject(model);
-    const sourceBedBounds = resolveSnookerChampionGlbBedBounds(model);
-    const sourceFitBounds = sourceBedBounds ?? resolveSnookerChampionGlbUpperBounds(model, fullSourceBounds);
+    const sourceFitBounds = resolveSnookerChampionGlbUpperBounds(model, fullSourceBounds);
     const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
     const fit = resolveSnookerGlbFitTransform(
       { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
       { x: targetSize.x, y: targetSize.y, z: targetSize.z }
     );
-    const playfieldScale = Math.min(fit.scale.x, fit.scale.z);
-    model.scale.set(playfieldScale, playfieldScale, playfieldScale);
+    const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
+    fit.scale.y = upperTableScale;
+    model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
     model.updateMatrixWorld(true);
     const scaledFullBounds = new THREE.Box3().setFromObject(model);
-    const scaledBedBounds = resolveSnookerChampionGlbBedBounds(model);
-    const scaledFitBounds = scaledBedBounds ?? resolveSnookerChampionGlbUpperBounds(model, scaledFullBounds);
+    const scaledFitBounds = resolveSnookerChampionGlbUpperBounds(model, scaledFullBounds);
     const scaledFitCenter = scaledFitBounds.getCenter(new THREE.Vector3());
+    const scaledBedBounds = resolveSnookerChampionGlbBedBounds(model);
     const desiredBedTopY = CFG.ballR - SNOOKER_TABLE_MARKING_LIFT * 0.35;
     const fallbackTableY = targetTopY - scaledFullBounds.max.y - CFG.ballR * 0.08;
     model.position.set(
@@ -1182,25 +1152,21 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
   const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spin = mapSpinForPhysics(normalizeSpinInput(spinInput));
-  const powerScale = SNOOKER_SHOT_POWER_RANGE * p;
-  const speed = SNOOKER_SHOT_BASE_SPEED * powerScale;
-  const scaledSpin = {
-    x: (spin.x ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE,
-    y: (spin.y ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE
-  };
+  const speed = (2.8 + p * 9.2) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
   cueBall.vel.copy(dir.multiplyScalar(speed));
-  cueBall.spin.set(scaledSpin.x, scaledSpin.y);
+  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
+  cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
   cueBall.omega?.set(0, 0, 0);
   const launchSpeed = cueBall.vel.length();
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
     cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
-    cueBall.omega.x += -scaledSpin.y * p * 18;
-    cueBall.omega.z += -scaledSpin.x * p * 18;
+    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
+    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
-  cueBall.lastShotSpin = { x: scaledSpin.x, y: scaledSpin.y };
+  cueBall.lastShotSpin = { x: spin.x ?? 0, y: spin.y ?? 0 };
 }
 function respotColorBall(ball, balls) {
   if (!ball?.spot) return;
@@ -1224,7 +1190,6 @@ function respotColorBall(ball, balls) {
 }
 function updateSnookerRulesAfterPot(ball, balls, rulesState) {
   if (!rulesState || ball.isCue) return;
-  rulesState.shotPotCount = (rulesState.shotPotCount ?? 0) + 1;
   const redsRemaining = balls.some((item) => item.kind === 'red' && !item.potted);
   rulesState.score += ball.value ?? 0;
   if (ball.kind === 'red') {
@@ -1275,22 +1240,15 @@ function applySnookerSpinController(ball, stepScale) {
     const forward = SNOOKER_TMP_VEC3_A.copy(ball.vel).setY(0).normalize();
     const lateral = SNOOKER_TMP_VEC3_B.set(forward.z, 0, -forward.x).normalize();
     const sideSpin = ball.spin.x || 0;
-    let forwardSpin = ball.spin.y || 0;
-    const powerScale = clamp(speed / Math.max(SNOOKER_SHOT_BASE_SPEED * 1.25, 1e-6), 0.35, 1.25);
+    const forwardSpin = ball.spin.y || 0;
+    const speedScale = clamp(speed / Math.max(CFG.scale * 8, 1e-6), 0.35, 1.4);
     if (Math.abs(sideSpin) > 1e-8) {
-      ball.vel.addScaledVector(lateral, sideSpin * SNOOKER_SPIN_ROLL_ACCELERATION * 0.09 * powerScale * stepScale);
+      ball.vel.addScaledVector(lateral, sideSpin * 0.22 * CFG.scale * speedScale * stepScale);
     }
-    let rollAccel = SNOOKER_SPIN_ROLL_ACCELERATION * powerScale * stepScale;
-    if (forwardSpin < 0) rollAccel *= ball.isCue && ball.impacted ? SNOOKER_CUE_BACKSPIN_ROLL_BOOST : SNOOKER_BACKSPIN_ROLL_BOOST;
     if (Math.abs(forwardSpin) > 1e-8) {
-      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+      ball.vel.addScaledVector(forward, forwardSpin * 0.11 * CFG.scale * speedScale * stepScale);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(CFG.ballR * 2.2, speed * SNOOKER_TOPSPIN_ROLL_SPEED_FACTOR);
-        const settling = clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
-        const transfer = Math.min(forwardSpin, rollAccel * SNOOKER_TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72));
-        let remainingSpin = Math.max(0, forwardSpin - transfer);
-        if (speed >= naturalRollSpeed * 0.98) remainingSpin *= Math.exp(-SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
-        ball.spin.y = remainingSpin * Math.exp(-SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling));
+        ball.spin.y = Math.max(0, forwardSpin - 0.028 * stepScale * speedScale);
       }
     }
   }
@@ -1408,7 +1366,6 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
         ball.launchDir = null;
         if (rulesState) {
           rulesState.foul = 'Cue ball in-off: foul, ball in hand inside the D.';
-          rulesState.shotFoul = rulesState.foul;
           rulesState.score = Math.max(0, rulesState.score - 4);
         }
       } else {
@@ -1708,8 +1665,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [showGift, setShowGift] = useState(false);
   const [lastQuickMessage, setLastQuickMessage] = useState('');
   const [frameRateId, setFrameRateId] = useState(() => loadStoredOption('graphics', 'qhd90', FRAME_RATE_OPTIONS.map((item) => item.id)));
-  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'tv-broadcast', CAMERA_MODE_OPTIONS.map((item) => item.id)));
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'pocket-cuts', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
+  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'rail-overhead', CAMERA_MODE_OPTIONS.map((item) => item.id)));
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'rail-overhead', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
   const [environmentHdriId, setEnvironmentHdriId] = useState(() => loadStoredOption('hdri', POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS.map((item) => item.id)));
   const [clothId, setClothId] = useState(() => loadStoredOption('cloth', DEFAULT_CLOTH_ID, POOL_ROYALE_CLOTH_VARIANTS.map((item) => item.id)));
   const [textureId, setTextureId] = useState(() => loadStoredOption('texture', SNOOKER_TEXTURE_OPTIONS[0].id, SNOOKER_CHAMPION_TEXTURE_IDS));
@@ -2027,8 +1984,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         strikeT += dt;
         if (!didHit && strikeNorm > 0.88) {
           didHit = true;
-          rulesRef.current.shotPotCount = 0;
-          rulesRef.current.shotFoul = '';
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
           if (!replaySkipAllRef.current) {
             recordingReplay = true;
@@ -2065,13 +2020,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         replayFramesRef.current.push({ t: now - replayStartedAt, balls: createReplaySnapshot(balls), cameraMode: cameraModeRef.current });
         if (!ballsMoving || now - replayStartedAt >= SNOOKER_REPLAY_MAX_MS) {
           recordingReplay = false;
-          const replayReady = replayFramesRef.current.length > 2;
-          setHasReplay(replayReady);
-          const shouldAutoReplay = replayReady && !replaySkipAllRef.current && ((rulesRef.current.shotPotCount ?? 0) > 0 || Boolean(rulesRef.current.shotFoul));
-          if (shouldAutoReplay) {
-            replayStartedAtRef.current = performance.now();
-            setReplayActive(true);
-          }
+          setHasReplay(replayFramesRef.current.length > 2);
         }
       }
       if (rulesRef.current.score !== lastScore) { lastScore = rulesRef.current.score; setScore(lastScore); }
@@ -2101,9 +2050,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         setGuideLine(targetLine, aimEnd, aimEnd.clone().addScaledVector(guideDir, CFG.ballR * 10), true);
         targetLine.material.color.setHex(0x9fd8ff);
       }
-      const liveCameraMode = ballsMoving && cameraModeRef.current === 'rail-overhead' ? 'tv-broadcast' : cameraModeRef.current;
-      const liveBroadcastMode = ballsMoving ? (broadcastSystemRef.current || 'pocket-cuts') : broadcastSystemRef.current;
-      updateCamera(camera, liveCameraMode, liveBroadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
+      updateCamera(camera, cameraModeRef.current, broadcastSystemRef.current, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
       renderer.render(scene, camera);
     }
     animate();
@@ -2289,8 +2236,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                       <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Uses cue, rail, and pocket broadcast cameras.</span>
                     </button>
                     <button type="button" onClick={() => { setReplaySkipAll((prev) => { const next = !prev; replaySkipAllRef.current = next; if (next) setReplayActive(false); return next; }); setConfigOpen(false); }} className={optionButtonClass(replaySkipAll)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Replay off</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Pool Royale-style pot/foul replays.</span>
+                      <span className="font-black uppercase tracking-[0.2em]">Skip all</span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Pool Royale-style replay skip toggle.</span>
                     </button>
                   </div>
                 </div>
