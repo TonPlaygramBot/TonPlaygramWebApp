@@ -23,6 +23,7 @@ type MatchMode = 'ai' | 'online';
 type RangeDistance = 'standard' | 'swat' | 'nature' | 'moving';
 type RangeScene = 'indoor' | 'swat' | 'nature' | 'moving';
 type TargetStyle = 'silhouette' | 'hostage' | 'gong' | 'runner';
+type ScenarioVariant = { id: string; label: string; briefing: string };
 
 type WeaponEntry = {
   id: string;
@@ -244,7 +245,15 @@ const POLYHAVEN_ASSETS = {
   treeStump01:
     'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_stump_01/tree_stump_01_1k.gltf',
   firTree01:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_tree_01/fir_tree_01_1k.gltf'
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_tree_01/fir_tree_01_1k.gltf',
+  firSapling:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_sapling/fir_sapling_1k.gltf',
+  pineTree01:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/pine_tree_01/pine_tree_01_1k.gltf',
+  woodenBarrels01:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_barrels_01/wooden_barrels_01_1k.gltf',
+  barrel02:
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/Barrel_02/Barrel_02_1k.gltf'
 };
 
 const SERVICE_PISTOL_TEXTURES = {
@@ -257,6 +266,90 @@ const SERVICE_PISTOL_TEXTURES = {
     'https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/service_pistol/service_pistol_metal_2k.jpg',
   ao: 'https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/service_pistol/service_pistol_ao_2k.jpg'
 };
+
+const SWAT_BUILDING_LAYOUTS: ScenarioVariant[] = [
+  {
+    id: 'stacked-entry',
+    label: 'Building 1 · Stacked-entry shoot house',
+    briefing:
+      'Offset foyer, split hallway, evidence room, kitchen, and back-office target sweep.'
+  },
+  {
+    id: 'motel-corridor',
+    label: 'Building 2 · Motel corridor',
+    briefing:
+      'Long hall with alternating rooms, door checks, blind corners, and no-shoot silhouettes.'
+  },
+  {
+    id: 'warehouse-office',
+    label: 'Building 3 · Warehouse office',
+    briefing:
+      'Concrete office pods inside an industrial bay with crates, barrels, and stair-step cover.'
+  },
+  {
+    id: 'apartment-duplex',
+    label: 'Building 4 · Apartment duplex',
+    briefing:
+      'Residential room clearing with living room, bedrooms, closets, and cross-corridor danger areas.'
+  },
+  {
+    id: 'embassy-annex',
+    label: 'Building 5 · Embassy annex',
+    briefing:
+      'Wide lobby, reception desk, server room, records room, and final secured office.'
+  }
+];
+
+const OUTDOOR_RANGE_LAYOUTS: ScenarioVariant[] = [
+  {
+    id: 'bermed-forest-bay',
+    label: 'Outdoor 1 · Bermed forest bay',
+    briefing:
+      'Earth backstop, side berms, covered firing line, target numbers, and forest edges.'
+  },
+  {
+    id: 'pine-rifle-lane',
+    label: 'Outdoor 2 · Pine rifle lane',
+    briefing:
+      'Long pine-lined rifle corridor with distance plates and stacked log side containment.'
+  },
+  {
+    id: 'ravine-practical',
+    label: 'Outdoor 3 · Ravine practical range',
+    briefing:
+      'Natural low ground, uneven barricades, barrels, and staggered close-to-far steel gongs.'
+  },
+  {
+    id: 'quarry-backstop',
+    label: 'Outdoor 4 · Quarry backstop',
+    briefing:
+      'Rock-and-earth quarry bowl with gravel lanes, tire-height cover, and high impact berm.'
+  },
+  {
+    id: 'meadow-qualification',
+    label: 'Outdoor 5 · Meadow qualification field',
+    briefing:
+      'Open qualification range with painted distance markers, shade roof, and clear safety lanes.'
+  }
+];
+
+function selectScenarioVariant(
+  distance: RangeDistance,
+  seedText: string
+): ScenarioVariant | null {
+  const variants =
+    distance === 'swat'
+      ? SWAT_BUILDING_LAYOUTS
+      : distance === 'nature'
+        ? OUTDOOR_RANGE_LAYOUTS
+        : null;
+  if (!variants) return null;
+  let hash = 0;
+  for (let i = 0; i < seedText.length; i += 1) {
+    hash = (hash * 31 + seedText.charCodeAt(i)) >>> 0;
+  }
+  return variants[hash % variants.length];
+}
 
 const TEXTURES = {
   floor: {
@@ -2329,101 +2422,222 @@ function addScenarioTrainingGeometry(
   metalMat: THREE.Material,
   forestMat: THREE.Material,
   plasterMat: THREE.Material,
-  asphaltMat: THREE.Material
+  asphaltMat: THREE.Material,
+  scenarioVariant: ScenarioVariant | null
 ) {
   const sceneType = rangeConfig.scene;
 
   if (sceneType === 'swat') {
-    for (let room = 0; room < 3; room += 1) {
-      const z = -8.4 - room * 6.4;
+    const variantIndex = Math.max(
+      0,
+      SWAT_BUILDING_LAYOUTS.findIndex(
+        (layout) => layout.id === scenarioVariant?.id
+      )
+    );
+    const roomRows = [
+      [-5.25, -1.75, 1.75, 5.25],
+      [-4.6, -0.9, 2.45, 5.6],
+      [-5.6, -2.1, 1.2, 4.75],
+      [-4.9, -1.35, 1.95, 5.15],
+      [-5.75, -2.65, 0.65, 4.35]
+    ][variantIndex] ?? [-5.25, -1.75, 1.75, 5.25];
+    const corridorX = [-0.15, 0.55, -0.65, 0.15, -0.35][variantIndex] ?? 0;
+    const roomDepths = [-6.4, -12.6, -18.9, -25.2, -31.5];
+
+    addBox(
+      scene,
+      new THREE.BoxGeometry(14.4, 0.22, 37.5),
+      plasterMat,
+      new THREE.Vector3(0, 3.05, -17.2)
+    );
+
+    roomDepths.forEach((z, row) => {
       addBox(
         scene,
-        new THREE.BoxGeometry(13.0, 0.14, 0.22),
+        new THREE.BoxGeometry(13.4, 2.6, 0.16),
         plasterMat,
-        new THREE.Vector3(0, 2.45, z)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(0.18, 2.35, 5.6),
-        plasterMat,
-        new THREE.Vector3(-3.1, 1.18, z - 2.65)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(0.18, 2.35, 5.6),
-        plasterMat,
-        new THREE.Vector3(3.1, 1.18, z - 2.65)
+        new THREE.Vector3(0, 1.3, z)
       );
       addDoorFrame(
         scene,
-        -1.2,
-        z,
+        corridorX + (row % 2 === 0 ? -0.9 : 1.0),
+        z + 0.14,
         plasterMat,
         metalMat,
-        `SWAT close-door ${room + 1}A`
+        `${scenarioVariant?.label ?? 'SWAT'} breach door ${row + 1}`
       );
-      addDoorFrame(
+      roomRows.forEach((x, index) => {
+        const sideRoom = Math.abs(x - corridorX) > 1.2;
+        if (!sideRoom) return;
+        addBox(
+          scene,
+          new THREE.BoxGeometry(
+            0.16,
+            2.5,
+            4.4 + ((index + row + variantIndex) % 2) * 1.2
+          ),
+          plasterMat,
+          new THREE.Vector3(x, 1.25, z - 2.25)
+        );
+      });
+
+      const lightBar = addBox(
         scene,
-        1.2,
-        z - 2.8,
-        plasterMat,
+        new THREE.BoxGeometry(2.2, 0.06, 0.28),
         metalMat,
-        `SWAT close-door ${room + 1}B`
+        new THREE.Vector3(corridorX, 2.72, z - 2.75)
+      );
+      lightBar.name = `SWAT fluorescent ${row + 1}`;
+      const point = new THREE.PointLight(0xf4f7ff, 2.4, 7.5, 1.5);
+      point.position.set(corridorX, 2.55, z - 2.75);
+      scene.add(point);
+
+      const coverX = row % 2 === 0 ? -4.9 : 4.9;
+      addBox(
+        scene,
+        new THREE.BoxGeometry(1.55, 0.88, 0.72),
+        row % 2 === 0 ? tableMat : laneMat,
+        new THREE.Vector3(coverX, 0.44, z - 3.15),
+        new THREE.Vector3(1, 1, 1),
+        new THREE.Euler(0, (row * 0.25 + variantIndex * 0.18) % 0.7, 0)
       );
       addBox(
         scene,
-        new THREE.BoxGeometry(1.4, 0.9, 0.9),
-        tableMat,
-        new THREE.Vector3(-5.05, 0.45, z - 2.2)
+        new THREE.BoxGeometry(0.78, 1.42, 0.34),
+        metalMat,
+        new THREE.Vector3(-coverX * 0.92, 0.71, z - 1.48)
       );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(1.1, 1.2, 0.65),
-        laneMat,
-        new THREE.Vector3(5.05, 0.6, z - 3.3)
-      );
+    });
+
+    addBox(
+      scene,
+      new THREE.BoxGeometry(3.1, 1.08, 0.86),
+      tableMat,
+      new THREE.Vector3(corridorX, 0.54, -3.55)
+    ).name = `${scenarioVariant?.label ?? 'SWAT'} reception desk`;
+
+    for (let i = 0; i < 5; i += 1) {
+      const sign = createLabelSprite(`${i + 1}`);
+      sign.position.set(roomRows[i % roomRows.length], 2.15, -8.2 - i * 5.4);
+      sign.scale.set(0.42, 0.22, 1);
+      scene.add(sign);
     }
     return;
   }
 
   if (sceneType === 'nature') {
+    const variantIndex = Math.max(
+      0,
+      OUTDOOR_RANGE_LAYOUTS.findIndex(
+        (layout) => layout.id === scenarioVariant?.id
+      )
+    );
     const outdoorGround = new THREE.Mesh(
-      new THREE.PlaneGeometry(28, 78),
+      new THREE.PlaneGeometry(44, 92),
       forestMat
     );
     outdoorGround.rotation.x = -Math.PI / 2;
-    outdoorGround.position.set(0, 0.011, -25);
+    outdoorGround.position.set(0, 0.011, -28);
     outdoorGround.receiveShadow = true;
     scene.add(outdoorGround);
 
-    for (let i = 0; i < 14; i += 1) {
-      const side = i % 2 === 0 ? -1 : 1;
-      const z = -4 - i * 3.8;
+    const laneWidth = 2.4 + variantIndex * 0.12;
+    for (let lane = 0; lane < LANE_COUNT; lane += 1) {
+      const x = LANE_X[lane];
       addBox(
         scene,
-        new THREE.CylinderGeometry(0.18, 0.28, 2.4, 12),
-        tableMat,
-        new THREE.Vector3(side * (7.6 + (i % 3) * 1.1), 1.2, z)
+        new THREE.BoxGeometry(laneWidth, 0.055, 58),
+        asphaltMat,
+        new THREE.Vector3(x, 0.04, -22.5)
       );
       addBox(
         scene,
-        new THREE.ConeGeometry(1.3, 3.1, 10),
-        laneMat,
-        new THREE.Vector3(side * (7.6 + (i % 3) * 1.1), 3.35, z)
+        new THREE.BoxGeometry(laneWidth * 0.94, 0.08, 0.2),
+        metalMat,
+        new THREE.Vector3(x, 0.08, -8 - variantIndex * 2.5)
+      );
+      addBox(
+        scene,
+        new THREE.BoxGeometry(laneWidth * 0.94, 0.08, 0.2),
+        metalMat,
+        new THREE.Vector3(x, 0.08, -19 - variantIndex * 1.5)
       );
     }
 
-    for (let i = 0; i < 7; i += 1) {
+    const backstopZ = rangeConfig.targetZ - 7.9;
+    addBox(
+      scene,
+      new THREE.BoxGeometry(17.8, 4.6, 2.25),
+      forestMat,
+      new THREE.Vector3(0, 2.0, backstopZ),
+      new THREE.Vector3(1, 1, 1),
+      new THREE.Euler(-0.22, 0, 0)
+    ).name = `${scenarioVariant?.label ?? 'Outdoor'} earth backstop`;
+    [-9.6, 9.6].forEach((x, side) => {
       addBox(
         scene,
-        new THREE.BoxGeometry(1.75, 0.75, 0.55),
-        metalMat,
-        new THREE.Vector3(
-          -6.1 + i * 2.0,
-          0.38,
-          rangeConfig.targetZ + 4.6 + (i % 2) * 0.75
-        )
+        new THREE.BoxGeometry(2.2, 3.1, 48),
+        forestMat,
+        new THREE.Vector3(x, 1.36, -24),
+        new THREE.Vector3(1, 1, 1),
+        new THREE.Euler(0, 0, side === 0 ? 0.08 : -0.08)
       );
+    });
+
+    const roofZ = 1.35 - variantIndex * 0.15;
+    addBox(
+      scene,
+      new THREE.BoxGeometry(15.8, 0.18, 2.25),
+      tableMat,
+      new THREE.Vector3(0, 3.0, roofZ)
+    ).name = `${scenarioVariant?.label ?? 'Outdoor'} covered firing line`;
+    [-6.8, -2.3, 2.3, 6.8].forEach((x) => {
+      addBox(
+        scene,
+        new THREE.CylinderGeometry(0.09, 0.11, 2.9, 10),
+        tableMat,
+        new THREE.Vector3(x, 1.45, roofZ)
+      );
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const x = side * (6.9 + ((i + variantIndex) % 3) * 1.15);
+      const z = -5.5 - i * 5.0;
+      addBox(
+        scene,
+        new THREE.CylinderGeometry(0.16, 0.24, 1.6 + (i % 3) * 0.35, 12),
+        tableMat,
+        new THREE.Vector3(x, 0.8, z)
+      );
+      addBox(
+        scene,
+        new THREE.ConeGeometry(1.0 + (i % 2) * 0.32, 2.5 + (i % 3) * 0.45, 10),
+        laneMat,
+        new THREE.Vector3(x, 2.75, z)
+      );
+    }
+
+    for (let i = 0; i < 8; i += 1) {
+      addBox(
+        scene,
+        new THREE.BoxGeometry(1.22, 0.86, 0.42),
+        i % 2 ? tableMat : metalMat,
+        new THREE.Vector3(
+          -6.6 + i * 1.88,
+          0.43,
+          rangeConfig.targetZ + 4.3 + ((i + variantIndex) % 3) * 0.72
+        ),
+        new THREE.Vector3(1, 1, 1),
+        new THREE.Euler(0, i * 0.18, 0)
+      );
+    }
+
+    for (let i = 0; i < 5; i += 1) {
+      const marker = createLabelSprite(`${25 + i * 25}m`);
+      marker.position.set(-7.2, 0.72, -7 - i * 8.6);
+      marker.scale.set(0.72, 0.3, 1);
+      scene.add(marker);
     }
     return;
   }
@@ -2535,6 +2749,7 @@ export default function ShootingRange() {
   const [winnerText, setWinnerText] = useState('');
   const [userLane, setUserLane] = useState(USER_LANE);
   const [lastHitText, setLastHitText] = useState('');
+  const [joystickThumb, setJoystickThumb] = useState({ x: 0, y: 0 });
 
   const queryConfig = useMemo(() => {
     if (typeof window === 'undefined')
@@ -2544,7 +2759,8 @@ export default function ShootingRange() {
         playerName: 'Player',
         playerFlag: '',
         aiFlag: '',
-        distance: 'standard' as RangeDistance
+        distance: 'standard' as RangeDistance,
+        scenarioSeed: 'default'
       };
     const params = new URLSearchParams(window.location.search);
     const parsedPlayers = Number(params.get('players') || LANE_COUNT);
@@ -2565,7 +2781,11 @@ export default function ShootingRange() {
       playerName: params.get('name') || 'Player',
       playerFlag: params.get('flag') || '',
       aiFlag: params.get('aiFlag') || '',
-      distance
+      distance,
+      scenarioSeed:
+        params.get('tableId') ||
+        params.get('accountId') ||
+        `${distance}-${params.get('name') || 'Player'}`
     };
   }, []);
 
@@ -2584,6 +2804,10 @@ export default function ShootingRange() {
   const winnerLaneRef = useRef<number | null>(null);
 
   const aimRef = useRef(new THREE.Vector2(0, 0));
+  const movementRef = useRef(new THREE.Vector2(0, 0));
+  const playerWalkPosRef = useRef(
+    new THREE.Vector3(LANE_X[USER_LANE], 0, 3.05)
+  );
   const fireLockRef = useRef(0);
   const recoilRef = useRef(0);
   const reloadRef = useRef(false);
@@ -2607,7 +2831,8 @@ export default function ShootingRange() {
     tables: () => {},
     range: () => {},
     restart: () => {},
-    select: (_index: number) => {}
+    select: (_index: number) => {},
+    move: (_x: number, _y: number) => {}
   });
 
   const selectedEntry = useMemo(
@@ -2768,6 +2993,10 @@ export default function ShootingRange() {
     let raf = 0;
     let pickInterval: number | null = null;
     const rangeConfig = RANGE_DISTANCE_CONFIG[queryConfig.distance];
+    const scenarioVariant = selectScenarioVariant(
+      queryConfig.distance,
+      queryConfig.scenarioSeed
+    );
     const activeTargetZ = rangeConfig.targetZ;
 
     ammoTemplatesRef.current = createFallbackAmmoTemplates();
@@ -2909,6 +3138,7 @@ export default function ShootingRange() {
     floor.rotation.x = -Math.PI / 2;
     floor.position.z = rangeConfig.scene === 'nature' ? -20 : -18;
     floor.receiveShadow = true;
+    floor.visible = rangeConfig.scene !== 'nature';
     scene.add(floor);
 
     const leftWall = new THREE.Mesh(
@@ -2921,10 +3151,12 @@ export default function ShootingRange() {
     );
     leftWall.position.set(-7.6, 2.1, rangeConfig.scene === 'nature' ? -3 : -18);
     leftWall.receiveShadow = true;
+    leftWall.visible = rangeConfig.scene !== 'nature';
     scene.add(leftWall);
 
     const rightWall = leftWall.clone();
     rightWall.position.x = 7.6;
+    rightWall.visible = rangeConfig.scene !== 'nature';
     scene.add(rightWall);
 
     const backWall = new THREE.Mesh(
@@ -2933,6 +3165,7 @@ export default function ShootingRange() {
     );
     backWall.position.set(0, 3.05, activeTargetZ - 10.4);
     backWall.receiveShadow = true;
+    backWall.visible = rangeConfig.scene !== 'nature';
     scene.add(backWall);
 
     const roof = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.2, 62), wallMat);
@@ -2961,7 +3194,8 @@ export default function ShootingRange() {
       metalMat,
       forestMat,
       plasterMat,
-      asphaltMat
+      asphaltMat,
+      scenarioVariant
     );
 
     const propFallbackMat = new THREE.MeshStandardMaterial({
@@ -3007,6 +3241,47 @@ export default function ShootingRange() {
           new THREE.Vector3(x, 0, rangeConfig.targetZ + 8 + index * 1.1),
           1.35,
           index * 0.7,
+          undefined,
+          () => disposed
+        );
+      });
+      [-9.8, 9.8, -7.4, 7.4].forEach((x, index) => {
+        addPolyHavenProp(
+          scene,
+          renderer,
+          index % 2 ? POLYHAVEN_ASSETS.pineTree01 : POLYHAVEN_ASSETS.firSapling,
+          new THREE.Vector3(x, 0, -4 - index * 10.4),
+          index % 2 ? 7.4 : 2.3,
+          index * 0.62,
+          undefined,
+          () => disposed
+        );
+      });
+      [-6.4, 6.4].forEach((x, index) => {
+        addPolyHavenProp(
+          scene,
+          renderer,
+          POLYHAVEN_ASSETS.woodenBarrels01,
+          new THREE.Vector3(x, 0, rangeConfig.targetZ + 5.6 + index * 0.8),
+          1.4,
+          index * 0.35,
+          undefined,
+          () => disposed
+        );
+      });
+    }
+
+    if (rangeConfig.scene === 'swat') {
+      [-5.45, 5.35, -3.35, 3.1].forEach((x, index) => {
+        addPolyHavenProp(
+          scene,
+          renderer,
+          index % 2
+            ? POLYHAVEN_ASSETS.barrel02
+            : POLYHAVEN_ASSETS.woodenBarrels01,
+          new THREE.Vector3(x, 0, -10.4 - index * 5.6),
+          1.05,
+          index * 0.48,
           undefined,
           () => disposed
         );
@@ -3200,6 +3475,7 @@ export default function ShootingRange() {
       const randomizedLanes = shuffle([0, 1, 2, 3]);
       const humanLaneIndex = randomizedLanes[0];
       userLaneRef.current = humanLaneIndex;
+      playerWalkPosRef.current.set(LANE_X[humanLaneIndex], 0, 3.05);
       setUserLane(humanLaneIndex);
       const lanes: LaneRuntime[] = [];
 
@@ -3543,7 +3819,11 @@ export default function ShootingRange() {
     function startShootPhase() {
       setPhaseSafe('shoot');
       setViewMode('range');
-      setStatus('Shoot phase started');
+      setStatus(
+        scenarioVariant
+          ? `${scenarioVariant.label}: ${scenarioVariant.briefing}`
+          : 'Shoot phase started'
+      );
 
       const shots = Array.from({ length: LANE_COUNT }, (_, laneIndex) =>
         lanesRef.current[laneIndex] ? SHOTS_PER_PLAYER : 0
@@ -4078,6 +4358,73 @@ export default function ShootingRange() {
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('pointercancel', onPointerUp);
 
+    const pressedKeys = new Set<string>();
+    function syncKeyboardMovement() {
+      const x =
+        (pressedKeys.has('d') || pressedKeys.has('arrowright') ? 1 : 0) -
+        (pressedKeys.has('a') || pressedKeys.has('arrowleft') ? 1 : 0);
+      const y =
+        (pressedKeys.has('w') || pressedKeys.has('arrowup') ? 1 : 0) -
+        (pressedKeys.has('s') || pressedKeys.has('arrowdown') ? 1 : 0);
+      if (x || y) actionsRef.current.move(x, y);
+      else if (!joystickThumb.x && !joystickThumb.y)
+        actionsRef.current.move(0, 0);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      if (
+        ![
+          'w',
+          'a',
+          's',
+          'd',
+          'arrowup',
+          'arrowdown',
+          'arrowleft',
+          'arrowright'
+        ].includes(key)
+      )
+        return;
+      pressedKeys.add(key);
+      syncKeyboardMovement();
+    }
+    function onKeyUp(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      pressedKeys.delete(key);
+      syncKeyboardMovement();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+
+    function updatePlayerMovement(dt: number) {
+      if (rangeConfig.scene !== 'swat' || phaseRef.current !== 'shoot') return;
+      const lane = lanesRef.current[userLaneRef.current];
+      if (!lane) return;
+      const input = movementRef.current;
+      const length = Math.min(1, input.length());
+      if (length > 0.001) {
+        const direction = input.clone().multiplyScalar(1 / length);
+        const speed = 3.45;
+        const walk = playerWalkPosRef.current;
+        walk.x = THREE.MathUtils.clamp(
+          walk.x + direction.x * speed * dt,
+          -5.9,
+          5.9
+        );
+        walk.z = THREE.MathUtils.clamp(
+          walk.z - direction.y * speed * dt,
+          rangeConfig.targetZ + 5.8,
+          3.25
+        );
+      }
+      lane.root.position.lerp(playerWalkPosRef.current, 0.32);
+      lane.root.rotation.y = THREE.MathUtils.lerp(
+        lane.root.rotation.y,
+        movementRef.current.x * -0.18,
+        0.12
+      );
+    }
+
     function updateBullets(dt: number) {
       for (let i = bulletsRef.current.length - 1; i >= 0; i -= 1) {
         const bullet = bulletsRef.current[i];
@@ -4431,22 +4778,38 @@ export default function ShootingRange() {
         return;
       }
 
-      tempPos.set(
-        LANE_X[userLaneRef.current] +
-          OVER_SHOULDER_OFFSET.x +
-          aimRef.current.x * 0.24,
-        OVER_SHOULDER_OFFSET.y +
-          aimRef.current.y * 0.12 +
-          recoilRef.current * 0.04,
-        OVER_SHOULDER_OFFSET.z
-      );
-      tempLook.set(
-        LANE_X[userLaneRef.current] +
-          OVER_SHOULDER_LOOK.x +
-          aimRef.current.x * 1.35,
-        OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.95,
-        OVER_SHOULDER_LOOK.z
-      );
+      if (rangeConfig.scene === 'swat') {
+        const walk = playerWalkPosRef.current;
+        tempPos.set(
+          walk.x + OVER_SHOULDER_OFFSET.x * 0.58 + aimRef.current.x * 0.18,
+          OVER_SHOULDER_OFFSET.y +
+            aimRef.current.y * 0.1 +
+            recoilRef.current * 0.04,
+          walk.z + 1.55
+        );
+        tempLook.set(
+          walk.x + aimRef.current.x * 1.18,
+          OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.9,
+          Math.max(rangeConfig.targetZ + 1.8, walk.z - 8.8)
+        );
+      } else {
+        tempPos.set(
+          LANE_X[userLaneRef.current] +
+            OVER_SHOULDER_OFFSET.x +
+            aimRef.current.x * 0.24,
+          OVER_SHOULDER_OFFSET.y +
+            aimRef.current.y * 0.12 +
+            recoilRef.current * 0.04,
+          OVER_SHOULDER_OFFSET.z
+        );
+        tempLook.set(
+          LANE_X[userLaneRef.current] +
+            OVER_SHOULDER_LOOK.x +
+            aimRef.current.x * 1.35,
+          OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.95,
+          OVER_SHOULDER_LOOK.z
+        );
+      }
 
       camera.position.lerp(tempPos, 0.09);
       camera.lookAt(tempLook);
@@ -4474,6 +4837,7 @@ export default function ShootingRange() {
       updateShells(dt);
       updateShotEffects(dt);
       updateCharacters(dt);
+      updatePlayerMovement(dt);
       updateTargets();
       updateWinnerCoins(dt);
       updateCamera();
@@ -4505,6 +4869,12 @@ export default function ShootingRange() {
         switchToWeapon(index);
       }
     };
+    actionsRef.current.move = (x: number, y: number) => {
+      movementRef.current.set(
+        THREE.MathUtils.clamp(x, -1, 1),
+        THREE.MathUtils.clamp(y, -1, 1)
+      );
+    };
 
     resize();
     animate();
@@ -4522,6 +4892,8 @@ export default function ShootingRange() {
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
 
       disposeObject(scene);
       renderer.dispose();
@@ -4577,6 +4949,33 @@ export default function ShootingRange() {
         .map((tw) => tw.weaponIndex)
     : WEAPONS.map((_, index) => index);
 
+  const fpsJoystickEnabled =
+    queryConfig.distance === 'swat' &&
+    phase === 'shoot' &&
+    viewMode === 'range';
+
+  function updateJoystickFromPointer(
+    event: React.PointerEvent<HTMLDivElement>
+  ) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left - rect.width / 2;
+    const y = event.clientY - rect.top - rect.height / 2;
+    const radius = rect.width / 2 - 18;
+    const length = Math.min(radius, Math.hypot(x, y));
+    const angle = Math.atan2(y, x);
+    const thumb = {
+      x: Math.cos(angle) * length,
+      y: Math.sin(angle) * length
+    };
+    setJoystickThumb(thumb);
+    actionsRef.current.move(thumb.x / radius, -thumb.y / radius);
+  }
+
+  function releaseJoystick() {
+    setJoystickThumb({ x: 0, y: 0 });
+    actionsRef.current.move(0, 0);
+  }
+
   return (
     <div
       style={{
@@ -4622,7 +5021,7 @@ export default function ShootingRange() {
                 {phase === 'pick'
                   ? `Pick a weapon from your Lane ${userLane + 1} table · ${pickTimer}s`
                   : phase === 'shoot'
-                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} distance · red dot precision`
+                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} · ${selectScenarioVariant(queryConfig.distance, queryConfig.scenarioSeed)?.label ?? 'red dot precision'}`
                     : phase === 'results'
                       ? winnerText
                       : 'Loading range...'}
@@ -4688,6 +5087,20 @@ export default function ShootingRange() {
             <span>
               Distance: {RANGE_DISTANCE_CONFIG[queryConfig.distance].label}
             </span>
+            {selectScenarioVariant(
+              queryConfig.distance,
+              queryConfig.scenarioSeed
+            ) && (
+              <span>
+                Scenario:{' '}
+                {
+                  selectScenarioVariant(
+                    queryConfig.distance,
+                    queryConfig.scenarioSeed
+                  )?.label
+                }
+              </span>
+            )}
             <span>
               Ammo: {ammo}/{selectedStats.mag}
             </span>
@@ -4776,6 +5189,66 @@ export default function ShootingRange() {
               transform: 'translate(-50%,-50%)'
             }}
           />
+        </div>
+      )}
+
+      {fpsJoystickEnabled && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 18,
+            bottom: 178,
+            width: 128,
+            height: 128,
+            borderRadius: 999,
+            background: 'rgba(15,23,42,.48)',
+            border: '1px solid rgba(255,255,255,.2)',
+            boxShadow: '0 18px 46px rgba(0,0,0,.3)',
+            zIndex: 12,
+            touchAction: 'none'
+          }}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            updateJoystickFromPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (event.buttons) updateJoystickFromPointer(event);
+          }}
+          onPointerUp={(event) => {
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+            releaseJoystick();
+          }}
+          onPointerCancel={releaseJoystick}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: 58,
+              height: 58,
+              borderRadius: 999,
+              background: 'rgba(250,204,21,.88)',
+              border: '1px solid rgba(255,255,255,.65)',
+              transform: `translate(calc(-50% + ${joystickThumb.x}px), calc(-50% + ${joystickThumb.y}px))`,
+              boxShadow: '0 8px 22px rgba(0,0,0,.36)'
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: -24,
+              textAlign: 'center',
+              color: '#fde68a',
+              fontSize: 10,
+              fontWeight: 900,
+              textShadow: '0 2px 8px rgba(0,0,0,.65)'
+            }}
+          >
+            SWAT FPS MOVE · WASD
+          </div>
         </div>
       )}
 
