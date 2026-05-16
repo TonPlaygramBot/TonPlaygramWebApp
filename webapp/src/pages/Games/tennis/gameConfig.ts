@@ -29,11 +29,11 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 2.72;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 3.15;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep camera scaling independent from world scale so camera framing can be
 // tuned precisely while the enlarged court keeps its regulation proportions.
-const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.18;
+const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.34;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
 const PLAYER_CHARACTER_SCALE = 1.35;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
@@ -52,17 +52,18 @@ export const gameConfig = {
   serviceLineZ: 6.4 * WORLD_SCALE,
   netH: 0.914 * WORLD_SCALE,
   ballR: 0.085 * WORLD_SCALE,
-  gravity: 24.5,
-  airDrag: 0.105,
-  bounceRestitution: 0.66,
-  groundFriction: 0.78,
+  // Gravity scales with the enlarged court so arcs land naturally instead of floating.
+  gravity: 8.65 * WORLD_SCALE,
+  airDrag: 0.086,
+  bounceRestitution: 0.58,
+  groundFriction: 0.74,
   minBallSpeed: 0.12 * WORLD_SCALE,
   courtFriction: 0.78,
   playerHeight: 1.88 * PLAYER_SCALE,
-  playerSpeed: 8.4 * PLAYER_SCALE,
+  playerSpeed: 8.9 * PLAYER_SCALE,
   playerAcceleration: 28 * PLAYER_SCALE,
   playerDeceleration: 34 * PLAYER_SCALE,
-  aiSpeed: 11.2 * PLAYER_SCALE,
+  aiSpeed: 11.8 * PLAYER_SCALE,
   reach: 1.62 * PLAYER_SCALE,
   racketHitRadius: 0.56 * PLAYER_SCALE,
   contactAngleTolerance: 0.18,
@@ -75,9 +76,9 @@ export const gameConfig = {
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
   // Scales the full match shot force so player and AI strokes share a softer, lower power ceiling.
-  matchPowerMultiplier: 0.55,
-  servePower: { min: 0.42, max: 0.62 },
-  shotPower: { min: 0.16, max: 0.56 },
+  matchPowerMultiplier: 0.72,
+  servePower: { min: 0.48, max: 0.74 },
+  shotPower: { min: 0.22, max: 0.72 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
   playerVisualYawFix: Math.PI,
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
@@ -93,10 +94,10 @@ export const gameConfig = {
   scoring: { gamesPerSet: 6, winByTwoGames: true },
   aiDifficulty: {
     reactionTime: 0.07,
-    moveSpeed: 12.8 * PLAYER_SCALE,
+    moveSpeed: 13.6 * PLAYER_SCALE,
     reachRadius: 1.95 * PLAYER_SCALE,
     accuracy: 0.94,
-    power: 0.54,
+    power: 0.66,
     spin: 0.88,
     mistakeChance: 0.018,
     serveQuality: 0.84,
