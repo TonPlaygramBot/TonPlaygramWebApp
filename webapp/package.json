@@ -9,7 +9,9 @@
     "generate:native-assets": "node scripts/generate-native-assets.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
     "fetch:launcher": "node scripts/fetch-launcher.mjs",
-    "postinstall": "node scripts/postinstall.mjs"
+    "postinstall": "node scripts/postinstall.mjs",
+    "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
+    "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all"
   },
   "type": "module",
   "dependencies": {
