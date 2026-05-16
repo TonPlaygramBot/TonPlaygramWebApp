@@ -74,11 +74,11 @@ export const GAME_CONFIG = {
     maxReach: 0.58 * TABLE_WIDTH_SCALE,
     avatarScale: 1.62,
     difficulty: {
-      reactionTime: 0.24,
-      moveSpeed: 2.05 * TABLE_WIDTH_SCALE,
-      accuracy: 0.78,
-      shotPower: 1.0,
-      mistakeChance: 0.14,
+      reactionTime: 0.14,
+      moveSpeed: 3.05 * TABLE_WIDTH_SCALE,
+      accuracy: 0.84,
+      shotPower: 1.18,
+      mistakeChance: 0.1,
     } satisfies DifficultyConfig,
   },
   paddle: {
@@ -91,7 +91,7 @@ export const GAME_CONFIG = {
     powerShotMultiplier: 1.18,
     spin: 3.6,
     sideSpin: 4.2,
-    accuracy: 0.9,
+    accuracy: 0.96,
   },
   camera: {
     position: new THREE.Vector3(0, 2.7, 6.1),

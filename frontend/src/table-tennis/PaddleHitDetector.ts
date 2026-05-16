@@ -47,17 +47,25 @@ export class PaddleHitDetector {
 
     const command = input.shotCommand ?? DEFAULT_COMMAND;
     const profile = shotProfiles[input.requestedShot];
-    const targetZ = input.side === 'player'
-      ? THREE.MathUtils.randFloat(TABLE_BOUNDS.minZ * 0.78, TABLE_BOUNDS.minZ * 0.28)
-      : THREE.MathUtils.randFloat(TABLE_BOUNDS.maxZ * 0.28, TABLE_BOUNDS.maxZ * 0.78);
     const screenAim = input.side === 'player' ? command.aimX : -command.aimX;
-    const edgeInset = GAME_CONFIG.table.width * 0.065;
+    const edgeInset = GAME_CONFIG.table.width * 0.055;
     const targetXBase = THREE.MathUtils.lerp(TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset, (screenAim + 1) / 2);
-    const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * THREE.MathUtils.lerp(0.48, 0.22, command.power);
+    const accuracy = input.accuracy ?? GAME_CONFIG.paddle.accuracy;
+    const error = (1 - accuracy) * GAME_CONFIG.table.width * THREE.MathUtils.lerp(0.16, 0.07, command.power);
+    const targetX = THREE.MathUtils.clamp(
+      targetXBase + THREE.MathUtils.randFloatSpread(error),
+      TABLE_BOUNDS.minX + edgeInset,
+      TABLE_BOUNDS.maxX - edgeInset,
+    );
+    const nearZ = input.side === 'player' ? TABLE_BOUNDS.minZ * 0.28 : TABLE_BOUNDS.maxZ * 0.28;
+    const deepZ = input.side === 'player' ? TABLE_BOUNDS.minZ * 0.84 : TABLE_BOUNDS.maxZ * 0.84;
+    const depthPower = THREE.MathUtils.clamp(command.power * 0.82 + (1 - command.lift) * 0.18, 0, 1);
+    const targetZBase = THREE.MathUtils.lerp(nearZ, deepZ, depthPower);
+    const targetZ = targetZBase + THREE.MathUtils.randFloatSpread((1 - accuracy) * GAME_CONFIG.table.length * 0.06);
     const target = new THREE.Vector3(
-      THREE.MathUtils.clamp(targetXBase + THREE.MathUtils.randFloatSpread(error), TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset),
+      targetX,
       GAME_CONFIG.table.topY + profile.arc + command.lift * 0.32,
-      targetZ,
+      THREE.MathUtils.clamp(targetZ, Math.min(nearZ, deepZ), Math.max(nearZ, deepZ)),
     );
     const direction = target.sub(input.ballPosition).normalize();
     const commandPower = THREE.MathUtils.lerp(0.72, 1.28, command.power);

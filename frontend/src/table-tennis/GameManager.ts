@@ -191,12 +191,16 @@ export class GameManager {
     const dx = end.x - start.x;
     const dy = start.y - end.y;
     const distance = Math.hypot(dx, dy);
-    const fastSwipeBonus = THREE.MathUtils.clamp(320 / Math.max(durationMs, 80), 0, 1);
-    const aimX = THREE.MathUtils.clamp(end.x * 1.08, -1, 1);
-    const power = THREE.MathUtils.clamp(distance * 0.64 + fastSwipeBonus * 0.42, 0.16, 1);
-    const lift = THREE.MathUtils.clamp(0.28 + dy * 0.58, 0, 1);
-    const curve = THREE.MathUtils.clamp(dx * 0.92, -1, 1);
-    const spin = THREE.MathUtils.clamp(dy * 0.92 + power * 0.22 - Math.abs(curve) * 0.1, -1, 1);
+    const horizontalIntent = THREE.MathUtils.clamp(dx / Math.max(distance, 0.001), -1, 1);
+    const verticalIntent = THREE.MathUtils.clamp(dy / Math.max(distance, 0.001), -1, 1);
+    const swipeSpeed = distance / Math.max(durationMs / 1000, 0.08);
+    const speedPower = THREE.MathUtils.clamp(swipeSpeed / 4.4, 0, 1);
+    const distancePower = THREE.MathUtils.clamp(distance / 1.35, 0, 1);
+    const aimX = THREE.MathUtils.clamp(end.x * 0.62 + horizontalIntent * 0.38 + dx * 0.18, -1, 1);
+    const power = THREE.MathUtils.clamp(distancePower * 0.58 + speedPower * 0.42, 0.14, 1);
+    const lift = THREE.MathUtils.clamp(0.22 + Math.max(verticalIntent, -0.25) * 0.44 + dy * 0.18, 0, 1);
+    const curve = THREE.MathUtils.clamp(dx * 0.62 + horizontalIntent * 0.22, -1, 1);
+    const spin = THREE.MathUtils.clamp(verticalIntent * 0.52 + dy * 0.28 + power * 0.24 - Math.abs(curve) * 0.08, -1, 1);
     return { aimX, power, lift, curve, spin };
   }
 
