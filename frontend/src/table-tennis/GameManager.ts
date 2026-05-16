@@ -273,7 +273,10 @@ export class GameManager {
     const net = this.createNet();
     table.add(net);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 8.4), new THREE.ShadowMaterial({ opacity: 0.24 }));
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(GAME_CONFIG.table.width + 4.4, GAME_CONFIG.table.length + 5.3),
+      new THREE.ShadowMaterial({ opacity: 0.24 }),
+    );
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor, table);

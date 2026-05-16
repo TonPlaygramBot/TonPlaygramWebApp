@@ -47,12 +47,15 @@ export class PaddleHitDetector {
 
     const command = input.shotCommand ?? DEFAULT_COMMAND;
     const profile = shotProfiles[input.requestedShot];
-    const targetZ = input.side === 'player' ? THREE.MathUtils.randFloat(-1.2, -0.34) : THREE.MathUtils.randFloat(0.34, 1.2);
+    const targetZ = input.side === 'player'
+      ? THREE.MathUtils.randFloat(TABLE_BOUNDS.minZ * 0.78, TABLE_BOUNDS.minZ * 0.28)
+      : THREE.MathUtils.randFloat(TABLE_BOUNDS.maxZ * 0.28, TABLE_BOUNDS.maxZ * 0.78);
     const screenAim = input.side === 'player' ? command.aimX : -command.aimX;
-    const targetXBase = THREE.MathUtils.lerp(TABLE_BOUNDS.minX + 0.1, TABLE_BOUNDS.maxX - 0.1, (screenAim + 1) / 2);
+    const edgeInset = GAME_CONFIG.table.width * 0.065;
+    const targetXBase = THREE.MathUtils.lerp(TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset, (screenAim + 1) / 2);
     const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * THREE.MathUtils.lerp(0.48, 0.22, command.power);
     const target = new THREE.Vector3(
-      THREE.MathUtils.clamp(targetXBase + THREE.MathUtils.randFloatSpread(error), TABLE_BOUNDS.minX + 0.08, TABLE_BOUNDS.maxX - 0.08),
+      THREE.MathUtils.clamp(targetXBase + THREE.MathUtils.randFloatSpread(error), TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset),
       GAME_CONFIG.table.topY + profile.arc + command.lift * 0.32,
       targetZ,
     );

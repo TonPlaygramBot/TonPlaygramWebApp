@@ -41,7 +41,11 @@ export class BallPhysics {
   private accumulator = 0;
 
   resetForServe(server: Side) {
-    this.position.set(server === 'player' ? -0.16 : 0.16, GAME_CONFIG.table.topY + GAME_CONFIG.serveHeight, server === 'player' ? 1.08 : -1.08);
+    this.position.set(
+      server === 'player' ? -GAME_CONFIG.table.width * 0.09 : GAME_CONFIG.table.width * 0.09,
+      GAME_CONFIG.table.topY + GAME_CONFIG.serveHeight,
+      server === 'player' ? GAME_CONFIG.table.length * 0.35 : -GAME_CONFIG.table.length * 0.35,
+    );
     this.velocity.set(0, 0, 0);
     this.spin.set(0, 0, 0);
     this.lastTouch = server;
@@ -52,7 +56,7 @@ export class BallPhysics {
 
   serve(server: Side) {
     this.resetBouncesAfterHit(server);
-    this.velocity.set(server === 'player' ? 0.08 : -0.08, 1.25, server === 'player' ? -2.9 : 2.9);
+    this.velocity.set(server === 'player' ? 0.08 : -0.08, 1.25, server === 'player' ? -GAME_CONFIG.serveForwardPower : GAME_CONFIG.serveForwardPower);
     this.spin.set(server === 'player' ? 0.2 : -0.2, 0, server === 'player' ? -1.2 : 1.2);
     this.state = 'flying';
   }
