@@ -50,5 +50,3 @@ webapp/public/models/murlan/*.gltf
 webapp/public/models/murlan/*.bin
 webapp/public/models/murlan/*.fbx
 webapp/public/models/murlan/*.zip
-# Generated Pool Royale table binaries; source lives in webapp/scripts.
-webapp/public/models/pool-royale/*.glb
