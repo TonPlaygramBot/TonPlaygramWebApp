@@ -43,3 +43,19 @@ cache/
 
 # Downloaded by webapp/scripts/fetch-gradle-wrapper.mjs; keep binary out of PRs.
 webapp/android/gradle/wrapper/gradle-wrapper.jar
+
+# Runtime-only 3D model binaries fetched outside PRs.
+webapp/public/models/murlan/*.glb
+webapp/public/models/murlan/*.gltf
+webapp/public/models/murlan/*.bin
+webapp/public/models/murlan/*.fbx
+webapp/public/models/murlan/*.zip
+
+# Runtime-only Sketchfab glTF folders (buffers/textures) fetched outside PRs.
+webapp/public/models/murlan/*/
+webapp/public/models/murlan/**/*.gltf
+webapp/public/models/murlan/**/*.bin
+webapp/public/models/murlan/**/*.png
+webapp/public/models/murlan/**/*.jpg
+webapp/public/models/murlan/**/*.jpeg
+webapp/public/models/murlan/**/*.webp

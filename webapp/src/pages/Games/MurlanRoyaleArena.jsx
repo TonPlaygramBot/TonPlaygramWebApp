@@ -178,10 +178,6 @@ function hasMurlanCharacterModelSource(theme) {
   return Boolean(theme && (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length)));
 }
 
-function isPreferredMurlanAiCharacterTheme(theme) {
-  return hasMurlanCharacterModelSource(theme) && (theme.id === 'rpm-current' || /^rpm-/.test(theme.id || ''));
-}
-
 function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex = 0, rosterSeed = 0) {
   const availableThemes = MURLAN_CHARACTER_THEMES.filter(hasMurlanCharacterModelSource);
   if (!availableThemes.length) return [];
@@ -192,12 +188,8 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
   const playerSignature = players
     .map((player, index) => `${index}:${player?.name || ''}:${player?.avatar || ''}:${player?.isHuman ? 'h' : 'ai'}`)
     .join('|');
-  const aiPlayerCount = players.filter((player, index) => !(player?.isHuman || index === humanSeatIndex)).length;
-  const preferredAiThemes = availableThemes.filter((theme) => theme.id !== selectedId && isPreferredMurlanAiCharacterTheme(theme));
-  const aiThemePool = preferredAiThemes.length >= aiPlayerCount
-    ? preferredAiThemes
-    : availableThemes.filter((theme) => theme.id !== selectedId);
-  const shuffledAiThemes = aiThemePool
+  const aiThemePool = availableThemes.filter((theme) => theme.id !== selectedId);
+  const shuffledAiThemes = (aiThemePool.length ? aiThemePool : availableThemes)
     .map((theme, index) => ({
       theme,
       order: hashMurlanCharacterRosterSeed(`${rosterSeed}|${playerSignature}|${index}|${theme.id}`)
@@ -214,7 +206,7 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
     let nextTheme = shuffledAiThemes[aiThemeIndex % Math.max(shuffledAiThemes.length, 1)] || selectedTheme;
     aiThemeIndex += 1;
     if (usedThemeIds.has(nextTheme.id)) {
-      const unusedTheme = availableThemes.find((theme) => !usedThemeIds.has(theme.id));
+      const unusedTheme = shuffledAiThemes.find((theme) => !usedThemeIds.has(theme.id));
       if (unusedTheme) nextTheme = unusedTheme;
     }
     if (nextTheme?.id) usedThemeIds.add(nextTheme.id);
@@ -224,6 +216,33 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
 
 function characterThemeRosterSignature(roster = []) {
   return roster.map((theme) => theme?.id || 'none').join('|');
+}
+
+function resolveLoadedSeatCharacterTheme({
+  seatTheme,
+  selectedTheme,
+  templatesById,
+  fallbackThemes = [],
+  player = null,
+  seatIndex = 0,
+  humanSeatIndex = 0
+}) {
+  const template = seatTheme?.id ? templatesById.get(seatTheme.id) : null;
+  if (template) return { theme: seatTheme, template };
+
+  const isSelectedHumanSeat = Boolean(player?.isHuman || seatIndex === humanSeatIndex);
+  if (isSelectedHumanSeat && seatTheme?.id === selectedTheme?.id) {
+    console.warn('Selected Murlan character model is unavailable; not substituting another character', {
+      characterId: seatTheme?.id,
+      modelUrls: seatTheme?.modelUrls || (seatTheme?.url ? [seatTheme.url] : [])
+    });
+    return null;
+  }
+
+  const fallbackTheme = fallbackThemes.find((theme) => theme?.id && theme.id !== selectedTheme?.id && templatesById.has(theme.id)) ||
+    fallbackThemes.find((theme) => theme?.id && templatesById.has(theme.id));
+  if (!fallbackTheme) return null;
+  return { theme: fallbackTheme, template: templatesById.get(fallbackTheme.id) };
 }
 
 const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
@@ -240,6 +259,81 @@ const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
     accessory: { material: 'accessoryCanvas', tint: 0xc18a52, repeat: 3.2 },
     earring: { material: 'jewelryLeather', tint: 0xe4c976, repeat: 5.5 },
     ring: { material: 'jewelryLeather', tint: 0xf2d675, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
+  formalHitman: {
+    shirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.2 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    pants: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    jacket: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.2 },
+    dress: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x8b0f16, repeat: 5.8 },
+    hat: { material: 'hatBoucle', tint: 0x111827, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x0b0f14, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x9ca3af, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
+  leatherPortrait: {
+    shirt: { material: 'shirtCotton', tint: 0xe5e7eb, repeat: 4.1 },
+    tshirt: { material: 'tshirtPique', tint: 0x111827, repeat: 4.5 },
+    jeans: { material: 'darkDenim', tint: 0x1f2937, repeat: 4.4 },
+    pants: { material: 'darkDenim', tint: 0x202938, repeat: 4.2 },
+    jacket: { material: 'jacketLeather', tint: 0x2d2018, repeat: 3.1 },
+    dress: { material: 'jacketLeather', tint: 0x2d2018, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x9f6b3f, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0x1f2937, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xb45309, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd6a84b, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xd6a84b, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
+  suedeGentleman: {
+    shirt: { material: 'shirtCotton', tint: 0xf5efe6, repeat: 4.2 },
+    tshirt: { material: 'shirtCotton', tint: 0xf5efe6, repeat: 4.4 },
+    jeans: { material: 'denim', tint: 0x263b5f, repeat: 4.4 },
+    pants: { material: 'jacketSuede', tint: 0x6b4a34, repeat: 3.6 },
+    jacket: { material: 'jacketSuede', tint: 0x8a6042, repeat: 3.0 },
+    dress: { material: 'jacketSuede', tint: 0x8a6042, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0xd1a66a, repeat: 5.3 },
+    hat: { material: 'hatBoucle', tint: 0x3c2a1d, repeat: 4.0 },
+    shoes: { material: 'shoeLeather', tint: 0x2a1c15, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xc9a46a, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xe5c07b, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xe5c07b, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x3a2418, repeat: 4.6 }
+  },
+  hibiscusPortrait: {
+    shirt: { material: 'shirtCotton', tint: 0xfff1f2, repeat: 4.2 },
+    tshirt: { material: 'tshirtPique', tint: 0xfef2f2, repeat: 4.5 },
+    jeans: { material: 'denim', tint: 0x385f8f, repeat: 4.4 },
+    pants: { material: 'denim', tint: 0x385f8f, repeat: 4.4 },
+    jacket: { material: 'jacketSuede', tint: 0x9f1239, repeat: 3.2 },
+    dress: { material: 'picnic', tint: 0xdb2777, repeat: 3.4 },
+    tie: { material: 'tieHerringbone', tint: 0xf97316, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0xbe123c, repeat: 4.0 },
+    shoes: { material: 'shoeLeather', tint: 0x431407, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0xef4444, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xfacc15, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xfacc15, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x431407, repeat: 4.6 }
+  },
+  casualConfidence: {
+    shirt: { material: 'shirtCotton', tint: 0xdbeafe, repeat: 4.2 },
+    tshirt: { material: 'tshirtPique', tint: 0xf8fafc, repeat: 4.6 },
+    jeans: { material: 'denim', tint: 0x2f5f9f, repeat: 4.6 },
+    pants: { material: 'darkDenim', tint: 0x1e3a5f, repeat: 4.5 },
+    jacket: { material: 'jacketSuede', tint: 0x334155, repeat: 3.4 },
+    dress: { material: 'dressJacquard', tint: 0x475569, repeat: 3.1 },
+    tie: { material: 'tieHerringbone', tint: 0x38bdf8, repeat: 5.2 },
+    hat: { material: 'hatBoucle', tint: 0x0f172a, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x0f172a, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x60a5fa, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xe2e8f0, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xe2e8f0, repeat: 5.5 },
     watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
   casinoCheck: {
@@ -2089,6 +2183,122 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 
 const CHARACTER_MODEL_CACHE = new Map();
 
+function createThumbnailCharacterStandIn(theme = {}) {
+  const group = new THREE.Group();
+  group.name = `${theme.id || 'murlan'}-procedural-human-stand-in`;
+
+  const texture = theme.thumbnail ? new THREE.TextureLoader().load(theme.thumbnail) : null;
+  if (texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    texture.userData = { ...(texture.userData || {}), murlanCanDispose: true };
+  }
+
+  const makeMaterial = (color, { roughness = 0.74, metalness = 0.03, map = null } = {}) =>
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color),
+      roughness,
+      metalness,
+      map
+    });
+
+  const skinMaterial = makeMaterial(theme.skinTone ?? 0xd2a07c, { roughness: 0.58, metalness: 0 });
+  const hairMaterial = makeMaterial(theme.hairColor ?? 0x21150f, { roughness: 0.68, metalness: 0.01 });
+  const jacketMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'jacket', 0).tint ?? 0x1f2937);
+  const shirtMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'shirt', 0).tint ?? 0xf8fafc);
+  const pantsMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'pants', 0).tint ?? 0x1f2937);
+  const shoeMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'shoes', 0).tint ?? 0x0f172a, { roughness: 0.62, metalness: 0.06 });
+  const tieMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'tie', 0).tint ?? 0x8b0f16, { roughness: 0.7, metalness: 0.02 });
+
+  const addMesh = (mesh, position, rotation = null) => {
+    mesh.position.copy(position);
+    if (rotation) mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  // Compact seated humanoid proportions matching the same seatRoot scale/offset path as GLB humans.
+  addMesh(
+    new THREE.Mesh(new THREE.CapsuleGeometry(0.18 * MODEL_SCALE, 0.36 * MODEL_SCALE, 8, 16), jacketMaterial),
+    new THREE.Vector3(0, 0.82 * MODEL_SCALE, 0)
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.BoxGeometry(0.2 * MODEL_SCALE, 0.28 * MODEL_SCALE, 0.035 * MODEL_SCALE), shirtMaterial),
+    new THREE.Vector3(0, 0.84 * MODEL_SCALE, 0.165 * MODEL_SCALE)
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.BoxGeometry(0.045 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.025 * MODEL_SCALE), tieMaterial),
+    new THREE.Vector3(0, 0.83 * MODEL_SCALE, 0.19 * MODEL_SCALE)
+  );
+
+  addMesh(
+    new THREE.Mesh(new THREE.SphereGeometry(0.155 * MODEL_SCALE, 24, 18), skinMaterial),
+    new THREE.Vector3(0, 1.2 * MODEL_SCALE, 0.02 * MODEL_SCALE)
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.SphereGeometry(0.163 * MODEL_SCALE, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.54), hairMaterial),
+    new THREE.Vector3(0, 1.25 * MODEL_SCALE, 0.01 * MODEL_SCALE)
+  );
+
+  if (texture) {
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.2 * MODEL_SCALE, 0.2 * MODEL_SCALE),
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0xffffff),
+        map: texture,
+        roughness: 0.5,
+        metalness: 0,
+        side: THREE.DoubleSide
+      })
+    );
+    addMesh(face, new THREE.Vector3(0, 1.2 * MODEL_SCALE, 0.162 * MODEL_SCALE));
+  }
+
+  const armGeometry = new THREE.CapsuleGeometry(0.045 * MODEL_SCALE, 0.34 * MODEL_SCALE, 8, 12);
+  addMesh(
+    new THREE.Mesh(armGeometry, jacketMaterial),
+    new THREE.Vector3(-0.23 * MODEL_SCALE, 0.77 * MODEL_SCALE, 0.12 * MODEL_SCALE),
+    { x: THREE.MathUtils.degToRad(58), z: THREE.MathUtils.degToRad(-18) }
+  );
+  addMesh(
+    new THREE.Mesh(armGeometry.clone(), jacketMaterial),
+    new THREE.Vector3(0.23 * MODEL_SCALE, 0.77 * MODEL_SCALE, 0.12 * MODEL_SCALE),
+    { x: THREE.MathUtils.degToRad(58), z: THREE.MathUtils.degToRad(18) }
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.SphereGeometry(0.052 * MODEL_SCALE, 14, 10), skinMaterial),
+    new THREE.Vector3(-0.31 * MODEL_SCALE, 0.61 * MODEL_SCALE, 0.26 * MODEL_SCALE)
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.SphereGeometry(0.052 * MODEL_SCALE, 14, 10), skinMaterial),
+    new THREE.Vector3(0.31 * MODEL_SCALE, 0.61 * MODEL_SCALE, 0.26 * MODEL_SCALE)
+  );
+
+  const legGeometry = new THREE.CapsuleGeometry(0.055 * MODEL_SCALE, 0.38 * MODEL_SCALE, 8, 12);
+  addMesh(
+    new THREE.Mesh(legGeometry, pantsMaterial),
+    new THREE.Vector3(-0.1 * MODEL_SCALE, 0.43 * MODEL_SCALE, 0.16 * MODEL_SCALE),
+    { x: THREE.MathUtils.degToRad(82), z: THREE.MathUtils.degToRad(-3) }
+  );
+  addMesh(
+    new THREE.Mesh(legGeometry.clone(), pantsMaterial),
+    new THREE.Vector3(0.1 * MODEL_SCALE, 0.43 * MODEL_SCALE, 0.16 * MODEL_SCALE),
+    { x: THREE.MathUtils.degToRad(82), z: THREE.MathUtils.degToRad(3) }
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.BoxGeometry(0.13 * MODEL_SCALE, 0.055 * MODEL_SCALE, 0.2 * MODEL_SCALE), shoeMaterial),
+    new THREE.Vector3(-0.1 * MODEL_SCALE, 0.24 * MODEL_SCALE, 0.39 * MODEL_SCALE)
+  );
+  addMesh(
+    new THREE.Mesh(new THREE.BoxGeometry(0.13 * MODEL_SCALE, 0.055 * MODEL_SCALE, 0.2 * MODEL_SCALE), shoeMaterial),
+    new THREE.Vector3(0.1 * MODEL_SCALE, 0.24 * MODEL_SCALE, 0.39 * MODEL_SCALE)
+  );
+
+  return group;
+}
+
 async function loadCharacterModel(theme, renderer = null) {
   const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
@@ -2114,7 +2324,16 @@ async function loadCharacterModel(theme, renderer = null) {
         lastError = error;
       }
     }
-    if (!gltf) throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
+    if (!gltf) {
+      if (theme?.thumbnail) {
+        console.warn('Using Murlan thumbnail stand-in for missing character GLB', {
+          characterId: theme.id,
+          urls
+        });
+        return createThumbnailCharacterStandIn(theme);
+      }
+      throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
+    }
     const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
@@ -5094,7 +5313,7 @@ export default function MurlanRoyaleArena({ search }) {
         safe,
         currentPlayers,
         humanSeatIndex >= 0 ? humanSeatIndex : 0,
-        characterRosterSeedRef.current
+        gameStateRef.current?.characterRosterSeed ?? characterRosterSeedRef.current
       );
 
       store.characterInstances?.forEach((entry) => {
@@ -5120,17 +5339,26 @@ export default function MurlanRoyaleArena({ search }) {
         }
       }));
       const templatesById = new Map(templateEntries.filter(([, template]) => template));
-      const fallbackTemplate = templatesById.get(safe.id) || templatesById.values().next().value || null;
-      if (!fallbackTemplate) return;
+      if (!templatesById.size) return;
+      const loadedFallbackThemes = characterRoster.filter((theme) => theme?.id && templatesById.has(theme.id));
 
       store.characterThemeId = characterThemeRosterSignature(characterRoster);
       store.seatConfigs.forEach((seatConfig, seatIndex) => {
         const seatTheme = characterRoster[seatIndex] || safe;
-        const template = templatesById.get(seatTheme.id) || fallbackTemplate;
+        const resolvedSeatTheme = resolveLoadedSeatCharacterTheme({
+          seatTheme,
+          selectedTheme: safe,
+          templatesById,
+          fallbackThemes: loadedFallbackThemes,
+          player: currentPlayers[seatIndex] ?? null,
+          seatIndex,
+          humanSeatIndex: humanSeatIndex >= 0 ? humanSeatIndex : 0
+        });
+        if (!resolvedSeatTheme?.template) return;
         attachSeatedCharacter({
-          template,
+          template: resolvedSeatTheme.template,
           seatConfig,
-          characterTheme: seatTheme,
+          characterTheme: resolvedSeatTheme.theme,
           store,
           player: currentPlayers[seatIndex] ?? null,
           playerIndex: seatIndex,
@@ -5272,7 +5500,7 @@ export default function MurlanRoyaleArena({ search }) {
             characterTheme,
             currentPlayers,
             rosterHumanSeatIndex >= 0 ? rosterHumanSeatIndex : 0,
-            characterRosterSeedRef.current
+            gameStateRef.current?.characterRosterSeed ?? characterRosterSeedRef.current
           );
           if (three.characterThemeId !== characterThemeRosterSignature(expectedCharacterRoster)) {
             void rebuildSeatCharacters(characterTheme);
@@ -6088,7 +6316,7 @@ export default function MurlanRoyaleArena({ search }) {
             characterTheme,
             players,
             humanSeatIndex >= 0 ? humanSeatIndex : 0,
-            characterRosterSeedRef.current
+            gameStateRef.current?.characterRosterSeed ?? characterRosterSeedRef.current
           );
           const uniqueThemes = [...new Map(initialCharacterRoster.map((theme) => [theme?.id, theme])).values()].filter(Boolean);
           const templateEntries = await Promise.all(uniqueThemes.map(async (theme) => {
@@ -6100,18 +6328,28 @@ export default function MurlanRoyaleArena({ search }) {
             }
           }));
           const templatesById = new Map(templateEntries.filter(([, template]) => template));
-          const fallbackTemplate = templatesById.get(characterTheme.id) || templatesById.values().next().value || null;
-          if (!fallbackTemplate) {
+          if (!templatesById.size) {
             throw new Error('No initial character templates loaded');
           }
+          const loadedFallbackThemes = initialCharacterRoster.filter((theme) => theme?.id && templatesById.has(theme.id));
           for (let i = 0; i < seatConfigs.length; i++) {
             const seatConfig = seatConfigs[i];
             const player = players[i] ?? null;
             const seatTheme = initialCharacterRoster[i] || characterTheme;
+            const resolvedSeatTheme = resolveLoadedSeatCharacterTheme({
+              seatTheme,
+              selectedTheme: characterTheme,
+              templatesById,
+              fallbackThemes: loadedFallbackThemes,
+              player,
+              seatIndex: i,
+              humanSeatIndex: humanSeatIndex >= 0 ? humanSeatIndex : 0
+            });
+            if (!resolvedSeatTheme?.template) continue;
             attachSeatedCharacter({
-              template: templatesById.get(seatTheme.id) || fallbackTemplate,
+              template: resolvedSeatTheme.template,
               seatConfig,
-              characterTheme: seatTheme,
+              characterTheme: resolvedSeatTheme.theme,
               store: threeStateRef.current,
               player,
               playerIndex: i,
@@ -7239,7 +7477,8 @@ function initializeGame(playersInfo) {
     status: 'PLAYING',
     allCards: deck,
     lastAction: null,
-    lastActionId: 0
+    lastActionId: 0,
+    characterRosterSeed: Math.random()
   };
 }
 
