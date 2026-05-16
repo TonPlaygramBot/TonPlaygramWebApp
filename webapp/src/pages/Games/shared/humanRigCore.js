@@ -611,10 +611,20 @@ function collectFingerBones(hand) {
 }
 
 function normalizeHuman(model, cfg) {
-  model.scale.setScalar(cfg.humanScale);
+  model.scale.setScalar(1);
   model.rotation.set(0, cfg.humanVisualYawFix, 0);
   model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
+  const initialBox = new THREE.Box3().setFromObject(model);
+  const targetHeight = Number(cfg.targetHeight);
+  if (Number.isFinite(targetHeight) && targetHeight > 0) {
+    const unscaledHeight = Math.max(initialBox.getSize(new THREE.Vector3()).y, 1e-4);
+    model.scale.setScalar(targetHeight / unscaledHeight);
+    model.updateMatrixWorld(true);
+  } else {
+    model.scale.setScalar(cfg.humanScale);
+    model.updateMatrixWorld(true);
+  }
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   model.position.set(-center.x, -box.min.y, -center.z);
@@ -1094,12 +1104,13 @@ function updateOriginalSkeletonHumanPose(human, dt, frameData) {
   const rootToTableForward = resolveRootToTableForward(human.root.position, frameData) ||
     frameData.aimForward.clone().setY(0).normalize();
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
-  const targetYaw = yawFromForward(shootingPoseActive ? rootToTableForward : frameData.aimForward);
+  const targetYaw = yawFromForward(cfg.forceTableFacingAim ? rootToTableForward : shootingPoseActive ? rootToTableForward : frameData.aimForward);
   human.yaw = shootingPoseActive
     ? targetYaw
     : dampAngle(human.yaw, targetYaw, cfg.rotLambda, dt);
 
   const t = easeInOut(human.poseT);
+  const handPoseT = t;
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
