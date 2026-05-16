@@ -84,6 +84,7 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
+import { updateHumanPose as updateSnookerProvidedHumanPose } from './shared/HumanPoolPlayer.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -2192,7 +2193,53 @@ function createPoolRoyaleHumanRig(parent, renderer) {
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
-    idleCuePose: null
+    idleCuePose: null,
+    cfg: {
+      unit: POOL_HUMAN_WORLD_SCALE,
+      tableTopY: POOL_HUMAN_CFG.tableTopY,
+      tableW: POOL_HUMAN_CFG.tableW,
+      tableL: POOL_HUMAN_CFG.tableL,
+      groundY: POOL_HUMAN_CFG.floorLocalY,
+      footGroundY: POOL_HUMAN_CFG.footGroundY,
+      humanVisualYawFix: POOL_HUMAN_CFG.humanVisualYawFix,
+      edgeMargin: POOL_HUMAN_CFG.edgeMargin,
+      desiredShootDistance: POOL_HUMAN_CFG.desiredShootDistance,
+      poseLambda: POOL_HUMAN_CFG.poseLambda,
+      moveLambda: POOL_HUMAN_CFG.moveLambda,
+      rotLambda: POOL_HUMAN_CFG.rotLambda,
+      stanceWidth: POOL_HUMAN_CFG.stanceWidth,
+      bridgePalmTableLift: POOL_HUMAN_CFG.bridgePalmTableLift,
+      bridgeCueLift: POOL_HUMAN_CFG.bridgeCueLift,
+      bridgeHandBackFromBall: POOL_HUMAN_CFG.bridgeHandBackFromBall,
+      bridgeHandSide: POOL_HUMAN_CFG.bridgeHandSide,
+      chinToCueHeight: POOL_HUMAN_CFG.chinToCueHeight,
+      footLockStrength: POOL_HUMAN_CFG.footLockStrength,
+      kneeBendShot: POOL_HUMAN_CFG.kneeBendShot,
+      rightElbowShotRise: POOL_HUMAN_CFG.rightElbowShotRise,
+      rightElbowShotSide: POOL_HUMAN_CFG.rightElbowShotSide,
+      rightElbowShotBack: POOL_HUMAN_CFG.rightElbowShotBack,
+      rightForearmOutward: POOL_HUMAN_CFG.rightForearmOutward,
+      rightForearmBack: POOL_HUMAN_CFG.rightForearmBack,
+      rightForearmDown: POOL_HUMAN_CFG.rightForearmDown,
+      rightForearmLength: POOL_HUMAN_CFG.rightForearmLength,
+      rightStrokePull: POOL_HUMAN_CFG.rightStrokePull,
+      rightStrokePush: 0.24 * POOL_HUMAN_WORLD_SCALE,
+      rightHandShotLift: POOL_HUMAN_CFG.rightHandShotLift,
+      shootCueGripFromBack: POOL_HUMAN_CFG.shootCueGripFromBack,
+      idleRightHandY: POOL_HUMAN_CFG.idleRightHandY,
+      idleRightHandX: POOL_HUMAN_CFG.idleRightHandX,
+      idleRightHandZ: POOL_HUMAN_CFG.idleRightHandZ,
+      idleCueGripFromBack: POOL_HUMAN_CFG.idleCueGripFromBack,
+      idleCueDir: POOL_HUMAN_CFG.idleCueDir.clone(),
+      rightHandRollIdle: POOL_HUMAN_CFG.rightHandRollIdle,
+      rightHandRollShoot: POOL_HUMAN_CFG.rightHandRollShoot,
+      rightHandDownPose: POOL_HUMAN_CFG.rightHandDownPose,
+      rightHandCueSocketLocal: POOL_HUMAN_CFG.rightHandCueSocketLocal.clone(),
+      strikeTime: POOL_HUMAN_CFG.strikeTime,
+      holdTime: POOL_HUMAN_CFG.holdTime,
+      originalSkeletonLogic: true,
+      showDebugArrows: false
+    }
   };
   human.root.visible = false;
   human.modelRoot.visible = false;
@@ -2594,7 +2641,7 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
 }
 
 function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
-  if (!human) return null;
+  if (!human || !cueBallWorld || !cueStick) return null;
   const poseForward = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
   const cueBackForStance = shotState === 'dragging' || shotState === 'striking' ? tableCue.back : null;
@@ -2621,19 +2668,17 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
   const activeCueBack = shotState === 'idle' || shotState === 'rolling' ? idleCue.back : tableCue.back;
   const activeCueTip = shotState === 'idle' || shotState === 'rolling' ? idleCue.tip : tableCue.tip;
   human.idleCuePose = idleCue;
-  updatePoolRoyaleHumanPose(
-    human,
-    dt,
-    shotState,
+  updateSnookerProvidedHumanPose(human, dt, {
+    state: shotState,
     rootTarget,
-    poseForward,
-    bridgeHandTarget,
-    idleRightHandTarget,
-    idleLeftHandTarget,
-    activeCueBack,
-    activeCueTip,
-    power
-  );
+    aimForward: poseForward,
+    bridgeTarget: bridgeHandTarget,
+    idleRight: idleRightHandTarget,
+    idleLeft: idleLeftHandTarget,
+    cueBack: activeCueBack,
+    cueTip: activeCueTip,
+    power: THREE.MathUtils.clamp(power ?? 0, 0, 1)
+  });
   return { idleCue, rootTarget, bridgeHandTarget };
 }
 
