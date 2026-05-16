@@ -5,42 +5,6 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'traditional-fizyman-eight-foot',
-    label: 'Traditional 8 ft GLB',
-    description:
-      "Traditional billiard table option inspired by fizyman's Sketchfab Pool Table Traditional model, generated as a local GLB during build so Pool Royale loads it reliably in the lobby and in-game without committing binary assets.",
-    tableSizeId: '8ft',
-    baseId: 'mahogany',
-    assetUrl: '/models/pool-royale/pool-table-traditional-fizyman.glb',
-    generatorScript: 'npm run generate:pool-royale-traditional-table',
-    sourceUrl:
-      'https://sketchfab.com/3d-models/pool-table-traditional-e0b938c0c2e74eb794a49ebde2543977',
-    author: 'fizyman',
-    license: 'CC Attribution 4.0',
-    thumbnailUrl:
-      'https://media.sketchfab.com/models/e0b938c0c2e74eb794a49ebde2543977/thumbnails/ca60f8c0ed984d21b89ee7a298d60650/b857e58f5e2746339b725c6b40b5b08a.jpeg',
-    icon: '🎱',
-    kind: 'gltf',
-    fitScale: 1,
-    fitFootprintScale: 1,
-    fitHeightScale: 1,
-    clothRepeatScale: 6.5,
-    fitStrategy: 'exact',
-    fitReference: 'upperTabletop',
-    matchNativeHeight: true,
-    matchNativeUpperComponentHeight: false,
-    preserveOriginalFootprintAspect: false,
-    useOriginalLayoutSurfaces: true,
-    usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: ['railSight'],
-    tintOriginalTrimGold: true,
-    chromeMaterialSurfaceNames: ['brass', 'diamond', 'railSight'],
-    blackMaterialSurfaceNames: ['pocket', 'net'],
-    forceGeneratedChromePlates: false,
-    hideSurfaceRoles: []
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
@@ -76,17 +40,13 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
-  POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'showood-seven-foot'
-  )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
+  POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
-    POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-      (option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID
-    ) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
   );
 }
