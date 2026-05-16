@@ -23,8 +23,11 @@ export class AIController {
     const v = vel.clone();
     const dt = 1 / 90;
     for (let i = 0; i < 260; i++) {
-      v.y -= gameConfig.gravity * (1 + spin * 0.18) * dt;
+      v.y -= gameConfig.gravity * (1 + Math.max(0, spin) * 0.18 - Math.max(0, -spin) * 0.07) * dt;
+      v.z += Math.sign(v.z || 1) * Math.abs(spin) * 0.08 * gameConfig.worldScale * dt;
+      v.x += Math.sin(spin * 0.72) * 0.024 * gameConfig.worldScale * dt;
       v.multiplyScalar(Math.exp(-gameConfig.airDrag * dt));
+      spin *= Math.exp(-1.05 * dt);
       p.addScaledVector(v, dt);
       if (p.y <= gameConfig.ballR) return { landing: p.setY(gameConfig.ballR), t: i * dt, descending: v.y < 0 };
     }
@@ -43,8 +46,11 @@ export class AIController {
     const contactMax = gameConfig.maxContactHeight * 1.06;
 
     for (let i = 0; i < 300; i++) {
-      v.y -= gameConfig.gravity * (1 + spin * 0.16) * dt;
+      v.y -= gameConfig.gravity * (1 + Math.max(0, spin) * 0.18 - Math.max(0, -spin) * 0.07) * dt;
+      v.z += Math.sign(v.z || 1) * Math.abs(spin) * 0.08 * gameConfig.worldScale * dt;
+      v.x += Math.sin(spin * 0.72) * 0.024 * gameConfig.worldScale * dt;
       v.multiplyScalar(Math.exp(-gameConfig.airDrag * dt));
+      spin *= Math.exp(-1.05 * dt);
       p.addScaledVector(v, dt);
       const t = i * dt;
 
@@ -55,9 +61,11 @@ export class AIController {
           foundLanding = true;
         }
         p.y = gameConfig.ballR;
-        v.y = -v.y * gameConfig.bounceRestitution;
+        const pace = Math.hypot(v.x, v.z);
+        v.y = Math.abs(v.y) * gameConfig.bounceRestitution * clamp(1 - pace / (42 * gameConfig.worldScale), 0.82, 1);
         v.x *= gameConfig.groundFriction;
         v.z *= gameConfig.groundFriction;
+        spin *= -0.42;
         postBounce = true;
       }
 
