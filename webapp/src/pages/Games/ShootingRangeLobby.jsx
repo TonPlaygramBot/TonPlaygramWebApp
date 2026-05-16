@@ -28,13 +28,13 @@ const RANGE_DISTANCES = [
   {
     id: 'swat',
     label: 'SWAT building',
-    desc: 'Empty rooms, doors, cover, no-shoot marks',
+    desc: '5 randomized SWAT shoot-house buildings with FPS movement',
     icon: '🚪'
   },
   {
     id: 'nature',
     label: 'Nature range',
-    desc: 'Outdoor forest lane with long sight lines',
+    desc: '5 redesigned outdoor ranges with berms, cover, and Poly Haven assets',
     icon: '🌲'
   },
   {
