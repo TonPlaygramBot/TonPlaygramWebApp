@@ -2090,11 +2090,13 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 const CHARACTER_MODEL_CACHE = new Map();
 
 async function loadCharacterModel(theme, renderer = null) {
-  const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
+  const primaryUrls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
     : theme?.url
       ? [theme.url]
       : [];
+  const fallbackUrls = Array.isArray(theme?.fallbackModelUrls) ? theme.fallbackModelUrls : [];
+  const urls = [...new Set([...primaryUrls, ...fallbackUrls].filter(Boolean))];
   if (!urls.length) throw new Error('Missing character model URL');
   const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
   if (CHARACTER_MODEL_CACHE.has(cacheKey)) {
