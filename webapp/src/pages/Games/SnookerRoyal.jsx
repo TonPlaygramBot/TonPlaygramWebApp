@@ -131,7 +131,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.3 * 1.78 * WORLD_SCALE,
+  humanScale: 1.2 * 1.78 * WORLD_SCALE,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * WORLD_SCALE,
   bridgePalmTableLift: 0.006 * WORLD_SCALE,
@@ -153,7 +153,6 @@ const CFG = {
   rightStrokePush: 0.24 * WORLD_SCALE,
   rightHandShotLift: -0.30 * WORLD_SCALE,
   shootCueGripFromBack: 0.58 * WORLD_SCALE,
-  upperBodyShotSideLean: 0.16 * WORLD_SCALE,
   idleRightHandY: 0.8 * WORLD_SCALE,
   idleRightHandX: 0.31 * WORLD_SCALE,
   idleRightHandZ: -0.015 * WORLD_SCALE,
@@ -504,11 +503,11 @@ function driveHuman(human, frame) {
   }
   if (ik >= 0.025) {
     rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, 0.045 * ik);
-    twistBone(b.spine, frame.side, 0.2 * ik);
+    twistBone(b.hips, frame.side, -0.045 * ik);
+    twistBone(b.spine, frame.side, -0.2 * ik);
     rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
     rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, 0.32 * ik);
+    twistBone(b.chest, frame.side, -0.32 * ik);
     rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
     setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)), 0.74 * ik) : shotQ);
     human.modelRoot.updateMatrixWorld(true);
@@ -560,13 +559,12 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * CFG.scale);
   rootWorld.y = human.root.position.y;
-  const shotSideLean = CFG.upperBodyShotSideLean * t;
-  const torso = local(new THREE.Vector3(shotSideLean * 0.38, lerp(1.3, 1.12, t) * CFG.scale + breath, (lerp(0.02, -0.28, t) - 0.018 * powerLean) * CFG.scale));
-  const chest = local(new THREE.Vector3(shotSideLean * 0.72, lerp(1.52, 1.21, t) * CFG.scale + breath, (lerp(0.02, -0.62, t) - 0.03 * powerLean) * CFG.scale));
-  const neck = local(new THREE.Vector3(shotSideLean * 0.88, lerp(1.68, 1.25, t) * CFG.scale + breath, (lerp(0.02, -0.8, t) - 0.034 * powerLean) * CFG.scale));
-  const head = local(new THREE.Vector3(shotSideLean, lerp(1.84, 1.34, t) * CFG.scale + breath - CFG.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.94, t) - 0.034 * powerLean) * CFG.scale));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * CFG.scale + shotSideLean * 0.7, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * CFG.scale));
-  const rightShoulder = local(new THREE.Vector3(0.23 * CFG.scale + shotSideLean * 0.7, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * CFG.scale));
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) * CFG.scale + breath, (lerp(0.02, -0.28, t) - 0.018 * powerLean) * CFG.scale));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.21, t) * CFG.scale + breath, (lerp(0.02, -0.62, t) - 0.03 * powerLean) * CFG.scale));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) * CFG.scale + breath, (lerp(0.02, -0.8, t) - 0.034 * powerLean) * CFG.scale));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) * CFG.scale + breath - CFG.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.94, t) - 0.034 * powerLean) * CFG.scale));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * CFG.scale));
+  const rightShoulder = local(new THREE.Vector3(0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * CFG.scale));
   const leftHip = local(new THREE.Vector3(-0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const rightHip = local(new THREE.Vector3(0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * CFG.scale, CFG.footGroundY, 0.03 * CFG.scale + walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, CFG.footGroundY, -0.34 * CFG.scale), t));
@@ -582,9 +580,7 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04 * CFG.scale, CFG.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18 * CFG.scale, CFG.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04 * CFG.scale, CFG.rightElbowShotBack, t));
   const forearmStroke = (state === 'dragging' ? -CFG.rightStrokePull * easeOutCubic(power) : 0) + (state === 'striking' ? CFG.rightStrokePush * strikeFollow : 0) + (state === 'dragging' ? dragStroke * 0.035 * CFG.scale : 0);
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, CFG.rightForearmOutward * t).addScaledVector(UP, -CFG.rightForearmDown * t).addScaledVector(UP, CFG.rightHandShotLift * t).addScaledVector(forward, -CFG.rightForearmBack * t).addScaledVector(cueDirForHand, CFG.rightForearmLength);
-  const cueLengthForGrip = Math.max(CFG.cueLength, cueBack.distanceTo(cueTip), CFG.shootCueGripFromBack + 0.001 * CFG.scale);
-  const rightCueGripFromBack = clamp(CFG.shootCueGripFromBack, 0.08 * CFG.scale, cueLengthForGrip - 0.08 * CFG.scale);
-  const liveCueGripPoint = cueBack.clone().addScaledVector(cueDirForHand, rightCueGripFromBack + forearmStroke * 0.08).lerp(forearmBase, 0.08 * idle);
+  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
   const idleWristTarget = idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, CFG.rightHandRollIdle));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot - CFG.rightHandDownPose, handIk)));
   const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
@@ -642,7 +638,7 @@ function configureProvidedHumanForArena() {
   CFG.bridgeDist = 0.28 * scale;
   CFG.edgeMargin = 0.68 * scale;
   CFG.desiredShootDistance = 1.25 * scale;
-  CFG.humanScale = CFG.cueLength * 1.3;
+  CFG.humanScale = 1.5 * scale;
   CFG.stanceWidth = 0.52 * scale;
   CFG.bridgePalmTableLift = 0.006 * scale;
   CFG.bridgeCueLift = 0.018 * scale;
@@ -662,7 +658,6 @@ function configureProvidedHumanForArena() {
   CFG.rightStrokePush = 0.24 * scale;
   CFG.rightHandShotLift = -0.30 * scale;
   CFG.shootCueGripFromBack = 0.58 * scale;
-  CFG.upperBodyShotSideLean = 0.16 * scale;
   CFG.idleRightHandY = 0.8 * scale;
   CFG.idleRightHandX = 0.31 * scale;
   CFG.idleRightHandZ = -0.015 * scale;
