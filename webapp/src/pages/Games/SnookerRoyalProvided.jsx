@@ -4,56 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import {
-  resolveSnookerGlbFitTransform,
-  TABLE_MODEL_OPENSOURCE_GLB_URL
-} from './snookerTableModel.js';
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-
-const MENU_PRESETS = {
-  graphics: [
-    { id: 'performance', label: 'Performance', pixelRatio: 1.15, shadows: false },
-    { id: 'balanced', label: 'Balanced', pixelRatio: 1.6, shadows: true },
-    { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
-  ],
-  cloth: [
-    { id: 'championship', label: 'Championship Green', color: 0x0f6f45, repeat: [7, 13] },
-    { id: 'televised', label: 'TV Emerald', color: 0x087a4a, repeat: [8, 14] },
-    { id: 'royal', label: 'Royal Blue', color: 0x174ea6, repeat: [6, 12] }
-  ],
-  finish: [
-    { id: 'walnut', label: 'Walnut Rail', wood: 0x4d2f1f, cushion: 0x1b5b39 },
-    { id: 'mahogany', label: 'Mahogany Rail', wood: 0x6b2f1a, cushion: 0x145c35 },
-    { id: 'ebony', label: 'Ebony Rail', wood: 0x14100e, cushion: 0x0f4f35 }
-  ],
-  hdri: [
-    { id: 'studio', label: 'Studio HDRI', url: null, background: 0x0b0b0b, exposure: 1.05 },
-    { id: 'arena', label: 'Arena HDRI', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr', background: 0x101827, exposure: 1.18 },
-    { id: 'club', label: 'Club HDRI', url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/satara_night_1k.exr', background: 0x09090b, exposure: 0.92 }
-  ],
-  camera: [
-    { id: 'broadcast-a', label: 'Broadcast A', pos: [1.85, 2.45, 7.85], target: [0, 1.05, 0], fov: 40 },
-    { id: 'broadcast-b', label: 'Broadcast B', pos: [-4.8, 2.8, -5.9], target: [0, 0.95, 0], fov: 42 },
-    { id: 'cue', label: 'Cue Follow', pos: [0, 1.18, 2.1], target: [0, 0.86, 0], fov: 48 },
-    { id: 'overhead', label: 'Overhead', pos: [0, 8.8, 0.01], target: [0, 0.84, 0], fov: 36 }
-  ]
-};
-const DEFAULT_OPTIONS = Object.freeze({ graphics: 'balanced', cloth: 'championship', finish: 'walnut', hdri: 'studio', camera: 'broadcast-a' });
-const SNOOKER_COLOURS = Object.freeze({
-  red: { value: 1, label: 'Red' },
-  yellow: { value: 2, label: 'Yellow' },
-  green: { value: 3, label: 'Green' },
-  brown: { value: 4, label: 'Brown' },
-  blue: { value: 5, label: 'Blue' },
-  pink: { value: 6, label: 'Pink' },
-  black: { value: 7, label: 'Black' }
-});
-function findPreset(group, id) {
-  return MENU_PRESETS[group].find((item) => item.id === id) || MENU_PRESETS[group][0];
-}
 const WORLD_SCALE = 3.5;
 const CFG = {
   scale: WORLD_SCALE,
@@ -191,61 +143,36 @@ function cuePoseFromGrip(grip, dir, gripFromBack, length = CFG.cueLength) {
   const n = dir.clone().normalize();
   return { back: grip.clone().addScaledVector(n, -gripFromBack), tip: grip.clone().addScaledVector(n, length - gripFromBack) };
 }
-function createBall(number, color, isCue = false, meta = {}) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 48, 48), createMaterial(color, isCue ? 0.18 : 0.28, 0.018));
+function createBall(number, color, isCue = false) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 40, 40), createMaterial(color, isCue ? 0.18 : 0.28, 0.018));
   const shine = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR * 0.18, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 }));
   shine.position.set(-CFG.ballR * 0.28, CFG.ballR * 0.34, CFG.ballR * 0.32);
   mesh.add(shine);
-  mesh.userData = { ballNumber: number, snookerRole: meta.role, snookerValue: meta.value || 0, spot: meta.spot?.clone?.() || null };
   enableShadow(mesh);
-  return {
-    mesh,
-    pos: new THREE.Vector3(),
-    vel: new THREE.Vector3(),
-    spin: new THREE.Vector2(),
-    isCue,
-    number,
-    role: meta.role || (isCue ? 'cue' : 'red'),
-    value: meta.value || 0,
-    label: meta.label || '',
-    spot: meta.spot?.clone?.() || null,
-    potted: false,
-    radius: CFG.ballR
-  };
+  return { mesh, pos: new THREE.Vector3(), vel: new THREE.Vector3(), isCue, number, radius: CFG.ballR };
 }
 function snookerRackPositions() {
-  const out = [{ n: 0, c: 0xf8fafc, p: new THREE.Vector3(0, CFG.ballR, CFG.tableL * 0.31), cue: true, role: 'cue', value: 0, label: 'Cue' }];
-  const redOrigin = new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.19);
+  const out = [{ n: 0, c: 0xf8fafc, p: new THREE.Vector3(0, CFG.ballR, CFG.tableL * 0.31), cue: true }];
+  const redOrigin = new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.18);
   let idx = 1;
-  for (let row = 0; row < 5; row += 1) {
+  for (let row = 0; row < 3; row += 1) {
     for (let i = 0; i <= row; i += 1) {
-      out.push({
-        n: idx++,
-        c: 0xdc2626,
-        role: 'red',
-        value: SNOOKER_COLOURS.red.value,
-        label: SNOOKER_COLOURS.red.label,
-        p: new THREE.Vector3(redOrigin.x + (i - row / 2) * CFG.ballR * 2.05, CFG.ballR, redOrigin.z - row * CFG.ballR * 1.88)
-      });
+      out.push({ n: idx++, c: 0xdc2626, p: new THREE.Vector3(redOrigin.x + (i - row / 2) * CFG.ballR * 2.05, CFG.ballR, redOrigin.z - row * CFG.ballR * 1.88) });
     }
   }
-  const colourBalls = [
-    { role: 'yellow', c: 0xfacc15, p: new THREE.Vector3(-CFG.tableW * 0.23, CFG.ballR, CFG.tableL * 0.2) },
-    { role: 'green', c: 0x16a34a, p: new THREE.Vector3(CFG.tableW * 0.23, CFG.ballR, CFG.tableL * 0.2) },
-    { role: 'brown', c: 0x7c2d12, p: new THREE.Vector3(0, CFG.ballR, CFG.tableL * 0.2) },
-    { role: 'blue', c: 0x2563eb, p: new THREE.Vector3(0, CFG.ballR, 0) },
-    { role: 'pink', c: 0xf472b6, p: new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.13) },
-    { role: 'black', c: 0x111827, p: new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.37) }
-  ];
-  colourBalls.forEach((ball) => {
-    const spec = SNOOKER_COLOURS[ball.role];
-    out.push({ ...ball, n: idx++, value: spec.value, label: spec.label, spot: ball.p.clone() });
-  });
+  out.push(
+    { n: 7, c: 0xfacc15, p: new THREE.Vector3(-CFG.tableW * 0.22, CFG.ballR, CFG.tableL * 0.2) },
+    { n: 8, c: 0x16a34a, p: new THREE.Vector3(CFG.tableW * 0.22, CFG.ballR, CFG.tableL * 0.2) },
+    { n: 9, c: 0x7c2d12, p: new THREE.Vector3(0, CFG.ballR, CFG.tableL * 0.2) },
+    { n: 10, c: 0x2563eb, p: new THREE.Vector3(0, CFG.ballR, 0) },
+    { n: 11, c: 0xf472b6, p: new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.12) },
+    { n: 12, c: 0x111827, p: new THREE.Vector3(0, CFG.ballR, -CFG.tableL * 0.35) }
+  );
   return out;
 }
 function addBalls(tableGroup) {
   const balls = snookerRackPositions().map((item) => {
-    const ball = createBall(item.n, item.c, Boolean(item.cue), item);
+    const ball = createBall(item.n, item.c, Boolean(item.cue));
     ball.pos.copy(item.p);
     ball.mesh.position.copy(ball.pos);
     tableGroup.add(ball.mesh);
@@ -253,12 +180,12 @@ function addBalls(tableGroup) {
   });
   return { balls, cueBall: balls.find((b) => b.isCue) || balls[0] };
 }
-function createBaizeTexture(clothPreset = findPreset('cloth', DEFAULT_OPTIONS.cloth)) {
+function createBaizeTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = `#${clothPreset.color.toString(16).padStart(6, '0')}`;
+  ctx.fillStyle = '#0f6f45';
   ctx.fillRect(0, 0, 512, 512);
   for (let i = 0; i < 18000; i += 1) {
     const a = 0.025 + Math.random() * 0.06;
@@ -268,97 +195,35 @@ function createBaizeTexture(clothPreset = findPreset('cloth', DEFAULT_OPTIONS.cl
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(...clothPreset.repeat);
+  tex.repeat.set(7, 13);
   return tex;
 }
-function addTable(scene, renderer, setStatus, optionsRef) {
+function addTable(scene) {
   const tableGroup = new THREE.Group();
   tableGroup.position.y = CFG.tableTopY;
   scene.add(tableGroup);
-  const proceduralParts = new THREE.Group();
-  tableGroup.add(proceduralParts);
-  const applyTableMaterials = () => {
-    const clothPreset = findPreset('cloth', optionsRef.current.cloth);
-    const finishPreset = findPreset('finish', optionsRef.current.finish);
-    proceduralParts.clear();
-    addBox(proceduralParts, [CFG.tableW * CFG.tableVisualMultiplier + 0.1 * CFG.scale, CFG.topThickness, CFG.tableL * CFG.tableVisualMultiplier + 0.1 * CFG.scale], [0, -CFG.topThickness / 2 + CFG.ballR, 0], new THREE.MeshStandardMaterial({ color: clothPreset.color, map: createBaizeTexture(clothPreset), roughness: 0.96 }));
-    const wood = createMaterial(finishPreset.wood, 0.64);
-    const cushion = createMaterial(finishPreset.cushion, 0.9, 0);
-    const railY = CFG.railH / 2 - CFG.topThickness + CFG.ballR;
-    const cushionY = 0.11 * CFG.scale + CFG.ballR;
-    const w = CFG.tableW * CFG.tableVisualMultiplier;
-    const l = CFG.tableL * CFG.tableVisualMultiplier;
-    [
-      [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [-(w / 2 + CFG.railW / 2 - 0.03 * CFG.scale), railY, 0], wood],
-      [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [w / 2 + CFG.railW / 2 - 0.03 * CFG.scale, railY, 0], wood],
-      [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, -(l / 2 + CFG.railW / 2 - 0.03 * CFG.scale)], wood],
-      [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, l / 2 + CFG.railW / 2 - 0.03 * CFG.scale], wood],
-      [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [-(w / 2 + 0.09 * CFG.scale), cushionY, 0], cushion],
-      [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [w / 2 + 0.09 * CFG.scale, cushionY, 0], cushion],
-      [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, -(l / 2 + 0.09 * CFG.scale)], cushion],
-      [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, l / 2 + 0.09 * CFG.scale], cushion]
-    ].forEach(([size, pos, mat]) => addBox(proceduralParts, size, pos, mat));
-  };
-  applyTableMaterials();
+  addBox(tableGroup, [CFG.tableW * CFG.tableVisualMultiplier + 0.1 * CFG.scale, CFG.topThickness, CFG.tableL * CFG.tableVisualMultiplier + 0.1 * CFG.scale], [0, -CFG.topThickness / 2 + CFG.ballR, 0], new THREE.MeshStandardMaterial({ color: 0x0f6f45, map: createBaizeTexture(), roughness: 0.96 }));
+  const wood = createMaterial(0x4d2f1f, 0.64);
+  const cushion = createMaterial(0x1b5b39, 0.9, 0);
+  const railY = CFG.railH / 2 - CFG.topThickness + CFG.ballR;
+  const cushionY = 0.11 * CFG.scale + CFG.ballR;
+  const w = CFG.tableW * CFG.tableVisualMultiplier;
+  const l = CFG.tableL * CFG.tableVisualMultiplier;
+  [
+    [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [-(w / 2 + CFG.railW / 2 - 0.03 * CFG.scale), railY, 0], wood],
+    [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [w / 2 + CFG.railW / 2 - 0.03 * CFG.scale, railY, 0], wood],
+    [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, -(l / 2 + CFG.railW / 2 - 0.03 * CFG.scale)], wood],
+    [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, l / 2 + CFG.railW / 2 - 0.03 * CFG.scale], wood],
+    [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [-(w / 2 + 0.09 * CFG.scale), cushionY, 0], cushion],
+    [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [w / 2 + 0.09 * CFG.scale, cushionY, 0], cushion],
+    [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, -(l / 2 + 0.09 * CFG.scale)], cushion],
+    [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, l / 2 + 0.09 * CFG.scale], cushion]
+  ].forEach(([size, pos, mat]) => addBox(tableGroup, size, pos, mat));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(48 * CFG.scale, 48 * CFG.scale), createMaterial(0x1d232a, 0.96, 0));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
-
-  const gltf = createUniversalGLTFLoader(renderer);
-  let disposed = false;
-  let glbModel = null;
-  setStatus('Loading official snooker table GLB…');
-  gltf.loader.load(TABLE_MODEL_OPENSOURCE_GLB_URL, (asset) => {
-    if (disposed) return;
-    const model = asset?.scene || asset?.scenes?.[0];
-    if (!model) {
-      setStatus('GLB had no scene; using procedural fallback table.');
-      return;
-    }
-    model.updateMatrixWorld(true);
-    const sourceBox = new THREE.Box3().setFromObject(model);
-    const sourceSize = sourceBox.getSize(new THREE.Vector3());
-    if (sourceSize.x > sourceSize.z) model.rotation.y = Math.PI / 2;
-    model.updateMatrixWorld(true);
-    const rotatedBox = new THREE.Box3().setFromObject(model);
-    const rotatedSize = rotatedBox.getSize(new THREE.Vector3());
-    const targetSize = new THREE.Vector3(
-      CFG.tableW * CFG.tableVisualMultiplier + CFG.railW * 2.4,
-      CFG.topThickness + CFG.railH * 2.4,
-      CFG.tableL * CFG.tableVisualMultiplier + CFG.railW * 2.4
-    );
-    const fit = resolveSnookerGlbFitTransform(rotatedSize, targetSize);
-    const uniformPlanScale = Math.min(fit.scale.x, fit.scale.z);
-    model.scale.set(uniformPlanScale, uniformPlanScale, uniformPlanScale);
-    model.updateMatrixWorld(true);
-    const scaledBox = new THREE.Box3().setFromObject(model);
-    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-    model.position.set(-scaledCenter.x, CFG.ballR - scaledBox.max.y + CFG.topThickness * 0.26, -scaledCenter.z);
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        child.frustumCulled = false;
-        if (child.material) child.material.needsUpdate = true;
-      }
-    });
-    tableGroup.add(model);
-    glbModel = model;
-    setStatus('Pooltool snooker_generic GLB fitted to the champion table footprint.');
-  }, undefined, () => {
-    if (!disposed) setStatus('GLB table failed to load; procedural fallback is active.');
-  });
-
-  return {
-    tableGroup,
-    applyTableMaterials,
-    disposeTableLoader: () => {
-      disposed = true;
-      gltf.dispose();
-      if (glbModel) tableGroup.remove(glbModel);
-    }
-  };
+  return { tableGroup, disposeTableLoader: () => {} };
 }
 function createUniversalGLTFLoader(renderer) {
   const manager = new THREE.LoadingManager();
@@ -625,76 +490,22 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * CFG.scale, CFG.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * CFG.scale * t).addScaledVector(side, 0.014 * CFG.scale * t);
   driveHuman(human, { t, stroke: forearmStroke / CFG.scale, follow: strikeFollow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow: lockedRightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip });
 }
-function applyCueShot(cueBall, power, yaw, tmp, spin = { x: 0, y: 0 }) {
-  const forward = tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
-  const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
-  cueBall.vel.copy(forward)
-    .addScaledVector(side, spin.x * 0.22)
-    .normalize()
-    .multiplyScalar((1.9 + 8.2 * Math.pow(power, 1.08)) * CFG.scale);
-  cueBall.spin.set(spin.x, spin.y);
+function applyCueShot(cueBall, power, yaw, tmp) {
+  cueBall.vel.copy(tmp.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize()).multiplyScalar((1.9 + 8.2 * Math.pow(power, 1.08)) * CFG.scale);
 }
-function resolveSnookerPockets() {
-  const halfW = CFG.tableW / 2;
-  const halfL = CFG.tableL / 2;
-  return [
-    new THREE.Vector3(-halfW, CFG.ballR, -halfL),
-    new THREE.Vector3(halfW, CFG.ballR, -halfL),
-    new THREE.Vector3(-halfW, CFG.ballR, halfL),
-    new THREE.Vector3(halfW, CFG.ballR, halfL),
-    new THREE.Vector3(-halfW, CFG.ballR, 0),
-    new THREE.Vector3(halfW, CFG.ballR, 0)
-  ];
-}
-function isAllStill(balls) {
-  return balls.every((ball) => ball.potted || ball.vel.lengthSq() < CFG.minSpeed2 * 1.8);
-}
-function updateSnookerScore(ball, scoreRef, setScore) {
-  if (ball.isCue) return;
-  const remainingReds = scoreRef.current.remainingReds;
-  const expected = scoreRef.current.nextTarget;
-  const isLegalRed = expected === 'red' && ball.role === 'red';
-  const isLegalColour = expected === 'colour' && ball.role !== 'red';
-  const points = ball.value || 0;
-  let nextScore;
-  if (isLegalRed || isLegalColour) {
-    nextScore = {
-      ...scoreRef.current,
-      player: scoreRef.current.player + points,
-      remainingReds: ball.role === 'red' ? Math.max(0, remainingReds - 1) : remainingReds,
-      nextTarget: ball.role === 'red' ? 'colour' : (remainingReds > 0 ? 'red' : 'colour-clearance'),
-      message: `Potted ${ball.label}: +${points}`
-    };
-  } else if (expected === 'colour-clearance' && ball.role !== 'red') {
-    nextScore = { ...scoreRef.current, player: scoreRef.current.player + points, message: `Clearance ${ball.label}: +${points}` };
-  } else {
-    nextScore = { ...scoreRef.current, opponent: scoreRef.current.opponent + 4, message: `Foul on ${ball.label || 'ball'}: opponent +4` };
-  }
-  scoreRef.current = nextScore;
-  setScore(nextScore);
-}
-function updateBalls(balls, dt, tmpA, tmpB, scoreRef, setScore) {
+function updateBalls(balls, dt, tmpA, tmpB) {
   const halfW = CFG.tableW / 2, halfL = CFG.tableL / 2;
-  const pockets = resolveSnookerPockets();
   for (const ball of balls) {
-    if (ball.potted) continue;
-    if (ball.spin.lengthSq() > 0.0001 && ball.vel.lengthSq() > CFG.minSpeed2) {
-      const side = tmpA.set(ball.vel.z, 0, -ball.vel.x).normalize();
-      ball.vel.addScaledVector(side, ball.spin.x * dt * 0.9 * CFG.scale);
-      ball.vel.multiplyScalar(1 + ball.spin.y * dt * 0.08);
-      ball.spin.multiplyScalar(Math.exp(-2.6 * dt));
-    }
     ball.pos.addScaledVector(ball.vel, dt);
     ball.vel.multiplyScalar(Math.exp(-CFG.friction * dt));
     if (ball.vel.lengthSq() < CFG.minSpeed2) ball.vel.set(0, 0, 0);
-    if (ball.pos.x < -halfW + CFG.ballR) { ball.pos.x = -halfW + CFG.ballR; ball.vel.x = Math.abs(ball.vel.x) * CFG.restitution; ball.spin.x *= -0.55; }
-    else if (ball.pos.x > halfW - CFG.ballR) { ball.pos.x = halfW - CFG.ballR; ball.vel.x = -Math.abs(ball.vel.x) * CFG.restitution; ball.spin.x *= -0.55; }
+    if (ball.pos.x < -halfW + CFG.ballR) { ball.pos.x = -halfW + CFG.ballR; ball.vel.x = Math.abs(ball.vel.x) * CFG.restitution; }
+    else if (ball.pos.x > halfW - CFG.ballR) { ball.pos.x = halfW - CFG.ballR; ball.vel.x = -Math.abs(ball.vel.x) * CFG.restitution; }
     if (ball.pos.z < -halfL + CFG.ballR) { ball.pos.z = -halfL + CFG.ballR; ball.vel.z = Math.abs(ball.vel.z) * CFG.restitution; }
     else if (ball.pos.z > halfL - CFG.ballR) { ball.pos.z = halfL - CFG.ballR; ball.vel.z = -Math.abs(ball.vel.z) * CFG.restitution; }
   }
   for (let i = 0; i < balls.length; i += 1) for (let j = i + 1; j < balls.length; j += 1) {
     const a = balls[i], b = balls[j];
-    if (a.potted || b.potted) continue;
     const delta = tmpA.copy(a.pos).sub(b.pos);
     const dist = delta.length();
     const minDist = CFG.ballR * 2;
@@ -711,59 +522,23 @@ function updateBalls(balls, dt, tmpA, tmpB, scoreRef, setScore) {
       b.vel.addScaledVector(n, -impulse);
     }
   }
-  for (const ball of balls) {
-    if (ball.potted) continue;
-    const potted = pockets.some((pocket) => ball.pos.distanceTo(pocket) < CFG.ballR * 1.55);
-    if (!potted) {
-      ball.mesh.position.copy(ball.pos);
-      continue;
-    }
-    ball.vel.set(0, 0, 0);
-    ball.spin.set(0, 0);
-    if (ball.isCue) {
-      ball.pos.set(0, CFG.ballR, CFG.tableL * 0.31);
-      ball.mesh.position.copy(ball.pos);
-      const nextScore = { ...scoreRef.current, opponent: scoreRef.current.opponent + 4, message: 'Cue ball in pocket: opponent +4, ball-in-hand reset.' };
-      scoreRef.current = nextScore;
-      setScore(nextScore);
-    } else if (ball.role !== 'red' && scoreRef.current.remainingReds > 0) {
-      updateSnookerScore(ball, scoreRef, setScore);
-      ball.pos.copy(ball.spot || new THREE.Vector3(0, CFG.ballR, 0));
-      ball.mesh.position.copy(ball.pos);
-    } else {
-      updateSnookerScore(ball, scoreRef, setScore);
-      ball.potted = true;
-      ball.mesh.visible = false;
-      ball.pos.set(999, 999, 999);
-    }
-  }
+  for (const ball of balls) ball.mesh.position.copy(ball.pos);
 }
-
 
 export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provided' } = {}) {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
   const [power, setPower] = useState(0);
   const [shotState, setShotState] = useState('idle');
-  const [tableStatus, setTableStatus] = useState('Preparing Snooker Champion table…');
+  const [tableStatus] = useState('Using provided Snooker Royal table/cue/player code');
   const [humanStatus, setHumanStatus] = useState('Preparing ReadyPlayer human…');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [options, setOptions] = useState(DEFAULT_OPTIONS);
-  const [score, setScore] = useState({ player: 0, opponent: 0, remainingReds: 15, nextTarget: 'red', message: 'Break starts: pot a red first.' });
-  const [spin, setSpin] = useState({ x: 0, y: 0 });
   const powerRef = useRef(0);
   const shotPowerRef = useRef(0);
   const shotStateRef = useRef('idle');
   const draggingSliderRef = useRef(false);
   const aimYawRef = useRef(0);
-  const optionsRef = useRef(DEFAULT_OPTIONS);
-  const scoreRef = useRef({ player: 0, opponent: 0, remainingReds: 15, nextTarget: 'red', message: 'Break starts: pot a red first.' });
-  const spinRef = useRef({ x: 0, y: 0 });
   useEffect(() => { powerRef.current = power; }, [power]);
   useEffect(() => { shotStateRef.current = shotState; }, [shotState]);
-  useEffect(() => { optionsRef.current = options; }, [options]);
-  useEffect(() => { scoreRef.current = score; }, [score]);
-  useEffect(() => { spinRef.current = spin; }, [spin]);
   const animatePowerToZero = (from, ms = 220) => {
     const start = performance.now();
     const tick = () => {
@@ -782,7 +557,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const onSliderDown = (e) => { e.currentTarget.setPointerCapture(e.pointerId); draggingSliderRef.current = true; setShotState('dragging'); setSliderPower(e); };
   const onSliderMove = (e) => { if (draggingSliderRef.current) setSliderPower(e); };
   const onSliderUp = (e) => { try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} draggingSliderRef.current = false; setShotState(shotPowerRef.current > 0.02 ? 'striking' : 'idle'); animatePowerToZero(powerRef.current, 180); };
-  const setOption = (group, value) => setOptions((current) => ({ ...current, [group]: value }));
 
   useEffect(() => {
     const host = hostRef.current;
@@ -792,35 +566,20 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     renderer.setClearColor(0x0b0b0b, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = findPreset('hdri', optionsRef.current.hdri).exposure;
-    renderer.shadowMap.enabled = findPreset('graphics', optionsRef.current.graphics).shadows;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const scene = new THREE.Scene();
-    const cameraPreset = findPreset('camera', optionsRef.current.camera);
-    const camera = new THREE.PerspectiveCamera(cameraPreset.fov, 1, 0.05 * CFG.scale, 80 * CFG.scale);
-    camera.position.set(...cameraPreset.pos.map((v) => v * CFG.scale));
-    camera.lookAt(...cameraPreset.target.map((v) => v * CFG.scale));
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.05 * CFG.scale, 80 * CFG.scale);
+    camera.position.set(1.85 * CFG.scale, 2.45 * CFG.scale, 7.85 * CFG.scale);
+    camera.lookAt(0, 1.05 * CFG.scale, 0);
     scene.add(new THREE.AmbientLight(0xffffff, 0.86));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.55));
     const sun = new THREE.DirectionalLight(0xffffff, 1.35);
     sun.position.set(3.5 * CFG.scale, 7 * CFG.scale, 5 * CFG.scale);
     sun.castShadow = true;
     scene.add(sun);
-    const hdriPreset = findPreset('hdri', optionsRef.current.hdri);
-    scene.background = new THREE.Color(hdriPreset.background);
-    let environmentTexture = null;
-    if (hdriPreset.url) {
-      const envLoader = hdriPreset.url.endsWith('.exr') ? new EXRLoader() : new RGBELoader();
-      envLoader.load(hdriPreset.url, (texture) => {
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        environmentTexture = texture;
-        scene.environment = texture;
-        scene.background = texture;
-      }, undefined, () => {
-        scene.background = new THREE.Color(hdriPreset.background);
-      });
-    }
-    const { tableGroup, disposeTableLoader } = addTable(scene, renderer, setTableStatus, optionsRef);
+    const { tableGroup, disposeTableLoader } = addTable(scene);
     const { balls, cueBall } = addBalls(tableGroup);
     const cue = createCue();
     scene.add(cue.group);
@@ -833,7 +592,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     const resize = () => {
       const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
       renderer.setSize(w, h, false);
-      renderer.setPixelRatio(Math.min(findPreset('graphics', optionsRef.current.graphics).pixelRatio, window.devicePixelRatio || 1));
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
@@ -874,17 +633,15 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const idleCue = cuePoseFromGrip(idleRightHandTarget, idleDir, CFG.idleCueGripFromBack, CFG.cueLength);
       if (state === 'idle') { strikeT = 0; didHit = false; }
       else if (state === 'dragging') { strikeT = 0; didHit = false; }
-      else if (state === 'striking') {
+      else {
         strikeT += dt;
-        if (!didHit && strikeNorm > 0.88) { didHit = true; applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current); }
-        if (strikeT >= CFG.strikeTime + CFG.holdTime) { strikeT = 0; didHit = false; setShotState('rolling'); }
+        if (!didHit && strikeNorm > 0.88) { didHit = true; applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC); }
+        if (strikeT >= CFG.strikeTime + CFG.holdTime) { strikeT = 0; didHit = false; setShotState('idle'); }
       }
       const activeCueBack = state === 'idle' ? idleCue.back : cueBackShoot;
       const activeCueTip = state === 'idle' ? idleCue.tip : cueTipShoot;
       setCuePose(cue, activeCueBack, activeCueTip);
-      updateBalls(balls, dt, tmpB, tmpC, scoreRef, setScore);
-      if (state === 'idle' && !isAllStill(balls)) setShotState('rolling');
-      if (state === 'rolling' && isAllStill(balls)) setShotState('idle');
+      updateBalls(balls, dt, tmpB, tmpC);
       updateHumanPose(human, dt, state, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
       setLinePoints(cueLine, activeCueBack, cueBallWorld);
       setLinePoints(aimLine, cueBallWorld, cueBallWorld.clone().add(aimForward.clone().multiplyScalar(2.1 * CFG.scale)));
@@ -899,102 +656,23 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       canvas.removeEventListener('pointerup', onCanvasUp);
       canvas.removeEventListener('pointercancel', onCanvasUp);
       disposeTableLoader();
-      environmentTexture?.dispose?.();
       renderer.dispose();
     };
-  }, [options.graphics, options.cloth, options.finish, options.hdri, options.camera]);
+  }, []);
 
   const sliderH = 320;
   const sliderW = 58;
   const knob = 30;
   const knobTop = clamp(power * sliderH - knob / 2, -2, sliderH - knob + 2);
-  const glass = { color: 'white', background: 'linear-gradient(135deg, rgba(8,14,28,0.78), rgba(12,24,40,0.56))', border: '1px solid rgba(255,255,255,0.16)', boxShadow: '0 16px 44px rgba(0,0,0,0.32)', backdropFilter: 'blur(14px)' };
-  const renderOptionGroup = (group, title) => (
-    <section style={{ display: 'grid', gap: 8 }}>
-      <div style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.68)' }}>{title}</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-        {MENU_PRESETS[group].map((item) => {
-          const active = options[group] === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setOption(group, item.id)}
-              style={{
-                border: active ? '1px solid rgba(255,213,115,0.95)' : '1px solid rgba(255,255,255,0.14)',
-                background: active ? 'linear-gradient(135deg, rgba(255,213,115,0.28), rgba(255,255,255,0.12))' : 'rgba(255,255,255,0.07)',
-                color: '#fff',
-                borderRadius: 999,
-                padding: '7px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.04em'
-              }}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0b0b0b' }}>
       <div ref={hostRef} style={{ position: 'absolute', inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }} />
       </div>
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ position: 'absolute', left: 10, top: 10, padding: '10px 12px', borderRadius: 16, fontSize: 12, lineHeight: 1.35, maxWidth: '74vw', ...glass }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} style={{ pointerEvents: 'auto', width: 36, height: 36, borderRadius: 12, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 20, lineHeight: 1 }}>☰</button>
-            <div>
-              <strong style={{ fontSize: 15, letterSpacing: '0.03em' }}>{gameTitle}</strong>
-              <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: 11 }}>Same Pool Royal-style broadcast controls · official snooker frame</div>
-            </div>
-          </div>
-          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-            <div><b>{score.player}</b><br /><span style={{ color: 'rgba(255,255,255,0.62)' }}>You</span></div>
-            <div><b>{score.remainingReds}</b><br /><span style={{ color: 'rgba(255,255,255,0.62)' }}>Reds</span></div>
-            <div><b>{score.opponent}</b><br /><span style={{ color: 'rgba(255,255,255,0.62)' }}>Opponent</span></div>
-          </div>
-          <div style={{ marginTop: 7, color: 'rgba(255,255,255,0.82)' }}>{score.message}</div>
-          <div style={{ marginTop: 5, color: 'rgba(255,255,255,0.62)' }}>{tableStatus}<br />{humanStatus}</div>
+        <div style={{ position: 'absolute', left: 10, top: 10, color: 'white', background: 'rgba(0,0,0,0.62)', padding: '8px 10px', borderRadius: 10, fontSize: 12, lineHeight: 1.35, maxWidth: '76vw' }}>
+          <strong>{gameTitle}</strong><br />ReadyPlayer human active<br />Textured snooker table materials<br />{tableStatus}<br />{humanStatus}
         </div>
-
-        {menuOpen && (
-          <div style={{ position: 'absolute', left: 10, top: 158, width: 'min(420px, calc(100vw - 20px))', maxHeight: 'calc(100vh - 176px)', overflow: 'auto', padding: 14, borderRadius: 18, pointerEvents: 'auto', ...glass }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: 12 }}>Game Options</div>
-              <button type="button" onClick={() => setMenuOpen(false)} style={{ border: 0, borderRadius: 999, width: 30, height: 30, background: 'rgba(255,255,255,0.12)', color: '#fff' }}>×</button>
-            </div>
-            <div style={{ display: 'grid', gap: 14 }}>
-              {renderOptionGroup('graphics', 'Graphics')}
-              {renderOptionGroup('cloth', 'Textures / Cloth')}
-              {renderOptionGroup('finish', 'Table Finish')}
-              {renderOptionGroup('hdri', 'HDRI Lighting')}
-              {renderOptionGroup('camera', 'Broadcast Cameras')}
-            </div>
-          </div>
-        )}
-
-        <div style={{ position: 'absolute', left: 12, bottom: 16, display: 'grid', gap: 8, width: 138, padding: 12, borderRadius: 18, pointerEvents: 'auto', ...glass }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.68)' }}>Cue Spin</div>
-          <div
-            onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
-            onPointerMove={(e) => {
-              if (e.buttons !== 1) return;
-              const r = e.currentTarget.getBoundingClientRect();
-              setSpin({ x: clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1), y: clamp(1 - ((e.clientY - r.top) / r.height) * 2, -1, 1) });
-            }}
-            style={{ position: 'relative', height: 112, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #fff, #dfe7f2 55%, #9aa5b3)', border: '1px solid rgba(0,0,0,0.22)' }}
-          >
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.18)' }} />
-            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.18)' }} />
-            <div style={{ position: 'absolute', left: `${50 + spin.x * 43}%`, top: `${50 - spin.y * 43}%`, transform: 'translate(-50%, -50%)', width: 18, height: 18, borderRadius: 999, background: '#ef4444', border: '2px solid white', boxShadow: '0 4px 12px rgba(0,0,0,0.32)' }} />
-          </div>
-          <button type="button" onClick={() => setSpin({ x: 0, y: 0 })} style={{ border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: 999, padding: '7px 10px', fontSize: 11, fontWeight: 800 }}>Reset Spin</button>
-        </div>
-
         <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, pointerEvents: 'auto', touchAction: 'none', userSelect: 'none' }}>
           <div onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp} style={{ position: 'relative', height: sliderH, width: sliderW, borderRadius: 18, background: 'rgba(255,255,255,0.92)', boxShadow: '0 12px 28px rgba(0,0,0,0.2)', padding: 9 }}>
             <div style={{ position: 'absolute', left: 14, right: 14, top: 14, bottom: 14, borderRadius: 999, background: 'rgba(0,0,0,0.12)', overflow: 'hidden' }}>
