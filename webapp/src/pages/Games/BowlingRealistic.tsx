@@ -40,6 +40,8 @@ type PlayerAction =
   | 'replay';
 type BallReturnState = 'idle' | 'toPit' | 'hidden' | 'returning';
 type PinResetPhase = 'idle' | 'lowering' | 'sweeping' | 'lifting';
+type GraphicsQuality = 'performance' | 'balanced' | 'ultra';
+type BowlingFpsOption = 'auto' | '60' | '90' | '120';
 
 type HudState = {
   power: number;
@@ -193,6 +195,40 @@ const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
 const PORTRAIT_CAMERA_SIDE_OFFSET = 0.42;
 const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
 const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
+const BOWLING_GRAPHICS_PROFILES: Record<
+  GraphicsQuality,
+  {
+    maxPixelRatio: number;
+    targetFps: number;
+    shadowMapSize: number;
+  }
+> = {
+  performance: {
+    maxPixelRatio: 1.15,
+    targetFps: 60,
+    shadowMapSize: 1024
+  },
+  balanced: {
+    maxPixelRatio: 1.65,
+    targetFps: 90,
+    shadowMapSize: 1536
+  },
+  ultra: {
+    maxPixelRatio: 2.2,
+    targetFps: 120,
+    shadowMapSize: 2048
+  }
+};
+const BOWLING_FPS_OPTIONS: {
+  id: BowlingFpsOption;
+  label: string;
+  fps: number | null;
+}[] = [
+  { id: 'auto', label: 'Auto', fps: null },
+  { id: '60', label: '60 FPS', fps: 60 },
+  { id: '90', label: '90 FPS', fps: 90 },
+  { id: '120', label: '120 FPS', fps: 120 }
+];
 const BALL_VARIANTS: BallVariant[] = [
   {
     label: '10',
@@ -471,6 +507,19 @@ function currentFrameIndex(player: ScorePlayer) {
 
 function playerFinished(player: ScorePlayer) {
   return player.frames.every((f, i) => frameComplete(f, i));
+}
+
+function nextUnfinishedPlayerIndex(
+  players: ScorePlayer[],
+  currentIndex: number
+) {
+  if (players.every((p) => officialTenPinPlayerFinished(p)))
+    return currentIndex;
+  for (let offset = 1; offset <= players.length; offset++) {
+    const idx = (currentIndex + offset) % players.length;
+    if (!officialTenPinPlayerFinished(players[idx])) return idx;
+  }
+  return currentIndex;
 }
 
 function recomputePlayerTotals(player: ScorePlayer) {
@@ -3717,7 +3766,11 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'toPit') {
     ball.returnT += dt / 0.48;
     ball.mesh.position.lerp(
-      new THREE.Vector3(ball.laneCenter, 0.16, CFG.backStopZ + 0.1),
+      new THREE.Vector3(
+        BOWLING_RETURN_SIDE_X,
+        CFG.laneY + 0.16,
+        CFG.backStopZ + 0.1
+      ),
       1 - Math.exp(-8 * dt)
     );
     if (ball.returnT >= 1) {
@@ -3733,7 +3786,7 @@ function updateBallReturn(ball: BallState, dt: number) {
       ball.returnState = 'returning';
       ball.returnT = 0;
       ball.mesh.visible = true;
-      ball.pos.set(0, CFG.laneY + 0.24, -0.4);
+      ball.pos.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.24, -0.4);
       ball.mesh.position.copy(ball.pos);
     }
     return false;
@@ -3741,7 +3794,11 @@ function updateBallReturn(ball: BallState, dt: number) {
   if (ball.returnState === 'returning') {
     ball.returnT += dt / 1.75;
     const t = easeOutCubic(clamp01(ball.returnT));
-    ball.pos.set(0, CFG.laneY + lerp(0.24, 0.42, t), lerp(-0.4, 6.72, t));
+    ball.pos.set(
+      BOWLING_RETURN_SIDE_X,
+      CFG.laneY + lerp(0.24, 0.42, t),
+      lerp(-0.4, BOWLING_RACK_Z - 0.62, t)
+    );
     ball.mesh.position.copy(ball.pos);
     ball.mesh.rotateZ(0.18);
     ball.mesh.rotateX(0.26);
@@ -3929,9 +3986,9 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
     return {
       phase,
       desired: new THREE.Vector3(
-        laneCenter - 1.72,
-        CFG.laneY + 2.18,
-        CFG.foulZ + 4.45
+        laneCenter - 2.18,
+        CFG.laneY + 2.42,
+        CFG.foulZ + 5.55
       ),
       look: player.pos.clone().add(new THREE.Vector3(0, 0.9, -1.55))
     };
@@ -3940,9 +3997,9 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
     return {
       phase,
       desired: new THREE.Vector3(
-        laneCenter + 1.58,
-        CFG.laneY + 1.72,
-        CFG.foulZ + 3.18
+        laneCenter + 1.92,
+        CFG.laneY + 1.92,
+        CFG.foulZ + 4.18
       ),
       look: new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.arrowsZ - 1.1)
     };
@@ -3972,7 +4029,7 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
   }
   return {
     phase,
-    desired: new THREE.Vector3(laneCenter - 0.92, CFG.laneY + 2.78, 14.55),
+    desired: new THREE.Vector3(laneCenter - 1.24, CFG.laneY + 3.12, 16.35),
     look: new THREE.Vector3(laneCenter * 0.34, CFG.laneY + 0.62, -5.6)
   };
 }
@@ -4016,7 +4073,7 @@ function updateCamera(
     desired = new THREE.Vector3(
       laneCenter + (camera.aspect < 0.72 ? 0.32 : 0.56),
       CFG.laneY + 1.86,
-      CFG.foulZ + 2.72
+      CFG.foulZ + 3.72
     );
     look = new THREE.Vector3(laneCenter, CFG.laneY + 0.44, CFG.pinDeckZ - 0.38);
   } else if (ball.rolling) {
@@ -4115,13 +4172,13 @@ function updateCamera(
       1 - Math.exp(-7.5 * dt)
     );
   }
-  const baseFov = isPortraitCamera ? 46 : 40;
+  const baseFov = isPortraitCamera ? 52 : 46;
   const speedFov = ball.rolling
     ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5
     : 0;
   camera.fov = lerp(
     camera.fov,
-    baseFov + speedFov + pinsProximity * 1.6,
+    baseFov + speedFov + pinsProximity * 1.9,
     1 - Math.exp(-3.6 * dt)
   );
   camera.updateProjectionMatrix();
@@ -4232,9 +4289,41 @@ export default function MobileBowlingRealistic() {
     makeEmptyPlayers(playerCount)
   );
   const [menuOpen, setMenuOpen] = useState(false);
-  const [graphicsQuality, setGraphicsQuality] = useState<
-    'performance' | 'balanced' | 'ultra'
-  >('balanced');
+  const [graphicsQuality, setGraphicsQualityState] = useState<GraphicsQuality>(
+    () => {
+      const stored = localStorage.getItem(
+        'bowling.graphicsQuality'
+      ) as GraphicsQuality | null;
+      return stored === 'performance' ||
+        stored === 'balanced' ||
+        stored === 'ultra'
+        ? stored
+        : 'balanced';
+    }
+  );
+  const [selectedFps, setSelectedFpsState] = useState<BowlingFpsOption>(() => {
+    const stored = localStorage.getItem(
+      'bowling.fps'
+    ) as BowlingFpsOption | null;
+    return stored === '60' || stored === '90' || stored === '120'
+      ? stored
+      : 'auto';
+  });
+  const setGraphicsQuality = (quality: GraphicsQuality) => {
+    localStorage.setItem('bowling.graphicsQuality', quality);
+    setGraphicsQualityState(quality);
+    if (selectedFps === 'auto') {
+      const profile = BOWLING_GRAPHICS_PROFILES[quality];
+      setHud((prev) => ({
+        ...prev,
+        lane: `${quality} graphics · auto ${profile.targetFps} FPS target`
+      }));
+    }
+  };
+  const setSelectedFps = (fps: BowlingFpsOption) => {
+    localStorage.setItem('bowling.fps', fps);
+    setSelectedFpsState(fps);
+  };
   const [selectedHdriId, setSelectedHdriId] = useState<string>(
     () => localStorage.getItem('bowling.hdri') || DEFAULT_HDRI_ID
   );
@@ -4425,8 +4514,10 @@ export default function MobileBowlingRealistic() {
     const key = new THREE.DirectionalLight(0xffefd8, 2.65);
     key.position.set(-4.8, 8.2, 6.6);
     key.castShadow = true;
-    key.shadow.mapSize.width = 2048;
-    key.shadow.mapSize.height = 2048;
+    key.shadow.mapSize.width =
+      BOWLING_GRAPHICS_PROFILES[graphicsQuality].shadowMapSize;
+    key.shadow.mapSize.height =
+      BOWLING_GRAPHICS_PROFILES[graphicsQuality].shadowMapSize;
     key.shadow.camera.near = 0.5;
     key.shadow.camera.far = 36;
     key.shadow.camera.left = -8;
@@ -4690,8 +4781,13 @@ export default function MobileBowlingRealistic() {
       const allDone = localScores.every((p) => officialTenPinPlayerFinished(p));
       if (allDone) nextAction = 'gameOver';
       else if (result.frameEnded) {
-        activePlayer = (activePlayer + 1) % localScores.length;
-        nextAction = 'nextPlayer';
+        const nextPlayerIndex = nextUnfinishedPlayerIndex(
+          localScores,
+          scoringPlayerIndex
+        );
+        activePlayer = nextPlayerIndex;
+        nextAction =
+          nextPlayerIndex === scoringPlayerIndex ? 'samePlayer' : 'nextPlayer';
       } else nextAction = 'samePlayer';
       syncReactScores();
       updatePinfallBoards(
@@ -4797,17 +4893,13 @@ export default function MobileBowlingRealistic() {
       const w = Math.max(1, host.clientWidth);
       const h = Math.max(1, host.clientHeight);
       const qualityMaxPixelRatio =
-        graphicsQuality === 'performance'
-          ? 1.25
-          : graphicsQuality === 'balanced'
-            ? 1.8
-            : 2.25;
+        BOWLING_GRAPHICS_PROFILES[graphicsQuality].maxPixelRatio;
       renderer.setPixelRatio(
         Math.min(qualityMaxPixelRatio, window.devicePixelRatio || 1)
       );
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 50 : 44;
+      camera.fov = camera.aspect < 0.72 ? 54 : 48;
       camera.updateProjectionMatrix();
     };
 
@@ -4975,8 +5067,15 @@ export default function MobileBowlingRealistic() {
     function animate() {
       frameId = requestAnimationFrame(animate);
       const now = performance.now();
-      const dt = Math.min(0.033, (now - last) / 1000);
+      const frameSeconds = (now - last) / 1000;
       last = now;
+      const fpsOverride = BOWLING_FPS_OPTIONS.find(
+        (option) => option.id === selectedFps
+      )?.fps;
+      const targetFps =
+        fpsOverride || BOWLING_GRAPHICS_PROFILES[graphicsQuality].targetFps;
+      const frameCap = Math.max(0.05, 2.5 / targetFps);
+      const dt = Math.min(0.06, Math.max(0.001, frameSeconds), frameCap);
       if (replayTimer > 0) {
         replayTimer = Math.max(0, replayTimer - dt);
         if (replayTimer <= 0) setReplayActive(false);
@@ -5167,6 +5266,7 @@ export default function MobileBowlingRealistic() {
     };
   }, [
     graphicsQuality,
+    selectedFps,
     selectedHdriId,
     selectedBallWeight,
     selectedTableFinish,
@@ -5382,10 +5482,43 @@ export default function MobileBowlingRealistic() {
             <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
               Graphics (Pool Royal style)
             </div>
-            {['performance', 'balanced', 'ultra'].map((q) => (
+            {(['performance', 'balanced', 'ultra'] as GraphicsQuality[]).map(
+              (q) => (
+                <button
+                  key={q}
+                  onClick={() => setGraphicsQuality(q)}
+                  style={{
+                    marginRight: 6,
+                    marginBottom: 6,
+                    padding: '6px 9px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background:
+                      graphicsQuality === q
+                        ? '#7fd6ff'
+                        : 'rgba(255,255,255,0.08)',
+                    color: graphicsQuality === q ? '#001018' : '#fff'
+                  }}
+                >
+                  {q}
+                </button>
+              )
+            )}
+            <div style={{ fontSize: 11, color: '#c7eaff', margin: '0 0 8px' }}>
+              Auto uses {BOWLING_GRAPHICS_PROFILES[graphicsQuality].targetFps}{' '}
+              FPS target and{' '}
+              {BOWLING_GRAPHICS_PROFILES[graphicsQuality].maxPixelRatio}× max
+              pixel ratio for this quality.
+            </div>
+            <div
+              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
+            >
+              FPS target
+            </div>
+            {BOWLING_FPS_OPTIONS.map((option) => (
               <button
-                key={q}
-                onClick={() => setGraphicsQuality(q as any)}
+                key={option.id}
+                onClick={() => setSelectedFps(option.id)}
                 style={{
                   marginRight: 6,
                   marginBottom: 6,
@@ -5393,13 +5526,13 @@ export default function MobileBowlingRealistic() {
                   borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.2)',
                   background:
-                    graphicsQuality === q
+                    selectedFps === option.id
                       ? '#7fd6ff'
                       : 'rgba(255,255,255,0.08)',
-                  color: graphicsQuality === q ? '#001018' : '#fff'
+                  color: selectedFps === option.id ? '#001018' : '#fff'
                 }}
               >
-                {q}
+                {option.label}
               </button>
             ))}
 
