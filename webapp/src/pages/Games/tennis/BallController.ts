@@ -19,13 +19,13 @@ export class BallController {
 
   stepFixed(ball: BallLike, dt: number, opts: { awaitingServe: boolean; serveSide: "deuce" | "ad"; onRuleEvent?: (event: CourtRuleEvent) => void; onBounce?: () => void; onNet?: () => void }) {
     const prevZ = ball.pos.z;
-    const spinDip = Math.max(0, ball.spin) * 0.11;
-    const spinLift = Math.max(0, -ball.spin) * 0.035;
+    const spinDip = Math.max(0, ball.spin) * 0.16;
+    const spinLift = Math.max(0, -ball.spin) * 0.05;
     ball.vel.y -= gameConfig.gravity * (1 + spinDip - spinLift) * dt;
     if (ball.lastHitBy && Math.abs(ball.vel.z) > 0.001) {
       const forwardSign = ball.lastHitBy === "near" ? -1 : 1;
-      ball.vel.z += forwardSign * ball.spin * 0.14 * gameConfig.worldScale * dt;
-      ball.vel.x += Math.sin(ball.spin * 0.65) * 0.022 * gameConfig.worldScale * dt;
+      ball.vel.z += forwardSign * ball.spin * 0.18 * gameConfig.worldScale * dt;
+      ball.vel.x += Math.sin(ball.spin * 0.65) * 0.018 * gameConfig.worldScale * dt;
     }
     ball.vel.multiplyScalar(Math.exp(-gameConfig.airDrag * dt));
     ball.pos.addScaledVector(ball.vel, dt);
@@ -51,11 +51,11 @@ export class BallController {
         ball.vel.y = -ball.vel.y * gameConfig.bounceRestitution;
         ball.vel.x *= gameConfig.groundFriction;
         ball.vel.z *= gameConfig.groundFriction;
-        ball.vel.z += forwardSign * ball.spin * 0.25 * gameConfig.worldScale;
-        ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.038 * gameConfig.worldScale;
-        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.045, 0.8, 1.06);
+        ball.vel.z += forwardSign * ball.spin * 0.33 * gameConfig.worldScale;
+        ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.045 * gameConfig.worldScale;
+        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.055, 0.78, 1.08);
         if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
-        ball.spin *= -0.32;
+        ball.spin *= -0.38;
         const bounceSide = sideOfZ(ball.pos.z);
         ball.bounceCount = ball.bounceSide === bounceSide ? ball.bounceCount + 1 : 1;
         ball.bounceSide = bounceSide;
@@ -65,7 +65,7 @@ export class BallController {
       }
     }
 
-    if ((Math.abs(ball.pos.x) > gameConfig.courtW / 2 + 0.9 * gameConfig.worldScale || Math.abs(ball.pos.z) > gameConfig.courtL / 2 + 0.9 * gameConfig.worldScale || ball.pos.y < -1.2) && ball.lastHitBy) {
+    if ((Math.abs(ball.pos.x) > gameConfig.courtW / 2 + 3.2 || Math.abs(ball.pos.z) > gameConfig.courtL / 2 + 3.2 || ball.pos.y < -1.2) && ball.lastHitBy) {
       ball.state = TennisBallState.Out;
       opts.onRuleEvent?.({ type: "out", side: sideOfZ(ball.pos.z), landing: ball.pos.clone() });
     }
