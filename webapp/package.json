@@ -11,7 +11,8 @@
     "fetch:launcher": "node scripts/fetch-launcher.mjs",
     "postinstall": "node scripts/postinstall.mjs",
     "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
-    "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all"
+    "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
+    "fetch:pool-royale-traditional-table": "node scripts/fetch-pool-royale-traditional-table.mjs"
   },
   "type": "module",
   "dependencies": {
