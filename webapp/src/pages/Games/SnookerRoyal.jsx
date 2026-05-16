@@ -106,6 +106,9 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 const PROVIDED_SNOOKER_HUMAN = (() => {
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const WORLD_SCALE = 3.5;
+const HUMAN_HEIGHT_TO_CUE_LENGTH_RATIO = 1.3;
+const SHOOTING_UPPER_BODY_BEND_SIDE = 1;
+const RIGHT_HAND_CUE_GRIP_BLEND = 0.88;
 const CFG = {
   scale: WORLD_SCALE,
   tableTopY: 0.84 * WORLD_SCALE,
@@ -131,7 +134,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.2 * 1.78 * WORLD_SCALE,
+  humanScale: 1.78 * WORLD_SCALE * HUMAN_HEIGHT_TO_CUE_LENGTH_RATIO,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * WORLD_SCALE,
   bridgePalmTableLift: 0.006 * WORLD_SCALE,
@@ -559,12 +562,13 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * CFG.scale);
   rootWorld.y = human.root.position.y;
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) * CFG.scale + breath, (lerp(0.02, -0.28, t) - 0.018 * powerLean) * CFG.scale));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.21, t) * CFG.scale + breath, (lerp(0.02, -0.62, t) - 0.03 * powerLean) * CFG.scale));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) * CFG.scale + breath, (lerp(0.02, -0.8, t) - 0.034 * powerLean) * CFG.scale));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) * CFG.scale + breath - CFG.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.94, t) - 0.034 * powerLean) * CFG.scale));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * CFG.scale));
-  const rightShoulder = local(new THREE.Vector3(0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * CFG.scale));
+  const upperBodyBendSide = SHOOTING_UPPER_BODY_BEND_SIDE;
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) * CFG.scale + breath, (lerp(0.02, 0.28 * upperBodyBendSide, t) + 0.018 * upperBodyBendSide * powerLean) * CFG.scale));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.21, t) * CFG.scale + breath, (lerp(0.02, 0.62 * upperBodyBendSide, t) + 0.03 * upperBodyBendSide * powerLean) * CFG.scale));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) * CFG.scale + breath, (lerp(0.02, 0.8 * upperBodyBendSide, t) + 0.034 * upperBodyBendSide * powerLean) * CFG.scale));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) * CFG.scale + breath - CFG.chinToCueHeight * 0.16 * t, (lerp(0.04, 0.94 * upperBodyBendSide, t) + 0.034 * upperBodyBendSide * powerLean) * CFG.scale));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, 0.46 * upperBodyBendSide, t) + 0.018 * upperBodyBendSide * human.settleT) * CFG.scale));
+  const rightShoulder = local(new THREE.Vector3(0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, 0.34 * upperBodyBendSide, t) + 0.018 * upperBodyBendSide * human.settleT) * CFG.scale));
   const leftHip = local(new THREE.Vector3(-0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const rightHip = local(new THREE.Vector3(0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * CFG.scale, CFG.footGroundY, 0.03 * CFG.scale + walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, CFG.footGroundY, -0.34 * CFG.scale), t));
@@ -580,7 +584,10 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04 * CFG.scale, CFG.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18 * CFG.scale, CFG.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04 * CFG.scale, CFG.rightElbowShotBack, t));
   const forearmStroke = (state === 'dragging' ? -CFG.rightStrokePull * easeOutCubic(power) : 0) + (state === 'striking' ? CFG.rightStrokePush * strikeFollow : 0) + (state === 'dragging' ? dragStroke * 0.035 * CFG.scale : 0);
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, CFG.rightForearmOutward * t).addScaledVector(UP, -CFG.rightForearmDown * t).addScaledVector(UP, CFG.rightHandShotLift * t).addScaledVector(forward, -CFG.rightForearmBack * t).addScaledVector(cueDirForHand, CFG.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
+  const cueLineRightHandGrip = cueTip.clone().addScaledVector(cueDirForHand, -CFG.shootCueGripFromBack + forearmStroke);
+  const liveCueGripPoint = forearmBase.clone()
+    .addScaledVector(cueDirForHand, forearmStroke)
+    .lerp(cueLineRightHandGrip, RIGHT_HAND_CUE_GRIP_BLEND * handIk);
   const idleWristTarget = idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, CFG.rightHandRollIdle));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot - CFG.rightHandDownPose, handIk)));
   const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
@@ -638,7 +645,7 @@ function configureProvidedHumanForArena() {
   CFG.bridgeDist = 0.28 * scale;
   CFG.edgeMargin = 0.68 * scale;
   CFG.desiredShootDistance = 1.25 * scale;
-  CFG.humanScale = 1.5 * scale;
+  CFG.humanScale = CFG.cueLength * HUMAN_HEIGHT_TO_CUE_LENGTH_RATIO;
   CFG.stanceWidth = 0.52 * scale;
   CFG.bridgePalmTableLift = 0.006 * scale;
   CFG.bridgeCueLift = 0.018 * scale;
