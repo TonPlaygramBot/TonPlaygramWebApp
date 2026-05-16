@@ -4,15 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "npm run generate:pool-royale-traditional-table && node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
+    "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
     "preview": "vite preview",
     "generate:native-assets": "node scripts/generate-native-assets.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
     "fetch:launcher": "node scripts/fetch-launcher.mjs",
     "postinstall": "node scripts/postinstall.mjs",
     "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
-    "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
-    "generate:pool-royale-traditional-table": "node scripts/generate-pool-royale-traditional-table.mjs"
+    "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all"
   },
   "type": "module",
   "dependencies": {
