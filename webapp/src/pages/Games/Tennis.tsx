@@ -851,8 +851,9 @@ function createFallbackHuman(color: number) {
   const rightLeg = addCylinder(g, 0.07, 0.085, 0.63, [0.13, 0.31, 0], shorts, 16);
   leftLeg.rotation.z = 0.06;
   rightLeg.rotation.z = -0.06;
-  addBox(g, [0.23, 0.055, 0.34], [-0.13, 0.035, -0.04], shoe);
-  addBox(g, [0.23, 0.055, 0.34], [0.13, 0.035, -0.04], shoe);
+  const leftFoot = addBox(g, [0.23, 0.055, 0.34], [-0.13, 0.035, -0.04], shoe);
+  const rightFoot = addBox(g, [0.23, 0.055, 0.34], [0.13, 0.035, -0.04], shoe);
+  g.userData.goalRushFallbackParts = { body: torso, head, leftFoot, rightFoot };
   enableShadow(g);
   return g;
 }
@@ -1127,8 +1128,10 @@ function tennisPoseBone(model: THREE.Object3D, key: string) {
     rightForeArm: ["rightforearm", "rightlowerarm", "rforearm", "elbowr"],
     leftThigh: ["leftupleg", "leftthigh", "lthigh", "legjointl1"],
     leftCalf: ["leftleg", "leftcalf", "lcalf", "legjointl2"],
+    leftFoot: ["leftfoot", "lfoot", "footl", "lefttoe", "lefttoebase"],
     rightThigh: ["rightupleg", "rightthigh", "rthigh", "legjointr1"],
     rightCalf: ["rightleg", "rightcalf", "rcalf", "legjointr2"],
+    rightFoot: ["rightfoot", "rfoot", "footr", "righttoe", "righttoebase"],
   };
   return findFirstBone(model, hints[key] || []);
 }
@@ -1144,8 +1147,10 @@ function captureTennisLocomotionDefaultPose(model: THREE.Object3D) {
     "rightForeArm",
     "leftThigh",
     "leftCalf",
+    "leftFoot",
     "rightThigh",
     "rightCalf",
+    "rightFoot",
   ] as const;
   const pose: Record<string, THREE.Euler> = {};
   for (const key of bones) {
@@ -1171,59 +1176,59 @@ function applyTennisRotationOffset(bone: THREE.Object3D | undefined, x = 0, y = 
   bone.rotation.z += z;
 }
 
-function applyBowlingStyleTennisWalk(player: HumanRig, mode: TennisLocomotionMode, dt: number, runAmount: number, sideDot: number, forwardDot: number) {
-  if (!player.model) return;
-  captureTennisLocomotionDefaultPose(player.model);
-  resetTennisLocomotionPose(player.model);
+function applyGoalRushStyleTennisWalk(player: HumanRig, mode: TennisLocomotionMode, runAmount: number, sideDot: number) {
+  const isWalking = mode !== "idle" && runAmount > 0.08;
+  const fallbackParts = player.fallback.userData.goalRushFallbackParts as
+    | { body?: THREE.Object3D; head?: THREE.Object3D; leftFoot?: THREE.Object3D; rightFoot?: THREE.Object3D }
+    | undefined;
 
-  if (mode === "idle" || runAmount <= 0.02) {
+  if (player.model) {
+    captureTennisLocomotionDefaultPose(player.model);
+    resetTennisLocomotionPose(player.model);
     player.model.position.set(0, 0, 0);
     player.model.rotation.set(0, CFG.playerVisualYawFix, 0);
-    return;
+  }
+  if (fallbackParts) {
+    fallbackParts.leftFoot?.rotation.set(0, 0, 0);
+    fallbackParts.rightFoot?.rotation.set(0, 0, 0);
+    fallbackParts.body?.rotation.set(0, 0, 0);
+    fallbackParts.head?.rotation.set(0, 0, 0);
+    player.fallback.position.y = 0;
   }
 
-  const cadence = mode === "shuffle" ? 10.6 : mode === "backpedal" ? 9.1 : 8.8;
-  player.walkCycle += dt * cadence * lerp(0.52, 1.18, runAmount);
-  const phase = player.walkCycle;
-  const step = Math.sin(phase);
-  const counter = Math.sin(phase + Math.PI);
-  const footfall = Math.abs(step);
-  const deg = THREE.MathUtils.degToRad;
-  const stride = (mode === "shuffle" ? 0.82 : mode === "backpedal" ? 0.74 : 0.9) * runAmount;
-  const sideSign = Math.sign(sideDot || 1);
-  const turnLean = clamp(player.yawVelocity * 0.003, -0.1, 0.1);
+  if (!isWalking) return;
 
-  player.model.position.y = footfall * stride * 0.115;
-  player.model.position.x = Math.sin(phase * 0.5) * stride * (mode === "shuffle" ? 0.08 : 0.035) * sideSign;
-  player.model.rotation.x = 0.012 + counter * stride * (mode === "backpedal" ? -0.035 : 0.045);
-  player.model.rotation.y = CFG.playerVisualYawFix + step * stride * (mode === "shuffle" ? 0.08 : 0.18);
-  player.model.rotation.z = (mode === "shuffle" ? -sideSign * 0.08 : step * 0.105) * stride - turnLean;
+  // Match GoalRush3DUpgrade's human fallback footwork exactly: the same
+  // performance.now cadence, walk/run speed threshold, and opposite foot swing.
+  const speedRatio = clamp01(runAmount);
+  const stride = Math.sin(performance.now() * (speedRatio > 0.72 ? 0.018 : 0.012)) * speedRatio;
+  const bodyRoll = -sideDot * speedRatio * 0.035;
 
-  applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), 0, step * stride * 0.08, -step * stride * 0.09);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "spine"), deg(2.5), -step * stride * 0.035, step * stride * 0.045);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftUpperArm"), -counter * stride * 1.35, 0, deg(-5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightUpperArm"), -step * stride * 1.35, 0, deg(5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftForeArm"), Math.max(0, step) * stride * 0.42, 0, 0);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightForeArm"), Math.max(0, counter) * stride * 0.42, 0, 0);
-
-  const shuffleOpen = mode === "shuffle" ? sideSign * 0.28 : 0;
-  const reverse = mode === "backpedal" ? -1 : 1;
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftThigh"), step * stride * 1.05 * reverse, shuffleOpen, deg(1.5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightThigh"), counter * stride * 1.05 * reverse, shuffleOpen, deg(-1.5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftCalf"), Math.max(0, -step) * stride * 0.74, 0, 0);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightCalf"), Math.max(0, -counter) * stride * 0.74, 0, 0);
-
-  if (mode === "shuffle") {
-    // Tennis recovery uses pas-chassé/side-shuffle footwork: stay square to the net/court,
-    // keep the center of gravity low, and push-pull sideways instead of turning into a run.
-    applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), 0, sideSign * deg(4) * stride, -sideSign * deg(4.5) * stride);
-    applyTennisRotationOffset(tennisPoseBone(player.model, "leftThigh"), 0, sideSign * deg(7) * stride, 0);
-    applyTennisRotationOffset(tennisPoseBone(player.model, "rightThigh"), 0, sideSign * deg(7) * stride, 0);
-  } else if (mode === "backpedal") {
-    applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), deg(-2.5) * stride, 0, 0);
-    player.model.rotation.x -= 0.045 * runAmount * Math.abs(forwardDot);
+  if (fallbackParts) {
+    if (fallbackParts.leftFoot) fallbackParts.leftFoot.rotation.x = stride * 0.8;
+    if (fallbackParts.rightFoot) fallbackParts.rightFoot.rotation.x = -stride * 0.8;
+    if (fallbackParts.body) fallbackParts.body.rotation.z = bodyRoll;
+    if (fallbackParts.head) fallbackParts.head.rotation.x = 0;
   }
+
+  if (!player.model) return;
+
+  const leftFoot = tennisPoseBone(player.model, "leftFoot");
+  const rightFoot = tennisPoseBone(player.model, "rightFoot");
+  const leftThigh = tennisPoseBone(player.model, "leftThigh");
+  const rightThigh = tennisPoseBone(player.model, "rightThigh");
+  const leftCalf = tennisPoseBone(player.model, "leftCalf");
+  const rightCalf = tennisPoseBone(player.model, "rightCalf");
+
+  applyTennisRotationOffset(leftFoot, stride * 0.8, 0, 0);
+  applyTennisRotationOffset(rightFoot, -stride * 0.8, 0, 0);
+  applyTennisRotationOffset(leftThigh, stride * 0.42, 0, 0);
+  applyTennisRotationOffset(rightThigh, -stride * 0.42, 0, 0);
+  applyTennisRotationOffset(leftCalf, Math.max(0, -stride) * 0.26, 0, 0);
+  applyTennisRotationOffset(rightCalf, Math.max(0, stride) * 0.26, 0, 0);
+  player.model.rotation.z = bodyRoll;
 }
+
 
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, theme?: CharacterTheme): HumanRig {
   const root = new THREE.Group();
@@ -1664,12 +1669,15 @@ function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeActi
 }
 
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
+  const previousPos = player.pos.clone();
   const to = player.target.clone().sub(player.pos);
   const dist = to.length();
   const maxStep = player.speed * dt;
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   PlayerController.clampMovement(player.pos, player.side);
+  const actualStep = player.pos.distanceTo(previousPos);
+  const actualSpeed = actualStep / Math.max(0.0001, dt);
 
   let face: THREE.Vector3;
   if (ball.lastHitBy === null && player.side === "near") face = new THREE.Vector3(0.22, 0, -1).normalize();
@@ -1689,24 +1697,22 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   player.modelRoot.position.copy(player.pos);
   player.modelRoot.rotation.y = player.yaw;
 
-  if (player.model) {
-    const runAmount = clamp01(dist / (0.42 * CFG.worldScale));
-    const moveDir = dist > 0.0001 ? player.target.clone().sub(player.pos).normalize() : new THREE.Vector3();
-    const localForward = forwardFromYaw(player.yaw);
-    const localRight = rightFromForward(localForward);
-    const forwardDot = moveDir.dot(localForward);
-    const sideDot = moveDir.dot(localRight);
-    const footwork = PlayerController.footworkFromDelta(player.target.x - player.pos.x, player.target.z - player.pos.z, player.side, player.action === "ready" ? null : player.action);
-    const canUseLocomotion = ball.lastHitBy !== null && player.action === "ready" && dist > 0.06 * CFG.worldScale;
-    const mode: TennisLocomotionMode = !canUseLocomotion
-      ? "idle"
-      : Math.abs(sideDot) > Math.abs(forwardDot) * 0.72 || footwork === "MoveLeft" || footwork === "MoveRight"
-        ? "shuffle"
-        : forwardDot < -0.2 || footwork === "MoveBack"
-          ? "backpedal"
-          : "forward";
-    applyBowlingStyleTennisWalk(player, mode, dt, canUseLocomotion ? runAmount : 0, sideDot, forwardDot);
-  }
+  const runAmount = clamp01(actualSpeed / Math.max(0.0001, player.speed));
+  const moveDir = actualStep > 0.0001 ? player.pos.clone().sub(previousPos).normalize() : new THREE.Vector3();
+  const localForward = forwardFromYaw(player.yaw);
+  const localRight = rightFromForward(localForward);
+  const forwardDot = moveDir.dot(localForward);
+  const sideDot = moveDir.dot(localRight);
+  const footwork = PlayerController.footworkFromDelta(player.pos.x - previousPos.x, player.pos.z - previousPos.z, player.side, player.action === "ready" ? null : player.action);
+  const canUseLocomotion = ball.lastHitBy !== null && player.action === "ready" && actualStep > 0.001 * CFG.worldScale;
+  const mode: TennisLocomotionMode = !canUseLocomotion
+    ? "idle"
+    : Math.abs(sideDot) > Math.abs(forwardDot) * 0.72 || footwork === "MoveLeft" || footwork === "MoveRight"
+      ? "shuffle"
+      : forwardDot < -0.2 || footwork === "MoveBack"
+        ? "backpedal"
+        : "forward";
+  applyGoalRushStyleTennisWalk(player, mode, canUseLocomotion ? runAmount : 0, sideDot);
 
   player.cooldown = Math.max(0, player.cooldown - dt);
   if (player.swingT > 0) {
