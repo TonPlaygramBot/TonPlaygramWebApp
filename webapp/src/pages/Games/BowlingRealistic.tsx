@@ -262,8 +262,8 @@ const CFG = {
   pinR: 0.17,
   pinToppleThreshold: 0.58,
   pinSpotSpacing: 0.56,
-  approachDuration: 0.88,
-  throwDuration: 1.08,
+  approachDuration: 0.64,
+  throwDuration: 1.02,
   replayDuration: 3.2,
   recoverDuration: 0.28,
   celebrateDuration: 0.68,
@@ -282,9 +282,14 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ['8k', '4k', '2k', '1k'] as const;
 const BOWLING_RULE_SUMMARY = OFFICIAL_TEN_PIN_RULE_SUMMARY;
-const SHOOTING_ZONE_DEPTH = 1.85;
+const FOUR_STEP_APPROACH_DISTANCE = 2.72;
+const SHOOTING_ZONE_DEPTH = FOUR_STEP_APPROACH_DISTANCE + 0.48;
 const SHOOTING_ZONE_SIDE_PAD = 0.42;
-const SHOOTING_READY_Z = CFG.foulZ + 1.12;
+const SHOOTING_READY_Z = CFG.foulZ + FOUR_STEP_APPROACH_DISTANCE;
+const RELEASE_SLIDE_Z = CFG.foulZ + 0.1;
+const RELEASE_BALL_Z = CFG.foulZ - 0.12;
+const RELEASE_ARM_DROP_Z = CFG.foulZ + 0.02;
+const APPROACH_STEP_COUNT = 4;
 const SPIN_CONTROL_SIZE = 126;
 const SPIN_DOT_SIZE = 26;
 const LANE_BOARD_COUNT = 39;
@@ -298,7 +303,7 @@ const LANE_CENTERS = [0] as const;
 const laneCenterForPlayer = (_playerIndex: number) => LANE_CENTERS[0];
 const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
-  pos.z >= CFG.foulZ + 0.18 &&
+  pos.z >= CFG.foulZ + 0.04 &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.42, CFG.laneY, 8.28);
 const BOWLING_RETURN_SIDE_X = -2.72;
@@ -400,7 +405,19 @@ function shootingReadyPointForRig(rig: HumanRig, laneCenter = 0) {
 }
 
 function bowlingReleaseFootPoint(laneCenter = 0) {
-  return new THREE.Vector3(laneCenter - 0.14, CFG.laneY, CFG.foulZ + 0.08);
+  return new THREE.Vector3(laneCenter - 0.16, CFG.laneY, RELEASE_SLIDE_Z);
+}
+
+function normalizeBowlingAim(intent: ThrowIntent): ThrowIntent {
+  const releaseX = clamp(intent.releaseX, -0.86, 0.86);
+  const targetX = clamp(intent.targetX, -0.98, 0.98);
+  const spin = {
+    x: clamp(intent.spin.x, -0.82, 0.82),
+    y: clamp(intent.spin.y, -0.72, 0.92)
+  };
+  const balancedHook = clamp(intent.hook * 0.74 + spin.x * 0.22, -0.92, 0.92);
+  const speed = clamp(intent.speed, 7.2, 16.4);
+  return { ...intent, releaseX, targetX, hook: balancedHook, speed, spin };
 }
 
 function keepPlayersSeparated(rigs: HumanRig[], minDistance = 0.58) {
@@ -1316,13 +1333,14 @@ function applyBowlingDeliveryPose(model: THREE.Object3D | null, t: number) {
   );
   applyRotationOffset(bowlingPoseBone(model, 'head'), deg(-3), deg(-4), deg(4));
 
-  // Left arm counter-balances backward/down while the right arm swings back,
-  // accelerates forward through release, then finishes high like real bowling photos.
+  // The off arm stays slightly out/back for balance while the right arm
+  // pendulums backward, accelerates forward through ankle-height release,
+  // then follows through high like a coached four-step delivery.
   applyRotationOffset(
     bowlingPoseBone(model, 'leftUpperArm'),
-    deg(lerp(-16, -44, leftPlant) + follow * 8),
-    deg(lerp(-10, -24, leftPlant)),
-    deg(lerp(-8, -38, leftPlant) + follow * 8)
+    deg(lerp(-10, -32, leftPlant) + follow * 6),
+    deg(lerp(-16, -34, leftPlant)),
+    deg(lerp(-12, -46, leftPlant) + follow * 5)
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'leftForeArm'),
@@ -1332,13 +1350,13 @@ function applyBowlingDeliveryPose(model: THREE.Object3D | null, t: number) {
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'rightUpperArm'),
-    deg(lerp(8, -64, windup) + lerp(0, 122, drive) + follow * 54),
-    deg(lerp(4, -12, windup) + follow * 8),
-    deg(lerp(4, 18, drive) + follow * 16)
+    deg(lerp(4, -86, windup) + lerp(0, 146, drive) + follow * 48),
+    deg(lerp(2, -10, windup) + follow * 6),
+    deg(lerp(2, 14, drive) + follow * 14)
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'rightForeArm'),
-    deg(lerp(8, -18, windup) + lerp(0, 72, drive) + follow * 42),
+    deg(lerp(6, -26, windup) + lerp(0, 84, drive) + follow * 36),
     deg(4),
     deg(lerp(-4, 8, drive))
   );
@@ -1349,30 +1367,31 @@ function applyBowlingDeliveryPose(model: THREE.Object3D | null, t: number) {
     deg(lerp(-8, 14, drive))
   );
 
-  // Left foot slides to a legal plant behind the foul line; right leg trails and lifts slightly.
+  // Left foot plants just behind the foul line while the right foot trails
+  // back on the floor for balance instead of floating above the approach.
   applyRotationOffset(
     bowlingPoseBone(model, 'leftThigh'),
-    deg(lerp(4, -23, leftPlant)),
-    deg(lerp(0, -5, leftPlant)),
-    deg(lerp(0, -3, leftPlant))
+    deg(lerp(4, -28, leftPlant)),
+    deg(lerp(0, -7, leftPlant)),
+    deg(lerp(0, -4, leftPlant))
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'leftCalf'),
-    deg(lerp(0, 14, leftPlant)),
+    deg(lerp(0, 10, leftPlant)),
     0,
     deg(1)
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'rightThigh'),
-    deg(lerp(-4, 30, leftPlant) - rightLift * 12),
-    deg(lerp(0, 12, leftPlant)),
-    deg(lerp(0, 18, leftPlant))
+    deg(lerp(-6, 18, leftPlant) - rightLift * 4),
+    deg(lerp(0, 15, leftPlant)),
+    deg(lerp(0, 24, leftPlant))
   );
   applyRotationOffset(
     bowlingPoseBone(model, 'rightCalf'),
-    deg(lerp(0, -34, leftPlant) - rightLift * 18),
-    deg(2),
-    deg(8)
+    deg(lerp(0, -18, leftPlant) - rightLift * 5),
+    deg(1),
+    deg(10)
   );
 }
 
@@ -3264,30 +3283,36 @@ function computeIntent(
   const dragX = clamp((x - startX) / Math.max(70, hostWidth * 0.16), -1, 1);
   // Map the finger positions directly to lane boards: where the swipe starts is
   // the release board, and where it ends is the down-lane target board.
-  const releaseX = clamp(releaseScreenX * 0.96, -0.98, 0.98);
-  const targetX = clamp(targetScreenX * 1.12, -1.16, 1.16);
+  const releaseX = clamp(releaseScreenX * 0.88, -0.86, 0.86);
+  const targetX = clamp(targetScreenX * 0.96 + dragX * 0.08, -0.98, 0.98);
   const power = vertical;
   const spin = mapSpinForPhysics(spinInput);
   const forwardSpin = clamp(spin.y, -1, 1);
   const speed =
-    lerp(6.6, 18.4, easeOutCubic(power)) *
+    lerp(7.2, 16.4, easeOutCubic(power)) *
     lerp(0.92, 1.08, clamp01((forwardSpin + 1) / 2));
-  const spinCurve = spin.x * lerp(0.28, 1.18, power);
-  const swipeCurve = dragX * lerp(0.06, 0.46, power);
-  const hook = clamp(spinCurve + swipeCurve, -1.35, 1.35);
-  return { power, releaseX, targetX, hook, speed, spin };
+  const spinCurve = spin.x * lerp(0.22, 0.9, power);
+  const swipeCurve = dragX * lerp(0.04, 0.32, power);
+  const hook = clamp(spinCurve + swipeCurve, -0.92, 0.92);
+  return normalizeBowlingAim({ power, releaseX, targetX, hook, speed, spin });
 }
 
 function startApproach(rig: HumanRig, intent: ThrowIntent, laneCenter = 0) {
+  const tunedIntent = normalizeBowlingAim(intent);
+  Object.assign(intent, tunedIntent);
   rig.action = 'approach';
   rig.approachT = 0;
   rig.throwT = 0;
   rig.recoverT = 0;
   rig.walkCycle = 0;
-  rig.approachFrom.copy(rig.pos);
+  const fourStepStart = shootingReadyPointForRig(rig, laneCenter);
+  fourStepStart.x =
+    laneCenter + clamp(tunedIntent.releaseX * 0.12, -0.12, 0.12);
+  rig.pos.copy(fourStepStart);
+  rig.approachFrom.copy(fourStepStart);
   const plant = bowlingReleaseFootPoint(laneCenter);
   rig.approachTo.set(
-    plant.x + clamp(intent.releaseX * 0.2, -0.12, 0.12),
+    plant.x + clamp(tunedIntent.releaseX * 0.16, -0.12, 0.12),
     CFG.laneY,
     plant.z
   );
@@ -3348,7 +3373,7 @@ function updateHuman(
     if (rig.seatT >= 1) applySeatedPose(rig);
   } else if (rig.action === 'approach') {
     rig.approachT = clamp01(rig.approachT + dt / CFG.approachDuration);
-    rig.walkCycle += dt * 16.8;
+    rig.walkCycle += dt * 22.4;
     const nextPos = new THREE.Vector3().lerpVectors(
       rig.approachFrom,
       rig.approachTo,
@@ -3357,7 +3382,7 @@ function updateHuman(
     smoothFacing(rig, nextPos, dt);
     rig.pos.copy(nextPos);
     if (rig.model) {
-      applyHumanWalkMotion(rig, 0.28, 0.0032, 0.7);
+      applyHumanWalkMotion(rig, 0.34, 0.0024, 0.86);
       rig.model.rotation.x += 0.035;
     }
     animateFallbackHuman(rig, 'walk', rig.walkCycle);
@@ -3378,11 +3403,10 @@ function updateHuman(
       const releaseSnap = Math.exp(-Math.pow((t - CFG.releaseT) / 0.075, 2));
       const slideDrag =
         t < CFG.releaseT
-          ? Math.sin(drive * Math.PI) * 0.035
-          : Math.exp(-follow * 5) * 0.025;
+          ? Math.sin(drive * Math.PI) * 0.026
+          : Math.exp(-follow * 5) * 0.018;
 
-      rig.model.position.y =
-        -Math.sin(drive * Math.PI) * 0.018 + follow * 0.012;
+      rig.model.position.y = -Math.sin(drive * Math.PI) * 0.01 + follow * 0.006;
       rig.model.rotation.x =
         lerp(0, 0.16, windup) + Math.sin(drive * Math.PI) * 0.18 - follow * 0.1;
       rig.model.rotation.z =
@@ -3395,15 +3419,15 @@ function updateHuman(
       if (rightHand) {
         if (t < 0.3) {
           const k = easeInOut(t / 0.3);
-          rightHand.rotation.x = lerp(0.08, 0.82, k);
+          rightHand.rotation.x = lerp(0.08, 1.02, k);
           rightHand.rotation.z = lerp(0, -0.2, k);
         } else if (t < CFG.releaseT) {
           const k = easeInOut((t - 0.3) / (CFG.releaseT - 0.3));
-          rightHand.rotation.x = lerp(0.82, -2.04, k);
+          rightHand.rotation.x = lerp(1.02, -2.2, k);
           rightHand.rotation.z = lerp(-0.2, 0.12, k);
         } else {
           const k = easeOutCubic(follow);
-          rightHand.rotation.x = lerp(-2.04, 1.12, k);
+          rightHand.rotation.x = lerp(-2.2, 1.18, k);
           rightHand.rotation.z = lerp(0.12, 0.34, k);
         }
       }
@@ -3549,13 +3573,16 @@ function releaseBall(
   const releasePos = new THREE.Vector3(
     laneCenter + intent.releaseX,
     CFG.laneY + ball.variant.radius + 0.02,
-    CFG.foulZ - 0.24
+    RELEASE_BALL_Z
   );
   const target = new THREE.Vector3(
     laneCenter + intent.targetX,
     CFG.laneY + ball.variant.radius + 0.02,
     CFG.pinDeckZ + 0.4
   );
+  const pocketX =
+    laneCenter + clamp(intent.targetX * 0.68 - intent.hook * 0.1, -0.72, 0.72);
+  target.x = lerp(target.x, pocketX, 0.28);
   const dir = target.clone().sub(releasePos).normalize();
   ball.held = false;
   ball.rolling = true;
@@ -3580,7 +3607,7 @@ function updateAimVisual(
   const from = new THREE.Vector3(
     laneCenter + intent.releaseX,
     CFG.laneY + 0.1,
-    CFG.foulZ - 0.18
+    RELEASE_ARM_DROP_Z
   );
   const to = new THREE.Vector3(
     laneCenter + intent.targetX,
@@ -3856,9 +3883,9 @@ function getPlayerPerspectiveCameraPose(
   ).normalize();
   const face = player.pos
     .clone()
-    .addScaledVector(faceForward, 0.28 + releaseMomentum * 0.08)
+    .addScaledVector(faceForward, 0.42 + releaseMomentum * 0.08)
     .addScaledVector(faceRight, faceSide)
-    .add(new THREE.Vector3(0, 1.62 + lerp(0.04, -0.05, progress), 0));
+    .add(new THREE.Vector3(0, 1.68 + lerp(0.06, -0.04, progress), 0));
   face.z = Math.max(face.z, CFG.foulZ + 0.1);
   const desired = face;
   const ballFocus = ball.held
@@ -3925,7 +3952,7 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
       desired: new THREE.Vector3(
         laneCenter - 1.72,
         CFG.laneY + 2.18,
-        CFG.foulZ + 4.45
+        CFG.foulZ + 5.25
       ),
       look: player.pos.clone().add(new THREE.Vector3(0, 0.9, -1.55))
     };
@@ -3936,7 +3963,7 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
       desired: new THREE.Vector3(
         laneCenter + 1.58,
         CFG.laneY + 1.72,
-        CFG.foulZ + 3.18
+        CFG.foulZ + 3.92
       ),
       look: new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.arrowsZ - 1.1)
     };
@@ -3966,7 +3993,7 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
   }
   return {
     phase,
-    desired: new THREE.Vector3(laneCenter - 0.92, CFG.laneY + 2.78, 14.55),
+    desired: new THREE.Vector3(laneCenter - 1.12, CFG.laneY + 2.92, 16.1),
     look: new THREE.Vector3(laneCenter * 0.34, CFG.laneY + 0.62, -5.6)
   };
 }
@@ -4010,7 +4037,7 @@ function updateCamera(
     desired = new THREE.Vector3(
       laneCenter + (camera.aspect < 0.72 ? 0.32 : 0.56),
       CFG.laneY + 1.78,
-      CFG.foulZ + 1.92
+      CFG.foulZ + 2.62
     );
     look = new THREE.Vector3(laneCenter, CFG.laneY + 0.44, CFG.pinDeckZ - 0.38);
   } else if (ball.rolling) {
@@ -4329,7 +4356,7 @@ export default function MobileBowlingRealistic() {
     scene.fog = new THREE.FogExp2(0x080a10, 0.026);
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 80);
-    camera.position.set(-0.82, 3.34, 14.45);
+    camera.position.set(-1.05, 3.48, 16.1);
 
     const playerCharacter = getCharacterById(selectedHumanCharacterId);
     const aiCharacter = pickRandomAiCharacter(
@@ -4716,22 +4743,22 @@ export default function MobileBowlingRealistic() {
       const frame = currentFrameIndex(localScores[activePlayer]);
       const roll = localScores[activePlayer].frames[frame]?.rolls.length || 0;
       const targetJitter = (Math.random() - 0.5) * (roll ? 0.7 : 0.42);
-      const releaseJitter = (Math.random() - 0.5) * 0.5;
+      const releaseJitter = (Math.random() - 0.5) * 0.34;
       const power = clamp(0.72 + Math.random() * 0.22, 0, 1);
-      const targetX = clamp(targetJitter, -1.1, 1.1);
-      const releaseX = clamp(releaseJitter * 0.55, -0.72, 0.72);
+      const targetX = clamp(targetJitter, -0.98, 0.98);
+      const releaseX = clamp(releaseJitter * 0.45, -0.62, 0.62);
       const spin = {
         x: (Math.random() - 0.5) * 0.28,
         y: 0.12 + (Math.random() - 0.5) * 0.18
       };
-      return {
+      return normalizeBowlingAim({
         power,
         releaseX,
         targetX,
         hook: spin.x,
-        speed: lerp(10.8, 15.4, power),
+        speed: lerp(10.8, 15.2, power),
         spin
-      };
+      });
     };
 
     const manualMovePlayer = (_dt: number) => {};
@@ -4953,7 +4980,7 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({
         ...prev,
         power: 0,
-        status: 'Four-step approach · release before foul line',
+        status: `${APPROACH_STEP_COUNT}-step approach · fast walk · release before foul line`,
         rule: 'Release must stay behind the foul line',
         lane: `Target board ${boardNumberFromX(intent.targetX)} · hook ${intent.hook >= 0 ? 'right' : 'left'} · spin ${intent.spin.x >= 0 ? '+' : ''}${intent.spin.x.toFixed(2)} / ${intent.spin.y >= 0 ? '+' : ''}${intent.spin.y.toFixed(2)}`
       }));
