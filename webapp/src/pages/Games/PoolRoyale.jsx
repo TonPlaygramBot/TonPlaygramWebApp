@@ -121,6 +121,11 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
+import {
+  createHumanRig as createSharedHumanRig,
+  updateHumanPose as updateSharedHumanPose,
+  chooseHumanEdgePosition as chooseSharedHumanEdgePosition
+} from './shared/humanRigCore.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -2171,70 +2176,25 @@ async function loadPoolHumanModelFromCatalog(loader, urls = POOL_HUMAN_URLS) {
 }
 
 function createPoolRoyaleHumanRig(parent, renderer) {
-  const human = {
-    root: new THREE.Group(),
-    modelRoot: new THREE.Group(),
-    model: null,
-    bones: {},
-    leftFingers: [],
-    rightFingers: [],
-    restQuats: new Map(),
-    activeGlb: false,
-    poseT: 0,
-    walkT: 0,
-    yaw: 0,
-    breathT: 0,
-    settleT: 0,
-    strikeRoot: new THREE.Vector3(),
-    strikeYaw: 0,
-    strikeClock: 0,
-    idleCuePose: null
-  };
-  human.root.visible = false;
-  human.modelRoot.visible = false;
-  parent.add(human.root, human.modelRoot);
   const loader = createPoolHumanGLTFLoader(renderer);
-  loadPoolHumanModelFromCatalog(loader)
-    .then(({ model, url }) => {
-      human.modelUrl = url;
-      normalizePoolHumanModel(model);
-      model.traverse((obj) => {
-        if (!obj?.isMesh) return;
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        obj.frustumCulled = false;
-        const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        mats.forEach((mat) => {
-          if (mat?.map) {
-            applySRGBColorSpace(mat.map);
-            mat.map.flipY = false;
-            mat.map.needsUpdate = true;
-          }
-          if (mat) {
-            mat.depthWrite = true;
-            mat.depthTest = true;
-            mat.needsUpdate = true;
-          }
-        });
-      });
-      human.bones = buildPoolHumanBones(model);
-      human.leftFingers = collectPoolHumanFingerBones(human.bones.leftHand);
-      human.rightFingers = collectPoolHumanFingerBones(human.bones.rightHand);
-      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
-        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
-      });
-      human.activeGlb = Boolean(
-        human.bones.hips && human.bones.spine && human.bones.head &&
-        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
-        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
-        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
-      );
-      human.model = model;
-      human.modelRoot.add(model);
-      human.modelRoot.visible = human.activeGlb;
-    })
-    .catch((error) => console.warn('Pool Royale human rig failed', error))
-    .finally(() => disposePoolHumanGLTFLoader(loader));
+  const human = createSharedHumanRig(parent, {
+    ...POOL_HUMAN_CFG,
+    unit: POOL_HUMAN_WORLD_SCALE,
+    groundY: POOL_HUMAN_CFG.floorLocalY,
+    tableTopY: POOL_HUMAN_CFG.tableTopY,
+    targetHeight: POOL_HUMAN_TARGET_HEIGHT,
+    humanScale: POOL_HUMAN_TARGET_HEIGHT,
+    originalSkeletonLogic: true,
+    forceTableFacingAim: true,
+    addFaceDetails: true,
+    showDebugArrows: false,
+    loader,
+    onStatus: (message) => {
+      if (message && /failed/i.test(message)) console.warn('Pool Royale human rig status:', message);
+    }
+  });
+  human.idleCuePose = null;
+  human.poolRoyaleUsesSnookerChampionHumanLogic = true;
   return human;
 }
 
@@ -2346,21 +2306,14 @@ function posePoolHumanFingers(fingers, mode, weight) {
 }
 
 function choosePoolHumanEdgePosition(cueBallWorld, aimForward) {
-  // Keep Pool Royale on the same Snooker Champion stance solver: the body is
-  // positioned behind the cue ball from the shot direction and clamped to the
-  // nearest table edge. Pool-specific height/grounding is applied later.
-  const shotDir = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, -1));
-  const desired = cueBallWorld.clone().addScaledVector(shotDir, -POOL_HUMAN_CFG.desiredShootDistance);
-  desired.y = 0;
-  const xEdge = POOL_HUMAN_CFG.tableW / 2 + POOL_HUMAN_CFG.edgeMargin;
-  const zEdge = POOL_HUMAN_CFG.tableL / 2 + POOL_HUMAN_CFG.edgeMargin;
-  const candidates = [
-    new THREE.Vector3(-xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, -zEdge),
-    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, zEdge)
-  ];
-  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+  return chooseSharedHumanEdgePosition(cueBallWorld, aimForward, {
+    unit: POOL_HUMAN_WORLD_SCALE,
+    edgeMargin: POOL_HUMAN_CFG.edgeMargin,
+    desiredShootDistance: POOL_HUMAN_CFG.desiredShootDistance,
+    tableW: POOL_HUMAN_CFG.tableW,
+    tableL: POOL_HUMAN_CFG.tableL,
+    groundY: POOL_HUMAN_CFG.floorLocalY
+  });
 }
 
 function drivePoolRoyaleHuman(human, frame) {
@@ -2573,18 +2526,21 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
   const activeCueBack = activeHumanState === 'idle' ? idleCue.back : tableCue.back;
   const activeCueTip = activeHumanState === 'idle' ? idleCue.tip : tableCue.tip;
   human.idleCuePose = idleCue;
-  updatePoolRoyaleHumanPose(
+  updateSharedHumanPose(
     human,
     dt,
-    activeHumanState,
-    rootTarget,
-    poseForward,
-    bridgeHandTarget,
-    idleRightHandTarget,
-    idleLeftHandTarget,
-    activeCueBack,
-    activeCueTip,
-    power
+    {
+      state: activeHumanState,
+      rootTarget,
+      aimForward: poseForward,
+      bridgeTarget: bridgeHandTarget,
+      idleRight: idleRightHandTarget,
+      idleLeft: idleLeftHandTarget,
+      cueBack: activeCueBack,
+      cueTip: activeCueTip,
+      power,
+      directRootTarget: true
+    }
   );
   return { idleCue, rootTarget, bridgeHandTarget };
 }
