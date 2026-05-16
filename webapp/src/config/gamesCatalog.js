@@ -51,13 +51,6 @@ const gamesCatalog = [
     description: 'Precision snooker battles with competitive stakes.'
   },
   {
-    name: 'Snooker Champion',
-    route: '/games/snookerchampion/lobby',
-    slug: 'snookerchampion',
-    image: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
-    description: 'Champion snooker battles with the Snooker Royal arena system.'
-  },
-  {
     name: 'Goal Rush',
     route: '/games/goalrush/lobby',
     slug: 'goalrush',
