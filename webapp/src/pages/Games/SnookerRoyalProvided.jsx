@@ -12471,7 +12471,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function SnookerRoyalGame({
+function SnookerRoyalProvidedGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
@@ -12486,13 +12486,13 @@ function SnookerRoyalGame({
   playerAvatar,
   opponentName,
   opponentAvatar,
-  gameSlug = 'snookerroyale',
-  lobbyPath = '/games/snookerroyale/lobby',
-  bracketPath = '/snooker-royale-bracket.html',
-  gameTitle = 'Snooker Royal',
-  rulesTitle = 'Snooker Royal Rules',
-  arenaName = 'Snooker Royal arena',
-  tournamentStoragePrefix = 'snookerRoyal'
+  gameSlug = 'snookerchampion',
+  lobbyPath = '/games/snookerchampion/lobby',
+  bracketPath = '/snooker-champion-bracket.html',
+  gameTitle = 'Snooker Champion',
+  rulesTitle = 'Snooker Champion Rules',
+  arenaName = 'Snooker Champion arena',
+  tournamentStoragePrefix = 'snookerChampion'
 }) {
   const navigate = useNavigate();
   const mountRef = useRef(null);
@@ -29691,14 +29691,14 @@ const powerRef = useRef(hud.power);
   );
 }
 
-export default function SnookerRoyal({
-  gameSlug = 'snookerroyale',
-  lobbyPath = '/games/snookerroyale/lobby',
-  bracketPath = '/snooker-royale-bracket.html',
-  gameTitle = 'Snooker Royal',
-  rulesTitle = 'Snooker Royal Rules',
-  arenaName = 'Snooker Royal arena',
-  tournamentStoragePrefix = 'snookerRoyal'
+export default function SnookerRoyalProvided({
+  gameSlug = 'snookerchampion',
+  lobbyPath = '/games/snookerchampion/lobby',
+  bracketPath = '/snooker-champion-bracket.html',
+  gameTitle = 'Snooker Champion',
+  rulesTitle = 'Snooker Champion Rules',
+  arenaName = 'Snooker Champion arena',
+  tournamentStoragePrefix = 'snookerChampion'
 } = {}) {
   const location = useLocation();
   const tableModel = useMemo(() => {
@@ -29837,7 +29837,7 @@ export default function SnookerRoyal({
     return params.get('opponentAvatar') || '';
   }, [location.search]);
   return (
-    <SnookerRoyalGame
+    <SnookerRoyalProvidedGame
       variantKey={variantKey}
       ballSetKey={ballSetKey}
       tableSizeKey={tableSizeKey}
