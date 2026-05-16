@@ -16,6 +16,10 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
   },
+  snookerchampion: {
+    checks: { lobby: true, runtime: true, backend: true, security: true },
+    label: 'Online Ready'
+  },
   snake: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
