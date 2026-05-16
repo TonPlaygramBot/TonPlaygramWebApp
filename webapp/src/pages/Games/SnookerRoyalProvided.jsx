@@ -5,6 +5,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -54,6 +55,7 @@ const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
   { id: 'oak', label: 'Oak Tournament', rail: 0x76512f, trim: 0xd9dde7 }
 ]);
 const DEFAULT_CLOTH_ID = 'snooker-green';
+const WORLD_SCALE = 3.5;
 const SNOOKER_CHAMPION_STORAGE_PREFIX = 'snookerChampion:';
 const SNOOKER_BALL_VALUES = Object.freeze({ red: 1, yellow: 2, green: 3, brown: 4, blue: 5, pink: 6, black: 7 });
 const SNOOKER_COLOR_LABELS = Object.freeze({ yellow: 'Yellow', green: 'Green', brown: 'Brown', blue: 'Blue', pink: 'Pink', black: 'Black' });
@@ -65,6 +67,26 @@ const POOL_ROYALE_BOTTOM_HUD_RIGHT_INSET_PX = SPIN_CONTROL_DIAMETER_PX + 150;
 const POOL_ROYALE_BOTTOM_OFFSET_PX = 12;
 const POOL_ROYALE_STANDING_VIEW_FOV = 66;
 const POOL_ROYALE_RAIL_OVERHEAD_PHI = Math.PI / 2 - 0.26 + 0.18;
+const SNOOKER_HDRI_CAMERA_HEIGHT_M = 1.5;
+const SNOOKER_HDRI_MIN_CAMERA_HEIGHT_M = 0.8;
+const SNOOKER_HDRI_RADIUS_MULTIPLIER = 6;
+const SNOOKER_HDRI_GROUNDED_RESOLUTION = 256;
+const SNOOKER_HDRI_SHADOW_OPACITY = 0.28;
+const SNOOKER_CUE_CAMERA_ABS_MIN_PHI = 0.08;
+const SNOOKER_CUE_CAMERA_STANDING_PHI = 0.92;
+const SNOOKER_CUE_CAMERA_SHOT_PHI = Math.PI / 2 - 0.26;
+const SNOOKER_CUE_CAMERA_MIN_PHI = Math.max(SNOOKER_CUE_CAMERA_ABS_MIN_PHI, SNOOKER_CUE_CAMERA_STANDING_PHI - 0.54);
+const SNOOKER_CUE_CAMERA_MAX_PHI = SNOOKER_CUE_CAMERA_SHOT_PHI - 0.1;
+const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
+const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
+const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
+const SNOOKER_CUE_VIEW_RADIUS_RATIO = 0.0088;
+const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
+  SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
+  SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
+);
+const SNOOKER_CUE_VIEW_PHI_LIFT = 0.06;
+const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
 const BALL_VISUAL_LIFT = 0.32;
 const SNOOKER_CHAMPION_WOOD_TEXTURE_DEFAULT = Object.freeze({
@@ -119,7 +141,6 @@ const SNOOKER_CHAMPION_TEXTURE_IDS = Object.freeze([
   ...SNOOKER_TEXTURE_OPTIONS.map((item) => item.id),
   ...(WOOD_FINISH_PRESETS?.map?.((item, idx) => item.id || `wood-${idx}`) ?? [])
 ]);
-const WORLD_SCALE = 3.5;
 const CFG = {
   scale: WORLD_SCALE,
   tableTopY: 0.84 * WORLD_SCALE,
@@ -678,10 +699,23 @@ function addTable(scene, renderer, options = {}) {
       options.onStatus('Snooker Royal arena snooker.glb loaded at the same playfield size and height');
     }
   })();
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(48 * CFG.scale, 48 * CFG.scale), createMaterial(options.floorColor ?? 0x1d232a, 0.96, 0));
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
+  if (options.shadowCatcher !== false) {
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.PlaneGeometry(48 * CFG.scale, 48 * CFG.scale),
+      new THREE.ShadowMaterial({
+        color: 0x000000,
+        opacity: SNOOKER_HDRI_SHADOW_OPACITY,
+        transparent: true,
+        depthWrite: false
+      })
+    );
+    shadowCatcher.name = 'SnookerChampion_HdriFloorShadowCatcher';
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.receiveShadow = true;
+    shadowCatcher.castShadow = false;
+    shadowCatcher.renderOrder = -4;
+    scene.add(shadowCatcher);
+  }
   return { tableGroup, pocketPositions, disposeTableLoader: () => { disposed = true; gltfTools.dispose(); } };
 }
 function createUniversalGLTFLoader(renderer) {
@@ -1075,6 +1109,33 @@ function computeSnookerTopViewDistance(aspect = 1, fov = POOL_ROYALE_STANDING_VI
 function snookerPocketToWorld(pocket) {
   return (pocket ?? new THREE.Vector3(0, CFG.ballR, -CFG.tableL / 2)).clone().add(new THREE.Vector3(0, CFG.tableTopY, 0));
 }
+
+function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect = 1) {
+  const portraitT = clamp01((1 / Math.max(aspect, 0.45) - 1) / 0.78);
+  const clampedPower = clamp01(activePower);
+  const target = cueBallWorld.clone()
+    .addScaledVector(aimForward, CFG.tableL * 0.14)
+    .setY(CFG.tableTopY + CFG.ballR * 1.05);
+  const playerRadiusBase = Math.max(CFG.tableW, CFG.tableL) * CFG.scale;
+  const desiredRadius = Math.max(
+    playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
+    CFG.tableL * (0.34 + clampedPower * 0.08),
+    SNOOKER_CUE_CAMERA_MIN_RADIUS
+  );
+  const radius = clamp(desiredRadius, SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
+  const phi = THREE.MathUtils.clamp(
+    SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15),
+    SNOOKER_CUE_CAMERA_MIN_PHI,
+    SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
+  );
+  const horizontal = Math.sin(phi) * radius;
+  const vertical = Math.cos(phi) * radius;
+  const minY = CFG.tableTopY + CFG.ballR + SNOOKER_CUE_SURFACE_MARGIN;
+  const pos = cueBallWorld.clone()
+    .addScaledVector(aimForward, -horizontal)
+    .setY(Math.max(minY, target.y + vertical));
+  return { pos, target, fov: 60 };
+}
 function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions = [], options = {}) {
   const aspect = Math.max(0.45, camera.aspect || 1);
   const portraitT = clamp01((1 / aspect - 1) / 0.78);
@@ -1117,12 +1178,10 @@ function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, act
     target = cueBallWorld.clone().addScaledVector(aimForward, CFG.tableL * 0.16).setY(CFG.tableTopY + CFG.ballR * 1.4);
     fov = 58;
   } else {
-    const clampedPower = clamp01(activePower);
-    pos = cueBallWorld.clone()
-      .addScaledVector(aimForward, -CFG.tableL * (0.34 + clampedPower * 0.08))
-      .add(new THREE.Vector3(0, CFG.ballR * (6.2 + portraitT * 1.2), 0));
-    target = cueBallWorld.clone().addScaledVector(aimForward, CFG.tableL * 0.14).setY(CFG.tableTopY + CFG.ballR * 1.05);
-    fov = 60;
+    const cueCamera = resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect);
+    pos = cueCamera.pos;
+    target = cueCamera.target;
+    fov = cueCamera.fov;
   }
   camera.fov += (fov - camera.fov) * 0.12;
   camera.position.lerp(pos, 0.14);
@@ -1311,6 +1370,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     scene.add(sun);
     let activeSkyboxMap = null;
     let activeEnvMap = null;
+    let activeGroundedSkybox = null;
     let disposed = false;
     loadChampionHdriEnvironment(renderer, activeHdri).then((env) => {
       if (disposed || !env) return;
@@ -1323,7 +1383,35 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       if ('backgroundIntensity' in scene) scene.backgroundIntensity = activeHdri?.backgroundIntensity ?? 1;
       if (env.skyboxMap) {
         activeSkyboxMap = env.skyboxMap;
-        scene.background = env.skyboxMap;
+        const cameraHeightMeters = Math.max(
+          activeHdri?.cameraHeightM ?? SNOOKER_HDRI_CAMERA_HEIGHT_M,
+          SNOOKER_HDRI_MIN_CAMERA_HEIGHT_M
+        );
+        const skyboxHeight = cameraHeightMeters * CFG.scale;
+        const groundRadiusMultiplier = typeof activeHdri?.groundRadiusMultiplier === 'number'
+          ? activeHdri.groundRadiusMultiplier
+          : SNOOKER_HDRI_RADIUS_MULTIPLIER;
+        const skyboxRadius = Math.max(
+          Math.max(CFG.tableW, CFG.tableL) * groundRadiusMultiplier,
+          skyboxHeight * 2.5
+        );
+        const skyboxResolution = Math.max(
+          16,
+          Math.floor(activeHdri?.groundResolution ?? SNOOKER_HDRI_GROUNDED_RESOLUTION)
+        );
+        try {
+          activeGroundedSkybox = new GroundedSkybox(env.skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
+          activeGroundedSkybox.name = 'SnookerChampion_GroundedHdriFloor';
+          activeGroundedSkybox.position.y = skyboxHeight;
+          activeGroundedSkybox.rotation.y = hdriRotationY;
+          activeGroundedSkybox.material.depthWrite = false;
+          scene.background = null;
+          scene.add(activeGroundedSkybox);
+        } catch (error) {
+          console.warn('Failed to create grounded snooker HDRI skybox', error);
+          activeGroundedSkybox = null;
+          scene.background = env.skyboxMap;
+        }
       }
     });
     const { tableGroup, pocketPositions, disposeTableLoader } = addTable(scene, renderer, {
@@ -1422,7 +1510,14 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       canvas.removeEventListener('pointercancel', onCanvasUp);
       disposed = true;
       disposeTableLoader();
+      if (activeGroundedSkybox) {
+        activeGroundedSkybox.parent?.remove(activeGroundedSkybox);
+        activeGroundedSkybox.geometry?.dispose?.();
+        activeGroundedSkybox.material?.dispose?.();
+        activeGroundedSkybox = null;
+      }
       if (scene.background === activeSkyboxMap) scene.background = null;
+      if (scene.environment === activeEnvMap) scene.environment = null;
       activeSkyboxMap?.dispose?.();
       activeEnvMap?.dispose?.();
       renderer.dispose();
