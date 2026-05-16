@@ -43,3 +43,8 @@ cache/
 
 # Downloaded by webapp/scripts/fetch-gradle-wrapper.mjs; keep binary out of PRs.
 webapp/android/gradle/wrapper/gradle-wrapper.jar
+# Locally staged Sketchfab character source packages. Keep large/binary model files out of PRs.
+webapp/public/assets/models/murlan/agent-47-rigged-face-morphs/**
+!webapp/public/assets/models/murlan/agent-47-rigged-face-morphs/
+!webapp/public/assets/models/murlan/agent-47-rigged-face-morphs/README.md
+!webapp/public/assets/models/murlan/agent-47-rigged-face-morphs/asset-manifest.json

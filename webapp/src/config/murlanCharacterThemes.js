@@ -1,5 +1,8 @@
 import { khronosThumb } from './storeThumbnails.js';
 
+const AGENT_47_ASSET_ROOT = '/assets/models/murlan/agent-47-rigged-face-morphs';
+const AGENT_47_SKETCHFAB_URL = 'https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a';
+
 export const MURLAN_CHARACTER_THEMES = Object.freeze([
   {
     id: 'rpm-current',
@@ -192,6 +195,38 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     hairColor: 0x160f0a,
     eyeColor: 0x334d5f,
     skinTone: 0xd09a73
+  },
+
+  {
+    id: 'sketchfab-agent-47',
+    label: 'Agent 47',
+    source: 'Sketchfab / local runtime asset',
+    sourceUrl: AGENT_47_SKETCHFAB_URL,
+    assetRoot: AGENT_47_ASSET_ROOT,
+    assetManifestUrl: `${AGENT_47_ASSET_ROOT}/asset-manifest.json`,
+    sketchfabUid: '1680cad927304bb687d6a9ad5b9dd98a',
+    license: 'CC Attribution-NonCommercial 4.0; verify IO Interactive rights before production use',
+    price: 650,
+    description: 'Sketchfab Agent 47 rigged character staged from deployment-only local GLTF/GLB files so binary assets stay out of PRs.',
+    url: `${AGENT_47_ASSET_ROOT}/scene.gltf`,
+    modelUrls: [
+      `${AGENT_47_ASSET_ROOT}/scene.gltf`,
+      `${AGENT_47_ASSET_ROOT}/scene.glb`
+    ],
+    fallbackModelUrls: ['https://threejs.org/examples/models/gltf/Xbot.glb'],
+    thumbnail: 'https://media.sketchfab.com/models/1680cad927304bb687d6a9ad5b9dd98a/thumbnails/546b0676b5b24eaaa2732e1ee886a938/3ed8cfb016f441be89ee95908ba61de8.jpeg',
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x101010,
+    eyeColor: 0x38424d,
+    skinTone: 0xd0a080
   },
   {
     id: 'threejs-xbot-human',

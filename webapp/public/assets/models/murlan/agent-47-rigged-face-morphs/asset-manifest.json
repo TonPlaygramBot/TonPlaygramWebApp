@@ -1,0 +1,14 @@
+{
+  "id": "sketchfab-agent-47-rigged-face-morphs",
+  "name": "Agent 47 (rigged+face morphs)",
+  "sourcePage": "https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a",
+  "sketchfabUid": "1680cad927304bb687d6a9ad5b9dd98a",
+  "creator": "Veterock (@windofglass)",
+  "license": "Creative Commons Attribution-NonCommercial 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "expectedRuntimeUrls": [
+    "/assets/models/murlan/agent-47-rigged-face-morphs/scene.gltf",
+    "/assets/models/murlan/agent-47-rigged-face-morphs/scene.glb"
+  ],
+  "gitPolicy": "Do not commit downloaded binary model, texture, buffer, archive, or image files for this package. Stage them in this directory during deployment only."
+}
