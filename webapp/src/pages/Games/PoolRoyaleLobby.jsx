@@ -154,7 +154,10 @@ export default function PoolRoyaleLobby() {
   const selectedTableModelAvailability = selectedTableModel?.requiresInstall
     ? tableModelAvailability[selectedTableModel.id]
     : true;
-  const selectedTableModelReady = selectedTableModelAvailability === true;
+  // Runtime-only glTF assets must remain selectable from the lobby even before
+  // their local Sketchfab package is installed. The game renderer already keeps
+  // the generated/native table visible if an external model cannot load.
+  const selectedTableModelReady = true;
   const selectedTableModelPending =
     selectedTableModel?.requiresInstall &&
     typeof selectedTableModelAvailability === 'undefined';
@@ -299,12 +302,12 @@ export default function PoolRoyaleLobby() {
       const installCommand =
         selectedTableModel.installScript ||
         'npm run fetch:pool-royale-traditional-table';
-      const message = `${selectedTableModel.label} is not installed yet. Run ${installCommand} so the authentic glTF table loads instead of the generated fallback.`;
+      const message = [
+        `${selectedTableModel.label} is selectable now.`,
+        `Run ${installCommand} to install the authentic glTF package;`,
+        'until then Pool Royale will open with the generated fallback table if the model is unavailable.'
+      ].join(' ');
       setTableModelInstallError(message);
-      try {
-        window?.Telegram?.WebApp?.showAlert?.(message);
-      } catch {}
-      return;
     }
 
     try {
@@ -960,13 +963,12 @@ export default function PoolRoyaleLobby() {
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => !unavailable && setTableModelId(option.id)}
-                    disabled={unavailable}
+                    onClick={() => setTableModelId(option.id)}
                     className={`lobby-option-card ${
                       active
                         ? 'lobby-option-card-active'
                         : 'lobby-option-card-inactive'
-                    } ${unavailable ? 'lobby-option-card-disabled' : ''}`}
+                    } ${unavailable ? 'border-amber-300/45' : ''}`}
                   >
                     <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/25 via-amber-500/10 to-transparent">
                       <div className="lobby-option-thumb-inner">
@@ -1001,10 +1003,10 @@ export default function PoolRoyaleLobby() {
                           }`}
                         >
                           {availability === true
-                            ? 'Installed'
+                            ? 'Installed glTF'
                             : availability === false
-                              ? 'Run installer first'
-                              : 'Checking install…'}
+                              ? 'Selectable · install for glTF'
+                              : 'Selectable · checking glTF…'}
                         </p>
                       )}
                     </div>
@@ -1021,8 +1023,8 @@ export default function PoolRoyaleLobby() {
             {(selectedTableModelUnavailable || selectedTableModelPending) && (
               <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3 text-xs text-amber-100">
                 {selectedTableModelPending
-                  ? 'Checking the local glTF table install before start…'
-                  : `${selectedTableModel.label} is not installed. Run ${selectedTableModel.installScript || 'npm run fetch:pool-royale-traditional-table'} so the authentic glTF table is available.`}
+                  ? 'This table can be selected now while we check the local glTF install.'
+                  : `${selectedTableModel.label} can be selected now. Run ${selectedTableModel.installScript || 'npm run fetch:pool-royale-traditional-table'} to install the authentic glTF package; the generated fallback remains available if it is missing.`}
               </div>
             )}
             {tableModelInstallError && (

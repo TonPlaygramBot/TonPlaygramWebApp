@@ -94,6 +94,31 @@ describe('Pool Royale table models', () => {
     assert.equal(traditional.license, 'CC Attribution 4.0');
   });
 
+  test('Pool Royale lobby keeps runtime-only glTF table models selectable before install', async () => {
+    const lobby = await readFile(
+      'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
+      'utf8'
+    );
+
+    assert.ok(
+      lobby.includes('const selectedTableModelReady = true'),
+      'lobby start button should not be blocked by runtime-only glTF install checks'
+    );
+    assert.ok(
+      lobby.includes('onClick={() => setTableModelId(option.id)}'),
+      'table model option should remain clickable when the local glTF is missing'
+    );
+    assert.ok(
+      lobby.includes('Selectable · install for glTF'),
+      'missing local glTF copy should be shown as selectable with install guidance'
+    );
+    assert.ok(
+      lobby.includes('generated fallback table'),
+      'start guidance should explain the fallback used until the glTF package is installed'
+    );
+    assert.equal(lobby.includes('disabled={unavailable}'), false);
+  });
+
   test('Traditional table installer fetches and validates the authentic Sketchfab glTF', async () => {
     const source = await readFile(
       'webapp/scripts/fetch-pool-royale-traditional-table.mjs',
