@@ -117,10 +117,12 @@ export class BallPhysics {
     if (!inside) return null;
 
     this.position.set(xAtImpact, top, zAtImpact);
-    this.velocity.y = Math.abs(this.velocity.y) * 0.88;
-    this.velocity.x += this.spin.z * 0.018;
-    this.velocity.z -= this.spin.x * 0.018;
-    this.spin.multiplyScalar(0.84);
+    this.velocity.y = Math.abs(this.velocity.y) * 0.94;
+    this.velocity.x *= 0.985;
+    this.velocity.z *= 0.985;
+    this.velocity.x += this.spin.z * 0.022;
+    this.velocity.z -= this.spin.x * 0.022;
+    this.spin.multiplyScalar(0.88);
 
     const side: Side = zAtImpact > 0 ? 'player' : 'ai';
     this.bounces[side] += 1;
