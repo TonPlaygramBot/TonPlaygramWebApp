@@ -611,20 +611,11 @@ function collectFingerBones(hand) {
 }
 
 function normalizeHuman(model, cfg) {
-  model.scale.setScalar(1);
+  model.scale.setScalar(cfg.humanScale);
   model.rotation.set(0, cfg.humanVisualYawFix, 0);
   model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
-  let box = new THREE.Box3().setFromObject(model);
-  const targetHeight = Number(cfg.targetHeight);
-  if (Number.isFinite(targetHeight) && targetHeight > 0) {
-    const unscaledHeight = Math.max(box.getSize(new THREE.Vector3()).y, 1e-4);
-    model.scale.setScalar(targetHeight / unscaledHeight);
-  } else {
-    model.scale.setScalar(cfg.humanScale);
-  }
-  model.updateMatrixWorld(true);
-  box = new THREE.Box3().setFromObject(model);
+  const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   model.position.set(-center.x, -box.min.y, -center.z);
 }
