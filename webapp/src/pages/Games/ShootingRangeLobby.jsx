@@ -26,18 +26,6 @@ const RANGE_DISTANCES = [
     icon: '🎯'
   },
   {
-    id: 'swat',
-    label: 'SWAT building',
-    desc: '5 randomized SWAT shoot-house buildings with FPS movement',
-    icon: '🚪'
-  },
-  {
-    id: 'nature',
-    label: 'Nature range',
-    desc: '5 redesigned outdoor ranges with berms, cover, and Poly Haven assets',
-    icon: '🌲'
-  },
-  {
     id: 'moving',
     label: 'Moving rails',
     desc: 'Motorized targets for tracking drills',

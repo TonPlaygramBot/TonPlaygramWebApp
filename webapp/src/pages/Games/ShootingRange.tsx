@@ -6,7 +6,10 @@ import {
   GLTFLoader,
   type GLTF
 } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneScene } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 type WeaponClass =
@@ -20,10 +23,9 @@ type GamePhase = 'loading' | 'pick' | 'shoot' | 'results';
 type ViewMode = 'tables' | 'range' | 'results';
 type ControllerType = 'USER' | 'AI';
 type MatchMode = 'ai' | 'online';
-type RangeDistance = 'standard' | 'swat' | 'nature' | 'moving';
-type RangeScene = 'indoor' | 'swat' | 'nature' | 'moving';
-type TargetStyle = 'silhouette' | 'hostage' | 'gong' | 'runner';
-type ScenarioVariant = { id: string; label: string; briefing: string };
+type RangeDistance = 'standard' | 'moving';
+type RangeScene = 'indoor' | 'moving';
+type TargetStyle = 'silhouette' | 'runner';
 
 type WeaponEntry = {
   id: string;
@@ -176,7 +178,6 @@ const LANE_X = [-4.9, -1.65, 1.65, 4.9];
 const TABLE_Z = 2.35;
 const TABLE_TOP_Y = 0.94;
 const TARGET_Z = -21.8;
-const PRELAUNCH = 1.25;
 const BULLET_SPIN = 245;
 const SERVICE_PISTOL_AIM = {
   mount: new THREE.Vector3(0.34, 1.27, -0.12),
@@ -203,22 +204,6 @@ const RANGE_DISTANCE_CONFIG: Record<
     targetStyle: 'silhouette',
     moving: false
   },
-  swat: {
-    label: 'SWAT building',
-    targetZ: -28.8,
-    subtitle: 'Empty-building room clearing with doors and cover',
-    scene: 'swat',
-    targetStyle: 'hostage',
-    moving: false
-  },
-  nature: {
-    label: 'Nature range',
-    targetZ: -34.8,
-    subtitle: 'Outdoor Poly Haven forest range with long sight lines',
-    scene: 'nature',
-    targetStyle: 'gong',
-    moving: false
-  },
   moving: {
     label: 'Moving rails',
     targetZ: -31.4,
@@ -241,19 +226,7 @@ const POLYHAVEN_ASSETS = {
   servicePistol:
     'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/service_pistol/service_pistol_1k.gltf',
   woodenCrate02:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_crate_02/wooden_crate_02_1k.gltf',
-  treeStump01:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_stump_01/tree_stump_01_1k.gltf',
-  firTree01:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_tree_01/fir_tree_01_1k.gltf',
-  firSapling:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fir_sapling/fir_sapling_1k.gltf',
-  pineTree01:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/pine_tree_01/pine_tree_01_1k.gltf',
-  woodenBarrels01:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_barrels_01/wooden_barrels_01_1k.gltf',
-  barrel02:
-    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/Barrel_02/Barrel_02_1k.gltf'
+    'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_crate_02/wooden_crate_02_1k.gltf'
 };
 
 const SERVICE_PISTOL_TEXTURES = {
@@ -266,90 +239,6 @@ const SERVICE_PISTOL_TEXTURES = {
     'https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/service_pistol/service_pistol_metal_2k.jpg',
   ao: 'https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/service_pistol/service_pistol_ao_2k.jpg'
 };
-
-const SWAT_BUILDING_LAYOUTS: ScenarioVariant[] = [
-  {
-    id: 'stacked-entry',
-    label: 'Building 1 · Stacked-entry shoot house',
-    briefing:
-      'Offset foyer, split hallway, evidence room, kitchen, and back-office target sweep.'
-  },
-  {
-    id: 'motel-corridor',
-    label: 'Building 2 · Motel corridor',
-    briefing:
-      'Long hall with alternating rooms, door checks, blind corners, and no-shoot silhouettes.'
-  },
-  {
-    id: 'warehouse-office',
-    label: 'Building 3 · Warehouse office',
-    briefing:
-      'Concrete office pods inside an industrial bay with crates, barrels, and stair-step cover.'
-  },
-  {
-    id: 'apartment-duplex',
-    label: 'Building 4 · Apartment duplex',
-    briefing:
-      'Residential room clearing with living room, bedrooms, closets, and cross-corridor danger areas.'
-  },
-  {
-    id: 'embassy-annex',
-    label: 'Building 5 · Embassy annex',
-    briefing:
-      'Wide lobby, reception desk, server room, records room, and final secured office.'
-  }
-];
-
-const OUTDOOR_RANGE_LAYOUTS: ScenarioVariant[] = [
-  {
-    id: 'bermed-forest-bay',
-    label: 'Outdoor 1 · Bermed forest bay',
-    briefing:
-      'Earth backstop, side berms, covered firing line, target numbers, and forest edges.'
-  },
-  {
-    id: 'pine-rifle-lane',
-    label: 'Outdoor 2 · Pine rifle lane',
-    briefing:
-      'Long pine-lined rifle corridor with distance plates and stacked log side containment.'
-  },
-  {
-    id: 'ravine-practical',
-    label: 'Outdoor 3 · Ravine practical range',
-    briefing:
-      'Natural low ground, uneven barricades, barrels, and staggered close-to-far steel gongs.'
-  },
-  {
-    id: 'quarry-backstop',
-    label: 'Outdoor 4 · Quarry backstop',
-    briefing:
-      'Rock-and-earth quarry bowl with gravel lanes, tire-height cover, and high impact berm.'
-  },
-  {
-    id: 'meadow-qualification',
-    label: 'Outdoor 5 · Meadow qualification field',
-    briefing:
-      'Open qualification range with painted distance markers, shade roof, and clear safety lanes.'
-  }
-];
-
-function selectScenarioVariant(
-  distance: RangeDistance,
-  seedText: string
-): ScenarioVariant | null {
-  const variants =
-    distance === 'swat'
-      ? SWAT_BUILDING_LAYOUTS
-      : distance === 'nature'
-        ? OUTDOOR_RANGE_LAYOUTS
-        : null;
-  if (!variants) return null;
-  let hash = 0;
-  for (let i = 0; i < seedText.length; i += 1) {
-    hash = (hash * 31 + seedText.charCodeAt(i)) >>> 0;
-  }
-  return variants[hash % variants.length];
-}
 
 const TEXTURES = {
   floor: {
@@ -384,22 +273,6 @@ const TEXTURES = {
     rough:
       'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/dark_wood/dark_wood_rough_4k.jpg',
     ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/dark_wood/dark_wood_ao_4k.jpg'
-  },
-  forest: {
-    diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_diff_4k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_nor_gl_4k.jpg',
-    rough:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_rough_4k.jpg',
-    ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/forest_ground_04/forest_ground_04_ao_4k.jpg'
-  },
-  plaster: {
-    diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_diff_4k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_nor_gl_4k.jpg',
-    rough:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_rough_4k.jpg',
-    ao: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/plastered_wall/plastered_wall_ao_4k.jpg'
   },
   asphalt: {
     diff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_diff_4k.jpg',
@@ -735,6 +608,23 @@ function shuffle<T>(items: T[]) {
   return a;
 }
 
+let dracoLoaderAdapter: DRACOLoader | null = null;
+let ktx2LoaderAdapter: KTX2Loader | null = null;
+
+function configureGltfTextureAdapters(renderer: THREE.WebGLRenderer) {
+  dracoLoaderAdapter?.dispose();
+  ktx2LoaderAdapter?.dispose();
+
+  dracoLoaderAdapter = new DRACOLoader();
+  dracoLoaderAdapter.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+
+  ktx2LoaderAdapter = new KTX2Loader();
+  ktx2LoaderAdapter.setTranscoderPath(
+    'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+  );
+  ktx2LoaderAdapter.detectSupport(renderer);
+}
+
 function makeLoaderForUrl(modelUrl: string) {
   const baseFolder = parentFolder(modelUrl);
   const manager = new THREE.LoadingManager();
@@ -745,6 +635,9 @@ function makeLoaderForUrl(modelUrl: string) {
   );
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin('anonymous');
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  if (dracoLoaderAdapter) loader.setDRACOLoader(dracoLoaderAdapter);
+  if (ktx2LoaderAdapter) loader.setKTX2Loader(ktx2LoaderAdapter);
   return loader;
 }
 
@@ -1578,9 +1471,45 @@ function makeWake() {
 
 function layWeaponFlatOnTable(root: THREE.Object3D) {
   centerRoot(root);
-  root.rotation.set(Math.PI / 2, Math.PI / 2, -Math.PI / 2);
+
+  const candidateRotations = [
+    new THREE.Euler(0, 0, 0),
+    new THREE.Euler(Math.PI / 2, 0, 0),
+    new THREE.Euler(-Math.PI / 2, 0, 0),
+    new THREE.Euler(0, Math.PI / 2, 0),
+    new THREE.Euler(0, -Math.PI / 2, 0),
+    new THREE.Euler(0, 0, Math.PI / 2),
+    new THREE.Euler(0, 0, -Math.PI / 2),
+    new THREE.Euler(Math.PI / 2, Math.PI / 2, -Math.PI / 2)
+  ];
+
+  let best = candidateRotations[0];
+  let bestScore = Infinity;
+  candidateRotations.forEach((rotation) => {
+    root.rotation.copy(rotation);
+    root.updateMatrixWorld(true);
+    const box = getRenderableBounds(root);
+    if (!box) return;
+    const size = box.getSize(new THREE.Vector3());
+    const footprint = Math.max(size.x, size.z);
+    const score = size.y * 100 - footprint;
+    if (score < bestScore) {
+      bestScore = score;
+      best = rotation.clone();
+    }
+  });
+
+  root.rotation.copy(best);
   root.updateMatrixWorld(true);
-  const box = getRenderableBounds(root);
+  let box = getRenderableBounds(root);
+  if (box) {
+    const size = box.getSize(new THREE.Vector3());
+    if (size.z > size.x) root.rotation.y += Math.PI / 2;
+  }
+
+  centerRoot(root);
+  root.updateMatrixWorld(true);
+  box = getRenderableBounds(root);
   if (!box) return;
   root.position.y += 0.038 - box.min.y;
   root.updateMatrixWorld(true);
@@ -1823,120 +1752,88 @@ function createTargetTexture(style: TargetStyle = 'silhouette') {
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
   const paperGradient = ctx.createLinearGradient(0, 0, 512, 768);
-  paperGradient.addColorStop(0, style === 'gong' ? '#dbeafe' : '#faf7f2');
-  paperGradient.addColorStop(1, style === 'gong' ? '#94a3b8' : '#e7e0d4');
+  paperGradient.addColorStop(0, '#faf7f2');
+  paperGradient.addColorStop(1, '#e7e0d4');
   ctx.fillStyle = paperGradient;
   ctx.fillRect(0, 0, 512, 768);
   ctx.strokeStyle = 'rgba(30,30,30,.4)';
   ctx.lineWidth = 8;
   ctx.strokeRect(8, 8, 496, 752);
 
-  if (style === 'gong') {
-    ctx.fillStyle = '#1f2937';
-    ctx.beginPath();
-    ctx.arc(256, 360, 178, 0, Math.PI * 2);
-    ctx.fill();
-    ['#6b7280', '#d1d5db', '#f97316', '#ef4444'].forEach((color, index) => {
-      ctx.beginPath();
-      ctx.arc(256, 360, 148 - index * 34, 0, Math.PI * 2);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = index === 3 ? 18 : 14;
-      ctx.stroke();
-    });
-    ctx.fillStyle = '#fef3c7';
-    ctx.font = 'bold 34px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('STEEL', 256, 126);
-    ctx.fillText('100', 256, 372);
-  } else {
-    ctx.fillStyle = '#222222';
-    ctx.beginPath();
-    ctx.arc(256, 160, style === 'runner' ? 56 : 68, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.fillStyle = '#222222';
+  ctx.beginPath();
+  ctx.arc(256, 160, style === 'runner' ? 56 : 68, 0, Math.PI * 2);
+  ctx.fill();
 
-    ctx.beginPath();
-    if (style === 'runner') {
-      ctx.moveTo(188, 238);
-      ctx.lineTo(330, 238);
-      ctx.lineTo(374, 500);
-      ctx.lineTo(302, 500);
-      ctx.lineTo(332, 694);
-      ctx.lineTo(282, 704);
-      ctx.lineTo(244, 544);
-      ctx.lineTo(196, 690);
-      ctx.lineTo(150, 672);
-      ctx.lineTo(210, 504);
-      ctx.lineTo(144, 446);
-      ctx.closePath();
-    } else {
-      ctx.moveTo(162, 246);
-      ctx.lineTo(350, 246);
-      ctx.lineTo(390, 442);
-      ctx.lineTo(330, 690);
-      ctx.lineTo(286, 690);
-      ctx.lineTo(256, 560);
-      ctx.lineTo(226, 690);
-      ctx.lineTo(182, 690);
-      ctx.lineTo(122, 442);
-      ctx.closePath();
-    }
-    ctx.fill();
-
-    if (style === 'hostage') {
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(74, 268, 120, 292);
-      ctx.fillStyle = '#111827';
-      ctx.font = 'bold 28px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText('NO', 134, 390);
-      ctx.fillText('SHOOT', 134, 426);
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 7;
-      ctx.strokeRect(74, 268, 120, 292);
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(166, 286);
-      ctx.lineTo(84, 420);
-      ctx.lineTo(122, 446);
-      ctx.lineTo(204, 340);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    ctx.beginPath();
-    ctx.moveTo(346, 286);
-    ctx.lineTo(428, 420);
-    ctx.lineTo(390, 446);
-    ctx.lineTo(308, 340);
+  ctx.beginPath();
+  if (style === 'runner') {
+    ctx.moveTo(188, 238);
+    ctx.lineTo(330, 238);
+    ctx.lineTo(374, 500);
+    ctx.lineTo(302, 500);
+    ctx.lineTo(332, 694);
+    ctx.lineTo(282, 704);
+    ctx.lineTo(244, 544);
+    ctx.lineTo(196, 690);
+    ctx.lineTo(150, 672);
+    ctx.lineTo(210, 504);
+    ctx.lineTo(144, 446);
     ctx.closePath();
-    ctx.fill();
-
-    const ringY = style === 'runner' ? 412 : 356;
-    const rings = [
-      { r: 92, color: '#6b7280', w: 14 },
-      { r: 68, color: '#d1d5db', w: 10 },
-      { r: 44, color: '#9ca3af', w: 8 },
-      { r: 22, color: '#ef4444', w: 10 }
-    ];
-    rings.forEach((ring) => {
-      ctx.beginPath();
-      ctx.arc(256, ringY, ring.r, 0, Math.PI * 2);
-      ctx.strokeStyle = ring.color;
-      ctx.lineWidth = ring.w;
-      ctx.stroke();
-    });
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath();
-    ctx.arc(256, ringY, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fef3c7';
-    ctx.font = 'bold 22px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('100', 256, ringY + 8);
-    ctx.fillStyle = style === 'hostage' ? '#38bdf8' : '#22c55e';
-    ctx.font = 'bold 20px system-ui';
-    ctx.fillText(style === 'hostage' ? 'SWAT' : '95', 256, 166);
+  } else {
+    ctx.moveTo(162, 246);
+    ctx.lineTo(350, 246);
+    ctx.lineTo(390, 442);
+    ctx.lineTo(330, 690);
+    ctx.lineTo(286, 690);
+    ctx.lineTo(256, 560);
+    ctx.lineTo(226, 690);
+    ctx.lineTo(182, 690);
+    ctx.lineTo(122, 442);
+    ctx.closePath();
   }
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(166, 286);
+  ctx.lineTo(84, 420);
+  ctx.lineTo(122, 446);
+  ctx.lineTo(204, 340);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(346, 286);
+  ctx.lineTo(428, 420);
+  ctx.lineTo(390, 446);
+  ctx.lineTo(308, 340);
+  ctx.closePath();
+  ctx.fill();
+
+  const ringY = style === 'runner' ? 412 : 356;
+  const rings = [
+    { r: 92, color: '#6b7280', w: 14 },
+    { r: 68, color: '#d1d5db', w: 10 },
+    { r: 44, color: '#9ca3af', w: 8 },
+    { r: 22, color: '#ef4444', w: 10 }
+  ];
+  rings.forEach((ring) => {
+    ctx.beginPath();
+    ctx.arc(256, ringY, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = ring.color;
+    ctx.lineWidth = ring.w;
+    ctx.stroke();
+  });
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(256, ringY, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fef3c7';
+  ctx.font = 'bold 22px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('100', 256, ringY + 8);
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillText('95', 256, 166);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -2184,7 +2081,7 @@ function createBullet(
   spinGroup.add(visual);
   root.add(spinGroup);
   alignToDirection(root, dir);
-  root.position.copy(cinematic && nineMm ? inside : start);
+  root.position.copy(start);
 
   const length = Math.min(1.2, start.distanceTo(end));
   const trail = new THREE.Mesh(
@@ -2227,11 +2124,11 @@ function createBullet(
     pos: root.position.clone(),
     t: 0,
     age: 0,
-    speed: cinematic ? (nineMm ? 0.48 : longGun ? 0.62 : speed) : speed,
+    speed: cinematic ? (nineMm ? 0.34 : longGun ? 0.62 : speed) : speed,
     spin: 0,
     cinematic,
-    launched: !(cinematic && nineMm),
-    prelaunch: nineMm ? PRELAUNCH : 0,
+    launched: true,
+    prelaunch: 0,
     life: cinematic ? (nineMm ? 8.5 : longGun ? 6.2 : 4.2) : 1.2,
     flightQuat: root.quaternion.clone(),
     impacted: false,
@@ -2281,7 +2178,7 @@ function createShell(
     .addScaledVector(right, 0.5 * power)
     .addScaledVector(up, 0.22 * power)
     .addScaledVector(dir, 0.08);
-  root.position.copy(cinematic && nineMm ? shellStart : shellOut);
+  root.position.copy(shellOut);
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
     if (mesh.isMesh) mesh.castShadow = true;
@@ -2305,10 +2202,10 @@ function createShell(
     ),
     life: nineMm ? 45 : 24,
     age: 0,
-    launched: !(cinematic && nineMm),
+    launched: true,
     grounded: false,
     hitPlayed: false,
-    pre: nineMm ? 0.18 : 0
+    pre: 0
   } as ShellRuntime;
 }
 
@@ -2416,263 +2313,40 @@ function addDoorFrame(
 function addScenarioTrainingGeometry(
   scene: THREE.Scene,
   rangeConfig: (typeof RANGE_DISTANCE_CONFIG)[RangeDistance],
-  wallMat: THREE.Material,
-  laneMat: THREE.Material,
-  tableMat: THREE.Material,
   metalMat: THREE.Material,
-  forestMat: THREE.Material,
-  plasterMat: THREE.Material,
-  asphaltMat: THREE.Material,
-  scenarioVariant: ScenarioVariant | null
+  asphaltMat: THREE.Material
 ) {
-  const sceneType = rangeConfig.scene;
+  if (rangeConfig.scene !== 'moving') return;
 
-  if (sceneType === 'swat') {
-    const variantIndex = Math.max(
-      0,
-      SWAT_BUILDING_LAYOUTS.findIndex(
-        (layout) => layout.id === scenarioVariant?.id
-      )
-    );
-    const roomRows = [
-      [-5.25, -1.75, 1.75, 5.25],
-      [-4.6, -0.9, 2.45, 5.6],
-      [-5.6, -2.1, 1.2, 4.75],
-      [-4.9, -1.35, 1.95, 5.15],
-      [-5.75, -2.65, 0.65, 4.35]
-    ][variantIndex] ?? [-5.25, -1.75, 1.75, 5.25];
-    const corridorX = [-0.15, 0.55, -0.65, 0.15, -0.35][variantIndex] ?? 0;
-    const roomDepths = [-6.4, -12.6, -18.9, -25.2, -31.5];
+  const asphaltStrip = new THREE.Mesh(
+    new THREE.PlaneGeometry(15.8, 62),
+    asphaltMat
+  );
+  asphaltStrip.rotation.x = -Math.PI / 2;
+  asphaltStrip.position.set(0, 0.016, -18.5);
+  asphaltStrip.receiveShadow = true;
+  scene.add(asphaltStrip);
 
+  for (let i = 0; i < 5; i += 1) {
+    const z = -8 - i * 5.4;
     addBox(
       scene,
-      new THREE.BoxGeometry(14.4, 0.22, 37.5),
-      plasterMat,
-      new THREE.Vector3(0, 3.05, -17.2)
+      new THREE.BoxGeometry(13.4, 0.12, 0.12),
+      metalMat,
+      new THREE.Vector3(0, 2.96, z)
     );
-
-    roomDepths.forEach((z, row) => {
-      addBox(
-        scene,
-        new THREE.BoxGeometry(13.4, 2.6, 0.16),
-        plasterMat,
-        new THREE.Vector3(0, 1.3, z)
-      );
-      addDoorFrame(
-        scene,
-        corridorX + (row % 2 === 0 ? -0.9 : 1.0),
-        z + 0.14,
-        plasterMat,
-        metalMat,
-        `${scenarioVariant?.label ?? 'SWAT'} breach door ${row + 1}`
-      );
-      roomRows.forEach((x, index) => {
-        const sideRoom = Math.abs(x - corridorX) > 1.2;
-        if (!sideRoom) return;
-        addBox(
-          scene,
-          new THREE.BoxGeometry(
-            0.16,
-            2.5,
-            4.4 + ((index + row + variantIndex) % 2) * 1.2
-          ),
-          plasterMat,
-          new THREE.Vector3(x, 1.25, z - 2.25)
-        );
-      });
-
-      const lightBar = addBox(
-        scene,
-        new THREE.BoxGeometry(2.2, 0.06, 0.28),
-        metalMat,
-        new THREE.Vector3(corridorX, 2.72, z - 2.75)
-      );
-      lightBar.name = `SWAT fluorescent ${row + 1}`;
-      const point = new THREE.PointLight(0xf4f7ff, 2.4, 7.5, 1.5);
-      point.position.set(corridorX, 2.55, z - 2.75);
-      scene.add(point);
-
-      const coverX = row % 2 === 0 ? -4.9 : 4.9;
-      addBox(
-        scene,
-        new THREE.BoxGeometry(1.55, 0.88, 0.72),
-        row % 2 === 0 ? tableMat : laneMat,
-        new THREE.Vector3(coverX, 0.44, z - 3.15),
-        new THREE.Vector3(1, 1, 1),
-        new THREE.Euler(0, (row * 0.25 + variantIndex * 0.18) % 0.7, 0)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(0.78, 1.42, 0.34),
-        metalMat,
-        new THREE.Vector3(-coverX * 0.92, 0.71, z - 1.48)
-      );
-    });
-
     addBox(
       scene,
-      new THREE.BoxGeometry(3.1, 1.08, 0.86),
-      tableMat,
-      new THREE.Vector3(corridorX, 0.54, -3.55)
-    ).name = `${scenarioVariant?.label ?? 'SWAT'} reception desk`;
-
-    for (let i = 0; i < 5; i += 1) {
-      const sign = createLabelSprite(`${i + 1}`);
-      sign.position.set(roomRows[i % roomRows.length], 2.15, -8.2 - i * 5.4);
-      sign.scale.set(0.42, 0.22, 1);
-      scene.add(sign);
-    }
-    return;
-  }
-
-  if (sceneType === 'nature') {
-    const variantIndex = Math.max(
-      0,
-      OUTDOOR_RANGE_LAYOUTS.findIndex(
-        (layout) => layout.id === scenarioVariant?.id
-      )
+      new THREE.BoxGeometry(0.12, 0.42, 0.12),
+      metalMat,
+      new THREE.Vector3(-6.1, 2.76, z)
     );
-    const outdoorGround = new THREE.Mesh(
-      new THREE.PlaneGeometry(44, 92),
-      forestMat
-    );
-    outdoorGround.rotation.x = -Math.PI / 2;
-    outdoorGround.position.set(0, 0.011, -28);
-    outdoorGround.receiveShadow = true;
-    scene.add(outdoorGround);
-
-    const laneWidth = 2.4 + variantIndex * 0.12;
-    for (let lane = 0; lane < LANE_COUNT; lane += 1) {
-      const x = LANE_X[lane];
-      addBox(
-        scene,
-        new THREE.BoxGeometry(laneWidth, 0.055, 58),
-        asphaltMat,
-        new THREE.Vector3(x, 0.04, -22.5)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(laneWidth * 0.94, 0.08, 0.2),
-        metalMat,
-        new THREE.Vector3(x, 0.08, -8 - variantIndex * 2.5)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(laneWidth * 0.94, 0.08, 0.2),
-        metalMat,
-        new THREE.Vector3(x, 0.08, -19 - variantIndex * 1.5)
-      );
-    }
-
-    const backstopZ = rangeConfig.targetZ - 7.9;
     addBox(
       scene,
-      new THREE.BoxGeometry(17.8, 4.6, 2.25),
-      forestMat,
-      new THREE.Vector3(0, 2.0, backstopZ),
-      new THREE.Vector3(1, 1, 1),
-      new THREE.Euler(-0.22, 0, 0)
-    ).name = `${scenarioVariant?.label ?? 'Outdoor'} earth backstop`;
-    [-9.6, 9.6].forEach((x, side) => {
-      addBox(
-        scene,
-        new THREE.BoxGeometry(2.2, 3.1, 48),
-        forestMat,
-        new THREE.Vector3(x, 1.36, -24),
-        new THREE.Vector3(1, 1, 1),
-        new THREE.Euler(0, 0, side === 0 ? 0.08 : -0.08)
-      );
-    });
-
-    const roofZ = 1.35 - variantIndex * 0.15;
-    addBox(
-      scene,
-      new THREE.BoxGeometry(15.8, 0.18, 2.25),
-      tableMat,
-      new THREE.Vector3(0, 3.0, roofZ)
-    ).name = `${scenarioVariant?.label ?? 'Outdoor'} covered firing line`;
-    [-6.8, -2.3, 2.3, 6.8].forEach((x) => {
-      addBox(
-        scene,
-        new THREE.CylinderGeometry(0.09, 0.11, 2.9, 10),
-        tableMat,
-        new THREE.Vector3(x, 1.45, roofZ)
-      );
-    });
-
-    for (let i = 0; i < 10; i += 1) {
-      const side = i % 2 === 0 ? -1 : 1;
-      const x = side * (6.9 + ((i + variantIndex) % 3) * 1.15);
-      const z = -5.5 - i * 5.0;
-      addBox(
-        scene,
-        new THREE.CylinderGeometry(0.16, 0.24, 1.6 + (i % 3) * 0.35, 12),
-        tableMat,
-        new THREE.Vector3(x, 0.8, z)
-      );
-      addBox(
-        scene,
-        new THREE.ConeGeometry(1.0 + (i % 2) * 0.32, 2.5 + (i % 3) * 0.45, 10),
-        laneMat,
-        new THREE.Vector3(x, 2.75, z)
-      );
-    }
-
-    for (let i = 0; i < 8; i += 1) {
-      addBox(
-        scene,
-        new THREE.BoxGeometry(1.22, 0.86, 0.42),
-        i % 2 ? tableMat : metalMat,
-        new THREE.Vector3(
-          -6.6 + i * 1.88,
-          0.43,
-          rangeConfig.targetZ + 4.3 + ((i + variantIndex) % 3) * 0.72
-        ),
-        new THREE.Vector3(1, 1, 1),
-        new THREE.Euler(0, i * 0.18, 0)
-      );
-    }
-
-    for (let i = 0; i < 5; i += 1) {
-      const marker = createLabelSprite(`${25 + i * 25}m`);
-      marker.position.set(-7.2, 0.72, -7 - i * 8.6);
-      marker.scale.set(0.72, 0.3, 1);
-      scene.add(marker);
-    }
-    return;
-  }
-
-  if (sceneType === 'moving') {
-    const asphaltStrip = new THREE.Mesh(
-      new THREE.PlaneGeometry(15.8, 62),
-      asphaltMat
+      new THREE.BoxGeometry(0.12, 0.42, 0.12),
+      metalMat,
+      new THREE.Vector3(6.1, 2.76, z)
     );
-    asphaltStrip.rotation.x = -Math.PI / 2;
-    asphaltStrip.position.set(0, 0.016, -18.5);
-    asphaltStrip.receiveShadow = true;
-    scene.add(asphaltStrip);
-
-    for (let i = 0; i < 5; i += 1) {
-      const z = -8 - i * 5.4;
-      addBox(
-        scene,
-        new THREE.BoxGeometry(13.4, 0.12, 0.12),
-        metalMat,
-        new THREE.Vector3(0, 2.96, z)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(0.12, 0.42, 0.12),
-        metalMat,
-        new THREE.Vector3(-6.1, 2.76, z)
-      );
-      addBox(
-        scene,
-        new THREE.BoxGeometry(0.12, 0.42, 0.12),
-        metalMat,
-        new THREE.Vector3(6.1, 2.76, z)
-      );
-    }
   }
 }
 
@@ -2993,10 +2667,6 @@ export default function ShootingRange() {
     let raf = 0;
     let pickInterval: number | null = null;
     const rangeConfig = RANGE_DISTANCE_CONFIG[queryConfig.distance];
-    const scenarioVariant = selectScenarioVariant(
-      queryConfig.distance,
-      queryConfig.scenarioSeed
-    );
     const activeTargetZ = rangeConfig.targetZ;
 
     ammoTemplatesRef.current = createFallbackAmmoTemplates();
@@ -3006,7 +2676,7 @@ export default function ShootingRange() {
     scene.fog = new THREE.Fog(
       '#111827',
       18,
-      rangeConfig.scene === 'nature' ? 118 : 86
+      86
     );
 
     const camera = new THREE.PerspectiveCamera(
@@ -3039,6 +2709,7 @@ export default function ShootingRange() {
     renderer.toneMappingExposure = 1.26;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    configureGltfTextureAdapters(renderer);
 
     mount.innerHTML = '';
     mount.appendChild(renderer.domElement);
@@ -3112,20 +2783,6 @@ export default function ShootingRange() {
       '#48515a',
       1
     );
-    const forestMat = makePbrMaterial(
-      textureLoader,
-      TEXTURES.forest,
-      [8, 18],
-      '#36533b',
-      0.01
-    );
-    const plasterMat = makePbrMaterial(
-      textureLoader,
-      TEXTURES.plaster,
-      [5, 3],
-      '#b7b0a4',
-      0.01
-    );
     const asphaltMat = makePbrMaterial(
       textureLoader,
       TEXTURES.asphalt,
@@ -3136,27 +2793,20 @@ export default function ShootingRange() {
 
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 68), floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.z = rangeConfig.scene === 'nature' ? -20 : -18;
+    floor.position.z = -18;
     floor.receiveShadow = true;
-    floor.visible = rangeConfig.scene !== 'nature';
     scene.add(floor);
 
     const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.25,
-        4.2,
-        rangeConfig.scene === 'nature' ? 22 : 62
-      ),
+      new THREE.BoxGeometry(0.25, 4.2, 62),
       wallMat
     );
-    leftWall.position.set(-7.6, 2.1, rangeConfig.scene === 'nature' ? -3 : -18);
+    leftWall.position.set(-7.6, 2.1, -18);
     leftWall.receiveShadow = true;
-    leftWall.visible = rangeConfig.scene !== 'nature';
     scene.add(leftWall);
 
     const rightWall = leftWall.clone();
     rightWall.position.x = 7.6;
-    rightWall.visible = rangeConfig.scene !== 'nature';
     scene.add(rightWall);
 
     const backWall = new THREE.Mesh(
@@ -3165,14 +2815,12 @@ export default function ShootingRange() {
     );
     backWall.position.set(0, 3.05, activeTargetZ - 10.4);
     backWall.receiveShadow = true;
-    backWall.visible = rangeConfig.scene !== 'nature';
     scene.add(backWall);
 
     const roof = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.2, 62), wallMat);
     roof.position.set(0, 5.2, -18);
     roof.receiveShadow = true;
     roof.castShadow = true;
-    roof.visible = rangeConfig.scene !== 'nature';
     scene.add(roof);
 
     const darkBackstop = new THREE.Mesh(
@@ -3188,14 +2836,8 @@ export default function ShootingRange() {
     addScenarioTrainingGeometry(
       scene,
       rangeConfig,
-      wallMat,
-      laneMat,
-      tableMat,
       metalMat,
-      forestMat,
-      plasterMat,
-      asphaltMat,
-      scenarioVariant
+      asphaltMat
     );
 
     const propFallbackMat = new THREE.MeshStandardMaterial({
@@ -3220,73 +2862,6 @@ export default function ShootingRange() {
       );
     });
 
-    if (rangeConfig.scene === 'nature') {
-      [-8.2, 8.2, -9.6, 9.6].forEach((x, index) => {
-        addPolyHavenProp(
-          scene,
-          renderer,
-          POLYHAVEN_ASSETS.firTree01,
-          new THREE.Vector3(x, 0, -10 - index * 8.2),
-          6.2 + (index % 2) * 1.2,
-          index * 0.45,
-          undefined,
-          () => disposed
-        );
-      });
-      [-4.5, 0, 4.5].forEach((x, index) => {
-        addPolyHavenProp(
-          scene,
-          renderer,
-          POLYHAVEN_ASSETS.treeStump01,
-          new THREE.Vector3(x, 0, rangeConfig.targetZ + 8 + index * 1.1),
-          1.35,
-          index * 0.7,
-          undefined,
-          () => disposed
-        );
-      });
-      [-9.8, 9.8, -7.4, 7.4].forEach((x, index) => {
-        addPolyHavenProp(
-          scene,
-          renderer,
-          index % 2 ? POLYHAVEN_ASSETS.pineTree01 : POLYHAVEN_ASSETS.firSapling,
-          new THREE.Vector3(x, 0, -4 - index * 10.4),
-          index % 2 ? 7.4 : 2.3,
-          index * 0.62,
-          undefined,
-          () => disposed
-        );
-      });
-      [-6.4, 6.4].forEach((x, index) => {
-        addPolyHavenProp(
-          scene,
-          renderer,
-          POLYHAVEN_ASSETS.woodenBarrels01,
-          new THREE.Vector3(x, 0, rangeConfig.targetZ + 5.6 + index * 0.8),
-          1.4,
-          index * 0.35,
-          undefined,
-          () => disposed
-        );
-      });
-    }
-
-    if (rangeConfig.scene === 'swat') {
-      [-5.45, 5.35, -3.35, 3.1].forEach((x, index) => {
-        addPolyHavenProp(
-          scene,
-          renderer,
-          index % 2
-            ? POLYHAVEN_ASSETS.barrel02
-            : POLYHAVEN_ASSETS.woodenBarrels01,
-          new THREE.Vector3(x, 0, -10.4 - index * 5.6),
-          1.05,
-          index * 0.48,
-          undefined,
-          () => disposed
-        );
-      });
-    }
 
     const securityCameraAnchors = [
       {
@@ -3819,11 +3394,7 @@ export default function ShootingRange() {
     function startShootPhase() {
       setPhaseSafe('shoot');
       setViewMode('range');
-      setStatus(
-        scenarioVariant
-          ? `${scenarioVariant.label}: ${scenarioVariant.briefing}`
-          : 'Shoot phase started'
-      );
+      setStatus('Shoot phase started');
 
       const shots = Array.from({ length: LANE_COUNT }, (_, laneIndex) =>
         lanesRef.current[laneIndex] ? SHOTS_PER_PLAYER : 0
@@ -4396,34 +3967,10 @@ export default function ShootingRange() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    function updatePlayerMovement(dt: number) {
-      if (rangeConfig.scene !== 'swat' || phaseRef.current !== 'shoot') return;
-      const lane = lanesRef.current[userLaneRef.current];
-      if (!lane) return;
-      const input = movementRef.current;
-      const length = Math.min(1, input.length());
-      if (length > 0.001) {
-        const direction = input.clone().multiplyScalar(1 / length);
-        const speed = 3.45;
-        const walk = playerWalkPosRef.current;
-        walk.x = THREE.MathUtils.clamp(
-          walk.x + direction.x * speed * dt,
-          -5.9,
-          5.9
-        );
-        walk.z = THREE.MathUtils.clamp(
-          walk.z - direction.y * speed * dt,
-          rangeConfig.targetZ + 5.8,
-          3.25
-        );
-      }
-      lane.root.position.lerp(playerWalkPosRef.current, 0.32);
-      lane.root.rotation.y = THREE.MathUtils.lerp(
-        lane.root.rotation.y,
-        movementRef.current.x * -0.18,
-        0.12
-      );
+    function updatePlayerMovement(_dt: number) {
+      // FPS walk controls are disabled because only lane-based ranges remain.
     }
+
 
     function updateBullets(dt: number) {
       for (let i = bulletsRef.current.length - 1; i >= 0; i -= 1) {
@@ -4778,38 +4325,22 @@ export default function ShootingRange() {
         return;
       }
 
-      if (rangeConfig.scene === 'swat') {
-        const walk = playerWalkPosRef.current;
-        tempPos.set(
-          walk.x + OVER_SHOULDER_OFFSET.x * 0.58 + aimRef.current.x * 0.18,
-          OVER_SHOULDER_OFFSET.y +
-            aimRef.current.y * 0.1 +
-            recoilRef.current * 0.04,
-          walk.z + 1.55
-        );
-        tempLook.set(
-          walk.x + aimRef.current.x * 1.18,
-          OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.9,
-          Math.max(rangeConfig.targetZ + 1.8, walk.z - 8.8)
-        );
-      } else {
-        tempPos.set(
-          LANE_X[userLaneRef.current] +
-            OVER_SHOULDER_OFFSET.x +
-            aimRef.current.x * 0.24,
-          OVER_SHOULDER_OFFSET.y +
-            aimRef.current.y * 0.12 +
-            recoilRef.current * 0.04,
-          OVER_SHOULDER_OFFSET.z
-        );
-        tempLook.set(
-          LANE_X[userLaneRef.current] +
-            OVER_SHOULDER_LOOK.x +
-            aimRef.current.x * 1.35,
-          OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.95,
-          OVER_SHOULDER_LOOK.z
-        );
-      }
+      tempPos.set(
+        LANE_X[userLaneRef.current] +
+          OVER_SHOULDER_OFFSET.x +
+          aimRef.current.x * 0.24,
+        OVER_SHOULDER_OFFSET.y +
+          aimRef.current.y * 0.12 +
+          recoilRef.current * 0.04,
+        OVER_SHOULDER_OFFSET.z
+      );
+      tempLook.set(
+        LANE_X[userLaneRef.current] +
+          OVER_SHOULDER_LOOK.x +
+          aimRef.current.x * 1.35,
+        OVER_SHOULDER_LOOK.y + aimRef.current.y * 0.95,
+        OVER_SHOULDER_LOOK.z
+      );
 
       camera.position.lerp(tempPos, 0.09);
       camera.lookAt(tempLook);
@@ -4949,10 +4480,7 @@ export default function ShootingRange() {
         .map((tw) => tw.weaponIndex)
     : WEAPONS.map((_, index) => index);
 
-  const fpsJoystickEnabled =
-    queryConfig.distance === 'swat' &&
-    phase === 'shoot' &&
-    viewMode === 'range';
+  const fpsJoystickEnabled = false;
 
   function updateJoystickFromPointer(
     event: React.PointerEvent<HTMLDivElement>
@@ -5021,7 +4549,7 @@ export default function ShootingRange() {
                 {phase === 'pick'
                   ? `Pick a weapon from your Lane ${userLane + 1} table · ${pickTimer}s`
                   : phase === 'shoot'
-                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} · ${selectScenarioVariant(queryConfig.distance, queryConfig.scenarioSeed)?.label ?? 'red dot precision'}`
+                    ? `Lane ${userLane + 1} is yours · ${queryConfig.playerCount} players · ${RANGE_DISTANCE_CONFIG[queryConfig.distance].label} · red dot precision`
                     : phase === 'results'
                       ? winnerText
                       : 'Loading range...'}
@@ -5087,20 +4615,6 @@ export default function ShootingRange() {
             <span>
               Distance: {RANGE_DISTANCE_CONFIG[queryConfig.distance].label}
             </span>
-            {selectScenarioVariant(
-              queryConfig.distance,
-              queryConfig.scenarioSeed
-            ) && (
-              <span>
-                Scenario:{' '}
-                {
-                  selectScenarioVariant(
-                    queryConfig.distance,
-                    queryConfig.scenarioSeed
-                  )?.label
-                }
-              </span>
-            )}
             <span>
               Ammo: {ammo}/{selectedStats.mag}
             </span>
@@ -5247,7 +4761,7 @@ export default function ShootingRange() {
               textShadow: '0 2px 8px rgba(0,0,0,.65)'
             }}
           >
-            SWAT FPS MOVE · WASD
+            FPS MOVE · WASD
           </div>
         </div>
       )}
