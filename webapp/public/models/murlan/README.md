@@ -2,6 +2,8 @@
 
 Downloaded Sketchfab glTF folders are intentionally not committed to this repository because they contain binary buffers/textures.
 
+This file and the matching Murlan character/runtime loader changes are the replacement change set for the reverted Sketchfab Murlan PR. Apply this branch without also applying the reverted PR commits, otherwise the same files will conflict.
+
 The Murlan Royale inventory references these runtime-only Sketchfab glTF entry points:
 
 | Character | Expected local file | Sketchfab model |
