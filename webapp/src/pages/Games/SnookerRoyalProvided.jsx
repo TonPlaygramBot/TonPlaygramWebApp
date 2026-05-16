@@ -67,7 +67,7 @@ const POOL_ROYALE_BOTTOM_HUD_RIGHT_INSET_PX = SPIN_CONTROL_DIAMETER_PX + 150;
 const POOL_ROYALE_BOTTOM_OFFSET_PX = 12;
 const POOL_ROYALE_STANDING_VIEW_FOV = 66;
 const POOL_ROYALE_RAIL_OVERHEAD_PHI = Math.PI / 2 - 0.26 + 0.18;
-const POOL_ROYALE_STANDING_VIEW_PHI = 0.92;
+const POOL_ROYALE_STANDING_VIEW_PHI = 0.82;
 const POOL_ROYALE_STANDING_VIEW_MARGIN = 0.001;
 const POOL_ROYALE_STANDING_VIEW_DISTANCE_SCALE = 0.36;
 const POOL_ROYALE_CUE_VIEW_RADIUS_RATIO = 0.0088;
@@ -93,7 +93,7 @@ const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
 const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
-const BALL_VISUAL_LIFT = 0.32;
+const BALL_VISUAL_LIFT = 0; // balls roll directly on the cloth: center stays exactly one radius above the baize
 const OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M = 1.778;
 const OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M = 3.569;
 const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
@@ -102,7 +102,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 0.972; // slightly shorter cabinet while the ball height stays unchanged
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 0.9; // shorter cabinet/rail presentation while preserving the official playfield mapping
 const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -114,6 +114,12 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
+const SNOOKER_AIM_MAX_DISTANCE = SNOOKER_OFFICIAL_PLAYFIELD_L * 1.12;
+const SNOOKER_AIM_SECONDARY_DISTANCE = SNOOKER_OFFICIAL_PLAYFIELD_L * 0.34;
+const SNOOKER_AIM_RAIL_BOUNCE_DISTANCE = SNOOKER_OFFICIAL_PLAYFIELD_W * 0.3;
+const SNOOKER_REPLAY_DURATION_MS = 5200;
+const SNOOKER_REPLAY_SAMPLE_INTERVAL_MS = 1000 / 60;
+const SNOOKER_REPLAY_MIN_SPEED2 = 0.018 * WORLD_SCALE * WORLD_SCALE;
 const SNOOKER_SHOT_POWER_BOOST = 1.3; // Pool Royale-matched strike with ~30% extra headroom for snooker
 const SNOOKER_CHAMPION_WOOD_TEXTURE_DEFAULT = Object.freeze({
   hue: 24,
@@ -172,7 +178,7 @@ const CFG = {
   tableTopY: 0.84 * WORLD_SCALE,
   tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
   tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
-  tableVisualMultiplier: 1.18 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
+  tableVisualMultiplier: 1.08 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
   topThickness: 0.09 * WORLD_SCALE,
   railW: 0.15 * WORLD_SCALE,
   railH: 0.08 * WORLD_SCALE,
@@ -611,9 +617,9 @@ function resolveSnookerChampionGlbUpperBounds(model, fullBounds) {
 }
 
 function addOfficialSnookerMarkings(tableGroup) {
-  const markY = CFG.ballR + CFG.topThickness * 0.015;
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.72, depthWrite: false });
-  const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.76, depthWrite: false });
+  const markY = CFG.ballR + CFG.topThickness * 0.055;
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.84, depthTest: false, depthWrite: false });
+  const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.86, depthTest: false, depthWrite: false });
   const spots = getOfficialSnookerSpots(markY);
   const addLine = (points, name) => {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -657,7 +663,9 @@ function addTable(scene, renderer, options = {}) {
   const textureOption = resolveSnookerChampionTextureOption(options.textureId);
   const cloth = new THREE.MeshStandardMaterial({ color: clothColor, map: createBaizeTexture(clothColor, clothOption), roughness: 0.96, metalness: 0, envMapIntensity: 0.16 });
   const proceduralTableMeshes = [];
-  const playfield = addBox(tableGroup, [CFG.tableW * CFG.tableVisualMultiplier + 0.1 * CFG.scale, CFG.topThickness, CFG.tableL * CFG.tableVisualMultiplier + 0.1 * CFG.scale], [0, -CFG.topThickness / 2 + CFG.ballR, 0], cloth);
+  const playfield = addBox(tableGroup, [CFG.tableW + 0.035 * CFG.scale, CFG.topThickness, CFG.tableL + 0.035 * CFG.scale], [0, -CFG.topThickness / 2 + CFG.ballR, 0], cloth);
+  playfield.receiveShadow = true;
+  playfield.castShadow = false;
   playfield.name = 'snooker-champion-procedural-cloth';
   proceduralTableMeshes.push(playfield);
   const wood = applySnookerChampionWoodMaterial(createMaterial(textureOption.rail, 0.56), textureOption, 'rail');
@@ -665,8 +673,8 @@ function addTable(scene, renderer, options = {}) {
   const cushion = createMaterial(clothColor, 0.9, 0);
   const railY = CFG.railH / 2 - CFG.topThickness + CFG.ballR;
   const cushionY = 0.11 * CFG.scale + CFG.ballR;
-  const w = CFG.tableW * CFG.tableVisualMultiplier;
-  const l = CFG.tableL * CFG.tableVisualMultiplier;
+  const w = CFG.tableW + CFG.railW * 1.55;
+  const l = CFG.tableL + CFG.railW * 1.55;
   [
     [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [-(w / 2 + CFG.railW / 2 - 0.03 * CFG.scale), railY, 0], wood],
     [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [w / 2 + CFG.railW / 2 - 0.03 * CFG.scale, railY, 0], wood],
@@ -761,10 +769,18 @@ function addTable(scene, renderer, options = {}) {
     model.traverse((child) => {
       if (!child.isMesh || !child.material) return;
       child.renderOrder = 1;
+      child.castShadow = true;
+      child.receiveShadow = true;
       const matName = `${child.material.name || child.name || ''}`.toLowerCase();
       if (matName.includes('cloth') || matName.includes('felt') || matName.includes('slate') || matName.includes('bed')) {
         const materials = Array.isArray(child.material) ? child.material : [child.material];
-        const clothMaterials = materials.map((material) => applyClothMaterialMapping(material, clothOption, clothColor));
+        const clothMaterials = materials.map((material) => {
+          const mapped = applyClothMaterialMapping(material, clothOption, clothColor);
+          mapped.polygonOffset = true;
+          mapped.polygonOffsetFactor = 1;
+          mapped.polygonOffsetUnits = 1;
+          return mapped;
+        });
         child.material = Array.isArray(child.material) ? clothMaterials : clothMaterials[0] ?? child.material;
       } else if (matName.includes('cushion')) {
         child.material = applyClothMaterialMapping(child.material, clothOption, clothColor);
@@ -778,7 +794,13 @@ function addTable(scene, renderer, options = {}) {
       }
     });
     tableGroup.add(model);
-    proceduralTableMeshes.forEach((mesh) => { mesh.visible = false; });
+    proceduralTableMeshes.forEach((mesh) => {
+      mesh.visible = mesh.name === 'snooker-champion-procedural-cloth';
+      if (mesh.visible) {
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+      }
+    });
     if (typeof options.onStatus === 'function') {
       options.onStatus('Snooker Royal arena snooker.glb loaded at the same playfield size and height');
     }
@@ -1137,6 +1159,146 @@ function isInSnookerPocketMouth(ball, axis, sign, pocketPositions = []) {
   return nearPocket;
 }
 
+function solveRayToSnookerCushion(origin, dir, pocketPositions = []) {
+  const candidates = [];
+  const halfW = CFG.tableW / 2 - CFG.ballR;
+  const halfL = CFG.tableL / 2 - CFG.ballR;
+  if (Math.abs(dir.x) > 1e-6) {
+    const railX = dir.x > 0 ? halfW : -halfW;
+    const t = (railX - origin.x) / dir.x;
+    const z = origin.z + dir.z * t;
+    if (t > 0 && z >= -halfL && z <= halfL) candidates.push({ t, point: new THREE.Vector3(railX, origin.y, z), normal: new THREE.Vector3(dir.x > 0 ? -1 : 1, 0, 0), axis: 'x', sign: Math.sign(dir.x) });
+  }
+  if (Math.abs(dir.z) > 1e-6) {
+    const railZ = dir.z > 0 ? halfL : -halfL;
+    const t = (railZ - origin.z) / dir.z;
+    const x = origin.x + dir.x * t;
+    if (t > 0 && x >= -halfW && x <= halfW) candidates.push({ t, point: new THREE.Vector3(x, origin.y, railZ), normal: new THREE.Vector3(0, 0, dir.z > 0 ? -1 : 1), axis: 'z', sign: Math.sign(dir.z) });
+  }
+  const hit = candidates.sort((a, b) => a.t - b.t)[0] ?? null;
+  if (!hit) return null;
+  const probe = { pos: hit.point.clone() };
+  if (isInSnookerPocketMouth(probe, hit.axis, hit.sign, pocketPositions)) return null;
+  return hit;
+}
+
+function solveCueObjectBallPreview(cueBall, balls, aimForward, pocketPositions = []) {
+  const origin = cueBall.pos.clone().setY(CFG.ballR * 2.08);
+  const dir = aimForward.clone().setY(0).normalize();
+  const railHit = solveRayToSnookerCushion(origin, dir, pocketPositions);
+  const maxT = Math.min(SNOOKER_AIM_MAX_DISTANCE, railHit?.t ?? SNOOKER_AIM_MAX_DISTANCE);
+  let best = null;
+  for (const ball of balls) {
+    if (!ball || ball === cueBall || ball.potted) continue;
+    const rel = ball.pos.clone().sub(origin).setY(0);
+    const along = rel.dot(dir);
+    if (along <= CFG.ballR * 0.5 || along > maxT) continue;
+    const closest = origin.clone().addScaledVector(dir, along);
+    const lateral2 = closest.distanceToSquared(ball.pos.clone().setY(origin.y));
+    const hitRadius = CFG.ballR * 2.04;
+    if (lateral2 > hitRadius * hitRadius) continue;
+    const offset = Math.sqrt(Math.max(0, hitRadius * hitRadius - lateral2));
+    const contactT = Math.max(CFG.ballR, along - offset);
+    if (!best || contactT < best.t) {
+      const contact = origin.clone().addScaledVector(dir, contactT);
+      const objectDir = ball.pos.clone().sub(contact).setY(0);
+      if (objectDir.lengthSq() < 1e-8) objectDir.copy(dir);
+      objectDir.normalize();
+      best = { ball, t: contactT, point: contact, objectDir };
+    }
+  }
+  return { origin, dir, railHit, objectHit: best };
+}
+
+function updateSnookerAimPreview(cueLine, aimLine, targetLine, railPreviewLine, cueBall, balls, aimForward, activeCueBack, cueBallWorld, pocketPositions = []) {
+  const preview = solveCueObjectBallPreview(cueBall, balls, aimForward, pocketPositions);
+  const lineY = CFG.tableTopY + CFG.ballR * 2.18;
+  const cueStart = activeCueBack.clone().lerp(cueBallWorld, 0.34).setY(lineY);
+  const cueEnd = cueBallWorld.clone().setY(lineY);
+  setLinePoints(cueLine, cueStart, cueEnd);
+  const localEnd = preview.objectHit?.point ?? preview.railHit?.point ?? preview.origin.clone().addScaledVector(preview.dir, SNOOKER_AIM_MAX_DISTANCE);
+  const mainEnd = localEnd.clone().add(new THREE.Vector3(0, CFG.tableTopY, 0)).setY(lineY);
+  setLinePoints(aimLine, cueEnd, mainEnd);
+  if (preview.objectHit) {
+    targetLine.visible = true;
+    const objectStart = preview.objectHit.ball.pos.clone().add(new THREE.Vector3(0, CFG.tableTopY, 0)).setY(lineY);
+    const objectEnd = objectStart.clone().add(preview.objectHit.objectDir.clone().multiplyScalar(SNOOKER_AIM_SECONDARY_DISTANCE)).setY(lineY);
+    setLinePoints(targetLine, objectStart, objectEnd);
+  } else {
+    targetLine.visible = false;
+    setLinePoints(targetLine, cueEnd, cueEnd);
+  }
+  if (preview.railHit && !preview.objectHit) {
+    railPreviewLine.visible = true;
+    const bounceStart = preview.railHit.point.clone().add(new THREE.Vector3(0, CFG.tableTopY, 0)).setY(lineY);
+    const reflectDir = preview.dir.clone().reflect(preview.railHit.normal).normalize();
+    setLinePoints(railPreviewLine, bounceStart, bounceStart.clone().addScaledVector(reflectDir, SNOOKER_AIM_RAIL_BOUNCE_DISTANCE));
+  } else {
+    railPreviewLine.visible = false;
+    setLinePoints(railPreviewLine, cueEnd, cueEnd);
+  }
+}
+
+function createSnookerReplayController() {
+  return {
+    frames: [],
+    lastSampleAt: 0,
+    replaying: false,
+    replayStartedAt: 0,
+    skipRequested: false,
+    allSkipped: false,
+    shotStarted: false,
+    beginShot(now, balls, cameraMode, broadcastMode) {
+      this.frames = [];
+      this.lastSampleAt = 0;
+      this.shotStarted = true;
+      this.record(now, balls, cameraMode, broadcastMode);
+    },
+    record(now, balls, cameraMode, broadcastMode) {
+      if (!this.shotStarted || this.replaying || this.allSkipped) return;
+      if (now - this.lastSampleAt < SNOOKER_REPLAY_SAMPLE_INTERVAL_MS) return;
+      this.lastSampleAt = now;
+      this.frames.push({
+        t: now,
+        cameraMode,
+        broadcastMode,
+        balls: balls.map((ball) => ({ pos: ball.pos.clone(), visible: !ball.potted && ball.mesh.visible }))
+      });
+      if (this.frames.length > 360) this.frames.shift();
+    },
+    maybeStart(now, balls) {
+      if (!this.shotStarted || this.replaying || this.allSkipped) return false;
+      const moving = balls.some((ball) => !ball.potted && ball.vel.lengthSq() > SNOOKER_REPLAY_MIN_SPEED2);
+      if (moving || this.frames.length < 16) return false;
+      this.shotStarted = false;
+      this.replaying = true;
+      this.replayStartedAt = now;
+      this.skipRequested = false;
+      return true;
+    },
+    apply(now, balls) {
+      if (!this.replaying) return false;
+      if (this.skipRequested || this.frames.length < 2) {
+        this.replaying = false;
+        return false;
+      }
+      const duration = Math.min(SNOOKER_REPLAY_DURATION_MS, Math.max(1200, this.frames[this.frames.length - 1].t - this.frames[0].t));
+      const elapsed = now - this.replayStartedAt;
+      const sourceT = this.frames[0].t + (elapsed % duration);
+      let frame = this.frames[0];
+      for (let i = 1; i < this.frames.length; i += 1) {
+        if (this.frames[i].t >= sourceT) { frame = this.frames[i]; break; }
+      }
+      frame.balls.forEach((snapshot, index) => {
+        if (!balls[index]) return;
+        balls[index].mesh.visible = snapshot.visible;
+        balls[index].mesh.position.copy(snapshot.pos).setY(snapshot.pos.y + CFG.ballR * BALL_VISUAL_LIFT);
+      });
+      return true;
+    }
+  };
+}
+
 function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = null) {
   const halfW = CFG.tableW / 2;
   const halfL = CFG.tableL / 2;
@@ -1222,7 +1384,7 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   const clampedPower = clamp01(activePower);
   const target = cueBallWorld.clone()
     .addScaledVector(aimForward, CFG.tableL * 0.14)
-    .setY(CFG.tableTopY + CFG.ballR * 1.05);
+    .setY(CFG.tableTopY + CFG.ballR * 1.35);
   const playerRadiusBase = Math.max(CFG.tableW, CFG.tableL);
   const standingRadius = computeSnookerTopViewDistance(aspect, POOL_ROYALE_STANDING_VIEW_FOV, POOL_ROYALE_STANDING_VIEW_MARGIN);
   const cueRadius = Math.max(
@@ -1232,7 +1394,7 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   );
   const radius = clamp(lerp(standingRadius, cueRadius, 0.32 + clampedPower * 0.68), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
   const cuePhi = THREE.MathUtils.clamp(
-    SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15),
+    SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.75 + portraitT * 0.18),
     SNOOKER_CUE_CAMERA_MIN_PHI,
     SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
   );
@@ -1243,7 +1405,7 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   );
   const horizontal = Math.sin(phi) * radius;
   const vertical = Math.cos(phi) * radius;
-  const minY = CFG.tableTopY + CFG.ballR + SNOOKER_CUE_SURFACE_MARGIN;
+  const minY = CFG.tableTopY + CFG.ballR * 1.75 + SNOOKER_CUE_SURFACE_MARGIN;
   const pos = cueBallWorld.clone()
     .addScaledVector(aimForward, -horizontal)
     .setY(Math.max(minY, target.y + vertical));
@@ -1315,6 +1477,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [score, setScore] = useState(0);
   const [target, setTarget] = useState('red');
   const [foul, setFoul] = useState('');
+  const [replayActive, setReplayActive] = useState(false);
+  const [skipAllReplays, setSkipAllReplays] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -1335,6 +1499,9 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const cameraModeRef = useRef(cameraMode);
   const broadcastSystemRef = useRef(broadcastSystemId);
   const railOverheadSideRef = useRef('back');
+  const skipAllReplaysRef = useRef(skipAllReplays);
+  const replayActiveRef = useRef(replayActive);
+  const replayControllerRef = useRef(null);
   const rulesRef = useRef({ score: 0, target: 'red', foul: '' });
   const activeFrameRate = FRAME_RATE_OPTIONS.find((item) => item.id === frameRateId) ?? FRAME_RATE_OPTIONS[1];
   const activeHdri = POOL_ROYALE_HDRI_VARIANTS.find((item) => item.id === environmentHdriId) ?? POOL_ROYALE_HDRI_VARIANTS[0];
@@ -1480,6 +1647,15 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     const sun = new THREE.DirectionalLight(0xffffff, 0.22 + ((activeHdri?.backgroundIntensity ?? 1) * 0.08));
     sun.position.set(3.5 * CFG.scale, 7 * CFG.scale, 5 * CFG.scale);
     sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.1 * CFG.scale;
+    sun.shadow.camera.far = 18 * CFG.scale;
+    sun.shadow.camera.left = -CFG.tableW * 1.1;
+    sun.shadow.camera.right = CFG.tableW * 1.1;
+    sun.shadow.camera.top = CFG.tableL * 0.72;
+    sun.shadow.camera.bottom = -CFG.tableL * 0.72;
+    sun.shadow.bias = -0.00012;
+    sun.shadow.normalBias = 0.012;
     scene.add(sun);
     let activeSkyboxMap = null;
     let activeEnvMap = null;
@@ -1540,8 +1716,19 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     const human = addHuman(scene, renderer, setHumanStatus);
     const cueLine = createLine(0xffd166, 0.95);
     const aimLine = createLine(0xff6b4a, 0.85);
-    scene.add(cueLine, aimLine);
+    const targetLine = createLine(0x68e8ff, 0.82);
+    const railPreviewLine = createLine(0xffffff, 0.38);
+    [cueLine, aimLine, targetLine, railPreviewLine].forEach((line) => { line.renderOrder = 30; line.material.depthTest = false; });
+    scene.add(cueLine, aimLine, targetLine, railPreviewLine);
     const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3();
+    const replayController = createSnookerReplayController();
+    replayController.allSkipped = skipAllReplaysRef.current;
+    replayControllerRef.current = replayController;
+    const setReplayActiveSafe = (next) => {
+      if (replayActiveRef.current === next) return;
+      replayActiveRef.current = next;
+      setReplayActive(next);
+    };
     let strikeT = 0, didHit = false, frameId = 0, last = performance.now(), isAiming = false, lastAimX = 0;
     let lastScore = rulesRef.current.score;
     let lastTarget = rulesRef.current.target;
@@ -1568,6 +1755,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const targetFrameSeconds = 1 / Math.max(activeFrameRate.fps, 30);
       const dt = Math.min(0.033, Math.max(targetFrameSeconds * 0.5, (now - last) / 1000));
       last = now;
+      replayController.allSkipped = skipAllReplaysRef.current;
       const state = shotStateRef.current;
       const activePower = state === 'dragging' ? powerRef.current : shotPowerRef.current;
       const cueBallWorld = cueBall.mesh.getWorldPosition(new THREE.Vector3());
@@ -1597,19 +1785,28 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       else if (state === 'dragging') { strikeT = 0; didHit = false; }
       else {
         strikeT += dt;
-        if (!didHit && strikeNorm > 0.88) { didHit = true; applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current); }
+        if (!didHit && strikeNorm > 0.88) {
+          didHit = true;
+          replayController.beginShot(now, balls, cameraModeRef.current, broadcastSystemRef.current);
+          applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
+        }
         if (strikeT >= CFG.strikeTime + CFG.holdTime) { strikeT = 0; didHit = false; setShotState('idle'); }
       }
       const activeCueBack = state === 'idle' ? idleCue.back : cueBackShoot;
       const activeCueTip = state === 'idle' ? idleCue.tip : cueTipShoot;
       setCuePose(cue, activeCueBack, activeCueTip);
-      updateBalls(balls, dt, tmpB, tmpC, pocketPositions, rulesRef.current);
+      const replaying = replayController.apply(now, balls);
+      setReplayActiveSafe(replayController.replaying);
+      if (!replaying) {
+        updateBalls(balls, dt, tmpB, tmpC, pocketPositions, rulesRef.current);
+        replayController.record(now, balls, cameraModeRef.current, broadcastSystemRef.current);
+        if (replayController.maybeStart(now, balls)) setReplayActiveSafe(true);
+      }
       if (rulesRef.current.score !== lastScore) { lastScore = rulesRef.current.score; setScore(lastScore); }
       if (rulesRef.current.target !== lastTarget) { lastTarget = rulesRef.current.target; setTarget(lastTarget); }
       if (rulesRef.current.foul !== lastFoul) { lastFoul = rulesRef.current.foul; setFoul(lastFoul); }
       updateHumanPose(human, dt, state, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
-      setLinePoints(cueLine, activeCueBack, cueBallWorld);
-      setLinePoints(aimLine, cueBallWorld, cueBallWorld.clone().add(aimForward.clone().multiplyScalar(2.1 * CFG.scale)));
+      updateSnookerAimPreview(cueLine, aimLine, targetLine, railPreviewLine, cueBall, balls, aimForward, activeCueBack, cueBallWorld, pocketPositions);
       updateCamera(camera, cameraModeRef.current, broadcastSystemRef.current, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current });
       renderer.render(scene, camera);
     }
@@ -1633,6 +1830,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       if (scene.environment === activeEnvMap) scene.environment = null;
       activeSkyboxMap?.dispose?.();
       activeEnvMap?.dispose?.();
+      if (replayControllerRef.current === replayController) replayControllerRef.current = null;
       renderer.dispose();
     };
   }, [activeCloth, activeClothColor, activeFrameRate.fps, activeFrameRate.pixelRatioCap, activeHdri, textureId]);
@@ -1646,6 +1844,26 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   };
   const hudButton = 'pointer-events-auto rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
   const optionButtonClass = (active) => `w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${active ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]' : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'}`;
+  const skipReplay = () => {
+    if (replayControllerRef.current) replayControllerRef.current.skipRequested = true;
+    replayActiveRef.current = false;
+    setReplayActive(false);
+  };
+  const toggleSkipAllReplays = () => {
+    setSkipAllReplays((prev) => {
+      const next = !prev;
+      skipAllReplaysRef.current = next;
+      if (replayControllerRef.current) {
+        replayControllerRef.current.allSkipped = next;
+        if (next) replayControllerRef.current.skipRequested = true;
+      }
+      if (next) {
+        replayActiveRef.current = false;
+        setReplayActive(false);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-[#0b0b0b] text-white">
@@ -1811,10 +2029,30 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                     ))}
                   </div>
                 </div>
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Snooker Replay</h3>
+                  <div className="mt-2 grid gap-2">
+                    <button type="button" onClick={skipReplay} disabled={!replayActive} className={`${optionButtonClass(replayActive)} ${!replayActive ? 'opacity-55' : ''}`}>
+                      <span className="font-bold">Skip current replay</span>
+                      <span className="mt-1 block opacity-70">Uses the current gameplay camera footage and exits the broadcast replay immediately.</span>
+                    </button>
+                    <button type="button" onClick={toggleSkipAllReplays} aria-pressed={skipAllReplays} className={optionButtonClass(skipAllReplays)}>
+                      <span className="font-bold">{skipAllReplays ? 'Replay skip-all enabled' : 'Skip all replays'}</span>
+                      <span className="mt-1 block opacity-70">Matches Pool Royale menu behavior for bypassing every automatic replay.</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}
         </div>
+
+        {replayActive ? (
+          <div className="pointer-events-auto absolute right-4 top-4 z-[60] flex items-center gap-2 rounded-full border border-emerald-300/45 bg-black/72 px-3 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-50 shadow-2xl backdrop-blur">
+            <span className="text-emerald-200">Replay</span>
+            <button type="button" onClick={skipReplay} className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white transition hover:bg-white/20" aria-label="Skip current snooker replay">⏭ Skip</button>
+          </div>
+        ) : null}
 
         <div
           className="absolute z-50 flex pointer-events-none justify-center"
