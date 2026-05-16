@@ -117,7 +117,7 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-const SNOOKER_SHOT_POWER_BOOST = 1.3; // Pool Royale-matched strike with ~30% extra headroom for snooker
+const SNOOKER_SHOT_POWER_BOOST = 1.3; // Snooker Royal strike lift: restores the proven snooker power/spin feel
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
@@ -144,7 +144,7 @@ const SNOOKER_CHAMPION_WOOD_TEXTURE_DEFAULT = Object.freeze({
 const SNOOKER_CHAMPION_GLTF_WOOD_PATTERN = /wood|walnut|oak|mahogany|rosewood|veneer|frame|rail|body|cabinet|leg|side|apron|trim|brown|black|carved|table/i;
 const SNOOKER_CHAMPION_GLTF_NON_WOOD_PATTERN = /cloth|felt|slate|bed|baize|cushion|rubber|pocket|net|leather|metal|brass|gold|chrome/i;
 const SNOOKER_AIM_LINE_WIDTH = Math.max(1.25, SNOOKER_OFFICIAL_BALL_R * 0.15) * 1.2;
-const SNOOKER_AIM_TICK_HALF_LENGTH = Math.max(0.6, SNOOKER_OFFICIAL_BALL_R * 0.975);
+const SNOOKER_AIM_TICK_HALF_LENGTH = SNOOKER_OFFICIAL_BALL_R; // full target tick spans one actual snooker-ball diameter
 const SNOOKER_REPLAY_MAX_MS = 5200;
 const SNOOKER_REPLAY_SAMPLE_MS = 33;
 const SNOOKER_REPLAY_CAMERA_SEQUENCE = Object.freeze(['cue-follow', 'rail-overhead', 'corner-pocket-left', 'corner-pocket-right']);
@@ -802,7 +802,8 @@ function addTable(scene, renderer, options = {}) {
     enableShadow(model);
     model.updateMatrixWorld(true);
     const targetBounds = resolveSnookerChampionTargetBounds(proceduralTableMeshes);
-    // Fit the loaded original snooker.glb to the official cushion/jaw map rather than the decorative cabinet overhang.
+    // Use the same proven Snooker Royal map: fit the original GLB upper cushion/jaw assembly to the
+    // official snooker cushion rectangle instead of shrinking to the decorative bed-only mesh.
     targetBounds.min.x = -CFG.tableW * CFG.tableVisualMultiplier * 0.5;
     targetBounds.max.x = CFG.tableW * CFG.tableVisualMultiplier * 0.5;
     targetBounds.min.z = -CFG.tableL * CFG.tableVisualMultiplier * 0.5;
@@ -1190,6 +1191,7 @@ function respotColorBall(ball, balls) {
 }
 function updateSnookerRulesAfterPot(ball, balls, rulesState) {
   if (!rulesState || ball.isCue) return;
+  rulesState.shotPotCount = (rulesState.shotPotCount ?? 0) + 1;
   const redsRemaining = balls.some((item) => item.kind === 'red' && !item.potted);
   rulesState.score += ball.value ?? 0;
   if (ball.kind === 'red') {
@@ -1224,6 +1226,28 @@ function isInSnookerPocketMouth(ball, axis, sign, pocketPositions = []) {
     return Math.sign(pocket.z || sign) === sign && Math.abs(ball.pos.x - pocket.x) <= mouth;
   });
   return nearPocket;
+}
+
+function isInsideSnookerPocketThroat(ball, axis, sign, pocketPositions = []) {
+  // Keep the rail open only at the real GLB pocket throat/capture circle. Near-mouth misses
+  // now collide with the cushion/jaw instead of sliding outside the physical table perimeter.
+  if (!isInSnookerPocketMouth(ball, axis, sign, pocketPositions)) return false;
+  return Boolean(findSnookerPocketCapture(ball, pocketPositions));
+}
+
+function clampSnookerAimImpactToPerimeter(point) {
+  return new THREE.Vector2(
+    clamp(point.x, -CFG.tableW / 2 + CFG.ballR, CFG.tableW / 2 - CFG.ballR),
+    clamp(point.y, -CFG.tableL / 2 + CFG.ballR, CFG.tableL / 2 - CFG.ballR)
+  );
+}
+
+function snookerGuideEndFrom(start, dir, distance, y) {
+  const bounded = clampSnookerAimImpactToPerimeter(new THREE.Vector2(
+    start.x + dir.x * distance,
+    start.z + dir.z * distance
+  ));
+  return new THREE.Vector3(bounded.x, y, bounded.y);
 }
 
 function decaySnookerSpin(ball, stepScale) {
@@ -1323,17 +1347,17 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     let railNormal = null;
     const pocket = findSnookerPocketCapture(ball, pocketPositions);
     if (!pocket) {
-      if (ball.pos.x < -halfW + CFG.ballR && !isInSnookerPocketMouth(ball, 'x', -1, pocketPositions)) {
+      if (ball.pos.x < -halfW + CFG.ballR && !isInsideSnookerPocketThroat(ball, 'x', -1, pocketPositions)) {
         ball.pos.x = -halfW + CFG.ballR;
         if (ball.vel.x < 0) railNormal = new THREE.Vector3(1, 0, 0);
-      } else if (ball.pos.x > halfW - CFG.ballR && !isInSnookerPocketMouth(ball, 'x', 1, pocketPositions)) {
+      } else if (ball.pos.x > halfW - CFG.ballR && !isInsideSnookerPocketThroat(ball, 'x', 1, pocketPositions)) {
         ball.pos.x = halfW - CFG.ballR;
         if (ball.vel.x > 0) railNormal = new THREE.Vector3(-1, 0, 0);
       }
-      if (ball.pos.z < -halfL + CFG.ballR && !isInSnookerPocketMouth(ball, 'z', -1, pocketPositions)) {
+      if (ball.pos.z < -halfL + CFG.ballR && !isInsideSnookerPocketThroat(ball, 'z', -1, pocketPositions)) {
         ball.pos.z = -halfL + CFG.ballR;
         if (ball.vel.z < 0) railNormal = new THREE.Vector3(0, 0, 1);
-      } else if (ball.pos.z > halfL - CFG.ballR && !isInSnookerPocketMouth(ball, 'z', 1, pocketPositions)) {
+      } else if (ball.pos.z > halfL - CFG.ballR && !isInsideSnookerPocketThroat(ball, 'z', 1, pocketPositions)) {
         ball.pos.z = halfL - CFG.ballR;
         if (ball.vel.z > 0) railNormal = new THREE.Vector3(0, 0, -1);
       }
@@ -1357,7 +1381,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
       ball.launchDir = null;
     }
     const capture = pocket ?? findSnookerPocketCapture(ball, pocketPositions);
-    if (capture && ball.vel.lengthSq() < (8.5 * CFG.scale) ** 2) {
+    if (capture) {
       if (ball.isCue) {
         ball.pos.copy(getOfficialSnookerSpots(SNOOKER_BALL_CENTER_Y).cue);
         ball.vel.set(0, 0, 0);
@@ -1366,6 +1390,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
         ball.launchDir = null;
         if (rulesState) {
           rulesState.foul = 'Cue ball in-off: foul, ball in hand inside the D.';
+          rulesState.shotFoul = rulesState.foul;
           rulesState.score = Math.max(0, rulesState.score - 4);
         }
       } else {
@@ -1458,7 +1483,7 @@ function calcSnookerAimTarget(cueBall, aimDir, balls, pocketPositions = []) {
   const railZ = CFG.tableL / 2 - CFG.ballR;
   const mouthClear = (axis, sign, impact) => {
     const probe = { pos: new THREE.Vector3(impact.x, CFG.ballR, impact.y) };
-    return isInSnookerPocketMouth(probe, axis, sign, pocketPositions);
+    return isInsideSnookerPocketThroat(probe, axis, sign, pocketPositions);
   };
   if (dir.x < -1e-8) {
     const t = (-railX - cuePos.x) / dir.x;
@@ -1567,10 +1592,10 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   const standingRadius = computeSnookerTopViewDistance(aspect, POOL_ROYALE_STANDING_VIEW_FOV, POOL_ROYALE_STANDING_VIEW_MARGIN);
   const cueRadius = Math.max(
     playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
-    CFG.tableL * (0.34 + clampedPower * 0.08),
+    CFG.tableL * (0.48 + clampedPower * 0.12),
     SNOOKER_CUE_CAMERA_MIN_RADIUS
   );
-  const radius = clamp(lerp(standingRadius, cueRadius, 0.32 + clampedPower * 0.68), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
+  const radius = clamp(lerp(standingRadius, cueRadius, 0.22 + clampedPower * 0.52), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
   const heightLift = THREE.MathUtils.clamp(heightOffset, SNOOKER_CAMERA_HEIGHT_MIN, SNOOKER_CAMERA_HEIGHT_MAX);
   const cuePhi = THREE.MathUtils.clamp(
     SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15) - heightLift * 0.24,
@@ -1588,7 +1613,7 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   const pos = cueBallWorld.clone()
     .addScaledVector(aimForward, -horizontal)
     .setY(Math.max(minY, target.y + vertical + heightLift * CFG.tableL * 0.12));
-  return { pos, target, fov: 60 };
+  return { pos, target, fov: 56 };
 }
 function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions = [], options = {}) {
   const aspect = Math.max(0.45, camera.aspect || 1);
@@ -1665,8 +1690,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [showGift, setShowGift] = useState(false);
   const [lastQuickMessage, setLastQuickMessage] = useState('');
   const [frameRateId, setFrameRateId] = useState(() => loadStoredOption('graphics', 'qhd90', FRAME_RATE_OPTIONS.map((item) => item.id)));
-  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'rail-overhead', CAMERA_MODE_OPTIONS.map((item) => item.id)));
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'rail-overhead', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
+  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'tv-broadcast', CAMERA_MODE_OPTIONS.map((item) => item.id)));
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'pocket-cuts', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
   const [environmentHdriId, setEnvironmentHdriId] = useState(() => loadStoredOption('hdri', POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS.map((item) => item.id)));
   const [clothId, setClothId] = useState(() => loadStoredOption('cloth', DEFAULT_CLOTH_ID, POOL_ROYALE_CLOTH_VARIANTS.map((item) => item.id)));
   const [textureId, setTextureId] = useState(() => loadStoredOption('texture', SNOOKER_TEXTURE_OPTIONS[0].id, SNOOKER_CHAMPION_TEXTURE_IDS));
@@ -1984,6 +2009,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         strikeT += dt;
         if (!didHit && strikeNorm > 0.88) {
           didHit = true;
+          rulesRef.current.shotPotCount = 0;
+          rulesRef.current.shotFoul = '';
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
           if (!replaySkipAllRef.current) {
             recordingReplay = true;
@@ -2020,7 +2047,13 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         replayFramesRef.current.push({ t: now - replayStartedAt, balls: createReplaySnapshot(balls), cameraMode: cameraModeRef.current });
         if (!ballsMoving || now - replayStartedAt >= SNOOKER_REPLAY_MAX_MS) {
           recordingReplay = false;
-          setHasReplay(replayFramesRef.current.length > 2);
+          const replayReady = replayFramesRef.current.length > 2;
+          setHasReplay(replayReady);
+          const shouldAutoReplay = replayReady && !replaySkipAllRef.current && ((rulesRef.current.shotPotCount ?? 0) > 0 || Boolean(rulesRef.current.shotFoul));
+          if (shouldAutoReplay) {
+            replayStartedAtRef.current = performance.now();
+            setReplayActive(true);
+          }
         }
       }
       if (rulesRef.current.score !== lastScore) { lastScore = rulesRef.current.score; setScore(lastScore); }
@@ -2029,28 +2062,32 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       updateHumanPose(human, dt, state, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
       setGuideLine(cueLine, activeCueBack, cueBallWorld, true);
       const prediction = calcSnookerAimTarget(cueBall, aimForward, balls, pocketPositions);
-      const aimStart = cueBallWorld.clone();
-      const aimEnd = new THREE.Vector3(prediction.impact.x, CFG.tableTopY + CFG.ballR * 2.16, prediction.impact.y);
+      const aimY = cueBallWorld.y;
+      const aimStart = cueBallWorld.clone().setY(aimY);
+      const boundedImpact = clampSnookerAimImpactToPerimeter(prediction.impact);
+      const aimEnd = new THREE.Vector3(boundedImpact.x, aimY, boundedImpact.y);
       setGuideLine(aimLine, aimStart, aimEnd, true);
       const guideDir = aimEnd.clone().sub(aimStart).setY(0).normalize();
       const tickPerp = new THREE.Vector3(-guideDir.z, 0, guideDir.x).normalize();
       setGuideLine(impactTick, aimEnd.clone().addScaledVector(tickPerp, SNOOKER_AIM_TICK_HALF_LENGTH), aimEnd.clone().addScaledVector(tickPerp, -SNOOKER_AIM_TICK_HALF_LENGTH), true);
       const followDir2 = prediction.cueDir ?? new THREE.Vector2(aimForward.x, aimForward.z);
       const followDir3 = new THREE.Vector3(followDir2.x, 0, followDir2.y).normalize();
-      setGuideLine(cueAfterLine, aimEnd, aimEnd.clone().addScaledVector(followDir3, CFG.ballR * (7 + activePower * 12)), true);
+      setGuideLine(cueAfterLine, aimEnd, snookerGuideEndFrom(aimEnd, followDir3, CFG.ballR * (7 + activePower * 12), aimY), true);
       if (prediction.targetBall && prediction.targetDir) {
-        const targetStart = prediction.targetBall.mesh.getWorldPosition(new THREE.Vector3());
+        const targetStart = prediction.targetBall.mesh.getWorldPosition(new THREE.Vector3()).setY(aimY);
         const targetDir3 = new THREE.Vector3(prediction.targetDir.x, 0, prediction.targetDir.y).normalize();
-        setGuideLine(targetLine, targetStart, targetStart.clone().addScaledVector(targetDir3, CFG.ballR * (12 + activePower * 22)), true);
+        setGuideLine(targetLine, targetStart, snookerGuideEndFrom(targetStart, targetDir3, CFG.ballR * 2, aimY), true);
         targetLine.material.color.setHex(0xffd166);
       } else if (prediction.railNormal && prediction.cueDir) {
-        setGuideLine(targetLine, aimEnd, aimEnd.clone().addScaledVector(followDir3, CFG.ballR * (10 + activePower * 18)), true);
+        setGuideLine(targetLine, aimEnd, snookerGuideEndFrom(aimEnd, followDir3, CFG.ballR * 2, aimY), true);
         targetLine.material.color.setHex(0x7ce7ff);
       } else {
-        setGuideLine(targetLine, aimEnd, aimEnd.clone().addScaledVector(guideDir, CFG.ballR * 10), true);
+        setGuideLine(targetLine, aimEnd, snookerGuideEndFrom(aimEnd, guideDir, CFG.ballR * 2, aimY), true);
         targetLine.material.color.setHex(0x9fd8ff);
       }
-      updateCamera(camera, cameraModeRef.current, broadcastSystemRef.current, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
+      const liveCameraMode = ballsMoving && cameraModeRef.current === 'rail-overhead' ? 'tv-broadcast' : cameraModeRef.current;
+      const liveBroadcastMode = ballsMoving ? (broadcastSystemRef.current || 'pocket-cuts') : broadcastSystemRef.current;
+      updateCamera(camera, liveCameraMode, liveBroadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
       renderer.render(scene, camera);
     }
     animate();
@@ -2236,8 +2273,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                       <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Uses cue, rail, and pocket broadcast cameras.</span>
                     </button>
                     <button type="button" onClick={() => { setReplaySkipAll((prev) => { const next = !prev; replaySkipAllRef.current = next; if (next) setReplayActive(false); return next; }); setConfigOpen(false); }} className={optionButtonClass(replaySkipAll)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Skip all</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Pool Royale-style replay skip toggle.</span>
+                      <span className="font-black uppercase tracking-[0.2em]">Replay off</span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Pool Royale-style pot/foul replays.</span>
                     </button>
                   </div>
                 </div>
