@@ -25,8 +25,6 @@ export async function runSnookerRoyalOnlineFlow({
   mode,
   tableSize,
   avatar,
-  gameType = 'snookerroyale',
-  transactionGame = 'snookerroyale-online',
   deps = {},
   state,
   refs,
@@ -76,7 +74,7 @@ export async function runSnookerRoyalOnlineFlow({
     const { telegramId: debitedTelegram, accountId: debitedAccount, amount } = stakeDebitRef.current;
     try {
       await addTransactionFn(debitedTelegram, amount, 'stake_refund', {
-        game: transactionGame,
+        game: 'snookerroyale-online',
         players: 2,
         accountId: debitedAccount,
         reason,
@@ -130,7 +128,7 @@ export async function runSnookerRoyalOnlineFlow({
 
   try {
     await addTransactionFn(telegramId, -stake.amount, 'stake', {
-      game: transactionGame,
+      game: 'snookerroyale-online',
       players: 2,
       accountId
     });
@@ -240,7 +238,7 @@ export async function runSnookerRoyalOnlineFlow({
       accountId,
       stake: stake.amount,
       token: stake.token,
-      gameType,
+      gameType: 'snookerroyale',
       maxPlayers: 2,
       mode,
       variant,

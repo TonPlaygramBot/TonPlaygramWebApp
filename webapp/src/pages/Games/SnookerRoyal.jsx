@@ -12487,14 +12487,7 @@ function SnookerRoyalGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar,
-  gameSlug = 'snookerroyale',
-  lobbyPath = '/games/snookerroyale/lobby',
-  bracketPath = '/snooker-royale-bracket.html',
-  gameTitle = 'Snooker Royal',
-  rulesTitle = 'Snooker Royal Rules',
-  arenaName = 'Snooker Royal arena',
-  tournamentStoragePrefix = 'snookerRoyal'
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const mountRef = useRef(null);
@@ -12509,20 +12502,20 @@ function SnookerRoyalGame({
   }, [location.search]);
   const tournamentKey = tgId || 'anon';
   const tournamentStateKey = useMemo(
-    () => `${tournamentStoragePrefix}TournamentState_${tournamentKey}`,
-    [tournamentKey, tournamentStoragePrefix]
+    () => `snookerRoyalTournamentState_${tournamentKey}`,
+    [tournamentKey]
   );
   const tournamentOppKey = useMemo(
-    () => `${tournamentStoragePrefix}TournamentOpponent_${tournamentKey}`,
-    [tournamentKey, tournamentStoragePrefix]
+    () => `snookerRoyalTournamentOpponent_${tournamentKey}`,
+    [tournamentKey]
   );
   const tournamentLastResultKey = useMemo(
-    () => `${tournamentStoragePrefix}LastResult_${tournamentKey}`,
-    [tournamentKey, tournamentStoragePrefix]
+    () => `snookerRoyalLastResult_${tournamentKey}`,
+    [tournamentKey]
   );
   const tournamentAiFlagStorageKey = useMemo(
-    () => `${tournamentStoragePrefix}TournamentAiFlag_${tournamentKey}`,
-    [tournamentKey, tournamentStoragePrefix]
+    () => `snookerRoyalTournamentAiFlag_${tournamentKey}`,
+    [tournamentKey]
   );
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
@@ -13035,7 +13028,7 @@ function SnookerRoyalGame({
   const availableEnvironmentHdris = useMemo(
     () => {
       const customVariants = getCustomHdriVariantsForGame(
-        gameSlug,
+        'snookerroyale',
         accountId,
         snookerInventory?.environmentHdri
       );
@@ -13044,7 +13037,7 @@ function SnookerRoyalGame({
         isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)
       );
     },
-    [accountId, gameSlug, snookerInventory]
+    [accountId, snookerInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
@@ -13302,7 +13295,7 @@ function SnookerRoyalGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: gameSlug,
+        game: 'snookerroyale',
         reason: 'cue_switch',
         accountId: id
       });
@@ -13315,7 +13308,7 @@ function SnookerRoyalGame({
     } finally {
       cueFeePendingRef.current = false;
     }
-  }, [gameSlug]);
+  }, []);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
   const [uiScale, setUiScale] = useState(() =>
@@ -14162,14 +14155,14 @@ function SnookerRoyalGame({
         speaker,
         language: options.language ?? activeCommentaryPreset?.language ?? commentaryPresetId,
         context: {
-          arena: arenaName,
+          arena: 'Snooker Royal arena',
           ...context
         }
       });
       if (!text) return null;
       return { speaker, text };
     },
-    [activeCommentaryPreset?.language, arenaName, commentaryPresetId, pickCommentarySpeaker]
+    [activeCommentaryPreset?.language, commentaryPresetId, pickCommentarySpeaker]
   );
   const playNextCommentary = useCallback(async () => {
     if (commentarySpeakingRef.current) return;
@@ -14993,14 +14986,14 @@ const powerRef = useRef(hud.power);
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
     if (tournamentMode) {
       const search = location.search && location.search.length ? location.search : '';
-      window.location.assign(`${bracketPath}${search}`);
+      window.location.assign(`/snooker-royale-bracket.html${search}`);
       return;
     }
     const lobbyUrl = winnerParam
-      ? `${lobbyPath}?winner=${winnerParam}`
-      : lobbyPath;
+      ? `/games/snookerroyale/lobby?winner=${winnerParam}`
+      : '/games/snookerroyale/lobby';
     window.location.assign(lobbyUrl);
-  }, [bracketPath, frameState.winner, lobbyPath, location.search, tournamentMode]);
+  }, [frameState.winner, location.search, tournamentMode]);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
     const userSeed = st.userSeed;
@@ -15038,12 +15031,12 @@ const powerRef = useRef(hud.power);
       try {
         const raw = safeLocalStorageGet(tournamentStateKey);
         if (!raw) {
-          window.location.assign(`${bracketPath}${location.search}`);
+          window.location.assign(`/snooker-royale-bracket.html${location.search}`);
           return { unlocks: [] };
         }
         const st = JSON.parse(raw);
         if (!st?.pendingMatch) {
-          window.location.assign(`${bracketPath}${location.search}`);
+          window.location.assign(`/snooker-royale-bracket.html${location.search}`);
           return { unlocks: [] };
         }
         const r = st.pendingMatch.round;
@@ -15098,7 +15091,6 @@ const powerRef = useRef(hud.power);
     },
     [
       awardTournamentLoot,
-      bracketPath,
       localSeat,
       location.search,
       simulateRemaining,
@@ -15297,8 +15289,8 @@ const powerRef = useRef(hud.power);
     [stopActiveCrowdSound]
   );
   useEffect(() => {
-    document.title = `${gameTitle} 3D`;
-  }, [gameTitle]);
+    document.title = 'Snooker Royal 3D';
+  }, []);
   useEffect(() => {
     const nextName = playerName || getTelegramUsername() || 'Player';
     const nextAvatar = playerAvatar || getTelegramPhotoUrl();
@@ -29451,7 +29443,7 @@ const powerRef = useRef(hud.power);
                 viewBox="0 0 320 200"
                 className="h-36 w-full"
                 role="img"
-                aria-label={`${gameTitle} loading`}
+                aria-label="Snooker Royal loading"
               >
                 <rect x="8" y="24" width="304" height="152" rx="18" fill="#065f46" stroke="#34d399" strokeWidth="6" />
                 <rect x="34" y="50" width="252" height="100" rx="12" fill="#0f766e" />
@@ -29468,7 +29460,7 @@ const powerRef = useRef(hud.power);
             </div>
             <div className="w-full">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
-                Loading {gameTitle}
+                Loading Snooker Royal
               </p>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
                 <div
@@ -29681,7 +29673,7 @@ const powerRef = useRef(hud.power);
         noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
         onGiftSent={({ from, to, gift }) => animateGift(from, to, gift)}
       />
-      <InfoPopup open={showInfo} onClose={() => setShowInfo(false)} title={rulesTitle}>
+      <InfoPopup open={showInfo} onClose={() => setShowInfo(false)} title="Snooker Royal Rules">
         <ul className="text-sm text-subtext list-disc list-inside space-y-1">
           <li>Pot a red (1 point), then a colour (2–7 points) while reds remain.</li>
           <li>After all reds are gone, pot colours in order: yellow, green, brown, blue, pink, black.</li>
@@ -29693,15 +29685,7 @@ const powerRef = useRef(hud.power);
   );
 }
 
-export default function SnookerRoyal({
-  gameSlug = 'snookerroyale',
-  lobbyPath = '/games/snookerroyale/lobby',
-  bracketPath = '/snooker-royale-bracket.html',
-  gameTitle = 'Snooker Royal',
-  rulesTitle = 'Snooker Royal Rules',
-  arenaName = 'Snooker Royal arena',
-  tournamentStoragePrefix = 'snookerRoyal'
-} = {}) {
+export default function SnookerRoyal() {
   const location = useLocation();
   const tableModel = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -29803,7 +29787,7 @@ export default function SnookerRoyal({
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate(lobbyPath);
+        navigate('/games/snookerroyale/lobby');
       }
     });
   });
@@ -29818,7 +29802,7 @@ export default function SnookerRoyal({
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate(lobbyPath);
+          navigate('/games/snookerroyale/lobby');
         }
       });
     };
@@ -29829,7 +29813,7 @@ export default function SnookerRoyal({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, lobbyPath, navigate]);
+  }, [confirmExit, exitMessage, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
@@ -29854,13 +29838,6 @@ export default function SnookerRoyal({
       playerAvatar={playerAvatar}
       opponentName={opponentName}
       opponentAvatar={opponentAvatar}
-      gameSlug={gameSlug}
-      lobbyPath={lobbyPath}
-      bracketPath={bracketPath}
-      gameTitle={gameTitle}
-      rulesTitle={rulesTitle}
-      arenaName={arenaName}
-      tournamentStoragePrefix={tournamentStoragePrefix}
     />
   );
 }
