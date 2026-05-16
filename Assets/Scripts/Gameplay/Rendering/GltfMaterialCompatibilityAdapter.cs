@@ -11,6 +11,7 @@ namespace Aiming.Gameplay.Rendering
         [SerializeField] private Renderer[] targetRenderers;
         [SerializeField] private bool runOnAwake = true;
         [SerializeField] private bool forceUrpLitShader = true;
+        [SerializeField] private bool upgradeGltfImportShaders = true;
         [SerializeField] private Shader urpLitShader;
         [SerializeField] private Shader standardShader;
 
@@ -24,6 +25,13 @@ namespace Aiming.Gameplay.Rendering
         private static readonly int EmissionMapId = Shader.PropertyToID("_EmissionMap");
         private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
         private static readonly int MainTexStId = Shader.PropertyToID("_MainTex_ST");
+        private static readonly int GltfBaseColorTextureId = Shader.PropertyToID("_BaseColorTexture");
+        private static readonly int GltfBaseColorMapId = Shader.PropertyToID("baseColorTexture");
+        private static readonly int GltfNormalTextureId = Shader.PropertyToID("_NormalTexture");
+        private static readonly int GltfMetallicRoughnessTextureId = Shader.PropertyToID("_MetallicRoughnessTexture");
+        private static readonly int GltfOcclusionTextureId = Shader.PropertyToID("_OcclusionTexture");
+        private static readonly int GltfEmissiveTextureId = Shader.PropertyToID("_EmissiveTexture");
+        private static readonly int GltfBaseColorFactorId = Shader.PropertyToID("_BaseColorFactor");
 
         void Awake()
         {
@@ -54,8 +62,9 @@ namespace Aiming.Gameplay.Rendering
                         continue;
                     }
 
-                    EnsureSupportedShader(mat);
-                    CopyPbrMaps(mat);
+                    MaterialTextureSnapshot textureSnapshot = MaterialTextureSnapshot.Capture(mat);
+                    EnsureSupportedShader(mat, textureSnapshot);
+                    CopyPbrMaps(mat, textureSnapshot);
                 }
             }
         }
@@ -70,9 +79,11 @@ namespace Aiming.Gameplay.Rendering
             return GetComponentsInChildren<Renderer>(true);
         }
 
-        private void EnsureSupportedShader(Material material)
+        private void EnsureSupportedShader(Material material, MaterialTextureSnapshot textureSnapshot)
         {
-            if (material.shader != null && material.shader.isSupported)
+            bool needsFallbackShader = material.shader == null || !material.shader.isSupported;
+            bool shouldUpgradeGltfShader = upgradeGltfImportShaders && textureSnapshot.HasGltfOnlyBaseTexture && ResolveFallbackShader() != null;
+            if (!needsFallbackShader && !shouldUpgradeGltfShader)
             {
                 return;
             }
@@ -107,10 +118,15 @@ namespace Aiming.Gameplay.Rendering
             return standardShader;
         }
 
-        private static void CopyPbrMaps(Material material)
+        private static void CopyPbrMaps(Material material, MaterialTextureSnapshot textureSnapshot)
         {
             int sourceUvPropertyId;
-            Texture baseTexture = FirstTexture(material, out sourceUvPropertyId, BaseMapId, MainTexId);
+            Texture baseTexture = FirstTexture(material, out sourceUvPropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId);
+            if (baseTexture == null)
+            {
+                baseTexture = textureSnapshot.BaseTexture;
+                sourceUvPropertyId = textureSnapshot.BaseTexturePropertyId;
+            }
             if (baseTexture != null)
             {
                 TrySetTexture(material, BaseMapId, baseTexture);
@@ -118,41 +134,108 @@ namespace Aiming.Gameplay.Rendering
                 SyncTextureTransform(material, sourceUvPropertyId);
             }
 
-            if (material.HasProperty(BaseColorId) && material.HasProperty(ColorId))
+            Color resolvedBaseColor = textureSnapshot.HasBaseColor ? textureSnapshot.BaseColor : Color.white;
+            if (!textureSnapshot.HasBaseColor && material.HasProperty(BaseColorId))
             {
-                Color baseColor = material.GetColor(BaseColorId);
-                material.SetColor(ColorId, baseColor);
+                resolvedBaseColor = material.GetColor(BaseColorId);
             }
-            else if (material.HasProperty(ColorId) && material.HasProperty(BaseColorId))
+            else if (!textureSnapshot.HasBaseColor && material.HasProperty(ColorId))
             {
-                Color mainColor = material.GetColor(ColorId);
-                material.SetColor(BaseColorId, mainColor);
+                resolvedBaseColor = material.GetColor(ColorId);
             }
 
-            Texture normal = FirstTexture(material, BumpMapId);
+            if (material.HasProperty(BaseColorId))
+            {
+                material.SetColor(BaseColorId, resolvedBaseColor);
+            }
+
+            if (material.HasProperty(ColorId))
+            {
+                material.SetColor(ColorId, resolvedBaseColor);
+            }
+
+            Texture normal = FirstTexture(material, BumpMapId, GltfNormalTextureId);
+            if (normal == null)
+            {
+                normal = textureSnapshot.NormalTexture;
+            }
             if (normal != null)
             {
                 TrySetTexture(material, BumpMapId, normal);
                 material.EnableKeyword("_NORMALMAP");
             }
 
-            Texture metallic = FirstTexture(material, MetallicGlossMapId);
+            Texture metallic = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId);
+            if (metallic == null)
+            {
+                metallic = textureSnapshot.MetallicTexture;
+            }
             if (metallic != null)
             {
                 TrySetTexture(material, MetallicGlossMapId, metallic);
             }
 
-            Texture occlusion = FirstTexture(material, OcclusionMapId);
+            Texture occlusion = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId);
+            if (occlusion == null)
+            {
+                occlusion = textureSnapshot.OcclusionTexture;
+            }
             if (occlusion != null)
             {
                 TrySetTexture(material, OcclusionMapId, occlusion);
             }
 
-            Texture emission = FirstTexture(material, EmissionMapId);
+            Texture emission = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId);
+            if (emission == null)
+            {
+                emission = textureSnapshot.EmissionTexture;
+            }
             if (emission != null)
             {
                 TrySetTexture(material, EmissionMapId, emission);
                 material.EnableKeyword("_EMISSION");
+            }
+        }
+
+        private sealed class MaterialTextureSnapshot
+        {
+            public Texture BaseTexture;
+            public int BaseTexturePropertyId = -1;
+            public Texture NormalTexture;
+            public Texture MetallicTexture;
+            public Texture OcclusionTexture;
+            public Texture EmissionTexture;
+            public Color BaseColor = Color.white;
+            public bool HasBaseColor;
+            public bool HasGltfOnlyBaseTexture;
+
+            public static MaterialTextureSnapshot Capture(Material material)
+            {
+                MaterialTextureSnapshot snapshot = new MaterialTextureSnapshot();
+                snapshot.BaseTexture = FirstTexture(material, out snapshot.BaseTexturePropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId);
+                snapshot.HasGltfOnlyBaseTexture = snapshot.BaseTexture != null && snapshot.BaseTexturePropertyId != BaseMapId && snapshot.BaseTexturePropertyId != MainTexId;
+                snapshot.NormalTexture = FirstTexture(material, BumpMapId, GltfNormalTextureId);
+                snapshot.MetallicTexture = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId);
+                snapshot.OcclusionTexture = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId);
+                snapshot.EmissionTexture = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId);
+
+                if (material.HasProperty(BaseColorId))
+                {
+                    snapshot.BaseColor = material.GetColor(BaseColorId);
+                    snapshot.HasBaseColor = true;
+                }
+                else if (material.HasProperty(ColorId))
+                {
+                    snapshot.BaseColor = material.GetColor(ColorId);
+                    snapshot.HasBaseColor = true;
+                }
+                else if (material.HasProperty(GltfBaseColorFactorId))
+                {
+                    snapshot.BaseColor = material.GetColor(GltfBaseColorFactorId);
+                    snapshot.HasBaseColor = true;
+                }
+
+                return snapshot;
             }
         }
 
