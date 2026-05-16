@@ -438,7 +438,12 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
-    scale: 0.24
+    scale: 0.24,
+    forceTextureOverride: true,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/AK47.jpeg'
+    ]
   },
   krsvBurstAttack: {
     label: 'KRSV',
@@ -1011,6 +1016,9 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
 const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
 const FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
+const FIREARM_FPS_CAMERA_PULLBACK_EXTRA = 0.12;
+const FIREARM_FPS_CAMERA_BOTTOM_VISIBILITY_LIFT = 0.026;
+const FIREARM_FPS_CAMERA_SIDE_VISIBILITY = 0.018;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
 const FIREARM_CAMERA_LIFT = 0.048;
 const FIREARM_CAMERA_TARGET_OFFSET = 0.036;
@@ -1511,7 +1519,11 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (material?.map) applySRGBColorSpace(material.map);
-          if (!material?.map && textureOverride) material.map = textureOverride;
+          if (textureOverride && (config?.forceTextureOverride || !material?.map)) {
+            const assignedTexture = textureOverride.clone();
+            assignedTexture.needsUpdate = true;
+            material.map = assignedTexture;
+          }
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           material.transparent = false;
           material.opacity = 1;
@@ -4694,9 +4706,9 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.31 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.58 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.36 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.38 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.66 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.44 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4768,11 +4780,11 @@ const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
   missileJavelin: { focusWeight: 0.67, targetLift: 0.012, followPullback: 0.048, followLift: 0.016 }
 });
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(34);
-const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
+const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(8);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
 const CAMERA_ZOOM_MAX_FACTOR = 1;
-const LUDO_CAMERA_PHI_MIN = 0.92;
-const LUDO_CAMERA_PHI_MAX = 1.22;
+const LUDO_CAMERA_PHI_MIN = 0.84;
+const LUDO_CAMERA_PHI_MAX = 1.08;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
@@ -4796,13 +4808,13 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.06 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
-const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
+const CAMERA_EXTRA_LIFT = 0.22;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.2;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
-const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(8);
+const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-6);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
@@ -12102,17 +12114,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const shoulderCameraBlend = clamp((elapsed - finalShotStartMs) / Math.max(1, FIREARM_SERVICE_PISTOL_PRELAUNCH_MS), 0, 1);
             if (fpsViewActive) {
               const aimViewBlend = clamp((elapsed - pickupLeadMs * 0.62) / Math.max(1, preFireLeadMs - pickupLeadMs * 0.62), 0, 1);
-              const muzzlePullback = finalCinematicActive
+              const muzzlePullback = (finalCinematicActive
                 ? useServicePistolFatalBullet ? 0.18 : singleShotFirearm ? 0.27 : 0.32
-                : 0.36;
-              const muzzleSide = finalCinematicActive
+                : 0.36) + FIREARM_FPS_CAMERA_PULLBACK_EXTRA;
+              const muzzleSide = (finalCinematicActive
                 ? useServicePistolFatalBullet ? 0.028 : singleShotFirearm ? 0.034 : 0.046
-                : 0.055;
-              const muzzleLift = finalCinematicActive
+                : 0.055) + FIREARM_FPS_CAMERA_SIDE_VISIBILITY;
+              const muzzleLift = (finalCinematicActive
                 ? useServicePistolFatalBullet
                   ? THREE.MathUtils.lerp(-0.018, 0.012, shoulderCameraBlend)
                   : THREE.MathUtils.lerp(-0.028, singleShotFirearm ? 0.014 : 0.024, shoulderCameraBlend)
-                : THREE.MathUtils.lerp(0.072, 0.034, smoother01(aimViewBlend));
+                : THREE.MathUtils.lerp(0.072, 0.034, smoother01(aimViewBlend))) + FIREARM_FPS_CAMERA_BOTTOM_VISIBILITY_LIFT;
               cinematicPosition
                 .copy(muzzleOrigin)
                 .addScaledVector(cinematicAimDir, -muzzlePullback)
