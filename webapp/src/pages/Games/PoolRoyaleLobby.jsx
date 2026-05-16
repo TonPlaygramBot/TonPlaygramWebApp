@@ -13,6 +13,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -38,6 +39,27 @@ const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
+
+async function checkPoolRoyaleTableModelInstalled(option) {
+  if (!option?.requiresInstall || !option?.assetUrl) return true;
+  try {
+    const response = await fetch(option.assetUrl, { cache: 'no-store' });
+    if (!response.ok) return false;
+    if (option.installCheck === 'gltf-json') {
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+      return (
+        !contentType.toLowerCase().includes('text/html') &&
+        text.includes('"asset"') &&
+        text.includes('"meshes"') &&
+        text.includes('"textures"')
+      );
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -76,7 +98,23 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const selectedTableModel = resolvePoolRoyaleTableModel();
+  const [tableModelAvailability, setTableModelAvailability] = useState({});
+  const [tableModelInstallError, setTableModelInstallError] = useState('');
+  const [tableModelId, setTableModelId] = useState(() => {
+    const requested = searchParams.get('tableModel');
+    if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      ).id;
+    } catch {
+      return resolvePoolRoyaleTableModel().id;
+    }
+  });
+  const selectedTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelId),
+    [tableModelId]
+  );
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -113,6 +151,33 @@ export default function PoolRoyaleLobby() {
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
+  const selectedTableModelAvailability = selectedTableModel?.requiresInstall
+    ? tableModelAvailability[selectedTableModel.id]
+    : true;
+  const selectedTableModelReady = selectedTableModelAvailability === true;
+  const selectedTableModelPending =
+    selectedTableModel?.requiresInstall &&
+    typeof selectedTableModelAvailability === 'undefined';
+  const selectedTableModelUnavailable =
+    selectedTableModel?.requiresInstall &&
+    selectedTableModelAvailability === false;
+
+  useEffect(() => {
+    let cancelled = false;
+    POOL_ROYALE_TABLE_MODEL_OPTIONS.forEach((option) => {
+      if (!option?.requiresInstall) return;
+      checkPoolRoyaleTableModelInstalled(option).then((installed) => {
+        if (cancelled) return;
+        setTableModelAvailability((current) => ({
+          ...current,
+          [option.id]: installed
+        }));
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -228,6 +293,19 @@ export default function PoolRoyaleLobby() {
     await cleanupRef.current?.();
     setMatchStatus('');
     setMatchingError('');
+    setTableModelInstallError('');
+
+    if (selectedTableModelUnavailable || selectedTableModelPending) {
+      const installCommand =
+        selectedTableModel.installScript ||
+        'npm run fetch:pool-royale-traditional-table';
+      const message = `${selectedTableModel.label} is not installed yet. Run ${installCommand} so the authentic glTF table loads instead of the generated fallback.`;
+      setTableModelInstallError(message);
+      try {
+        window?.Telegram?.WebApp?.showAlert?.(message);
+      } catch {}
+      return;
+    }
 
     try {
       window.localStorage?.setItem(
@@ -761,7 +839,9 @@ export default function PoolRoyaleLobby() {
             </div>
           )}
 
-        {playType !== 'training' && playType !== 'career' && !hasActiveTournament && (
+        {playType !== 'training' &&
+          playType !== 'career' &&
+          !hasActiveTournament && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-white">Game Variant</h3>
@@ -807,68 +887,166 @@ export default function PoolRoyaleLobby() {
           )}
 
         {playType !== 'career' && !hasActiveTournament && variant === 'uk' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-white">Ball Colors</h3>
-                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                  Visuals
-                </span>
-              </div>
-              <p className="text-xs text-white/60">
-                Keep UK yellow/red sets or switch to solids &amp; stripes
-                visuals while retaining 8Ball rules.
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'uk', label: 'Yellow & Red' },
-                  { id: 'american', label: 'Solids & Stripes' }
-                ].map(({ id, label }) => {
-                  const active = ukBallSet === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setUkBallSet(id)}
-                      className={`lobby-option-card ${
-                        active
-                          ? 'lobby-option-card-active'
-                          : 'lobby-option-card-inactive'
-                      }`}
-                    >
-                      <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
-                        <div className="lobby-option-thumb-inner">
-                          <OptionIcon
-                            src={getLobbyIcon('poolroyale', `ball-${id}`)}
-                            alt={label}
-                            fallback={id === 'uk' ? '🟡' : '🔵'}
-                            className="lobby-option-icon"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <p className="lobby-option-label">{label}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Ball Colors</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Visuals
+              </span>
             </div>
-          )}
+            <p className="text-xs text-white/60">
+              Keep UK yellow/red sets or switch to solids &amp; stripes visuals
+              while retaining 8Ball rules.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'uk', label: 'Yellow & Red' },
+                { id: 'american', label: 'Solids & Stripes' }
+              ].map(({ id, label }) => {
+                const active = ukBallSet === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setUkBallSet(id)}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    }`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <OptionIcon
+                          src={getLobbyIcon('poolroyale', `ball-${id}`)}
+                          alt={label}
+                          fallback={id === 'uk' ? '🟡' : '🔵'}
+                          className="lobby-option-icon"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!hasActiveTournament && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Pool Table</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Model
+              </span>
+            </div>
+            <p className="text-xs text-white/60">
+              Select the table model before entering the arena. Pool Royale
+              keeps the same playable table footprint and height for every
+              model.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+                const active = selectedTableModel.id === option.id;
+                const availability = option.requiresInstall
+                  ? tableModelAvailability[option.id]
+                  : true;
+                const unavailable =
+                  option.requiresInstall && availability === false;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => !unavailable && setTableModelId(option.id)}
+                    disabled={unavailable}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    } ${unavailable ? 'lobby-option-card-disabled' : ''}`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/25 via-amber-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        {option.thumbnailUrl ? (
+                          <img
+                            src={option.thumbnailUrl}
+                            alt={option.label}
+                            className="h-full w-full rounded-xl object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="text-3xl">
+                            {option.icon || '🎱'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{option.label}</p>
+                      <p className="lobby-option-subtitle">
+                        {resolveTableSize(option.tableSizeId).label} ·{' '}
+                        {option.assetFormat || 'GLB'}
+                      </p>
+                      {option.requiresInstall && (
+                        <p
+                          className={`mt-1 text-[10px] ${
+                            availability === true
+                              ? 'text-emerald-300/80'
+                              : availability === false
+                                ? 'text-amber-300/90'
+                                : 'text-white/45'
+                          }`}
+                        >
+                          {availability === true
+                            ? 'Installed'
+                            : availability === false
+                              ? 'Run installer first'
+                              : 'Checking install…'}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTableModel.sourceUrl && (
+              <p className="text-[11px] text-white/45">
+                Source credit: {selectedTableModel.author || 'Sketchfab'} ·{' '}
+                {selectedTableModel.license || 'CC Attribution'}
+              </p>
+            )}
+            {(selectedTableModelUnavailable || selectedTableModelPending) && (
+              <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+                {selectedTableModelPending
+                  ? 'Checking the local glTF table install before start…'
+                  : `${selectedTableModel.label} is not installed. Run ${selectedTableModel.installScript || 'npm run fetch:pool-royale-traditional-table'} so the authentic glTF table is available.`}
+              </div>
+            )}
+            {tableModelInstallError && (
+              <div className="rounded-xl border border-red-300/40 bg-red-500/10 p-3 text-xs text-red-100">
+                {tableModelInstallError}
+              </div>
+            )}
+          </div>
+        )}
 
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
             <div>
               <h3 className="font-semibold text-white">Free Practice</h3>
               <p className="text-xs text-white/60">
-                Practice is open-table mode: no AI and no rule penalties.
-                Choose any variant, set your preferred ball colors, then start and
+                Practice is open-table mode: no AI and no rule penalties. Choose
+                any variant, set your preferred ball colors, then start and
                 practice shots freely.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
-                <p>
-                All guided practice tasks were moved to Career mode as progression
-                stages.
+              <p>
+                All guided practice tasks were moved to Career mode as
+                progression stages.
               </p>
               <p className="mt-1 text-white/60">
                 Open Career when you want structured objectives and rewards.
@@ -883,7 +1061,8 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Career Roadmap</h3>
                 <p className="text-xs text-white/60">
-                  Mixed drills, match tasks, and tournaments with detailed phase progression.
+                  Mixed drills, match tasks, and tournaments with detailed phase
+                  progression.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -918,7 +1097,9 @@ export default function PoolRoyaleLobby() {
                     <p className="text-sm font-semibold text-white">
                       {nextCareerTask.icon} {nextCareerTask.title}
                     </p>
-                    <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
+                    <p className="mt-1 text-white/75">
+                      {nextCareerTask.objective}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -1231,18 +1412,21 @@ export default function PoolRoyaleLobby() {
         )}
 
         {playType !== 'career' && !hasActiveTournament && (
-            <button
-              onClick={startGame}
-              className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
-              disabled={mode === 'online' && (isSearching || matching)}
-            >
-              {mode === 'online'
-                ? matching
-                  ? 'Waiting for opponent…'
-                  : 'START ONLINE'
-                : 'START'}
-            </button>
-          )}
+          <button
+            onClick={startGame}
+            className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
+            disabled={
+              (mode === 'online' && (isSearching || matching)) ||
+              !selectedTableModelReady
+            }
+          >
+            {mode === 'online'
+              ? matching
+                ? 'Waiting for opponent…'
+                : 'START ONLINE'
+              : 'START'}
+          </button>
+        )}
 
         <FlagPickerModal
           open={showFlagPicker}
