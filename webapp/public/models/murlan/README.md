@@ -1,18 +1,18 @@
 # Murlan Royale external character assets
 
-Binary character models are intentionally not committed to this repository.
+Binary character model payloads are intentionally not committed to this repository.
 
-The Murlan Royale inventory references these runtime-only Sketchfab GLBs:
+The Murlan Royale inventory references Sketchfab's converted glTF packages at these runtime-only paths:
 
-| Character | Expected local file | Sketchfab model |
+| Character | Expected local glTF | Sketchfab model |
 | --- | --- | --- |
-| Agent 47 | `webapp/public/models/murlan/agent-47-rigged-face-morphs.glb` | <https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a> |
-| Leather Jacket Portrait | `webapp/public/models/murlan/leather-jacket-portrait.glb` | <https://sketchfab.com/3d-models/leather-jacket-portrait-e4b6a08211c746fe932e0d5041d28812> |
-| Seated Gentleman in Suede Jacket | `webapp/public/models/murlan/seated-gentleman-suede-jacket.glb` | <https://sketchfab.com/3d-models/seated-gentleman-in-suede-jacket-8b1101c090d4454caf9f311b3c008946> |
-| Red Hibiscus in the Hair | `webapp/public/models/murlan/red-hibiscus-in-the-hair.glb` | <https://sketchfab.com/3d-models/red-hibiscus-in-the-hair-dc65f86920814a4296f930e7d85ab314> |
-| Casual Confidence | `webapp/public/models/murlan/casual-confidence.glb` | <https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959> |
+| Agent 47 | `webapp/public/models/murlan/agent-47-rigged-face-morphs/scene.gltf` | <https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a> |
+| Leather Jacket Portrait | `webapp/public/models/murlan/leather-jacket-portrait/scene.gltf` | <https://sketchfab.com/3d-models/leather-jacket-portrait-e4b6a08211c746fe932e0d5041d28812> |
+| Seated Gentleman in Suede Jacket | `webapp/public/models/murlan/seated-gentleman-suede-jacket/scene.gltf` | <https://sketchfab.com/3d-models/seated-gentleman-in-suede-jacket-8b1101c090d4454caf9f311b3c008946> |
+| Red Hibiscus in the Hair | `webapp/public/models/murlan/red-hibiscus-in-the-hair/scene.gltf` | <https://sketchfab.com/3d-models/red-hibiscus-in-the-hair-dc65f86920814a4296f930e7d85ab314> |
+| Casual Confidence | `webapp/public/models/murlan/casual-confidence/scene.gltf` | <https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959> |
 
-Install every configured Sketchfab character with an authenticated download token:
+Install every configured Sketchfab character as glTF with an authenticated download token:
 
 ```bash
 cd webapp
@@ -26,12 +26,19 @@ cd webapp
 SKETCHFAB_TOKEN=<your-token> npm run fetch:murlan-characters -- --asset suede-gentleman
 ```
 
-Copy a manually downloaded GLB into the expected location:
+Copy a manually downloaded Sketchfab glTF ZIP, extracted glTF folder, or `.gltf` file into the expected location:
 
 ```bash
 cd webapp
-npm run fetch:murlan-agent47 -- --from /path/to/agent-47-rigged-face-morphs.glb
-npm run fetch:murlan-characters -- --asset casual-confidence --from /path/to/casual-confidence.glb
+npm run fetch:murlan-agent47 -- --from /path/to/agent-47-sketchfab-gltf.zip
+npm run fetch:murlan-characters -- --asset casual-confidence --from /path/to/casual-confidence-gltf-folder
+```
+
+Validate already-installed local assets without downloading:
+
+```bash
+cd webapp
+npm run fetch:murlan-characters -- --validate-only
 ```
 
 License notes from Sketchfab:

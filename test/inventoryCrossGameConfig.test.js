@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import {
   CHESS_BATTLE_DEFAULT_UNLOCKS,
   CHESS_BATTLE_STORE_ITEMS,
@@ -95,11 +97,11 @@ describe('cross-game inventory alignment', () => {
 
   test('murlan includes runtime-only Sketchfab human characters', () => {
     const expectedSketchfabCharacters = [
-      ['sketchfab-agent-47', '/models/murlan/agent-47-rigged-face-morphs.glb', 'CC BY-NC 4.0'],
-      ['sketchfab-leather-jacket-portrait', '/models/murlan/leather-jacket-portrait.glb', 'CC BY 4.0'],
-      ['sketchfab-suede-gentleman', '/models/murlan/seated-gentleman-suede-jacket.glb', 'CC BY 4.0'],
-      ['sketchfab-red-hibiscus-hair', '/models/murlan/red-hibiscus-in-the-hair.glb', 'CC BY 4.0'],
-      ['sketchfab-casual-confidence', '/models/murlan/casual-confidence.glb', 'CC BY 4.0']
+      ['sketchfab-agent-47', '/models/murlan/agent-47-rigged-face-morphs/scene.gltf', 'CC BY-NC 4.0'],
+      ['sketchfab-leather-jacket-portrait', '/models/murlan/leather-jacket-portrait/scene.gltf', 'CC BY 4.0'],
+      ['sketchfab-suede-gentleman', '/models/murlan/seated-gentleman-suede-jacket/scene.gltf', 'CC BY 4.0'],
+      ['sketchfab-red-hibiscus-hair', '/models/murlan/red-hibiscus-in-the-hair/scene.gltf', 'CC BY 4.0'],
+      ['sketchfab-casual-confidence', '/models/murlan/casual-confidence/scene.gltf', 'CC BY 4.0']
     ];
 
     expectedSketchfabCharacters.forEach(([id, modelUrl, license]) => {
@@ -108,9 +110,28 @@ describe('cross-game inventory alignment', () => {
       expect(theme.modelUrls).toEqual([modelUrl]);
       expect(theme.sourceUrl).toContain('sketchfab.com/3d-models/');
       expect(theme.license).toContain(license);
+      expect(theme.sourceFormat).toBe('sketchfab-converted-gltf');
+      expect(theme.installCheck).toBe('gltf-json');
       expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
       expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
     });
+  });
+
+
+  test('murlan Sketchfab character installer fetches converted glTF instead of GLB binaries', async () => {
+    const source = await readFile('webapp/scripts/fetch-murlan-agent47.mjs', 'utf8');
+    const help = execFileSync('node', ['webapp/scripts/fetch-murlan-agent47.mjs', '--help'], {
+      encoding: 'utf8'
+    });
+
+    expect(source).toContain('https://api.sketchfab.com/v3/models/');
+    expect(source).toContain('data?.gltf?.url');
+    expect(source).toContain('validateSketchfabCharacterGltf');
+    expect(source).toContain("targetFileName: TARGET_FILE_NAME");
+    expect(source).toContain('validateExternalReferences');
+    expect(help).toContain('SKETCHFAB_TOKEN=<token>');
+    expect(help).toContain('--from /path/to/authentic-sketchfab-gltf.zip');
+    expect(help).toContain('agent-47-rigged-face-morphs/scene.gltf');
   });
 
   test('murlan shares texas hold’em inventories for poker arena assets', () => {
