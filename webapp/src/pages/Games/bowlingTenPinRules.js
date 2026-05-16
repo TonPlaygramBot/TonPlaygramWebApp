@@ -1,5 +1,5 @@
 export const OFFICIAL_TEN_PIN_RULE_SUMMARY =
-  'Official ten-pin: 10 frames · max two rolls per frames 1-9 unless strike · strike scores 10 plus next two rolls · spare scores 10 plus next roll · open frame scores pinfall · 10th frame grants bonus rolls only after strike/spare · each full rack is limited to 10 pins.';
+  'Official ten-pin: 10 frames · max two rolls per frames 1-9 unless strike · strike scores 10 plus next two rolls · spare scores 10 plus next roll · open frame scores pinfall · 10th frame grants bonus rolls only after strike/spare · each full rack is limited to 10 pins · foul rolls score 0 while still counting as delivered balls.';
 
 export function frameComplete(frame, index) {
   const r = frame.rolls || [];
@@ -94,11 +94,14 @@ export function shouldResetPinsForNextRoll(
   return false;
 }
 
-export function addTenPinRoll(player, knocked) {
+export function addTenPinRoll(player, knocked, options = {}) {
   const frameIndex = currentFrameIndex(player);
   const frame = player.frames[frameIndex];
   const rollIndex = frame.rolls.length;
-  const legalKnocked = clampTenPinRoll(frame, frameIndex, rollIndex, knocked);
+  const foul = Boolean(options.foul);
+  const legalKnocked = foul
+    ? 0
+    : clampTenPinRoll(frame, frameIndex, rollIndex, knocked);
   if (rollIndex < (frameIndex < 9 ? 2 : 3)) frame.rolls.push(legalKnocked);
   recomputePlayerTotals(player);
   const frameEnded = frameComplete(frame, frameIndex);
@@ -106,6 +109,7 @@ export function addTenPinRoll(player, knocked) {
     frameIndex,
     rollIndex,
     knocked: legalKnocked,
+    foul,
     frameEnded,
     resetPins: shouldResetPinsForNextRoll(
       frame,

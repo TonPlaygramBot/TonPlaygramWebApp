@@ -20,7 +20,9 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { mapSpinForPhysics } from './poolRoyaleSpinUtils.js';
 import {
   OFFICIAL_TEN_PIN_RULE_SUMMARY,
-  clampTenPinRoll
+  addTenPinRoll as addOfficialTenPinRoll,
+  clampTenPinRoll,
+  playerFinished as officialTenPinPlayerFinished
 } from './bowlingTenPinRules.js';
 
 type PlayerAction =
@@ -89,6 +91,8 @@ type RollDecision = {
   frameEnded: boolean;
   resetPins: boolean;
   gameFinished: boolean;
+  knocked: number;
+  foul?: boolean;
 };
 type ScorePlayer = { name: string; frames: BowlingFrame[]; total: number };
 
@@ -296,13 +300,13 @@ const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
   pos.z >= CFG.foulZ + 0.18 &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.12, CFG.laneY, 8.18);
-const BOWLING_RETURN_SIDE_X = -2.78;
-const BOWLING_RETURN_Z = 6.46;
-const BOWLING_RACK_SIDE_X = -3.38;
-const BOWLING_RACK_Z = 7.46;
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.42, CFG.laneY, 8.28);
+const BOWLING_RETURN_SIDE_X = -2.72;
+const BOWLING_RETURN_Z = 6.38;
+const BOWLING_RACK_SIDE_X = -3.42;
+const BOWLING_RACK_Z = 7.34;
 const BOWLING_TABLE_CENTERS = [
-  new THREE.Vector3(-4.12, CFG.laneY, 8.05)
+  new THREE.Vector3(-4.42, CFG.laneY, 8.18)
 ] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
@@ -321,17 +325,28 @@ const PLAYER_READY_POINT = new THREE.Vector3(
   CFG.laneY,
   SHOOTING_READY_Z
 );
+function yawTowardPoint(from: THREE.Vector3, to: THREE.Vector3) {
+  return Math.atan2(to.x - from.x, to.z - from.z);
+}
+function makeLoungeSeat(x: number, z: number) {
+  const pos = new THREE.Vector3(x, CFG.laneY, z);
+  return { pos, yaw: yawTowardPoint(pos, BOWLING_TABLE_CENTERS[0]) };
+}
 const BOWLING_LOUNGE_CHAIRS = [
-  { pos: new THREE.Vector3(-5.18, CFG.laneY, 7.22), yaw: Math.PI * 0.16 },
-  { pos: new THREE.Vector3(-3.04, CFG.laneY, 7.2), yaw: -Math.PI * 0.18 },
-  { pos: new THREE.Vector3(-5.34, CFG.laneY, 8.62), yaw: Math.PI * 0.78 },
-  { pos: new THREE.Vector3(-2.9, CFG.laneY, 8.62), yaw: -Math.PI * 0.78 },
-  { pos: new THREE.Vector3(-4.12, CFG.laneY, 9.34), yaw: Math.PI }
+  makeLoungeSeat(-5.45, 7.28),
+  makeLoungeSeat(-3.38, 7.22),
+  makeLoungeSeat(-5.62, 8.72),
+  makeLoungeSeat(-3.18, 8.82),
+  makeLoungeSeat(-4.42, 9.52)
 ] as { pos: THREE.Vector3; yaw: number }[];
-const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair) => ({
+const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair, index) => ({
   pos: chair.pos.clone(),
   yaw: chair.yaw,
-  stand: PLAYER_READY_POINT.clone()
+  stand: new THREE.Vector3(
+    clamp((index - 1.5) * 0.16, -0.34, 0.34),
+    CFG.laneY,
+    SHOOTING_READY_Z + Math.min(index, 3) * 0.08
+  )
 }));
 
 function keepHumanInBowlingWalkableArea(
@@ -494,29 +509,25 @@ function recomputePlayerTotals(player: ScorePlayer) {
   player.total = running;
 }
 
-function addRollToPlayer(player: ScorePlayer, knocked: number): RollDecision {
-  const frameIndex = currentFrameIndex(player);
-  const frame = player.frames[frameIndex];
-  const rollIndex = frame.rolls.length;
-
-  if (rollIndex < (frameIndex < 9 ? 2 : 3)) {
-    frame.rolls.push(clampTenPinRoll(frame, frameIndex, rollIndex, knocked));
-  }
-
-  recomputePlayerTotals(player);
-  const frameEnded = frameComplete(frame, frameIndex);
+function addRollToPlayer(
+  player: ScorePlayer,
+  knocked: number,
+  foul = false
+): RollDecision {
+  const decision = addOfficialTenPinRoll(player, knocked, {
+    foul
+  }) as RollDecision;
   return {
-    frameIndex,
-    rollIndex,
-    frameEnded,
-    resetPins: shouldResetPinsForNextRoll(
-      frame,
-      frameIndex,
-      rollIndex,
-      knocked,
-      frameEnded
-    ),
-    gameFinished: playerFinished(player)
+    ...decision,
+    knocked:
+      decision.knocked ??
+      clampTenPinRoll(
+        player.frames[decision.frameIndex],
+        decision.frameIndex,
+        decision.rollIndex,
+        foul ? 0 : knocked
+      ),
+    foul
   };
 }
 
@@ -540,6 +551,14 @@ function describeRollResult(
   result: RollDecision,
   knocked: number
 ) {
+  if (result.foul) {
+    return {
+      isStrike: false,
+      isSpare: false,
+      rule: 'Foul: delivered ball counts, pinfall scores 0, rack follows frame state',
+      lane: 'Foul line crossed · official score is 0 for this roll'
+    };
+  }
   const frame = player.frames[result.frameIndex];
   const isStrike =
     knocked === 10 && (result.rollIndex === 0 || result.frameIndex === 9);
@@ -2788,7 +2807,7 @@ function createEnvironment(
   )) {
     const chair = new THREE.Group();
     chair.position.copy(seat.pos);
-    chair.rotation.y = seat.yaw + Math.PI;
+    chair.rotation.y = seat.yaw;
     const pad = new THREE.Mesh(
       new THREE.BoxGeometry(0.82, 0.13, 0.82),
       chairFallbackMat
@@ -2831,7 +2850,7 @@ function createEnvironment(
         CFG.laneY - box2.min.y,
         seat.pos.z - (box2.min.z + box2.max.z) / 2
       );
-      model.rotation.y = seat.yaw + Math.PI;
+      model.rotation.y = seat.yaw;
       group.add(model);
       chair.visible = false;
     });
@@ -3884,6 +3903,74 @@ function applyCameraLookOffset(
   return position.clone().addScaledVector(forward, distance);
 }
 
+type BroadcastCameraPhase =
+  | 'lounge'
+  | 'approach'
+  | 'release'
+  | 'laneFollow'
+  | 'pinDeck';
+
+function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
+  const laneCenter = ball.laneCenter || player.standPos.x;
+  let phase: BroadcastCameraPhase = 'lounge';
+  if (player.action === 'approach') phase = 'approach';
+  if (player.action === 'throw' || player.action === 'recover')
+    phase = 'release';
+  if (ball.rolling)
+    phase = ball.pos.z < CFG.pinDeckZ + 3.0 ? 'pinDeck' : 'laneFollow';
+
+  if (phase === 'approach') {
+    return {
+      phase,
+      desired: new THREE.Vector3(
+        laneCenter - 1.72,
+        CFG.laneY + 2.18,
+        CFG.foulZ + 4.45
+      ),
+      look: player.pos.clone().add(new THREE.Vector3(0, 0.9, -1.55))
+    };
+  }
+  if (phase === 'release') {
+    return {
+      phase,
+      desired: new THREE.Vector3(
+        laneCenter + 1.58,
+        CFG.laneY + 1.72,
+        CFG.foulZ + 3.18
+      ),
+      look: new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.arrowsZ - 1.1)
+    };
+  }
+  if (phase === 'laneFollow') {
+    const speed01 = clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16);
+    return {
+      phase,
+      desired: new THREE.Vector3(
+        laneCenter + lerp(1.05, 0.58, speed01),
+        CFG.laneY + lerp(1.86, 1.52, speed01),
+        ball.pos.z + lerp(5.15, 4.25, speed01)
+      ),
+      look: ball.pos.clone().add(new THREE.Vector3(0, 0.28, -3.6))
+    };
+  }
+  if (phase === 'pinDeck') {
+    return {
+      phase,
+      desired: new THREE.Vector3(
+        laneCenter + 2.15,
+        CFG.laneY + 2.02,
+        CFG.pinDeckZ + 4.15
+      ),
+      look: new THREE.Vector3(laneCenter, CFG.laneY + 0.62, CFG.pinDeckZ - 0.58)
+    };
+  }
+  return {
+    phase,
+    desired: new THREE.Vector3(laneCenter - 0.92, CFG.laneY + 2.78, 14.55),
+    look: new THREE.Vector3(laneCenter * 0.34, CFG.laneY + 0.62, -5.6)
+  };
+}
+
 function updateCamera(
   camera: THREE.PerspectiveCamera,
   ball: BallState,
@@ -3899,8 +3986,9 @@ function updateCamera(
     player !== undefined;
   if (!usePlayerPerspective) {
     const laneCenter = ball.laneCenter || player.standPos.x;
-    desired = new THREE.Vector3(laneCenter * 0.22, 2.24, 12.3);
-    look = new THREE.Vector3(laneCenter * 0.58, CFG.laneY + 0.58, -6.8);
+    const broadcast = getBroadcastCameraPose(player, ball);
+    desired = broadcast.desired;
+    look = broadcast.look;
     if (ball.rolling) {
       const speed01 = clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16);
       desired.x = lerp(desired.x, laneCenter * 0.45, 0.38);
@@ -3920,9 +4008,9 @@ function updateCamera(
   ) {
     const laneCenter = ball.laneCenter || player.standPos.x;
     desired = new THREE.Vector3(
-      laneCenter + (camera.aspect < 0.72 ? 0.18 : 0.34),
-      CFG.laneY + 1.64,
-      CFG.foulZ + 1.08
+      laneCenter + (camera.aspect < 0.72 ? 0.32 : 0.56),
+      CFG.laneY + 1.78,
+      CFG.foulZ + 1.92
     );
     look = new THREE.Vector3(laneCenter, CFG.laneY + 0.44, CFG.pinDeckZ - 0.38);
   } else if (ball.rolling) {
@@ -3934,8 +4022,8 @@ function updateCamera(
     const chase = getPlayerPerspectiveCameraPose(player, ball, dt);
     const laneChase = ball.pos
       .clone()
-      .addScaledVector(lead, -3.85)
-      .add(new THREE.Vector3(0, lerp(1.34, 1.15, speed01), 0.92));
+      .addScaledVector(lead, -4.85)
+      .add(new THREE.Vector3(0, lerp(1.48, 1.24, speed01), 1.22));
     laneChase.x = lerp(laneChase.x, laneCenter, 0.44);
     desired = chase.desired.lerp(
       laneChase,
@@ -3965,8 +4053,9 @@ function updateCamera(
     desired = player.pos.clone().add(new THREE.Vector3(-0.58, 1.68, 3.1));
     look = player.pos.clone().add(new THREE.Vector3(0, 0.64, -1.95));
   } else {
-    desired = new THREE.Vector3(player.standPos.x * 0.28, 2.24, 12.3);
-    look = new THREE.Vector3(player.standPos.x * 0.72, CFG.laneY + 0.58, -6.8);
+    const broadcast = getBroadcastCameraPose(player, ball);
+    desired = broadcast.desired;
+    look = broadcast.look;
   }
   const now = performance.now();
   const pinsProximity = ball.rolling
@@ -4240,7 +4329,7 @@ export default function MobileBowlingRealistic() {
     scene.fog = new THREE.FogExp2(0x080a10, 0.026);
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 80);
-    camera.position.set(-0.62, 3.22, 12.65);
+    camera.position.set(-0.82, 3.34, 14.45);
 
     const playerCharacter = getCharacterById(selectedHumanCharacterId);
     const aiCharacter = pickRandomAiCharacter(
@@ -4555,12 +4644,16 @@ export default function MobileBowlingRealistic() {
     };
 
     const finalizeShot = (afterStanding: number) => {
-      const knocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
+      const rawKnocked = clamp(lastShotStandingBefore - afterStanding, 0, 10);
+      const foul = player.pos.z < CFG.foulZ - 0.05;
       const scoringPlayerIndex = activePlayer;
       const playerBefore = localScores[scoringPlayerIndex];
-      const result = addRollToPlayer(playerBefore, knocked);
+      const result = addRollToPlayer(playerBefore, rawKnocked, foul);
+      const knocked = result.knocked;
       const rollRead = describeRollResult(playerBefore, result, knocked);
-      let status = `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? '' : 's'}`;
+      let status = foul
+        ? `${playerBefore.name} fouled · 0 pins score`
+        : `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? '' : 's'}`;
       let compliment: string =
         RESULT_COMPLIMENTS.open[
           Math.floor(Math.random() * RESULT_COMPLIMENTS.open.length)
@@ -4588,7 +4681,7 @@ export default function MobileBowlingRealistic() {
           ];
       }
       player.celebrateNext = strike || spare;
-      const allDone = localScores.every((p) => playerFinished(p));
+      const allDone = localScores.every((p) => officialTenPinPlayerFinished(p));
       if (allDone) nextAction = 'gameOver';
       else if (result.frameEnded) {
         activePlayer = (activePlayer + 1) % localScores.length;
