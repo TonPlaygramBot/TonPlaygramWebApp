@@ -100,7 +100,9 @@ const PoolRoyaleLobby = React.lazy(
 const PoolRoyaleCareer = React.lazy(
   () => import('./pages/Games/PoolRoyaleCareer.jsx')
 );
-const SnookerRoyal = React.lazy(() => import('./pages/Games/SnookerRoyal.jsx'));
+const SnookerRoyalProvided = React.lazy(
+  () => import('./pages/Games/SnookerRoyalProvided.jsx')
+);
 const SnookerChampion = React.lazy(() => import('./pages/Games/SnookerChampion.jsx'));
 const SnookerRoyalLobby = React.lazy(
   () => import('./pages/Games/SnookerRoyalLobby.jsx')
@@ -473,7 +475,7 @@ export default function App() {
                 path="/games/snookerroyale"
                 element={
                   <GameLiveAvatarOverlay gameSlug="snookerroyale">
-                    <SnookerRoyal />
+                    <SnookerRoyalProvided gameTitle="Snooker Royal" />
                   </GameLiveAvatarOverlay>
                 }
               />
