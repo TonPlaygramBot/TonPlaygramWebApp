@@ -6,7 +6,10 @@ import {
   usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
-  TABLE_MODEL_OPENSOURCE_GLB_URL
+  TABLE_MODEL_OPENSOURCE_GLB_URL,
+  SNOOKER_GLB_PHYSICAL_TABLE_MAP,
+  resolveSnookerPhysicalPocketMap,
+  resolveSnookerPhysicalTableMap
 } from '../webapp/src/pages/Games/snookerTableModel.js';
 
 describe('snooker table model selection', () => {
@@ -44,6 +47,35 @@ describe('snooker table model selection', () => {
       { x: 12, y: 1, z: 20 }
     );
     assert.deepEqual(transform.scale, { x: 6, y: 1, z: 4 });
+  });
+
+  test('resolves the original GLB physical snooker playfield map exactly', () => {
+    const map = resolveSnookerPhysicalTableMap(10);
+    assert.equal(map.tableW, SNOOKER_GLB_PHYSICAL_TABLE_MAP.playfieldWidthM * 10);
+    assert.equal(map.tableL, SNOOKER_GLB_PHYSICAL_TABLE_MAP.playfieldLengthM * 10);
+    assert.equal(map.ballR, (SNOOKER_GLB_PHYSICAL_TABLE_MAP.ballDiameterM * 10) / 2);
+    assert.equal(map.visualPlayfieldFitMultiplier, 1);
+  });
+
+  test('resolves all six pockets from the physical GLB cushion-nose map', () => {
+    const map = resolveSnookerPhysicalTableMap(10);
+    const pockets = resolveSnookerPhysicalPocketMap(
+      map.tableW,
+      map.tableL,
+      map.cornerJawSetback,
+      map.middleJawSetback,
+      map.cornerPocketRadius,
+      map.middlePocketRadius
+    );
+    assert.equal(pockets.length, 6);
+    assert.deepEqual(
+      pockets.map((pocket) => pocket.kind),
+      ['corner', 'corner', 'corner', 'corner', 'middle', 'middle']
+    );
+    assert.equal(pockets[0].x, -map.tableW / 2 + map.cornerJawSetback);
+    assert.equal(pockets[0].z, -map.tableL / 2 + map.cornerJawSetback);
+    assert.equal(pockets[5].x, map.tableW / 2 - map.middleJawSetback);
+    assert.equal(pockets[5].z, 0);
   });
 
   test('uses procedural rail decor only for the classic table model', () => {
