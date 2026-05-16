@@ -47,76 +47,44 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.fitHeightScale, 1);
   });
 
-  test('Traditional Sketchfab table is selectable as an authentic local glTF option', () => {
-    const traditional = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-      (option) => option.id === 'traditional-fizyman-eight-foot'
-    );
-
-    assert.ok(
-      traditional,
-      'Traditional Sketchfab table model must be configured'
+  test('Traditional Sketchfab 8 ft glTF table is no longer selectable', () => {
+    assert.equal(
+      POOL_ROYALE_TABLE_MODEL_OPTIONS.some(
+        (option) => option.id === 'traditional-fizyman-eight-foot'
+      ),
+      false
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      traditional.id
+      'showood-seven-foot'
     );
-    assert.equal(traditional.kind, 'gltf');
-    assert.equal(traditional.assetFormat, 'glTF');
-    assert.equal(
-      traditional.assetUrl,
-      '/models/pool-royale/pool-table-traditional-fizyman/scene.gltf'
-    );
-    assert.equal(
-      traditional.installScript,
-      'npm run fetch:pool-royale-traditional-table'
-    );
-    assert.equal(traditional.sourceUid, 'e0b938c0c2e74eb794a49ebde2543977');
-    assert.equal(traditional.sourceFormat, 'sketchfab-original-gltf');
-    assert.equal(traditional.requiresInstall, true);
-    assert.equal(traditional.installCheck, 'gltf-json');
-    assert.equal(traditional.tableSizeId, '8ft');
-    assert.equal(traditional.fitStrategy, 'exact');
-    assert.equal(traditional.fitReference, 'upperTabletop');
-    assert.equal(traditional.fitScale, 1);
-    assert.equal(traditional.fitHeightScale, 1);
-    assert.equal(traditional.useOriginalLayoutSurfaces, true);
-    assert.deepEqual(traditional.usePoolRoyaleFinishRoles, [
-      'cloth',
-      'cushion',
-      'wood',
-      'pocket'
-    ]);
-    assert.equal(
-      traditional.sourceUrl,
-      'https://sketchfab.com/3d-models/pool-table-traditional-e0b938c0c2e74eb794a49ebde2543977'
-    );
-    assert.equal(traditional.author, 'fizyman');
-    assert.equal(traditional.license, 'CC Attribution 4.0');
   });
 
-  test('Pool Royale lobby keeps runtime-only glTF table models selectable before install', async () => {
+  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
     assert.ok(
-      lobby.includes('const selectedTableModelReady = true'),
-      'lobby start button should not be blocked by runtime-only glTF install checks'
+      lobby.includes('Showood 7 ft GLB is now the fixed Pool Royale table.'),
+      'lobby should explain the fixed Showood table'
     );
-    assert.ok(
-      lobby.includes('onClick={() => setTableModelId(option.id)}'),
-      'table model option should remain clickable when the local glTF is missing'
+    assert.equal(
+      lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS.map'),
+      false,
+      'lobby should not render table model option cards'
     );
-    assert.ok(
-      lobby.includes('Selectable · install for glTF'),
-      'missing local glTF copy should be shown as selectable with install guidance'
+    assert.equal(
+      lobby.includes('setTableModelId'),
+      false,
+      'lobby should not allow switching table models'
     );
-    assert.ok(
-      lobby.includes('generated fallback table'),
-      'start guidance should explain the fallback used until the glTF package is installed'
+    assert.equal(
+      lobby.includes('traditional-fizyman-eight-foot'),
+      false,
+      'lobby should not reference the removed 8 ft glTF table'
     );
-    assert.equal(lobby.includes('disabled={unavailable}'), false);
   });
 
   test('Traditional table installer fetches and validates the authentic Sketchfab glTF', async () => {
