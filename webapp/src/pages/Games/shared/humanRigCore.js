@@ -1100,6 +1100,7 @@ function updateOriginalSkeletonHumanPose(human, dt, frameData) {
     : dampAngle(human.yaw, targetYaw, cfg.rotLambda, dt);
 
   const t = easeInOut(human.poseT);
+  const handPoseT = t;
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);

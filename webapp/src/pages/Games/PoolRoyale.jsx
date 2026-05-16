@@ -1959,7 +1959,7 @@ const POOL_HUMAN_URLS = Object.freeze([
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
 ]);
 const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.3;
+const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.42;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
 const POOL_HUMAN_CFG = Object.freeze({
@@ -2500,7 +2500,18 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   poolHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / POOL_HUMAN_CFG.scale));
-  human.yaw = poolHumanDampScalar(human.yaw, state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(aimForward), POOL_HUMAN_CFG.rotLambda, dt);
+  const tableFacingAimForward = poolHumanSafePlanarForward(aimForward);
+  const rootToTable = bridgeTarget.clone().sub(human.root.position);
+  rootToTable.y = 0;
+  if (rootToTable.lengthSq() > 1e-8 && tableFacingAimForward.dot(rootToTable.normalize()) < 0) {
+    tableFacingAimForward.multiplyScalar(-1);
+  }
+  human.yaw = poolHumanDampScalar(
+    human.yaw,
+    state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(tableFacingAimForward),
+    POOL_HUMAN_CFG.rotLambda,
+    dt
+  );
   const t = poolHumanEaseInOut(human.poseT);
   const idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * POOL_HUMAN_CFG.scale);
