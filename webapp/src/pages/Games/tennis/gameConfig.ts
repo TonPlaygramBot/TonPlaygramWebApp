@@ -29,25 +29,27 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 3.05;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 3.24;
+const COURT_WIDTH_MULTIPLIER = 1.12;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep camera scaling independent from world scale so camera framing can be
 // tuned precisely while the enlarged court keeps its regulation proportions.
 const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.34;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
-const PLAYER_CHARACTER_SCALE = 1.35;
+const PLAYER_CHARACTER_SCALE = 1.42;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
 
 export const gameConfig = {
   worldScale: WORLD_SCALE,
   courtAndCharacterSizeMultiplier: COURT_AND_CHARACTER_SIZE_MULTIPLIER,
+  courtWidthMultiplier: COURT_WIDTH_MULTIPLIER,
   cameraViewScale: CAMERA_VIEW_SCALE,
   fixedTimeStep: 1 / 90,
   maxPhysicsSteps: 5,
   // Regulation court proportions in world metres, scaled as a single unit so
   // the tennis play area reads larger and more arena-like against HDRIs.
-  courtW: 8.23 * WORLD_SCALE,
-  doublesW: 10.97 * WORLD_SCALE,
+  courtW: 8.23 * WORLD_SCALE * COURT_WIDTH_MULTIPLIER,
+  doublesW: 10.97 * WORLD_SCALE * COURT_WIDTH_MULTIPLIER,
   courtL: 23.77 * WORLD_SCALE,
   serviceLineZ: 6.4 * WORLD_SCALE,
   netH: 0.914 * WORLD_SCALE,
