@@ -7,7 +7,6 @@ import { POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfi
 import { getChessBattleInventory, isChessOptionUnlocked } from "../../utils/chessBattleInventory.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { GroundedSkybox } from "three/examples/jsm/objects/GroundedSkybox.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -127,27 +126,26 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  // Pool Royale matching footprint in this arena: the play surface keeps the same 2:1 footprint,
-  // centered at world origin and aligned to the HDRI rotation used by Pool Royale.
+  // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
   tableL: 7.2,
-  tableW: 3.6,
+  tableW: 3.96,
   tableY: 1.7,
   tableTopThickness: 0.088,
   netH: 0.21,
   netPostOutside: 0.21,
-  ballR: 0.055,
+  ballR: 0.052,
   gravity: 9.81,
   airDrag: 0.22,
   magnus: 0.00125,
   tableRestitution: 0.96,
   tableFriction: 0.982,
   spinDecay: 0.72,
-  playerHeight: 3.65,
-  playerSpeed: 4.05,
-  aiSpeed: 5.05,
+  playerHeight: 3.5,
+  playerSpeed: 3.9,
+  aiSpeed: 4.95,
   aiServeReceiveBoost: 1.08,
   aiOutBallConfidenceCutoff: 0.18,
-  reach: 1.16,
+  reach: 1.09,
   swingDuration: 0.31,
   backhandDuration: 0.27,
   serveDuration: 0.82,
@@ -163,8 +161,8 @@ const CFG = {
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 4.9,
-  maxShotSpeed: 15.4,
+  minShotSpeed: 4.6,
+  maxShotSpeed: 14.2,
   netClearance: 0.16,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
@@ -172,18 +170,11 @@ const CFG = {
 
 const TABLE_REFERENCE_LENGTH = 2.74;
 const TABLE_SCALE_FACTOR = CFG.tableL / TABLE_REFERENCE_LENGTH;
-const PADDLE_SCALE_FACTOR = Math.max(1.28, TABLE_SCALE_FACTOR * 0.92);
+const PADDLE_SCALE_FACTOR = Math.max(1.18, TABLE_SCALE_FACTOR * 0.86);
 
 const TABLE_HALF_W = CFG.tableW / 2;
 const TABLE_HALF_L = CFG.tableL / 2;
 const BALL_SURFACE_Y = CFG.tableY + CFG.ballR;
-const TABLE_FOOTPRINT_LONG = Math.max(CFG.tableL, CFG.tableW);
-const CAMERA_TARGET_OFFSET_Z = -0.08;
-const PORTRAIT_CAMERA_POS = new THREE.Vector3(0, 8.25, 11.1);
-const LANDSCAPE_CAMERA_POS = new THREE.Vector3(0, 7.0, 9.35);
-const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
-const DEFAULT_HDRI_RADIUS_MULTIPLIER = 4;
-const HDRI_GROUNDED_RESOLUTION = 112;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clamp01 = (v: number) => clamp(v, 0, 1);
@@ -1123,62 +1114,74 @@ function makeAiServeTarget(): DesiredHit {
 }
 
 function makeAiTarget(near: HumanRig, ball: BallState, read?: { strike: THREE.Vector3; landing: THREE.Vector3; confidence: number; time: number }): DesiredHit {
-  // Keep the original Table Tennis AI shot-selection personality: simple push/wide/body/loop/drive
-  // choices based on ball height and player recovery, with only a small confidence nudge from the
-  // larger-table read so the legacy logic still has enough power on the Pool Royale-sized surface.
   const pressure = clamp01((-ball.pos.z + TABLE_HALF_L) / CFG.tableL);
-  const nearRecoverX = clamp(near.pos.x, -TABLE_HALF_W * 0.42, TABLE_HALF_W * 0.42);
+  const recoverX = clamp(near.target.x * 0.62 + near.pos.x * 0.38, -TABLE_HALF_W, TABLE_HALF_W);
+  const playerMomentum = clamp(near.target.x - near.pos.x, -0.8, 0.8);
   const strike = read?.strike || ball.pos;
-  const highBall = strike.y > CFG.tableY + 0.34;
-  const lowBall = strike.y < CFG.tableY + 0.16;
-  const confidenceBoost = clamp((read?.confidence ?? 0.68) - 0.68, -0.12, 0.18);
+  const highBall = strike.y > CFG.tableY + 0.39;
+  const lowBall = strike.y < CFG.tableY + 0.18;
+  const earlyBall = (read?.time ?? 0.28) < 0.24;
+  const confidence = read?.confidence ?? 0.68;
+  const openSide = recoverX + playerMomentum * 0.72 > 0 ? -1 : 1;
+  const wrongFootSide = playerMomentum > 0.08 ? -1 : playerMomentum < -0.08 ? 1 : openSide;
+  const ballLateralPressure = clamp(Math.abs(strike.x) / Math.max(0.001, TABLE_HALF_W), 0, 1);
+
   let tactic: AiTactic;
   const roll = Math.random();
-  if (lowBall) tactic = roll < 0.62 ? "push" : "wide";
-  else if (highBall) tactic = roll < 0.72 ? "loop" : "drive";
-  else tactic = roll < 0.38 ? "wide" : roll < 0.7 ? "body" : "drive";
+  if (confidence > 0.82 && highBall && roll < 0.68) tactic = "loop";
+  else if (lowBall && roll < 0.58) tactic = "push";
+  else if (ballLateralPressure > 0.68 && roll < 0.7) tactic = "body";
+  else if (roll < 0.46 + pressure * 0.18) tactic = "wide";
+  else if (roll < 0.72) tactic = "body";
+  else tactic = highBall ? "loop" : "drive";
 
   let x = 0;
   let z = 0.92;
-  let power = 0.58;
-  let topSpin = 0.75;
-  let sideSpin = clamp((Math.random() - 0.5) * 0.8, -0.8, 0.8);
+  let power = 0.64;
+  let topSpin = 0.8;
+  let sideSpin = clamp((Math.random() - 0.5) * 0.46, -0.46, 0.46);
 
   if (tactic === "push") {
-    x = clamp(-nearRecoverX * 0.42 + (Math.random() - 0.5) * TABLE_HALF_W * 0.14, -TABLE_HALF_W + 0.14, TABLE_HALF_W - 0.14);
-    z = lerp(TABLE_HALF_L * 0.08, TABLE_HALF_L * 0.18, Math.random());
-    power = 0.34 + Math.random() * 0.16 + confidenceBoost * 0.35;
-    topSpin = -0.28;
-    sideSpin *= 0.45;
+    const shortAngle = Math.random() < 0.55 ? openSide : -Math.sign(strike.x || openSide);
+    x = clamp(shortAngle * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.58, Math.random()), -TABLE_HALF_W + 0.16, TABLE_HALF_W - 0.16);
+    z = lerp(0.24, 0.5, Math.random());
+    power = 0.36 + confidence * 0.1;
+    topSpin = -0.34;
+    sideSpin = shortAngle * 0.32;
   } else if (tactic === "wide") {
-    const openSide = near.pos.x > 0 ? -1 : 1;
-    x = clamp(openSide * (TABLE_HALF_W - 0.14), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-    z = lerp(TABLE_HALF_L * 0.23, TABLE_HALF_L - 0.16, Math.random());
-    power = 0.66 + pressure * 0.18 + confidenceBoost * 0.4;
-    topSpin = 0.86 + pressure * 0.25;
-    sideSpin = openSide * 0.6;
+    const angleSide = Math.random() < 0.68 ? openSide : wrongFootSide;
+    x = clamp(angleSide * lerp(TABLE_HALF_W - 0.28, TABLE_HALF_W - 0.1, Math.random()), -TABLE_HALF_W + 0.08, TABLE_HALF_W - 0.08);
+    z = lerp(TABLE_HALF_L * 0.34, TABLE_HALF_L - 0.14, Math.random());
+    power = 0.72 + pressure * 0.2 + confidence * 0.04;
+    topSpin = 0.92 + pressure * 0.26;
+    sideSpin = angleSide * lerp(0.48, 0.82, confidence);
   } else if (tactic === "body") {
-    x = clamp(near.pos.x * 0.78 + (Math.random() - 0.5) * TABLE_HALF_W * 0.07, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L * 0.2, TABLE_HALF_L * 0.31, Math.random());
-    power = 0.62 + pressure * 0.2 + confidenceBoost * 0.35;
-    topSpin = 0.68 + pressure * 0.22;
+    x = clamp(recoverX * 0.86 + playerMomentum * 0.34 + (Math.random() - 0.5) * 0.08, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
+    z = lerp(TABLE_HALF_L * 0.24, TABLE_HALF_L * 0.48, Math.random());
+    power = 0.68 + pressure * 0.22 + (earlyBall ? 0.04 : 0);
+    topSpin = 0.72 + pressure * 0.24;
+    sideSpin = -Math.sign(playerMomentum || openSide) * 0.25;
   } else if (tactic === "loop") {
-    x = clamp(-nearRecoverX * 0.72 + (Math.random() - 0.5) * TABLE_HALF_W * 0.1, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L - 0.34, TABLE_HALF_L - 0.13, Math.random());
-    power = 0.78 + pressure * 0.14 + confidenceBoost * 0.32;
-    topSpin = 1.05 + pressure * 0.22;
-    sideSpin *= 0.35;
+    const heavySide = Math.random() < 0.62 ? openSide : -Math.sign(strike.x || openSide);
+    x = clamp(heavySide * lerp(TABLE_HALF_W * 0.34, TABLE_HALF_W - 0.16, Math.random()), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
+    z = lerp(TABLE_HALF_L - 0.42, TABLE_HALF_L - 0.12, Math.random());
+    power = 0.82 + pressure * 0.14 + confidence * 0.04;
+    topSpin = 1.12 + pressure * 0.24;
+    sideSpin = heavySide * 0.28;
   } else {
-    x = clamp(-nearRecoverX * 0.56 + (Math.random() - 0.5) * TABLE_HALF_W * 0.19, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L * 0.22, TABLE_HALF_L - 0.18, Math.random());
-    power = 0.62 + pressure * 0.2 + confidenceBoost * 0.35;
-    topSpin = 0.72 + pressure * 0.2;
+    const driveSide = Math.random() < 0.58 ? wrongFootSide : openSide;
+    x = clamp(driveSide * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.72, Math.random()), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
+    z = lerp(TABLE_HALF_L * 0.32, TABLE_HALF_L - 0.18, Math.random());
+    power = 0.68 + pressure * 0.22;
+    topSpin = 0.78 + pressure * 0.2;
+    sideSpin = driveSide * 0.22;
   }
 
+  const safeMargin = confidence > 0.78 ? 0.08 : 0.16;
   return {
-    target: new THREE.Vector3(x, BALL_SURFACE_Y, z),
-    power: clamp(power, 0.32, 0.98),
-    topSpin: clamp(topSpin, -0.35, 1.25),
+    target: new THREE.Vector3(clamp(x, -TABLE_HALF_W + safeMargin, TABLE_HALF_W - safeMargin), BALL_SURFACE_Y, clamp(z, 0.2, TABLE_HALF_L - safeMargin)),
+    power: clamp(power, 0.34, 0.98),
+    topSpin: clamp(topSpin, -0.4, 1.32),
     sideSpin: clamp(sideSpin, -1, 1),
     tactic,
   };
@@ -1193,19 +1196,17 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -TABLE_HALF_L * 0.17);
-    const servePowerScale = Math.sqrt(TABLE_SCALE_FACTOR / (5.8 / TABLE_REFERENCE_LENGTH));
-    const flight = clamp((0.18 + (1 - hit.power) * 0.075) / servePowerScale, 0.15, 0.27);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
+    const flight = clamp(0.16 + (1 - hit.power) * 0.07, 0.145, 0.26);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
   } else {
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
-    const sourceTableScaleFactor = 5.8 / TABLE_REFERENCE_LENGTH;
-    const powerScale = Math.max(1, Math.sqrt(TABLE_SCALE_FACTOR / sourceTableScaleFactor));
-    const baseFlight = clamp(dist / ((4.2 + hit.power * 4.1) * Math.max(1, sourceTableScaleFactor * 0.85) * powerScale), 0.14, 0.44);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.12, 0.42);
+    const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
+    const baseFlight = dist / ((4.9 + hit.power * 6.1) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.115, 0.38);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1451,8 +1452,6 @@ export default function MobileRealisticTableTennisGame() {
     const scene = new THREE.Scene();
     scene.fog = null;
     let activeEnvMap: THREE.Texture | null = null;
-    let activeSkybox: GroundedSkybox | null = null;
-    let activeSkyboxMap: THREE.Texture | null = null;
     const hdriLoader = new RGBELoader().setDataType(THREE.HalfFloatType).setCrossOrigin("anonymous");
     const hdriCandidateUrls = selectedHdriOption?.assetId ? [
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/${selectedHdriOption.assetId}_4k.hdr`,
@@ -1464,43 +1463,20 @@ export default function MobileRealisticTableTennisGame() {
       if (!url) return;
       hdriLoader.load(url, (hdrTex) => {
         const env = pmrem.fromEquirectangular(hdrTex).texture;
+        hdrTex.dispose();
         if (activeEnvMap) activeEnvMap.dispose();
-        if (activeSkybox) scene.remove(activeSkybox);
-        if (activeSkyboxMap) activeSkyboxMap.dispose();
         activeEnvMap = env;
-        const hdriRotationY = Number.isFinite(selectedHdriOption?.rotationY) ? selectedHdriOption.rotationY : 0;
         scene.environment = env;
         scene.background = env;
         scene.backgroundBlurriness = 0;
-        scene.backgroundIntensity = selectedHdriOption?.backgroundIntensity ?? 1.0;
-        scene.environmentIntensity = selectedHdriOption?.environmentIntensity ?? 1.0;
-        if ("backgroundRotation" in scene) scene.backgroundRotation = new THREE.Euler(0, hdriRotationY, 0);
-        if ("environmentRotation" in scene) scene.environmentRotation = new THREE.Euler(0, hdriRotationY, 0);
-        try {
-          activeSkyboxMap = hdrTex;
-          const skyboxHeight = Math.max(DEFAULT_HDRI_CAMERA_HEIGHT_M, selectedHdriOption?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M);
-          const skyboxRadius = Math.max(
-            TABLE_FOOTPRINT_LONG * (selectedHdriOption?.groundRadiusMultiplier ?? DEFAULT_HDRI_RADIUS_MULTIPLIER),
-            skyboxHeight * 2.5,
-            TABLE_FOOTPRINT_LONG * 3.2
-          );
-          activeSkybox = new GroundedSkybox(activeSkyboxMap, skyboxHeight, skyboxRadius, Math.floor(selectedHdriOption?.groundResolution ?? HDRI_GROUNDED_RESOLUTION));
-          activeSkybox.position.y = skyboxHeight;
-          activeSkybox.rotation.y = hdriRotationY;
-          (activeSkybox.material as THREE.Material).depthWrite = false;
-          scene.background = null;
-          scene.add(activeSkybox);
-        } catch {
-          hdrTex.dispose();
-          activeSkyboxMap = null;
-          activeSkybox = null;
-        }
+        scene.backgroundIntensity = 1.0;
+        scene.environmentIntensity = 1.0;
       }, undefined, () => loadHdri(idx + 1));
     };
     loadHdri();
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 42);
-    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.25, CAMERA_TARGET_OFFSET_Z);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36);
+    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.22, -0.08);
     const netWobble = { amount: 0, side: 0 };
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.64));
@@ -1601,8 +1577,8 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setSize(w, h, false);
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
-      camera.fov = camera.aspect < 0.72 ? 47 : 41;
-      camera.position.copy(camera.aspect < 0.72 ? PORTRAIT_CAMERA_POS : LANDSCAPE_CAMERA_POS);
+      camera.fov = camera.aspect < 0.72 ? 44 : 39;
+      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1967,9 +1943,9 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      const bPos = camera.aspect < 0.72 ? PORTRAIT_CAMERA_POS : LANDSCAPE_CAMERA_POS;
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
       camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
-      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.25, CAMERA_TARGET_OFFSET_Z), 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.22, -0.08), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
@@ -1978,16 +1954,14 @@ export default function MobileRealisticTableTennisGame() {
 
     return () => {
       cancelAnimationFrame(frameId);
-      if (activeSkybox) scene.remove(activeSkybox);
-      if (activeEnvMap) activeEnvMap.dispose();
-      if (activeSkyboxMap) activeSkyboxMap.dispose();
-      pmrem.dispose();
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
       renderer.dispose();
+      if (activeEnvMap) activeEnvMap.dispose();
+      pmrem.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.isMesh) {
