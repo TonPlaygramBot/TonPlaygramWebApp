@@ -19,17 +19,18 @@ export class BallController {
 
   stepFixed(ball: BallLike, dt: number, opts: { awaitingServe: boolean; serveSide: "deuce" | "ad"; onRuleEvent?: (event: CourtRuleEvent) => void; onBounce?: () => void; onNet?: () => void }) {
     const prevZ = ball.pos.z;
-    const spinDip = Math.max(0, ball.spin) * 0.16;
-    const spinLift = Math.max(0, -ball.spin) * 0.05;
+    const spinDip = Math.max(0, ball.spin) * 0.18;
+    const spinLift = Math.max(0, -ball.spin) * 0.07;
     ball.vel.y -= gameConfig.gravity * (1 + spinDip - spinLift) * dt;
     if (ball.lastHitBy && Math.abs(ball.vel.z) > 0.001) {
       const forwardSign = ball.lastHitBy === "near" ? -1 : 1;
-      ball.vel.z += forwardSign * ball.spin * 0.18 * gameConfig.worldScale * dt;
-      ball.vel.x += Math.sin(ball.spin * 0.65) * 0.018 * gameConfig.worldScale * dt;
+      const horizontalSpeed = Math.hypot(ball.vel.x, ball.vel.z);
+      ball.vel.z += forwardSign * ball.spin * 0.16 * gameConfig.worldScale * dt;
+      ball.vel.x += Math.sin(ball.spin * 0.72) * (0.018 + horizontalSpeed * 0.0007) * gameConfig.worldScale * dt;
     }
     ball.vel.multiplyScalar(Math.exp(-gameConfig.airDrag * dt));
     ball.pos.addScaledVector(ball.vel, dt);
-    ball.spin *= Math.exp(-1.25 * dt);
+    ball.spin *= Math.exp(-1.05 * dt);
 
     if (ball.lastHitBy && this.rules.isNetCollision(ball.pos, prevZ)) {
       ball.state = TennisBallState.NetHit;
@@ -48,14 +49,17 @@ export class BallController {
         ball.state = TennisBallState.CourtBounce;
         const incomingZ = ball.vel.z;
         const forwardSign = ball.lastHitBy === "near" ? -1 : ball.lastHitBy === "far" ? 1 : Math.sign(ball.vel.z || 1);
-        ball.vel.y = -ball.vel.y * gameConfig.bounceRestitution;
+        const incomingY = Math.abs(ball.vel.y);
+        const pace = Math.hypot(ball.vel.x, ball.vel.z);
+        const paceDamp = clamp(1 - pace / (42 * gameConfig.worldScale), 0.82, 1);
+        ball.vel.y = incomingY * gameConfig.bounceRestitution * paceDamp;
         ball.vel.x *= gameConfig.groundFriction;
         ball.vel.z *= gameConfig.groundFriction;
-        ball.vel.z += forwardSign * ball.spin * 0.33 * gameConfig.worldScale;
-        ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.045 * gameConfig.worldScale;
-        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.055, 0.78, 1.08);
+        ball.vel.z += forwardSign * ball.spin * 0.39 * gameConfig.worldScale;
+        ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.052 * gameConfig.worldScale;
+        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.06 + Math.max(0, -ball.spin) * 0.035, 0.76, 1.11);
         if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
-        ball.spin *= -0.38;
+        ball.spin = -ball.spin * 0.42 + pace * 0.006 * Math.sign(forwardSign);
         const bounceSide = sideOfZ(ball.pos.z);
         ball.bounceCount = ball.bounceSide === bounceSide ? ball.bounceCount + 1 : 1;
         ball.bounceSide = bounceSide;

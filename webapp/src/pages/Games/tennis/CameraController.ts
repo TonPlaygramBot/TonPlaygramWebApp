@@ -31,12 +31,12 @@ export class CameraController {
     const lateral = Math.max(-0.45, Math.min(0.45, ballPos.x * 0.08));
 
     if (preServe) {
-      cameraPosTarget.copy(playerTarget).add(tempOffset.set(playerTarget.x * 0.08 + lateral, 8.85 * gameConfig.cameraViewScale, 14.65 * gameConfig.cameraViewScale));
-      tempLookTarget.set(playerTarget.x * 0.2 + lateral, 1.55 * gameConfig.cameraViewScale, -gameConfig.courtL * 0.31);
+      cameraPosTarget.copy(playerTarget).add(tempOffset.set(playerTarget.x * 0.08 + lateral, 10.85 * gameConfig.cameraViewScale, 18.25 * gameConfig.cameraViewScale));
+      tempLookTarget.set(playerTarget.x * 0.2 + lateral, 2.02 * gameConfig.cameraViewScale, -gameConfig.courtL * 0.34);
       cameraTarget.lerp(tempLookTarget, targetDamping);
     } else {
       tempFollowAnchor.copy(playerTarget);
-      tempBaseTarget.set(playerTarget.x + lateral, 1.52 * gameConfig.cameraViewScale, playerTarget.z - 9.35 * gameConfig.cameraViewScale);
+      tempBaseTarget.set(playerTarget.x + lateral, 1.9 * gameConfig.cameraViewScale, playerTarget.z - 11.6 * gameConfig.cameraViewScale);
 
       if (incomingToPlayer) {
         tempIncomingTarget.copy(options.predictedLanding || ballPos);
@@ -45,7 +45,7 @@ export class CameraController {
         tempFollowAnchor.lerp(tempIncomingTarget, gameConfig.cameraPlayerFollowBlend);
 
         tempBallBias.copy(ballPos).lerp(tempIncomingTarget, 0.45);
-        tempBallBias.y = Math.max(1.45 * gameConfig.cameraViewScale, ballPos.y * 0.3 + 1.35 * gameConfig.cameraViewScale);
+        tempBallBias.y = Math.max(1.85 * gameConfig.cameraViewScale, ballPos.y * 0.3 + 1.65 * gameConfig.cameraViewScale);
         tempBaseTarget.lerp(tempBallBias, gameConfig.cameraBallLookAhead);
       }
 
