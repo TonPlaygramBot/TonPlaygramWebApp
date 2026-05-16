@@ -23,12 +23,12 @@ export interface PaddleHitResult {
 }
 
 const shotProfiles: Record<ShotType, { lift: number; speed: number; spin: number; arc: number }> = {
-  'forehand drive': { lift: 1.68, speed: GAME_CONFIG.paddle.drivePower, spin: 2.35, arc: 0.16 },
-  'backhand drive': { lift: 1.58, speed: GAME_CONFIG.paddle.drivePower * 0.96, spin: 2.05, arc: 0.12 },
-  push: { lift: 1.12, speed: GAME_CONFIG.paddle.pushPower, spin: -1.85, arc: 0.2 },
-  'brush/topspin': { lift: 1.78, speed: GAME_CONFIG.paddle.drivePower * 0.98, spin: GAME_CONFIG.paddle.spin, arc: 0.05 },
-  lob: { lift: 2.85, speed: GAME_CONFIG.paddle.lobPower, spin: 0.75, arc: 0.46 },
-  'swerve power': { lift: 1.62, speed: GAME_CONFIG.paddle.drivePower * GAME_CONFIG.paddle.powerShotMultiplier, spin: GAME_CONFIG.paddle.spin * 0.9, arc: 0.08 },
+  'forehand drive': { lift: 1.78, speed: GAME_CONFIG.paddle.drivePower, spin: 2.55, arc: 0.14 },
+  'backhand drive': { lift: 1.66, speed: GAME_CONFIG.paddle.drivePower * 0.98, spin: 2.25, arc: 0.11 },
+  push: { lift: 1.18, speed: GAME_CONFIG.paddle.pushPower, spin: -1.95, arc: 0.18 },
+  'brush/topspin': { lift: 1.88, speed: GAME_CONFIG.paddle.drivePower * 1.02, spin: GAME_CONFIG.paddle.spin, arc: 0.04 },
+  lob: { lift: 2.95, speed: GAME_CONFIG.paddle.lobPower, spin: 0.82, arc: 0.48 },
+  'swerve power': { lift: 1.78, speed: GAME_CONFIG.paddle.drivePower * GAME_CONFIG.paddle.powerShotMultiplier, spin: GAME_CONFIG.paddle.spin * 0.95, arc: 0.06 },
 };
 
 const DEFAULT_COMMAND: ShotCommand = { aimX: 0, power: 0.58, lift: 0.45, curve: 0, spin: 0.25 };
@@ -47,24 +47,25 @@ export class PaddleHitDetector {
 
     const command = input.shotCommand ?? DEFAULT_COMMAND;
     const profile = shotProfiles[input.requestedShot];
-    const targetZ = input.side === 'player'
-      ? THREE.MathUtils.randFloat(TABLE_BOUNDS.minZ * 0.78, TABLE_BOUNDS.minZ * 0.28)
-      : THREE.MathUtils.randFloat(TABLE_BOUNDS.maxZ * 0.28, TABLE_BOUNDS.maxZ * 0.78);
+    const depthIntent = THREE.MathUtils.clamp(0.48 + command.power * 0.46 - command.lift * 0.16, 0, 1);
+    const shortZ = input.side === 'player' ? TABLE_BOUNDS.minZ * 0.3 : TABLE_BOUNDS.maxZ * 0.3;
+    const deepZ = input.side === 'player' ? TABLE_BOUNDS.minZ * 0.84 : TABLE_BOUNDS.maxZ * 0.84;
+    const targetZ = THREE.MathUtils.lerp(shortZ, deepZ, depthIntent);
     const screenAim = input.side === 'player' ? command.aimX : -command.aimX;
-    const edgeInset = GAME_CONFIG.table.width * 0.065;
+    const edgeInset = GAME_CONFIG.table.width * 0.045;
     const targetXBase = THREE.MathUtils.lerp(TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset, (screenAim + 1) / 2);
-    const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * THREE.MathUtils.lerp(0.48, 0.22, command.power);
+    const error = (1 - (input.accuracy ?? GAME_CONFIG.paddle.accuracy)) * THREE.MathUtils.lerp(0.24, 0.08, command.power);
     const target = new THREE.Vector3(
       THREE.MathUtils.clamp(targetXBase + THREE.MathUtils.randFloatSpread(error), TABLE_BOUNDS.minX + edgeInset, TABLE_BOUNDS.maxX - edgeInset),
-      GAME_CONFIG.table.topY + profile.arc + command.lift * 0.32,
+      GAME_CONFIG.table.topY + profile.arc + command.lift * 0.28,
       targetZ,
     );
     const direction = target.sub(input.ballPosition).normalize();
-    const commandPower = THREE.MathUtils.lerp(0.72, 1.28, command.power);
+    const commandPower = THREE.MathUtils.lerp(0.82, 1.42, command.power);
     const power = profile.speed * commandPower * (input.powerScale ?? 1);
     const velocity = direction.multiplyScalar(power);
     const minLift = input.requestedShot === 'lob' ? 2.18 : THREE.MathUtils.lerp(0.9, 1.24, command.lift);
-    velocity.y = Math.max(velocity.y + profile.lift + command.lift * 0.58, minLift);
+    velocity.y = Math.max(velocity.y + profile.lift + command.lift * 0.64, minLift);
 
     const sideSign = input.side === 'player' ? -1 : 1;
     const topOrBackSpin = profile.spin + command.spin * GAME_CONFIG.paddle.spin;

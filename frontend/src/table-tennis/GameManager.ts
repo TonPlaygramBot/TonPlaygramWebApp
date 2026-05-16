@@ -191,12 +191,13 @@ export class GameManager {
     const dx = end.x - start.x;
     const dy = start.y - end.y;
     const distance = Math.hypot(dx, dy);
-    const fastSwipeBonus = THREE.MathUtils.clamp(320 / Math.max(durationMs, 80), 0, 1);
-    const aimX = THREE.MathUtils.clamp(end.x * 1.08, -1, 1);
-    const power = THREE.MathUtils.clamp(distance * 0.64 + fastSwipeBonus * 0.42, 0.16, 1);
-    const lift = THREE.MathUtils.clamp(0.28 + dy * 0.58, 0, 1);
-    const curve = THREE.MathUtils.clamp(dx * 0.92, -1, 1);
-    const spin = THREE.MathUtils.clamp(dy * 0.92 + power * 0.22 - Math.abs(curve) * 0.1, -1, 1);
+    const fastSwipeBonus = THREE.MathUtils.clamp(360 / Math.max(durationMs, 70), 0, 1);
+    const directionalAim = end.x + dx * 0.45;
+    const aimX = THREE.MathUtils.clamp(directionalAim, -1, 1);
+    const power = THREE.MathUtils.clamp(distance * 0.82 + fastSwipeBonus * 0.5, 0.22, 1);
+    const lift = THREE.MathUtils.clamp(0.24 + dy * 0.68, 0, 1);
+    const curve = THREE.MathUtils.clamp(dx * 1.08, -1, 1);
+    const spin = THREE.MathUtils.clamp(dy * 1.02 + power * 0.26 - Math.abs(curve) * 0.08, -1, 1);
     return { aimX, power, lift, curve, spin };
   }
 
