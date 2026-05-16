@@ -32,7 +32,10 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [DEFAULT_MURLAN_SHARED_IDS.table],
   tableCloth: [DEFAULT_MURLAN_SHARED_IDS.tableCloth],
   tableFinish: [DEFAULT_MURLAN_SHARED_IDS.tableFinish],
-  characters: [MURLAN_CHARACTER_THEMES[0].id],
+  // Keep all configured 3D characters selectable in-game. Several are
+  // runtime-only GLBs installed outside git, so hiding them behind inventory
+  // locks made them look missing even after the catalog was registered.
+  characters: MURLAN_CHARACTER_THEMES.map((theme) => theme.id),
   environmentHdri: MURLAN_HDRI_OPTIONS.map((variant) => variant.id)
 });
 
