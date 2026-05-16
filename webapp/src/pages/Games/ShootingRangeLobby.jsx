@@ -27,63 +27,15 @@ const RANGE_DISTANCES = [
   },
   {
     id: 'swat',
-    label: 'SWAT 1 Apartment',
-    desc: 'FPS joystick room-clearing house',
-    icon: '🏠'
-  },
-  {
-    id: 'swat_house_2',
-    label: 'SWAT 2 Office',
-    desc: 'Cubicles, offices, doors, and cover',
-    icon: '🏢'
-  },
-  {
-    id: 'swat_house_3',
-    label: 'SWAT 3 School',
-    desc: 'Classroom-style rooms and halls',
-    icon: '🏫'
-  },
-  {
-    id: 'swat_house_4',
-    label: 'SWAT 4 Warehouse',
-    desc: 'Industrial maze and shutter doors',
-    icon: '🏭'
-  },
-  {
-    id: 'swat_house_5',
-    label: 'SWAT 5 Clinic',
-    desc: 'Clinic rooms with no-shoot targets',
-    icon: '🏥'
+    label: 'SWAT building',
+    desc: 'Empty rooms, doors, cover, no-shoot marks',
+    icon: '🚪'
   },
   {
     id: 'nature',
-    label: 'Outdoor 1 Timber',
-    desc: 'Berms, wood frames, and forest cover',
+    label: 'Nature range',
+    desc: 'Outdoor forest lane with long sight lines',
     icon: '🌲'
-  },
-  {
-    id: 'nature_range_2',
-    label: 'Outdoor 2 Desert',
-    desc: 'Scrubland bay with rock bullet traps',
-    icon: '🏜️'
-  },
-  {
-    id: 'nature_range_3',
-    label: 'Outdoor 3 Quarry',
-    desc: 'Rock-walled quarry bowl range',
-    icon: '🪨'
-  },
-  {
-    id: 'nature_range_4',
-    label: 'Outdoor 4 Pine',
-    desc: 'Long pine-valley rifle lanes',
-    icon: '🌄'
-  },
-  {
-    id: 'nature_range_5',
-    label: 'Outdoor 5 Wetland',
-    desc: 'Raised firing deck and drainage lanes',
-    icon: '🌿'
   },
   {
     id: 'moving',
@@ -308,10 +260,10 @@ export default function ShootingRangeLobby() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Range Distance</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              12 ranges
+              4 ranges
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             {RANGE_DISTANCES.map(({ id, label, desc, icon }) => {
               const active = distance === id;
               return (
