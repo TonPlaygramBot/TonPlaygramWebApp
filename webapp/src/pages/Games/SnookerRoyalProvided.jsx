@@ -93,7 +93,9 @@ const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
 const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
-const BALL_VISUAL_LIFT = 0.04;
+const BALL_VISUAL_LIFT = 0.16;
+const SNOOKER_TABLE_MARKING_LIFT = 0.012 * WORLD_SCALE;
+const SNOOKER_TABLE_MARKING_RADIUS = 0.0065 * WORLD_SCALE;
 const OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M = 1.778;
 const OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M = 3.569;
 const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
@@ -486,6 +488,9 @@ function createBall(number, color, isCue = false, kind = 'red', value = 1, spot 
   });
   material.depthTest = true;
   material.depthWrite = true;
+  material.roughness = Math.min(material.roughness ?? 0.48, 0.34);
+  material.metalness = Math.max(material.metalness ?? 0, 0.02);
+  material.envMapIntensity = Math.max(material.envMapIntensity ?? 0.45, 0.9);
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.ballR, 64, 64), material);
   mesh.renderOrder = 20;
   mesh.userData.snookerChampionBall = true;
@@ -615,40 +620,72 @@ function resolveSnookerChampionGlbUpperBounds(model, fullBounds) {
   return upperBounds.isEmpty() ? fullBounds.clone() : upperBounds;
 }
 
+function resolveSnookerChampionGlbBedBounds(model) {
+  const bedBounds = new THREE.Box3();
+  model.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const label = [node.name, node.parent?.name, ...materials.map((mat) => mat?.name)].filter(Boolean).join(' ').toLowerCase();
+    if (!/cloth|felt|baize|slate|bed|playfield|surface/.test(label) || /rail|cushion|pocket|net|leather|wood|frame/.test(label)) return;
+    const nodeBox = new THREE.Box3().setFromObject(node);
+    if (!nodeBox.isEmpty()) bedBounds.union(nodeBox);
+  });
+  return bedBounds.isEmpty() ? null : bedBounds;
+}
+
 function addOfficialSnookerMarkings(tableGroup) {
-  const markY = CFG.ballR + CFG.topThickness * 0.015;
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.72, depthWrite: false });
-  const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.76, depthWrite: false });
+  const markY = CFG.ballR + SNOOKER_TABLE_MARKING_LIFT;
+  const lineMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.94,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  });
+  const spotMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3
+  });
   const spots = getOfficialSnookerSpots(markY);
-  const addLine = (points, name) => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, lineMat);
-    line.name = name;
-    line.renderOrder = 8;
-    tableGroup.add(line);
-    return line;
+  const addRaisedMarking = (points, name) => {
+    const path = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+    const geometry = new THREE.TubeGeometry(path, Math.max(2, points.length * 2), SNOOKER_TABLE_MARKING_RADIUS, 8, false);
+    const mesh = new THREE.Mesh(geometry, lineMat);
+    mesh.name = name;
+    mesh.renderOrder = 28;
+    mesh.userData.snookerChampionMarking = true;
+    tableGroup.add(mesh);
+    return mesh;
   };
-  addLine([
+  addRaisedMarking([
     new THREE.Vector3(-CFG.tableW / 2, markY, spots.baulkZ),
     new THREE.Vector3(CFG.tableW / 2, markY, spots.baulkZ)
-  ], 'official-snooker-baulk-line');
+  ], 'official-snooker-baulk-line-visible');
   const arcPoints = [];
-  for (let i = 0; i <= 64; i += 1) {
-    const theta = Math.PI / 2 + (i / 64) * Math.PI;
+  for (let i = 0; i <= 96; i += 1) {
+    const theta = Math.PI / 2 + (i / 96) * Math.PI;
     arcPoints.push(new THREE.Vector3(
       Math.cos(theta) * SNOOKER_OFFICIAL_D_RADIUS,
       markY,
       spots.baulkZ + Math.sin(theta) * SNOOKER_OFFICIAL_D_RADIUS
     ));
   }
-  addLine(arcPoints, 'official-snooker-d-semicircle');
+  addRaisedMarking(arcPoints, 'official-snooker-d-semicircle-visible');
   ['yellow', 'green', 'brown', 'blue', 'pink', 'black'].forEach((id) => {
     const spot = spots[id];
-    const marker = new THREE.Mesh(new THREE.CircleGeometry(Math.max(CFG.ballR * 0.12, 0.01), 24), spotMat);
-    marker.name = `official-snooker-${id}-spot`;
+    const marker = new THREE.Mesh(new THREE.CircleGeometry(Math.max(CFG.ballR * 0.2, 0.018 * CFG.scale), 36), spotMat);
+    marker.name = `official-snooker-${id}-spot-visible`;
     marker.rotation.x = -Math.PI / 2;
-    marker.position.set(spot.x, markY + 0.001 * CFG.scale, spot.z);
-    marker.renderOrder = 9;
+    marker.position.set(spot.x, markY + 0.002 * CFG.scale, spot.z);
+    marker.renderOrder = 29;
+    marker.userData.snookerChampionMarking = true;
     tableGroup.add(marker);
   });
 }
@@ -761,9 +798,12 @@ function addTable(scene, renderer, options = {}) {
     const scaledFullBounds = new THREE.Box3().setFromObject(model);
     const scaledFitBounds = resolveSnookerChampionGlbUpperBounds(model, scaledFullBounds);
     const scaledFitCenter = scaledFitBounds.getCenter(new THREE.Vector3());
+    const scaledBedBounds = resolveSnookerChampionGlbBedBounds(model);
+    const desiredBedTopY = CFG.ballR - SNOOKER_TABLE_MARKING_LIFT * 0.35;
+    const fallbackTableY = targetTopY - scaledFullBounds.max.y - CFG.ballR * 0.08;
     model.position.set(
       targetCenter.x - scaledFitCenter.x,
-      targetTopY - scaledFullBounds.max.y - CFG.ballR * 0.08,
+      scaledBedBounds ? desiredBedTopY - scaledBedBounds.max.y : fallbackTableY,
       targetCenter.z - scaledFitCenter.z
     );
     model.updateMatrixWorld(true);
