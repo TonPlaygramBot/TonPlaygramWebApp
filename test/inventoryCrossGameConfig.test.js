@@ -11,6 +11,7 @@ import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
+import { MURLAN_CHARACTER_THEMES } from '../webapp/src/config/murlanCharacterThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
 import {
   MURLAN_ROYALE_DEFAULT_UNLOCKS,
@@ -90,6 +91,15 @@ describe('cross-game inventory alignment', () => {
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tableFinish')).toEqual(chessTableFinish);
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'environmentHdri')).toEqual(chessHdri);
     expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
+  });
+
+  test('murlan includes the runtime-only Sketchfab Agent 47 character', () => {
+    const agent47 = MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'sketchfab-agent-47');
+    expect(agent47).toBeTruthy();
+    expect(agent47.modelUrls).toEqual(['/models/murlan/agent-47-rigged-face-morphs.glb']);
+    expect(agent47.sourceUrl).toContain('sketchfab.com/3d-models/agent-47-riggedface-morphs');
+    expect(agent47.license).toContain('CC BY-NC 4.0');
+    expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === agent47.id)).toBe(true);
   });
 
   test('murlan shares texas hold’em inventories for poker arena assets', () => {

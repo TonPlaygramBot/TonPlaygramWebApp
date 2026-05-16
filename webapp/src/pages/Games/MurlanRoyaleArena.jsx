@@ -242,6 +242,21 @@ const MURLAN_CHARACTER_CLOTH_COMBOS = Object.freeze({
     ring: { material: 'jewelryLeather', tint: 0xf2d675, repeat: 5.5 },
     watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
   },
+  formalHitman: {
+    shirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.2 },
+    tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
+    jeans: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    pants: { material: 'shoeDarkLeather', tint: 0x111827, repeat: 3.8 },
+    jacket: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.2 },
+    dress: { material: 'jacketLeather', tint: 0x15171c, repeat: 3.0 },
+    tie: { material: 'tieHerringbone', tint: 0x8b0f16, repeat: 5.8 },
+    hat: { material: 'hatBoucle', tint: 0x111827, repeat: 4.0 },
+    shoes: { material: 'shoeDarkLeather', tint: 0x0b0f14, repeat: 3.0 },
+    accessory: { material: 'accessoryCanvas', tint: 0x9ca3af, repeat: 3.2 },
+    earring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    ring: { material: 'jewelryLeather', tint: 0xd1d5db, repeat: 5.5 },
+    watch: { material: 'watchStrap', tint: 0x111827, repeat: 4.6 }
+  },
   casinoCheck: {
     shirt: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
     tshirt: { material: 'shirtCotton', tint: 0xf8fafc, repeat: 4.4 },
