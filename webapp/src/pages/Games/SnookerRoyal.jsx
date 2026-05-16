@@ -1710,10 +1710,7 @@ const SNOOKER_HUMAN_CFG = Object.freeze({
   rightHandDownPose: 0.42,
   rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(SNOOKER_HUMAN_WORLD_SCALE),
   shootCueGripFromBack: 0.58 * SNOOKER_HUMAN_WORLD_SCALE,
-  // Match the provided/demo ReadyPlayer model: its visual forward axis is reversed
-  // from the IK root, so rotate the loaded mesh 180° while preserving the same
-  // root yaw, hand IK, cue stick, and table positioning logic.
-  yawFix: Math.PI
+  yawFix: 0
 });
 const cleanSnookerHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const snookerHumanClamp01 = (value) => Math.max(0, Math.min(1, value));
