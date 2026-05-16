@@ -48,10 +48,6 @@ type BonePack = {
   leftUpperArm?: THREE.Bone;
   leftForeArm?: THREE.Bone;
   leftHand?: THREE.Bone;
-  leftThigh?: THREE.Bone;
-  leftCalf?: THREE.Bone;
-  rightThigh?: THREE.Bone;
-  rightCalf?: THREE.Bone;
 };
 
 type BoneRest = { bone: THREE.Bone; q: THREE.Quaternion };
@@ -111,9 +107,6 @@ type HumanRig = {
   desiredHit: DesiredHit | null;
   hitThisSwing: boolean;
   speed: number;
-  walkCycle: number;
-  yawVelocity: number;
-  locomotion: { amount: number; forward: number; side: number; backward: number };
 };
 
 type HudState = { nearScore: number; farScore: number; nearLabel?: string; farLabel?: string; nearGames?: number; farGames?: number; status: string; power: number; server?: PlayerSide; serveSide?: "deuce" | "ad"; firstServe?: boolean; debug?: string };
@@ -1023,10 +1016,6 @@ function findHumanBones(model: THREE.Object3D): BonePack {
     leftUpperArm: findFirstBone(model, ["leftarm", "leftupperarm", "larm", "lupperarm"]),
     leftForeArm: findFirstBone(model, ["leftforearm", "leftlowerarm", "lforearm", "llowerarm"]),
     leftHand: findFirstBone(model, ["lefthand", "lhand"]),
-    leftThigh: findFirstBone(model, ["leftupleg", "leftthigh", "lthigh", "legl", "legjointl1"]),
-    leftCalf: findFirstBone(model, ["leftleg", "leftcalf", "lcalf", "shinl", "legjointl2"]),
-    rightThigh: findFirstBone(model, ["rightupleg", "rightthigh", "rthigh", "legr", "legjointr1"]),
-    rightCalf: findFirstBone(model, ["rightleg", "rightcalf", "rcalf", "shinr", "legjointr2"]),
   };
 }
 
@@ -1123,53 +1112,6 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addBoneEulerOffset(bone: THREE.Bone | undefined, x = 0, y = 0, z = 0) {
-  if (!bone) return;
-  bone.rotation.x += x;
-  bone.rotation.y += y;
-  bone.rotation.z += z;
-}
-
-function applyTennisBowlingWalkMotion(player: HumanRig) {
-  if (!player.model) return;
-  // Tennis uses the same planted human walk recipe as Bowling Realistic, then
-  // layers tennis-specific shuffle/backpedal direction on top. Real tennis
-  // recovery favors short lateral shuffles and backward steps while the torso
-  // stays square to the court/net.
-  const { amount, forward, side, backward } = player.locomotion;
-  if (amount <= 0.001) {
-    player.model.position.set(0, 0, 0);
-    player.model.rotation.set(0, 0, 0);
-    return;
-  }
-
-  const phase = player.walkCycle;
-  const step = Math.sin(phase);
-  const counter = Math.sin(phase + Math.PI);
-  const footfall = Math.abs(step);
-  const stride = lerp(0.24, 0.42, amount) * (1 + Math.abs(side) * 0.18 + backward * 0.1);
-  const turnLean = clamp(player.yawVelocity * 0.003, -0.1, 0.1);
-  const shuffle = Math.abs(side);
-  const deg = THREE.MathUtils.degToRad;
-
-  player.model.position.y = footfall * stride * 0.115;
-  player.model.position.x = Math.sin(phase * 0.5) * stride * 0.035 + side * shuffle * 0.018;
-  player.model.rotation.x = 0.012 + counter * stride * 0.045 - backward * 0.035 + Math.max(0, forward) * 0.025;
-  player.model.rotation.y = step * stride * 0.18 * (1 - shuffle * 0.45);
-  player.model.rotation.z = step * stride * 0.105 - turnLean - side * 0.075;
-
-  addBoneEulerOffset(player.bones.leftThigh, step * stride * (1.05 - shuffle * 0.34) + side * 0.18 * shuffle, 0, deg(1.5) - side * deg(4.5) * shuffle);
-  addBoneEulerOffset(player.bones.rightThigh, counter * stride * (1.05 - shuffle * 0.34) - side * 0.18 * shuffle, 0, deg(-1.5) - side * deg(4.5) * shuffle);
-  addBoneEulerOffset(player.bones.leftCalf, Math.max(0, -step) * stride * 0.74 + backward * 0.08, 0, side * deg(2.5) * shuffle);
-  addBoneEulerOffset(player.bones.rightCalf, Math.max(0, -counter) * stride * 0.74 + backward * 0.08, 0, side * deg(2.5) * shuffle);
-
-  addBoneEulerOffset(player.bones.spine, deg(2.5) - backward * 0.035, -step * stride * 0.035, step * stride * 0.045 - side * 0.04 * shuffle);
-  addBoneEulerOffset(player.bones.leftUpperArm, -counter * stride * 1.08 + side * 0.12, 0, deg(-5));
-  addBoneEulerOffset(player.bones.rightUpperArm, -step * stride * 1.08 - side * 0.12, 0, deg(5));
-  addBoneEulerOffset(player.bones.leftForeArm, Math.max(0, step) * stride * 0.34, 0, 0);
-  addBoneEulerOffset(player.bones.rightForeArm, Math.max(0, counter) * stride * 0.34, 0, 0);
-}
-
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, theme?: CharacterTheme): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
@@ -1201,9 +1143,6 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
     desiredHit: null,
     hitThisSwing: false,
     speed: side === "near" ? CFG.playerSpeed : CFG.aiSpeed,
-    walkCycle: 0,
-    yawVelocity: 0,
-    locomotion: { amount: 0, forward: 0, side: 0, backward: 0 },
   };
 
   modelRoot.rotation.y = rig.yaw;
@@ -1328,9 +1267,9 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     }
     wristPronation = 1.2 * contact - 0.55 * follow;
   } else {
-    const prep = clamp01(tRaw / 0.34);
-    const slot = clamp01((tRaw - 0.2) / 0.28);
-    const contact = clamp01((tRaw - 0.44) / 0.16);
+    const prep = clamp01(tRaw / 0.28);
+    const slot = clamp01((tRaw - 0.18) / 0.26);
+    const contact = clamp01((tRaw - 0.42) / 0.18);
     const follow = clamp01((tRaw - 0.58) / 0.42);
     const ballSide = clamp((ball.pos.x - player.pos.x) * 0.9, -0.4 * poseScale, 0.4 * poseScale);
 
@@ -1338,17 +1277,17 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = -0.1 * prep + 0.08 * contact;
     shoulderLift = 0.12 * contact;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.76 * poseScale + ballSide).addScaledVector(forward, -0.68 * poseScale).setY(1.08 * poseScale);
-    const slotHand = rightShoulder.clone().addScaledVector(right, 0.6 * poseScale + ballSide).addScaledVector(forward, -0.16 * poseScale).setY(0.84 * poseScale);
-    const contactHand = player.pos.clone().addScaledVector(right, 0.4 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.84 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.28 * poseScale));
-    const followHand = player.pos.clone().addScaledVector(right, -0.48 * poseScale).addScaledVector(forward, 0.48 * poseScale).setY(1.44 * poseScale);
+    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 * poseScale + ballSide).addScaledVector(forward, -0.35 * poseScale).setY(1.05 * poseScale);
+    const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 * poseScale + ballSide).addScaledVector(forward, -0.05 * poseScale).setY(0.82 * poseScale);
+    const contactHand = player.pos.clone().addScaledVector(right, 0.38 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.72 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.24 * poseScale));
+    const followHand = player.pos.clone().addScaledVector(right, -0.42 * poseScale).addScaledVector(forward, 0.34 * poseScale).setY(1.38 * poseScale);
 
     rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, contact).lerp(followHand, follow);
     rightElbow = rightShoulder.clone().lerp(rightHand, 0.52).addScaledVector(right, 0.1 * poseScale * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.12 * poseScale);
 
-    const lagHead = rightHand.clone().addScaledVector(right, 0.42 * poseScale).addScaledVector(forward, -0.48 * poseScale).setY(1.3 * poseScale);
-    const contactHead = ball.pos.clone().addScaledVector(forward, 0.04 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.34 * poseScale));
-    const followHead = player.pos.clone().addScaledVector(right, -0.78 * poseScale).addScaledVector(forward, 0.34 * poseScale).setY(1.62 * poseScale);
+    const lagHead = rightHand.clone().addScaledVector(right, 0.35 * poseScale).addScaledVector(forward, -0.26 * poseScale).setY(1.25 * poseScale);
+    const contactHead = ball.pos.clone().addScaledVector(forward, 0.02 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.3 * poseScale));
+    const followHead = player.pos.clone().addScaledVector(right, -0.68 * poseScale).addScaledVector(forward, 0.22 * poseScale).setY(1.56 * poseScale);
     racketHead.copy(lagHead).lerp(contactHead, contact).lerp(followHead, follow);
 
     leftElbow = leftShoulder.clone().addScaledVector(right, -0.23 * poseScale).addScaledVector(forward, 0.08 * poseScale).setY((1.08 + 0.12 * follow) * poseScale);
@@ -1413,7 +1352,6 @@ function updateSkeletonTorso(player: HumanRig, pose: StrokePose) {
 function updateModelRigWithCharacterHands(player: HumanRig, pose: StrokePose) {
   if (!player.model) return false;
   restoreRestPose(player);
-  applyTennisBowlingWalkMotion(player);
   updateSkeletonTorso(player, pose);
 
   const rightSolved = solveTwoBoneArm(player.rightArmChain, pose.rightShoulder, pose.rightElbow, pose.rightHand);
@@ -1610,42 +1548,43 @@ function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeActi
 }
 
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
-  const toTarget = player.target.clone().sub(player.pos);
-  const dist = toTarget.length();
-  const moveDir = dist > 0.0001 ? toTarget.clone().normalize() : new THREE.Vector3();
+  const to = player.target.clone().sub(player.pos);
+  const dist = to.length();
   const maxStep = player.speed * dt;
-  if (dist > 0.0001) player.pos.addScaledVector(moveDir, Math.min(maxStep, dist));
+  if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   PlayerController.clampMovement(player.pos, player.side);
 
-  const courtForward = new THREE.Vector3(0, 0, player.side === "near" ? -1 : 1);
-  const ballFace = ball.pos.clone().sub(player.pos).setY(0);
-  let face = courtForward.clone();
-  if (ballFace.lengthSq() > 0.02) face.lerp(ballFace.normalize(), ball.lastHitBy === null ? 0.18 : 0.36);
+  let face: THREE.Vector3;
+  if (ball.lastHitBy === null && player.side === "near") face = new THREE.Vector3(0.22, 0, -1).normalize();
+  else face = ball.pos.clone().sub(player.pos).setY(0);
+  if (face.lengthSq() < 0.02) face.set(0, 0, player.side === "near" ? -1 : 1);
   face.normalize();
 
   const targetYaw = yawFromForward(face);
   let delta = targetYaw - player.yaw;
   while (delta > Math.PI) delta -= Math.PI * 2;
   while (delta < -Math.PI) delta += Math.PI * 2;
-  const yawStep = delta * (1 - Math.exp(-9.5 * dt));
-  player.yaw += yawStep;
-  player.yawVelocity = yawStep / Math.max(0.0001, dt);
-
-  const localForward = forwardFromYaw(player.yaw);
-  const localRight = rightFromForward(localForward);
-  const forwardDot = moveDir.dot(localForward);
-  const sideDot = moveDir.dot(localRight);
-  const runAmount = clamp01(dist / (0.42 * CFG.worldScale));
-  player.locomotion.amount = runAmount;
-  player.locomotion.forward = forwardDot * runAmount;
-  player.locomotion.side = sideDot * runAmount;
-  player.locomotion.backward = Math.max(0, -forwardDot) * runAmount;
-  player.walkCycle += dt * (7.8 + runAmount * 12.6 + Math.abs(sideDot) * 5.4);
+  player.yaw += delta * (1 - Math.exp(-8 * dt));
 
   player.root.position.copy(player.pos);
   player.modelRoot.position.copy(player.pos);
   player.modelRoot.rotation.y = player.yaw;
+
+  if (player.model) {
+    const runAmount = clamp01(dist / 0.42);
+    const moveDir = dist > 0.0001 ? to.clone().normalize() : new THREE.Vector3();
+    const localForward = forwardFromYaw(player.yaw);
+    const localRight = rightFromForward(localForward);
+    const forwardDot = moveDir.dot(localForward);
+    const sideDot = moveDir.dot(localRight);
+    const walkT = performance.now() * 0.015 + (player.side === "near" ? 0 : Math.PI);
+    const bob = Math.sin(walkT) * 0.03 * runAmount;
+    const strafeLean = sideDot * 0.1 * runAmount;
+    player.model.position.y = bob;
+    player.model.rotation.x = 0.05 * runAmount * Math.max(0, forwardDot) - 0.03 * runAmount * Math.max(0, -forwardDot);
+    player.model.rotation.z = strafeLean;
+  }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
   if (player.swingT > 0) {
@@ -1803,8 +1742,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 9.85 * CFG.cameraViewScale, 16.2 * CFG.cameraViewScale);
-      else cameraOffset.set(0, 9.15 * CFG.cameraViewScale, 14.75 * CFG.cameraViewScale);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 7.95 * CFG.cameraViewScale, 12.95 * CFG.cameraViewScale);
+      else cameraOffset.set(0, 7.35 * CFG.cameraViewScale, 11.85 * CFG.cameraViewScale);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
@@ -1836,13 +1775,13 @@ export default function MobileThreeTennisPrototype() {
       control.lastTs = performance.now();
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
-      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.016 * CFG.worldScale, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
-      const minZ = ball.lastHitBy === null ? CFG.serveNearBaselineZ : 0.76 * CFG.worldScale;
+      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, -CFG.courtW / 2 + 0.35, CFG.courtW / 2 - 0.35);
+      const minZ = ball.lastHitBy === null ? CFG.serveNearBaselineZ : 0.76;
       if (ball.lastHitBy === null) {
         const lane = serveLaneBoundsX(currentServeSide, "near");
-        nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.016 * CFG.worldScale, Math.min(lane.min, lane.max), Math.max(lane.min, lane.max));
+        nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.012, Math.min(lane.min, lane.max), Math.max(lane.min, lane.max));
       }
-      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.016 * CFG.worldScale, minZ, CFG.courtL / 2 - 0.42 * CFG.worldScale);
+      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.012, minZ, CFG.courtL / 2 - 0.42);
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 185) });
     };
 
@@ -2081,8 +2020,8 @@ export default function MobileThreeTennisPrototype() {
           pointLock = false;
           nearPlayer.action = "ready";
           farPlayer.action = "ready";
-          nearPlayer.target.set(0, 0, CFG.courtL / 2 - 1.04 * CFG.worldScale);
-          farPlayer.target.set(0, 0, -CFG.courtL / 2 + 1.04 * CFG.worldScale);
+          nearPlayer.target.set(0, 0, CFG.courtL / 2 - 1.04);
+          farPlayer.target.set(0, 0, -CFG.courtL / 2 + 1.04);
           currentServeSide = scoreManager.snapshot().serveSide;
           const serverPlayer = scoreManager.snapshot().server === "near" ? nearPlayer : farPlayer;
           resetBallForServe(ball, serverPlayer, currentServeSide);
