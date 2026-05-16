@@ -152,17 +152,16 @@ const CFG = {
   hitWindowStart: 0.35,
   hitWindowEnd: 0.8,
   serveContactT: 0.68,
-  netThickness: 0.024,
-  netPowerRetention: 0.12,
-  netClipPowerRetention: 0.16,
-  netTangentDamping: 0.32,
+  netPowerRetention: 0.2,
+  netClipPowerRetention: 0.2,
+  netTangentDamping: 0.42,
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 5.0,
-  maxShotSpeed: 14.4,
-  netClearance: 0.18,
+  minShotSpeed: 4.1,
+  maxShotSpeed: 11.0,
+  netClearance: 0.16,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -372,7 +371,7 @@ function buildRealisticTableTennisTable() {
 
   const netY = CFG.tableY + CFG.netH / 2;
   const netSpan = CFG.tableW + CFG.netPostOutside * 2;
-  addBox(group, [netSpan, CFG.netH, CFG.netThickness], [0, netY, 0], netMat);
+  addBox(group, [netSpan, CFG.netH, 0.016], [0, netY, 0], netMat);
   addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
   addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
   addBox(group, [0.1, 0.035, 0.13], [-(TABLE_HALF_W + 0.13), CFG.tableY - 0.075, 0], material(0x111827, 0.5, 0.12));
@@ -1073,102 +1072,19 @@ function flightWithNetClearance(from: THREE.Vector3, target: THREE.Vector3, base
   return clamp(baseFlight, minFlight, maxFlight);
 }
 
-
-type NetImpact = {
-  point: THREE.Vector3;
-  travelDir: number;
-  approachSide: number;
-  centerY: number;
-  bottomY: number;
-  overlap: number;
-  topClip: boolean;
-};
-
-function resolveNetImpact(prev: THREE.Vector3, current: THREE.Vector3, velocity: THREE.Vector3): NetImpact | null {
-  const netHalfDepth = CFG.netThickness / 2;
-  const sweptThroughNet = (prev.z > netHalfDepth && current.z <= netHalfDepth) || (prev.z < -netHalfDepth && current.z >= -netHalfDepth);
-  const movingTowardNet = Math.abs(current.z) <= netHalfDepth || Math.sign(velocity.z || -current.z) !== Math.sign(current.z);
-  const closeToNetFace = movingTowardNet && Math.abs(current.z) <= netHalfDepth + CFG.ballR + Math.abs(velocity.z) * (1 / 240);
-  if (!sweptThroughNet && !closeToNetFace) return null;
-
-  const travelDir = Math.sign(velocity.z || current.z - prev.z || 1);
-  const approachSide = -travelDir || (prev.z >= 0 ? 1 : -1);
-  const targetPlaneZ = approachSide * netHalfDepth;
-  const denom = current.z - prev.z;
-  const t = Math.abs(denom) > 0.000001 ? clamp01((targetPlaneZ - prev.z) / denom) : 1;
-  const point = prev.clone().lerp(current, t);
-
-  const postX = TABLE_HALF_W + CFG.netPostOutside;
-  const spanHit = Math.abs(point.x) <= TABLE_HALF_W + CFG.netPostOutside + CFG.ballR * 0.4;
-  const postHit = Math.abs(Math.abs(point.x) - postX) <= CFG.ballR + 0.022 && point.y <= CFG.tableY + CFG.netH + 0.11;
-  if (!spanHit && !postHit) return null;
-
-  const netTopY = CFG.tableY + CFG.netH;
-  const centerY = point.y;
-  const bottomY = centerY - CFG.ballR;
-  const topOverlap = netTopY - bottomY;
-  const webOverlap = centerY + CFG.ballR - CFG.tableY;
-  if (topOverlap <= 0 || webOverlap <= 0) return null;
-
-  return {
-    point,
-    travelDir,
-    approachSide,
-    centerY,
-    bottomY,
-    overlap: clamp01(topOverlap / (CFG.ballR * 2)),
-    topClip: bottomY > netTopY - CFG.ballR * 0.55,
-  };
-}
-
-function applyNetImpact(ball: BallState, impact: NetImpact) {
-  const incoming = ball.vel.clone();
-  const incomingSpeed = incoming.length();
-  const bandGlance = impact.topClip && incoming.y > -1.05 && Math.abs(incoming.z) > 0.85 && impact.overlap < 0.72;
-  const lateralDeflect = clamp(incoming.x * 0.035 + ball.spin.y * 0.0007, -0.18, 0.18);
-  const netHalfDepth = CFG.netThickness / 2;
-
-  ball.pos.copy(impact.point);
-  if (bandGlance) {
-    ball.pos.z = impact.travelDir * (netHalfDepth + CFG.ballR * 0.42);
-    ball.vel.z = Math.abs(incoming.z) * CFG.netClipPowerRetention * impact.travelDir;
-    ball.vel.y = Math.max(0.045, Math.abs(incoming.y) * 0.14 + (1 - impact.overlap) * 0.12);
-    ball.vel.x = incoming.x * 0.48 + lateralDeflect;
-    retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netClipPowerRetention, 0.16);
-  } else {
-    ball.pos.z = impact.approachSide * (netHalfDepth + CFG.ballR + 0.003);
-    ball.vel.z = Math.abs(incoming.z) * CFG.netPowerRetention * impact.approachSide;
-    ball.vel.y = impact.topClip
-      ? Math.max(0.025, Math.abs(incoming.y) * 0.1 + (1 - impact.overlap) * 0.08)
-      : -Math.max(0.035, Math.abs(incoming.y) * 0.12 + impact.overlap * 0.045);
-    ball.vel.x = incoming.x * CFG.netTangentDamping + lateralDeflect;
-    retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.12);
-  }
-  ball.spin.multiplyScalar(impact.topClip ? 0.48 : 0.28);
-}
-
 function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean): DesiredHit {
   const dx = endX - startX;
   const dy = endY - startY;
-  const swipeLen = Math.hypot(dx, dy);
-  const upward = clamp(-dy / 285, -0.45, 1.15);
-  const lateral = clamp(dx / 185, -1, 1);
-  const intent = clamp01(swipeLen / 250);
-  const power = clamp(0.38 + intent * 0.86 + Math.max(0, upward) * 0.2, isServe ? 0.58 : 0.44, 1.24);
-  const depth = clamp01(0.18 + Math.max(0, upward) * 0.72 + intent * 0.18);
-  const shortDrop = dy > 76;
-  const xEdge = TABLE_HALF_W - 0.105;
-  const targetX = clamp(lateral * xEdge, -xEdge, xEdge);
-  const targetZ = shortDrop
-    ? -lerp(0.22, 0.58, clamp01(dy / 210))
-    : isServe
-      ? -lerp(0.42, TABLE_HALF_L - 0.24, depth)
-      : -lerp(0.28, TABLE_HALF_L - 0.1, depth);
+  const power = clamp(Math.hypot(dx, dy) / 180, isServe ? 0.56 : 0.36, 1);
+  const lateral = clamp(dx / 170, -1, 1);
+  const depth = clamp((-dy + 42) / 255, 0, 1);
+  const targetX = clamp(lateral * (TABLE_HALF_W - 0.13), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
+  const targetZ = isServe ? -lerp(0.38, TABLE_HALF_L - 0.32, depth) : -lerp(0.32, TABLE_HALF_L - 0.15, depth);
   return {
     target: new THREE.Vector3(targetX, BALL_SURFACE_Y, targetZ),
     power,
-    topSpin: shortDrop ? clamp(-0.18 + lateral * 0.06, -0.32, 0.08) : clamp(0.42 + depth * 0.72 + power * 0.24, 0.28, 1.28),
-    sideSpin: clamp(lateral * (0.78 + intent * 0.22), -1, 1),
+    topSpin: clamp(0.35 + depth * 0.65 + power * 0.25, 0.22, 1.15),
+    sideSpin: lateral,
   };
 }
 
@@ -1278,9 +1194,9 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   } else {
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
-    const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.92);
-    const baseFlight = dist / ((5.2 + hit.power * 5.8) * speedScale);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.115, 0.36);
+    const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
+    const baseFlight = dist / ((4.2 + hit.power * 4.1) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.14, 0.42);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1792,11 +1708,36 @@ export default function MobileRealisticTableTennisGame() {
         if (rollAxis.lengthSq() > 0.0001) ball.mesh.rotateOnWorldAxis(rollAxis.normalize(), (ball.vel.length() / CFG.ballR) * dt);
       }
 
-      const netImpact = ball.lastHitBy ? resolveNetImpact(prev, ball.pos, ball.vel) : null;
-      if (netImpact) {
-        applyNetImpact(ball, netImpact);
+      const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
+      const netTopY = CFG.tableY + CFG.netH;
+      const netSpanHit = Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside;
+      const ballBottom = ball.pos.y - CFG.ballR;
+      const ballCenterNearNet = Math.abs(ball.pos.z) <= Math.max(0.022, Math.abs(ball.vel.z) * dt + CFG.ballR * 0.25);
+      const netContact = ball.lastHitBy && netSpanHit && (crossedNet || ballCenterNearNet) && ballBottom < netTopY;
+      if (netContact) {
+        const travelDir = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1));
+        const approachSide = travelDir === 0 ? (ball.lastHitBy === "near" ? 1 : -1) : -travelDir;
+        const clipDepth = clamp01((ball.pos.y + CFG.ballR - (netTopY - CFG.ballR * 0.25)) / (CFG.ballR * 1.6));
+        const topClip = clipDepth > 0.45 && Math.abs(ball.vel.z) > 0.35;
+        const lateralDeflect = clamp(ball.vel.x * 0.05 + ball.spin.y * 0.0009 + (Math.random() - 0.5) * 0.08, -0.22, 0.22);
+        const incomingSpeed = ball.vel.length();
+
+        ball.pos.z = travelDir * 0.032;
+        if (topClip) {
+          const crawlsOver = ball.vel.y > -0.85 && Math.abs(ball.vel.z) > 1.1 && clipDepth > 0.58;
+          ball.vel.z = Math.abs(ball.vel.z) * (crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention) * travelDir;
+          ball.vel.y = Math.max(crawlsOver ? 0.055 : 0.02, Math.abs(ball.vel.y) * 0.18 + clipDepth * 0.08);
+          ball.vel.x = ball.vel.x * 0.62 + lateralDeflect;
+          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.24);
+        } else {
+          ball.vel.z = Math.abs(ball.vel.z) * CFG.netPowerRetention * travelDir;
+          ball.vel.x = ball.vel.x * CFG.netTangentDamping + lateralDeflect;
+          ball.vel.y = Math.min(0.06, ball.vel.y * 0.18) - 0.06;
+          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.18);
+        }
+        ball.spin.multiplyScalar(topClip ? 0.55 : 0.35);
         netWobble.amount = 1;
-        netWobble.side = netImpact.approachSide;
+        netWobble.side = approachSide;
         playFx(netFx);
       }
 
