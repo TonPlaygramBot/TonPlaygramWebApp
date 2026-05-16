@@ -107,8 +107,6 @@ type HumanRig = {
   desiredHit: DesiredHit | null;
   hitThisSwing: boolean;
   speed: number;
-  walkCycle: number;
-  yawVelocity: number;
 };
 
 type HudState = { nearScore: number; farScore: number; nearLabel?: string; farLabel?: string; nearGames?: number; farGames?: number; status: string; power: number; server?: PlayerSide; serveSide?: "deuce" | "ad"; firstServe?: boolean; debug?: string };
@@ -1114,117 +1112,6 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-
-type TennisLocomotionMode = "idle" | "forward" | "backpedal" | "shuffle";
-
-function tennisPoseBone(model: THREE.Object3D, key: string) {
-  const hints: Record<string, string[]> = {
-    hips: ["hips", "pelvis", "pelvisjoint", "hipjoint"],
-    spine: ["spine", "chest", "torso"],
-    leftUpperArm: ["leftarm", "leftupperarm", "lupperarm", "shoulderl"],
-    leftForeArm: ["leftforearm", "leftlowerarm", "lforearm", "elbowl"],
-    rightUpperArm: ["rightarm", "rightupperarm", "rupperarm", "shoulderr"],
-    rightForeArm: ["rightforearm", "rightlowerarm", "rforearm", "elbowr"],
-    leftThigh: ["leftupleg", "leftthigh", "lthigh", "legjointl1"],
-    leftCalf: ["leftleg", "leftcalf", "lcalf", "legjointl2"],
-    rightThigh: ["rightupleg", "rightthigh", "rthigh", "legjointr1"],
-    rightCalf: ["rightleg", "rightcalf", "rcalf", "legjointr2"],
-  };
-  return findFirstBone(model, hints[key] || []);
-}
-
-function captureTennisLocomotionDefaultPose(model: THREE.Object3D) {
-  if (model.userData.tennisLocomotionDefaultPose) return;
-  const bones = [
-    "hips",
-    "spine",
-    "leftUpperArm",
-    "leftForeArm",
-    "rightUpperArm",
-    "rightForeArm",
-    "leftThigh",
-    "leftCalf",
-    "rightThigh",
-    "rightCalf",
-  ] as const;
-  const pose: Record<string, THREE.Euler> = {};
-  for (const key of bones) {
-    const bone = tennisPoseBone(model, key);
-    if (bone) pose[key] = bone.rotation.clone();
-  }
-  model.userData.tennisLocomotionDefaultPose = pose;
-}
-
-function resetTennisLocomotionPose(model: THREE.Object3D | null) {
-  const pose = model?.userData?.tennisLocomotionDefaultPose as Record<string, THREE.Euler> | undefined;
-  if (!model || !pose) return;
-  Object.entries(pose).forEach(([key, rotation]) => {
-    const bone = tennisPoseBone(model, key);
-    if (bone) bone.rotation.copy(rotation);
-  });
-}
-
-function applyTennisRotationOffset(bone: THREE.Object3D | undefined, x = 0, y = 0, z = 0) {
-  if (!bone) return;
-  bone.rotation.x += x;
-  bone.rotation.y += y;
-  bone.rotation.z += z;
-}
-
-function applyBowlingStyleTennisWalk(player: HumanRig, mode: TennisLocomotionMode, dt: number, runAmount: number, sideDot: number, forwardDot: number) {
-  if (!player.model) return;
-  captureTennisLocomotionDefaultPose(player.model);
-  resetTennisLocomotionPose(player.model);
-
-  if (mode === "idle" || runAmount <= 0.02) {
-    player.model.position.set(0, 0, 0);
-    player.model.rotation.set(0, 0, 0);
-    return;
-  }
-
-  const cadence = mode === "shuffle" ? 10.6 : mode === "backpedal" ? 9.1 : 8.8;
-  player.walkCycle += dt * cadence * lerp(0.52, 1.18, runAmount);
-  const phase = player.walkCycle;
-  const step = Math.sin(phase);
-  const counter = Math.sin(phase + Math.PI);
-  const footfall = Math.abs(step);
-  const deg = THREE.MathUtils.degToRad;
-  const stride = (mode === "shuffle" ? 0.82 : mode === "backpedal" ? 0.74 : 0.9) * runAmount;
-  const sideSign = Math.sign(sideDot || 1);
-  const turnLean = clamp(player.yawVelocity * 0.003, -0.1, 0.1);
-
-  player.model.position.y = footfall * stride * 0.115;
-  player.model.position.x = Math.sin(phase * 0.5) * stride * (mode === "shuffle" ? 0.08 : 0.035) * sideSign;
-  player.model.rotation.x = 0.012 + counter * stride * (mode === "backpedal" ? -0.035 : 0.045);
-  player.model.rotation.y = step * stride * (mode === "shuffle" ? 0.08 : 0.18);
-  player.model.rotation.z = (mode === "shuffle" ? -sideSign * 0.08 : step * 0.105) * stride - turnLean;
-
-  applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), 0, step * stride * 0.08, -step * stride * 0.09);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "spine"), deg(2.5), -step * stride * 0.035, step * stride * 0.045);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftUpperArm"), -counter * stride * 1.35, 0, deg(-5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightUpperArm"), -step * stride * 1.35, 0, deg(5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftForeArm"), Math.max(0, step) * stride * 0.42, 0, 0);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightForeArm"), Math.max(0, counter) * stride * 0.42, 0, 0);
-
-  const shuffleOpen = mode === "shuffle" ? sideSign * 0.28 : 0;
-  const reverse = mode === "backpedal" ? -1 : 1;
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftThigh"), step * stride * 1.05 * reverse, shuffleOpen, deg(1.5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightThigh"), counter * stride * 1.05 * reverse, shuffleOpen, deg(-1.5));
-  applyTennisRotationOffset(tennisPoseBone(player.model, "leftCalf"), Math.max(0, -step) * stride * 0.74, 0, 0);
-  applyTennisRotationOffset(tennisPoseBone(player.model, "rightCalf"), Math.max(0, -counter) * stride * 0.74, 0, 0);
-
-  if (mode === "shuffle") {
-    // Tennis recovery uses pas-chassé/side-shuffle footwork: stay square to the net/court,
-    // keep the center of gravity low, and push-pull sideways instead of turning into a run.
-    applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), 0, sideSign * deg(4) * stride, -sideSign * deg(4.5) * stride);
-    applyTennisRotationOffset(tennisPoseBone(player.model, "leftThigh"), 0, sideSign * deg(7) * stride, 0);
-    applyTennisRotationOffset(tennisPoseBone(player.model, "rightThigh"), 0, sideSign * deg(7) * stride, 0);
-  } else if (mode === "backpedal") {
-    applyTennisRotationOffset(tennisPoseBone(player.model, "hips"), deg(-2.5) * stride, 0, 0);
-    player.model.rotation.x -= 0.045 * runAmount * Math.abs(forwardDot);
-  }
-}
-
 function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, accent: number, theme?: CharacterTheme): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
@@ -1256,8 +1143,6 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
     desiredHit: null,
     hitThisSwing: false,
     speed: side === "near" ? CFG.playerSpeed : CFG.aiSpeed,
-    walkCycle: 0,
-    yawVelocity: 0,
   };
 
   modelRoot.rotation.y = rig.yaw;
@@ -1277,7 +1162,6 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
       rig.model = model;
       rig.bones = findHumanBones(model);
       rig.rest = captureRestPose(rig.bones);
-      captureTennisLocomotionDefaultPose(model);
       rig.fallback.visible = false;
       rig.modelRoot.add(model);
       rig.modelRoot.updateMatrixWorld(true);
@@ -1365,13 +1249,13 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     const contact = clamp01((s - 0.62) / 0.16);
     const follow = clamp01((s - 0.74) / 0.26);
 
-    torsoYaw = -0.5 * sideSign + 0.86 * contact - 0.38 * follow;
+    torsoYaw = -0.42 * sideSign + 0.72 * contact - 0.34 * follow;
     torsoLean = -0.08 - 0.2 * trophy + 0.28 * contact;
     shoulderLift = 0.28 * trophy + 0.32 * contact;
 
-    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.38, 0.15, drop) * poseScale).addScaledVector(forward, lerp(-0.48, 0.08, contact) * poseScale).setY((lerp(0.96, 1.55, trophy) - 0.18 * drop + 0.22 * contact) * poseScale);
-    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.56, 0.2, contact) * poseScale).addScaledVector(forward, lerp(-0.56, 0.7, contact) * poseScale).setY((lerp(0.82, 1.76, trophy) - 0.56 * drop + 0.78 * contact) * poseScale);
-    racketHead = rightHand.clone().addScaledVector(right, lerp(0.12, -0.24, follow) * poseScale).addScaledVector(forward, (lerp(-0.32, 0.72, contact) - 0.26 * follow) * poseScale).setY((lerp(1.34, 2.38, contact) - 0.95 * follow) * poseScale);
+    rightElbow = rightShoulder.clone().addScaledVector(right, lerp(0.34, 0.18, drop) * poseScale).addScaledVector(forward, lerp(-0.28, -0.02, contact) * poseScale).setY((lerp(0.96, 1.55, trophy) - 0.18 * drop + 0.22 * contact) * poseScale);
+    rightHand = rightShoulder.clone().addScaledVector(right, lerp(0.48, 0.24, contact) * poseScale).addScaledVector(forward, lerp(-0.32, 0.46, contact) * poseScale).setY((lerp(0.82, 1.76, trophy) - 0.56 * drop + 0.78 * contact) * poseScale);
+    racketHead = rightHand.clone().addScaledVector(right, lerp(0.1, -0.2, follow) * poseScale).addScaledVector(forward, (lerp(-0.12, 0.52, contact) - 0.22 * follow) * poseScale).setY((lerp(1.34, 2.38, contact) - 0.95 * follow) * poseScale);
 
     leftElbow = leftShoulder.clone().addScaledVector(right, -0.12 * poseScale).addScaledVector(forward, 0.12 * poseScale).setY((lerp(1.0, 1.7, toss) - 0.68 * contact) * poseScale);
     leftHand = leftShoulder.clone().addScaledVector(right, -0.16 * poseScale).addScaledVector(forward, 0.28 * poseScale).setY((lerp(0.86, 2.02, toss) - 1.1 * contact) * poseScale);
@@ -1389,21 +1273,21 @@ function strokePose(player: HumanRig, ball: BallState): StrokePose {
     const follow = clamp01((tRaw - 0.58) / 0.42);
     const ballSide = clamp((ball.pos.x - player.pos.x) * 0.9, -0.4 * poseScale, 0.4 * poseScale);
 
-    torsoYaw = -0.68 * prep + 1.08 * contact - 0.3 * follow;
+    torsoYaw = -0.52 * prep + 0.88 * contact - 0.25 * follow;
     torsoLean = -0.1 * prep + 0.08 * contact;
     shoulderLift = 0.12 * contact;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.74 * poseScale + ballSide).addScaledVector(forward, -0.62 * poseScale).setY(1.05 * poseScale);
-    const slotHand = rightShoulder.clone().addScaledVector(right, 0.58 * poseScale + ballSide).addScaledVector(forward, -0.16 * poseScale).setY(0.82 * poseScale);
-    const contactHand = player.pos.clone().addScaledVector(right, 0.36 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.92 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.24 * poseScale));
+    const prepHand = rightShoulder.clone().addScaledVector(right, 0.62 * poseScale + ballSide).addScaledVector(forward, -0.35 * poseScale).setY(1.05 * poseScale);
+    const slotHand = rightShoulder.clone().addScaledVector(right, 0.54 * poseScale + ballSide).addScaledVector(forward, -0.05 * poseScale).setY(0.82 * poseScale);
+    const contactHand = player.pos.clone().addScaledVector(right, 0.38 * poseScale + ballSide * 0.45).addScaledVector(forward, 0.72 * poseScale).setY(clamp(ball.pos.y, 0.72 * poseScale, 1.24 * poseScale));
     const followHand = player.pos.clone().addScaledVector(right, -0.42 * poseScale).addScaledVector(forward, 0.34 * poseScale).setY(1.38 * poseScale);
 
     rightHand.copy(prepHand).lerp(slotHand, slot).lerp(contactHand, contact).lerp(followHand, follow);
     rightElbow = rightShoulder.clone().lerp(rightHand, 0.52).addScaledVector(right, 0.1 * poseScale * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.12 * poseScale);
 
-    const lagHead = rightHand.clone().addScaledVector(right, 0.42 * poseScale).addScaledVector(forward, -0.46 * poseScale).setY(1.25 * poseScale);
+    const lagHead = rightHand.clone().addScaledVector(right, 0.35 * poseScale).addScaledVector(forward, -0.26 * poseScale).setY(1.25 * poseScale);
     const contactHead = ball.pos.clone().addScaledVector(forward, 0.02 * poseScale).setY(clamp(ball.pos.y, 0.74 * poseScale, 1.3 * poseScale));
-    const followHead = player.pos.clone().addScaledVector(right, -0.74 * poseScale).addScaledVector(forward, 0.44 * poseScale).setY(1.56 * poseScale);
+    const followHead = player.pos.clone().addScaledVector(right, -0.68 * poseScale).addScaledVector(forward, 0.22 * poseScale).setY(1.56 * poseScale);
     racketHead.copy(lagHead).lerp(contactHead, contact).lerp(followHead, follow);
 
     leftElbow = leftShoulder.clone().addScaledVector(right, -0.23 * poseScale).addScaledVector(forward, 0.08 * poseScale).setY((1.08 + 0.12 * follow) * poseScale);
@@ -1501,11 +1385,11 @@ function updatePoseAndRacket(player: HumanRig, ball: BallState) {
 
 function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, power: number, serve = false) {
   const flatDist = Math.hypot(target.x - from.x, target.z - from.z);
-  const speedScale = CFG.worldScale * 1.54;
-  const shotPowerTrim = serve ? 0.9 : 0.84;
+  const speedScale = CFG.worldScale * 1.48;
+  const shotPowerTrim = serve ? 0.8 : 0.76;
   const matchPower = power * CFG.matchPowerMultiplier;
-  const baseSpeed = (serve ? 23.8 + power * 14.8 : 17.2 + power * 12.6) * speedScale * shotPowerTrim * CFG.matchPowerMultiplier;
-  const flight = clamp(flatDist / baseSpeed, serve ? 0.38 : 0.5, serve ? 0.88 : 1.16);
+  const baseSpeed = (serve ? 22.2 + power * 12.6 : 15.8 + power * 10.4) * speedScale * shotPowerTrim * CFG.matchPowerMultiplier;
+  const flight = clamp(flatDist / baseSpeed, serve ? 0.34 : 0.46, serve ? 0.78 : 1.04);
   const velocity = new THREE.Vector3(
     (target.x - from.x) / flight,
     (target.y - from.y + 0.5 * CFG.gravity * flight * flight) / flight,
@@ -1681,30 +1565,25 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   let delta = targetYaw - player.yaw;
   while (delta > Math.PI) delta -= Math.PI * 2;
   while (delta < -Math.PI) delta += Math.PI * 2;
-  const yawStep = delta * (1 - Math.exp(-8 * dt));
-  player.yaw += yawStep;
-  player.yawVelocity = yawStep / Math.max(0.0001, dt);
+  player.yaw += delta * (1 - Math.exp(-8 * dt));
 
   player.root.position.copy(player.pos);
   player.modelRoot.position.copy(player.pos);
   player.modelRoot.rotation.y = player.yaw;
 
   if (player.model) {
-    const runAmount = clamp01(dist / (0.42 * CFG.worldScale));
-    const moveDir = dist > 0.0001 ? player.target.clone().sub(player.pos).normalize() : new THREE.Vector3();
+    const runAmount = clamp01(dist / 0.42);
+    const moveDir = dist > 0.0001 ? to.clone().normalize() : new THREE.Vector3();
     const localForward = forwardFromYaw(player.yaw);
     const localRight = rightFromForward(localForward);
     const forwardDot = moveDir.dot(localForward);
     const sideDot = moveDir.dot(localRight);
-    const footwork = PlayerController.footworkFromDelta(player.target.x - player.pos.x, player.target.z - player.pos.z, player.side, player.action === "ready" ? null : player.action);
-    const mode: TennisLocomotionMode = Math.abs(sideDot) > Math.abs(forwardDot) * 0.72 || footwork === "MoveLeft" || footwork === "MoveRight"
-      ? "shuffle"
-      : forwardDot < -0.2 || footwork === "MoveBack"
-        ? "backpedal"
-        : runAmount > 0.02
-          ? "forward"
-          : "idle";
-    applyBowlingStyleTennisWalk(player, mode, dt, runAmount, sideDot, forwardDot);
+    const walkT = performance.now() * 0.015 + (player.side === "near" ? 0 : Math.PI);
+    const bob = Math.sin(walkT) * 0.03 * runAmount;
+    const strafeLean = sideDot * 0.1 * runAmount;
+    player.model.position.y = bob;
+    player.model.rotation.x = 0.05 * runAmount * Math.max(0, forwardDot) - 0.03 * runAmount * Math.max(0, -forwardDot);
+    player.model.rotation.z = strafeLean;
   }
 
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -1768,8 +1647,8 @@ export default function MobileThreeTennisPrototype() {
     scene.fog = null;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
-    const cameraTarget = new THREE.Vector3(0, 1.48 * CFG.cameraViewScale, -2.2 * CFG.cameraViewScale);
-    const cameraOffset = new THREE.Vector3(0, 9.25 * CFG.cameraViewScale, 15.25 * CFG.cameraViewScale);
+    const cameraTarget = new THREE.Vector3(0, 1.12 * CFG.cameraViewScale, -1.7 * CFG.cameraViewScale);
+    const cameraOffset = new THREE.Vector3(0, 7.35 * CFG.cameraViewScale, 11.85 * CFG.cameraViewScale);
     const cameraPosTarget = new THREE.Vector3();
 
     addTrainingCourtLighting(scene);
@@ -1956,13 +1835,13 @@ export default function MobileThreeTennisPrototype() {
 
     function updateBall(dt: number) {
       const prevZ = ball.pos.z;
-      const spinDip = Math.max(0, ball.spin) * 0.11;
-      const spinLift = Math.max(0, -ball.spin) * 0.035;
+      const spinDip = Math.max(0, ball.spin) * 0.16;
+      const spinLift = Math.max(0, -ball.spin) * 0.05;
       ball.vel.y -= CFG.gravity * (1 + spinDip - spinLift) * dt;
       if (ball.lastHitBy && Math.abs(ball.vel.z) > 0.001) {
         const forwardSign = ball.lastHitBy === "near" ? -1 : 1;
-        ball.vel.z += forwardSign * ball.spin * 0.14 * CFG.worldScale * dt;
-        ball.vel.x += Math.sin(ball.spin * 0.65) * 0.022 * CFG.worldScale * dt;
+        ball.vel.z += forwardSign * ball.spin * 0.18 * CFG.worldScale * dt;
+        ball.vel.x += Math.sin(ball.spin * 0.65) * 0.018 * CFG.worldScale * dt;
       }
       ball.vel.multiplyScalar(Math.exp(-CFG.airDrag * dt));
       ball.pos.addScaledVector(ball.vel, dt);
@@ -1994,11 +1873,11 @@ export default function MobileThreeTennisPrototype() {
           ball.vel.y = -ball.vel.y * CFG.bounceRestitution;
           ball.vel.x *= CFG.groundFriction;
           ball.vel.z *= CFG.groundFriction;
-          ball.vel.z += forwardSign * ball.spin * 0.25 * CFG.worldScale;
-          ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.038 * CFG.worldScale;
-          ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.045, 0.8, 1.06);
+          ball.vel.z += forwardSign * ball.spin * 0.33 * CFG.worldScale;
+          ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.045 * CFG.worldScale;
+          ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.055, 0.78, 1.08);
           if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
-          ball.spin *= -0.32;
+          ball.spin *= -0.38;
           const bounceSide = sideOfZ(ball.pos.z);
           audioVfx.play("bounce");
           if (ball.bounceSide === bounceSide) ball.bounceCount += 1;
