@@ -15,6 +15,7 @@ export const gameThumbnails = {
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
   snookerroyale: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
+  snookerchampion: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
   goalrush: '/assets/icons/Goal%20rush%20logo.png',
   airhockey: '/assets/icons/Air%20hockey%20game%20logo.png',
   snake: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
@@ -68,6 +69,15 @@ export const lobbyOptionIcons = {
     'ball-american': '/assets/icons/American%20Billiards%20.png'
   },
   snookerroyale: {
+    'type-regular': '/assets/icons/snooker-regular.svg',
+    'type-tournament': '/assets/icons/snooker-tournament.svg',
+    'mode-ai': '/assets/icons/snooker-royale.svg',
+    'mode-online': '/assets/icons/snooker-royale.svg',
+    'table-championship': '/assets/icons/snooker-royale.svg',
+    'table-club': '/assets/icons/snooker-royale.svg',
+    'table-practice': '/assets/icons/snooker-royale.svg'
+  },
+  snookerchampion: {
     'type-regular': '/assets/icons/snooker-regular.svg',
     'type-tournament': '/assets/icons/snooker-tournament.svg',
     'mode-ai': '/assets/icons/snooker-royale.svg',
