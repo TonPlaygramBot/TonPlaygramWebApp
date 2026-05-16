@@ -67,28 +67,54 @@ const POOL_ROYALE_BOTTOM_HUD_RIGHT_INSET_PX = SPIN_CONTROL_DIAMETER_PX + 150;
 const POOL_ROYALE_BOTTOM_OFFSET_PX = 12;
 const POOL_ROYALE_STANDING_VIEW_FOV = 66;
 const POOL_ROYALE_RAIL_OVERHEAD_PHI = Math.PI / 2 - 0.26 + 0.18;
+const POOL_ROYALE_STANDING_VIEW_PHI = 0.92;
+const POOL_ROYALE_STANDING_VIEW_MARGIN = 0.001;
+const POOL_ROYALE_STANDING_VIEW_DISTANCE_SCALE = 0.36;
+const POOL_ROYALE_CUE_VIEW_RADIUS_RATIO = 0.0088;
+const POOL_ROYALE_CUE_VIEW_PHI_LIFT = 0.06;
 const SNOOKER_HDRI_CAMERA_HEIGHT_M = 1.5;
 const SNOOKER_HDRI_MIN_CAMERA_HEIGHT_M = 0.8;
 const SNOOKER_HDRI_RADIUS_MULTIPLIER = 6;
 const SNOOKER_HDRI_GROUNDED_RESOLUTION = 256;
 const SNOOKER_HDRI_SHADOW_OPACITY = 0.28;
 const SNOOKER_CUE_CAMERA_ABS_MIN_PHI = 0.08;
-const SNOOKER_CUE_CAMERA_STANDING_PHI = 0.92;
+const SNOOKER_CUE_CAMERA_STANDING_PHI = POOL_ROYALE_STANDING_VIEW_PHI;
 const SNOOKER_CUE_CAMERA_SHOT_PHI = Math.PI / 2 - 0.26;
 const SNOOKER_CUE_CAMERA_MIN_PHI = Math.max(SNOOKER_CUE_CAMERA_ABS_MIN_PHI, SNOOKER_CUE_CAMERA_STANDING_PHI - 0.54);
 const SNOOKER_CUE_CAMERA_MAX_PHI = SNOOKER_CUE_CAMERA_SHOT_PHI - 0.1;
 const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
 const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
 const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
-const SNOOKER_CUE_VIEW_RADIUS_RATIO = 0.0088;
+const SNOOKER_CUE_VIEW_RADIUS_RATIO = POOL_ROYALE_CUE_VIEW_RADIUS_RATIO;
 const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
 );
-const SNOOKER_CUE_VIEW_PHI_LIFT = 0.06;
+const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
 const BALL_VISUAL_LIFT = 0.32;
+const OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M = 1.778;
+const OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M = 3.569;
+const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
+const OFFICIAL_SNOOKER_BAULK_LINE_FROM_CUSHION_M = 0.737;
+const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
+const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
+const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
+const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 0.972; // slightly shorter cabinet while the ball height stays unchanged
+const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
+const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
+const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
+const SNOOKER_OFFICIAL_BALL_R = (OFFICIAL_SNOOKER_BALL_DIAMETER_M * SNOOKER_PLAYFIELD_SCALE) / 2;
+const SNOOKER_OFFICIAL_BAULK_FROM_CUSHION = OFFICIAL_SNOOKER_BAULK_LINE_FROM_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
+const SNOOKER_OFFICIAL_D_RADIUS = OFFICIAL_SNOOKER_D_RADIUS_M * SNOOKER_PLAYFIELD_SCALE;
+const SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION = OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
+const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
+const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
+const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
+const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
+const SNOOKER_SHOT_POWER_BOOST = 1.3; // Pool Royale-matched strike with ~30% extra headroom for snooker
 const SNOOKER_CHAMPION_WOOD_TEXTURE_DEFAULT = Object.freeze({
   hue: 24,
   sat: 0.4,
@@ -144,13 +170,13 @@ const SNOOKER_CHAMPION_TEXTURE_IDS = Object.freeze([
 const CFG = {
   scale: WORLD_SCALE,
   tableTopY: 0.84 * WORLD_SCALE,
-  tableW: 2.55 * WORLD_SCALE,
-  tableL: 4.85 * WORLD_SCALE,
-  tableVisualMultiplier: 1.18,
+  tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
+  tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
+  tableVisualMultiplier: 1.18 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
   topThickness: 0.09 * WORLD_SCALE,
   railW: 0.15 * WORLD_SCALE,
   railH: 0.08 * WORLD_SCALE,
-  ballR: 0.045 * WORLD_SCALE,
+  ballR: SNOOKER_OFFICIAL_BALL_R,
   friction: 1.18,
   restitution: 0.92,
   minSpeed2: 0.00045 * WORLD_SCALE * WORLD_SCALE,
@@ -473,31 +499,44 @@ function createBall(number, color, isCue = false, kind = 'red', value = 1, spot 
     radius: CFG.ballR
   };
 }
+
+function getOfficialSnookerSpots(ballY = CFG.ballR * 2.08) {
+  const halfL = CFG.tableL / 2;
+  const baulkZ = halfL - SNOOKER_OFFICIAL_BAULK_FROM_CUSHION;
+  const topCushionZ = -halfL;
+  const blueZ = 0;
+  const pinkZ = (blueZ + topCushionZ) / 2;
+  const blackZ = topCushionZ + SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION;
+  const redApexZ = pinkZ - CFG.ballR * 2.04;
+  return {
+    cue: new THREE.Vector3(-SNOOKER_OFFICIAL_D_RADIUS * 0.58, ballY, baulkZ),
+    yellow: new THREE.Vector3(-SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ),
+    green: new THREE.Vector3(SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ),
+    brown: new THREE.Vector3(0, ballY, baulkZ),
+    blue: new THREE.Vector3(0, ballY, blueZ),
+    pink: new THREE.Vector3(0, ballY, pinkZ),
+    black: new THREE.Vector3(0, ballY, blackZ),
+    redApex: new THREE.Vector3(0, ballY, redApexZ),
+    baulkZ
+  };
+}
+
 function snookerRackPositions() {
-  const baulkZ = CFG.tableL * 0.29;
-  const redApexZ = -CFG.tableL * 0.16;
   const ballY = CFG.ballR * 2.08;
-  const out = [{ n: 0, c: 0xf8fafc, p: new THREE.Vector3(-CFG.tableW * 0.16, ballY, baulkZ), cue: true, kind: 'cue', value: 0 }];
+  const spots = getOfficialSnookerSpots(ballY);
+  const out = [{ n: 0, c: 0xf8fafc, p: spots.cue, cue: true, kind: 'cue', value: 0 }];
   let idx = 1;
   for (let row = 0; row < 5; row += 1) {
     for (let i = 0; i <= row; i += 1) {
       out.push({
         n: idx++,
         c: 0xdc2626,
-        p: new THREE.Vector3((i - row / 2) * CFG.ballR * 2.04, ballY, redApexZ - row * CFG.ballR * 1.78),
+        p: new THREE.Vector3((i - row / 2) * CFG.ballR * 2.04, ballY, spots.redApex.z - row * CFG.ballR * 1.78),
         kind: 'red',
         value: SNOOKER_BALL_VALUES.red
       });
     }
   }
-  const spots = {
-    yellow: new THREE.Vector3(-CFG.tableW * 0.24, ballY, baulkZ),
-    green: new THREE.Vector3(CFG.tableW * 0.24, ballY, baulkZ),
-    brown: new THREE.Vector3(0, ballY, baulkZ),
-    blue: new THREE.Vector3(0, ballY, 0),
-    pink: new THREE.Vector3(0, ballY, redApexZ + CFG.ballR * 2.5),
-    black: new THREE.Vector3(0, ballY, -CFG.tableL * 0.36)
-  };
   out.push(
     { n: 16, c: 0xfacc15, p: spots.yellow, kind: 'yellow', value: SNOOKER_BALL_VALUES.yellow, spot: spots.yellow },
     { n: 17, c: 0x16a34a, p: spots.green, kind: 'green', value: SNOOKER_BALL_VALUES.green, spot: spots.green },
@@ -570,6 +609,45 @@ function resolveSnookerChampionGlbUpperBounds(model, fullBounds) {
   });
   return upperBounds.isEmpty() ? fullBounds.clone() : upperBounds;
 }
+
+function addOfficialSnookerMarkings(tableGroup) {
+  const markY = CFG.ballR + CFG.topThickness * 0.015;
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.72, depthWrite: false });
+  const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.76, depthWrite: false });
+  const spots = getOfficialSnookerSpots(markY);
+  const addLine = (points, name) => {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geometry, lineMat);
+    line.name = name;
+    line.renderOrder = 8;
+    tableGroup.add(line);
+    return line;
+  };
+  addLine([
+    new THREE.Vector3(-CFG.tableW / 2, markY, spots.baulkZ),
+    new THREE.Vector3(CFG.tableW / 2, markY, spots.baulkZ)
+  ], 'official-snooker-baulk-line');
+  const arcPoints = [];
+  for (let i = 0; i <= 64; i += 1) {
+    const theta = Math.PI / 2 + (i / 64) * Math.PI;
+    arcPoints.push(new THREE.Vector3(
+      Math.cos(theta) * SNOOKER_OFFICIAL_D_RADIUS,
+      markY,
+      spots.baulkZ + Math.sin(theta) * SNOOKER_OFFICIAL_D_RADIUS
+    ));
+  }
+  addLine(arcPoints, 'official-snooker-d-semicircle');
+  ['yellow', 'green', 'brown', 'blue', 'pink', 'black'].forEach((id) => {
+    const spot = spots[id];
+    const marker = new THREE.Mesh(new THREE.CircleGeometry(Math.max(CFG.ballR * 0.12, 0.01), 24), spotMat);
+    marker.name = `official-snooker-${id}-spot`;
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.set(spot.x, markY + 0.001 * CFG.scale, spot.z);
+    marker.renderOrder = 9;
+    tableGroup.add(marker);
+  });
+}
+
 function addTable(scene, renderer, options = {}) {
   const tableGroup = new THREE.Group();
   tableGroup.position.y = CFG.tableTopY;
@@ -601,16 +679,22 @@ function addTable(scene, renderer, options = {}) {
   ].forEach(([size, pos, mat]) => {
     proceduralTableMeshes.push(addBox(tableGroup, size, pos, mat));
   });
-  const pocketRadius = CFG.ballR * 1.75;
+  const pocketY = CFG.ballR + 0.006 * CFG.scale;
   const pocketPositions = [
-    [-CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, -CFG.tableL / 2],
-    [CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, -CFG.tableL / 2],
-    [-CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, CFG.tableL / 2],
-    [CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, CFG.tableL / 2],
-    [-CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, 0],
-    [CFG.tableW / 2, CFG.ballR + 0.006 * CFG.scale, 0]
-  ].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS]
+  ].map(([x, y, z, radius]) => {
+    const pocket = new THREE.Vector3(x, y, z);
+    pocket.userData = { radius };
+    return pocket;
+  });
+  addOfficialSnookerMarkings(tableGroup);
   pocketPositions.forEach((pos) => {
+    const pocketRadius = pos.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(pocketRadius, pocketRadius * 0.82, 0.035 * CFG.scale, 32), new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.92 }));
     cup.position.copy(pos);
     cup.rotation.x = Math.PI / 2;
@@ -988,9 +1072,9 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
   const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spin = mapSpinForPhysics(normalizeSpinInput(spinInput));
-  const speed = (2.8 + p * 9.2) * CFG.scale;
+  const speed = (2.8 + p * 9.2) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
   cueBall.vel.copy(dir.multiplyScalar(speed));
-  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale);
+  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
   cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
   cueBall.impacted = false;
   cueBall.lastShotSpin = { x: spin.x ?? 0, y: spin.y ?? 0 };
@@ -1032,6 +1116,27 @@ function updateSnookerRulesAfterPot(ball, balls, rulesState) {
     rulesState.target = nextColour ? SNOOKER_COLOR_LABELS[nextColour] : 'Frame complete';
   }
 }
+
+function findSnookerPocketCapture(ball, pocketPositions = []) {
+  return pocketPositions.find((pocket) => {
+    const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
+    const captureRadius = Math.max(radius + CFG.ballR * 0.56, CFG.ballR * 1.35);
+    return ball.pos.distanceToSquared(pocket) < captureRadius * captureRadius;
+  });
+}
+
+function isInSnookerPocketMouth(ball, axis, sign, pocketPositions = []) {
+  const nearPocket = pocketPositions.some((pocket) => {
+    const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
+    const mouth = Math.max(radius + CFG.ballR * 0.92, CFG.ballR * 1.65);
+    if (axis === 'x') {
+      return Math.sign(pocket.x || sign) === sign && Math.abs(ball.pos.z - pocket.z) <= mouth;
+    }
+    return Math.sign(pocket.z || sign) === sign && Math.abs(ball.pos.x - pocket.x) <= mouth;
+  });
+  return nearPocket;
+}
+
 function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = null) {
   const halfW = CFG.tableW / 2;
   const halfL = CFG.tableL / 2;
@@ -1049,14 +1154,16 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     ball.vel.multiplyScalar(Math.exp(-CFG.friction * dt));
     if (ball.spin) ball.spin.multiplyScalar(Math.exp(-2.0 * dt));
     if (ball.vel.lengthSq() < CFG.minSpeed2) ball.vel.set(0, 0, 0);
-    if (ball.pos.x < -halfW + CFG.ballR) { ball.pos.x = -halfW + CFG.ballR; ball.vel.x = Math.abs(ball.vel.x) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
-    else if (ball.pos.x > halfW - CFG.ballR) { ball.pos.x = halfW - CFG.ballR; ball.vel.x = -Math.abs(ball.vel.x) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
-    if (ball.pos.z < -halfL + CFG.ballR) { ball.pos.z = -halfL + CFG.ballR; ball.vel.z = Math.abs(ball.vel.z) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
-    else if (ball.pos.z > halfL - CFG.ballR) { ball.pos.z = halfL - CFG.ballR; ball.vel.z = -Math.abs(ball.vel.z) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
-    const pocket = pocketPositions.find((p) => ball.pos.distanceToSquared(p) < (CFG.ballR * 1.72) ** 2);
+    const pocket = findSnookerPocketCapture(ball, pocketPositions);
+    if (!pocket) {
+      if (ball.pos.x < -halfW + CFG.ballR && !isInSnookerPocketMouth(ball, 'x', -1, pocketPositions)) { ball.pos.x = -halfW + CFG.ballR; ball.vel.x = Math.abs(ball.vel.x) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
+      else if (ball.pos.x > halfW - CFG.ballR && !isInSnookerPocketMouth(ball, 'x', 1, pocketPositions)) { ball.pos.x = halfW - CFG.ballR; ball.vel.x = -Math.abs(ball.vel.x) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
+      if (ball.pos.z < -halfL + CFG.ballR && !isInSnookerPocketMouth(ball, 'z', -1, pocketPositions)) { ball.pos.z = -halfL + CFG.ballR; ball.vel.z = Math.abs(ball.vel.z) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
+      else if (ball.pos.z > halfL - CFG.ballR && !isInSnookerPocketMouth(ball, 'z', 1, pocketPositions)) { ball.pos.z = halfL - CFG.ballR; ball.vel.z = -Math.abs(ball.vel.z) * CFG.restitution; if (ball.spin) ball.spin.x *= -0.65; }
+    }
     if (pocket && ball.vel.lengthSq() < (8.5 * CFG.scale) ** 2) {
       if (ball.isCue) {
-        ball.pos.set(-CFG.tableW * 0.16, CFG.ballR * 2.08, CFG.tableL * 0.29);
+        ball.pos.copy(getOfficialSnookerSpots(CFG.ballR * 2.08).cue);
         ball.vel.set(0, 0, 0);
         ball.spin?.set(0, 0);
         if (rulesState) {
@@ -1116,15 +1223,21 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   const target = cueBallWorld.clone()
     .addScaledVector(aimForward, CFG.tableL * 0.14)
     .setY(CFG.tableTopY + CFG.ballR * 1.05);
-  const playerRadiusBase = Math.max(CFG.tableW, CFG.tableL) * CFG.scale;
-  const desiredRadius = Math.max(
+  const playerRadiusBase = Math.max(CFG.tableW, CFG.tableL);
+  const standingRadius = computeSnookerTopViewDistance(aspect, POOL_ROYALE_STANDING_VIEW_FOV, POOL_ROYALE_STANDING_VIEW_MARGIN);
+  const cueRadius = Math.max(
     playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
     CFG.tableL * (0.34 + clampedPower * 0.08),
     SNOOKER_CUE_CAMERA_MIN_RADIUS
   );
-  const radius = clamp(desiredRadius, SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
-  const phi = THREE.MathUtils.clamp(
+  const radius = clamp(lerp(standingRadius, cueRadius, 0.32 + clampedPower * 0.68), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
+  const cuePhi = THREE.MathUtils.clamp(
     SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15),
+    SNOOKER_CUE_CAMERA_MIN_PHI,
+    SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
+  );
+  const phi = THREE.MathUtils.clamp(
+    lerp(SNOOKER_CUE_CAMERA_STANDING_PHI, cuePhi, 0.35 + clampedPower * 0.65),
     SNOOKER_CUE_CAMERA_MIN_PHI,
     SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
   );
