@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import {
   DEFAULT_POOL_ROYALE_TABLE_MODEL_ID,
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
@@ -47,111 +46,56 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.fitHeightScale, 1);
   });
 
-  test('Traditional Sketchfab table is selectable as an authentic local glTF option', () => {
-    const traditional = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-      (option) => option.id === 'traditional-fizyman-eight-foot'
-    );
-
-    assert.ok(
-      traditional,
-      'Traditional Sketchfab table model must be configured'
+  test('Showood is the only Pool Royale table model exposed by default', () => {
+    assert.deepEqual(
+      POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => option.id),
+      ['showood-seven-foot']
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      traditional.id
+      'showood-seven-foot'
     );
-    assert.equal(traditional.kind, 'gltf');
-    assert.equal(traditional.assetFormat, 'glTF');
-    assert.equal(
-      traditional.assetUrl,
-      '/models/pool-royale/pool-table-traditional-fizyman/scene.gltf'
-    );
-    assert.equal(
-      traditional.installScript,
-      'npm run fetch:pool-royale-traditional-table'
-    );
-    assert.equal(traditional.sourceUid, 'e0b938c0c2e74eb794a49ebde2543977');
-    assert.equal(traditional.sourceFormat, 'sketchfab-original-gltf');
-    assert.equal(traditional.requiresInstall, true);
-    assert.equal(traditional.installCheck, 'gltf-json');
-    assert.equal(traditional.tableSizeId, '8ft');
-    assert.equal(traditional.fitStrategy, 'exact');
-    assert.equal(traditional.fitReference, 'upperTabletop');
-    assert.equal(traditional.fitScale, 1);
-    assert.equal(traditional.fitHeightScale, 1);
-    assert.equal(traditional.useOriginalLayoutSurfaces, true);
-    assert.deepEqual(traditional.usePoolRoyaleFinishRoles, [
-      'cloth',
-      'cushion',
-      'wood',
-      'pocket'
-    ]);
-    assert.equal(
-      traditional.sourceUrl,
-      'https://sketchfab.com/3d-models/pool-table-traditional-e0b938c0c2e74eb794a49ebde2543977'
-    );
-    assert.equal(traditional.author, 'fizyman');
-    assert.equal(traditional.license, 'CC Attribution 4.0');
   });
 
-  test('Pool Royale lobby keeps runtime-only glTF table models selectable before install', async () => {
+  test('Pool Royale lobby no longer exposes table model selection controls', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
+    assert.equal(lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS'), false);
+    assert.equal(lobby.includes('setTableModelId'), false);
+    assert.equal(lobby.includes('Pool Table'), false);
+    assert.equal(lobby.includes('Selectable · install for glTF'), false);
     assert.ok(
-      lobby.includes('const selectedTableModelReady = true'),
-      'lobby start button should not be blocked by runtime-only glTF install checks'
+      lobby.includes("params.set('tableModel', selectedTableModel.id)")
     );
-    assert.ok(
-      lobby.includes('onClick={() => setTableModelId(option.id)}'),
-      'table model option should remain clickable when the local glTF is missing'
-    );
-    assert.ok(
-      lobby.includes('Selectable · install for glTF'),
-      'missing local glTF copy should be shown as selectable with install guidance'
-    );
-    assert.ok(
-      lobby.includes('generated fallback table'),
-      'start guidance should explain the fallback used until the glTF package is installed'
-    );
-    assert.equal(lobby.includes('disabled={unavailable}'), false);
   });
 
-  test('Traditional table installer fetches and validates the authentic Sketchfab glTF', async () => {
-    const source = await readFile(
-      'webapp/scripts/fetch-pool-royale-traditional-table.mjs',
+  test('Pool Royale human cue pose keeps Snooker Champion right-hand stance signs', async () => {
+    const poolSource = await readFile(
+      'webapp/src/pages/Games/PoolRoyale.jsx',
       'utf8'
     );
-    const help = execFileSync(
-      'node',
-      ['webapp/scripts/fetch-pool-royale-traditional-table.mjs', '--help'],
-      { encoding: 'utf8' }
-    );
 
-    assert.ok(source.includes('e0b938c0c2e74eb794a49ebde2543977'));
-    assert.ok(source.includes('https://api.sketchfab.com/v3/models/'));
-    assert.ok(source.includes('data?.gltf?.url'));
-    assert.ok(source.includes('validateAuthenticTraditionalGltf'));
-    assert.ok(source.includes('minTriangles: 20000'));
-    assert.ok(source.includes('minTextures: 10'));
-    assert.ok(source.includes('validateExternalReferences'));
-    assert.ok(source.includes("targetFileName: 'scene.gltf'"));
-    assert.ok(help.includes('SKETCHFAB_TOKEN=<token>'));
-    assert.ok(help.includes('--from /path/to/authentic-sketchfab-gltf.zip'));
-  });
-
-  test('Traditional table keeps installer and attribution files in git instead of model binaries', async () => {
-    const installer = await stat(
-      'webapp/scripts/fetch-pool-royale-traditional-table.mjs'
+    assert.match(
+      poolSource,
+      /human\.yaw = poolHumanDampScalar\([\s\S]*poolHumanYawFromForward\(aimForward\)[\s\S]*POOL_HUMAN_CFG\.rotLambda/
     );
-    const license = await stat(
-      'webapp/public/models/pool-royale/pool-table-traditional-fizyman.LICENSE.md'
+    assert.ok(
+      poolSource.includes(
+        '(poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT)'
+      )
     );
-
-    assert.ok(installer.isFile());
-    assert.ok(installer.size > 8_000);
-    assert.ok(license.isFile());
+    assert.ok(
+      poolSource.includes(
+        '.setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift)'
+      )
+    );
+    assert.equal(poolSource.includes('poolHumanDampAngle'), false);
+    assert.equal(
+      poolSource.includes('POOL_HUMAN_CUE_BUTT_STANCE_INSET'),
+      false
+    );
   });
 });

@@ -13,7 +13,6 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -39,27 +38,6 @@ const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
-
-async function checkPoolRoyaleTableModelInstalled(option) {
-  if (!option?.requiresInstall || !option?.assetUrl) return true;
-  try {
-    const response = await fetch(option.assetUrl, { cache: 'no-store' });
-    if (!response.ok) return false;
-    if (option.installCheck === 'gltf-json') {
-      const contentType = response.headers.get('content-type') || '';
-      const text = await response.text();
-      return (
-        !contentType.toLowerCase().includes('text/html') &&
-        text.includes('"asset"') &&
-        text.includes('"meshes"') &&
-        text.includes('"textures"')
-      );
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -98,9 +76,7 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const [tableModelAvailability, setTableModelAvailability] = useState({});
-  const [tableModelInstallError, setTableModelInstallError] = useState('');
-  const [tableModelId, setTableModelId] = useState(() => {
+  const [tableModelId] = useState(() => {
     const requested = searchParams.get('tableModel');
     if (requested) return resolvePoolRoyaleTableModel(requested).id;
     try {
@@ -115,11 +91,7 @@ export default function PoolRoyaleLobby() {
     () => resolvePoolRoyaleTableModel(tableModelId),
     [tableModelId]
   );
-  const tableSize = resolveTableSize(
-    selectedTableModel?.tableSizeId || searchParams.get('tableSize')
-  ).id;
-  const defaultTableSize = resolveTableSize().id;
-  const onlineTableSize = tableSize || defaultTableSize;
+  const onlineTableSize = selectedTableModel?.tableSizeId || '7ft';
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -151,37 +123,6 @@ export default function PoolRoyaleLobby() {
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const selectedTableModelAvailability = selectedTableModel?.requiresInstall
-    ? tableModelAvailability[selectedTableModel.id]
-    : true;
-  // Runtime-only glTF assets must remain selectable from the lobby even before
-  // their local Sketchfab package is installed. The game renderer already keeps
-  // the generated/native table visible if an external model cannot load.
-  const selectedTableModelReady = true;
-  const selectedTableModelPending =
-    selectedTableModel?.requiresInstall &&
-    typeof selectedTableModelAvailability === 'undefined';
-  const selectedTableModelUnavailable =
-    selectedTableModel?.requiresInstall &&
-    selectedTableModelAvailability === false;
-
-  useEffect(() => {
-    let cancelled = false;
-    POOL_ROYALE_TABLE_MODEL_OPTIONS.forEach((option) => {
-      if (!option?.requiresInstall) return;
-      checkPoolRoyaleTableModelInstalled(option).then((installed) => {
-        if (cancelled) return;
-        setTableModelAvailability((current) => ({
-          ...current,
-          [option.id]: installed
-        }));
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   useEffect(() => {
     try {
       const saved = loadAvatar();
@@ -296,20 +237,6 @@ export default function PoolRoyaleLobby() {
     await cleanupRef.current?.();
     setMatchStatus('');
     setMatchingError('');
-    setTableModelInstallError('');
-
-    if (selectedTableModelUnavailable || selectedTableModelPending) {
-      const installCommand =
-        selectedTableModel.installScript ||
-        'npm run fetch:pool-royale-traditional-table';
-      const message = [
-        `${selectedTableModel.label} is selectable now.`,
-        `Run ${installCommand} to install the authentic glTF package;`,
-        'until then Pool Royale will open with the generated fallback table if the model is unavailable.'
-      ].join(' ');
-      setTableModelInstallError(message);
-    }
-
     try {
       window.localStorage?.setItem(
         POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
@@ -938,103 +865,6 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {!hasActiveTournament && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Pool Table</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                Model
-              </span>
-            </div>
-            <p className="text-xs text-white/60">
-              Select the table model before entering the arena. Pool Royale
-              keeps the same playable table footprint and height for every
-              model.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
-                const active = selectedTableModel.id === option.id;
-                const availability = option.requiresInstall
-                  ? tableModelAvailability[option.id]
-                  : true;
-                const unavailable =
-                  option.requiresInstall && availability === false;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setTableModelId(option.id)}
-                    className={`lobby-option-card ${
-                      active
-                        ? 'lobby-option-card-active'
-                        : 'lobby-option-card-inactive'
-                    } ${unavailable ? 'border-amber-300/45' : ''}`}
-                  >
-                    <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/25 via-amber-500/10 to-transparent">
-                      <div className="lobby-option-thumb-inner">
-                        {option.thumbnailUrl ? (
-                          <img
-                            src={option.thumbnailUrl}
-                            alt={option.label}
-                            className="h-full w-full rounded-xl object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="text-3xl">
-                            {option.icon || '🎱'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="lobby-option-label">{option.label}</p>
-                      <p className="lobby-option-subtitle">
-                        {resolveTableSize(option.tableSizeId).label} ·{' '}
-                        {option.assetFormat || 'GLB'}
-                      </p>
-                      {option.requiresInstall && (
-                        <p
-                          className={`mt-1 text-[10px] ${
-                            availability === true
-                              ? 'text-emerald-300/80'
-                              : availability === false
-                                ? 'text-amber-300/90'
-                                : 'text-white/45'
-                          }`}
-                        >
-                          {availability === true
-                            ? 'Installed glTF'
-                            : availability === false
-                              ? 'Selectable · install for glTF'
-                              : 'Selectable · checking glTF…'}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {selectedTableModel.sourceUrl && (
-              <p className="text-[11px] text-white/45">
-                Source credit: {selectedTableModel.author || 'Sketchfab'} ·{' '}
-                {selectedTableModel.license || 'CC Attribution'}
-              </p>
-            )}
-            {(selectedTableModelUnavailable || selectedTableModelPending) && (
-              <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3 text-xs text-amber-100">
-                {selectedTableModelPending
-                  ? 'This table can be selected now while we check the local glTF install.'
-                  : `${selectedTableModel.label} can be selected now. Run ${selectedTableModel.installScript || 'npm run fetch:pool-royale-traditional-table'} to install the authentic glTF package; the generated fallback remains available if it is missing.`}
-              </div>
-            )}
-            {tableModelInstallError && (
-              <div className="rounded-xl border border-red-300/40 bg-red-500/10 p-3 text-xs text-red-100">
-                {tableModelInstallError}
-              </div>
-            )}
-          </div>
-        )}
-
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
             <div>
@@ -1417,10 +1247,7 @@ export default function PoolRoyaleLobby() {
           <button
             onClick={startGame}
             className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
-            disabled={
-              (mode === 'online' && (isSearching || matching)) ||
-              !selectedTableModelReady
-            }
+            disabled={mode === 'online' && (isSearching || matching)}
           >
             {mode === 'online'
               ? matching
