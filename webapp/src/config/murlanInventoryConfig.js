@@ -25,6 +25,13 @@ const DEFAULT_MURLAN_SHARED_IDS = Object.freeze({
   environmentHdri: 'neon_photostudio'
 });
 
+
+const DEFAULT_UNLOCKED_CHARACTER_IDS = Object.freeze(
+  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
+    .map((theme) => theme.id)
+    .filter(Boolean)
+);
+
 export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   outfit: [MURLAN_OUTFIT_THEMES[0].id],
   cards: [CARD_THEMES[0].id],
@@ -32,7 +39,7 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [DEFAULT_MURLAN_SHARED_IDS.table],
   tableCloth: [DEFAULT_MURLAN_SHARED_IDS.tableCloth],
   tableFinish: [DEFAULT_MURLAN_SHARED_IDS.tableFinish],
-  characters: [MURLAN_CHARACTER_THEMES[0].id],
+  characters: DEFAULT_UNLOCKED_CHARACTER_IDS,
   environmentHdri: MURLAN_HDRI_OPTIONS.map((variant) => variant.id)
 });
 

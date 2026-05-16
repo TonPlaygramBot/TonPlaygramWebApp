@@ -11,6 +11,7 @@ import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
+import { MURLAN_CHARACTER_THEMES } from '../webapp/src/config/murlanCharacterThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
 import {
   MURLAN_ROYALE_DEFAULT_UNLOCKS,
@@ -90,6 +91,26 @@ describe('cross-game inventory alignment', () => {
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tableFinish')).toEqual(chessTableFinish);
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'environmentHdri')).toEqual(chessHdri);
     expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
+  });
+
+  test('murlan includes runtime-only Sketchfab human characters', () => {
+    const expectedSketchfabCharacters = [
+      ['sketchfab-agent-47', '/models/murlan/agent-47-rigged-face-morphs.glb', 'CC BY-NC 4.0'],
+      ['sketchfab-leather-jacket-portrait', '/models/murlan/leather-jacket-portrait.glb', 'CC BY 4.0'],
+      ['sketchfab-suede-gentleman', '/models/murlan/seated-gentleman-suede-jacket.glb', 'CC BY 4.0'],
+      ['sketchfab-red-hibiscus-hair', '/models/murlan/red-hibiscus-in-the-hair.glb', 'CC BY 4.0'],
+      ['sketchfab-casual-confidence', '/models/murlan/casual-confidence.glb', 'CC BY 4.0']
+    ];
+
+    expectedSketchfabCharacters.forEach(([id, modelUrl, license]) => {
+      const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id);
+      expect(theme).toBeTruthy();
+      expect(theme.modelUrls).toEqual([modelUrl]);
+      expect(theme.sourceUrl).toContain('sketchfab.com/3d-models/');
+      expect(theme.license).toContain(license);
+      expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
+      expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
+    });
   });
 
   test('murlan shares texas hold’em inventories for poker arena assets', () => {
