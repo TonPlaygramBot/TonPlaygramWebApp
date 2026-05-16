@@ -44,6 +44,13 @@ const gamesCatalog = [
     description: 'Rack up and run the table in stylish arenas.'
   },
   {
+    name: 'Snooker Royal',
+    route: '/games/snookerroyale/lobby',
+    slug: 'snookerroyale',
+    image: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
+    description: 'Precision snooker battles with competitive stakes.'
+  },
+  {
     name: 'Snooker Champion',
     route: '/games/snookerchampion/lobby',
     slug: 'snookerchampion',
