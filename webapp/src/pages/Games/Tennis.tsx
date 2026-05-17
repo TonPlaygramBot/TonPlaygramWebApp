@@ -589,7 +589,7 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const postMat = material(0x2a2f33, 0.32, 0.28);
 
   if (!hideFloor) {
-    addBox(group, [CFG.doublesW + 9.5 * CFG.worldScale, 0.035, CFG.courtL + 10.5 * CFG.worldScale], [0, -0.015, 0], outerMat);
+    addBox(group, [CFG.doublesW + 13.4 * CFG.worldScale, 0.035, CFG.courtL + 14.2 * CFG.worldScale], [0, -0.015, 0], outerMat);
     addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
     addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
     addTrainingCourtSurrounds(group);
@@ -631,13 +631,11 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
 function addTrainingCourtSurrounds(group: THREE.Group) {
   const fenceMat = transparentMaterial(0x243238, 0.46, 0.64);
   const poleMat = material(0x28323a, 0.42, 0.34);
-  const padMat = material(0x1e4f35, 0.68, 0.02);
-  const benchMat = material(0x8b5a2b, 0.5, 0.08);
   const fenceY = 1.65 * CFG.worldScale;
-  const sideX = CFG.doublesW / 2 + 3.85 * CFG.worldScale;
-  const endZ = CFG.courtL / 2 + 3.7 * CFG.worldScale;
-  const sideFenceDepth = CFG.courtL + 7.4 * CFG.worldScale;
-  const endFenceWidth = CFG.doublesW + 7.7 * CFG.worldScale;
+  const sideX = CFG.doublesW / 2 + 5.4 * CFG.worldScale;
+  const endZ = CFG.courtL / 2 + 5.35 * CFG.worldScale;
+  const sideFenceDepth = CFG.courtL + 10.7 * CFG.worldScale;
+  const endFenceWidth = CFG.doublesW + 10.8 * CFG.worldScale;
 
   addBox(group, [0.035, fenceY, sideFenceDepth], [-sideX, fenceY / 2, 0], fenceMat);
   addBox(group, [0.035, fenceY, sideFenceDepth], [sideX, fenceY / 2, 0], fenceMat);
@@ -655,9 +653,136 @@ function addTrainingCourtSurrounds(group: THREE.Group) {
     addCylinder(group, 0.028, 0.028, fenceY + 0.18, [x, (fenceY + 0.18) / 2, endZ], poleMat, 12);
   }
 
-  addBox(group, [1.9 * CFG.worldScale, 0.12 * CFG.worldScale, 0.38 * CFG.worldScale], [-CFG.doublesW / 2 - 1.7 * CFG.worldScale, 0.28 * CFG.worldScale, 0], benchMat);
-  addBox(group, [0.16 * CFG.worldScale, 0.36 * CFG.worldScale, 0.18 * CFG.worldScale], [-CFG.doublesW / 2 - 2.35 * CFG.worldScale, 0.12 * CFG.worldScale, -0.42 * CFG.worldScale], padMat);
-  addBox(group, [0.16 * CFG.worldScale, 0.36 * CFG.worldScale, 0.18 * CFG.worldScale], [-CFG.doublesW / 2 - 1.05 * CFG.worldScale, 0.12 * CFG.worldScale, -0.42 * CFG.worldScale], padMat);
+  addRealisticCourtYardDetails(group, { sideX, endZ, endFenceWidth });
+}
+
+
+function makeCourtSignTexture(text: string, bg = "#164f3a", fg = "#f8fff4") {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grad.addColorStop(0, bg);
+  grad.addColorStop(1, "#0d2430");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "rgba(255,255,255,.28)";
+  ctx.lineWidth = 10;
+  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  ctx.fillStyle = fg;
+  ctx.font = "800 46px Inter, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function addCourtSign(group: THREE.Group, text: string, position: [number, number, number], rotationY: number) {
+  const mat = new THREE.MeshStandardMaterial({ map: makeCourtSignTexture(text), roughness: 0.58, metalness: 0.02 });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.35 * CFG.worldScale, 0.72 * CFG.worldScale), mat);
+  sign.position.set(...position);
+  sign.rotation.y = rotationY;
+  enableShadow(sign);
+  group.add(sign);
+  return sign;
+}
+
+function addBallTube(group: THREE.Group, x: number, z: number, rotationY = 0) {
+  const tubeMat = transparentMaterial(0x2b3d3b, 0.38, 0.42);
+  const rimMat = material(0xb7c4bb, 0.36, 0.24);
+  const ballMat = material(0xcde943, 0.62, 0.0);
+  const h = 0.82 * CFG.worldScale;
+  const tube = addCylinder(group, 0.22 * CFG.worldScale, 0.2 * CFG.worldScale, h, [x, h / 2, z], tubeMat, 24);
+  tube.rotation.y = rotationY;
+  addCylinder(group, 0.235 * CFG.worldScale, 0.235 * CFG.worldScale, 0.035 * CFG.worldScale, [x, h + 0.03 * CFG.worldScale, z], rimMat, 24);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const r = 0.1 * CFG.worldScale;
+    addCylinder(group, 0.045 * CFG.worldScale, 0.045 * CFG.worldScale, 0.09 * CFG.worldScale, [x + Math.cos(a) * r, h + 0.08 * CFG.worldScale + (i % 2) * 0.045 * CFG.worldScale, z + Math.sin(a) * r], ballMat, 18);
+  }
+}
+
+function addUmpireChair(group: THREE.Group, x: number, z: number, side = 1) {
+  const metalMat = material(0xdde5e8, 0.34, 0.38);
+  const seatMat = material(0x315a44, 0.62, 0.03);
+  const ladderMat = material(0xa9b2b6, 0.42, 0.3);
+  const y = 1.18 * CFG.worldScale;
+  addBox(group, [0.72 * CFG.worldScale, 0.12 * CFG.worldScale, 0.72 * CFG.worldScale], [x, y, z], seatMat);
+  addBox(group, [0.76 * CFG.worldScale, 0.8 * CFG.worldScale, 0.1 * CFG.worldScale], [x, y + 0.38 * CFG.worldScale, z - side * 0.34 * CFG.worldScale], seatMat);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const leg = addCylinder(group, 0.025 * CFG.worldScale, 0.032 * CFG.worldScale, y, [x + sx * 0.28 * CFG.worldScale, y / 2, z + sz * 0.28 * CFG.worldScale], metalMat, 10);
+      leg.rotation.z = sx * 0.04;
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    addBox(group, [0.64 * CFG.worldScale, 0.032 * CFG.worldScale, 0.04 * CFG.worldScale], [x, 0.34 * CFG.worldScale + i * 0.22 * CFG.worldScale, z + side * 0.42 * CFG.worldScale], ladderMat);
+  }
+  addBox(group, [1.05 * CFG.worldScale, 0.08 * CFG.worldScale, 0.42 * CFG.worldScale], [x, 0.9 * CFG.worldScale, z + side * 0.52 * CFG.worldScale], ladderMat);
+}
+
+function addBenchWithGear(group: THREE.Group, x: number, z: number, rotationY: number) {
+  const benchMat = material(0x8b5a2b, 0.5, 0.08);
+  const metalMat = material(0x2c3438, 0.44, 0.24);
+  const bagMat = material(0x20242d, 0.68, 0.04);
+  const towelMat = material(0xf3f0df, 0.82, 0.0);
+  const bench = new THREE.Group();
+  bench.position.set(x, 0, z);
+  bench.rotation.y = rotationY;
+  group.add(bench);
+  addBox(bench, [2.25 * CFG.worldScale, 0.12 * CFG.worldScale, 0.42 * CFG.worldScale], [0, 0.34 * CFG.worldScale, 0], benchMat);
+  addBox(bench, [2.1 * CFG.worldScale, 0.48 * CFG.worldScale, 0.12 * CFG.worldScale], [0, 0.64 * CFG.worldScale, -0.22 * CFG.worldScale], benchMat);
+  for (const lx of [-0.82, 0.82]) addBox(bench, [0.1 * CFG.worldScale, 0.34 * CFG.worldScale, 0.34 * CFG.worldScale], [lx * CFG.worldScale, 0.16 * CFG.worldScale, 0.04 * CFG.worldScale], metalMat);
+  addBox(bench, [0.58 * CFG.worldScale, 0.34 * CFG.worldScale, 0.36 * CFG.worldScale], [-1.18 * CFG.worldScale, 0.2 * CFG.worldScale, 0.4 * CFG.worldScale], bagMat);
+  addBox(bench, [0.54 * CFG.worldScale, 0.045 * CFG.worldScale, 0.32 * CFG.worldScale], [0.46 * CFG.worldScale, 0.43 * CFG.worldScale, 0.04 * CFG.worldScale], towelMat);
+}
+
+function addRacketProp(group: THREE.Group, x: number, z: number, rotationY: number) {
+  const racket = new THREE.Group();
+  racket.position.set(x, 0.09 * CFG.worldScale, z);
+  racket.rotation.set(-Math.PI / 2.15, rotationY, 0.08);
+  group.add(racket);
+  const frameMat = material(0xfff6d2, 0.4, 0.22);
+  const gripMat = material(0x1f2428, 0.78, 0.02);
+  const stringsMat = transparentMaterial(0xffffff, 0.34, 0.5);
+  const head = new THREE.Mesh(new THREE.TorusGeometry(0.27 * CFG.worldScale, 0.018 * CFG.worldScale, 10, 36), frameMat);
+  head.scale.x = 0.72;
+  enableShadow(head);
+  racket.add(head);
+  addBox(racket, [0.035 * CFG.worldScale, 0.035 * CFG.worldScale, 0.68 * CFG.worldScale], [0, 0, 0.54 * CFG.worldScale], gripMat);
+  for (let i = -2; i <= 2; i++) addBox(racket, [0.006 * CFG.worldScale, 0.006 * CFG.worldScale, 0.42 * CFG.worldScale], [i * 0.07 * CFG.worldScale, 0, 0], stringsMat);
+  for (let i = -2; i <= 2; i++) addBox(racket, [0.34 * CFG.worldScale, 0.006 * CFG.worldScale, 0.006 * CFG.worldScale], [0, 0, i * 0.07 * CFG.worldScale], stringsMat);
+}
+
+function addRealisticCourtYardDetails(group: THREE.Group, bounds: { sideX: number; endZ: number; endFenceWidth: number }) {
+  const wallPadMat = material(0x174b34, 0.74, 0.02);
+  const clayDustMat = transparentMaterial(0xd9bc7f, 0.28, 0.9);
+  const serviceBoxMat = transparentMaterial(0xffffff, 0.12, 0.8);
+  const halfW = CFG.doublesW / 2;
+  const sideWalkX = halfW + 2.15 * CFG.worldScale;
+  const baselineZ = CFG.courtL / 2 + 1.95 * CFG.worldScale;
+
+  addBox(group, [bounds.endFenceWidth, 0.62 * CFG.worldScale, 0.09 * CFG.worldScale], [0, 0.31 * CFG.worldScale, -bounds.endZ + 0.08 * CFG.worldScale], wallPadMat);
+  addBox(group, [bounds.endFenceWidth, 0.62 * CFG.worldScale, 0.09 * CFG.worldScale], [0, 0.31 * CFG.worldScale, bounds.endZ - 0.08 * CFG.worldScale], wallPadMat);
+  addCourtSign(group, "TONPLAYGRAM OPEN", [0, 1.16 * CFG.worldScale, -bounds.endZ + 0.12 * CFG.worldScale], 0);
+  addCourtSign(group, "TRAINING COURT", [0, 1.16 * CFG.worldScale, bounds.endZ - 0.12 * CFG.worldScale], Math.PI);
+  [-1, 1].forEach((side) => {
+    addCourtSign(group, side < 0 ? "PLAY REAL" : "TENNIS PRO", [side * (bounds.sideX - 0.08 * CFG.worldScale), 1.2 * CFG.worldScale, -0.18 * CFG.courtL], side < 0 ? Math.PI / 2 : -Math.PI / 2);
+    addBox(group, [0.1 * CFG.worldScale, 0.62 * CFG.worldScale, CFG.courtL * 0.42], [side * (bounds.sideX - 0.04 * CFG.worldScale), 0.31 * CFG.worldScale, CFG.courtL * 0.22], wallPadMat);
+    addBenchWithGear(group, side * sideWalkX, CFG.courtL * 0.24, side < 0 ? Math.PI / 2 : -Math.PI / 2);
+    addBallTube(group, side * (halfW + 1.05 * CFG.worldScale), -CFG.courtL * 0.28, side * 0.12);
+  });
+
+  addUmpireChair(group, -(halfW + 0.95 * CFG.worldScale), 0, -1);
+  addRacketProp(group, halfW + 1.55 * CFG.worldScale, -0.5 * CFG.worldScale, -0.25);
+  addRacketProp(group, -(halfW + 2.55 * CFG.worldScale), CFG.courtL * 0.32, 0.4);
+  addBox(group, [CFG.courtW * 0.8, 0.012 * CFG.worldScale, 0.55 * CFG.worldScale], [0, 0.066 * CFG.worldScale, baselineZ], clayDustMat);
+  addBox(group, [CFG.courtW * 0.8, 0.012 * CFG.worldScale, 0.55 * CFG.worldScale], [0, 0.066 * CFG.worldScale, -baselineZ], clayDustMat);
+  addBox(group, [CFG.courtW - 0.4 * CFG.worldScale, 0.012 * CFG.worldScale, CFG.serviceLineZ * 1.94], [0, 0.07 * CFG.worldScale, 0], serviceBoxMat);
 }
 
 function addTrainingCourtLighting(scene: THREE.Scene) {
@@ -1774,9 +1899,9 @@ export default function MobileThreeTennisPrototype() {
     const scene = new THREE.Scene();
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(44, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
-    const cameraTarget = new THREE.Vector3(0, 1.48 * CFG.cameraViewScale, -2.2 * CFG.cameraViewScale);
-    const cameraOffset = new THREE.Vector3(0, 9.25 * CFG.cameraViewScale, 15.25 * CFG.cameraViewScale);
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.05, Math.max(70, CFG.courtL * 1.8));
+    const cameraTarget = new THREE.Vector3(0, 1.64 * CFG.cameraViewScale, -2.4 * CFG.cameraViewScale);
+    const cameraOffset = new THREE.Vector3(0, 10.35 * CFG.cameraViewScale, 17.15 * CFG.cameraViewScale);
     const cameraPosTarget = new THREE.Vector3();
 
     addTrainingCourtLighting(scene);
@@ -1870,8 +1995,8 @@ export default function MobileThreeTennisPrototype() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 52 : 46;
-      if (camera.aspect < 0.72) cameraOffset.set(0, 7.95 * CFG.cameraViewScale, 12.95 * CFG.cameraViewScale);
-      else cameraOffset.set(0, 7.35 * CFG.cameraViewScale, 11.85 * CFG.cameraViewScale);
+      if (camera.aspect < 0.72) cameraOffset.set(0, 8.85 * CFG.cameraViewScale, 14.25 * CFG.cameraViewScale);
+      else cameraOffset.set(0, 8.25 * CFG.cameraViewScale, 13.15 * CFG.cameraViewScale);
       cameraPosTarget.copy(nearPlayer.target).add(cameraOffset);
       camera.position.copy(cameraPosTarget);
       camera.lookAt(cameraTarget);
