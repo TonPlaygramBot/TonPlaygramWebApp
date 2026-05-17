@@ -42,6 +42,7 @@ type BallReturnState = 'idle' | 'toPit' | 'hidden' | 'returning';
 type PinResetPhase = 'idle' | 'lowering' | 'sweeping' | 'lifting';
 type GraphicsQuality = 'performance' | 'balanced' | 'ultra';
 type BowlingFpsOption = 'auto' | '60' | '90' | '120';
+type BowlingBallSelectionMode = 'manual' | 'random';
 
 type HudState = {
   power: number;
@@ -1692,6 +1693,24 @@ function createActiveBall(
   } as BallState;
 }
 
+function applyBallVariant(ball: BallState, variant: BallVariant) {
+  const oldGeometry = ball.mesh.geometry;
+  const oldMaterial = ball.mesh.material as THREE.Material | THREE.Material[];
+  ball.variant = variant;
+  ball.mesh.geometry = new THREE.SphereGeometry(variant.radius, 80, 64);
+  ball.mesh.material = makeBallMaterial(variant.colors);
+  oldGeometry?.dispose?.();
+  if (Array.isArray(oldMaterial)) oldMaterial.forEach((mat) => mat.dispose());
+  else oldMaterial?.dispose?.();
+}
+
+function randomBallVariant() {
+  return (
+    BALL_VARIANTS[Math.floor(Math.random() * BALL_VARIANTS.length)] ||
+    BALL_VARIANTS[1]
+  );
+}
+
 function createShootingLineGuides(scene: THREE.Scene) {
   const guideMat = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
@@ -1954,6 +1973,7 @@ function updatePinReset(
 
 type BowlingArenaDecor = {
   returnBalls: THREE.Mesh[];
+  rackBalls: THREE.Mesh[];
   scoreboardPanels: THREE.Mesh[];
   pinfallPanels: THREE.Mesh[];
   crowdPulseLights: THREE.PointLight[];
@@ -2056,8 +2076,8 @@ function updatePinfallBoards(
       ? `${text} · ${afterStanding} LEFT`
       : `LANE ${index + 1} READY`;
     setBoardCanvasText(panel, message, {
-      width: 1024,
-      height: 256,
+      width: 1400,
+      height: 400,
       bg: active ? 'rgba(1,6,14,0.98)' : 'rgba(2,6,12,0.9)',
       fg: active ? '#f8fafc' : '#cbd5e1',
       accent: active ? '#facc15' : index === 0 ? '#38bdf8' : '#f97316'
@@ -2138,8 +2158,40 @@ function makePickupPromptSprite() {
   return sprite;
 }
 
+function makeSmallLabelSprite(text: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(2,6,23,0.78)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.56)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(10, 14, 236, 68, 22);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 34px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 50);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.94,
+      depthTest: false
+    })
+  );
+  sprite.renderOrder = 82;
+  return sprite;
+}
+
 function makeBowlingBallRack(
-  colors: [string, string, string][],
+  variants: BallVariant[],
   matFactory: (colors: [string, string, string]) => THREE.MeshPhysicalMaterial
 ) {
   const rack = new THREE.Group();
@@ -2195,7 +2247,7 @@ function makeBowlingBallRack(
     foot.position.set(x as number, 0.012, z as number);
     rack.add(foot);
   }
-  const displayed = colors.slice(0, 5);
+  const displayed = variants.slice(0, 6);
   const ballSlots = [
     [-0.62, 0.31, -0.34],
     [-0.18, 0.31, -0.34],
@@ -2204,16 +2256,26 @@ function makeBowlingBallRack(
     [-0.4, 0.55, 0.08],
     [0.16, 0.55, 0.08]
   ];
-  displayed.forEach((colorset, i) => {
-    const radius = CFG.ballR * 0.98;
+  displayed.forEach((variant, i) => {
+    const radius = variant.radius * 0.98;
     const ball = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 48, 32),
-      matFactory(colorset)
+      matFactory(variant.colors)
     );
     const [x, y, z] = ballSlots[i];
     ball.position.set(x, y + radius * 0.28, z);
     ball.rotation.set(i * 0.37, i * 0.61, 0);
+    ball.userData.pickupLabel = variant.label;
+    ball.userData.pickupRadius = radius * 1.85;
     rack.add(ball);
+    const labelSprite = makeSmallLabelSprite(`${variant.label} LB`);
+    labelSprite.position.set(
+      ball.position.x,
+      ball.position.y + radius + 0.1,
+      ball.position.z + 0.02
+    );
+    labelSprite.scale.set(0.46, 0.16, 1);
+    rack.add(labelSprite);
     const holeMat = new THREE.MeshBasicMaterial({
       color: 0x020617,
       transparent: true,
@@ -2248,6 +2310,7 @@ function createEnvironment(
   const group = new THREE.Group();
   const decor: BowlingArenaDecor = {
     returnBalls: [],
+    rackBalls: [],
     scoreboardPanels: [],
     pinfallPanels: [],
     crowdPulseLights: [],
@@ -2571,17 +2634,17 @@ function createEnvironment(
     pinFocus.position.set(laneCenter, CFG.laneY + 0.94, CFG.backStopZ + 0.82);
     group.add(pinFocus);
     const pinfallScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.52, 0.62),
+      new THREE.PlaneGeometry(3.22, 0.92),
       makeCanvasTextMaterial(`LANE ${laneIndex + 1} READY`, {
-        width: 1024,
-        height: 256,
+        width: 1400,
+        height: 400,
         accent: laneIndex === 0 ? '#38bdf8' : '#f97316'
       })
     );
     pinfallScreen.position.set(
       laneCenter,
-      CFG.laneY + 1.3,
-      CFG.backStopZ + 1.2
+      CFG.laneY + 1.42,
+      CFG.backStopZ + 1.18
     );
     pinfallScreen.userData.baseScale = 1;
     group.add(pinfallScreen);
@@ -2672,14 +2735,14 @@ function createEnvironment(
   machineryHousing.add(fascia);
   for (const [i, laneCenter] of LANE_CENTERS.entries()) {
     const slimScore = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.25, 0.46),
+      new THREE.PlaneGeometry(3.05, 0.72),
       makeCanvasTextMaterial(`LANE ${i + 1}`, {
-        width: 768,
-        height: 96,
+        width: 1024,
+        height: 192,
         accent: i === 0 ? '#38bdf8' : '#f97316'
       })
     );
-    slimScore.position.set(laneCenter, 2.07, CFG.backStopZ + 0.86);
+    slimScore.position.set(laneCenter, 2.12, CFG.backStopZ + 0.88);
     machineryHousing.add(slimScore);
     decor.scoreboardPanels.push(slimScore);
   }
@@ -3088,19 +3151,14 @@ function createEnvironment(
     decor.returnBalls.push(rb);
     group.add(rb);
   });
-  const commercialRack = makeBowlingBallRack(
-    [
-      ['#93c5fd', '#2563eb', '#0b1b4a'],
-      ['#fda4af', '#e11d48', '#4a0416'],
-      ['#fde68a', '#f59e0b', '#4a2900'],
-      ['#a7f3d0', '#059669', '#032d22'],
-      ['#ddd6fe', '#7c3aed', '#2e1065']
-    ],
-    makeBallMaterial
-  );
+  const commercialRack = makeBowlingBallRack(BALL_VARIANTS, makeBallMaterial);
   commercialRack.position.set(BOWLING_RACK_SIDE_X, CFG.laneY, BOWLING_RACK_Z);
   commercialRack.rotation.y = 0;
   group.add(commercialRack);
+  commercialRack.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData.pickupLabel) decor.rackBalls.push(mesh);
+  });
 
   for (const [x, z, color] of [
     [BOWLING_RACK_SIDE_X, BOWLING_RACK_Z, 0x38bdf8],
@@ -3481,8 +3539,48 @@ function updateHuman(
     }
     if (rig.recoverT >= 1) {
       rig.recoverT = 0;
-      rig.action = 'idle';
+      rig.action = rig.celebrateNext ? 'celebrate' : 'idle';
+      rig.celebrateT = rig.celebrateNext ? 0.001 : 0;
       rig.returnWalkT = 0;
+    }
+  } else if (rig.action === 'celebrate') {
+    rig.celebrateT = clamp01(
+      rig.celebrateT + dt / Math.max(1.45, CFG.celebrateDuration * 2.6)
+    );
+    rig.walkCycle += dt * 10.5;
+    const t = rig.celebrateT;
+    const beat = Math.sin(t * Math.PI * 8);
+    const bounce = Math.abs(Math.sin(t * Math.PI * 6));
+    rig.targetYaw = Math.PI + Math.sin(t * Math.PI * 4) * 0.28;
+    rig.yaw = lerp(rig.yaw, rig.targetYaw, 1 - Math.pow(0.0006, dt));
+    if (rig.model) {
+      resetBowlingHumanBonePose(rig.model);
+      rig.model.position.set(
+        Math.sin(t * Math.PI * 6) * 0.055,
+        bounce * 0.07,
+        0.015
+      );
+      rig.model.rotation.x = -0.06 + bounce * 0.08;
+      rig.model.rotation.y = Math.sin(t * Math.PI * 4) * 0.28;
+      rig.model.rotation.z = beat * 0.16;
+      const leftHand = bowlingPoseBone(rig.model, 'leftHand');
+      const rightHand = bowlingPoseBone(rig.model, 'rightHand');
+      const leftArm = bowlingPoseBone(rig.model, 'leftUpperArm');
+      const rightArm = bowlingPoseBone(rig.model, 'rightUpperArm');
+      const leftLeg = bowlingPoseBone(rig.model, 'leftThigh');
+      const rightLeg = bowlingPoseBone(rig.model, 'rightThigh');
+      if (leftArm) leftArm.rotation.x = -1.35 + beat * 0.35;
+      if (rightArm) rightArm.rotation.x = -1.45 - beat * 0.35;
+      if (leftHand) leftHand.rotation.z = 0.48 + beat * 0.22;
+      if (rightHand) rightHand.rotation.z = -0.48 - beat * 0.22;
+      if (leftLeg) leftLeg.rotation.x = -0.18 + bounce * 0.22;
+      if (rightLeg) rightLeg.rotation.x = 0.14 - bounce * 0.18;
+    }
+    animateFallbackHuman(rig, 'celebrate', rig.walkCycle);
+    if (rig.celebrateT >= 1) {
+      rig.celebrateT = 0;
+      rig.celebrateNext = false;
+      rig.action = 'idle';
     }
   } else if (rig.action === 'toRack') {
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
@@ -4042,8 +4140,9 @@ function updateCamera(
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay =
-    ['idle', 'approach', 'throw', 'recover'].includes(player.action) &&
-    player !== undefined;
+    ['idle', 'approach', 'throw', 'recover', 'celebrate'].includes(
+      player.action
+    ) && player !== undefined;
   if (!usePlayerPerspective) {
     const laneCenter = ball.laneCenter || player.standPos.x;
     const broadcast = getBroadcastCameraPose(player, ball);
@@ -4098,6 +4197,9 @@ function updateCamera(
         new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.pinDeckZ - 0.7),
         0.45
       );
+  } else if (player.action === 'celebrate') {
+    desired = player.pos.clone().add(new THREE.Vector3(0.88, 1.75, 3.05));
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.92, -0.72));
   } else if (player.action === 'pickBall') {
     desired = player.pos.clone().add(new THREE.Vector3(-0.56, 1.72, 2.7));
     look = new THREE.Vector3(0, CFG.laneY + 0.55, 6.68);
@@ -4157,9 +4259,27 @@ function updateCamera(
     look.x = lerp(look.x, BOWLING_LOUNGE_CENTER.x * 0.38, 0.16);
     look.z += 0.82;
   }
+  const shotSwoop = camera.userData.shotSwoop || 0;
+  if (shotSwoop > 0) {
+    const laneCenter = ball.laneCenter || player.standPos.x;
+    const orbit = Math.sin((1 - shotSwoop) * Math.PI);
+    desired.x += orbit * (camera.aspect < 0.72 ? 0.28 : 0.46);
+    desired.y += orbit * 0.18;
+    desired.z += shotSwoop * 0.72;
+    look.lerp(
+      new THREE.Vector3(laneCenter, CFG.laneY + 0.58, CFG.pinDeckZ),
+      0.18 * orbit
+    );
+    camera.userData.shotSwoop = Math.max(0, shotSwoop - dt * 1.15);
+  }
   const pullback = desired.clone().sub(look);
   if (pullback.lengthSq() > 0.0001) {
-    desired.addScaledVector(pullback.normalize(), BOWLING_CAMERA_PULLBACK);
+    const releasePullback =
+      player.action === 'approach' || player.action === 'throw' ? 0.82 : 0;
+    desired.addScaledVector(
+      pullback.normalize(),
+      BOWLING_CAMERA_PULLBACK + releasePullback + shotSwoop * 0.45
+    );
   }
   if (lookState) {
     lookState.yaw = lerp(
@@ -4344,6 +4464,12 @@ export default function MobileBowlingRealistic() {
   const [selectedBallWeight, setSelectedBallWeight] = useState<string>(
     () => localStorage.getItem('bowling.ballWeight') || '12'
   );
+  const [ballSelectionMode, setBallSelectionMode] =
+    useState<BowlingBallSelectionMode>(() =>
+      localStorage.getItem('bowling.ballSelectionMode') === 'random'
+        ? 'random'
+        : 'manual'
+    );
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] =
     useState<string>(
       () =>
@@ -4690,6 +4816,29 @@ export default function MobileBowlingRealistic() {
       targetYaw: 0,
       targetPitch: 0
     };
+    const rackRaycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    const pickRackBallFromPointer = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      pointerNdc.set(
+        ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1,
+        -(((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1)
+      );
+      rackRaycaster.setFromCamera(pointerNdc, camera);
+      rackRaycaster.params.Points.threshold = 0.18;
+      const hits = rackRaycaster.intersectObjects(arenaDecor.rackBalls, false);
+      const precise = hits.find((hit) => {
+        const label = hit.object.userData.pickupLabel;
+        const radius = hit.object.userData.pickupRadius || 0.32;
+        return label && hit.distanceToRay == null
+          ? true
+          : label &&
+              hit.point.distanceTo(
+                hit.object.getWorldPosition(new THREE.Vector3())
+              ) <= radius;
+      });
+      return precise?.object.userData.pickupLabel as string | undefined;
+    };
 
     const resetPlayerPoseForNextBall = () => {
       player.action = 'idle';
@@ -4779,6 +4928,13 @@ export default function MobileBowlingRealistic() {
           ];
       }
       player.celebrateNext = strike || spare;
+      if (
+        player.celebrateNext &&
+        (player.action === 'idle' || player.action === 'recover')
+      ) {
+        player.action = 'celebrate';
+        player.celebrateT = 0.001;
+      }
       const allDone = localScores.every((p) => officialTenPinPlayerFinished(p));
       if (allDone) nextAction = 'gameOver';
       else if (result.frameEnded) {
@@ -4861,14 +5017,14 @@ export default function MobileBowlingRealistic() {
         }));
         return;
       }
+      const requestedVariant =
+        BALL_VARIANTS.find((variant) => variant.label === request) ||
+        BALL_VARIANTS[1];
+      if (ball.variant.label !== requestedVariant.label)
+        applyBallVariant(ball, requestedVariant);
       if (request !== selectedBallWeight) {
         setSelectedBallWeight(request);
         localStorage.setItem('bowling.ballWeight', request);
-        setHud((prev) => ({
-          ...prev,
-          status: `Preparing ${request} lb ball from the rack…`
-        }));
-        return;
       }
       ballPickRequestRef.current = null;
       ball.held = true;
@@ -4906,6 +5062,25 @@ export default function MobileBowlingRealistic() {
 
     const onPointerDown = (e: PointerEvent) => {
       if (control.active || cameraLook.active) return;
+      const rackDistanceForTap = Math.hypot(
+        playerRigs[0].pos.x - bowlingRackPickupX(),
+        playerRigs[0].pos.z - BOWLING_RACK_Z
+      );
+      if (
+        ballSelectionMode === 'manual' &&
+        activePlayer === 0 &&
+        !ball.held &&
+        !ball.rolling &&
+        !waitingForBallReturn &&
+        playerRigs[0].action === 'idle' &&
+        rackDistanceForTap <= 1.9
+      ) {
+        const rackLabel = pickRackBallFromPointer(e);
+        if (rackLabel) {
+          requestManualBallPickup(rackLabel);
+          return;
+        }
+      }
       const canStartThrow =
         nextAction !== 'gameOver' &&
         !ball.rolling &&
@@ -5048,6 +5223,8 @@ export default function MobileBowlingRealistic() {
         return;
       }
       pendingIntent = intent;
+      camera.userData.playerShotBroadcastUntil = performance.now() + 5200;
+      camera.userData.shotSwoop = 1;
       startApproach(player, intent, activeLaneCenter());
       setHud((prev) => ({
         ...prev,
@@ -5147,7 +5324,19 @@ export default function MobileBowlingRealistic() {
           setHud((prev) => ({
             ...prev,
             status:
-              'Walking to the side rack automatically. Pick your ball, then the bowler moves to the shooting line for your swipe.'
+              ballSelectionMode === 'random'
+                ? 'Walking to the side rack automatically. Random ball selection is on.'
+                : 'Walking to the side rack automatically. Tap one of the rack balls, then the bowler moves to the shooting line.'
+          }));
+        } else if (
+          ballSelectionMode === 'random' &&
+          !ballPickRequestRef.current
+        ) {
+          const randomVariant = randomBallVariant();
+          ballPickRequestRef.current = randomVariant.label;
+          setHud((prev) => ({
+            ...prev,
+            status: `Random selection: ${randomVariant.label} lb ball. Bowler is picking it now.`
           }));
         }
       }
@@ -5240,7 +5429,21 @@ export default function MobileBowlingRealistic() {
       }
       if (control.active)
         updateAimVisual(aimLine, aimMarker, control.intent, activeLaneCenter());
-      updateCamera(camera, ball, player, dt, activePlayer === 0, cameraLook);
+      const humanShotBroadcast =
+        activePlayer === 0 &&
+        (player.action === 'approach' ||
+          player.action === 'throw' ||
+          player.action === 'recover' ||
+          ball.rolling) &&
+        (camera.userData.playerShotBroadcastUntil || 0) > performance.now();
+      updateCamera(
+        camera,
+        ball,
+        player,
+        dt,
+        activePlayer === 0 && !humanShotBroadcast,
+        cameraLook
+      );
       renderer.render(scene, camera);
     }
     animate();
@@ -5275,6 +5478,7 @@ export default function MobileBowlingRealistic() {
     selectedHumanCharacterId,
     replayActive,
     skipReplays,
+    ballSelectionMode,
     playerCount,
     matchMode
   ]);
@@ -5751,6 +5955,45 @@ export default function MobileBowlingRealistic() {
                 </button>
               ))}
             </div>
+            <div
+              style={{ fontSize: 12, fontWeight: 800, margin: '12px 0 6px' }}
+            >
+              Ball pickup mode
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8
+              }}
+            >
+              {(['manual', 'random'] as BowlingBallSelectionMode[]).map(
+                (mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setBallSelectionMode(mode);
+                      localStorage.setItem('bowling.ballSelectionMode', mode);
+                    }}
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 10,
+                      padding: '8px 6px',
+                      background:
+                        ballSelectionMode === mode
+                          ? 'rgba(125,211,252,0.24)'
+                          : 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {mode}
+                  </button>
+                )
+              )}
+            </div>
             <label
               style={{
                 display: 'flex',
@@ -5775,57 +6018,27 @@ export default function MobileBowlingRealistic() {
             </label>
           </div>
         ) : null}
-        {pickupUiVisible ? (
+        {pickupUiVisible && ballSelectionMode === 'manual' ? (
           <div
             style={{
               position: 'absolute',
               right: 12,
               bottom: 148,
-              padding: 8,
+              maxWidth: 190,
+              padding: '10px 12px',
               borderRadius: 16,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 46px)',
-              gap: 8,
-              pointerEvents: 'auto',
+              pointerEvents: 'none',
               background: 'rgba(5,8,14,0.72)',
               border: '1px solid rgba(125,211,252,0.36)',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.32)'
+              boxShadow: '0 12px 30px rgba(0,0,0,0.32)',
+              color: '#dff7ff',
+              fontSize: 11,
+              fontWeight: 900,
+              textAlign: 'center'
             }}
           >
-            {BALL_VARIANTS.map((v) => (
-              <button
-                key={`pickup-${v.label}`}
-                onClick={() => requestManualBallPickup(v.label)}
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: '50%',
-                  border:
-                    selectedBallWeight === v.label
-                      ? '2px solid #fff'
-                      : '1px solid rgba(255,255,255,0.42)',
-                  background: `radial-gradient(circle at 32% 26%, ${v.colors[0]}, ${v.colors[1]} 52%, ${v.colors[2]})`,
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 950,
-                  textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                  boxShadow: '0 8px 18px rgba(0,0,0,0.32)'
-                }}
-              >
-                {v.label}
-              </button>
-            ))}
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                color: '#dff7ff',
-                fontSize: 10,
-                fontWeight: 900
-              }}
-            >
-              PICK UP
-            </div>
+            Tap the physical ball on the rack — labels are mapped directly to
+            the 3D balls.
           </div>
         ) : null}
 
