@@ -3582,8 +3582,10 @@ function updateHuman(
       rig.model.rotation.z = dance * 0.16;
       const leftHand = findLeftHand(rig.model) as THREE.Object3D | null;
       const rightHand = findRightHand(rig.model) as THREE.Object3D | null;
-      if (leftHand) leftHand.rotation.x = -1.65 + Math.cos(rig.walkCycle) * 0.35;
-      if (rightHand) rightHand.rotation.x = -1.5 - Math.cos(rig.walkCycle) * 0.32;
+      if (leftHand)
+        leftHand.rotation.x = -1.65 + Math.cos(rig.walkCycle) * 0.35;
+      if (rightHand)
+        rightHand.rotation.x = -1.5 - Math.cos(rig.walkCycle) * 0.32;
     }
     animateFallbackHuman(rig, 'celebrate', rig.walkCycle);
     if (rig.celebrateT >= 1) {
@@ -3634,11 +3636,15 @@ function syncHeldBallToHuman(ball: BallState, rig: HumanRig) {
 function releaseBall(
   ball: BallState,
   intent: ThrowIntent,
-  laneCenter = ball.laneCenter
+  laneCenter = ball.laneCenter,
+  rig?: HumanRig
 ) {
   ball.laneCenter = laneCenter;
+  const handReleaseX = rig
+    ? clamp(getHeldBallWorldPosition(rig).x - laneCenter, -0.86, 0.86)
+    : intent.releaseX * 0.86;
   const releasePos = new THREE.Vector3(
-    laneCenter + intent.releaseX * 0.86,
+    laneCenter + lerp(intent.releaseX * 0.86, handReleaseX, rig ? 0.72 : 0),
     CFG.laneY + ball.variant.radius + 0.015,
     CFG.foulZ - 0.08
   );
@@ -4076,14 +4082,23 @@ function updateCamera(
   player: HumanRig,
   dt: number,
   usePlayerPerspective: boolean,
-  lookState?: CameraLookState | null
+  lookState?: CameraLookState | null,
+  replayShotView = false
 ) {
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay =
     ['idle', 'approach', 'throw', 'recover'].includes(player.action) &&
     player !== undefined;
-  if (!usePlayerPerspective) {
+  if (replayShotView) {
+    const laneCenter = ball.laneCenter || player.standPos.x;
+    desired = new THREE.Vector3(
+      laneCenter + (camera.aspect < 0.72 ? 0.72 : 1.18),
+      CFG.laneY + 1.96,
+      CFG.foulZ + 5.25
+    );
+    look = new THREE.Vector3(laneCenter, CFG.laneY + 0.5, CFG.arrowsZ - 0.9);
+  } else if (!usePlayerPerspective) {
     const laneCenter = ball.laneCenter || player.standPos.x;
     const broadcast = getBroadcastCameraPose(player, ball);
     desired = broadcast.desired;
@@ -4155,33 +4170,36 @@ function updateCamera(
           0.45
         );
     } else {
-    const lead = ball.vel.clone().setY(0);
-    if (lead.lengthSq() < 0.001) lead.set(0, 0, -1);
-    lead.normalize();
-    const speed01 = clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16);
-    const chase = getPlayerPerspectiveCameraPose(player, ball, dt);
-    const laneChase = ball.pos
-      .clone()
-      .addScaledVector(lead, -4.85)
-      .add(new THREE.Vector3(0, lerp(1.48, 1.24, speed01), 1.22));
-    laneChase.x = lerp(laneChase.x, laneCenter, 0.44);
-    desired = chase.desired.lerp(
-      laneChase,
-      clamp01((CFG.foulZ - ball.pos.z) / 7.2)
-    );
-    look = ball.pos
-      .clone()
-      .addScaledVector(lead, lerp(3.2, 5.0, speed01))
-      .add(new THREE.Vector3(0, 0.24, 0));
-    if (ball.pos.z < CFG.pinDeckZ + 2.4)
-      look.lerp(
-        new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.pinDeckZ - 0.7),
-        0.45
+      const lead = ball.vel.clone().setY(0);
+      if (lead.lengthSq() < 0.001) lead.set(0, 0, -1);
+      lead.normalize();
+      const speed01 = clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16);
+      const chase = getPlayerPerspectiveCameraPose(player, ball, dt);
+      const laneChase = ball.pos
+        .clone()
+        .addScaledVector(lead, -4.85)
+        .add(new THREE.Vector3(0, lerp(1.48, 1.24, speed01), 1.22));
+      laneChase.x = lerp(laneChase.x, laneCenter, 0.44);
+      desired = chase.desired.lerp(
+        laneChase,
+        clamp01((CFG.foulZ - ball.pos.z) / 7.2)
       );
+      look = ball.pos
+        .clone()
+        .addScaledVector(lead, lerp(3.2, 5.0, speed01))
+        .add(new THREE.Vector3(0, 0.24, 0));
+      if (ball.pos.z < CFG.pinDeckZ + 2.4)
+        look.lerp(
+          new THREE.Vector3(laneCenter, CFG.laneY + 0.52, CFG.pinDeckZ - 0.7),
+          0.45
+        );
     }
   } else if (player.action === 'pickBall') {
-    desired = player.pos.clone().add(new THREE.Vector3(-0.56, 1.72, 2.7));
-    look = new THREE.Vector3(0, CFG.laneY + 0.55, 6.68);
+    const rackBroadcast = getBroadcastCameraPose(player, ball);
+    desired = rackBroadcast.desired
+      .clone()
+      .lerp(player.pos.clone().add(new THREE.Vector3(-1.28, 2.02, 4.45)), 0.65);
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.7, -0.85));
   } else if (isActiveGameplay) {
     const pose = getPlayerPerspectiveCameraPose(player, ball, dt);
     desired = pose.desired;
@@ -4191,8 +4209,11 @@ function updateCamera(
     player.action === 'toApproach' ||
     player.action === 'standingUp'
   ) {
-    desired = player.pos.clone().add(new THREE.Vector3(-0.58, 1.68, 3.1));
-    look = player.pos.clone().add(new THREE.Vector3(0, 0.64, -1.95));
+    const rackBroadcast = getBroadcastCameraPose(player, ball);
+    desired = rackBroadcast.desired
+      .clone()
+      .lerp(player.pos.clone().add(new THREE.Vector3(-1.36, 2.08, 4.85)), 0.68);
+    look = player.pos.clone().add(new THREE.Vector3(0, 0.7, -1.25));
   } else {
     const broadcast = getBroadcastCameraPose(player, ball);
     desired = broadcast.desired;
@@ -4422,19 +4443,13 @@ export default function MobileBowlingRealistic() {
       localStorage.getItem('bowling.chromeColor') ||
       POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor[0]
   );
-  const [selectedBallWeight, setSelectedBallWeight] = useState<string>(
+  const [selectedBallWeight] = useState<string>(
     () => localStorage.getItem('bowling.ballWeight') || '12'
   );
-  const [ballSelectionMode, setBallSelectionModeState] =
-    useState<BallSelectionMode>(() =>
-      localStorage.getItem('bowling.ballSelectionMode') === 'random'
-        ? 'random'
-        : 'manual'
-    );
-  const setBallSelectionMode = (mode: BallSelectionMode) => {
-    localStorage.setItem('bowling.ballSelectionMode', mode);
-    setBallSelectionModeState(mode);
-  };
+  const [ballSelectionMode] = useState<BallSelectionMode>(() => {
+    localStorage.setItem('bowling.ballSelectionMode', 'random');
+    return 'random';
+  });
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] =
     useState<string>(
       () =>
@@ -4445,7 +4460,11 @@ export default function MobileBowlingRealistic() {
     () => localStorage.getItem('bowling.skipReplays') === '1'
   );
   const [replayActive, setReplayActive] = useState(false);
-  const [pickupUiVisible, setPickupUiVisible] = useState(false);
+  const replayActiveRef = useRef(false);
+  const setReplayMode = (active: boolean) => {
+    replayActiveRef.current = active;
+    setReplayActive(active);
+  };
   const [shootingUiVisible, setShootingUiVisible] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
 
@@ -4792,7 +4811,10 @@ export default function MobileBowlingRealistic() {
       );
       raycaster.setFromCamera(pointerNdc, camera);
       raycaster.params.Points.threshold = 0.12;
-      const hits = raycaster.intersectObjects(arenaDecor.rackPickupBalls, false);
+      const hits = raycaster.intersectObjects(
+        arenaDecor.rackPickupBalls,
+        false
+      );
       const hit = hits.find(
         (item) =>
           item.distanceToRay == null ||
@@ -4806,13 +4828,13 @@ export default function MobileBowlingRealistic() {
       return false;
     };
 
-    const resetPlayerPoseForNextBall = () => {
+    const resetPlayerPoseForNextBall = (resetPosition = true) => {
       player.action = 'idle';
       player.approachT = 0;
       player.throwT = 0;
       player.recoverT = 0;
       player.walkCycle = 0;
-      player.pos.copy(player.standPos);
+      if (resetPosition) player.pos.copy(player.standPos);
       player.yaw = Math.PI;
       player.targetYaw = Math.PI;
       player.approachFrom.copy(player.pos);
@@ -4840,7 +4862,7 @@ export default function MobileBowlingRealistic() {
       player = playerRigs[activePlayer];
       ball.laneCenter = activeLaneCenter();
       if (previousPlayer !== player) seatRigAfterTurn(previousPlayer);
-      resetPlayerPoseForNextBall();
+      resetPlayerPoseForNextBall(previousPlayer !== player);
       if (previousPlayer !== player) standRigForTurn(player);
       syncReactScores();
       aiTurnDelay = activePlayer !== 0 ? 0.85 + Math.random() * 0.5 : 0.85;
@@ -4852,7 +4874,7 @@ export default function MobileBowlingRealistic() {
             ? 'Game over'
             : activePlayer !== 0
               ? `${playerName} is choosing a line…`
-              : `${playerName}: walking to the rack. Pick a ball, then swipe at the shooting line`
+              : `${playerName}: walking to the rack. A random ball will be picked, then swipe at the shooting line`
       }));
     };
 
@@ -4929,7 +4951,7 @@ export default function MobileBowlingRealistic() {
       waitingForBallReturn = true;
       if (!skipReplays && (strike || spare)) {
         replayTimer = CFG.replayDuration;
-        setReplayActive(true);
+        setReplayMode(true);
       }
       if (ball.returnState === 'idle') startBallReturn(ball);
     };
@@ -4996,7 +5018,6 @@ export default function MobileBowlingRealistic() {
       }
       applyActiveBallVariant(request);
       if (request !== selectedBallWeight) {
-        setSelectedBallWeight(request);
         localStorage.setItem('bowling.ballWeight', request);
       }
       ballPickRequestRef.current = null;
@@ -5011,8 +5032,8 @@ export default function MobileBowlingRealistic() {
       syncHeldBallToHuman(ball, player);
       setHud((prev) => ({
         ...prev,
-        status: `${request} lb ball collected. Hand pickup animation started—walk to the approach line and swipe to shoot.`,
-        lane: 'Manual pickup ready'
+        status: `${request} lb ball collected. Same-hand pickup animation started—walk to the approach line and swipe to shoot.`,
+        lane: 'Random pickup ready'
       }));
     };
 
@@ -5039,7 +5060,7 @@ export default function MobileBowlingRealistic() {
         nextAction !== 'gameOver' &&
         !ball.rolling &&
         !waitingForBallReturn &&
-        !replayActive &&
+        !replayActiveRef.current &&
         activePlayer === 0 &&
         player === playerRigs[0] &&
         player.action === 'idle' &&
@@ -5182,7 +5203,8 @@ export default function MobileBowlingRealistic() {
       setHud((prev) => ({
         ...prev,
         power: 0,
-        status: 'Four-step approach · release before foul line',
+        status:
+          'Shot triggered · four-step approach · release before foul line',
         rule: 'Release must stay behind the foul line',
         lane: `Target board ${boardNumberFromX(intent.targetX)} · hook ${intent.hook >= 0 ? 'right' : 'left'} · spin ${intent.spin.x >= 0 ? '+' : ''}${intent.spin.x.toFixed(2)} / ${intent.spin.y >= 0 ? '+' : ''}${intent.spin.y.toFixed(2)}`
       }));
@@ -5209,14 +5231,14 @@ export default function MobileBowlingRealistic() {
       const dt = Math.min(0.06, Math.max(0.001, frameSeconds), frameCap);
       if (replayTimer > 0) {
         replayTimer = Math.max(0, replayTimer - dt);
-        if (replayTimer <= 0) setReplayActive(false);
+        if (replayTimer <= 0) setReplayMode(false);
       }
       if (
         activePlayer !== 0 &&
         !control.active &&
         !ball.rolling &&
         !waitingForBallReturn &&
-        !replayActive &&
+        !replayActiveRef.current &&
         player.action === 'idle' &&
         nextAction !== 'gameOver'
       ) {
@@ -5236,6 +5258,9 @@ export default function MobileBowlingRealistic() {
           aiTurnDelay = Math.max(0, aiTurnDelay - dt);
           if (aiTurnDelay <= 0) {
             if (!ball.held) {
+              const randomVariant =
+                BALL_VARIANTS[Math.floor(Math.random() * BALL_VARIANTS.length)];
+              applyActiveBallVariant(randomVariant.label);
               ball.held = true;
               ball.mesh.visible = true;
               player.action = 'pickBall';
@@ -5263,7 +5288,7 @@ export default function MobileBowlingRealistic() {
         !ball.held &&
         !ball.rolling &&
         !waitingForBallReturn &&
-        !replayActive &&
+        !replayActiveRef.current &&
         playerRigs[0].action === 'idle'
       ) {
         const rackDistance = Math.hypot(
@@ -5277,12 +5302,11 @@ export default function MobileBowlingRealistic() {
           setHud((prev) => ({
             ...prev,
             status:
-              'Walking to the side rack automatically. Pick your ball, then the bowler moves to the shooting line for your swipe.'
+              'Walking to the side rack automatically. A random ball will be picked, then the bowler moves to the shooting line for your swipe.'
           }));
         }
       }
       if (
-        ballSelectionMode === 'random' &&
         activePlayer === 0 &&
         !ball.held &&
         !ball.rolling &&
@@ -5294,27 +5318,13 @@ export default function MobileBowlingRealistic() {
         ballPickRequestRef.current = randomVariant.label;
       }
       tryManualBallPickup();
-      const rackDistanceForPrompt = Math.hypot(
-        playerRigs[0].pos.x - bowlingRackPickupX(),
-        playerRigs[0].pos.z - BOWLING_RACK_Z
-      );
-      pickupPrompt.visible =
-        activePlayer === 0 &&
-        !ball.held &&
-        !ball.rolling &&
-        !waitingForBallReturn &&
-        playerRigs[0].action === 'idle' &&
-        rackDistanceForPrompt <= 1.9 &&
-        ballSelectionMode === 'manual';
-      setPickupUiVisible((visible) =>
-        visible === pickupPrompt.visible ? visible : pickupPrompt.visible
-      );
+      pickupPrompt.visible = false;
       const shootingReady =
         activePlayer === 0 &&
         ball.held &&
         !ball.rolling &&
         !waitingForBallReturn &&
-        !replayActive &&
+        !replayActiveRef.current &&
         playerRigs[0].action === 'idle' &&
         isAtShootingLine(playerRigs[0].pos, activeLaneCenter());
       setShootingUiVisible((visible) =>
@@ -5334,9 +5344,12 @@ export default function MobileBowlingRealistic() {
         ball.held
       ) {
         lastShotStandingBefore = standingPinsCount(activePins());
-        releaseBall(ball, pendingIntent, activeLaneCenter());
+        releaseBall(ball, pendingIntent, activeLaneCenter(), player);
         pendingIntent = null;
-        setHud((prev) => ({ ...prev, status: 'Ball rolling' }));
+        setHud((prev) => ({
+          ...prev,
+          status: 'Shot triggered from the same pickup hand · ball rolling'
+        }));
       }
       updateBall(ball, activePins(), dt);
       const pinsMoving = lanePins
@@ -5383,7 +5396,15 @@ export default function MobileBowlingRealistic() {
       }
       if (control.active)
         updateAimVisual(aimLine, aimMarker, control.intent, activeLaneCenter());
-      updateCamera(camera, ball, player, dt, activePlayer === 0, cameraLook);
+      updateCamera(
+        camera,
+        ball,
+        player,
+        dt,
+        activePlayer === 0,
+        cameraLook,
+        replayActiveRef.current
+      );
       renderer.render(scene, camera);
     }
     animate();
@@ -5416,7 +5437,6 @@ export default function MobileBowlingRealistic() {
     selectedTableFinish,
     selectedChromeColor,
     selectedHumanCharacterId,
-    replayActive,
     skipReplays,
     playerCount,
     matchMode
@@ -5681,71 +5701,11 @@ export default function MobileBowlingRealistic() {
             ))}
 
             <div
-              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
+              style={{ fontSize: 11, color: '#c7eaff', margin: '10px 0 8px' }}
             >
-              Ball selection
-            </div>
-            {(['manual', 'random'] as BallSelectionMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setBallSelectionMode(mode)}
-                style={{
-                  marginRight: 6,
-                  marginBottom: 6,
-                  padding: '6px 9px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  background:
-                    ballSelectionMode === mode
-                      ? '#7fd6ff'
-                      : 'rgba(255,255,255,0.08)',
-                  color: ballSelectionMode === mode ? '#001018' : '#fff',
-                  fontWeight: 800,
-                  textTransform: 'capitalize'
-                }}
-              >
-                {mode}
-              </button>
-            ))}
-            <div style={{ fontSize: 11, color: '#c7eaff', marginBottom: 8 }}>
-              Manual lets you tap the physical rack ball or the large ball button;
-              random makes the bowler choose automatically.
-            </div>
-            <div
-              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
-            >
-              Manual ball weight
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 6,
-                flexWrap: 'wrap',
-                marginBottom: 8
-              }}
-            >
-              {BALL_VARIANTS.map((v) => (
-                <button
-                  key={v.label}
-                  onClick={() => {
-                    setSelectedBallWeight(v.label);
-                    localStorage.setItem('bowling.ballWeight', v.label);
-                  }}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background:
-                      selectedBallWeight === v.label
-                        ? '#7fd6ff'
-                        : 'rgba(255,255,255,0.08)',
-                    color: selectedBallWeight === v.label ? '#001018' : '#fff',
-                    fontWeight: 800
-                  }}
-                >
-                  {v.label} lb
-                </button>
-              ))}
+              Ball selection is automatic: each rack visit randomly picks one
+              owned bowling ball and keeps the same hand through pickup and
+              shot.
             </div>
             <div
               style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
@@ -5949,60 +5909,6 @@ export default function MobileBowlingRealistic() {
             </label>
           </div>
         ) : null}
-        {pickupUiVisible && ballSelectionMode === 'manual' ? (
-          <div
-            style={{
-              position: 'absolute',
-              right: 10,
-              bottom: 144,
-              padding: 10,
-              borderRadius: 16,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 58px)',
-              gap: 8,
-              pointerEvents: 'auto',
-              background: 'rgba(5,8,14,0.72)',
-              border: '1px solid rgba(125,211,252,0.36)',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.32)'
-            }}
-          >
-            {BALL_VARIANTS.map((v) => (
-              <button
-                key={`pickup-${v.label}`}
-                onClick={() => requestManualBallPickup(v.label)}
-                style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: '50%',
-                  border:
-                    selectedBallWeight === v.label
-                      ? '2px solid #fff'
-                      : '1px solid rgba(255,255,255,0.42)',
-                  background: `radial-gradient(circle at 32% 26%, ${v.colors[0]}, ${v.colors[1]} 52%, ${v.colors[2]})`,
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 950,
-                  textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                  boxShadow: '0 8px 18px rgba(0,0,0,0.32)'
-                }}
-              >
-                {v.label}
-              </button>
-            ))}
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                color: '#dff7ff',
-                fontSize: 10,
-                fontWeight: 900
-              }}
-            >
-              PICK UP
-            </div>
-          </div>
-        ) : null}
-
         {shootingUiVisible ? (
           <div
             onPointerDown={(e) => {
@@ -6128,18 +6034,14 @@ export default function MobileBowlingRealistic() {
         >
           <span>{shootingUiVisible ? '↕ Swipe to shoot' : '🚶 Auto walk'}</span>
           <span>
-            {shootingUiVisible
-              ? '🎥 Pull-back shot cam'
-              : ballSelectionMode === 'random'
-                ? '🎲 Random ball'
-                : '🎳 Tap rack ball'}
+            {shootingUiVisible ? '🎥 Pull-back shot cam' : '🎲 Random ball'}
           </span>
           <span>📍 Auto shooting line</span>
           <span>🌀 Spin at line</span>
         </div>
         {replayActive ? (
           <button
-            onClick={() => setReplayActive(false)}
+            onClick={() => setReplayMode(false)}
             style={{
               position: 'absolute',
               top: 132,
