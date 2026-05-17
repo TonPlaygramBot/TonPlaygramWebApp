@@ -22,14 +22,22 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { mapSpinForPhysics, normalizeSpinInput } from './poolRoyaleSpinUtils.js';
 import {
-  TABLE_MODEL_OPENSOURCE_GLB_URL,
   resolveSnookerGlbFitTransform
 } from './snookerTableModel.js';
+import {
+  SNOOKER_ROYAL_SHARED_DEFAULT_BROADCAST_SYSTEM,
+  SNOOKER_ROYAL_SHARED_DEFAULT_CAMERA_MODE,
+  SNOOKER_ROYAL_SHARED_SHOT_POWER_BOOST,
+  SNOOKER_ROYAL_SHARED_SHOT_SPIN_SCALE,
+  SNOOKER_ROYAL_SHARED_STORAGE_PREFIX,
+  SNOOKER_ROYAL_SHARED_TABLE_FALLBACK_GLB_URL,
+  SNOOKER_ROYAL_SHARED_TABLE_GLB_URL
+} from './snookerRoyalSharedConfig.js';
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
-const SNOOKER_CHAMPION_TABLE_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
-const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
+const SNOOKER_CHAMPION_TABLE_GLB_URL = SNOOKER_ROYAL_SHARED_TABLE_GLB_URL;
+const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = SNOOKER_ROYAL_SHARED_TABLE_FALLBACK_GLB_URL;
 const FRAME_RATE_OPTIONS = Object.freeze([
   { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Pool Royale performance preset for stable battery-friendly play.' },
   { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Pool Royale smooth preset for sharper textures and 90 FPS timing.' },
@@ -56,7 +64,7 @@ const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_CLOTH_ID = 'snooker-green';
 const WORLD_SCALE = 3.5;
-const SNOOKER_CHAMPION_STORAGE_PREFIX = 'snookerChampion:';
+const SNOOKER_CHAMPION_STORAGE_PREFIX = SNOOKER_ROYAL_SHARED_STORAGE_PREFIX;
 const SNOOKER_BALL_VALUES = Object.freeze({ red: 1, yellow: 2, green: 3, brown: 4, blue: 5, pink: 6, black: 7 });
 const SNOOKER_COLOR_LABELS = Object.freeze({ yellow: 'Yellow', green: 'Green', brown: 'Brown', blue: 'Blue', pink: 'Pink', black: 'Black' });
 const SNOOKER_COLOR_ORDER = Object.freeze(['yellow', 'green', 'brown', 'blue', 'pink', 'black']);
@@ -118,9 +126,9 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-const SNOOKER_SHOT_POWER_BOOST = 0.455; // 30% lower than the previous Snooker Champion strike output so shots stay softer on the full-size table
+const SNOOKER_SHOT_POWER_BOOST = SNOOKER_ROYAL_SHARED_SHOT_POWER_BOOST; // shared Snooker Royal strike output for both Royal and Champion
 const SNOOKER_BALL_MASS = 0.17;
-const SNOOKER_SHOT_SPIN_SCALE = 0.25;
+const SNOOKER_SHOT_SPIN_SCALE = SNOOKER_ROYAL_SHARED_SHOT_SPIN_SCALE;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
 const SNOOKER_SPIN_SLIDE_EPS = 0.02;
@@ -925,7 +933,7 @@ function addTable(scene, renderer, options = {}) {
     tableGroup.add(model);
     proceduralTableMeshes.forEach((mesh) => { mesh.visible = false; });
     if (typeof options.onStatus === 'function') {
-      options.onStatus('Snooker Royal arena snooker.glb loaded at the same playfield size and height');
+      options.onStatus('Snooker Royal arena snooker_generic.glb loaded at the same playfield size and height');
     }
   })();
   if (options.shadowCatcher !== false) {
@@ -1885,8 +1893,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [showGift, setShowGift] = useState(false);
   const [lastQuickMessage, setLastQuickMessage] = useState('');
   const [frameRateId, setFrameRateId] = useState(() => loadStoredOption('graphics', 'qhd90', FRAME_RATE_OPTIONS.map((item) => item.id)));
-  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'tv-broadcast', CAMERA_MODE_OPTIONS.map((item) => item.id)));
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'pocket-cuts', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
+  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', SNOOKER_ROYAL_SHARED_DEFAULT_CAMERA_MODE, CAMERA_MODE_OPTIONS.map((item) => item.id)));
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', SNOOKER_ROYAL_SHARED_DEFAULT_BROADCAST_SYSTEM, BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
   const [environmentHdriId, setEnvironmentHdriId] = useState(() => loadStoredOption('hdri', POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS.map((item) => item.id)));
   const [clothId, setClothId] = useState(() => loadStoredOption('cloth', DEFAULT_CLOTH_ID, POOL_ROYALE_CLOTH_VARIANTS.map((item) => item.id)));
   const [textureId, setTextureId] = useState(() => loadStoredOption('texture', SNOOKER_TEXTURE_OPTIONS[0].id, SNOOKER_CHAMPION_TEXTURE_IDS));
