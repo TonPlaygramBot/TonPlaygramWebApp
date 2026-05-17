@@ -1962,7 +1962,7 @@ const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MUL
 const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.48;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
-const POOL_HUMAN_SHOT_LEAN_SIGN = 1;
+const POOL_HUMAN_SHOT_LEAN_SIGN = -1;
 const POOL_HUMAN_SHOT_BEND = Object.freeze({
   torso: 0.08,
   chest: 0.18,
@@ -1985,8 +1985,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   strikeTime: CUE_STRIKE_DURATION_MS / 1000,
   holdTime: CUE_STRIKE_HOLD_MS / 1000,
   bridgeDist: 0.28 * POOL_HUMAN_WORLD_SCALE,
-  edgeMargin: 0.68 * POOL_HUMAN_WORLD_SCALE,
-  desiredShootDistance: 1.25 * POOL_HUMAN_WORLD_SCALE,
+  edgeMargin: 0.78 * POOL_HUMAN_WORLD_SCALE,
+  desiredShootDistance: 1.38 * POOL_HUMAN_WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
@@ -2544,8 +2544,9 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.65, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.08 * t, (poolHumanLerp(0.04, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.head, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
   const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.leftShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
   const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.rightShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
-  const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
-  const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
+  const hipForwardLean = poolHumanLerp(0.02, -0.08, t) * POOL_HUMAN_CFG.scale;
+  const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, hipForwardLean));
+  const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, hipForwardLean));
   const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, -0.03 * POOL_HUMAN_CFG.scale - walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(POOL_HUMAN_CFG.stanceWidth * 0.5, POOL_HUMAN_CFG.footGroundY, 0.34 * POOL_HUMAN_CFG.scale), t));
   const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, -0.012 * POOL_HUMAN_CFG.scale * t).setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift).addScaledVector(POOL_HUMAN_UP, -0.01 * POOL_HUMAN_CFG.scale * human.settleT);
@@ -6920,8 +6921,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0088; // move cue camera closer for a tighter portrait aiming view
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
+const CUE_VIEW_RADIUS_RATIO = 0.0074; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.042;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
