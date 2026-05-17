@@ -1,4 +1,4 @@
-import { sampleCueStrokeTimeline } from '../webapp/src/pages/Games/poolRoyaleCueStrokeTimeline.js';
+import { resolveCueContactPush, sampleCueStrokeTimeline } from '../webapp/src/pages/Games/poolRoyaleCueStrokeTimeline.js';
 
 describe('Pool Royale cue stroke timeline', () => {
   const options = {
@@ -42,5 +42,19 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(holding.done).toBe(false);
     expect(done.phase).toBe('done');
     expect(done.done).toBe(true);
+  });
+
+  it('computes enough forward push for the cue tip to physically reach the cue ball', () => {
+    const ballRadius = 10;
+    const contactGap = 0.3;
+    const cueTipGap = 16.6;
+    const push = resolveCueContactPush({
+      cueTipGap,
+      ballRadius,
+      contactGap,
+      minPush: 2.4
+    });
+    expect(push).toBeCloseTo(6.3, 5);
+    expect(cueTipGap - push).toBeCloseTo(ballRadius + contactGap, 5);
   });
 });
