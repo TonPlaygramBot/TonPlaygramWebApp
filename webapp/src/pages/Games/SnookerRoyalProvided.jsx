@@ -107,7 +107,7 @@ const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
 const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
 const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
 const SNOOKER_CUE_VIEW_RADIUS_RATIO = POOL_ROYALE_CUE_VIEW_RADIUS_RATIO;
-const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 0.42;
+const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.12;
 const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
@@ -115,7 +115,7 @@ const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
 const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
-const BALL_VISUAL_LIFT = -0.08;
+const BALL_VISUAL_LIFT = 0;
 const SNOOKER_TABLE_MARKING_LIFT = 0.012 * WORLD_SCALE;
 const SNOOKER_TABLE_MARKING_RADIUS = 0.0065 * WORLD_SCALE;
 const OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M = 1.778;
@@ -126,7 +126,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.0; // exact cushion-to-cushion mapping: the source GLB upper table fits the official playfield, not the decorative apron
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
 const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -137,28 +137,26 @@ const SNOOKER_OFFICIAL_D_RADIUS = OFFICIAL_SNOOKER_D_RADIUS_M * SNOOKER_PLAYFIEL
 const SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION = OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
-const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.38;
-const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.18;
-const SNOOKER_POCKET_THROAT_DEPTH = SNOOKER_OFFICIAL_BALL_R * 2.15;
-const SNOOKER_JAW_BOUNCE_RADIUS_SCALE = 1.08;
-const SNOOKER_SHOT_POWER_BOOST = 0.34; // calibrated for full-size snooker: measured cue slider power produces slower, table-scale rollouts
+const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
+const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
+const SNOOKER_SHOT_POWER_BOOST = 0.455; // Snooker Royal full-size strike output, shared by Champion through the common table/physics core
 const SNOOKER_BALL_MASS = 0.17;
-const SNOOKER_SHOT_SPIN_SCALE = 0.16;
+const SNOOKER_SHOT_SPIN_SCALE = 0.25;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
-const SNOOKER_SPIN_SLIDE_EPS = 0.012;
-const SNOOKER_SPIN_KINETIC_FRICTION = 0.16;
-const SNOOKER_SPIN_ROLL_DAMPING = 0.055;
-const SNOOKER_SPIN_ANGULAR_DAMPING = 0.026;
+const SNOOKER_SPIN_SLIDE_EPS = 0.02;
+const SNOOKER_SPIN_KINETIC_FRICTION = 0.22;
+const SNOOKER_SPIN_ROLL_DAMPING = 0.1;
+const SNOOKER_SPIN_ANGULAR_DAMPING = 0.04;
 const SNOOKER_SPIN_GRAVITY = 9.81;
-const SNOOKER_ROLLING_RESISTANCE = 0.0068;
-const SNOOKER_BALL_BALL_FRICTION = 0.072;
-const SNOOKER_RAIL_FRICTION = 0.12;
+const SNOOKER_ROLLING_RESISTANCE = 0.011;
+const SNOOKER_BALL_BALL_FRICTION = 0.105;
+const SNOOKER_RAIL_FRICTION = 0.16;
 const SNOOKER_STOP_EPS = 0.0074;
 const SNOOKER_STOP_SOFTENING = 0.96;
 const SNOOKER_STOP_FINAL_EPS = SNOOKER_STOP_EPS * 0.35;
 const SNOOKER_PHYSICS_MAX_STEP = 1 / 240;
-const SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD = -0.06;
+const SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD = -0.08;
 const SNOOKER_CAMERA_HEIGHT_STEP = 0.075;
 const SNOOKER_CAMERA_HEIGHT_MIN = -0.34;
 const SNOOKER_CAMERA_HEIGHT_MAX = 0.44;
@@ -224,7 +222,7 @@ const CFG = {
   tableTopY: 0.84 * WORLD_SCALE,
   tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
   tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
-  tableVisualMultiplier: SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
+  tableVisualMultiplier: 1.08 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
   topThickness: 0.09 * WORLD_SCALE,
   railW: 0.15 * WORLD_SCALE,
   railH: 0.08 * WORLD_SCALE,
@@ -803,33 +801,6 @@ function addOfficialSnookerMarkings(tableGroup) {
   });
 }
 
-
-function createOfficialSnookerPocketMap(pocketY) {
-  const halfW = CFG.tableW / 2;
-  const halfL = CFG.tableL / 2;
-  const corner = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-  const middle = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS;
-  const pockets = [
-    { x: -halfW + SNOOKER_CORNER_JAW_SETBACK, z: -halfL + SNOOKER_CORNER_JAW_SETBACK, radius: corner, kind: 'corner', normal: new THREE.Vector2(1, 1).normalize() },
-    { x: halfW - SNOOKER_CORNER_JAW_SETBACK, z: -halfL + SNOOKER_CORNER_JAW_SETBACK, radius: corner, kind: 'corner', normal: new THREE.Vector2(-1, 1).normalize() },
-    { x: -halfW + SNOOKER_CORNER_JAW_SETBACK, z: halfL - SNOOKER_CORNER_JAW_SETBACK, radius: corner, kind: 'corner', normal: new THREE.Vector2(1, -1).normalize() },
-    { x: halfW - SNOOKER_CORNER_JAW_SETBACK, z: halfL - SNOOKER_CORNER_JAW_SETBACK, radius: corner, kind: 'corner', normal: new THREE.Vector2(-1, -1).normalize() },
-    { x: -halfW + SNOOKER_MIDDLE_JAW_SETBACK, z: 0, radius: middle, kind: 'middle', normal: new THREE.Vector2(1, 0) },
-    { x: halfW - SNOOKER_MIDDLE_JAW_SETBACK, z: 0, radius: middle, kind: 'middle', normal: new THREE.Vector2(-1, 0) }
-  ];
-  return pockets.map(({ x, z, radius, kind, normal }) => {
-    const pocket = new THREE.Vector3(x, pocketY, z);
-    pocket.userData = {
-      radius,
-      kind,
-      normal,
-      mouthHalfWidth: radius * (kind === 'middle' ? 1.34 : 1.18),
-      throatDepth: SNOOKER_POCKET_THROAT_DEPTH
-    };
-    return pocket;
-  });
-}
-
 function addTable(scene, renderer, options = {}) {
   const tableGroup = new THREE.Group();
   tableGroup.position.y = CFG.tableTopY;
@@ -863,8 +834,19 @@ function addTable(scene, renderer, options = {}) {
   ].forEach(([size, pos, mat]) => {
     proceduralTableMeshes.push(addBox(tableGroup, size, pos, mat));
   });
-  const pocketY = CFG.ballR - CFG.ballR * 0.06;
-  const pocketPositions = createOfficialSnookerPocketMap(pocketY);
+  const pocketY = CFG.ballR + 0.006 * CFG.scale;
+  const pocketPositions = [
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS]
+  ].map(([x, y, z, radius]) => {
+    const pocket = new THREE.Vector3(x, y, z);
+    pocket.userData = { radius };
+    return pocket;
+  });
   addOfficialSnookerMarkings(tableGroup);
   pocketPositions.forEach((pos) => {
     const pocketRadius = pos.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
@@ -1280,21 +1262,23 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
 function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const p = clamp01(power);
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
+  const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spinMapped = mapSpinForPhysics(normalizeSpinInput(spinInput));
   const spin = {
     x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE,
     y: (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE
   };
-  const speed = (1.9 + p * 8.4) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
+  const speed = (2.8 + p * 9.2) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
   cueBall.vel.copy(dir.multiplyScalar(speed));
+  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
   cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
   cueBall.omega?.set(0, 0, 0);
   const launchSpeed = cueBall.vel.length();
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
-    const naturalRoll = launchSpeed / CFG.ballR;
-    cueBall.omega.addScaledVector(rollingAxis, naturalRoll * (1 + (spin.y ?? 0) * p * 0.34));
-    cueBall.omega.y += (spin.x ?? 0) * p * naturalRoll * 0.46;
+    cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
+    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
+    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
@@ -1453,57 +1437,28 @@ function finalizeSnookerShotRules(balls, rulesState) {
 function findSnookerPocketCapture(ball, pocketPositions = []) {
   return pocketPositions.find((pocket) => {
     const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const captureRadius = Math.max(radius + CFG.ballR * 0.38, CFG.ballR * 1.18);
+    const captureRadius = Math.max(radius + CFG.ballR * 0.56, CFG.ballR * 1.35);
     return ball.pos.distanceToSquared(pocket) < captureRadius * captureRadius;
   });
 }
 
 function isInSnookerPocketMouth(ball, axis, sign, pocketPositions = []) {
-  return pocketPositions.some((pocket) => {
+  const nearPocket = pocketPositions.some((pocket) => {
     const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const mouth = Math.max(pocket.userData?.mouthHalfWidth ?? radius, radius + CFG.ballR * 0.62);
+    const mouth = Math.max(radius + CFG.ballR * 0.92, CFG.ballR * 1.65);
     if (axis === 'x') {
       return Math.sign(pocket.x || sign) === sign && Math.abs(ball.pos.z - pocket.z) <= mouth;
     }
     return Math.sign(pocket.z || sign) === sign && Math.abs(ball.pos.x - pocket.x) <= mouth;
   });
+  return nearPocket;
 }
 
 function isInsideSnookerPocketThroat(ball, axis, sign, pocketPositions = []) {
-  return pocketPositions.some((pocket) => {
-    const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const mouth = Math.max(pocket.userData?.mouthHalfWidth ?? radius, radius + CFG.ballR * 0.62);
-    const throatDepth = pocket.userData?.throatDepth ?? SNOOKER_POCKET_THROAT_DEPTH;
-    if (axis === 'x') {
-      const crossesPocketSide = sign < 0 ? ball.pos.x <= -CFG.tableW / 2 + CFG.ballR + throatDepth : ball.pos.x >= CFG.tableW / 2 - CFG.ballR - throatDepth;
-      return Math.sign(pocket.x || sign) === sign && crossesPocketSide && Math.abs(ball.pos.z - pocket.z) <= mouth;
-    }
-    const crossesPocketEnd = sign < 0 ? ball.pos.z <= -CFG.tableL / 2 + CFG.ballR + throatDepth : ball.pos.z >= CFG.tableL / 2 - CFG.ballR - throatDepth;
-    return Math.sign(pocket.z || sign) === sign && crossesPocketEnd && Math.abs(ball.pos.x - pocket.x) <= mouth;
-  });
-}
-
-function resolveSnookerJawCollision(ball, pocketPositions = []) {
-  let resolved = false;
-  for (const pocket of pocketPositions) {
-    const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const mouth = Math.max(pocket.userData?.mouthHalfWidth ?? radius, radius + CFG.ballR * 0.62);
-    const isSidePocket = Math.abs(pocket.z) < CFG.ballR;
-    const axisDelta = isSidePocket ? Math.abs(ball.pos.z - pocket.z) : Math.abs(ball.pos.x - pocket.x);
-    if (axisDelta <= mouth * 0.74) continue;
-    const delta = SNOOKER_TMP_VEC3_A.copy(ball.pos).sub(pocket).setY(0);
-    const dist = delta.length();
-    const jawRadius = Math.max(radius * SNOOKER_JAW_BOUNCE_RADIUS_SCALE, CFG.ballR * 1.32);
-    if (dist <= 1e-6 || dist >= jawRadius + CFG.ballR * 0.42) continue;
-    const normal = delta.multiplyScalar(1 / dist);
-    ball.pos.addScaledVector(normal, jawRadius + CFG.ballR * 0.42 - dist);
-    if (ball.vel.dot(normal) < 0) {
-      applySnookerRailImpulse(ball, normal);
-      if (ball.spin) ball.spin.multiplyScalar(0.72);
-    }
-    resolved = true;
-  }
-  return resolved;
+  // Keep the rail open only at the real GLB pocket throat/capture circle. Near-mouth misses
+  // now collide with the cushion/jaw instead of sliding outside the physical table perimeter.
+  if (!isInSnookerPocketMouth(ball, axis, sign, pocketPositions)) return false;
+  return Boolean(findSnookerPocketCapture(ball, pocketPositions));
 }
 
 function clampSnookerAimImpactToPerimeter(point) {
@@ -1531,19 +1486,23 @@ function decaySnookerSpin(ball, stepScale) {
 function applySnookerSpinController(ball, stepScale) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
   const speed = Math.max(ball.vel.length(), 0);
-  if (speed > 1e-6 && ball.omega) {
+  if (speed > 1e-6) {
     const forward = SNOOKER_TMP_VEC3_A.copy(ball.vel).setY(0).normalize();
-    const rollingAxis = SNOOKER_TMP_VEC3_B.set(ball.vel.z, 0, -ball.vel.x).normalize();
+    const lateral = SNOOKER_TMP_VEC3_B.set(forward.z, 0, -forward.x).normalize();
     const sideSpin = ball.spin.x || 0;
-    const topBackSpin = ball.spin.y || 0;
-    const naturalRoll = speed / CFG.ballR;
-    ball.omega.addScaledVector(rollingAxis, topBackSpin * naturalRoll * 0.006 * stepScale);
-    ball.omega.y += sideSpin * naturalRoll * 0.004 * stepScale;
-    if (topBackSpin > 0) {
-      ball.vel.addScaledVector(forward, topBackSpin * CFG.scale * 0.006 * stepScale);
+    const forwardSpin = ball.spin.y || 0;
+    const speedScale = clamp(speed / Math.max(CFG.scale * 8, 1e-6), 0.35, 1.4);
+    if (Math.abs(sideSpin) > 1e-8) {
+      ball.vel.addScaledVector(lateral, sideSpin * 0.22 * CFG.scale * speedScale * stepScale);
+    }
+    if (Math.abs(forwardSpin) > 1e-8) {
+      ball.vel.addScaledVector(forward, forwardSpin * 0.11 * CFG.scale * speedScale * stepScale);
+      if (forwardSpin > 0) {
+        ball.spin.y = Math.max(0, forwardSpin - 0.028 * stepScale * speedScale);
+      }
     }
   }
-  return decaySnookerSpin(ball, stepScale * 0.72);
+  return decaySnookerSpin(ball, stepScale);
 }
 
 function applySnookerRailImpulse(ball, normal) {
@@ -1635,10 +1594,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     if (railNormal) {
       if (rulesState?.shotActive && rulesState.firstContactKind) rulesState.railAfterContact = true;
       applySnookerRailImpulse(ball, railNormal);
-      if (ball.spin) ball.spin.x *= -0.54;
-    }
-    if (resolveSnookerJawCollision(ball, pocketPositions) && rulesState?.shotActive && rulesState.firstContactKind) {
-      rulesState.railAfterContact = true;
+      if (ball.spin) ball.spin.x *= -0.65;
     }
     let speed = ball.vel.length();
     let scaledSpeed = speed * stepScale;
@@ -1862,23 +1818,35 @@ function snookerPocketToWorld(pocket) {
 function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect = 1, heightOffset = 0) {
   const portraitT = clamp01((1 / Math.max(aspect, 0.45) - 1) / 0.78);
   const clampedPower = clamp01(activePower);
-  const loweredT = clamp01((-heightOffset - Math.abs(SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD)) / Math.max(0.001, Math.abs(SNOOKER_CAMERA_HEIGHT_MIN)));
-  const humanRoot = chooseHumanEdgePosition(cueBallWorld, aimForward);
-  const standingChestY = 1.48 * CFG.scale;
-  const shootingChestY = 1.19 * CFG.scale;
-  const shoulderForward = lerp(0.03, 0.34, loweredT) * CFG.scale;
-  const chestSide = (portraitT * 0.012 - 0.018) * CFG.scale;
-  const side = SNOOKER_TMP_VEC3_A.set(aimForward.z, 0, -aimForward.x).normalize();
-  const pos = humanRoot.clone()
-    .addScaledVector(aimForward, shoulderForward)
-    .addScaledVector(side, chestSide)
-    .setY(lerp(standingChestY, shootingChestY, loweredT) + heightOffset * CFG.tableL * 0.03);
   const target = cueBallWorld.clone()
-    .addScaledVector(aimForward, CFG.tableL * lerp(0.17, 0.27, loweredT))
-    .setY(CFG.tableTopY + CFG.ballR * lerp(1.6, 0.82, loweredT));
-  const railSafeMinY = CFG.tableTopY + CFG.ballR + SNOOKER_CUE_SURFACE_MARGIN;
-  pos.y = Math.max(railSafeMinY, pos.y);
-  return { pos, target, fov: lerp(59 + portraitT * 2, 53, loweredT) - clampedPower * 2.5 };
+    .addScaledVector(aimForward, CFG.tableL * 0.14)
+    .setY(CFG.tableTopY + CFG.ballR * 1.05);
+  const playerRadiusBase = Math.max(CFG.tableW, CFG.tableL);
+  const standingRadius = computeSnookerTopViewDistance(aspect, POOL_ROYALE_STANDING_VIEW_FOV, POOL_ROYALE_STANDING_VIEW_MARGIN);
+  const cueRadius = Math.max(
+    playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
+    CFG.tableL * (0.48 + clampedPower * 0.12),
+    SNOOKER_CUE_CAMERA_MIN_RADIUS
+  ) * SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER;
+  const radius = clamp(lerp(standingRadius, cueRadius, 0.22 + clampedPower * 0.52), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
+  const heightLift = THREE.MathUtils.clamp(heightOffset, SNOOKER_CAMERA_HEIGHT_MIN, SNOOKER_CAMERA_HEIGHT_MAX);
+  const cuePhi = THREE.MathUtils.clamp(
+    SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15) - heightLift * 0.24,
+    SNOOKER_CUE_CAMERA_MIN_PHI,
+    SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
+  );
+  const phi = THREE.MathUtils.clamp(
+    lerp(SNOOKER_CUE_CAMERA_STANDING_PHI, cuePhi, 0.35 + clampedPower * 0.65),
+    SNOOKER_CUE_CAMERA_MIN_PHI,
+    SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY
+  );
+  const horizontal = Math.sin(phi) * radius;
+  const vertical = Math.cos(phi) * radius;
+  const minY = CFG.tableTopY + CFG.ballR + SNOOKER_CUE_SURFACE_MARGIN;
+  const pos = cueBallWorld.clone()
+    .addScaledVector(aimForward, -horizontal)
+    .setY(Math.max(minY, target.y + vertical + heightLift * CFG.tableL * 0.12));
+  return { pos, target, fov: 56 };
 }
 
 function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions = [], options = {}) {
