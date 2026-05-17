@@ -236,8 +236,6 @@ const CFG = {
   tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
   tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
   tableVisualMultiplier: 1.08 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
-  topThickness: 0.09 * WORLD_SCALE,
-  railW: 0.15 * WORLD_SCALE,
   railH: 0.08 * WORLD_SCALE,
   ballR: SNOOKER_OFFICIAL_BALL_R,
   friction: 1.18,
@@ -478,13 +476,6 @@ function enableShadow(obj) {
   });
   return obj;
 }
-function addBox(group, size, pos, mat) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
-  mesh.position.set(...pos);
-  enableShadow(mesh);
-  group.add(mesh);
-  return mesh;
-}
 function createUnitCylinder(color) {
   return new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 18), createMaterial(color, 0.7, 0.03));
 }
@@ -691,40 +682,6 @@ function addBalls(tableGroup) {
   });
   return { balls, cueBall: balls.find((b) => b.isCue) || balls[0] };
 }
-function createBaizeTexture(color = 0x0f6f45, cloth = null) {
-  return createPoolRoyaleClothTexture(cloth, color);
-}
-
-function expandLocalBoxByMesh(box, mesh) {
-  if (!mesh?.geometry) return box;
-  mesh.updateMatrix();
-  if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-  const meshBox = mesh.geometry.boundingBox?.clone();
-  if (!meshBox || meshBox.isEmpty()) return box;
-  const corners = [
-    new THREE.Vector3(meshBox.min.x, meshBox.min.y, meshBox.min.z),
-    new THREE.Vector3(meshBox.min.x, meshBox.min.y, meshBox.max.z),
-    new THREE.Vector3(meshBox.min.x, meshBox.max.y, meshBox.min.z),
-    new THREE.Vector3(meshBox.min.x, meshBox.max.y, meshBox.max.z),
-    new THREE.Vector3(meshBox.max.x, meshBox.min.y, meshBox.min.z),
-    new THREE.Vector3(meshBox.max.x, meshBox.min.y, meshBox.max.z),
-    new THREE.Vector3(meshBox.max.x, meshBox.max.y, meshBox.min.z),
-    new THREE.Vector3(meshBox.max.x, meshBox.max.y, meshBox.max.z)
-  ];
-  corners.forEach((corner) => box.expandByPoint(corner.applyMatrix4(mesh.matrix)));
-  return box;
-}
-function resolveSnookerChampionTargetBounds(meshes) {
-  const bounds = new THREE.Box3();
-  meshes.forEach((mesh) => expandLocalBoxByMesh(bounds, mesh));
-  if (bounds.isEmpty()) {
-    bounds.set(
-      new THREE.Vector3(-CFG.tableW * CFG.tableVisualMultiplier * 0.5, -CFG.topThickness + CFG.ballR, -CFG.tableL * CFG.tableVisualMultiplier * 0.5),
-      new THREE.Vector3(CFG.tableW * CFG.tableVisualMultiplier * 0.5, CFG.ballR + CFG.railH, CFG.tableL * CFG.tableVisualMultiplier * 0.5)
-    );
-  }
-  return bounds;
-}
 function resolveSnookerChampionGlbUpperBounds(model, fullBounds) {
   const sourceSize = fullBounds.getSize(new THREE.Vector3());
   const upperCutoff = fullBounds.min.y + sourceSize.y * 0.45;
@@ -821,32 +778,6 @@ function addTable(scene, renderer, options = {}) {
   const clothColor = options.clothColor ?? 0x0f6f45;
   const clothOption = options.clothOption ?? null;
   const textureOption = resolveSnookerChampionTextureOption(options.textureId);
-  const cloth = new THREE.MeshStandardMaterial({ color: clothColor, map: createBaizeTexture(clothColor, clothOption), roughness: 0.96, metalness: 0, envMapIntensity: 0.16 });
-  const proceduralTableMeshes = [];
-  const playfield = addBox(tableGroup, [CFG.tableW, CFG.topThickness, CFG.tableL], [0, -CFG.topThickness / 2 + CFG.ballR, 0], cloth);
-  playfield.receiveShadow = true;
-  playfield.castShadow = false;
-  playfield.name = 'snooker-champion-procedural-cloth';
-  proceduralTableMeshes.push(playfield);
-  const wood = applySnookerChampionWoodMaterial(createMaterial(textureOption.rail, 0.56), textureOption, 'rail');
-  const trim = createMaterial(textureOption.trim, 0.38, 0.42);
-  const cushion = createMaterial(clothColor, 0.9, 0);
-  const railY = CFG.railH / 2 - CFG.topThickness + CFG.ballR;
-  const cushionY = 0.11 * CFG.scale + CFG.ballR;
-  const w = CFG.tableW * CFG.tableVisualMultiplier;
-  const l = CFG.tableL * CFG.tableVisualMultiplier;
-  [
-    [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [-(w / 2 + CFG.railW / 2 - 0.03 * CFG.scale), railY, 0], wood],
-    [[CFG.railW, CFG.railH, l + 0.34 * CFG.scale], [w / 2 + CFG.railW / 2 - 0.03 * CFG.scale, railY, 0], wood],
-    [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, -(l / 2 + CFG.railW / 2 - 0.03 * CFG.scale)], wood],
-    [[w + 0.34 * CFG.scale, CFG.railH, CFG.railW], [0, railY, l / 2 + CFG.railW / 2 - 0.03 * CFG.scale], wood],
-    [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [-(w / 2 + 0.09 * CFG.scale), cushionY, 0], cushion],
-    [[0.18 * CFG.scale, 0.1 * CFG.scale, l + 0.38 * CFG.scale], [w / 2 + 0.09 * CFG.scale, cushionY, 0], cushion],
-    [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, -(l / 2 + 0.09 * CFG.scale)], cushion],
-    [[w + 0.18 * CFG.scale, 0.1 * CFG.scale, 0.18 * CFG.scale], [0, cushionY, l / 2 + 0.09 * CFG.scale], cushion]
-  ].forEach(([size, pos, mat]) => {
-    proceduralTableMeshes.push(addBox(tableGroup, size, pos, mat));
-  });
   const pocketY = CFG.ballR + 0.006 * CFG.scale;
   const pocketPositions = [
     [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
@@ -861,19 +792,6 @@ function addTable(scene, renderer, options = {}) {
     return pocket;
   });
   addOfficialSnookerMarkings(tableGroup);
-  pocketPositions.forEach((pos) => {
-    const pocketRadius = pos.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(pocketRadius, pocketRadius * 0.82, 0.035 * CFG.scale, 32), new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.92 }));
-    cup.position.copy(pos);
-    cup.rotation.x = Math.PI / 2;
-    tableGroup.add(enableShadow(cup));
-    proceduralTableMeshes.push(cup);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(pocketRadius, 0.012 * CFG.scale, 10, 28), trim);
-    ring.position.copy(pos).setY(pos.y + 0.004 * CFG.scale);
-    ring.rotation.x = Math.PI / 2;
-    tableGroup.add(enableShadow(ring));
-    proceduralTableMeshes.push(ring);
-  });
   let disposed = false;
   const gltfTools = createUniversalGLTFLoader(renderer);
   (async () => {
@@ -893,48 +811,41 @@ function addTable(scene, renderer, options = {}) {
     const model = gltf?.scene || gltf?.scenes?.[0];
     if (!model) {
       if (typeof options.onStatus === 'function') {
-        options.onStatus('GLB table fallback active: procedural snooker table fitted to the same playfield');
+        options.onStatus('GLB snooker table failed to load; procedural table disabled');
       }
       return;
     }
     enableShadow(model);
     model.updateMatrixWorld(true);
-    const targetBounds = resolveSnookerChampionTargetBounds(proceduralTableMeshes);
-    // Use the same proven Snooker Royal map: fit the original GLB upper cushion/jaw assembly to the
-    // official snooker cushion rectangle instead of shrinking to the decorative bed-only mesh.
-    targetBounds.min.x = -CFG.tableW * CFG.tableVisualMultiplier * 0.5;
-    targetBounds.max.x = CFG.tableW * CFG.tableVisualMultiplier * 0.5;
-    targetBounds.min.z = -CFG.tableL * CFG.tableVisualMultiplier * 0.5;
-    targetBounds.max.z = CFG.tableL * CFG.tableVisualMultiplier * 0.5;
-    const targetSize = targetBounds.getSize(new THREE.Vector3());
-    const targetCenter = targetBounds.getCenter(new THREE.Vector3());
-    const targetTopY = targetBounds.max.y;
+    const targetCenter = new THREE.Vector3(0, 0, 0);
+    const targetSize = new THREE.Vector3(CFG.tableW, CFG.railH || CFG.ballR, CFG.tableL);
     const fullSourceBounds = new THREE.Box3().setFromObject(model);
-    const sourceFitBounds = resolveSnookerChampionGlbUpperBounds(model, fullSourceBounds);
+    const sourceBedBounds = resolveSnookerChampionGlbBedBounds(model);
+    const sourceFitBounds = sourceBedBounds ?? resolveSnookerChampionGlbUpperBounds(model, fullSourceBounds);
     const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
     const fit = resolveSnookerGlbFitTransform(
       { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
       { x: targetSize.x, y: targetSize.y, z: targetSize.z }
     );
-    const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
-    fit.scale.y = upperTableScale;
+    const horizontalScale = Math.min(fit.scale.x, fit.scale.z);
+    fit.scale.y = horizontalScale;
     model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
     model.updateMatrixWorld(true);
     const scaledFullBounds = new THREE.Box3().setFromObject(model);
-    const scaledFitBounds = resolveSnookerChampionGlbUpperBounds(model, scaledFullBounds);
-    const scaledFitCenter = scaledFitBounds.getCenter(new THREE.Vector3());
     const scaledBedBounds = resolveSnookerChampionGlbBedBounds(model);
+    const scaledFitBounds = scaledBedBounds ?? resolveSnookerChampionGlbUpperBounds(model, scaledFullBounds);
+    const scaledFitCenter = scaledFitBounds.getCenter(new THREE.Vector3());
     const desiredBedTopY = CFG.ballR - SNOOKER_TABLE_MARKING_LIFT * 0.35;
-    const fallbackTableY = targetTopY - scaledFullBounds.max.y - CFG.ballR * 0.08;
     model.position.set(
       targetCenter.x - scaledFitCenter.x,
-      scaledBedBounds ? desiredBedTopY - scaledBedBounds.max.y : fallbackTableY,
+      desiredBedTopY - scaledFitBounds.max.y,
       targetCenter.z - scaledFitCenter.z
     );
     model.updateMatrixWorld(true);
     model.name = 'snooker-champion-snooker-royal-arena-table-glb';
     model.userData.loadedBySnookerChampion = true;
     model.userData.sourceUrl = sourceUrl;
+    model.userData.mapping = 'glb-bed-to-game-playfield';
     model.traverse((child) => {
       if (!child.isMesh || !child.material) return;
       child.renderOrder = 1;
@@ -957,9 +868,8 @@ function addTable(scene, renderer, options = {}) {
       }
     });
     tableGroup.add(model);
-    proceduralTableMeshes.forEach((mesh) => { mesh.visible = false; });
     if (typeof options.onStatus === 'function') {
-      options.onStatus('Snooker Royal arena snooker.glb loaded at the same playfield size and height');
+      options.onStatus('Snooker GLB table loaded; game playfield mapped directly to the GLB bed');
     }
   })();
   if (options.shadowCatcher !== false) {
