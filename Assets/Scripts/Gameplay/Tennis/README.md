@@ -3,7 +3,7 @@
 This folder adds modular tennis systems:
 
 - `TennisShotTuning`: keeps shots at a calmer match-power pace and supports flat/power/topspin/curve variants.
-- `TennisCourtScaler`: scales court + characters and moves camera back to keep similar framing.
+- `TennisCourtScaler`: scales the court/net larger than the players and moves the camera back to keep the bigger court framed.
 - `TennisAudioController`: trigger shot and bounce SFX.
 - `TennisAIOpponent`: faster AI reaction, mixed shot variants, and capped match-power shot selection.
 - `CharacterWalk8Dir`: 8-direction walk movement (forward/backward/sideways).
