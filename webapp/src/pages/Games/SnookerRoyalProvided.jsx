@@ -86,6 +86,7 @@ const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
 const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
 const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
 const SNOOKER_CUE_VIEW_RADIUS_RATIO = POOL_ROYALE_CUE_VIEW_RADIUS_RATIO;
+const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.12;
 const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
@@ -93,7 +94,7 @@ const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
 const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
-const BALL_VISUAL_LIFT = 0.015;
+const BALL_VISUAL_LIFT = 0.004;
 const SNOOKER_TABLE_MARKING_LIFT = 0.012 * WORLD_SCALE;
 const SNOOKER_TABLE_MARKING_RADIUS = 0.0065 * WORLD_SCALE;
 const OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M = 1.778;
@@ -109,7 +110,7 @@ const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIEL
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_BALL_R = (OFFICIAL_SNOOKER_BALL_DIAMETER_M * SNOOKER_PLAYFIELD_SCALE) / 2;
-const SNOOKER_BALL_CENTER_Y = SNOOKER_OFFICIAL_BALL_R * 1.03;
+const SNOOKER_BALL_CENTER_Y = SNOOKER_OFFICIAL_BALL_R * 1.01;
 const SNOOKER_OFFICIAL_BAULK_FROM_CUSHION = OFFICIAL_SNOOKER_BAULK_LINE_FROM_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_D_RADIUS = OFFICIAL_SNOOKER_D_RADIUS_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION = OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
@@ -117,8 +118,9 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-const SNOOKER_SHOT_POWER_BOOST = 0.65; // 50% reduced Snooker Champion strike output so the slider matches table-scale power
+const SNOOKER_SHOT_POWER_BOOST = 0.455; // 30% lower than the previous Snooker Champion strike output so shots stay softer on the full-size table
 const SNOOKER_BALL_MASS = 0.17;
+const SNOOKER_SHOT_SPIN_SCALE = 0.5;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
 const SNOOKER_SPIN_SLIDE_EPS = 0.02;
@@ -701,7 +703,7 @@ function addOfficialSnookerMarkings(tableGroup) {
   ], 'official-snooker-baulk-line-visible');
   const arcPoints = [];
   for (let i = 0; i <= 96; i += 1) {
-    const theta = Math.PI / 2 + (i / 96) * Math.PI;
+    const theta = (i / 96) * Math.PI;
     arcPoints.push(new THREE.Vector3(
       Math.cos(theta) * SNOOKER_OFFICIAL_D_RADIUS,
       markY,
@@ -1164,7 +1166,11 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const p = clamp01(power);
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
   const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
-  const spin = mapSpinForPhysics(normalizeSpinInput(spinInput));
+  const spinMapped = mapSpinForPhysics(normalizeSpinInput(spinInput));
+  const spin = {
+    x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE,
+    y: (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE
+  };
   const speed = (2.8 + p * 9.2) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
   cueBall.vel.copy(dir.multiplyScalar(speed));
   cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
@@ -1610,7 +1616,7 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
     playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
     CFG.tableL * (0.48 + clampedPower * 0.12),
     SNOOKER_CUE_CAMERA_MIN_RADIUS
-  );
+  ) * SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER;
   const radius = clamp(lerp(standingRadius, cueRadius, 0.22 + clampedPower * 0.52), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
   const heightLift = THREE.MathUtils.clamp(heightOffset, SNOOKER_CAMERA_HEIGHT_MIN, SNOOKER_CAMERA_HEIGHT_MAX);
   const cuePhi = THREE.MathUtils.clamp(
