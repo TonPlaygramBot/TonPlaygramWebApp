@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -16,6 +16,7 @@ import {
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import { WOOD_FINISH_PRESETS, applyWoodTextures } from '../../utils/woodMaterials.js';
 import { getTelegramUsername, getTelegramPhotoUrl, getTelegramId } from '../../utils/telegram.js';
+import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -50,10 +51,14 @@ const CAMERA_MODE_OPTIONS = Object.freeze([
   { id: 'corner-pocket-right', label: 'Right Pocket Cam', description: 'Snooker Royal corner-pocket broadcast camera on the right short rail.' }
 ]);
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
-  { id: 'rail-overhead', label: 'Rail Overhead', method: 'Single rail-overhead mount', description: 'Same default broadcast technique used by Snooker Royal.' },
-  { id: 'pocket-cuts', label: 'Pocket Cuts', method: 'Corner pocket cutaways', description: 'Cuts to a pocket-side view when balls are close to a pocket.' },
-  { id: 'cinematic', label: 'Cinematic Follow', method: 'Cue + action dolly blend', description: 'Smooth shot-following angle for replays and live pot attempts.' }
+  {
+    id: 'rail-overhead',
+    label: 'Rail Overhead',
+    method: 'Overhead rail mounts with fast post-shot cuts.',
+    description: 'Snooker Royal broadcast package: short-rail TV heads above the table with the same framing logic.'
+  }
 ]);
+const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
 
 const SNOOKER_ROYAL_PARITY_MENU_THUMBNAILS = Object.freeze([
   {
@@ -150,12 +155,14 @@ const SNOOKER_SHOT_MIN_FACTOR = 0.25;
 const SNOOKER_SHOT_POWER_RANGE = 0.75;
 const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
-const SNOOKER_SHOT_SPIN_SCALE = 0.25;
-const SNOOKER_SPIN_GLOBAL_SCALE = 0.82; // match Pool Royale's reduced cue-spin input so centre-ball shots do not over-rotate
+const SNOOKER_SHOT_SPIN_SCALE = 0.18;
+const SNOOKER_SPIN_GLOBAL_SCALE = 0.46; // keep cue-ball side/top input subtle so center-ball shots do not over-rotate
 const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
-const SNOOKER_TOPSPIN_MULTIPLIER = 1.62 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SNOOKER_TOPSPIN_MULTIPLIER = 1.34 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SNOOKER_CUE_CENTER_ROLL_OMEGA_FACTOR = 0.32;
+const SNOOKER_CUE_SPIN_OMEGA_MULTIPLIER = 10;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
 const SNOOKER_SPIN_SLIDE_EPS = 0.02;
@@ -251,7 +258,8 @@ const CFG = {
   cueLength: 1.78 * WORLD_SCALE,
   bridgeDist: 0.28 * WORLD_SCALE,
   edgeMargin: 0.5 * WORLD_SCALE,
-  desiredShootDistance: 0.82 * WORLD_SCALE,
+  desiredShootDistance: 0.98 * WORLD_SCALE,
+  humanAimLineSideOffset: 0.12 * WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
@@ -1099,7 +1107,10 @@ function driveHuman(human, frame) {
   aimTwoBone(b.rightUpperLeg, b.rightLowerLeg, frame.rightKnee, frame.rightFootWorld, frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(), 0.9 * ik, ik);
 }
 function chooseHumanEdgePosition(cueBallWorld, aimForward) {
-  const desired = cueBallWorld.clone().addScaledVector(aimForward, -CFG.desiredShootDistance);
+  const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+  const desired = cueBallWorld.clone()
+    .addScaledVector(aimForward, -CFG.desiredShootDistance)
+    .addScaledVector(aimSide, CFG.humanAimLineSideOffset);
   const xEdge = CFG.tableW / 2 + CFG.edgeMargin;
   const zEdge = CFG.tableL / 2 + CFG.edgeMargin;
   const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)];
@@ -1210,9 +1221,9 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const launchSpeed = cueBall.vel.length();
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
-    cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
-    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
-    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
+    cueBall.omega.addScaledVector(rollingAxis, (launchSpeed / CFG.ballR) * SNOOKER_CUE_CENTER_ROLL_OMEGA_FACTOR);
+    cueBall.omega.x += -(spin.y ?? 0) * p * SNOOKER_CUE_SPIN_OMEGA_MULTIPLIER;
+    cueBall.omega.z += -(spin.x ?? 0) * p * SNOOKER_CUE_SPIN_OMEGA_MULTIPLIER;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
@@ -1510,7 +1521,7 @@ function updateSnookerRollingBall(ball, stepScale) {
   }
 }
 
-function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = null) {
+function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = null, sounds = {}) {
   const railX = getSnookerCushionCenterLimit('x');
   const railZ = getSnookerCushionCenterLimit('z');
   const subSteps = Math.max(1, Math.ceil(Math.max(dt, 0) / SNOOKER_PHYSICS_MAX_STEP));
@@ -1559,6 +1570,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     }
     const capture = pocket ?? findSnookerPocketCapture(ball, pocketPositions);
     if (capture) {
+      sounds.playPocket?.(clamp(ball.vel.length() / Math.max(CFG.scale * 5, 1e-6), 0, 1));
       if (ball.isCue) {
         ball.pos.copy(getOfficialSnookerSpots(SNOOKER_BALL_CENTER_Y).cue);
         ball.vel.set(0, 0, 0);
@@ -1603,6 +1615,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
       const relative = contactB.sub(contactA);
       const relNormal = relative.dot(normal);
       if (relNormal < 0) {
+        const impactSpeed = Math.abs(relNormal);
         const normalImpulseMag = (-(1 + CFG.restitution) * relNormal * SNOOKER_BALL_MASS) / 2;
         const impulse = normal.clone().multiplyScalar(normalImpulseMag);
         va.addScaledVector(impulse, -1 / SNOOKER_BALL_MASS);
@@ -1623,6 +1636,7 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
         }
         a.vel.set(va.x, 0, va.z);
         b.vel.set(vb.x, 0, vb.z);
+        sounds.playBallHit?.(clamp(impactSpeed / Math.max(CFG.scale * 4, 1e-6), 0, 1));
         if (a.isCue || b.isCue) {
           const objectBall = a.isCue ? b : a;
           recordSnookerFirstContact(objectBall, rulesState);
@@ -1635,10 +1649,10 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     for (const ball of balls) {
       if (ball.potted) continue;
       ball.mesh.position.copy(ball.pos).setY(ball.pos.y + CFG.ballR * BALL_VISUAL_LIFT);
-      const scaledSpeed = ball.vel.length() * stepScale;
-      if (scaledSpeed > 0) {
+      const travelDistance = ball.vel.length() * subDt;
+      if (travelDistance > 0) {
         const axis = SNOOKER_TMP_VEC3_A.set(ball.vel.z, 0, -ball.vel.x).normalize();
-        ball.mesh.rotateOnWorldAxis(axis, scaledSpeed / CFG.ballR);
+        ball.mesh.rotateOnWorldAxis(axis, travelDistance / CFG.ballR);
       }
     }
   }
@@ -1807,7 +1821,7 @@ function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, act
   let pos;
   let target = cueBallWorld.clone().lerp(tableCenter, 0.28);
   let fov = POOL_ROYALE_STANDING_VIEW_FOV;
-  if (mode === 'rail-overhead') {
+  if (mode === 'rail-overhead' || (mode === 'tv-broadcast' && broadcastMode === DEFAULT_BROADCAST_SYSTEM_ID)) {
     const radius = tableDistance * (0.95 + portraitT * 0.05);
     const y = tableCenter.y + Math.cos(railPhi) * radius + CFG.ballR * 2.6 + heightOffset * CFG.tableL * 0.16;
     const z = railSide * Math.sin(railPhi) * radius;
@@ -1873,8 +1887,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [showGift, setShowGift] = useState(false);
   const [lastQuickMessage, setLastQuickMessage] = useState('');
   const [frameRateId, setFrameRateId] = useState(() => loadStoredOption('graphics', 'qhd90', FRAME_RATE_OPTIONS.map((item) => item.id)));
-  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'tv-broadcast', CAMERA_MODE_OPTIONS.map((item) => item.id)));
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', 'pocket-cuts', BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
+  const [cameraMode, setCameraMode] = useState(() => loadStoredOption('cameraMode', 'rail-overhead', CAMERA_MODE_OPTIONS.map((item) => item.id)));
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => loadStoredOption('broadcastSystem', DEFAULT_BROADCAST_SYSTEM_ID, BROADCAST_SYSTEM_OPTIONS.map((item) => item.id)));
   const [environmentHdriId, setEnvironmentHdriId] = useState(() => loadStoredOption('hdri', POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS.map((item) => item.id)));
   const [clothId, setClothId] = useState(() => loadStoredOption('cloth', DEFAULT_CLOTH_ID, POOL_ROYALE_CLOTH_VARIANTS.map((item) => item.id)));
   const [textureId, setTextureId] = useState(() => loadStoredOption('texture', SNOOKER_TEXTURE_OPTIONS[0].id, SNOOKER_CHAMPION_TEXTURE_IDS));
@@ -1893,6 +1907,11 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const replayModeRef = useRef(false);
   const replayStartedAtRef = useRef(0);
   const replaySkipAllRef = useRef(false);
+  const audioContextRef = useRef(null);
+  const audioBuffersRef = useRef({ cue: null, ball: null, pocket: null });
+  const muteRef = useRef(isGameMuted());
+  const volumeRef = useRef(getGameVolume());
+  const lastSoundAtRef = useRef(new Map());
   const rulesRef = useRef(createSnookerRulesState());
   const activeFrameRate = FRAME_RATE_OPTIONS.find((item) => item.id === frameRateId) ?? FRAME_RATE_OPTIONS[1];
   const activeHdri = POOL_ROYALE_HDRI_VARIANTS.find((item) => item.id === environmentHdriId) ?? POOL_ROYALE_HDRI_VARIANTS[0];
@@ -1952,6 +1971,104 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   useEffect(() => { storeOption('hdri', environmentHdriId); }, [environmentHdriId]);
   useEffect(() => { storeOption('cloth', clothId); }, [clothId]);
   useEffect(() => { storeOption('texture', textureId); }, [textureId]);
+
+  const routeAudioNode = useCallback((node) => {
+    const ctx = audioContextRef.current;
+    if (!ctx || !node) return;
+    try {
+      node.connect(ctx.destination);
+    } catch {}
+  }, []);
+
+  const playSnookerRoyalBuffer = useCallback((key, vol = 1, options = {}) => {
+    if (vol <= 0 || muteRef.current) return;
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current[key];
+    if (!ctx || !buffer) return;
+    const now = performance.now();
+    const cooldownMs = options.cooldownMs ?? 0;
+    const lastKey = options.cooldownKey ?? key;
+    const lastAt = lastSoundAtRef.current.get(lastKey) ?? 0;
+    if (cooldownMs > 0 && now - lastAt < cooldownMs) return;
+    lastSoundAtRef.current.set(lastKey, now);
+    const scaled = clamp(vol * volumeRef.current * (options.gain ?? 1), 0, options.maxGain ?? 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    if (options.tailSeconds && Number.isFinite(buffer.duration)) {
+      const offset = Math.max(0, buffer.duration - options.tailSeconds);
+      source.start(0, offset, Math.min(options.tailSeconds, buffer.duration));
+    } else {
+      source.start(0);
+    }
+  }, [routeAudioNode]);
+
+  const playCueHit = useCallback((vol = 1) => {
+    const powerGain = 0.35 + clamp01(vol) * 0.75;
+    playSnookerRoyalBuffer('cue', powerGain, { gain: 1.2, maxGain: 1, cooldownMs: 45, cooldownKey: 'cue' });
+  }, [playSnookerRoyalBuffer]);
+
+  const playBallHit = useCallback((vol = 1) => {
+    playSnookerRoyalBuffer('ball', vol, { gain: 0.72, maxGain: 1, cooldownMs: 38, cooldownKey: 'ball' });
+  }, [playSnookerRoyalBuffer]);
+
+  const playPocket = useCallback((vol = 1) => {
+    playSnookerRoyalBuffer('pocket', Math.max(0.22, vol), { gain: 0.8, maxGain: 1, tailSeconds: 1.3, cooldownMs: 90, cooldownKey: 'pocket' });
+  }, [playSnookerRoyalBuffer]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateMute = () => { muteRef.current = isGameMuted(); };
+    const updateVolume = () => { volumeRef.current = getGameVolume(); };
+    window.addEventListener('gameMuteChanged', updateMute);
+    window.addEventListener('gameVolumeChanged', updateVolume);
+    return () => {
+      window.removeEventListener('gameMuteChanged', updateMute);
+      window.removeEventListener('gameVolumeChanged', updateVolume);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return undefined;
+    const ctx = new AudioContextClass();
+    audioContextRef.current = ctx;
+    let cancelled = false;
+    const loadBuffer = async (path) => {
+      const response = await fetch(encodeURI(path));
+      if (!response.ok) throw new Error(`Failed to load ${path}`);
+      const arrayBuffer = await response.arrayBuffer();
+      return await new Promise((resolve, reject) => ctx.decodeAudioData(arrayBuffer, resolve, reject));
+    };
+    (async () => {
+      const entries = [
+        ['cue', '/assets/sounds/cuehitsound.mp3'],
+        ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
+        ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3']
+      ];
+      const loaded = {};
+      for (const [key, path] of entries) {
+        try {
+          loaded[key] = await loadBuffer(path);
+        } catch (error) {
+          console.warn('Snooker Champion audio load failed:', key, error);
+        }
+      }
+      if (!cancelled) audioBuffersRef.current = { ...audioBuffersRef.current, ...loaded };
+    })();
+    return () => {
+      cancelled = true;
+      audioBuffersRef.current = { cue: null, ball: null, pocket: null };
+      audioContextRef.current = null;
+      ctx.close().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     const mount = sliderMountRef.current;
@@ -2329,6 +2446,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
           didHit = true;
           beginSnookerShotRules(rulesRef.current);
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
+          playCueHit(shotPowerRef.current);
           if (!replaySkipAllRef.current) {
             recordingReplay = true;
             replayStartedAt = now;
@@ -2354,12 +2472,12 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         applyReplaySnapshot(balls, frames[frameIndex].balls);
         const replayCueWorld = cueBall.mesh.getWorldPosition(new THREE.Vector3());
         const cameraMode = SNOOKER_REPLAY_CAMERA_SEQUENCE[Math.floor((elapsed / 1300) % SNOOKER_REPLAY_CAMERA_SEQUENCE.length)] ?? 'rail-overhead';
-        updateCamera(camera, cameraMode, 'pocket-cuts', replayCueWorld, aimForward, 1, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
+        updateCamera(camera, cameraMode, DEFAULT_BROADCAST_SYSTEM_ID, replayCueWorld, aimForward, 1, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
         if (elapsed >= finalT) setReplayActive(false);
         renderer.render(scene, camera);
         return;
       }
-      updateBalls(balls, dt, tmpB, tmpC, pocketPositions, rulesRef.current);
+      updateBalls(balls, dt, tmpB, tmpC, pocketPositions, rulesRef.current, { playBallHit, playPocket });
       const ballsMoving = balls.some((ball) => !ball.potted && ball.vel.lengthSq() > CFG.minSpeed2);
       if (recordingReplay && now - lastReplaySampleAt >= SNOOKER_REPLAY_SAMPLE_MS) {
         lastReplaySampleAt = now;
@@ -2408,7 +2526,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         targetLine.material.color.setHex(0x9fd8ff);
       }
       const liveCameraMode = ballsMoving && cameraModeRef.current === 'rail-overhead' ? 'tv-broadcast' : cameraModeRef.current;
-      const liveBroadcastMode = ballsMoving ? (broadcastSystemRef.current || 'pocket-cuts') : broadcastSystemRef.current;
+      const liveBroadcastMode = DEFAULT_BROADCAST_SYSTEM_ID;
       updateCamera(camera, liveCameraMode, liveBroadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
       renderer.render(scene, camera);
     }
@@ -2435,7 +2553,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       activeEnvMap?.dispose?.();
       renderer.dispose();
     };
-  }, [activeCloth, activeClothColor, activeFrameRate.fps, activeFrameRate.pixelRatioCap, activeHdri, textureId]);
+  }, [activeCloth, activeClothColor, activeFrameRate.fps, activeFrameRate.pixelRatioCap, activeHdri, playBallHit, playCueHit, playPocket, textureId]);
 
   const resetSpin = () => {
     setSpin({ x: 0, y: 0 });
