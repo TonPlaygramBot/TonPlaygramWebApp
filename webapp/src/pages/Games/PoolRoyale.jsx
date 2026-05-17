@@ -1962,7 +1962,7 @@ const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MUL
 const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.48;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
-const POOL_HUMAN_SHOT_LEAN_SIGN = -1;
+const POOL_HUMAN_SHOT_LEAN_SIGN = 1;
 const POOL_HUMAN_SHOT_BEND = Object.freeze({
   torso: 0.08,
   chest: 0.18,
@@ -1985,8 +1985,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   strikeTime: CUE_STRIKE_DURATION_MS / 1000,
   holdTime: CUE_STRIKE_HOLD_MS / 1000,
   bridgeDist: 0.28 * POOL_HUMAN_WORLD_SCALE,
-  edgeMargin: 0.76 * POOL_HUMAN_WORLD_SCALE,
-  desiredShootDistance: 1.42 * POOL_HUMAN_WORLD_SCALE,
+  edgeMargin: 0.68 * POOL_HUMAN_WORLD_SCALE,
+  desiredShootDistance: 1.25 * POOL_HUMAN_WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
@@ -2534,10 +2534,10 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
   rootWorld.y = POOL_HUMAN_CFG.floorLocalY;
-  // Keep the shooting bend subtle and drive it along local -Z, which is the
-  // table-facing direction used by the bridge/left hand. That keeps the chest,
-  // neck and head leaning over the cloth instead of letting the body fold
-  // backward away from the cue ball while aiming.
+  // Keep the shooting bend subtle and mirror it to the opposite side of the
+  // character's local stance so the upper body no longer dips in the previous
+  // direction while aiming. The Y targets only lower the torso/head a little,
+  // avoiding the exaggerated crouch that made the avatar sink too far.
   const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.torso, t) + 0.006 * powerLean) * POOL_HUMAN_CFG.scale));
   const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.4, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.chest, t) + 0.01 * powerLean) * POOL_HUMAN_CFG.scale));
   const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.53, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.neck, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
@@ -6786,7 +6786,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // let the standing view dip a lit
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0114; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0126; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -6920,7 +6920,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0074; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_RADIUS_RATIO = 0.0088; // move cue camera closer for a tighter portrait aiming view
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -13605,10 +13605,7 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
 
 function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   const scale = Number(tableModel?.lowerBaseHeightScale);
-  const preserveGeometryRoles = Array.isArray(tableModel?.preserveOriginalGeometryRoles)
-    ? tableModel.preserveOriginalGeometryRoles
-    : [];
-  if (!model || preserveGeometryRoles.length || !Number.isFinite(scale) || scale <= 1 + MICRO_EPS) return;
+  if (!model || !Number.isFinite(scale) || scale <= 1 + MICRO_EPS) return;
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const targetTop = Number.isFinite(dims?.targetTopLocal)
@@ -13645,12 +13642,9 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
   if (!model || tableModel?.id !== 'showood-seven-foot') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
-  const preserveGeometryRoles = Array.isArray(tableModel?.preserveOriginalGeometryRoles)
-    ? tableModel.preserveOriginalGeometryRoles
-    : [];
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
   const shouldScaleLegs = Number.isFinite(legScale) && legScale > MICRO_EPS && Math.abs(legScale - 1) > MICRO_EPS;
-  if (preserveGeometryRoles.length || (!shouldScaleBase && !shouldScaleLegs)) return;
+  if (!shouldScaleBase && !shouldScaleLegs) return;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodBaseProportionsAdjusted) return;
