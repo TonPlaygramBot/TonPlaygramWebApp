@@ -33,13 +33,13 @@ export class BallController {
 
     if (ball.lastHitBy && this.rules.isNetCollision(ball.pos, prevZ)) {
       ball.state = TennisBallState.NetHit;
-      ball.vel.multiplyScalar(0.2);
-      ball.vel.z = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1)) * Math.max(0.4, Math.abs(ball.vel.z));
-      ball.vel.y = Math.max(0.45, Math.abs(ball.vel.y) + 0.2);
-      ball.pos.z = ball.lastHitBy === "near" ? -0.12 : 0.12;
+      const incoming = ball.vel.clone();
+      ball.vel.x = incoming.x * 0.38;
+      ball.vel.z = -incoming.z * 0.18;
+      ball.vel.y = Math.max(Math.abs(incoming.y) * 0.24, 0.22 * gameConfig.worldScale);
+      ball.spin *= 0.42;
+      ball.pos.z = ball.lastHitBy === "near" ? 0.16 * gameConfig.worldScale : -0.16 * gameConfig.worldScale;
       opts.onNet?.();
-      opts.onRuleEvent?.({ type: opts.awaitingServe ? "serveFault" : "net", reason: "net", hitter: ball.lastHitBy, side: sideOfZ(ball.pos.z) } as CourtRuleEvent);
-      return;
     }
 
     if (ball.pos.y <= gameConfig.ballR) {

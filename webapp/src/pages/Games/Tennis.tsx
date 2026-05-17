@@ -14,6 +14,7 @@ import { PlayerController } from "./tennis/PlayerController";
 import { ScoreManager } from "./tennis/ScoreManager";
 import { ServeController } from "./tennis/ServeController";
 import { ShotTargeting } from "./tennis/ShotTargeting";
+import { RacketHitDetector } from "./tennis/RacketHitDetector";
 import { UIOverlay } from "./tennis/UIOverlay";
 import { gameConfig, TennisBallState } from "./tennis/gameConfig";
 
@@ -34,7 +35,7 @@ type BallState = {
 
 type ShotTechnique = "flat" | "topspin" | "slice" | "lob" | "drop" | "block";
 
-type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique; swipeDir?: THREE.Vector2; serveSide?: "deuce" | "ad" };
+type DesiredHit = { target: THREE.Vector3; power: number; technique?: ShotTechnique; swipeDir?: THREE.Vector2; serveSide?: "deuce" | "ad"; contactQuality?: number };
 
 type BonePack = {
   spine?: THREE.Bone;
@@ -605,7 +606,7 @@ function addCourt(scene: THREE.Scene, options: { hideFloor?: boolean } = {}) {
   const postMat = material(0x2a2f33, 0.32, 0.28);
 
   if (!hideFloor) {
-    addBox(group, [CFG.doublesW + 9.5 * CFG.worldScale, 0.035, CFG.courtL + 10.5 * CFG.worldScale], [0, -0.015, 0], outerMat);
+    addBox(group, [CFG.doublesW + 14.5 * CFG.worldScale, 0.035, CFG.courtL + 15.5 * CFG.worldScale], [0, -0.015, 0], outerMat);
     addBox(group, [CFG.courtW, 0.04, CFG.courtL], [0, 0.004, 0], courtMat);
     addBox(group, [CFG.courtW - 0.2, 0.043, CFG.serviceLineZ * 2], [0, 0.012, 0], serviceMat);
     addTrainingCourtSurrounds(group);
@@ -655,10 +656,10 @@ function addTrainingCourtSurrounds(group: THREE.Group) {
   const towelMat = material(0xf6f1e6, 0.86, 0.0);
   const scuffMat = new THREE.MeshStandardMaterial({ color: 0xa55532, roughness: 0.9, metalness: 0, transparent: true, opacity: 0.24, depthWrite: false });
   const fenceY = 1.82 * CFG.worldScale;
-  const sideX = CFG.doublesW / 2 + 4.45 * CFG.worldScale;
-  const endZ = CFG.courtL / 2 + 4.35 * CFG.worldScale;
-  const sideFenceDepth = CFG.courtL + 8.7 * CFG.worldScale;
-  const endFenceWidth = CFG.doublesW + 8.9 * CFG.worldScale;
+  const sideX = CFG.doublesW / 2 + 6.9 * CFG.worldScale;
+  const endZ = CFG.courtL / 2 + 6.85 * CFG.worldScale;
+  const sideFenceDepth = CFG.courtL + 13.7 * CFG.worldScale;
+  const endFenceWidth = CFG.doublesW + 13.8 * CFG.worldScale;
 
   addBox(group, [0.042 * CFG.worldScale, fenceY, sideFenceDepth], [-sideX, fenceY / 2, 0], fenceMat);
   addBox(group, [0.042 * CFG.worldScale, fenceY, sideFenceDepth], [sideX, fenceY / 2, 0], fenceMat);
@@ -1698,7 +1699,16 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
+  const contactQuality = clamp01(hit.contactQuality ?? 1);
   const target = hit.target.clone();
+  if (!serve) {
+    const precisionMiss = (1 - contactQuality) * CFG.worldScale;
+    if (precisionMiss > 0.001) {
+      const missSide = player.side === "near" ? -1 : 1;
+      target.x += Math.sin(player.swingT * Math.PI * 7 + ball.pos.x * 0.13) * precisionMiss * 0.42;
+      target.z += missSide * precisionMiss * 0.5;
+    }
+  }
   if (serve) {
     const serveBounds = serveTargetBoundsX(hit.serveSide || "deuce", player.side);
     target.x = clamp(target.x, Math.min(serveBounds.min, serveBounds.max), Math.max(serveBounds.min, serveBounds.max));
@@ -1706,19 +1716,23 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
       ? clamp(target.z, -CFG.serviceLineZ + 0.55 * CFG.worldScale, -CFG.serviceBuffer - 0.45 * CFG.worldScale)
       : clamp(target.z, CFG.serviceBuffer + 0.45 * CFG.worldScale, CFG.serviceLineZ - 0.55 * CFG.worldScale);
   } else {
-    target.x = clamp(target.x, -CFG.courtW / 2 + 0.45, CFG.courtW / 2 - 0.45);
-    target.z = player.side === "near" ? clamp(target.z, -CFG.courtL / 2 + 0.85, -0.8) : clamp(target.z, 0.8, CFG.courtL / 2 - 0.85);
+    target.x = clamp(target.x, -CFG.courtW / 2 + 0.45 * CFG.worldScale, CFG.courtW / 2 - 0.45 * CFG.worldScale);
+    target.z = player.side === "near" ? clamp(target.z, -CFG.courtL / 2 + 0.85 * CFG.worldScale, -0.8 * CFG.worldScale) : clamp(target.z, 0.8 * CFG.worldScale, CFG.courtL / 2 - 0.85 * CFG.worldScale);
   }
 
   if (serve) ball.pos.copy(serveContactPosition(player));
-  else ball.pos.y = clamp(ball.pos.y, 0.58, 1.25);
+  else ball.pos.y = clamp(ball.pos.y, 0.58 * CFG.worldScale, 1.35 * CFG.worldScale);
 
-  ball.vel.copy(ballisticVelocity(ball.pos, target, hit.power, serve));
+  const tunedPower = clamp(hit.power * lerp(0.76, serve ? 1.08 : 1.16, contactQuality), serve ? CFG.servePower.min * 0.82 : CFG.shotPower.min * 0.72, serve ? CFG.servePower.max * 1.1 : CFG.shotPower.max * 1.16);
+  ball.vel.copy(ballisticVelocity(ball.pos, target, tunedPower, serve));
+  const sweetSpotBoost = lerp(0.82, 1.18, contactQuality);
+  const swingSnap = Math.sin(clamp01(player.swingT) * Math.PI) * CFG.worldScale * 0.11;
+  ball.vel.x += rightFromForward(forwardFromYaw(player.yaw)).x * swingSnap * (player.side === "near" ? 1 : -1);
   const technique = hit.technique || "flat";
   if (technique === "lob") {
-    ball.vel.y += (1.85 + hit.power * CFG.matchPowerMultiplier * 0.86) * CFG.worldScale;
+    ball.vel.y += (1.85 + tunedPower * CFG.matchPowerMultiplier * 0.86) * CFG.worldScale;
     ball.vel.multiplyScalar(0.86);
-    ball.spin = 0.8 + hit.power * 0.7;
+    ball.spin = 0.8 + tunedPower * 0.7;
   } else if (technique === "drop") {
     ball.vel.multiplyScalar(0.58);
     ball.vel.y += 0.25;
@@ -1727,14 +1741,15 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.multiplyScalar(0.72);
     ball.spin = 0.25;
   } else if (technique === "topspin") {
-    ball.vel.y += (0.38 + hit.power * CFG.matchPowerMultiplier * 0.34) * CFG.worldScale;
-    ball.spin = 1.05 + hit.power * CFG.matchPowerMultiplier * 1.1;
+    ball.vel.y += (0.38 + tunedPower * CFG.matchPowerMultiplier * 0.34) * CFG.worldScale;
+    ball.spin = 1.05 + tunedPower * CFG.matchPowerMultiplier * 1.1;
   } else if (technique === "slice") {
     ball.vel.y -= 0.12;
-    ball.spin = -1.15 - hit.power * CFG.matchPowerMultiplier * 0.62;
+    ball.spin = -1.15 - tunedPower * CFG.matchPowerMultiplier * 0.62;
   } else {
-    ball.spin = serve ? 0.95 + hit.power * CFG.matchPowerMultiplier * 0.9 : 0.6 + hit.power * CFG.matchPowerMultiplier * 1.25;
+    ball.spin = serve ? 0.95 + tunedPower * CFG.matchPowerMultiplier * 0.9 : 0.6 + tunedPower * CFG.matchPowerMultiplier * 1.25;
   }
+  ball.spin *= sweetSpotBoost;
   ball.lastHitBy = player.side;
   ball.state = serve ? TennisBallState.ServeHit : (player.side === "near" ? TennisBallState.RacketHitPlayer : TennisBallState.RacketHitAI);
   ball.bounceSide = null;
@@ -1743,19 +1758,49 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   player.hitThisSwing = true;
 }
 
-function canReachBall(player: HumanRig, ball: BallState) {
-  if (player.cooldown > 0) return false;
-  if (sideOfZ(ball.pos.z) !== player.side && ball.lastHitBy !== null) return false;
-  if (ball.pos.y < 0.16 * CFG.worldScale || ball.pos.y > 1.62 * CFG.playerHeight / 1.82) return false;
+function racketContactResult(player: HumanRig, ball: BallState, isServe = false) {
+  if (player.cooldown > 0) return { valid: false, timingQuality: 0, distance: Infinity };
+  if (!isServe && sideOfZ(ball.pos.z) !== player.side && ball.lastHitBy !== null) return { valid: false, timingQuality: 0, distance: Infinity };
   const pose = strokePose(player, ball);
-  const dx = ball.pos.x - pose.racketHead.x;
-  const dy = ball.pos.y - pose.racketHead.y;
-  const dz = ball.pos.z - pose.racketHead.z;
-  const racketRadius = 0.48 * CFG.playerHeight / 1.82;
-  const racketNear = dx * dx + dy * dy * 0.45 + dz * dz < racketRadius * racketRadius;
-  const bodyDx = ball.pos.x - player.pos.x;
-  const bodyDz = ball.pos.z - player.pos.z;
-  return racketNear || bodyDx * bodyDx + bodyDz * bodyDz < CFG.reach * CFG.reach;
+  return RacketHitDetector.validate({
+    racketHead: pose.racketHead,
+    racketGrip: pose.racketGrip,
+    playerPos: player.pos,
+    ballPos: ball.pos,
+    ballVel: ball.vel,
+    swingT: player.swingT,
+    isServe,
+  });
+}
+
+function canReachBall(player: HumanRig, ball: BallState) {
+  return racketContactResult(player, ball, false).valid;
+}
+
+
+function applyHumanBodyCollision(ball: BallState, player: HumanRig) {
+  if (!ball.lastHitBy || ball.lastHitBy === player.side) return false;
+  const bodyHeight = CFG.playerHeight * 0.92;
+  if (ball.pos.y < CFG.ballR * 0.85 || ball.pos.y > bodyHeight) return false;
+  const bodyRadius = 0.34 * CFG.worldScale;
+  const dx = ball.pos.x - player.pos.x;
+  const dz = ball.pos.z - player.pos.z;
+  const distSq = dx * dx + dz * dz;
+  if (distSq > bodyRadius * bodyRadius) return false;
+
+  const dist = Math.max(0.001, Math.sqrt(distSq));
+  const normal = new THREE.Vector3(dx / dist, 0, dz / dist);
+  const intoBody = ball.vel.dot(normal);
+  ball.pos.x = player.pos.x + normal.x * (bodyRadius + CFG.ballR * 0.35);
+  ball.pos.z = player.pos.z + normal.z * (bodyRadius + CFG.ballR * 0.35);
+  if (intoBody < 0) ball.vel.addScaledVector(normal, -1.35 * intoBody);
+  else ball.vel.addScaledVector(normal, 0.55 * CFG.worldScale);
+  ball.vel.x *= 0.34;
+  ball.vel.z *= 0.34;
+  ball.vel.y = Math.max(Math.abs(ball.vel.y) * 0.28, 0.32 * CFG.worldScale);
+  ball.spin *= 0.36;
+  ball.state = TennisBallState.NetHit;
+  return true;
 }
 
 function startSwing(player: HumanRig, desiredHit: DesiredHit, action: StrokeAction) {
@@ -2080,14 +2125,20 @@ export default function MobileThreeTennisPrototype() {
       const crossesNet = (prevZ > 0 && ball.pos.z <= 0) || (prevZ < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.055;
       if (crossesNet && Math.abs(ball.pos.x) <= CFG.doublesW / 2 + 0.1 && ball.pos.y < CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
         const incoming = ball.vel.clone();
-        const outgoing = incoming.multiplyScalar(0.2); // 80% power loss on net impact
-        outgoing.z = Math.sign(outgoing.z || (ball.lastHitBy === "near" ? -1 : 1)) * Math.max(0.4, Math.abs(outgoing.z));
-        outgoing.y = Math.max(0.45, Math.abs(outgoing.y) + 0.2);
-        ball.vel.copy(outgoing);
-        ball.pos.z = ball.lastHitBy === "near" ? -0.12 : 0.12;
+        ball.vel.x = incoming.x * 0.38;
+        ball.vel.z = -incoming.z * 0.18;
+        ball.vel.y = Math.max(Math.abs(incoming.y) * 0.24, 0.22 * CFG.worldScale);
+        ball.spin *= 0.42;
+        ball.pos.z = ball.lastHitBy === "near" ? 0.16 * CFG.worldScale : -0.16 * CFG.worldScale;
+        ball.state = TennisBallState.NetHit;
         netShakeT = 0.45;
         audioVfx.play("net");
-        awardPoint(opposite(ball.lastHitBy), "net");
+        setHudSafe({ status: "Net cord — ball loses pace" });
+      }
+
+      if (applyHumanBodyCollision(ball, nearPlayer) || applyHumanBodyCollision(ball, farPlayer)) {
+        audioVfx.play("bounce");
+        setHudSafe({ status: "Body deflection — ball loses pace" });
       }
 
       if (ball.pos.y <= CFG.ballR) {
@@ -2218,8 +2269,11 @@ export default function MobileThreeTennisPrototype() {
         const hitStart = isAi ? Math.max(0.3, CFG.timingWindow.start - 0.12) : CFG.timingWindow.start;
         const hitEnd = isAi ? Math.min(0.88, CFG.timingWindow.end + 0.14) : CFG.timingWindow.end;
         if (player.swingT < hitStart || player.swingT > hitEnd) continue;
-        if (canReachBall(player, ball)) {
-          performHit(player, ball, player.desiredHit, false);
+        const contact = racketContactResult(player, ball, false);
+        if (contact.valid) {
+          const sweetSpot = clamp01(1 - contact.distance / Math.max(0.001, CFG.racketHitRadius));
+          const contactQuality = clamp01(contact.timingQuality * 0.72 + sweetSpot * 0.28);
+          performHit(player, ball, { ...player.desiredHit, contactQuality }, false);
           audioVfx.play("racket");
           const sideLabel = ball.pos.x < player.pos.x ? "Backhand" : "Forehand";
           lastShotLabel = `${sideLabel} ${player.desiredHit.technique || "flat"}`;
