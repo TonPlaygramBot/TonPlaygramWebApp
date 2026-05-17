@@ -124,6 +124,8 @@ const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
 );
 const SNOOKER_CUE_VIEW_PHI_LIFT = POOL_ROYALE_CUE_VIEW_PHI_LIFT;
+const SNOOKER_FACE_CAMERA_FORWARD_OFFSET = 0.09 * WORLD_SCALE;
+const SNOOKER_FACE_CAMERA_HEIGHT_OFFSET = 0.025 * WORLD_SCALE;
 const SNOOKER_CUE_SURFACE_MARGIN = 0.045 * WORLD_SCALE * 0.42;
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
 const BALL_VISUAL_LIFT = 0;
@@ -138,7 +140,7 @@ const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
 const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.18; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
-const SNOOKER_PLAYFIELD_SCALE = (2.75 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
+const SNOOKER_PLAYFIELD_SCALE = (2.86 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_BALL_R = (OFFICIAL_SNOOKER_BALL_DIAMETER_M * SNOOKER_PLAYFIELD_SCALE) / 2;
@@ -1163,6 +1165,7 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * CFG.scale + breath, (lerp(0.02, -0.42, t) - 0.024 * powerLean) * CFG.scale));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * CFG.scale + breath, (lerp(0.02, -0.61, t) - 0.028 * powerLean) * CFG.scale));
   const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) * CFG.scale + breath - CFG.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.72, t) - 0.028 * powerLean) * CFG.scale));
+  human.faceCameraWorld = head.clone();
   const leftShoulder = local(new THREE.Vector3(-0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * CFG.scale));
   const rightShoulder = local(new THREE.Vector3(0.23 * CFG.scale, lerp(1.58, 1.36, t) * CFG.scale + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * CFG.scale));
   const leftHip = local(new THREE.Vector3(-0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
@@ -1772,7 +1775,7 @@ function snookerPocketToWorld(pocket) {
   return (pocket ?? new THREE.Vector3(0, CFG.ballR, -CFG.tableL / 2)).clone().add(new THREE.Vector3(0, CFG.tableTopY, 0));
 }
 
-function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect = 1, heightOffset = 0) {
+function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect = 1, heightOffset = 0, humanFaceWorld = null) {
   const portraitT = clamp01((1 / Math.max(aspect, 0.45) - 1) / 0.78);
   const clampedPower = clamp01(activePower);
   const target = cueBallWorld.clone()
@@ -1800,7 +1803,12 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
   const horizontal = Math.sin(phi) * radius;
   const vertical = Math.cos(phi) * radius;
   const minY = CFG.tableTopY + CFG.ballR + SNOOKER_CUE_SURFACE_MARGIN;
-  const pos = cueBallWorld.clone()
+  const faceCameraPosition = humanFaceWorld
+    ? humanFaceWorld.clone()
+      .addScaledVector(aimForward, SNOOKER_FACE_CAMERA_FORWARD_OFFSET)
+      .addScaledVector(UP, SNOOKER_FACE_CAMERA_HEIGHT_OFFSET)
+    : null;
+  const pos = faceCameraPosition ?? cueBallWorld.clone()
     .addScaledVector(aimForward, -horizontal)
     .setY(Math.max(minY, target.y + vertical + heightLift * CFG.tableL * 0.12));
   return { pos, target, fov: 56 };
@@ -1849,7 +1857,7 @@ function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, act
     target = cueBallWorld.clone().addScaledVector(aimForward, CFG.tableL * 0.16).setY(CFG.tableTopY + CFG.ballR * 1.4);
     fov = 58;
   } else {
-    const cueCamera = resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect, heightOffset);
+    const cueCamera = resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspect, heightOffset, options.humanFaceWorld);
     pos = cueCamera.pos;
     target = cueCamera.target;
     fov = cueCamera.fov;
@@ -2413,10 +2421,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         .addScaledVector(aimForward, -CFG.bridgeHandBackFromBall)
         .addScaledVector(aimSide, CFG.bridgeHandSide)
         .setY(CFG.tableTopY + CFG.bridgePalmTableLift);
-      const bridgeCuePoint = bridgeHandTarget.clone()
-        .addScaledVector(aimForward, CFG.bridgeVGrooveForward)
-        .addScaledVector(aimSide, CFG.bridgeVGrooveSide)
-        .add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
       const pull = CFG.pullRange * easeOutCubic(activePower);
       const practiceStroke = state === 'dragging' ? Math.sin(now * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75) : 0;
       const strikeNorm = clamp01(strikeT / CFG.strikeTime);
@@ -2428,7 +2432,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         .addScaledVector(aimForward, -(CFG.ballR + gap))
         .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
         .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * CFG.ballR * 0.44, 0));
-      const cueBackShoot = bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - CFG.bridgeDist - CFG.ballR - gap)).add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
+      const cueBackShoot = cueTipShoot.clone().addScaledVector(aimForward, -CFG.cueLength);
       const standingYaw = yawFromForward(aimForward);
       const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ).applyAxisAngle(Y_AXIS, standingYaw));
       const idleLeftHandTarget = humanRootTarget.clone().add(new THREE.Vector3(-0.18 * CFG.scale, 1.08 * CFG.scale, 0.03 * CFG.scale).applyAxisAngle(Y_AXIS, standingYaw));
@@ -2468,7 +2472,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         applyReplaySnapshot(balls, frames[frameIndex].balls);
         const replayCueWorld = cueBall.mesh.getWorldPosition(new THREE.Vector3());
         const cameraMode = SNOOKER_REPLAY_CAMERA_SEQUENCE[Math.floor((elapsed / 1300) % SNOOKER_REPLAY_CAMERA_SEQUENCE.length)] ?? 'rail-overhead';
-        updateCamera(camera, cameraMode, DEFAULT_BROADCAST_SYSTEM_ID, replayCueWorld, aimForward, 1, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
+        updateCamera(camera, cameraMode, DEFAULT_BROADCAST_SYSTEM_ID, replayCueWorld, aimForward, 1, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current, humanFaceWorld: human.faceCameraWorld });
         if (elapsed >= finalT) setReplayActive(false);
         renderer.render(scene, camera);
         return;
@@ -2523,7 +2527,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       }
       const liveCameraMode = ballsMoving && cameraModeRef.current === 'rail-overhead' ? 'tv-broadcast' : cameraModeRef.current;
       const liveBroadcastMode = DEFAULT_BROADCAST_SYSTEM_ID;
-      updateCamera(camera, liveCameraMode, liveBroadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current });
+      updateCamera(camera, liveCameraMode, liveBroadcastMode, cueBallWorld, aimForward, activePower, now, pocketPositions, { railSide: railOverheadSideRef.current, heightOffset: cameraHeightOffsetRef.current, humanFaceWorld: human.faceCameraWorld });
       renderer.render(scene, camera);
     }
     animate();
