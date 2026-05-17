@@ -17,7 +17,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     icon: '🟫',
     kind: 'gltf',
     fitScale: 1,
-    fitFootprintScale: 1.105,
+    fitFootprintScale: 1.075,
     fitHeightScale: 1,
     lowerBaseHeightScale: 1.25,
     legLengthScale: 1.85,
