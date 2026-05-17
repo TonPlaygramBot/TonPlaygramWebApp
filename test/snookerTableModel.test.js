@@ -8,16 +8,6 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from '../webapp/src/pages/Games/snookerTableModel.js';
-import {
-  SNOOKER_ROYAL_SHARED_DEFAULT_BROADCAST_SYSTEM,
-  SNOOKER_ROYAL_SHARED_DEFAULT_CAMERA_MODE,
-  SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET,
-  SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG,
-  SNOOKER_ROYAL_SHARED_SHOT_POWER_BOOST,
-  SNOOKER_ROYAL_SHARED_SHOT_SPIN_SCALE,
-  SNOOKER_ROYAL_SHARED_TABLE_FALLBACK_GLB_URL,
-  SNOOKER_ROYAL_SHARED_TABLE_GLB_URL
-} from '../webapp/src/pages/Games/snookerRoyalSharedConfig.js';
 
 describe('snooker table model selection', () => {
   test('resolveSnookerTableModel defaults to the open-source GLB table', () => {
@@ -68,27 +58,4 @@ describe('snooker table model selection', () => {
       /pooltool\/models\/table\/snooker_generic\/snooker_generic\.glb$/
     );
   });
-
-  test('Snooker Champion shares the exact Snooker Royal GLB table source and fallback', () => {
-    assert.equal(SNOOKER_ROYAL_SHARED_TABLE_GLB_URL, TABLE_MODEL_OPENSOURCE_GLB_URL);
-    assert.equal(SNOOKER_ROYAL_SHARED_TABLE_FALLBACK_GLB_URL, TABLE_MODEL_OPENSOURCE_GLB_URL);
-    assert.match(
-      SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.tableGlbUrl,
-      /pooltool\/models\/table\/snooker_generic\/snooker_generic\.glb$/
-    );
-  });
-
-  test('Snooker Champion uses the same Royal lobby art, camera, broadcast, power, and spin preset', () => {
-    assert.equal(SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG, 'snookerroyale');
-    assert.equal(SNOOKER_ROYAL_SHARED_DEFAULT_CAMERA_MODE, 'tv-broadcast');
-    assert.equal(SNOOKER_ROYAL_SHARED_DEFAULT_BROADCAST_SYSTEM, 'pocket-cuts');
-    assert.equal(SNOOKER_ROYAL_SHARED_SHOT_POWER_BOOST, 0.455);
-    assert.equal(SNOOKER_ROYAL_SHARED_SHOT_SPIN_SCALE, 0.25);
-    assert.equal(SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.lobbyArtSlug, SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG);
-    assert.equal(SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.defaultCameraMode, SNOOKER_ROYAL_SHARED_DEFAULT_CAMERA_MODE);
-    assert.equal(SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.defaultBroadcastSystem, SNOOKER_ROYAL_SHARED_DEFAULT_BROADCAST_SYSTEM);
-    assert.equal(SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.shotPowerBoost, SNOOKER_ROYAL_SHARED_SHOT_POWER_BOOST);
-    assert.equal(SNOOKER_ROYAL_SHARED_GAMEPLAY_PRESET.shotSpinScale, SNOOKER_ROYAL_SHARED_SHOT_SPIN_SCALE);
-  });
-
 });

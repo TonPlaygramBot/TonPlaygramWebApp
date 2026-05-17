@@ -18,7 +18,6 @@ import {
   applySnookerTableModelParam,
   TABLE_MODEL_OPENSOURCE
 } from './snookerTableModel.js';
-import { SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG } from './snookerRoyalSharedConfig.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'snookerChampionPlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'snookerChampionAiFlag';
@@ -337,7 +336,7 @@ export default function SnookerChampionLobby() {
           </div>
         )}
         <GameLobbyHeader
-          slug={SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG}
+          slug="snookerchampion"
           title="Snooker Champion Lobby"
           badge={`${onlinePlayers.length} online`}
         />
@@ -419,7 +418,7 @@ export default function SnookerChampionLobby() {
                   <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon(SNOOKER_ROYAL_SHARED_LOBBY_ART_SLUG, `type-${id}`)}
+                        src={getLobbyIcon('snookerchampion', `type-${id}`)}
                         alt={label}
                         fallback={icon}
                         className="lobby-option-icon"
