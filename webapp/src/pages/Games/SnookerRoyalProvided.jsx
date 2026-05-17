@@ -2363,6 +2363,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     scene.add(cueLine, aimLine, cueAfterLine, targetLine, impactTick);
     const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3();
     let strikeT = 0, didHit = false, frameId = 0, last = performance.now(), isAiming = false, lastAimX = 0, lastAimY = 0;
+    let stoppedCueTip = null, stoppedCueBack = null;
     let recordingReplay = false, replayStartedAt = 0, lastReplaySampleAt = 0;
     let lastScore = rulesRef.current.score;
     let lastOpponentScore = rulesRef.current.scores?.[1] ?? 0;
@@ -2438,12 +2439,19 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const idleLeftHandTarget = humanRootTarget.clone().add(new THREE.Vector3(-0.18 * CFG.scale, 1.08 * CFG.scale, 0.03 * CFG.scale).applyAxisAngle(Y_AXIS, standingYaw));
       const idleDir = CFG.idleCueDir.clone().applyAxisAngle(Y_AXIS, standingYaw).normalize();
       const idleCue = cuePoseFromGrip(idleRightHandTarget, idleDir, CFG.idleCueGripFromBack, CFG.cueLength);
-      if (state === 'idle') { strikeT = 0; didHit = false; }
-      else if (state === 'dragging') { strikeT = 0; didHit = false; }
+      if (state === 'idle') { strikeT = 0; didHit = false; stoppedCueTip = null; stoppedCueBack = null; }
+      else if (state === 'dragging') { strikeT = 0; didHit = false; stoppedCueTip = null; stoppedCueBack = null; }
       else {
         strikeT += dt;
         if (!didHit && strikeNorm > 0.88) {
           didHit = true;
+          // Freeze the cue at the impact point so it stops on the cue ball
+          // instead of continuing to chase the cue ball as physics advances.
+          stoppedCueTip = cueBallWorld.clone()
+            .addScaledVector(aimForward, -(CFG.ballR + CFG.contactGap))
+            .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
+            .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * CFG.ballR * 0.44, 0));
+          stoppedCueBack = stoppedCueTip.clone().addScaledVector(aimForward, -CFG.cueLength);
           beginSnookerShotRules(rulesRef.current);
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
           playCueHit(shotPowerRef.current);
@@ -2459,8 +2467,16 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       }
       const loweredShootingView = cameraModeRef.current === 'cue-follow' && cameraHeightOffsetRef.current <= SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD;
       const visualState = state === 'idle' && loweredShootingView ? 'aiming' : state;
-      const activeCueBack = visualState === 'idle' ? idleCue.back : cueBackShoot;
-      const activeCueTip = visualState === 'idle' ? idleCue.tip : cueTipShoot;
+      const activeCueBack = visualState === 'idle'
+        ? idleCue.back
+        : didHit && stoppedCueBack
+          ? stoppedCueBack
+          : cueBackShoot;
+      const activeCueTip = visualState === 'idle'
+        ? idleCue.tip
+        : didHit && stoppedCueTip
+          ? stoppedCueTip
+          : cueTipShoot;
       setCuePose(cue, activeCueBack, activeCueTip);
       if (replayModeRef.current && replayFramesRef.current.length > 1) {
         const frames = replayFramesRef.current;
