@@ -73,7 +73,7 @@ export default function SnookerRoyalLobby() {
   }, []);
 
   useEffect(() => {
-    import('./SnookerRoyalProvided.jsx').catch(() => {});
+    import('./SnookerRoyal.jsx').catch(() => {});
   }, []);
 
   useEffect(() => {
