@@ -1628,15 +1628,15 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 2.08;
+const CUE_PULL_MIN_VISUAL = BALL_R * 2.2; // match Champion-style draw distance even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 3.15; // allow extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_MULTIPLIER = 2.45;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.36; // Champion-style deeper pullback for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -23176,12 +23176,15 @@ const powerRef = useRef(hud.power);
           };
           const idlePos = buildCuePosition(0);
           const pullPos = buildCuePosition(visualPull);
-          cueStick.position.copy(idlePos);
+          cueStick.position.copy(pullPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
+          // The slider already places the cue at full pullback while the
+          // player drags. On release, mirror Snooker Champion: start from the
+          // pulled position, drive straight through to contact, then stop.
           const pullbackDuration = 0;
-          const strikeDuration = 110;
-          const holdDuration = 45;
+          const strikeDuration = CUE_LOGIC_STRIKE_TIME_MS;
+          const holdDuration = CUE_LOGIC_HOLD_TIME_MS;
           const returnDuration = 0;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
@@ -23203,7 +23206,7 @@ const powerRef = useRef(hud.power);
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           cueStick.visible = true;
-          cueStick.position.copy(idlePos);
+          cueStick.position.copy(pullPos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + strikeDuration;
