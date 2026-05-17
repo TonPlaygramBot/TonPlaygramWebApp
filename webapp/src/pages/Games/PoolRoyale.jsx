@@ -1077,55 +1077,6 @@ function applyChromePlateDamping(material) {
   mat.needsUpdate = true;
   return mat;
 }
-function addPocketCuts(
-  parent,
-  clothPlane,
-  pocketPositions,
-  clothEdgeMat,
-  sideRadiusScale = 1,
-  stopY = null
-) {
-  if (!parent || !Array.isArray(pocketPositions) || !clothEdgeMat) return [];
-  const stripes = [];
-  const stripeWidth = BALL_R * 0.32;
-  const stripeLift = BALL_R * 0.06;
-  pocketPositions.forEach((p, index) => {
-    if (!p) return;
-    const isSide = index >= 4;
-    const baseRadius = isSide
-      ? POCKET_HOLE_R * sideRadiusScale
-      : POCKET_HOLE_R * CORNER_POCKET_CLOTH_CUT_SCALE;
-    const inner = Math.max(MICRO_EPS, baseRadius * POCKET_CUT_EXPANSION);
-    const outer = inner + stripeWidth;
-    const sleeveShape = new THREE.Shape();
-    sleeveShape.absarc(0, 0, outer, 0, Math.PI * 2, false);
-    const innerPath = new THREE.Path();
-    innerPath.absarc(0, 0, inner, 0, Math.PI * 2, true);
-    sleeveShape.holes.push(innerPath);
-    const sleeveTopY = clothPlane - CLOTH_DROP + stripeLift;
-    const baseStripeHeight = CLOTH_EXTENDED_DEPTH + BALL_R * 0.32;
-    const targetHeight = Number.isFinite(stopY)
-      ? sleeveTopY - stopY
-      : baseStripeHeight;
-    const stripeHeight = Math.max(MICRO_EPS, targetHeight);
-    const geo = new THREE.ExtrudeGeometry(sleeveShape, {
-      depth: stripeHeight,
-      bevelEnabled: false,
-      curveSegments: 64,
-      steps: 1
-    });
-    geo.rotateX(Math.PI / 2);
-    geo.translate(0, -stripeHeight, 0);
-    const mesh = new THREE.Mesh(geo, clothEdgeMat);
-    mesh.position.set(p.x, sleeveTopY, p.y);
-    mesh.renderOrder = 3.1;
-    mesh.receiveShadow = true;
-    parent.add(mesh);
-    stripes.push(mesh);
-  });
-  return stripes;
-}
-
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
  * As requested:
@@ -1423,7 +1374,6 @@ const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // push middle pocket centres a bit farther outside from table center
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // keep chrome plate, wood cut, nets and holder alignment with the farther-out middle pockets
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
-const SIDE_POCKET_CLOTH_INWARD_PULL = -TABLE.THICK * 0.03; // nudge middle cloth cutouts outward with the shifted side-pocket centreline
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1498,7 +1448,6 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 0.958; // shrink only the corner cloth cutouts so corner sleeve apertures read tighter
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -1680,13 +1629,11 @@ const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed alon
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.24; // shorten the leather strap height to keep the holder assembly visually straight
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
-const POCKET_EDGE_SLEEVES_ENABLED = true; // wrap pocket cutout walls with the selected cloth texture instead of exposing rail/wood material
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
@@ -9785,141 +9732,23 @@ export function Table3D(
   }
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = resolveTablePocketCenters();
-  const clothPocketPositions = pocketPositions.map((center, index) => {
-    if (index < 4 || !center) return center;
-    const direction = Math.sign(center.x || 1);
-    const pull = Math.min(Math.abs(center.x), SIDE_POCKET_CLOTH_INWARD_PULL) * direction;
-    return center.clone().add(new THREE.Vector2(-pull, 0));
-  });
-  const sideRadiusScale =
-    BASE_CORNER_POCKET_VIS_R > MICRO_EPS
-      ? (SIDE_POCKET_RADIUS / BASE_CORNER_POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE
-      : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
+  const buildClothSurfaceShape = (edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
-
-    const baseRing = [
-      [-insetHalfW, -insetHalfH],
-      [insetHalfW, -insetHalfH],
-      [insetHalfW, insetHalfH],
-      [-insetHalfW, insetHalfH],
-      [-insetHalfW, -insetHalfH]
-    ];
-    const baseMP = [[baseRing]];
-
-    const closeRing = (ring) => {
-      if (!ring.length) {
-        return ring;
-      }
-      const first = ring[0];
-      const last = ring[ring.length - 1];
-      if (first[0] !== last[0] || first[1] !== last[1]) {
-        ring.push([first[0], first[1]]);
-      }
-      return ring;
-    };
-
-    const createPocketSector = (center, sweep, radius, segments, includeCenter = true) => {
-      if (!center || !Number.isFinite(radius) || radius <= MICRO_EPS) {
-        return null;
-      }
-      const inward = new THREE.Vector2(-center.x, -center.y);
-      if (inward.lengthSq() <= MICRO_EPS * MICRO_EPS) {
-        inward.set(center.x >= 0 ? -1 : 1, center.y >= 0 ? -1 : 1);
-      }
-      inward.normalize();
-      const baseAngle = Math.atan2(inward.y, inward.x);
-      const halfSweep = sweep / 2;
-      const start = baseAngle - halfSweep;
-      const end = baseAngle + halfSweep;
-      const steps = Math.max(8, Math.ceil(segments));
-      const arcPoints = [];
-      for (let i = 0; i <= steps; i++) {
-        const t = start + ((end - start) * i) / steps;
-        const px = center.x + Math.cos(t) * radius;
-        const py = center.y + Math.sin(t) * radius;
-        arcPoints.push([px, py]);
-      }
-      if (includeCenter) {
-        if (arcPoints.length < 2) {
-          return null;
-        }
-      } else if (arcPoints.length < 3) {
-        return null;
-      }
-      let ring = includeCenter
-        ? [[center.x, center.y], ...arcPoints]
-        : arcPoints.slice();
-      const areaRing = closeRing(ring.slice());
-      if (areaRing.length < 4) {
-        return null;
-      }
-      const area = signedRingArea(areaRing);
-      if (area < 0) {
-        ring = ring.slice().reverse();
-        if (includeCenter) {
-          const centerIndex = ring.findIndex(
-            (pt) => pt[0] === center.x && pt[1] === center.y
-          );
-          if (centerIndex > 0) {
-            ring = ring
-              .slice(centerIndex)
-              .concat(ring.slice(0, centerIndex));
-          }
-        }
-      }
-      return [[closeRing(ring)]];
-    };
-
-    const pocketSectors = centers
-      .map((center, index) => {
-        const isSidePocket = index >= 4;
-        const radius = isSidePocket
-          ? holeRadius * sideRadiusScale
-          : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
-        const sweep = Math.PI * 2;
-        const baseSegments = isSidePocket ? 96 : 64;
-        return createPocketSector(center, sweep, radius, baseSegments, false);
-      })
-      .filter(Boolean);
-
-    let shapeMP = baseMP;
-    if (pocketSectors.length) {
-    shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
-    }
-    const shapes = multiPolygonToShapes(shapeMP);
-    if (shapes.length === 1) {
-      return shapes[0];
-    }
-    if (shapes.length > 1) {
-      return shapes;
-    }
-
-    const fallback = new THREE.Shape();
-    fallback.moveTo(-insetHalfW, -insetHalfH);
-    fallback.lineTo(insetHalfW, -insetHalfH);
-    fallback.lineTo(insetHalfW, insetHalfH);
-    fallback.lineTo(-insetHalfW, insetHalfH);
-    fallback.lineTo(-insetHalfW, -insetHalfH);
-    centers.forEach((p, index) => {
-      const hole = new THREE.Path();
-      const isSidePocket = index >= 4;
-      const radius = isSidePocket
-        ? holeRadius * sideRadiusScale
-        : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
-      hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
-      hole.autoClose = true;
-      fallback.holes.push(hole);
-    });
-    return fallback;
+    const shape = new THREE.Shape();
+    shape.moveTo(-insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, -insetHalfH);
+    return shape;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R, 0, clothPocketPositions);
+  const clothShape = buildClothSurfaceShape(0);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
-    curveSegments: 96,
+    curveSegments: 1,
     steps: 1
   });
   clothGeo.translate(0, 0, -CLOTH_EXTENDED_DEPTH);
@@ -9931,30 +9760,8 @@ export function Table3D(
   cloth.userData.externalTableKeepVisible = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  const plywoodTopY =
-    clothBottomY - (PLYWOOD_ENABLED ? PLYWOOD_GAP + PLYWOOD_EXTRA_DROP : 0);
   const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
-  const pocketEdgeStopY =
-    (PLYWOOD_ENABLED ? plywoodTopY : pocketTopY) - POCKET_EDGE_STOP_EXTRA_DROP;
-  const pocketCutStripes = POCKET_EDGE_SLEEVES_ENABLED
-    ? addPocketCuts(
-        table,
-        cloth.position.y,
-        clothPocketPositions,
-        clothEdgeMat,
-        sideRadiusScale,
-        pocketEdgeStopY
-      )
-    : [];
-  pocketCutStripes.forEach((mesh) => {
-    mesh.userData = {
-      ...(mesh.userData || {}),
-      externalTableKeepVisible: true,
-      showoodGeneratedClothPocketSleeve: true
-    };
-  });
-  finishParts.clothEdgeMeshes.push(...pocketCutStripes);
-  // Leave the pocket apertures completely open so the pocket geometry remains visible.
+  // The Pool Royale cloth is now a single clean slab again; pocket cutout sleeves are intentionally disabled.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
   const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
