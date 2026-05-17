@@ -1664,27 +1664,22 @@ const SNOOKER_HUMAN_CHARACTER_THEME =
   MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
   MURLAN_CHARACTER_THEMES[0];
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
-const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, -1);
+const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
 const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
-const SNOOKER_HUMAN_BASIS_MAT = new THREE.Matrix4();
 const SNOOKER_HUMAN_CFG = Object.freeze({
-  // Match Snooker Champion's ReadyPlayer scale (1.2 × 1.78) so the human reads
-  // larger and has the same cue-side body proportions in Snooker Royal.
-  targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
+  targetHeight: 1.72 * SNOOKER_HUMAN_WORLD_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
   idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeBackFromBall: 0.235 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.115 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.52 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
+  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
   rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
   leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
   chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
   chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
   rootLambda: 7.5,
   poseLambda: 10,
-  // Snooker Champion's ReadyPlayer model faces local -Z; keep the same visual
-  // correction here so body helpers, hands and cue all point toward the playfield.
-  yawFix: Math.PI
+  yawFix: 0
 });
 const cleanSnookerHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const snookerHumanClamp01 = (value) => Math.max(0, Math.min(1, value));
@@ -1694,81 +1689,6 @@ const snookerHumanDampAngle = (current, target, lambda, dt) => {
   const delta = THREE.MathUtils.euclideanModulo(target - current + Math.PI, Math.PI * 2) - Math.PI;
   return current + delta * (1 - Math.exp(-lambda * dt));
 };
-
-const snookerHumanYawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
-
-function makeSnookerHumanBasisQuaternion(side, up, forward) {
-  SNOOKER_HUMAN_BASIS_MAT.makeBasis(
-    side.clone().normalize(),
-    up.clone().normalize(),
-    forward.clone().normalize()
-  );
-  return new THREE.Quaternion().setFromRotationMatrix(SNOOKER_HUMAN_BASIS_MAT);
-}
-
-function applySnookerHumanOriginalGlbTextures(material) {
-  if (!material) return;
-  const colorTextures = [material.map, material.emissiveMap].filter(Boolean);
-  colorTextures.forEach((texture) => {
-    applySRGBColorSpace(texture);
-    texture.flipY = false;
-    texture.needsUpdate = true;
-  });
-  [
-    material.normalMap,
-    material.roughnessMap,
-    material.metalnessMap,
-    material.aoMap,
-    material.alphaMap
-  ].filter(Boolean).forEach((texture) => {
-    texture.flipY = false;
-    texture.needsUpdate = true;
-  });
-  material.toneMapped = true;
-  material.needsUpdate = true;
-}
-
-function createSnookerHumanOrientationHelpers() {
-  const root = new THREE.Group();
-  root.name = 'SnookerRoyalHumanBodyOrientationHelpers';
-  root.visible = false;
-  const makeHelper = (name) => {
-    const helper = new THREE.Object3D();
-    helper.name = name;
-    root.add(helper);
-    return helper;
-  };
-  return {
-    root,
-    body: makeHelper('SnookerChampionBodyForwardHelper'),
-    cue: makeHelper('SnookerChampionCueLineHelper'),
-    head: makeHelper('SnookerChampionHeadAimHelper'),
-    bridge: makeHelper('SnookerChampionBridgeHandHelper'),
-    grip: makeHelper('SnookerChampionGripHandHelper')
-  };
-}
-
-function updateSnookerHumanOrientationHelpers(human, frame) {
-  const helpers = human?.helpers;
-  if (!helpers || !frame) return;
-  human.root.updateMatrixWorld(true);
-  const rootWorldQ = human.root.getWorldQuaternion(new THREE.Quaternion());
-  const toRootLocalPoint = (point) => human.root.worldToLocal(point.clone());
-  const toRootLocalQuat = (quat) => rootWorldQ.clone().invert().multiply(quat);
-  helpers.root.position.set(0, 0, 0);
-  helpers.root.rotation.set(0, 0, 0);
-  helpers.body.quaternion.copy(toRootLocalQuat(makeSnookerHumanBasisQuaternion(frame.side, SNOOKER_HUMAN_UP, frame.forward)));
-  const cueDir = frame.cueTip.clone().sub(frame.cueBack);
-  if (cueDir.lengthSq() > 1e-8) {
-    cueDir.normalize();
-    helpers.cue.position.copy(toRootLocalPoint(frame.cueBack));
-    helpers.cue.quaternion.copy(toRootLocalQuat(makeSnookerHumanBasisQuaternion(frame.side, SNOOKER_HUMAN_UP, cueDir)));
-  }
-  helpers.head.position.copy(toRootLocalPoint(frame.head));
-  helpers.head.quaternion.copy(toRootLocalQuat(makeSnookerHumanBasisQuaternion(frame.side, SNOOKER_HUMAN_UP, frame.forward)));
-  helpers.bridge.position.copy(toRootLocalPoint(frame.bridge));
-  helpers.grip.position.copy(toRootLocalPoint(frame.grip));
-}
 
 function makeSnookerHumanSegment(radius, color, metalness = 0.02) {
   return new THREE.Mesh(
@@ -1869,7 +1789,7 @@ function normalizeSnookerHumanModel(model, targetHeight = SNOOKER_HUMAN_CFG.targ
   const center = scaledBox.getCenter(new THREE.Vector3());
   model.position.sub(center);
   model.position.y -= scaledBox.min.y - center.y;
-  model.rotation.set(0, SNOOKER_HUMAN_CFG.yawFix, 0);
+  model.rotation.y += SNOOKER_HUMAN_CFG.yawFix;
 }
 
 function findSnookerHumanBone(root, ...names) {
@@ -2059,14 +1979,13 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     walkPhase: 0,
     walkAmount: 0,
     restQuats: new Map(),
-    helpers: createSnookerHumanOrientationHelpers(),
     theme: SNOOKER_HUMAN_CHARACTER_THEME
   };
   human.root.name = 'SnookerRoyalHumanPlayerRoot';
   human.modelRoot.name = 'SnookerRoyalDominoCharacterRoot';
   human.root.visible = false;
   human.modelRoot.visible = false;
-  human.root.add(human.fallback, human.helpers.root);
+  human.root.add(human.fallback);
   parent.add(human.root, human.modelRoot);
   const urls = buildSnookerHumanModelUrls(human.theme);
   const loader = createSnookerHumanGLTFLoader(renderer);
@@ -2080,7 +1999,13 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
         obj.receiveShadow = true;
         obj.frustumCulled = false;
         const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        mats.forEach(applySnookerHumanOriginalGlbTextures);
+        mats.forEach((mat) => {
+          if (mat?.map) {
+            applySRGBColorSpace(mat.map);
+            mat.map.needsUpdate = true;
+          }
+          if (mat) mat.needsUpdate = true;
+        });
       });
       human.bones = buildSnookerHumanBones(model);
       human.activeGlb = Boolean(
@@ -2132,20 +2057,21 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const dir = new THREE.Vector3(aimDir?.x ?? 0, 0, aimDir?.y ?? 1);
   if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
   dir.normalize();
-  const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
+  const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
   const cueBall = new THREE.Vector3(cuePos.x, CUE_Y, cuePos.y);
   const cueEndpoints = getSnookerCueEndpoints(cueStick, cueLen) || {
     tip: cueBall.clone().addScaledVector(dir, -CUE_TIP_GAP),
     butt: cueBall.clone().addScaledVector(dir, -(cueLen + CUE_TIP_GAP))
   };
   const pullPose = THREE.MathUtils.clamp((power ?? 0) * 0.7 + (shooting || cueAnimating ? 0.35 : 0), 0, 1);
-  // Orientation is driven from the exact Snooker Champion shot frame: the root
-  // stands behind the cue ball and local -Z faces the playfield/target line.
+  // Orientation is driven from the actual shot line: the root stands behind
+  // the cue ball on -dir, then faces +dir back through cue ball/object ball.
+  // Keeping local +Z on the shot line prevents mirrored cue/hand placement.
   const rootTarget = cueBall.clone()
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.idleDistance - pullPose * BALL_R * 1.8)
     .addScaledVector(side, -SNOOKER_HUMAN_CFG.stanceSide * 0.32);
   rootTarget.y = SNOOKER_HUMAN_CFG.floorY;
-  const yawTarget = snookerHumanYawFromForward(dir);
+  const yawTarget = Math.atan2(dir.x, dir.z);
   human.root.visible = true;
   human.modelRoot.visible = human.loaded && human.activeGlb;
   const travel = human.lastRootPosition.distanceTo(rootTarget);
@@ -2184,15 +2110,6 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const rightFoot = new THREE.Vector3(SNOOKER_HUMAN_CFG.stanceSide * 0.62, 0.03 * SNOOKER_HUMAN_WORLD_SCALE + Math.max(0, -walkLift), -SNOOKER_HUMAN_CFG.rightFootBack);
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.55).add(new THREE.Vector3(-0.03 * SNOOKER_HUMAN_WORLD_SCALE, 0.12 * SNOOKER_HUMAN_WORLD_SCALE, 0.04 * SNOOKER_HUMAN_WORLD_SCALE));
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).add(new THREE.Vector3(0.03 * SNOOKER_HUMAN_WORLD_SCALE, 0.14 * SNOOKER_HUMAN_WORLD_SCALE, -0.03 * SNOOKER_HUMAN_WORLD_SCALE));
-  updateSnookerHumanOrientationHelpers(human, {
-    forward: dir,
-    side,
-    cueBack: cueEndpoints.butt,
-    cueTip: cueEndpoints.tip,
-    head: headWorld,
-    bridge,
-    grip
-  });
   poseSnookerHumanFallback(human, {
     root: human.root,
     torso,
