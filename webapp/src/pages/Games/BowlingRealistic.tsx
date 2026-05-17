@@ -339,13 +339,19 @@ const LANE_CENTERS = [0] as const;
 const laneCenterForPlayer = (_playerIndex: number) => LANE_CENTERS[0];
 const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
-  pos.z >= CFG.foulZ + 0.18 &&
+  pos.z >= CFG.foulZ + BOWLING_SHOOTING_ZONE_MIN_CLEARANCE &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
 const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.42, CFG.laneY, 8.28);
-const BOWLING_RETURN_SIDE_X = -2.72;
+const BOWLING_RETURN_SIDE_X = 2.72;
 const BOWLING_RETURN_Z = 6.38;
-const BOWLING_RACK_SIDE_X = -3.42;
+const BOWLING_RACK_SIDE_X = 3.42;
 const BOWLING_RACK_Z = 7.34;
+const BOWLING_RACK_SIDE_SIGN = Math.sign(BOWLING_RACK_SIDE_X) || 1;
+const BOWLING_RETURN_SIDE_SIGN = Math.sign(BOWLING_RETURN_SIDE_X) || 1;
+const bowlingRackPickupX = () =>
+  BOWLING_RACK_SIDE_X - BOWLING_RACK_SIDE_SIGN * 0.62;
+const BOWLING_RELEASE_FOUL_CLEARANCE = 0.42;
+const BOWLING_SHOOTING_ZONE_MIN_CLEARANCE = 0.32;
 const BOWLING_TABLE_CENTERS = [
   new THREE.Vector3(-4.42, CFG.laneY, 8.18)
 ] as const;
@@ -419,17 +425,8 @@ function keepHumanInBowlingWalkableArea(
   return pos;
 }
 
-function returnSafeWaypointForRig(rig: HumanRig) {
-  const side = rig.standPos.x < 0 ? -1 : 1;
-  return new THREE.Vector3(side * 1.42, CFG.laneY, 6.12);
-}
-
 function returnPickupPointForRig(rig: HumanRig) {
-  return new THREE.Vector3(
-    BOWLING_RACK_SIDE_X + 0.62,
-    CFG.laneY,
-    BOWLING_RACK_Z
-  );
+  return new THREE.Vector3(bowlingRackPickupX(), CFG.laneY, BOWLING_RACK_Z);
 }
 
 function shootingReadyPointForRig(rig: HumanRig, laneCenter = 0) {
@@ -443,7 +440,11 @@ function shootingReadyPointForRig(rig: HumanRig, laneCenter = 0) {
 function bowlingReleaseFootPoint(laneCenter = 0) {
   // Right-handed bowling finish: the left slide foot plants just behind the
   // foul line while the right foot trails behind it, matching a legal release.
-  return new THREE.Vector3(laneCenter - 0.16, CFG.laneY, CFG.foulZ + 0.18);
+  return new THREE.Vector3(
+    laneCenter - 0.16,
+    CFG.laneY,
+    CFG.foulZ + BOWLING_RELEASE_FOUL_CLEARANCE
+  );
 }
 
 function keepPlayersSeparated(rigs: HumanRig[], minDistance = 0.58) {
@@ -1558,10 +1559,10 @@ function getHeldBallWorldPosition(rig: HumanRig) {
   const handAnchor = handNode
     ? handNode.getWorldPosition(new THREE.Vector3())
     : null;
-  let local = new THREE.Vector3(0.36, 0.76, 0.16);
+  let local = new THREE.Vector3(0.36, 0.7, 0.16);
   if (rig.action === 'approach') {
     const s = Math.sin(rig.walkCycle);
-    local = new THREE.Vector3(0.4, 0.76 + Math.abs(s) * 0.04, 0.16 + s * 0.08);
+    local = new THREE.Vector3(0.4, 0.7 + Math.abs(s) * 0.04, 0.16 + s * 0.08);
   } else if (rig.action === 'throw') {
     const t = clamp01(rig.throwT);
     if (t < 0.3) {
@@ -1594,14 +1595,14 @@ function getHeldBallWorldPosition(rig: HumanRig) {
       rig.action === 'pickBall' ? easeInOut(clamp01(rig.pickT)) : 0;
     local = new THREE.Vector3(
       0.3,
-      lerp(0.56, 0.98, pickLift),
+      lerp(0.46, 0.88, pickLift),
       lerp(0.24, 0.08, pickLift)
     );
   }
   const fallbackWorld = local.applyAxisAngle(UP, rig.yaw).add(rig.pos);
   if (!handAnchor) return fallbackWorld;
   return handAnchor.add(
-    new THREE.Vector3(0.02, -0.03, 0.015).applyAxisAngle(UP, rig.yaw)
+    new THREE.Vector3(0.02, -0.075, 0.015).applyAxisAngle(UP, rig.yaw)
   );
 }
 
@@ -2792,7 +2793,7 @@ function createEnvironment(
 
   // The old sofa/procedural lounge has been removed so the seating reads as Murlan tables with paired chairs.
 
-  for (const x of [BOWLING_RETURN_SIDE_X - 0.72]) {
+  for (const x of [BOWLING_RETURN_SIDE_X + BOWLING_RETURN_SIDE_SIGN * 0.72]) {
     const consoleGroup = new THREE.Group();
     const pedestal = new THREE.Mesh(
       new THREE.BoxGeometry(0.42, 0.72, 0.34),
@@ -3077,7 +3078,9 @@ function createEnvironment(
       makeBallMaterial(colors)
     );
     rb.position.set(
-      BOWLING_RETURN_SIDE_X - 0.28 + i * 0.28,
+      BOWLING_RETURN_SIDE_X -
+        BOWLING_RETURN_SIDE_SIGN * 0.28 +
+        i * BOWLING_RETURN_SIDE_SIGN * 0.28,
       CFG.laneY + 0.31,
       5.14 + i * 0.5
     );
@@ -3485,22 +3488,16 @@ function updateHuman(
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     const k = easeInOut(rig.returnWalkT);
-    const safeWaypoint = returnSafeWaypointForRig(rig);
     const pickupPoint = returnPickupPointForRig(rig);
-    const nextPos =
-      k < 0.55
-        ? new THREE.Vector3().lerpVectors(
-            rig.approachTo,
-            safeWaypoint,
-            easeInOut(k / 0.55)
-          )
-        : new THREE.Vector3().lerpVectors(
-            safeWaypoint,
-            pickupPoint,
-            easeInOut((k - 0.55) / 0.45)
-          );
+    const nextPos = new THREE.Vector3().lerpVectors(
+      rig.approachTo,
+      pickupPoint,
+      k
+    );
     smoothFacing(rig, nextPos, dt);
-    rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
+    rig.pos.copy(
+      keepHumanInBowlingWalkableArea(nextPos, BOWLING_RACK_SIDE_SIGN)
+    );
     if (rig.model) {
       applyHumanWalkMotion(rig, 0.3, 0.003, 1);
     }
@@ -3532,22 +3529,20 @@ function updateHuman(
     rig.returnWalkT = clamp01(rig.returnWalkT + dt / CFG.returnWalkDuration);
     rig.walkCycle += dt * 9.2;
     const k = easeInOut(rig.returnWalkT);
-    const safeWaypoint = returnSafeWaypointForRig(rig);
     const pickupPoint = returnPickupPointForRig(rig);
-    const nextPos =
-      k < 0.45
-        ? new THREE.Vector3().lerpVectors(
-            pickupPoint,
-            safeWaypoint,
-            easeInOut(k / 0.45)
-          )
-        : new THREE.Vector3().lerpVectors(
-            safeWaypoint,
-            shootingReadyPointForRig(rig, ball.laneCenter || rig.standPos.x),
-            easeInOut((k - 0.45) / 0.55)
-          );
+    const readyPoint = shootingReadyPointForRig(
+      rig,
+      ball.laneCenter || rig.standPos.x
+    );
+    const nextPos = new THREE.Vector3().lerpVectors(
+      pickupPoint,
+      readyPoint,
+      easeInOut(k)
+    );
     smoothFacing(rig, nextPos, dt);
-    rig.pos.copy(keepHumanInBowlingWalkableArea(nextPos, -1));
+    rig.pos.copy(
+      keepHumanInBowlingWalkableArea(nextPos, BOWLING_RACK_SIDE_SIGN)
+    );
     if (rig.model) {
       applyHumanWalkMotion(rig, 0.3, 0.003, 1);
     }
@@ -4855,7 +4850,7 @@ export default function MobileBowlingRealistic() {
       )
         return;
       const rackDistance = Math.hypot(
-        player.pos.x - (BOWLING_RACK_SIDE_X + 0.62),
+        player.pos.x - bowlingRackPickupX(),
         player.pos.z - BOWLING_RACK_Z
       );
       if (rackDistance > 1.9) {
@@ -5096,7 +5091,7 @@ export default function MobileBowlingRealistic() {
         nextAction !== 'gameOver'
       ) {
         const rackDistance = Math.hypot(
-          player.pos.x - (BOWLING_RACK_SIDE_X + 0.62),
+          player.pos.x - bowlingRackPickupX(),
           player.pos.z - BOWLING_RACK_Z
         );
         if (!ball.held && rackDistance > 1.9) {
@@ -5142,7 +5137,7 @@ export default function MobileBowlingRealistic() {
         playerRigs[0].action === 'idle'
       ) {
         const rackDistance = Math.hypot(
-          playerRigs[0].pos.x - (BOWLING_RACK_SIDE_X + 0.62),
+          playerRigs[0].pos.x - bowlingRackPickupX(),
           playerRigs[0].pos.z - BOWLING_RACK_Z
         );
         if (rackDistance > 1.9) {
@@ -5158,7 +5153,7 @@ export default function MobileBowlingRealistic() {
       }
       tryManualBallPickup();
       const rackDistanceForPrompt = Math.hypot(
-        playerRigs[0].pos.x - (BOWLING_RACK_SIDE_X + 0.62),
+        playerRigs[0].pos.x - bowlingRackPickupX(),
         playerRigs[0].pos.z - BOWLING_RACK_Z
       );
       pickupPrompt.visible =
