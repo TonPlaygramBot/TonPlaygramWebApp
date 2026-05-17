@@ -10,7 +10,7 @@ export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const SPIN_RESPONSE_EXPONENT = 1.45;
+export const SPIN_RESPONSE_EXPONENT = 1.32;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -202,7 +202,7 @@ export const mapSpinForPhysics = (spin, options = {}) => {
   const quantized = normalizeSpinInput(adjusted);
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -quantized.x,
+    quantized.x,
     quantized.y,
     cameraRight,
     cameraUp,
