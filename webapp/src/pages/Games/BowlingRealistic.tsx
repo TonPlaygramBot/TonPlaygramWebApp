@@ -194,6 +194,8 @@ const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
 );
 const PORTRAIT_CAMERA_SIDE_OFFSET = 0.42;
 const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
+const BOWLING_CAMERA_PULLBACK = 0.5;
+const BOWLING_CAMERA_WIDER_FOV_BOOST = 1.5;
 const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
 const BOWLING_GRAPHICS_PROFILES: Record<
   GraphicsQuality,
@@ -4160,6 +4162,10 @@ function updateCamera(
     look.x = lerp(look.x, BOWLING_LOUNGE_CENTER.x * 0.38, 0.16);
     look.z += 0.82;
   }
+  const pullback = desired.clone().sub(look);
+  if (pullback.lengthSq() > 0.0001) {
+    desired.addScaledVector(pullback.normalize(), BOWLING_CAMERA_PULLBACK);
+  }
   if (lookState) {
     lookState.yaw = lerp(
       lookState.yaw,
@@ -4172,7 +4178,7 @@ function updateCamera(
       1 - Math.exp(-7.5 * dt)
     );
   }
-  const baseFov = isPortraitCamera ? 52 : 46;
+  const baseFov = (isPortraitCamera ? 52 : 46) + BOWLING_CAMERA_WIDER_FOV_BOOST;
   const speedFov = ball.rolling
     ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5
     : 0;
