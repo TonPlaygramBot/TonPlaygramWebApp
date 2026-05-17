@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { BallPhysics } from './BallPhysics';
 import { GAME_CONFIG, ShotCommand, ShotType, TABLE_BOUNDS } from './gameConfig';
 
-const TABLE_AI_REACH_MAX_Z = TABLE_BOUNDS.minZ + 0.34;
-const TABLE_AI_REACH_MIN_Z = GAME_CONFIG.ai.z - 0.27;
+const BASE_TABLE_WIDTH = 61.651044 * 0.045;
+const BASE_TABLE_LENGTH = 90.4215312 * 0.045;
+const TABLE_AI_REACH_MAX_Z = TABLE_BOUNDS.minZ + GAME_CONFIG.table.length * (0.34 / BASE_TABLE_LENGTH);
+const TABLE_AI_REACH_MIN_Z = GAME_CONFIG.ai.z - GAME_CONFIG.table.length * (0.27 / BASE_TABLE_LENGTH);
 
 export class AIController {
   readonly targetX = { value: 0 };
@@ -20,7 +22,7 @@ export class AIController {
     if (this.reactionTimer <= 0) {
       this.committedLanding = ball.predictLandingPoint('ai');
       if (this.committedLanding) {
-        const noise = (1 - cfg.accuracy) * THREE.MathUtils.randFloatSpread(0.38);
+        const noise = (1 - cfg.accuracy) * THREE.MathUtils.randFloatSpread(GAME_CONFIG.table.width * (0.38 / BASE_TABLE_WIDTH));
         this.targetX.value = THREE.MathUtils.clamp(this.committedLanding.x + noise, GAME_CONFIG.ai.minX, GAME_CONFIG.ai.maxX);
         this.prepareShotCommand(ball);
       }
