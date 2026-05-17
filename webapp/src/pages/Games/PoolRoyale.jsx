@@ -24819,6 +24819,19 @@ const shotPowerRef = useRef(0);
           if (!stroke.shotApplied && sample.hitArmed) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
+            if (stroke.stopAtImpact) {
+              const stopPos = stroke.contactPos ?? impactPos ?? pullPos ?? idlePos;
+              if (stopPos) cueStick.position.copy(stopPos);
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+              cueAnimating = false;
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              cueStrokeStateRef.current = null;
+              pendingImpactRef.current = null;
+              syncCueShadow();
+              return false;
+            }
           }
           if (sample.phase === 'pullback') {
             const eased = easeInOutCubic(sample.t);
@@ -28637,7 +28650,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28881,6 +28893,7 @@ const shotPowerRef = useRef(0);
               strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
+              stopAtImpact: true,
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
