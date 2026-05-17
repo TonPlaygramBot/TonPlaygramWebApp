@@ -1959,9 +1959,18 @@ const POOL_HUMAN_URLS = Object.freeze([
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
 ]);
 const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.42;
+const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.48;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
+const POOL_HUMAN_SHOT_LEAN_SIGN = 1;
+const POOL_HUMAN_SHOT_BEND = Object.freeze({
+  torso: 0.08,
+  chest: 0.18,
+  neck: 0.25,
+  head: 0.31,
+  leftShoulder: 0.2,
+  rightShoulder: 0.16
+});
 const POOL_HUMAN_CFG = Object.freeze({
   scale: POOL_HUMAN_WORLD_SCALE,
   cueLength: POOL_HUMAN_CUE_REFERENCE_LENGTH,
@@ -2525,12 +2534,16 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
   rootWorld.y = POOL_HUMAN_CFG.floorLocalY;
-  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) - 0.014 * powerLean) * POOL_HUMAN_CFG.scale));
-  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) - 0.024 * powerLean) * POOL_HUMAN_CFG.scale));
-  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
-  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
-  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.34, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  // Keep the shooting bend subtle and mirror it to the opposite side of the
+  // character's local stance so the upper body no longer dips in the previous
+  // direction while aiming. The Y targets only lower the torso/head a little,
+  // avoiding the exaggerated crouch that made the avatar sink too far.
+  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.torso, t) + 0.006 * powerLean) * POOL_HUMAN_CFG.scale));
+  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.4, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.chest, t) + 0.01 * powerLean) * POOL_HUMAN_CFG.scale));
+  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.53, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.neck, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
+  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.65, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.08 * t, (poolHumanLerp(0.04, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.head, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.leftShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.rightShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
   const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
   const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
