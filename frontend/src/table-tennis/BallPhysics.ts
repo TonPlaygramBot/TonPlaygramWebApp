@@ -30,6 +30,10 @@ export interface BallEvent {
 }
 
 const tmp = new THREE.Vector3();
+const INITIAL_SERVE_X_RATIO = 0.16 / 1.55;
+const INITIAL_SERVE_Z_RATIO = 1.08 / 2.74;
+const INITIAL_OUT_X_MARGIN_RATIO = 0.44 / 1.55;
+const INITIAL_OUT_Z_MARGIN_RATIO = 1 / 2.74;
 
 export class BallPhysics {
   readonly position = new THREE.Vector3();
@@ -42,9 +46,9 @@ export class BallPhysics {
 
   resetForServe(server: Side) {
     this.position.set(
-      server === 'player' ? -GAME_CONFIG.table.width * 0.09 : GAME_CONFIG.table.width * 0.09,
+      server === 'player' ? -GAME_CONFIG.table.width * INITIAL_SERVE_X_RATIO : GAME_CONFIG.table.width * INITIAL_SERVE_X_RATIO,
       GAME_CONFIG.table.topY + GAME_CONFIG.serveHeight,
-      server === 'player' ? GAME_CONFIG.table.length * 0.35 : -GAME_CONFIG.table.length * 0.35,
+      server === 'player' ? GAME_CONFIG.table.length * INITIAL_SERVE_Z_RATIO : -GAME_CONFIG.table.length * INITIAL_SERVE_Z_RATIO,
     );
     this.velocity.set(0, 0, 0);
     this.spin.set(0, 0, 0);
@@ -145,8 +149,10 @@ export class BallPhysics {
   }
 
   private isClearlyOut() {
-    const margin = 0.44;
-    return this.position.y < GAME_CONFIG.table.topY - 0.42 || Math.abs(this.position.x) > TABLE_BOUNDS.maxX + margin || Math.abs(this.position.z) > TABLE_BOUNDS.maxZ + 1.0;
+    const xMargin = GAME_CONFIG.table.width * INITIAL_OUT_X_MARGIN_RATIO;
+    const zMargin = GAME_CONFIG.table.length * INITIAL_OUT_Z_MARGIN_RATIO;
+    const verticalMargin = GAME_CONFIG.table.topY * (0.42 / 0.76);
+    return this.position.y < GAME_CONFIG.table.topY - verticalMargin || Math.abs(this.position.x) > TABLE_BOUNDS.maxX + xMargin || Math.abs(this.position.z) > TABLE_BOUNDS.maxZ + zMargin;
   }
 
   private resetBouncesAfterHit(side: Side) {

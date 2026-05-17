@@ -262,17 +262,20 @@ export class GameManager {
     table.add(top);
 
     const lineMat = new THREE.MeshBasicMaterial({ color: GAME_CONFIG.table.lineColor });
+    const centerLineThickness = GAME_CONFIG.table.width * (0.012 / (61.651044 * 0.045));
+    const edgeLineThickness = GAME_CONFIG.table.width * (0.016 / (61.651044 * 0.045));
+    const edgeInset = GAME_CONFIG.table.width * (0.01 / (61.651044 * 0.045));
     const addLine = (w: number, l: number, x: number, z: number) => {
       const line = new THREE.Mesh(new THREE.BoxGeometry(w, 0.006, l), lineMat);
       line.position.set(x, GAME_CONFIG.table.topY + 0.004, z);
       table.add(line);
     };
-    addLine(GAME_CONFIG.table.width, 0.012, 0, 0);
-    addLine(0.012, GAME_CONFIG.table.length, 0, 0);
-    addLine(GAME_CONFIG.table.width, 0.016, 0, GAME_CONFIG.table.length / 2 - 0.01);
-    addLine(GAME_CONFIG.table.width, 0.016, 0, -GAME_CONFIG.table.length / 2 + 0.01);
-    addLine(0.016, GAME_CONFIG.table.length, GAME_CONFIG.table.width / 2 - 0.01, 0);
-    addLine(0.016, GAME_CONFIG.table.length, -GAME_CONFIG.table.width / 2 + 0.01, 0);
+    addLine(GAME_CONFIG.table.width, centerLineThickness, 0, 0);
+    addLine(centerLineThickness, GAME_CONFIG.table.length, 0, 0);
+    addLine(GAME_CONFIG.table.width, edgeLineThickness, 0, GAME_CONFIG.table.length / 2 - edgeInset);
+    addLine(GAME_CONFIG.table.width, edgeLineThickness, 0, -GAME_CONFIG.table.length / 2 + edgeInset);
+    addLine(edgeLineThickness, GAME_CONFIG.table.length, GAME_CONFIG.table.width / 2 - edgeInset, 0);
+    addLine(edgeLineThickness, GAME_CONFIG.table.length, -GAME_CONFIG.table.width / 2 + edgeInset, 0);
 
     const net = this.createNet();
     table.add(net);
@@ -399,7 +402,7 @@ export class GameManager {
 
   private createPredictionMarker() {
     const marker = new THREE.Mesh(
-      new THREE.RingGeometry(0.09, 0.12, 32),
+      new THREE.RingGeometry(GAME_CONFIG.ballRadius * 1.45, GAME_CONFIG.ballRadius * 1.94, 32),
       new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.65, side: THREE.DoubleSide }),
     );
     marker.rotation.x = -Math.PI / 2;

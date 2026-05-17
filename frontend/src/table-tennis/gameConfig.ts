@@ -29,7 +29,9 @@ export interface DifficultyConfig {
 // it occupies the same HDRI placement/orientation while staying in this game's meter-sized scene.
 const POOL_ROYALE_TABLE_WIDTH = 61.651044;
 const POOL_ROYALE_TABLE_LENGTH = 90.4215312;
-const POOL_ROYALE_TO_TABLE_TENNIS_SCALE = 0.045;
+const POOL_ROYALE_TO_TABLE_TENNIS_BASE_SCALE = 0.045;
+const TABLE_TENNIS_SIZE_MULTIPLIER = 1.3;
+const POOL_ROYALE_TO_TABLE_TENNIS_SCALE = POOL_ROYALE_TO_TABLE_TENNIS_BASE_SCALE * TABLE_TENNIS_SIZE_MULTIPLIER;
 const TABLE_WIDTH = POOL_ROYALE_TABLE_WIDTH * POOL_ROYALE_TO_TABLE_TENNIS_SCALE;
 const TABLE_LENGTH = POOL_ROYALE_TABLE_LENGTH * POOL_ROYALE_TO_TABLE_TENNIS_SCALE;
 const TABLE_LENGTH_SCALE = TABLE_LENGTH / 2.74;
@@ -40,39 +42,39 @@ export const GAME_CONFIG = {
   gravity: -9.8,
   drag: 0.09,
   spinCurve: 0.08,
-  ballRadius: 0.062,
-  serveHeight: 0.38,
+  ballRadius: 0.062 * TABLE_TENNIS_SIZE_MULTIPLIER,
+  serveHeight: 0.38 * TABLE_TENNIS_SIZE_MULTIPLIER,
   serveForwardPower: 2.9 * TABLE_LENGTH_SCALE,
   table: {
     width: TABLE_WIDTH,
     length: TABLE_LENGTH,
-    topY: 0.76,
-    thickness: 0.09,
+    topY: 0.76 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    thickness: 0.09 * TABLE_TENNIS_SIZE_MULTIPLIER,
     color: '#1266c3',
     lineColor: '#e8f4ff',
   },
   net: {
-    height: 0.2,
-    thickness: 0.03,
-    overhang: 0.13,
+    height: 0.2 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    thickness: 0.03 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    overhang: 0.13 * TABLE_TENNIS_SIZE_MULTIPLIER,
   },
   player: {
-    z: TABLE_LENGTH / 2 + 0.84,
-    minX: -TABLE_WIDTH / 2 - 0.12,
-    maxX: TABLE_WIDTH / 2 + 0.12,
-    safeZ: TABLE_LENGTH / 2 + 0.68,
+    z: TABLE_LENGTH / 2 + 0.84 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    minX: -TABLE_WIDTH / 2 - 0.12 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    maxX: TABLE_WIDTH / 2 + 0.12 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    safeZ: TABLE_LENGTH / 2 + 0.68 * TABLE_TENNIS_SIZE_MULTIPLIER,
     moveSpeed: 2.55 * TABLE_WIDTH_SCALE,
     reach: 0.48 * TABLE_WIDTH_SCALE,
     autoTrackLead: 0.34 * TABLE_WIDTH_SCALE,
     recoveryTime: 0.28,
-    avatarScale: 1.62,
+    avatarScale: 1.62 * TABLE_TENNIS_SIZE_MULTIPLIER,
   },
   ai: {
-    z: -TABLE_LENGTH / 2 - 0.84,
-    minX: -TABLE_WIDTH / 2 - 0.12,
-    maxX: TABLE_WIDTH / 2 + 0.12,
+    z: -TABLE_LENGTH / 2 - 0.84 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    minX: -TABLE_WIDTH / 2 - 0.12 * TABLE_TENNIS_SIZE_MULTIPLIER,
+    maxX: TABLE_WIDTH / 2 + 0.12 * TABLE_TENNIS_SIZE_MULTIPLIER,
     maxReach: 0.58 * TABLE_WIDTH_SCALE,
-    avatarScale: 1.62,
+    avatarScale: 1.62 * TABLE_TENNIS_SIZE_MULTIPLIER,
     difficulty: {
       reactionTime: 0.14,
       moveSpeed: 3.05 * TABLE_WIDTH_SCALE,
@@ -94,8 +96,8 @@ export const GAME_CONFIG = {
     accuracy: 0.96,
   },
   camera: {
-    position: new THREE.Vector3(0, 2.7, 6.1),
-    target: new THREE.Vector3(0, 1.02, 0.18),
+    position: new THREE.Vector3(0, 2.7 * TABLE_TENNIS_SIZE_MULTIPLIER, 6.1 * TABLE_TENNIS_SIZE_MULTIPLIER),
+    target: new THREE.Vector3(0, 1.02 * TABLE_TENNIS_SIZE_MULTIPLIER, 0.18 * TABLE_TENNIS_SIZE_MULTIPLIER),
     damping: 8,
   },
   score: {
