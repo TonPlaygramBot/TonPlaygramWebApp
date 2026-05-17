@@ -15,7 +15,6 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
-import SnookerRoyalProvided from './SnookerRoyalProvided.jsx';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   resolveSnookerGlbFitTransform,
@@ -29426,8 +29425,158 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  // Snooker Royal must share the exact cue-stick, power-slider, and shooting
-  // implementation used by Snooker Champion. Rendering the provided shared
-  // scene here keeps the stroke/power/impact codepath identical between them.
-  return <SnookerRoyalProvided gameTitle="Snooker Royal" />;
+  const location = useLocation();
+  const tableModel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return resolveSnookerTableModel(params.get('tableModel'));
+  }, [location.search]);
+
+  const navigate = useNavigate();
+  const variantKey = useMemo(() => {
+    return 'snooker';
+  }, [location.search]);
+  const ballSetKey = useMemo(() => {
+    return null;
+  }, [location.search]);
+  const tableSizeKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('tableSize');
+    return resolveTableSize(requested).id;
+  }, [location.search]);
+  const playType = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('type');
+    if (requested === 'training') return 'training';
+    if (requested === 'tournament') return 'tournament';
+    return 'regular';
+  }, [location.search]);
+  const mode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('mode');
+    if (requested === 'online') return 'online';
+    if (requested === 'local') return 'local';
+    return 'ai';
+  }, [location.search]);
+  const trainingMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('mode');
+    return requested === 'solo' ? 'solo' : 'ai';
+  }, [location.search]);
+  const trainingRulesEnabled = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('rules') !== 'off';
+  }, [location.search]);
+  const accountId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('accountId') || '';
+  }, [location.search]);
+  const tgId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tgId') || '';
+  }, [location.search]);
+  const playerName = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      params.get('name') ||
+      getTelegramUsername() ||
+      getTelegramId() ||
+      'Player'
+    );
+  }, [location.search]);
+  const playerAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('avatar') || '';
+  }, [location.search]);
+  const stakeAmount = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return Number(params.get('amount')) || 0;
+  }, [location.search]);
+  const stakeToken = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('token') || 'TPC';
+  }, [location.search]);
+  const exitMessage = useMemo(
+    () =>
+      stakeAmount > 0
+        ? `Are you sure you want to exit? Your ${stakeAmount} ${stakeToken} stake will be lost.`
+        : 'Are you sure you want to exit the match?',
+    [stakeAmount, stakeToken]
+  );
+  const confirmExit = useCallback(() => {
+    return new Promise((resolve) => {
+      const tg = window?.Telegram?.WebApp;
+      if (tg?.showPopup) {
+        tg.showPopup(
+          {
+            title: 'Exit game?',
+            message: exitMessage,
+            buttons: [
+              { id: 'yes', type: 'destructive', text: 'Yes' },
+              { id: 'no', type: 'default', text: 'No' }
+            ]
+          },
+          (buttonId) => resolve(buttonId === 'yes')
+        );
+        return;
+      }
+
+      resolve(window.confirm(exitMessage));
+    });
+  }, [exitMessage]);
+  useTelegramBackButton(() => {
+    confirmExit().then((confirmed) => {
+      if (confirmed) {
+        navigate('/games/snookerroyale/lobby');
+      }
+    });
+  });
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = exitMessage;
+      return exitMessage;
+    };
+    const handlePopState = () => {
+      confirmExit().then((confirmed) => {
+        if (!confirmed) {
+          window.history.pushState(null, '', window.location.href);
+        } else {
+          navigate('/games/snookerroyale/lobby');
+        }
+      });
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [confirmExit, exitMessage, navigate]);
+  const opponentName = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponent') || '';
+  }, [location.search]);
+  const opponentAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponentAvatar') || '';
+  }, [location.search]);
+  return (
+    <SnookerRoyalGame
+      variantKey={variantKey}
+      ballSetKey={ballSetKey}
+      tableSizeKey={tableSizeKey}
+      tableModel={tableModel}
+      playType={playType}
+      mode={mode}
+      trainingMode={trainingMode}
+      trainingRulesEnabled={trainingRulesEnabled}
+      accountId={accountId}
+      tgId={tgId}
+      playerName={playerName}
+      playerAvatar={playerAvatar}
+      opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
+    />
+  );
 }
