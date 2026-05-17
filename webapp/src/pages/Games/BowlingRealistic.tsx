@@ -190,19 +190,6 @@ const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || 'studio_small_09';
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
   (item) => item.type === 'tableFinish'
 );
-const BOWLING_FIELD_TEXTURE_OPTIONS = TABLE_FINISH_ITEMS.filter((item) =>
-  [
-    'peelingPaintWeathered',
-    'oakVeneer01',
-    'woodTable001',
-    'darkWood',
-    'rosewoodVeneer01'
-  ].includes(item.optionId)
-).map((item) => ({
-  id: item.optionId,
-  name: item.name.replace(' Finish', ''),
-  thumbnail: item.thumbnail
-}));
 const CHROME_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
   (item) => item.type === 'chromeColor'
 );
@@ -356,7 +343,7 @@ const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
   pos.z >= CFG.foulZ + BOWLING_SHOOTING_ZONE_MIN_CLEARANCE &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-3.78, CFG.laneY, 8.28);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.42, CFG.laneY, 8.28);
 const BOWLING_RETURN_SIDE_X = 2.72;
 const BOWLING_RETURN_Z = 6.38;
 const BOWLING_RACK_SIDE_X = 3.42;
@@ -368,7 +355,7 @@ const bowlingRackPickupX = () =>
 const BOWLING_RELEASE_FOUL_CLEARANCE = 0.42;
 const BOWLING_SHOOTING_ZONE_MIN_CLEARANCE = 0.32;
 const BOWLING_TABLE_CENTERS = [
-  new THREE.Vector3(-3.78, CFG.laneY, 8.18)
+  new THREE.Vector3(-4.42, CFG.laneY, 8.18)
 ] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
@@ -395,11 +382,11 @@ function makeLoungeSeat(x: number, z: number) {
   return { pos, yaw: yawTowardPoint(pos, BOWLING_TABLE_CENTERS[0]) };
 }
 const BOWLING_LOUNGE_CHAIRS = [
-  makeLoungeSeat(-4.82, 7.28),
-  makeLoungeSeat(-2.78, 7.22),
-  makeLoungeSeat(-4.96, 8.72),
-  makeLoungeSeat(-2.56, 8.82),
-  makeLoungeSeat(-3.78, 9.52)
+  makeLoungeSeat(-5.45, 7.28),
+  makeLoungeSeat(-3.38, 7.22),
+  makeLoungeSeat(-5.62, 8.72),
+  makeLoungeSeat(-3.18, 8.82),
+  makeLoungeSeat(-4.42, 9.52)
 ] as { pos: THREE.Vector3; yaw: number }[];
 const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair, index) => ({
   pos: chair.pos.clone(),
@@ -418,7 +405,7 @@ function keepHumanInBowlingWalkableArea(
   // Keep bowlers off ball returns, furniture, lane caps, and other props with a light-weight ellipse navmesh.
   pos.z = clamp(pos.z, CFG.foulZ + 0.2, 9.82);
   const maxLoungeX = 5.9;
-  const minLoungeX = -5.82;
+  const minLoungeX = -6.25;
   pos.x = clamp(pos.x, minLoungeX, maxLoungeX);
   for (let pass = 0; pass < 2; pass++) {
     for (const obstacle of HUMAN_NAV_OBSTACLES) {
@@ -1667,64 +1654,6 @@ function makeBallTexture(colors: [string, string, string]) {
   return tex;
 }
 
-const BOWLING_FIELD_TEXTURE_ASSETS: Record<
-  string,
-  { assetId: string; tint: string; roughness?: number }
-> = {
-  peelingPaintWeathered: {
-    assetId: 'wood_peeling_paint_weathered',
-    tint: '#f0e7d8',
-    roughness: 0.44
-  },
-  oakVeneer01: { assetId: 'oak_veneer_01', tint: '#fff1d2', roughness: 0.36 },
-  woodTable001: { assetId: 'wood_table_001', tint: '#f4d0aa', roughness: 0.42 },
-  darkWood: { assetId: 'dark_wood', tint: '#9b8068', roughness: 0.5 },
-  rosewoodVeneer01: {
-    assetId: 'rosewood_veneer_01',
-    tint: '#ffc7b4',
-    roughness: 0.4
-  }
-};
-
-function loadBowlingFieldMaterial(
-  loader: THREE.TextureLoader,
-  textureId: string,
-  repeatX = 1.05,
-  repeatY = 10.8
-) {
-  const option =
-    BOWLING_FIELD_TEXTURE_ASSETS[textureId] ||
-    BOWLING_FIELD_TEXTURE_ASSETS.oakVeneer01;
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${option.assetId}/`;
-  const loadTexture = (suffix: string) => {
-    const texture = loader.load(
-      `${base}${option.assetId}_${suffix}_2k.jpg`,
-      undefined,
-      undefined,
-      () => {
-        texture.dispose?.();
-      }
-    );
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(repeatX, repeatY);
-    texture.anisotropy = 12;
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const diff = loadTexture('diff');
-  diff.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.MeshPhysicalMaterial({
-    color: option.tint,
-    map: diff,
-    roughnessMap: loadTexture('rough'),
-    normalMap: loadTexture('nor_gl'),
-    roughness: option.roughness ?? 0.4,
-    metalness: 0.02,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.22
-  });
-}
-
 function makeBallMaterial(colors: [string, string, string]) {
   return new THREE.MeshPhysicalMaterial({
     map: makeBallTexture(colors),
@@ -2029,7 +1958,6 @@ type BowlingArenaDecor = {
   returnBalls: THREE.Mesh[];
   scoreboardPanels: THREE.Mesh[];
   pinfallPanels: THREE.Mesh[];
-  commentaryPanels: THREE.Mesh[];
   crowdPulseLights: THREE.PointLight[];
   resetMachine: THREE.Group;
   rackPickupBalls: THREE.Mesh[];
@@ -2089,17 +2017,8 @@ function makeCanvasTextMaterial(
   ctx.font = `900 ${Math.round(height * 0.22)}px system-ui, sans-serif`;
   ctx.fillText('TON PLAYGRAM', 28, Math.round(height * 0.36));
   ctx.fillStyle = fg;
-  const lines = String(text).split('\n');
-  if (lines.length > 1) {
-    ctx.font = `900 ${Math.round(height * 0.24)}px system-ui, sans-serif`;
-    ctx.fillText(lines[0], 28, Math.round(height * 0.56));
-    ctx.font = `800 ${Math.round(height * 0.14)}px system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(226, 246, 255, 0.92)';
-    ctx.fillText(lines.slice(1).join('  '), 28, Math.round(height * 0.78));
-  } else {
-    ctx.font = `900 ${Math.round(height * 0.36)}px system-ui, sans-serif`;
-    ctx.fillText(text, 28, Math.round(height * 0.76));
-  }
+  ctx.font = `900 ${Math.round(height * 0.36)}px system-ui, sans-serif`;
+  ctx.fillText(text, 28, Math.round(height * 0.76));
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshBasicMaterial({
@@ -2148,33 +2067,6 @@ function updatePinfallBoards(
     });
     panel.userData.flashUntil = performance.now() + 1800;
     panel.userData.baseScale = active ? 1.08 : 1;
-  });
-}
-
-function updateBroadcastCommentaryBoards(
-  decor: BowlingArenaDecor,
-  status: string,
-  lane: string,
-  rule: string,
-  compliment = ''
-) {
-  const headline = compliment ? `${status} · ${compliment}` : status;
-  const detail = [lane, rule].filter(Boolean).join('  •  ');
-  decor.commentaryPanels.forEach((panel) => {
-    setBoardCanvasText(
-      panel,
-      `${headline}
-${detail}`,
-      {
-        width: 1400,
-        height: 360,
-        bg: 'rgba(0,0,0,0.96)',
-        fg: '#f8fafc',
-        accent: '#38bdf8'
-      }
-    );
-    panel.userData.flashUntil = performance.now() + 2600;
-    panel.userData.baseScale = 1.05;
   });
 }
 
@@ -2358,8 +2250,7 @@ function createEnvironment(
   loader: THREE.TextureLoader,
   tableFinishId: string,
   chromeColorId: string,
-  playerCount = 2,
-  fieldTextureId = 'oakVeneer01'
+  playerCount = 2
 ): BowlingArenaDecor {
   const group = new THREE.Group();
   const decor: BowlingArenaDecor = {
@@ -2367,7 +2258,6 @@ function createEnvironment(
     scoreboardPanels: [],
     rackPickupBalls: [],
     pinfallPanels: [],
-    commentaryPanels: [],
     crowdPulseLights: [],
     resetMachine: new THREE.Group()
   };
@@ -2375,8 +2265,8 @@ function createEnvironment(
   let laneMat: THREE.Material;
   let woodMat: THREE.Material;
   try {
-    laneMat = loadBowlingFieldMaterial(loader, fieldTextureId, 1.05, 10.8);
-    woodMat = loadBowlingFieldMaterial(loader, tableFinishId, 0.72, 3.2);
+    laneMat = loadOakMaterial(loader, 1.05, 10.8);
+    woodMat = loadOakMaterial(loader, 0.72, 3.2);
   } catch {
     laneMat = makeFallbackWoodMaterial();
     woodMat = makeFallbackWoodMaterial();
@@ -2417,11 +2307,6 @@ function createEnvironment(
     color: 0x171417,
     roughness: 0.78,
     metalness: 0.02
-  });
-  const laneSidePanelMat = new THREE.MeshStandardMaterial({
-    color: 0x23182f,
-    roughness: 0.9,
-    metalness: 0.01
   });
   const rubberMat = new THREE.MeshStandardMaterial({
     color: 0x05070a,
@@ -2666,10 +2551,10 @@ function createEnvironment(
     metalness: 0.18
   });
   const backBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 1.08, 1.72, 0.14),
+    new THREE.BoxGeometry(pairHalfW * 2 + 0.86, 1.34, 0.14),
     backBoardMat
   );
-  backBoard.position.set(0, CFG.laneY + 0.84, CFG.backStopZ + 0.88);
+  backBoard.position.set(0, CFG.laneY + 0.74, CFG.backStopZ + 0.88);
   group.add(backBoard);
   const lowerBoard = new THREE.Mesh(
     new THREE.BoxGeometry(pairHalfW * 2 + 0.7, 0.58, 0.12),
@@ -2694,26 +2579,25 @@ function createEnvironment(
     pinFocus.position.set(laneCenter, CFG.laneY + 0.94, CFG.backStopZ + 0.82);
     group.add(pinFocus);
     const pinfallScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(pairHalfW * 2 + 0.22, 0.96),
-      makeCanvasTextMaterial(`LANE ${laneIndex + 1} READY · commentary live`, {
-        width: 1400,
-        height: 360,
+      new THREE.PlaneGeometry(2.52, 0.62),
+      makeCanvasTextMaterial(`LANE ${laneIndex + 1} READY`, {
+        width: 1024,
+        height: 256,
         accent: laneIndex === 0 ? '#38bdf8' : '#f97316'
       })
     );
     pinfallScreen.position.set(
       laneCenter,
-      CFG.laneY + 1.34,
+      CFG.laneY + 1.3,
       CFG.backStopZ + 1.2
     );
     pinfallScreen.userData.baseScale = 1;
     group.add(pinfallScreen);
     decor.pinfallPanels.push(pinfallScreen);
-    decor.commentaryPanels.push(pinfallScreen);
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.86, 4.2),
-        laneSidePanelMat
+        woodMat
       );
       kickback.position.set(
         laneCenter + x * (CFG.laneHalfW + 0.52),
@@ -3153,47 +3037,6 @@ function createEnvironment(
     );
     rail.position.set(BOWLING_RETURN_SIDE_X + x, CFG.laneY + 0.18, 0.12);
     group.add(rail);
-  }
-  const returnDisplayBase = new THREE.Mesh(
-    new THREE.BoxGeometry(1.36, 0.08, 3.12),
-    new THREE.MeshPhysicalMaterial({
-      color: 0x090d14,
-      roughness: 0.62,
-      metalness: 0.32,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.2
-    })
-  );
-  returnDisplayBase.position.set(
-    BOWLING_RETURN_SIDE_X,
-    CFG.laneY + 0.032,
-    6.18
-  );
-  group.add(returnDisplayBase);
-  const returnNameplate = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.18, 0.22),
-    makeCanvasTextMaterial('BALL RETURN', {
-      width: 640,
-      height: 160,
-      bg: 'rgba(1,4,10,0.96)',
-      fg: '#ecfeff',
-      accent: '#38bdf8'
-    })
-  );
-  returnNameplate.position.set(
-    BOWLING_RETURN_SIDE_X,
-    CFG.laneY + 0.52,
-    BOWLING_RETURN_Z + 0.7
-  );
-  returnNameplate.rotation.x = -0.28;
-  group.add(returnNameplate);
-  for (const z of [5.44, 6.18, 6.92]) {
-    const tidyDivider = new THREE.Mesh(
-      new THREE.BoxGeometry(1.08, 0.03, 0.035),
-      returnTrimMat
-    );
-    tidyDivider.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.48, z);
-    group.add(tidyDivider);
   }
   for (const z of [4.92, 6.86]) {
     const returnLed = new THREE.Mesh(
@@ -4616,28 +4459,6 @@ export default function MobileBowlingRealistic() {
   const [skipReplays, setSkipReplays] = useState<boolean>(
     () => localStorage.getItem('bowling.skipReplays') === '1'
   );
-  const [selectedFieldTexture, setSelectedFieldTextureState] = useState<string>(
-    () => localStorage.getItem('bowling.fieldTexture') || 'oakVeneer01'
-  );
-  const [scoreboardVisible, setScoreboardVisible] = useState(false);
-  const scoreboardTimerRef = useRef<number | null>(null);
-  const showScoreboardAfterShot = (durationMs = 5600) => {
-    if (scoreboardTimerRef.current != null)
-      window.clearTimeout(scoreboardTimerRef.current);
-    setScoreboardVisible(true);
-    scoreboardTimerRef.current = window.setTimeout(() => {
-      setScoreboardVisible(false);
-      scoreboardTimerRef.current = null;
-    }, durationMs);
-  };
-  const setSelectedFieldTexture = (textureId: string) => {
-    localStorage.setItem('bowling.fieldTexture', textureId);
-    setSelectedFieldTextureState(textureId);
-    setHud((prev) => ({
-      ...prev,
-      lane: `${POOL_ROYALE_OPTION_LABELS.tableFinish[textureId] || textureId} field texture selected`
-    }));
-  };
   const [replayActive, setReplayActive] = useState(false);
   const replayActiveRef = useRef(false);
   const setReplayMode = (active: boolean) => {
@@ -4663,13 +4484,6 @@ export default function MobileBowlingRealistic() {
     spinControlRef.current = value;
     setSpinKnob({ x: value.x * max, y: -value.y * max });
   };
-
-  useEffect(() => {
-    return () => {
-      if (scoreboardTimerRef.current != null)
-        window.clearTimeout(scoreboardTimerRef.current);
-    };
-  }, []);
 
   const requestManualBallPickup = (label: string) => {
     ballPickRequestRef.current = label;
@@ -4868,10 +4682,8 @@ export default function MobileBowlingRealistic() {
       texLoader,
       selectedTableFinish,
       selectedChromeColor,
-      playerCount,
-      selectedFieldTexture
+      playerCount
     );
-    updateBroadcastCommentaryBoards(arenaDecor, hud.status, hud.lane, hud.rule);
     const pickupPrompt = makePickupPromptSprite();
     scene.add(pickupPrompt);
     const lanePins = LANE_CENTERS.map((center) => createPins(scene, center));
@@ -5128,14 +4940,6 @@ export default function MobileBowlingRealistic() {
         afterStanding,
         playerBefore.name.toUpperCase()
       );
-      updateBroadcastCommentaryBoards(
-        arenaDecor,
-        status,
-        rollRead.lane,
-        rollRead.rule,
-        compliment
-      );
-      showScoreboardAfterShot(allDone ? 12000 : 5600);
       setHud((prev) => ({
         ...prev,
         status,
@@ -5541,11 +5345,6 @@ export default function MobileBowlingRealistic() {
       ) {
         lastShotStandingBefore = standingPinsCount(activePins());
         releaseBall(ball, pendingIntent, activeLaneCenter(), player);
-        if (scoreboardTimerRef.current != null) {
-          window.clearTimeout(scoreboardTimerRef.current);
-          scoreboardTimerRef.current = null;
-        }
-        setScoreboardVisible(false);
         pendingIntent = null;
         setHud((prev) => ({
           ...prev,
@@ -5637,7 +5436,6 @@ export default function MobileBowlingRealistic() {
     ballSelectionMode,
     selectedTableFinish,
     selectedChromeColor,
-    selectedFieldTexture,
     selectedHumanCharacterId,
     skipReplays,
     playerCount,
@@ -5688,10 +5486,8 @@ export default function MobileBowlingRealistic() {
             padding: '6px 6px 8px',
             boxShadow: '0 10px 24px rgba(0,0,0,0.24)',
             backdropFilter: 'blur(10px)',
-            transform: `scale(0.78) translateY(${scoreboardVisible ? 0 : -18}px)`,
-            transformOrigin: 'top center',
-            opacity: scoreboardVisible ? 1 : 0,
-            transition: 'opacity 220ms ease, transform 220ms ease'
+            transform: 'scale(0.78)',
+            transformOrigin: 'top center'
           }}
         >
           <div
@@ -5759,15 +5555,57 @@ export default function MobileBowlingRealistic() {
             style={{
               marginTop: 5,
               textAlign: 'center',
-              fontSize: 9,
-              fontWeight: 800,
-              color: '#bae6fd',
-              opacity: 0.86
+              fontSize: 10,
+              fontWeight: 700,
+              opacity: 0.9
             }}
           >
-            Full commentary is on the large black broadcast screen behind the
-            pins.
+            {hud.status}
           </div>
+          <div
+            style={{
+              marginTop: 4,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 5,
+              fontSize: 8,
+              fontWeight: 800
+            }}
+          >
+            <div
+              style={{
+                padding: '4px 5px',
+                borderRadius: 7,
+                background: 'rgba(14,165,233,0.16)',
+                border: '1px solid rgba(125,211,252,0.18)'
+              }}
+            >
+              {hud.lane}
+            </div>
+            <div
+              style={{
+                padding: '4px 5px',
+                borderRadius: 7,
+                background: 'rgba(34,197,94,0.14)',
+                border: '1px solid rgba(134,239,172,0.18)'
+              }}
+            >
+              {hud.rule}
+            </div>
+          </div>
+          {hud.compliment ? (
+            <div
+              style={{
+                marginTop: 4,
+                textAlign: 'center',
+                fontSize: 10,
+                fontWeight: 800,
+                color: '#86efac'
+              }}
+            >
+              {hud.compliment}
+            </div>
+          ) : null}
         </div>
 
         <button
@@ -5861,44 +5699,6 @@ export default function MobileBowlingRealistic() {
                 {option.label}
               </button>
             ))}
-
-            <div
-              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
-            >
-              Bowling field texture
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
-                gap: 8,
-                marginBottom: 8
-              }}
-            >
-              {BOWLING_FIELD_TEXTURE_OPTIONS.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedFieldTexture(item.id)}
-                  style={{
-                    minHeight: 54,
-                    borderRadius: 10,
-                    border:
-                      selectedFieldTexture === item.id
-                        ? '2px solid #7fd6ff'
-                        : '1px solid rgba(255,255,255,0.18)',
-                    background: item.thumbnail
-                      ? `linear-gradient(rgba(3,7,18,0.18), rgba(3,7,18,0.58)), url(${item.thumbnail}) center/cover`
-                      : 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 900,
-                    textShadow: '0 1px 4px rgba(0,0,0,0.85)'
-                  }}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </div>
 
             <div
               style={{ fontSize: 11, color: '#c7eaff', margin: '10px 0 8px' }}
