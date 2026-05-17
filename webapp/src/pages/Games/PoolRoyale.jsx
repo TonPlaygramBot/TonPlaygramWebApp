@@ -1114,7 +1114,7 @@ const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
-const DEFAULT_CUE_STROKE_STYLE = 'classic';
+const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
@@ -1866,14 +1866,14 @@ const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip sligh
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 2.08;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
 const CUE_PULL_DISTANCE_SCALE = 0.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // match Snooker Champion pullback depth and readability
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
@@ -17698,7 +17698,6 @@ const shotPowerRef = useRef(0);
     shootingRef.current = shotActive;
   }, [shotActive]);
   const sliderInstanceRef = useRef(null);
-  const draggingSliderRef = useRef(false);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
@@ -24656,9 +24655,7 @@ const shotPowerRef = useRef(0);
             baseRotationY,
             strikeDip,
             forwardOnly,
-            strikeImpactThreshold,
-            strikeWindowRatio,
-            hitArmRatio
+            strikeImpactThreshold
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
@@ -24741,9 +24738,7 @@ const shotPowerRef = useRef(0);
             strikeDuration,
             holdDuration,
             recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
-            strikeWindowRatio: strikeWindowRatio ?? 0.12,
-            hitArmRatio: hitArmRatio ?? 0.88
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -28665,9 +28660,9 @@ const shotPowerRef = useRef(0);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = 120;
-          const strikeHoldDuration = 50;
-          const pullbackDuration = 0;
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
+          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
           const contactAdvance = THREE.MathUtils.lerp(
@@ -28685,7 +28680,7 @@ const shotPowerRef = useRef(0);
           // visually spearing through the ball after impact.
           const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
-          const recoverDuration = 0;
+          const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
             startTime +
             Math.max(
@@ -28806,14 +28801,12 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.88,
+              strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
-              animationStyle: 'linear',
-              strikeWindowRatio: 0.12,
-              hitArmRatio: 0.88,
-              motionTechnique: 'snookerChampion',
+              animationStyle: strokeStyle,
+              motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: false
             };
           } else {
@@ -34685,32 +34678,18 @@ const shotPowerRef = useRef(0);
     const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
-      min: 0,
-      max: 100,
-      step: 1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        draggingSliderRef.current = true;
         captureCueStickAnchor();
       },
-      onChange: (value) => {
-        const normalized = clampPower(value / 100, 0);
-        applyPower(normalized);
-        if (draggingSliderRef.current) {
-          shotPowerRef.current = normalized;
-        }
-      },
-      onCommit: (value) => {
-        const normalized = clampPower(value / 100, 0);
-        shotPowerRef.current = normalized;
-        powerRef.current = normalized;
-        draggingSliderRef.current = false;
-        if (normalized > MIN_SHOT_POWER_TO_FIRE) {
-          fireRef.current?.(normalized);
-        }
-        slider.animateToMin({ duration: 180 });
-        requestAnimationFrame(() => applyPower(0));
+      onCommit: () => {
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -34719,7 +34698,7 @@ const shotPowerRef = useRef(0);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
