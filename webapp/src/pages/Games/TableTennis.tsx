@@ -125,27 +125,31 @@ const DEFAULT_HDRI_URLS = [
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
+// Uniformly enlarge the Table Tennis set while preserving the original relative ball and AI timing.
+const TABLE_TENNIS_WORLD_SCALE = 1.3;
+const scaled = (value: number) => value * TABLE_TENNIS_WORLD_SCALE;
+
 const CFG = {
   // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
-  tableL: 7.2,
-  tableW: 3.96,
-  tableY: 1.7,
-  tableTopThickness: 0.088,
-  netH: 0.21,
-  netPostOutside: 0.21,
-  ballR: 0.052,
-  gravity: 9.35,
+  tableL: scaled(7.2),
+  tableW: scaled(3.96),
+  tableY: scaled(1.7),
+  tableTopThickness: scaled(0.088),
+  netH: scaled(0.21),
+  netPostOutside: scaled(0.21),
+  ballR: scaled(0.052),
+  gravity: scaled(9.35),
   airDrag: 0.12,
   magnus: 0.00138,
   tableRestitution: 1.18,
   tableFriction: 0.994,
   spinDecay: 0.66,
-  playerHeight: 3.5,
-  playerSpeed: 3.9,
-  aiSpeed: 4.95,
+  playerHeight: scaled(3.5),
+  playerSpeed: scaled(3.9),
+  aiSpeed: scaled(4.95),
   aiServeReceiveBoost: 1.08,
   aiOutBallConfidenceCutoff: 0.18,
-  reach: 1.09,
+  reach: scaled(1.09),
   swingDuration: 0.31,
   backhandDuration: 0.27,
   serveDuration: 0.82,
@@ -155,19 +159,20 @@ const CFG = {
   netPowerRetention: 0.12,
   netClipPowerRetention: 0.34,
   netTangentDamping: 0.34,
-  netThickness: 0.032,
-  netTopBandRadius: 0.018,
+  netThickness: scaled(0.032),
+  netTopBandRadius: scaled(0.018),
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 9.4,
-  maxShotSpeed: 42.0,
-  netClearance: 0.38,
+  minShotSpeed: scaled(9.4),
+  maxShotSpeed: scaled(42.0),
+  netClearance: scaled(0.38),
   playerVisualYawFix: Math.PI,
-  paddlePalmOffset: 0.038,
+  paddlePalmOffset: scaled(0.038),
 };
 
+const tableScale = scaled;
 const TABLE_REFERENCE_LENGTH = 2.74;
 const TABLE_SCALE_FACTOR = CFG.tableL / TABLE_REFERENCE_LENGTH;
 const PADDLE_SCALE_FACTOR = Math.max(1.18, TABLE_SCALE_FACTOR * 0.86);
@@ -342,42 +347,42 @@ function buildRealisticTableTennisTable() {
   const netMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, transparent: true, opacity: 0.66 });
 
   addBox(group, [CFG.tableW, CFG.tableTopThickness, CFG.tableL], [0, CFG.tableY - CFG.tableTopThickness / 2, 0], tableBlue);
-  addBox(group, [CFG.tableW + 0.055, 0.035, CFG.tableL + 0.055], [0, CFG.tableY - CFG.tableTopThickness - 0.015, 0], tableEdge);
+  addBox(group, [CFG.tableW + tableScale(0.055), tableScale(0.035), CFG.tableL + tableScale(0.055)], [0, CFG.tableY - CFG.tableTopThickness - tableScale(0.015), 0], tableEdge);
 
-  const y = CFG.tableY + 0.003;
-  const edgeLine = 0.02;
-  const centerLine = 0.003;
-  addBox(group, [CFG.tableW, 0.004, edgeLine], [0, y, -TABLE_HALF_L + edgeLine / 2], whiteLine);
-  addBox(group, [CFG.tableW, 0.004, edgeLine], [0, y, TABLE_HALF_L - edgeLine / 2], whiteLine);
-  addBox(group, [edgeLine, 0.004, CFG.tableL], [-TABLE_HALF_W + edgeLine / 2, y, 0], whiteLine);
-  addBox(group, [edgeLine, 0.004, CFG.tableL], [TABLE_HALF_W - edgeLine / 2, y, 0], whiteLine);
-  addBox(group, [centerLine, 0.004, CFG.tableL], [0, y + 0.001, 0], transparentMaterial(0xffffff, 0.54));
+  const y = CFG.tableY + tableScale(0.003);
+  const edgeLine = tableScale(0.02);
+  const centerLine = tableScale(0.003);
+  addBox(group, [CFG.tableW, tableScale(0.004), edgeLine], [0, y, -TABLE_HALF_L + edgeLine / 2], whiteLine);
+  addBox(group, [CFG.tableW, tableScale(0.004), edgeLine], [0, y, TABLE_HALF_L - edgeLine / 2], whiteLine);
+  addBox(group, [edgeLine, tableScale(0.004), CFG.tableL], [-TABLE_HALF_W + edgeLine / 2, y, 0], whiteLine);
+  addBox(group, [edgeLine, tableScale(0.004), CFG.tableL], [TABLE_HALF_W - edgeLine / 2, y, 0], whiteLine);
+  addBox(group, [centerLine, tableScale(0.004), CFG.tableL], [0, y + tableScale(0.001), 0], transparentMaterial(0xffffff, 0.54));
 
-  addBox(group, [CFG.tableW * 0.88, 0.035, 0.05], [0, 0.64, 0.42], metal);
-  addBox(group, [CFG.tableW * 0.88, 0.035, 0.05], [0, 0.64, -0.42], metal);
-  addBox(group, [0.045, 0.035, CFG.tableL * 0.74], [-0.56, 0.64, 0], metal);
-  addBox(group, [0.045, 0.035, CFG.tableL * 0.74], [0.56, 0.64, 0], metal);
-  for (const x of [-0.58, 0.58]) {
-    for (const z of [-1.06, -0.44, 0.44, 1.06]) {
-      const leg = addCylinder(group, 0.025, 0.027, 0.66, [x, 0.33, z], metal, 16);
+  addBox(group, [CFG.tableW * 0.88, tableScale(0.035), tableScale(0.05)], [0, tableScale(0.64), tableScale(0.42)], metal);
+  addBox(group, [CFG.tableW * 0.88, tableScale(0.035), tableScale(0.05)], [0, tableScale(0.64), tableScale(-0.42)], metal);
+  addBox(group, [tableScale(0.045), tableScale(0.035), CFG.tableL * 0.74], [tableScale(-0.56), tableScale(0.64), 0], metal);
+  addBox(group, [tableScale(0.045), tableScale(0.035), CFG.tableL * 0.74], [tableScale(0.56), tableScale(0.64), 0], metal);
+  for (const x of [tableScale(-0.58), tableScale(0.58)]) {
+    for (const z of [tableScale(-1.06), tableScale(-0.44), tableScale(0.44), tableScale(1.06)]) {
+      const leg = addCylinder(group, tableScale(0.025), tableScale(0.027), tableScale(0.66), [x, tableScale(0.33), z], metal, 16);
       leg.rotation.z = z > 0 ? 0.05 : -0.05;
-      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.015, 10, 20), wheelMat);
-      wheel.position.set(x, 0.035, z);
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(tableScale(0.045), tableScale(0.015), 10, 20), wheelMat);
+      wheel.position.set(x, tableScale(0.035), z);
       wheel.rotation.x = Math.PI / 2;
       enableShadow(wheel);
       group.add(wheel);
     }
   }
-  addBox(group, [0.05, 0.035, 1.74], [-0.62, 0.39, 0], metal).rotation.y = 0.16;
-  addBox(group, [0.05, 0.035, 1.74], [0.62, 0.39, 0], metal).rotation.y = -0.16;
+  addBox(group, [tableScale(0.05), tableScale(0.035), tableScale(1.74)], [tableScale(-0.62), tableScale(0.39), 0], metal).rotation.y = 0.16;
+  addBox(group, [tableScale(0.05), tableScale(0.035), tableScale(1.74)], [tableScale(0.62), tableScale(0.39), 0], metal).rotation.y = -0.16;
 
   const netY = CFG.tableY + CFG.netH / 2;
   const netSpan = CFG.tableW + CFG.netPostOutside * 2;
-  addBox(group, [netSpan, CFG.netH, 0.016], [0, netY, 0], netMat);
-  addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
-  addCylinder(group, 0.017, 0.02, CFG.netH + 0.08, [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + 0.08) / 2, 0], material(0x111827, 0.65, 0.05), 14);
-  addBox(group, [0.1, 0.035, 0.13], [-(TABLE_HALF_W + 0.13), CFG.tableY - 0.075, 0], material(0x111827, 0.5, 0.12));
-  addBox(group, [0.1, 0.035, 0.13], [TABLE_HALF_W + 0.13, CFG.tableY - 0.075, 0], material(0x111827, 0.5, 0.12));
+  addBox(group, [netSpan, CFG.netH, tableScale(0.016)], [0, netY, 0], netMat);
+  addCylinder(group, tableScale(0.017), tableScale(0.02), CFG.netH + tableScale(0.08), [-(TABLE_HALF_W + CFG.netPostOutside), CFG.tableY + (CFG.netH + tableScale(0.08)) / 2, 0], material(0x111827, 0.65, 0.05), 14);
+  addCylinder(group, tableScale(0.017), tableScale(0.02), CFG.netH + tableScale(0.08), [TABLE_HALF_W + CFG.netPostOutside, CFG.tableY + (CFG.netH + tableScale(0.08)) / 2, 0], material(0x111827, 0.65, 0.05), 14);
+  addBox(group, [tableScale(0.1), tableScale(0.035), tableScale(0.13)], [-(TABLE_HALF_W + tableScale(0.13)), CFG.tableY - tableScale(0.075), 0], material(0x111827, 0.5, 0.12));
+  addBox(group, [tableScale(0.1), tableScale(0.035), tableScale(0.13)], [TABLE_HALF_W + tableScale(0.13), CFG.tableY - tableScale(0.075), 0], material(0x111827, 0.5, 0.12));
 
   enableShadow(group);
   return group;
@@ -836,7 +841,7 @@ function createBall() {
   enableShadow(mesh);
   return {
     mesh,
-    pos: new THREE.Vector3(0, CFG.tableY + 0.24, TABLE_HALF_L + 0.36),
+    pos: new THREE.Vector3(0, CFG.tableY + tableScale(0.24), TABLE_HALF_L + tableScale(0.36)),
     vel: new THREE.Vector3(),
     spin: new THREE.Vector3(),
     lastHitBy: null,
@@ -854,7 +859,7 @@ function baseVectors(player: HumanRig) {
 
 function servePalmPosition(player: HumanRig) {
   const { forward, right } = baseVectors(player);
-  return player.pos.clone().addScaledVector(right, -0.18).addScaledVector(forward, 0.18).setY(CFG.tableY + 0.28);
+  return player.pos.clone().addScaledVector(right, tableScale(-0.18)).addScaledVector(forward, tableScale(0.18)).setY(CFG.tableY + tableScale(0.28));
 }
 
 function serveTossPosition(player: HumanRig, tRaw: number) {
@@ -862,14 +867,14 @@ function serveTossPosition(player: HumanRig, tRaw: number) {
   const contactT = CFG.serveContactT;
   const phase = clamp01(tRaw / contactT);
   const tossRise = Math.sin(phase * Math.PI);
-  const smallForwardDrift = easeOutCubic(phase) * 0.08;
+  const smallForwardDrift = easeOutCubic(phase) * tableScale(0.08);
   const { forward } = baseVectors(player);
-  return palm.clone().addScaledVector(forward, smallForwardDrift).setY(palm.y + 0.08 + tossRise * 0.54);
+  return palm.clone().addScaledVector(forward, smallForwardDrift).setY(palm.y + tableScale(0.08) + tossRise * tableScale(0.54));
 }
 
 function serveContactPosition(player: HumanRig) {
   const { forward, right } = baseVectors(player);
-  return player.pos.clone().addScaledVector(right, 0.08).addScaledVector(forward, 0.27).setY(CFG.tableY + 0.31);
+  return player.pos.clone().addScaledVector(right, tableScale(0.08)).addScaledVector(forward, tableScale(0.27)).setY(CFG.tableY + tableScale(0.31));
 }
 
 function resetBallForServe(ball: BallState, server: HumanRig) {
@@ -893,16 +898,16 @@ function tableTennisPose(player: HumanRig, ball: BallState): StrokePose {
   const action = player.action;
   const base = player.pos.clone();
 
-  const crouch = action === "ready" ? 0.1 : 0.06;
-  const shoulderY = 1.34 - crouch;
-  const rightShoulder = base.clone().addScaledVector(right, 0.26).addScaledVector(forward, -0.005).setY(shoulderY);
-  const leftShoulder = base.clone().addScaledVector(right, -0.26).addScaledVector(forward, -0.005).setY(shoulderY);
+  const crouch = action === "ready" ? tableScale(0.1) : tableScale(0.06);
+  const shoulderY = tableScale(1.34) - crouch;
+  const rightShoulder = base.clone().addScaledVector(right, tableScale(0.26)).addScaledVector(forward, tableScale(-0.005)).setY(shoulderY);
+  const leftShoulder = base.clone().addScaledVector(right, tableScale(-0.26)).addScaledVector(forward, tableScale(-0.005)).setY(shoulderY);
 
-  let rightElbow = rightShoulder.clone().addScaledVector(right, 0.17).addScaledVector(forward, 0.08).setY(CFG.tableY + 0.34);
-  let rightHand = rightShoulder.clone().addScaledVector(right, 0.32).addScaledVector(forward, 0.23).setY(CFG.tableY + 0.18);
-  let leftElbow = leftShoulder.clone().addScaledVector(right, -0.18).addScaledVector(forward, 0.07).setY(CFG.tableY + 0.34);
-  let leftHand = leftShoulder.clone().addScaledVector(right, -0.28).addScaledVector(forward, 0.2).setY(CFG.tableY + 0.18);
-  let paddleCenter = rightHand.clone().addScaledVector(forward, 0.14).setY(CFG.tableY + 0.2);
+  let rightElbow = rightShoulder.clone().addScaledVector(right, tableScale(0.17)).addScaledVector(forward, tableScale(0.08)).setY(CFG.tableY + tableScale(0.34));
+  let rightHand = rightShoulder.clone().addScaledVector(right, tableScale(0.32)).addScaledVector(forward, tableScale(0.23)).setY(CFG.tableY + tableScale(0.18));
+  let leftElbow = leftShoulder.clone().addScaledVector(right, tableScale(-0.18)).addScaledVector(forward, tableScale(0.07)).setY(CFG.tableY + tableScale(0.34));
+  let leftHand = leftShoulder.clone().addScaledVector(right, tableScale(-0.28)).addScaledVector(forward, tableScale(0.2)).setY(CFG.tableY + tableScale(0.18));
+  let paddleCenter = rightHand.clone().addScaledVector(forward, tableScale(0.14)).setY(CFG.tableY + tableScale(0.2));
   let faceNormal = forward.clone().multiplyScalar(-1).add(new THREE.Vector3(0, 0.08, 0)).normalize();
   let torsoYaw = 0;
   let torsoLean = 0.1;
@@ -924,60 +929,60 @@ function tableTennisPose(player: HumanRig, ball: BallState): StrokePose {
     torsoLean = 0.13 - 0.07 * load + 0.12 * contact;
     shoulderLift = 0.16 * contact;
 
-    leftElbow = leftShoulder.clone().addScaledVector(right, -0.08).addScaledVector(forward, 0.14).setY(lerp(CFG.tableY + 0.22, CFG.tableY + 0.72, toss) - 0.42 * contact);
-    leftHand = palm.clone().setY(lerp(CFG.tableY + 0.28, CFG.tableY + 0.88, toss) - 0.55 * contact);
+    leftElbow = leftShoulder.clone().addScaledVector(right, tableScale(-0.08)).addScaledVector(forward, tableScale(0.14)).setY(lerp(CFG.tableY + tableScale(0.22), CFG.tableY + tableScale(0.72), toss) - tableScale(0.42) * contact);
+    leftHand = palm.clone().setY(lerp(CFG.tableY + tableScale(0.28), CFG.tableY + tableScale(0.88), toss) - tableScale(0.55) * contact);
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.24).addScaledVector(forward, -0.12).setY(CFG.tableY + 0.32);
-    const dropHand = rightShoulder.clone().addScaledVector(right, 0.3).addScaledVector(forward, 0.03).setY(CFG.tableY + 0.15);
-    const contactHand = serveContactPosition(player).addScaledVector(right, -0.08).addScaledVector(forward, -0.04).setY(CFG.tableY + 0.24);
-    const followHand = base.clone().addScaledVector(right, -0.26).addScaledVector(forward, 0.24).setY(CFG.tableY + 0.52);
+    const prepHand = rightShoulder.clone().addScaledVector(right, tableScale(0.24)).addScaledVector(forward, tableScale(-0.12)).setY(CFG.tableY + tableScale(0.32));
+    const dropHand = rightShoulder.clone().addScaledVector(right, tableScale(0.3)).addScaledVector(forward, tableScale(0.03)).setY(CFG.tableY + tableScale(0.15));
+    const contactHand = serveContactPosition(player).addScaledVector(right, tableScale(-0.08)).addScaledVector(forward, tableScale(-0.04)).setY(CFG.tableY + tableScale(0.24));
+    const followHand = base.clone().addScaledVector(right, tableScale(-0.26)).addScaledVector(forward, tableScale(0.24)).setY(CFG.tableY + tableScale(0.52));
 
     rightHand.copy(prepHand).lerp(dropHand, drop).lerp(contactHand, contact).lerp(followHand, easeOutCubic(follow));
-    rightElbow = rightShoulder.clone().lerp(rightHand, 0.54).addScaledVector(right, 0.06).setY((rightShoulder.y + rightHand.y) * 0.5 - 0.02);
-    paddleCenter = rightHand.clone().addScaledVector(forward, 0.18 + 0.1 * contact).addScaledVector(right, -0.03 * follow).setY(rightHand.y + 0.04 + 0.12 * contact);
+    rightElbow = rightShoulder.clone().lerp(rightHand, 0.54).addScaledVector(right, tableScale(0.06)).setY((rightShoulder.y + rightHand.y) * 0.5 - tableScale(0.02));
+    paddleCenter = rightHand.clone().addScaledVector(forward, tableScale(0.18) + tableScale(0.1) * contact).addScaledVector(right, -tableScale(0.03) * follow).setY(rightHand.y + tableScale(0.04) + tableScale(0.12) * contact);
     faceNormal = forward.clone().multiplyScalar(-0.75).addScaledVector(right, -0.3).add(new THREE.Vector3(0, -0.18, 0)).normalize();
     wristPronation = -0.75 * load + 1.3 * contact - 0.32 * follow;
   } else if (action === "backhand") {
     const prep = clamp01(tRaw / 0.25);
     const contact = clamp01((tRaw - 0.36) / 0.18);
     const follow = clamp01((tRaw - 0.55) / 0.35);
-    const sideOffset = clamp(ball.pos.x - player.pos.x, -0.28, 0.16);
+    const sideOffset = clamp(ball.pos.x - player.pos.x, tableScale(-0.28), tableScale(0.16));
 
     torsoYaw = 0.25 * prep - 0.42 * contact;
     torsoLean = 0.14;
     shoulderLift = 0.03;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, -0.18 + sideOffset).addScaledVector(forward, 0.12).setY(CFG.tableY + 0.2);
-    const contactHand = ball.pos.clone().addScaledVector(forward, -0.06).setY(clamp(ball.pos.y - 0.02, CFG.tableY + 0.1, CFG.tableY + 0.42));
-    const followHand = rightShoulder.clone().addScaledVector(right, 0.12).addScaledVector(forward, 0.42).setY(CFG.tableY + 0.38);
+    const prepHand = rightShoulder.clone().addScaledVector(right, tableScale(-0.18) + sideOffset).addScaledVector(forward, tableScale(0.12)).setY(CFG.tableY + tableScale(0.2));
+    const contactHand = ball.pos.clone().addScaledVector(forward, tableScale(-0.06)).setY(clamp(ball.pos.y - tableScale(0.02), CFG.tableY + tableScale(0.1), CFG.tableY + tableScale(0.42)));
+    const followHand = rightShoulder.clone().addScaledVector(right, tableScale(0.12)).addScaledVector(forward, tableScale(0.42)).setY(CFG.tableY + tableScale(0.38));
     rightHand.copy(prepHand).lerp(contactHand, contact).lerp(followHand, easeOutCubic(follow));
-    rightElbow = rightShoulder.clone().lerp(rightHand, 0.5).addScaledVector(right, -0.1).setY((rightShoulder.y + rightHand.y) * 0.52);
-    paddleCenter = rightHand.clone().addScaledVector(forward, 0.16).addScaledVector(right, -0.02).setY(rightHand.y + 0.04);
+    rightElbow = rightShoulder.clone().lerp(rightHand, 0.5).addScaledVector(right, tableScale(-0.1)).setY((rightShoulder.y + rightHand.y) * 0.52);
+    paddleCenter = rightHand.clone().addScaledVector(forward, tableScale(0.16)).addScaledVector(right, tableScale(-0.02)).setY(rightHand.y + tableScale(0.04));
     faceNormal = forward.clone().multiplyScalar(-0.88).addScaledVector(right, -0.22).add(new THREE.Vector3(0, 0.06, 0)).normalize();
-    leftElbow = leftShoulder.clone().addScaledVector(right, -0.16).addScaledVector(forward, 0.18).setY(CFG.tableY + 0.36);
-    leftHand = leftShoulder.clone().addScaledVector(right, -0.22).addScaledVector(forward, 0.34).setY(CFG.tableY + 0.2);
+    leftElbow = leftShoulder.clone().addScaledVector(right, tableScale(-0.16)).addScaledVector(forward, tableScale(0.18)).setY(CFG.tableY + tableScale(0.36));
+    leftHand = leftShoulder.clone().addScaledVector(right, tableScale(-0.22)).addScaledVector(forward, tableScale(0.34)).setY(CFG.tableY + tableScale(0.2));
     wristPronation = -0.85 + 0.7 * contact;
   } else {
     const prep = clamp01(tRaw / 0.24);
     const contact = clamp01((tRaw - 0.38) / 0.18);
     const follow = clamp01((tRaw - 0.56) / 0.42);
-    const sideOffset = clamp(ball.pos.x - player.pos.x, -0.15, 0.32);
+    const sideOffset = clamp(ball.pos.x - player.pos.x, tableScale(-0.15), tableScale(0.32));
 
     torsoYaw = -0.5 * prep + 0.75 * contact - 0.15 * follow;
     torsoLean = 0.16 - 0.06 * contact;
     shoulderLift = 0.09 * contact;
 
-    const prepHand = rightShoulder.clone().addScaledVector(right, 0.34 + sideOffset).addScaledVector(forward, -0.14).setY(CFG.tableY + 0.18);
-    const contactHand = ball.pos.clone().addScaledVector(forward, -0.07).addScaledVector(right, -0.02).setY(clamp(ball.pos.y - 0.03, CFG.tableY + 0.1, CFG.tableY + 0.42));
-    const followHand = base.clone().addScaledVector(right, -0.24).addScaledVector(forward, 0.35).setY(CFG.tableY + 0.62);
+    const prepHand = rightShoulder.clone().addScaledVector(right, tableScale(0.34) + sideOffset).addScaledVector(forward, tableScale(-0.14)).setY(CFG.tableY + tableScale(0.18));
+    const contactHand = ball.pos.clone().addScaledVector(forward, tableScale(-0.07)).addScaledVector(right, tableScale(-0.02)).setY(clamp(ball.pos.y - tableScale(0.03), CFG.tableY + tableScale(0.1), CFG.tableY + tableScale(0.42)));
+    const followHand = base.clone().addScaledVector(right, tableScale(-0.24)).addScaledVector(forward, tableScale(0.35)).setY(CFG.tableY + tableScale(0.62));
 
     rightHand.copy(prepHand).lerp(contactHand, contact).lerp(followHand, easeOutCubic(follow));
-    rightElbow = rightShoulder.clone().lerp(rightHand, 0.5).addScaledVector(right, 0.09 * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + 0.03);
-    paddleCenter = rightHand.clone().addScaledVector(forward, 0.16).addScaledVector(right, 0.02).setY(rightHand.y + 0.04 + 0.12 * follow);
+    rightElbow = rightShoulder.clone().lerp(rightHand, 0.5).addScaledVector(right, tableScale(0.09) * (1 - follow)).setY((rightShoulder.y + rightHand.y) * 0.5 + tableScale(0.03));
+    paddleCenter = rightHand.clone().addScaledVector(forward, tableScale(0.16)).addScaledVector(right, tableScale(0.02)).setY(rightHand.y + tableScale(0.04) + tableScale(0.12) * follow);
     faceNormal = forward.clone().multiplyScalar(-0.82).addScaledVector(right, 0.16).add(new THREE.Vector3(0, 0.1 + 0.18 * contact, 0)).normalize();
 
-    leftElbow = leftShoulder.clone().addScaledVector(right, -0.18).addScaledVector(forward, 0.14).setY(CFG.tableY + 0.38);
-    leftHand = leftShoulder.clone().addScaledVector(right, -0.28 + 0.18 * follow).addScaledVector(forward, 0.26).setY(CFG.tableY + 0.2 + 0.28 * follow);
+    leftElbow = leftShoulder.clone().addScaledVector(right, tableScale(-0.18)).addScaledVector(forward, tableScale(0.14)).setY(CFG.tableY + tableScale(0.38));
+    leftHand = leftShoulder.clone().addScaledVector(right, tableScale(-0.28) + tableScale(0.18) * follow).addScaledVector(forward, tableScale(0.26)).setY(CFG.tableY + tableScale(0.2) + tableScale(0.28) * follow);
     wristPronation = 0.55 * prep + 0.9 * contact + 0.22 * follow;
   }
 
@@ -1087,9 +1092,9 @@ function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY
   const depth = clamp(upwardIntent * 0.96 + Math.max(0, Math.abs(dx) / (shortSide * 0.92)) * 0.04, 0, 1);
   const rawPower = Math.hypot(dx, dy) / (shortSide * (isServe ? 0.36 : 0.28));
   const power = clamp(Math.pow(clamp01(rawPower), 0.56), isServe ? 0.76 : 0.58, 1);
-  const safetyMargin = isServe ? 0.18 : 0.1;
+  const safetyMargin = isServe ? tableScale(0.18) : tableScale(0.1);
   const targetX = clamp(lateral * (TABLE_HALF_W - safetyMargin), -TABLE_HALF_W + safetyMargin, TABLE_HALF_W - safetyMargin);
-  const targetZ = isServe ? -lerp(0.38, TABLE_HALF_L - 0.32, depth) : -lerp(0.3, TABLE_HALF_L - 0.1, depth);
+  const targetZ = isServe ? -lerp(tableScale(0.38), TABLE_HALF_L - tableScale(0.32), depth) : -lerp(tableScale(0.3), TABLE_HALF_L - tableScale(0.1), depth);
   return {
     target: new THREE.Vector3(targetX, BALL_SURFACE_Y, targetZ),
     power,
@@ -1102,8 +1107,8 @@ function makeAiServeTarget(): DesiredHit {
   const sideSpin = clamp((Math.random() - 0.5) * 1.7, -0.95, 0.95);
   const shortServe = Math.random() < 0.56;
   const wide = Math.random() < 0.45;
-  const x = clamp((wide ? Math.sign(Math.random() - 0.5) * 0.58 : (Math.random() - 0.5) * 0.45), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-  const z = shortServe ? lerp(0.32, 0.52, Math.random()) : lerp(TABLE_HALF_L - 0.35, TABLE_HALF_L - 0.16, Math.random());
+  const x = clamp((wide ? Math.sign(Math.random() - 0.5) * tableScale(0.58) : (Math.random() - 0.5) * tableScale(0.45)), -TABLE_HALF_W + tableScale(0.1), TABLE_HALF_W - tableScale(0.1));
+  const z = shortServe ? lerp(tableScale(0.32), tableScale(0.52), Math.random()) : lerp(TABLE_HALF_L - tableScale(0.35), TABLE_HALF_L - tableScale(0.16), Math.random());
   return {
     target: new THREE.Vector3(x, BALL_SURFACE_Y, z),
     power: shortServe ? 0.48 + Math.random() * 0.12 : 0.62 + Math.random() * 0.18,
@@ -1118,8 +1123,8 @@ function makeAiTarget(near: HumanRig, ball: BallState, read?: { strike: THREE.Ve
   const recoverX = clamp(near.target.x * 0.62 + near.pos.x * 0.38, -TABLE_HALF_W, TABLE_HALF_W);
   const playerMomentum = clamp(near.target.x - near.pos.x, -0.8, 0.8);
   const strike = read?.strike || ball.pos;
-  const highBall = strike.y > CFG.tableY + 0.39;
-  const lowBall = strike.y < CFG.tableY + 0.18;
+  const highBall = strike.y > CFG.tableY + tableScale(0.39);
+  const lowBall = strike.y < CFG.tableY + tableScale(0.18);
   const earlyBall = (read?.time ?? 0.28) < 0.24;
   const confidence = read?.confidence ?? 0.68;
   const openSide = recoverX + playerMomentum * 0.72 > 0 ? -1 : 1;
@@ -1136,50 +1141,50 @@ function makeAiTarget(near: HumanRig, ball: BallState, read?: { strike: THREE.Ve
   else tactic = highBall ? "loop" : "drive";
 
   let x = 0;
-  let z = 0.92;
+  let z = tableScale(0.92);
   let power = 0.64;
   let topSpin = 0.8;
   let sideSpin = clamp((Math.random() - 0.5) * 0.46, -0.46, 0.46);
 
   if (tactic === "push") {
     const shortAngle = Math.random() < 0.55 ? openSide : -Math.sign(strike.x || openSide);
-    x = clamp(shortAngle * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.58, Math.random()), -TABLE_HALF_W + 0.16, TABLE_HALF_W - 0.16);
-    z = lerp(0.24, 0.5, Math.random());
+    x = clamp(shortAngle * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.58, Math.random()), -TABLE_HALF_W + tableScale(0.16), TABLE_HALF_W - tableScale(0.16));
+    z = lerp(tableScale(0.24), tableScale(0.5), Math.random());
     power = 0.36 + confidence * 0.1;
     topSpin = -0.34;
     sideSpin = shortAngle * 0.32;
   } else if (tactic === "wide") {
     const angleSide = Math.random() < 0.68 ? openSide : wrongFootSide;
-    x = clamp(angleSide * lerp(TABLE_HALF_W - 0.28, TABLE_HALF_W - 0.1, Math.random()), -TABLE_HALF_W + 0.08, TABLE_HALF_W - 0.08);
-    z = lerp(TABLE_HALF_L * 0.34, TABLE_HALF_L - 0.14, Math.random());
+    x = clamp(angleSide * lerp(TABLE_HALF_W - tableScale(0.28), TABLE_HALF_W - tableScale(0.1), Math.random()), -TABLE_HALF_W + tableScale(0.08), TABLE_HALF_W - tableScale(0.08));
+    z = lerp(TABLE_HALF_L * 0.34, TABLE_HALF_L - tableScale(0.14), Math.random());
     power = 0.72 + pressure * 0.2 + confidence * 0.04;
     topSpin = 0.92 + pressure * 0.26;
     sideSpin = angleSide * lerp(0.48, 0.82, confidence);
   } else if (tactic === "body") {
-    x = clamp(recoverX * 0.86 + playerMomentum * 0.34 + (Math.random() - 0.5) * 0.08, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
+    x = clamp(recoverX * 0.86 + playerMomentum * 0.34 + (Math.random() - 0.5) * tableScale(0.08), -TABLE_HALF_W + tableScale(0.12), TABLE_HALF_W - tableScale(0.12));
     z = lerp(TABLE_HALF_L * 0.24, TABLE_HALF_L * 0.48, Math.random());
     power = 0.68 + pressure * 0.22 + (earlyBall ? 0.04 : 0);
     topSpin = 0.72 + pressure * 0.24;
     sideSpin = -Math.sign(playerMomentum || openSide) * 0.25;
   } else if (tactic === "loop") {
     const heavySide = Math.random() < 0.62 ? openSide : -Math.sign(strike.x || openSide);
-    x = clamp(heavySide * lerp(TABLE_HALF_W * 0.34, TABLE_HALF_W - 0.16, Math.random()), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-    z = lerp(TABLE_HALF_L - 0.42, TABLE_HALF_L - 0.12, Math.random());
+    x = clamp(heavySide * lerp(TABLE_HALF_W * 0.34, TABLE_HALF_W - tableScale(0.16), Math.random()), -TABLE_HALF_W + tableScale(0.1), TABLE_HALF_W - tableScale(0.1));
+    z = lerp(TABLE_HALF_L - tableScale(0.42), TABLE_HALF_L - tableScale(0.12), Math.random());
     power = 0.82 + pressure * 0.14 + confidence * 0.04;
     topSpin = 1.12 + pressure * 0.24;
     sideSpin = heavySide * 0.28;
   } else {
     const driveSide = Math.random() < 0.58 ? wrongFootSide : openSide;
-    x = clamp(driveSide * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.72, Math.random()), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L * 0.32, TABLE_HALF_L - 0.18, Math.random());
+    x = clamp(driveSide * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.72, Math.random()), -TABLE_HALF_W + tableScale(0.12), TABLE_HALF_W - tableScale(0.12));
+    z = lerp(TABLE_HALF_L * 0.32, TABLE_HALF_L - tableScale(0.18), Math.random());
     power = 0.68 + pressure * 0.22;
     topSpin = 0.78 + pressure * 0.2;
     sideSpin = driveSide * 0.22;
   }
 
-  const safeMargin = confidence > 0.78 ? 0.08 : 0.16;
+  const safeMargin = confidence > 0.78 ? tableScale(0.08) : tableScale(0.16);
   return {
-    target: new THREE.Vector3(clamp(x, -TABLE_HALF_W + safeMargin, TABLE_HALF_W - safeMargin), BALL_SURFACE_Y, clamp(z, 0.2, TABLE_HALF_L - safeMargin)),
+    target: new THREE.Vector3(clamp(x, -TABLE_HALF_W + safeMargin, TABLE_HALF_W - safeMargin), BALL_SURFACE_Y, clamp(z, tableScale(0.2), TABLE_HALF_L - safeMargin)),
     power: clamp(power, 0.34, 0.98),
     topSpin: clamp(topSpin, -0.4, 1.32),
     sideSpin: clamp(sideSpin, -1, 1),
@@ -1190,24 +1195,24 @@ function makeAiTarget(near: HumanRig, ball: BallState, read?: { strike: THREE.Ve
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
   const dirZ = player.side === "near" ? -1 : 1;
   const target = hit.target.clone();
-  target.x = clamp(target.x, -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-  target.z = player.side === "near" ? clamp(target.z, -TABLE_HALF_L + 0.12, -0.18) : clamp(target.z, 0.18, TABLE_HALF_L - 0.12);
+  target.x = clamp(target.x, -TABLE_HALF_W + tableScale(0.1), TABLE_HALF_W - tableScale(0.1));
+  target.z = player.side === "near" ? clamp(target.z, -TABLE_HALF_L + tableScale(0.12), tableScale(-0.18)) : clamp(target.z, tableScale(0.18), TABLE_HALF_L - tableScale(0.12));
   target.y = BALL_SURFACE_Y;
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + tableScale(0.12), TABLE_HALF_W - tableScale(0.12)), BALL_SURFACE_Y, dirZ * tableScale(-0.62));
     const serveDistance = Math.max(0.001, ball.pos.distanceTo(ownBounce));
-    const serveFlight = serveDistance / (18.0 + hit.power * 13.0);
+    const serveFlight = serveDistance / (scaled(18.0) + hit.power * scaled(13.0));
     const flight = clamp(serveFlight, 0.14, 0.26);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
   } else {
-    ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
+    ball.pos.y = clamp(ball.pos.y, CFG.tableY + tableScale(0.08), CFG.tableY + tableScale(0.48));
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
-    const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const baseFlight = dist / ((8.8 + hit.power * 11.8) * speedScale);
+    const speedScale = Math.max(1, (TABLE_SCALE_FACTOR / TABLE_TENNIS_WORLD_SCALE) * 0.85);
+    const baseFlight = dist / ((scaled(8.8) + hit.power * scaled(11.8)) * speedScale);
     const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.52);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
@@ -1236,10 +1241,10 @@ function canReachBall(player: HumanRig, ball: BallState) {
   if (player.cooldown > 0 || ball.lastHitBy === player.side || ball.lastHitBy === null) return false;
   if (sideOfZ(ball.pos.z) !== player.side) return false;
   if (ball.bounceSide !== player.side || ball.bounceCount < 1) return false;
-  const maxContactHeight = player.side === "far" ? CFG.tableY + 0.74 : CFG.tableY + 0.62;
-  if (ball.pos.y < CFG.tableY + 0.06 || ball.pos.y > maxContactHeight) return false;
+  const maxContactHeight = player.side === "far" ? CFG.tableY + tableScale(0.74) : CFG.tableY + tableScale(0.62);
+  if (ball.pos.y < CFG.tableY + tableScale(0.06) || ball.pos.y > maxContactHeight) return false;
   const pose = tableTennisPose(player, ball);
-  const reachBoost = player.side === "far" ? 0.32 : 0.24;
+  const reachBoost = player.side === "far" ? tableScale(0.32) : tableScale(0.24);
   const paddleReach = pose.paddleCenter.distanceTo(ball.pos) < reachBoost * PADDLE_SCALE_FACTOR;
   return paddleReach;
 }
@@ -1252,8 +1257,8 @@ function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   player.pos.x = clamp(player.pos.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
-  if (player.side === "near") player.pos.z = clamp(player.pos.z, TABLE_HALF_L + 0.18, TABLE_HALF_L + 0.9);
-  else player.pos.z = clamp(player.pos.z, -TABLE_HALF_L - 0.9, -TABLE_HALF_L - 0.18);
+  if (player.side === "near") player.pos.z = clamp(player.pos.z, TABLE_HALF_L + tableScale(0.18), TABLE_HALF_L + tableScale(0.9));
+  else player.pos.z = clamp(player.pos.z, -TABLE_HALF_L - tableScale(0.9), -TABLE_HALF_L - tableScale(0.18));
 
   let face: THREE.Vector3;
   if (ball.lastHitBy === null && ball.phase.kind === "serve" && ball.phase.server === player.side) face = new THREE.Vector3(0.12, 0, player.side === "near" ? -1 : 1).normalize();
@@ -1350,11 +1355,11 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
     }
 
     const time = i * dt;
-    const playableHeight = p.y >= CFG.tableY + 0.1 && p.y <= CFG.tableY + 0.7;
-    const farSide = p.z < 0.12;
+    const playableHeight = p.y >= CFG.tableY + tableScale(0.1) && p.y <= CFG.tableY + tableScale(0.7);
+    const farSide = p.z < tableScale(0.12);
     if (!hasFarBounce || !playableHeight || !farSide) continue;
 
-    const targetZ = clamp(p.z - (p.y > CFG.tableY + 0.36 ? 0.36 : 0.26), -TABLE_HALF_L - 1.42, -TABLE_HALF_L - 0.36);
+    const targetZ = clamp(p.z - (p.y > CFG.tableY + tableScale(0.36) ? tableScale(0.36) : tableScale(0.26)), -TABLE_HALF_L - tableScale(1.42), -TABLE_HALF_L - tableScale(0.36));
     const targetX = clamp(p.x, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
     const travelNeeded = Math.hypot(targetX - ai.pos.x, targetZ - ai.pos.z);
     const reachableDistance = ai.speed * time + CFG.reach * 0.42;
@@ -1367,7 +1372,7 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
     }
   }
 
-  const strike = best || landing.clone().setY(clamp(landing.y + 0.22, CFG.tableY + 0.16, CFG.tableY + 0.46));
+  const strike = best || landing.clone().setY(clamp(landing.y + tableScale(0.22), CFG.tableY + tableScale(0.16), CFG.tableY + tableScale(0.46)));
   return {
     strike,
     landing,
@@ -1477,34 +1482,34 @@ export default function MobileRealisticTableTennisGame() {
     };
     loadHdri();
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36);
-    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.22, -0.08);
+    const camera = new THREE.PerspectiveCamera(46, 1, tableScale(0.03), tableScale(36));
+    const cameraTarget = new THREE.Vector3(0, CFG.tableY + tableScale(0.22), tableScale(-0.08));
     const netWobble = { amount: 0, side: 0 };
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.64));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x263f4b, 0.8));
     const key = new THREE.DirectionalLight(0xffffff, 1.55);
-    key.position.set(-2.8, 4.6, 3.7);
+    key.position.set(tableScale(-2.8), tableScale(4.6), tableScale(3.7));
     key.castShadow = true;
     key.shadow.mapSize.width = 2048;
     key.shadow.mapSize.height = 2048;
-    key.shadow.camera.near = 0.4;
-    key.shadow.camera.far = 12;
-    key.shadow.camera.left = -3.8;
-    key.shadow.camera.right = 3.8;
-    key.shadow.camera.top = 4.5;
-    key.shadow.camera.bottom = -4.5;
+    key.shadow.camera.near = tableScale(0.4);
+    key.shadow.camera.far = tableScale(12);
+    key.shadow.camera.left = tableScale(-3.8);
+    key.shadow.camera.right = tableScale(3.8);
+    key.shadow.camera.top = tableScale(4.5);
+    key.shadow.camera.bottom = tableScale(-4.5);
     scene.add(key);
 
     const rim = new THREE.DirectionalLight(0xb8e6ff, 0.55);
-    rim.position.set(2.4, 2.1, -3.1);
+    rim.position.set(tableScale(2.4), tableScale(2.1), tableScale(-3.1));
     scene.add(rim);
 
     addTable(scene, renderer);
 
     const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
-    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 1.05), 0xff6b2e, humanModelUrl);
-    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05), 0x4ab7ff, humanModelUrl);
+    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + tableScale(1.05)), 0xff6b2e, humanModelUrl);
+    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - tableScale(1.05)), 0x4ab7ff, humanModelUrl);
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
     scene.add(ball.mesh);
@@ -1514,19 +1519,19 @@ export default function MobileRealisticTableTennisGame() {
     resetBallForServe(ball, nearPlayer);
 
     const aimGhost = new THREE.Mesh(
-      new THREE.RingGeometry(0.07, 0.09, 40),
+      new THREE.RingGeometry(tableScale(0.07), tableScale(0.09), 40),
       new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
     );
     aimGhost.rotation.x = -Math.PI / 2;
-    aimGhost.position.set(0, CFG.tableY + 0.009, -0.72);
+    aimGhost.position.set(0, CFG.tableY + tableScale(0.009), tableScale(-0.72));
     scene.add(aimGhost);
 
     const playerGhost = new THREE.Mesh(
-      new THREE.RingGeometry(0.18, 0.22, 38),
+      new THREE.RingGeometry(tableScale(0.18), tableScale(0.22), 38),
       new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24, side: THREE.DoubleSide })
     );
     playerGhost.rotation.x = -Math.PI / 2;
-    playerGhost.position.copy(nearPlayer.target).setY(0.035);
+    playerGhost.position.copy(nearPlayer.target).setY(tableScale(0.035));
     scene.add(playerGhost);
 
     let frameId = 0;
@@ -1580,7 +1585,7 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 44 : 39;
-      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
+      camera.position.set(0, camera.aspect < 0.72 ? tableScale(7.1) : tableScale(6.2), camera.aspect < 0.72 ? tableScale(8.55) : tableScale(7.55));
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1618,8 +1623,8 @@ export default function MobileRealisticTableTennisGame() {
       control.lastY = e.clientY;
       const dx = e.clientX - control.startX;
       const dy = e.clientY - control.startY;
-      nearPlayer.target.x = clamp(control.startPlayer.x + dx * 0.0047, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
-      nearPlayer.target.z = clamp(control.startPlayer.z + dy * 0.0032, TABLE_HALF_L + 0.18, TABLE_HALF_L + 0.9);
+      nearPlayer.target.x = clamp(control.startPlayer.x + dx * tableScale(0.0047), -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
+      nearPlayer.target.z = clamp(control.startPlayer.z + dy * tableScale(0.0032), TABLE_HALF_L + tableScale(0.18), TABLE_HALF_L + tableScale(0.9));
       setHudSafe({ power: clamp01(Math.hypot(dx, dy) / 210), spin: clamp(dx / 170, -1, 1) });
 
       const plan = makeUserHitFromSwipe(control.startX, control.startY, e.clientX, e.clientY, ball.lastHitBy === null);
@@ -1739,9 +1744,9 @@ export default function MobileRealisticTableTennisGame() {
         const lateralDeflect = clamp(ball.vel.x * 0.04 + ball.spin.y * 0.0007 + (Math.random() - 0.5) * 0.055, -0.18, 0.18);
 
         ball.pos.copy(netImpact);
-        ball.pos.z = travelDir * (netHalfThickness + CFG.ballR + 0.004);
+        ball.pos.z = travelDir * (netHalfThickness + CFG.ballR + tableScale(0.004));
         if (hitTopBand) {
-          const crawlsOver = ball.vel.y > -0.72 && Math.abs(ball.vel.z) > 1.0 && clipDepth > 0.42;
+          const crawlsOver = ball.vel.y > tableScale(-0.72) && Math.abs(ball.vel.z) > 1.0 && clipDepth > 0.42;
           const keep = crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention;
           ball.vel.z = Math.abs(ball.vel.z) * keep * travelDir;
           ball.vel.y = Math.max(crawlsOver ? 0.075 : 0.018, Math.abs(ball.vel.y) * 0.16 + clipDepth * 0.07);
@@ -1765,13 +1770,13 @@ export default function MobileRealisticTableTennisGame() {
       const tableImpactZ = lerp(prev.z, ball.pos.z, tableImpactAlpha);
 
       for (const player of [nearPlayer, farPlayer]) {
-        const torsoCenter = player.pos.clone().setY(CFG.tableY + 0.34);
+        const torsoCenter = player.pos.clone().setY(CFG.tableY + tableScale(0.34));
         const delta = ball.pos.clone().sub(torsoCenter);
         delta.y *= 1.18;
         const collisionRadius = 0.22;
         if (delta.lengthSq() > collisionRadius * collisionRadius) continue;
         const normal = delta.lengthSq() > 0.0001 ? delta.normalize() : new THREE.Vector3(0, 0.4, player.side === "near" ? 1 : -1).normalize();
-        ball.pos.copy(torsoCenter).addScaledVector(normal, collisionRadius + 0.004);
+        ball.pos.copy(torsoCenter).addScaledVector(normal, collisionRadius + tableScale(0.004));
         const vn = ball.vel.dot(normal);
         if (vn < 0) ball.vel.addScaledVector(normal, -(1 + 0.18) * vn);
         reduceImpactPower(ball.vel, CFG.bodyPowerRetention, 0.26);
@@ -1803,18 +1808,18 @@ export default function MobileRealisticTableTennisGame() {
         ball.vel.x *= CFG.floorFriction;
         ball.vel.z *= CFG.floorFriction;
       }
-      if (Math.abs(ball.pos.x) > TABLE_HALF_W + 0.68) {
-        ball.pos.x = Math.sign(ball.pos.x) * (TABLE_HALF_W + 0.68);
+      if (Math.abs(ball.pos.x) > TABLE_HALF_W + tableScale(0.68)) {
+        ball.pos.x = Math.sign(ball.pos.x) * (TABLE_HALF_W + tableScale(0.68));
         ball.vel.x *= -CFG.railRestitution;
         ball.vel.z *= 0.94;
       }
-      if (Math.abs(ball.pos.z) > TABLE_HALF_L + 1.22) {
-        ball.pos.z = Math.sign(ball.pos.z) * (TABLE_HALF_L + 1.22);
+      if (Math.abs(ball.pos.z) > TABLE_HALF_L + tableScale(1.22)) {
+        ball.pos.z = Math.sign(ball.pos.z) * (TABLE_HALF_L + tableScale(1.22));
         ball.vel.z *= -CFG.railRestitution;
         ball.vel.x *= 0.94;
       }
 
-      if ((Math.abs(ball.pos.x) > TABLE_HALF_W + 1.3 || Math.abs(ball.pos.z) > TABLE_HALF_L + 1.8 || ball.pos.y < -0.7) && ball.lastHitBy) {
+      if ((Math.abs(ball.pos.x) > TABLE_HALF_W + tableScale(1.3) || Math.abs(ball.pos.z) > TABLE_HALF_L + tableScale(1.8) || ball.pos.y < tableScale(-0.7)) && ball.lastHitBy) {
         const hitter = ball.lastHitBy;
         const hadLegalBounce = ball.bounceSide === opposite(hitter) && ball.bounceCount >= 1;
         awardPoint(hadLegalBounce ? hitter : opposite(hitter), "out");
@@ -1826,10 +1831,10 @@ export default function MobileRealisticTableTennisGame() {
     }
 
     function updateAi(dt: number) {
-      const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05);
+      const home = new THREE.Vector3(0, 0, -TABLE_HALF_L - tableScale(1.05));
 
       if (ball.lastHitBy === null && ball.phase.kind === "serve" && ball.phase.server === "far") {
-        farPlayer.target.lerp(new THREE.Vector3(0.08, 0, -TABLE_HALF_L - 1.05), 0.045);
+        farPlayer.target.lerp(new THREE.Vector3(tableScale(0.08), 0, -TABLE_HALF_L - tableScale(1.05)), 0.045);
         aiServeWindup += dt;
         if (aiServeWindup > 0.62 && farPlayer.swingT === 0) {
           startSwing(farPlayer, makeAiServeTarget(), "serve");
@@ -1839,7 +1844,7 @@ export default function MobileRealisticTableTennisGame() {
         return;
       }
 
-      const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.42;
+      const incoming = ball.lastHitBy === "near" && ball.pos.z < tableScale(0.42);
       const read = incoming ? predictAiStrikeRead(ball, farPlayer) : null;
       if (incoming && read && !read.willLandFarLegal && ball.bounceSide !== "far") {
         farPlayer.target.lerp(home, 0.08);
@@ -1847,10 +1852,10 @@ export default function MobileRealisticTableTennisGame() {
       } else if (incoming && read) {
         const serviceReceive = ball.phase.kind === "serve" || ball.bounceSide === "near";
         const speedBoost = serviceReceive ? CFG.aiServeReceiveBoost : 1;
-        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.38 : 0.27);
-        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? 0.055 : 0.045), -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
+        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + tableScale(0.36) ? tableScale(0.38) : tableScale(0.27));
+        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? tableScale(0.055) : tableScale(0.045)), -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
         farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
-        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.42 * speedBoost, -TABLE_HALF_L - 0.34);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - tableScale(1.42) * speedBoost, -TABLE_HALF_L - tableScale(0.34));
       } else {
         farPlayer.target.lerp(home, 0.055);
       }
@@ -1858,7 +1863,7 @@ export default function MobileRealisticTableTennisGame() {
       const aiReadyToStrike = incoming && read && read.willLandFarLegal && read.confidence > 0.34 && (canReachBall(farPlayer, ball) || (read.time < 0.2 && ball.bounceSide === "far"));
       if (aiReadyToStrike && farPlayer.swingT === 0) {
         const plan = makeAiTarget(nearPlayer, ball, read);
-        const backhandBias = ball.pos.x - farPlayer.pos.x > 0.08 || plan.tactic === "push" || (read.strike.x > farPlayer.pos.x && Math.abs(read.strike.x) > TABLE_HALF_W * 0.32);
+        const backhandBias = ball.pos.x - farPlayer.pos.x > tableScale(0.08) || plan.tactic === "push" || (read.strike.x > farPlayer.pos.x && Math.abs(read.strike.x) > TABLE_HALF_W * 0.32);
         const action: StrokeAction = backhandBias ? "backhand" : "forehand";
         startSwing(farPlayer, plan, action);
         farPlayer.cooldown = Math.min(farPlayer.cooldown, 0.05);
@@ -1916,8 +1921,8 @@ export default function MobileRealisticTableTennisGame() {
           farPlayer.action = "ready";
           nearPlayer.swingT = 0;
           farPlayer.swingT = 0;
-          nearPlayer.target.set(0, 0, TABLE_HALF_L + 1.05);
-          farPlayer.target.set(0, 0, -TABLE_HALF_L - 1.05);
+          nearPlayer.target.set(0, 0, TABLE_HALF_L + tableScale(1.05));
+          farPlayer.target.set(0, 0, -TABLE_HALF_L - tableScale(1.05));
           resetBallForServe(ball, players[currentServer]);
           aiServeWindup = 0;
           setHudSafe({ status: currentServer === "near" ? "Your serve: swipe up" : "AI is serving", power: 0, spin: 0 });
@@ -1945,9 +1950,9 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
+      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? tableScale(7.1) : tableScale(6.2), camera.aspect < 0.72 ? tableScale(8.55) : tableScale(7.55));
       camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
-      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.22, -0.08), 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + tableScale(0.22), tableScale(-0.08)), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
