@@ -20,7 +20,13 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
-import { mapSpinForPhysics, normalizeSpinInput } from './poolRoyaleSpinUtils.js';
+import {
+  clampToUnitCircle,
+  computeQuantizedOffsetScaled,
+  mapSpinForPhysics,
+  normalizeSpinInput,
+  smoothDamp
+} from './snookerRoyalSpinUtils.js';
 import {
   TABLE_MODEL_OPENSOURCE_GLB_URL,
   resolveSnookerGlbFitTransform
@@ -28,8 +34,8 @@ import {
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
-const SNOOKER_CHAMPION_TABLE_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
-const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
+const SNOOKER_CHAMPION_TABLE_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
+const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
 const FRAME_RATE_OPTIONS = Object.freeze([
   { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Snooker Royal performance preset for stable battery-friendly play.' },
   { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Snooker Royal smooth preset for sharper textures and 90 FPS timing.' },
@@ -82,7 +88,7 @@ const SNOOKER_BALL_VALUES = Object.freeze({ red: 1, yellow: 2, green: 3, brown: 
 const SNOOKER_COLOR_LABELS = Object.freeze({ yellow: 'Yellow', green: 'Green', brown: 'Brown', blue: 'Blue', pink: 'Pink', black: 'Black' });
 const SNOOKER_COLOR_ORDER = Object.freeze(['yellow', 'green', 'brown', 'blue', 'pink', 'black']);
 const SPIN_CONTROL_DIAMETER_PX = 124;
-const SPIN_DOT_DIAMETER_PX = 18;
+const SPIN_DOT_DIAMETER_PX = 16;
 const POOL_ROYALE_BOTTOM_HUD_LEFT_INSET_PX = 150;
 const POOL_ROYALE_BOTTOM_HUD_RIGHT_INSET_PX = SPIN_CONTROL_DIAMETER_PX + 150;
 const POOL_ROYALE_BOTTOM_OFFSET_PX = 12;
@@ -140,8 +146,15 @@ const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MO
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
 const SNOOKER_SHOT_POWER_BOOST = 0.455; // Snooker Royal full-size strike output, shared by Champion through the common table/physics core
+const SNOOKER_SHOT_MIN_FACTOR = 0.25;
+const SNOOKER_SHOT_POWER_RANGE = 0.75;
+const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_SHOT_SPIN_SCALE = 0.25;
+const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
+const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SNOOKER_TOPSPIN_MULTIPLIER = 1.62 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
 const SNOOKER_SPIN_SLIDE_EPS = 0.02;
@@ -237,7 +250,7 @@ const CFG = {
   holdTime: 0.05,
   cueLength: 1.78 * WORLD_SCALE,
   bridgeDist: 0.28 * WORLD_SCALE,
-  edgeMargin: 0.42 * WORLD_SCALE,
+  edgeMargin: 0.5 * WORLD_SCALE,
   desiredShootDistance: 0.82 * WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
@@ -1264,11 +1277,16 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
   const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spinMapped = mapSpinForPhysics(normalizeSpinInput(spinInput));
+  const powerSpinScale = 0.55 + p * 0.45;
+  const rawTopSpin = (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE * powerSpinScale;
   const spin = {
-    x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE,
-    y: (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE
+    x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE * SNOOKER_SIDE_SPIN_MULTIPLIER * powerSpinScale,
+    y: rawTopSpin < 0
+      ? rawTopSpin * SNOOKER_BACKSPIN_MULTIPLIER
+      : rawTopSpin * SNOOKER_TOPSPIN_MULTIPLIER
   };
-  const speed = (2.8 + p * 9.2) * CFG.scale * SNOOKER_SHOT_POWER_BOOST;
+  const powerScale = SNOOKER_SHOT_MIN_FACTOR + SNOOKER_SHOT_POWER_RANGE * p;
+  const speed = SNOOKER_SHOT_FULL_SPEED * powerScale;
   cueBall.vel.copy(dir.multiplyScalar(speed));
   cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
   cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
@@ -2042,27 +2060,153 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     const pad = spinPadRef.current;
     const dot = spinDotRef.current;
     if (!pad || !dot) return undefined;
-    const applySpinFromEvent = (e) => {
-      const rect = pad.getBoundingClientRect();
-      const rawX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-      const rawY = (0.5 - (e.clientY - rect.top) / rect.height) * 2;
-      const normalized = normalizeSpinInput({ x: rawX, y: rawY });
-      setSpin(normalized);
-      dot.style.left = `${50 + normalized.x * 42}%`;
-      dot.style.top = `${50 - normalized.y * 42}%`;
+
+    pad.style.transition = 'transform 0.18s ease';
+    pad.style.transformOrigin = '50% 50%';
+    pad.style.touchAction = 'none';
+
+    let activePointer = null;
+    let revertTimer = null;
+    let rafId = null;
+    let lastTime = null;
+    let moved = false;
+    const spinState = {
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
     };
-    const onPointerDown = (e) => { pad.setPointerCapture(e.pointerId); applySpinFromEvent(e); };
-    const onPointerMove = (e) => { if (e.buttons) applySpinFromEvent(e); };
-    const onPointerUp = (e) => { try { pad.releasePointerCapture(e.pointerId); } catch {} };
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
+
+    const applySpin = (nx, ny) => {
+      const clamped = clampToUnitCircle(nx, ny);
+      const normalized = normalizeSpinInput(clamped);
+      setSpin(normalized);
+      spinRef.current = normalized;
+      dot.style.left = `${50 + clamped.x * 42}%`;
+      dot.style.top = `${50 - clamped.y * 42}%`;
+    };
+
+    const clearTimer = () => {
+      if (revertTimer) {
+        clearTimeout(revertTimer);
+        revertTimer = null;
+      }
+    };
+    const releasePointer = () => {
+      if (activePointer !== null) {
+        try { pad.releasePointerCapture(activePointer); } catch {}
+        activePointer = null;
+      }
+    };
+    const scalePad = (value) => {
+      pad.style.transform = `scale(${value})`;
+    };
+    function stepSpring(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const nextX = smoothDamp(
+        spinState.current.x,
+        spinState.target.x,
+        spinState.velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        spinState.current.y,
+        spinState.target.y,
+        spinState.velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      spinState.current.x = nextX.value;
+      spinState.current.y = nextY.value;
+      spinState.velocity.x = nextX.velocity;
+      spinState.velocity.y = nextY.velocity;
+      applySpin(spinState.current.x, spinState.current.y);
+      const dx = spinState.target.x - spinState.current.x;
+      const dy = spinState.target.y - spinState.current.y;
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(spinState.velocity.x, spinState.velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...spinState.target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      if (activePointer !== null || !settled) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
+      }
+    }
+    const startSpring = () => {
+      if (!rafId) rafId = requestAnimationFrame(stepSpring);
+    };
+    const updateSpin = (clientX, clientY) => {
+      const rect = pad.getBoundingClientRect();
+      const rawX = ((clientX - rect.left) / rect.width - 0.5) * 2;
+      const rawY = (0.5 - (clientY - rect.top) / rect.height) * 2;
+      const clamped = clampToUnitCircle(rawX, rawY);
+      spinState.target = clamped;
+      startSpring();
+    };
+    const snapTarget = () => {
+      const snapped = computeQuantizedOffsetScaled(spinState.target.x, spinState.target.y);
+      spinState.target = clampToUnitCircle(snapped.x, snapped.y);
+      startSpring();
+    };
+    const onPointerDown = (e) => {
+      releasePointer();
+      activePointer = e.pointerId;
+      moved = false;
+      clearTimer();
+      scalePad(1.35);
+      updateSpin(e.clientX, e.clientY);
+      pad.setPointerCapture(activePointer);
+      revertTimer = window.setTimeout(() => {
+        if (!moved) scalePad(1);
+      }, 1500);
+    };
+    const onPointerMove = (e) => {
+      if (activePointer !== e.pointerId || (e.pointerType === 'mouse' && e.buttons === 0)) return;
+      moved = true;
+      updateSpin(e.clientX, e.clientY);
+    };
+    const onPointerUp = (e) => {
+      if (activePointer !== e.pointerId) return;
+      releasePointer();
+      clearTimer();
+      snapTarget();
+      revertTimer = window.setTimeout(() => scalePad(1), 50);
+    };
+    const onPointerCancel = (e) => {
+      if (activePointer !== e.pointerId) return;
+      releasePointer();
+      clearTimer();
+      snapTarget();
+      scalePad(1);
+    };
+    applySpin(0, 0);
+    scalePad(1);
     pad.addEventListener('pointerdown', onPointerDown);
     pad.addEventListener('pointermove', onPointerMove);
     pad.addEventListener('pointerup', onPointerUp);
-    pad.addEventListener('pointercancel', onPointerUp);
+    pad.addEventListener('pointercancel', onPointerCancel);
     return () => {
+      releasePointer();
+      clearTimer();
+      if (rafId) cancelAnimationFrame(rafId);
       pad.removeEventListener('pointerdown', onPointerDown);
       pad.removeEventListener('pointermove', onPointerMove);
       pad.removeEventListener('pointerup', onPointerUp);
-      pad.removeEventListener('pointercancel', onPointerUp);
+      pad.removeEventListener('pointercancel', onPointerCancel);
     };
   }, []);
 
