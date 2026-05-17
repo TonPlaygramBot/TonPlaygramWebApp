@@ -74,6 +74,21 @@ describe('snooker table model selection', () => {
     assert.match(source, /const cueBackShoot = cueTipShoot\.clone\(\)\.addScaledVector\(aimForward, -CFG\.cueLength\)/);
   });
 
+
+  test('Snooker Royal route mounts the original Royal scene instead of Champion scene', async () => {
+    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
+    assert.doesNotMatch(source, /import SnookerRoyalProvided/);
+    assert.match(source, /<SnookerRoyalGame/);
+    assert.doesNotMatch(source, /<SnookerRoyalProvided gameTitle="Snooker Royal"/);
+  });
+
+  test('Snooker Royal scene leaves the human character rig unmounted', async () => {
+    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
+    assert.match(source, /const snookerHumanPlayer = null;/);
+    assert.doesNotMatch(source, /const snookerHumanPlayer = createSnookerRoyalHumanPlayer\(/);
+    assert.match(source, /if \(snookerHumanPlayer\) updateSnookerRoyalHumanPlayer/);
+  });
+
   test('uses procedural rail decor only for the classic table model', () => {
     assert.equal(usesProceduralSnookerTableRailDecor('classic'), true);
     assert.equal(usesProceduralSnookerTableRailDecor('opensource'), false);
