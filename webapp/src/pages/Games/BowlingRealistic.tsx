@@ -343,7 +343,7 @@ const isAtShootingLine = (pos: THREE.Vector3, laneCenter: number) =>
   pos.z <= CFG.foulZ + SHOOTING_ZONE_DEPTH &&
   pos.z >= CFG.foulZ + BOWLING_SHOOTING_ZONE_MIN_CLEARANCE &&
   Math.abs(pos.x - laneCenter) <= CFG.laneHalfW + SHOOTING_ZONE_SIDE_PAD;
-const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.42, CFG.laneY, 8.28);
+const BOWLING_LOUNGE_CENTER = new THREE.Vector3(-4.02, CFG.laneY, 8.28);
 const BOWLING_RETURN_SIDE_X = 2.72;
 const BOWLING_RETURN_Z = 6.38;
 const BOWLING_RACK_SIDE_X = 3.42;
@@ -355,7 +355,7 @@ const bowlingRackPickupX = () =>
 const BOWLING_RELEASE_FOUL_CLEARANCE = 0.42;
 const BOWLING_SHOOTING_ZONE_MIN_CLEARANCE = 0.32;
 const BOWLING_TABLE_CENTERS = [
-  new THREE.Vector3(-4.42, CFG.laneY, 8.18)
+  new THREE.Vector3(-4.02, CFG.laneY, 8.18)
 ] as const;
 type NavigationObstacle = { x: number; z: number; rx: number; rz: number };
 const HUMAN_NAV_OBSTACLES: NavigationObstacle[] = [
@@ -382,11 +382,11 @@ function makeLoungeSeat(x: number, z: number) {
   return { pos, yaw: yawTowardPoint(pos, BOWLING_TABLE_CENTERS[0]) };
 }
 const BOWLING_LOUNGE_CHAIRS = [
-  makeLoungeSeat(-5.45, 7.28),
-  makeLoungeSeat(-3.38, 7.22),
-  makeLoungeSeat(-5.62, 8.72),
-  makeLoungeSeat(-3.18, 8.82),
-  makeLoungeSeat(-4.42, 9.52)
+  makeLoungeSeat(-5.02, 7.28),
+  makeLoungeSeat(-3.02, 7.22),
+  makeLoungeSeat(-5.16, 8.72),
+  makeLoungeSeat(-2.86, 8.82),
+  makeLoungeSeat(-4.02, 9.52)
 ] as { pos: THREE.Vector3; yaw: number }[];
 const PLAYER_SEATS = BOWLING_LOUNGE_CHAIRS.map((chair, index) => ({
   pos: chair.pos.clone(),
@@ -692,6 +692,25 @@ function loadOakMaterial(
     clearcoatRoughness: 0.12,
     reflectivity: 0.62
   });
+}
+
+function applyBowlingWoodFinish(material: THREE.Material, finishId: string) {
+  const mat = material as THREE.MeshPhysicalMaterial;
+  if (!mat?.color) return;
+  mat.color.set('#ffffff');
+  if (finishId.includes('dark') || finishId.includes('carbon')) {
+    mat.color.set('#3a2b23');
+    mat.roughness = Math.max(mat.roughness ?? 0.28, 0.34);
+  } else if (finishId.includes('rosewood')) {
+    mat.color.set('#6f3a2f');
+    mat.clearcoat = Math.max(mat.clearcoat ?? 0.68, 0.74);
+  } else if (finishId.includes('gold') || finishId.includes('lux')) {
+    mat.color.set('#f2c982');
+    mat.clearcoat = Math.max(mat.clearcoat ?? 0.68, 0.82);
+  } else if (finishId.includes('blue') || finishId.includes('neon')) {
+    mat.color.set('#b7d7ff');
+    mat.clearcoat = Math.max(mat.clearcoat ?? 0.68, 0.8);
+  }
 }
 
 function makeFallbackWoodMaterial() {
@@ -2017,8 +2036,22 @@ function makeCanvasTextMaterial(
   ctx.font = `900 ${Math.round(height * 0.22)}px system-ui, sans-serif`;
   ctx.fillText('TON PLAYGRAM', 28, Math.round(height * 0.36));
   ctx.fillStyle = fg;
-  ctx.font = `900 ${Math.round(height * 0.36)}px system-ui, sans-serif`;
-  ctx.fillText(text, 28, Math.round(height * 0.76));
+  const lines = text.includes('\n')
+    ? text.split('\n')
+    : text.length > 28
+      ? text.split(' · ').slice(0, 3)
+      : [text];
+  const lineHeight = lines.length > 1 ? height * 0.22 : height * 0.36;
+  ctx.font = `900 ${Math.round(lineHeight)}px system-ui, sans-serif`;
+  lines.forEach((line, index) => {
+    ctx.fillText(
+      line,
+      28,
+      lines.length > 1
+        ? Math.round(height * 0.48 + index * lineHeight * 1.05)
+        : Math.round(height * 0.76)
+    );
+  });
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshBasicMaterial({
@@ -2050,17 +2083,18 @@ function updatePinfallBoards(
   laneIndex: number,
   knocked: number,
   afterStanding: number,
-  label: string
+  label: string,
+  commentary = ''
 ) {
   const text = knocked === 10 ? `${label} STRIKE` : `${label} ${knocked} DOWN`;
   decor.pinfallPanels.forEach((panel, index) => {
     const active = index === laneIndex;
     const message = active
-      ? `${text} · ${afterStanding} LEFT`
+      ? `${text} · ${afterStanding} LEFT${commentary ? `\n${commentary}` : ''}`
       : `LANE ${index + 1} READY`;
     setBoardCanvasText(panel, message, {
-      width: 1024,
-      height: 256,
+      width: 1400,
+      height: 420,
       bg: active ? 'rgba(1,6,14,0.98)' : 'rgba(2,6,12,0.9)',
       fg: active ? '#f8fafc' : '#cbd5e1',
       accent: active ? '#facc15' : index === 0 ? '#38bdf8' : '#f97316'
@@ -2180,6 +2214,27 @@ function makeBowlingBallRack(
     side.position.set(x as number, 0.36, z as number);
     rack.add(side);
   }
+  const badge = new THREE.Mesh(
+    new THREE.BoxGeometry(1.72, 0.2, 0.045),
+    new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.62,
+      toneMapped: false
+    })
+  );
+  badge.position.set(0, 0.76, -0.52);
+  rack.add(badge);
+  const cradle = new THREE.Mesh(
+    new THREE.BoxGeometry(1.98, 0.045, 0.92),
+    new THREE.MeshStandardMaterial({
+      color: 0x060914,
+      roughness: 0.72,
+      metalness: 0.26
+    })
+  );
+  cradle.position.set(0, 0.22, -0.12);
+  rack.add(cradle);
   for (const [x, z] of [
     [-0.84, -0.48],
     [0.84, -0.48],
@@ -2250,6 +2305,7 @@ function createEnvironment(
   loader: THREE.TextureLoader,
   tableFinishId: string,
   chromeColorId: string,
+  fieldTextureId: string,
   playerCount = 2
 ): BowlingArenaDecor {
   const group = new THREE.Group();
@@ -2290,10 +2346,8 @@ function createEnvironment(
     roughness: 0.84
   });
   if (chromeColorId === 'gold') metalMat.color.set('#d4af37');
-  if (tableFinishId.includes('dark') || tableFinishId.includes('carbon'))
-    (woodMat as THREE.MeshStandardMaterial).color.set('#3a2b23');
-  if (tableFinishId.includes('rosewood'))
-    (woodMat as THREE.MeshStandardMaterial).color.set('#6f3a2f');
+  applyBowlingWoodFinish(woodMat, tableFinishId);
+  applyBowlingWoodFinish(laneMat, fieldTextureId);
   if ((laneMat as THREE.MeshStandardMaterial).color)
     (laneMat as THREE.MeshStandardMaterial).color.multiplyScalar(1.18);
 
@@ -2551,10 +2605,10 @@ function createEnvironment(
     metalness: 0.18
   });
   const backBoard = new THREE.Mesh(
-    new THREE.BoxGeometry(pairHalfW * 2 + 0.86, 1.34, 0.14),
+    new THREE.BoxGeometry(pairHalfW * 2 + 1.22, 1.86, 0.14),
     backBoardMat
   );
-  backBoard.position.set(0, CFG.laneY + 0.74, CFG.backStopZ + 0.88);
+  backBoard.position.set(0, CFG.laneY + 0.98, CFG.backStopZ + 0.88);
   group.add(backBoard);
   const lowerBoard = new THREE.Mesh(
     new THREE.BoxGeometry(pairHalfW * 2 + 0.7, 0.58, 0.12),
@@ -2579,16 +2633,16 @@ function createEnvironment(
     pinFocus.position.set(laneCenter, CFG.laneY + 0.94, CFG.backStopZ + 0.82);
     group.add(pinFocus);
     const pinfallScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.52, 0.62),
+      new THREE.PlaneGeometry(pairHalfW * 2 + 0.32, 1.08),
       makeCanvasTextMaterial(`LANE ${laneIndex + 1} READY`, {
-        width: 1024,
-        height: 256,
+        width: 1400,
+        height: 420,
         accent: laneIndex === 0 ? '#38bdf8' : '#f97316'
       })
     );
     pinfallScreen.position.set(
       laneCenter,
-      CFG.laneY + 1.3,
+      CFG.laneY + 1.42,
       CFG.backStopZ + 1.2
     );
     pinfallScreen.userData.baseScale = 1;
@@ -2597,7 +2651,7 @@ function createEnvironment(
     for (const x of [-1, 1]) {
       const kickback = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.86, 4.2),
-        woodMat
+        carpetMat.clone()
       );
       kickback.position.set(
         laneCenter + x * (CFG.laneHalfW + 0.52),
@@ -2848,8 +2902,8 @@ function createEnvironment(
     group.add(consoleGroup);
   }
   for (const [x, z] of [
-    [-4.34, 5.82],
-    [-3.28, 9.72]
+    [-3.96, 5.82],
+    [-2.94, 9.72]
   ]) {
     const drinkStation = new THREE.Group();
     const barrel = new THREE.Mesh(
@@ -3046,6 +3100,32 @@ function createEnvironment(
     returnLed.position.set(BOWLING_RETURN_SIDE_X, CFG.laneY + 0.43, z);
     group.add(returnLed);
   }
+  const returnNameplate = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.28, 0.22),
+    makeCanvasTextMaterial('AUTO RETURN', {
+      width: 512,
+      height: 128,
+      bg: 'rgba(2,6,12,0.88)',
+      accent: '#38bdf8'
+    })
+  );
+  returnNameplate.rotation.x = -0.48;
+  returnNameplate.position.set(
+    BOWLING_RETURN_SIDE_X,
+    CFG.laneY + 0.54,
+    BOWLING_RETURN_Z + 0.34
+  );
+  group.add(returnNameplate);
+  const rackBridge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.72, 0.08, 0.62),
+    returnTrimMat
+  );
+  rackBridge.position.set(
+    lerp(BOWLING_RETURN_SIDE_X, BOWLING_RACK_SIDE_X, 0.52),
+    CFG.laneY + 0.33,
+    BOWLING_RACK_Z - 0.18
+  );
+  group.add(rackBridge);
   const ballLift = new THREE.Mesh(
     new THREE.CylinderGeometry(0.42, 0.45, 1.04, 44),
     returnTrimMat
@@ -4013,16 +4093,35 @@ type BroadcastCameraPhase =
   | 'approach'
   | 'release'
   | 'laneFollow'
-  | 'pinDeck';
+  | 'pinDeck'
+  | 'rack';
 
 function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
   const laneCenter = ball.laneCenter || player.standPos.x;
   let phase: BroadcastCameraPhase = 'lounge';
+  if (player.action === 'toRack' || player.action === 'pickBall')
+    phase = 'rack';
   if (player.action === 'approach') phase = 'approach';
   if (player.action === 'throw' || player.action === 'recover')
     phase = 'release';
   if (ball.rolling)
     phase = ball.pos.z < CFG.pinDeckZ + 3.0 ? 'pinDeck' : 'laneFollow';
+
+  if (phase === 'rack') {
+    return {
+      phase,
+      desired: new THREE.Vector3(
+        BOWLING_RACK_SIDE_X - BOWLING_RACK_SIDE_SIGN * 2.1,
+        CFG.laneY + 1.68,
+        BOWLING_RACK_Z + 2.05
+      ),
+      look: new THREE.Vector3(
+        BOWLING_RACK_SIDE_X - BOWLING_RACK_SIDE_SIGN * 0.28,
+        CFG.laneY + 0.72,
+        BOWLING_RACK_Z - 0.28
+      )
+    };
+  }
 
   if (phase === 'approach') {
     return {
@@ -4062,9 +4161,9 @@ function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
     return {
       phase,
       desired: new THREE.Vector3(
-        laneCenter + 2.15,
-        CFG.laneY + 2.02,
-        CFG.pinDeckZ + 4.15
+        laneCenter + 1.42,
+        CFG.laneY + 2.34,
+        CFG.pinDeckZ + 3.38
       ),
       look: new THREE.Vector3(laneCenter, CFG.laneY + 0.62, CFG.pinDeckZ - 0.58)
     };
@@ -4275,7 +4374,7 @@ function updateCamera(
       1 - Math.exp(-7.5 * dt)
     );
   }
-  const baseFov = (isPortraitCamera ? 52 : 46) + BOWLING_CAMERA_WIDER_FOV_BOOST;
+  const baseFov = (isPortraitCamera ? 50 : 44) + BOWLING_CAMERA_WIDER_FOV_BOOST;
   const speedFov = ball.rolling
     ? clamp01(Math.hypot(ball.vel.x, ball.vel.z) / 16) * 3.5
     : 0;
@@ -4287,14 +4386,14 @@ function updateCamera(
   camera.updateProjectionMatrix();
   camera.position.lerp(
     desired.add(naturalHeadMotion).add(shakeVec),
-    1 - Math.exp(-5.8 * dt)
+    1 - Math.exp(-7.1 * dt)
   );
   const adjustedLook = applyCameraLookOffset(camera.position, look, lookState);
   const currentLook = new THREE.Vector3(0, 0, -1)
     .applyQuaternion(camera.quaternion)
     .multiplyScalar(8)
     .add(camera.position);
-  currentLook.lerp(adjustedLook, 1 - Math.exp(-8.6 * dt));
+  currentLook.lerp(adjustedLook, 1 - Math.exp(-10.2 * dt));
   camera.lookAt(currentLook);
 }
 
@@ -4443,6 +4542,12 @@ export default function MobileBowlingRealistic() {
       localStorage.getItem('bowling.chromeColor') ||
       POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor[0]
   );
+  const [selectedFieldTexture, setSelectedFieldTexture] = useState<string>(
+    () =>
+      localStorage.getItem('bowling.fieldTexture') ||
+      localStorage.getItem('bowling.tableFinish') ||
+      POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]
+  );
   const [selectedBallWeight] = useState<string>(
     () => localStorage.getItem('bowling.ballWeight') || '12'
   );
@@ -4460,6 +4565,7 @@ export default function MobileBowlingRealistic() {
     () => localStorage.getItem('bowling.skipReplays') === '1'
   );
   const [replayActive, setReplayActive] = useState(false);
+  const [shotSummaryVisible, setShotSummaryVisible] = useState(false);
   const replayActiveRef = useRef(false);
   const setReplayMode = (active: boolean) => {
     replayActiveRef.current = active;
@@ -4682,6 +4788,7 @@ export default function MobileBowlingRealistic() {
       texLoader,
       selectedTableFinish,
       selectedChromeColor,
+      selectedFieldTexture,
       playerCount
     );
     const pickupPrompt = makePickupPromptSprite();
@@ -4867,6 +4974,7 @@ export default function MobileBowlingRealistic() {
       syncReactScores();
       aiTurnDelay = activePlayer !== 0 ? 0.85 + Math.random() * 0.5 : 0.85;
       const playerName = localScores[activePlayer].name;
+      setShotSummaryVisible(false);
       setHud((prev) => ({
         ...prev,
         status:
@@ -4938,8 +5046,10 @@ export default function MobileBowlingRealistic() {
         scoringPlayerIndex,
         knocked,
         afterStanding,
-        playerBefore.name.toUpperCase()
+        playerBefore.name.toUpperCase(),
+        `${status} · ${rollRead.lane}`
       );
+      setShotSummaryVisible(true);
       setHud((prev) => ({
         ...prev,
         status,
@@ -5093,6 +5203,7 @@ export default function MobileBowlingRealistic() {
         }
         return;
       }
+      setShotSummaryVisible(false);
       canvas.setPointerCapture(e.pointerId);
       control.active = true;
       control.pointerId = e.pointerId;
@@ -5436,6 +5547,7 @@ export default function MobileBowlingRealistic() {
     ballSelectionMode,
     selectedTableFinish,
     selectedChromeColor,
+    selectedFieldTexture,
     selectedHumanCharacterId,
     skipReplays,
     playerCount,
@@ -5473,140 +5585,89 @@ export default function MobileBowlingRealistic() {
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            left: 18,
-            right: 18,
-            top: 6,
-            color: 'white',
-            background: 'rgba(5,8,14,0.66)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 14,
-            padding: '6px 6px 8px',
-            boxShadow: '0 10px 24px rgba(0,0,0,0.24)',
-            backdropFilter: 'blur(10px)',
-            transform: 'scale(0.78)',
-            transformOrigin: 'top center'
-          }}
-        >
+        {shotSummaryVisible ? (
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 6,
-              gap: 8
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.2 }}>
-              REAL BOWLING SCOREBOARD
-            </div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: '#7fd6ff' }}>
-              FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}
-            </div>
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '38px repeat(10, minmax(19px, 1fr))',
-              gap: 3,
-              alignItems: 'center'
+              position: 'absolute',
+              left: 18,
+              right: 18,
+              top: 6,
+              color: 'white',
+              background: 'rgba(5,8,14,0.66)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 14,
+              padding: '6px 6px 8px',
+              boxShadow: '0 10px 24px rgba(0,0,0,0.24)',
+              backdropFilter: 'blur(10px)',
+              transform: 'scale(0.78)',
+              transformOrigin: 'top center'
             }}
           >
             <div
               style={{
-                fontSize: 10,
-                fontWeight: 800,
-                opacity: 0.72,
-                textAlign: 'center'
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6,
+                gap: 8
               }}
-            ></div>
-            {Array.from({ length: 10 }, (_, i) => (
+            >
               <div
-                key={i}
+                style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.2 }}
+              >
+                REAL BOWLING SCOREBOARD
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#7fd6ff' }}>
+                FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}
+              </div>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '38px repeat(10, minmax(19px, 1fr))',
+                gap: 3,
+                alignItems: 'center'
+              }}
+            >
+              <div
                 style={{
-                  textAlign: 'center',
                   fontSize: 10,
                   fontWeight: 800,
-                  opacity: 0.7
+                  opacity: 0.72,
+                  textAlign: 'center'
                 }}
-              >
-                {i + 1}
-              </div>
-            ))}
-            {scoresMemo.map((p, row) => (
-              <React.Fragment key={p.name}>
+              ></div>
+              {Array.from({ length: 10 }, (_, i) => (
                 <div
+                  key={i}
                   style={{
-                    paddingLeft: 1,
-                    fontSize: 9,
-                    fontWeight: 900,
-                    color: row === hud.activePlayer ? '#7fd6ff' : '#ffffff'
+                    textAlign: 'center',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    opacity: 0.7
                   }}
-                >{`P${row + 1} ${p.total}`}</div>
-                {p.frames.map((f, i) => (
-                  <FrameBox key={`${row}-${i}`} frame={f} index={i} />
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-          <div
-            style={{
-              marginTop: 5,
-              textAlign: 'center',
-              fontSize: 10,
-              fontWeight: 700,
-              opacity: 0.9
-            }}
-          >
-            {hud.status}
-          </div>
-          <div
-            style={{
-              marginTop: 4,
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 5,
-              fontSize: 8,
-              fontWeight: 800
-            }}
-          >
-            <div
-              style={{
-                padding: '4px 5px',
-                borderRadius: 7,
-                background: 'rgba(14,165,233,0.16)',
-                border: '1px solid rgba(125,211,252,0.18)'
-              }}
-            >
-              {hud.lane}
-            </div>
-            <div
-              style={{
-                padding: '4px 5px',
-                borderRadius: 7,
-                background: 'rgba(34,197,94,0.14)',
-                border: '1px solid rgba(134,239,172,0.18)'
-              }}
-            >
-              {hud.rule}
+                >
+                  {i + 1}
+                </div>
+              ))}
+              {scoresMemo.map((p, row) => (
+                <React.Fragment key={p.name}>
+                  <div
+                    style={{
+                      paddingLeft: 1,
+                      fontSize: 9,
+                      fontWeight: 900,
+                      color: row === hud.activePlayer ? '#7fd6ff' : '#ffffff'
+                    }}
+                  >{`P${row + 1} ${p.total}`}</div>
+                  {p.frames.map((f, i) => (
+                    <FrameBox key={`${row}-${i}`} frame={f} index={i} />
+                  ))}
+                </React.Fragment>
+              ))}
             </div>
           </div>
-          {hud.compliment ? (
-            <div
-              style={{
-                marginTop: 4,
-                textAlign: 'center',
-                fontSize: 10,
-                fontWeight: 800,
-                color: '#86efac'
-              }}
-            >
-              {hud.compliment}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
         <button
           onClick={() => setMenuOpen((v) => !v)}
@@ -5841,6 +5902,48 @@ export default function MobileBowlingRealistic() {
                 >
                   <div style={{ fontSize: 11, fontWeight: 700 }}>
                     {item.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div
+              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
+            >
+              Bowling field texture
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
+                gap: 8
+              }}
+            >
+              {TABLE_FINISH_ITEMS.filter((item) =>
+                (ownedPoolInventory?.tableFinish || []).includes(item.optionId)
+              ).map((item) => (
+                <button
+                  key={`field-${item.id}`}
+                  onClick={() => {
+                    setSelectedFieldTexture(item.optionId);
+                    localStorage.setItem('bowling.fieldTexture', item.optionId);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: 10,
+                    padding: 6,
+                    background:
+                      selectedFieldTexture === item.optionId
+                        ? 'rgba(127,214,255,0.2)'
+                        : 'rgba(255,255,255,0.05)',
+                    color: '#fff'
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>
+                    {item.name}
+                  </div>
+                  <div style={{ fontSize: 10, opacity: 0.75 }}>
+                    Uses your existing table finish texture on the lane
                   </div>
                 </button>
               ))}
