@@ -1880,7 +1880,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = 0; // stop the cue at contact once it has hit the cue ball
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -28637,6 +28637,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28738,9 +28739,10 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = Math.max(
-            0,
-            CUE_TIP_GAP - (POOL_HUMAN_CFG.contactGap ?? BALL_R * 0.08)
+          const contactAdvance = THREE.MathUtils.lerp(
+            BALL_R * 0.28,
+            BALL_R * 0.62,
+            clampedPower
           );
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
@@ -32113,7 +32115,6 @@ const shotPowerRef = useRef(0);
           0,
           1
         );
-        const cueCameraLoweredForHuman = cameraBlend <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
         const baseAimLerp = THREE.MathUtils.lerp(
           CUE_VIEW_AIM_LINE_LERP,
           STANDING_VIEW_AIM_LINE_LERP,
@@ -32727,13 +32728,7 @@ const shotPowerRef = useRef(0);
             });
           }
           updateChalkVisibility(visibleChalkIndex);
-          cueStick.visible =
-            cueCameraLoweredForHuman ||
-            Boolean(sliderInstanceRef.current?.dragging) ||
-            (powerRef.current ?? 0) > 0.001 ||
-            previewingAiShot ||
-            aiCueViewActive ||
-            showingRemoteAim;
+          cueStick.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -33120,15 +33115,12 @@ const shotPowerRef = useRef(0);
         } else {
           aimForwardForHuman.normalize();
         }
-        const humanPreparingShot =
-          (cueCameraLoweredForHuman ||
-            Boolean(sliderInstanceRef.current?.dragging) ||
-            (powerRef.current ?? 0) > 0.001) &&
-          !shooting &&
-          !cueAnimating &&
-          !aiTakingShot &&
-          !replayActive;
-        const humanShotState = humanPreparingShot
+        const cueCameraLoweredForHuman = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
+        const humanShotState = cueCameraLoweredForHuman && !shooting && !cueAnimating && !aiTakingShot && !replayActive
           ? 'dragging'
           : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
             ? 'striking'
