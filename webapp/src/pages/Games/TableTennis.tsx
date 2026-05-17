@@ -134,11 +134,11 @@ const CFG = {
   netH: 0.21,
   netPostOutside: 0.21,
   ballR: 0.052,
-  gravity: 9.81,
-  airDrag: 0.18,
+  gravity: 9.35,
+  airDrag: 0.12,
   magnus: 0.00138,
-  tableRestitution: 1.02,
-  tableFriction: 0.988,
+  tableRestitution: 1.18,
+  tableFriction: 0.994,
   spinDecay: 0.66,
   playerHeight: 3.5,
   playerSpeed: 3.9,
@@ -161,9 +161,9 @@ const CFG = {
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 7.2,
-  maxShotSpeed: 34.0,
-  netClearance: 0.26,
+  minShotSpeed: 9.4,
+  maxShotSpeed: 42.0,
+  netClearance: 0.38,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
@@ -1086,7 +1086,7 @@ function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY
   const upwardIntent = clamp(-dy / (shortSide * 0.52), -0.16, 1.2);
   const depth = clamp(upwardIntent * 0.96 + Math.max(0, Math.abs(dx) / (shortSide * 0.92)) * 0.04, 0, 1);
   const rawPower = Math.hypot(dx, dy) / (shortSide * (isServe ? 0.36 : 0.28));
-  const power = clamp(Math.pow(clamp01(rawPower), 0.62), isServe ? 0.68 : 0.5, 1);
+  const power = clamp(Math.pow(clamp01(rawPower), 0.56), isServe ? 0.76 : 0.58, 1);
   const safetyMargin = isServe ? 0.18 : 0.1;
   const targetX = clamp(lateral * (TABLE_HALF_W - safetyMargin), -TABLE_HALF_W + safetyMargin, TABLE_HALF_W - safetyMargin);
   const targetZ = isServe ? -lerp(0.38, TABLE_HALF_L - 0.32, depth) : -lerp(0.3, TABLE_HALF_L - 0.1, depth);
@@ -1198,8 +1198,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.copy(serveContactPosition(player));
     const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
     const serveDistance = Math.max(0.001, ball.pos.distanceTo(ownBounce));
-    const serveFlight = serveDistance / (15.5 + hit.power * 11.5);
-    const flight = clamp(serveFlight, 0.16, 0.28);
+    const serveFlight = serveDistance / (18.0 + hit.power * 13.0);
+    const flight = clamp(serveFlight, 0.14, 0.26);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
@@ -1207,8 +1207,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const baseFlight = dist / ((7.4 + hit.power * 9.8) * speedScale);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.38);
+    const baseFlight = dist / ((8.8 + hit.power * 11.8) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.52);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
