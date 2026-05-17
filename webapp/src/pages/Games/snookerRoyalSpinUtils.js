@@ -14,66 +14,17 @@ export const SPIN_RESPONSE_EXPONENT = 1.32;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
-    label: 'STUN (no spin)',
+    label: 'STUN / CENTER',
     offset: { x: 0, y: 0 },
     effect:
-      'Goditje në qendër: cue ball rrëshqet fillimisht dhe kalon në rolling pa topspin/backspin.'
+      'Goditje në qendër: cue ball rrëshqet fillimisht dhe kalon në rolling pa efekt anësor.'
   },
   {
-    id: 'topspin',
-    label: 'TOPSPIN (follow)',
+    id: 'natural-follow',
+    label: 'NATURAL FORWARD SPIN',
     offset: { x: 0, y: MAX_SPIN_OFFSET },
     effect:
-      'Goditje sipër qendrës: spin rreth boshtit horizontal në drejtim të lëvizjes, cue ball vazhdon përpara pas kontaktit.'
-  },
-  {
-    id: 'backspin',
-    label: 'BACKSPIN (draw)',
-    offset: { x: 0, y: -MAX_SPIN_OFFSET },
-    effect:
-      'Goditje poshtë qendrës: spin rreth boshtit horizontal në drejtim të kundërt, cue ball ndalon dhe kthehet mbrapsht pas kontaktit.'
-  },
-  {
-    id: 'left-english',
-    label: 'SIDESPIN LEFT',
-    offset: { x: -MAX_SPIN_OFFSET, y: 0 },
-    effect:
-      'Goditje majtas nga qendra: spin rreth boshtit vertikal, ndikon kryesisht në rebound me banda dhe në “throw”.'
-  },
-  {
-    id: 'right-english',
-    label: 'SIDESPIN RIGHT',
-    offset: { x: MAX_SPIN_OFFSET, y: 0 },
-    effect:
-      'Goditje djathtas nga qendra: spin rreth boshtit vertikal në drejtim të kundërt, me të njëjtat efekte anësore.'
-  },
-  {
-    id: 'top-left',
-    label: 'TOPSPIN + LEFT',
-    offset: { x: -SPIN_RING2_RADIUS, y: SPIN_RING2_RADIUS },
-    effect:
-      'Offset diagonal sipër-majtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
-  },
-  {
-    id: 'top-right',
-    label: 'TOPSPIN + RIGHT',
-    offset: { x: SPIN_RING2_RADIUS, y: SPIN_RING2_RADIUS },
-    effect:
-      'Offset diagonal sipër-djathtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
-  },
-  {
-    id: 'back-left',
-    label: 'BACKSPIN + LEFT',
-    offset: { x: -SPIN_RING2_RADIUS, y: -SPIN_RING2_RADIUS },
-    effect:
-      'Offset diagonal poshtë-majtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
-  },
-  {
-    id: 'back-right',
-    label: 'BACKSPIN + RIGHT',
-    offset: { x: SPIN_RING2_RADIUS, y: -SPIN_RING2_RADIUS },
-    effect:
-      'Offset diagonal poshtë-djathtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
+      'Goditje sipër qendrës: vetëm follow natyral përpara, pa sidespin ose draw agresiv.'
   }
 ];
 
@@ -137,12 +88,12 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  let x = clamp(spin?.x ?? 0, -1, 1);
-  let y = clamp(spin?.y ?? 0, -1, 1);
+  // Snooker Champion now exposes only natural forward spin. Horizontal english
+  // and draw/backspin are intentionally suppressed so cue-ball control stays
+  // realistic and balls do not receive exaggerated airborne/side spin.
+  const x = 0;
+  let y = Math.max(0, clamp(spin?.y ?? 0, -1, 1));
 
-  // Keep straight high/low and left/right shots easier to select by gently
-  // snapping near-axis drag noise to the principal axis.
-  if (Math.abs(x) <= STRAIGHT_SPIN_DEADZONE) x = 0;
   if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) y = 0;
 
   const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
