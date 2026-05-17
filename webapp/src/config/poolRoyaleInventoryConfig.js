@@ -1181,15 +1181,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: 'Graphite weave cue with aurora-inspired tint.',
     thumbnail: CUE_STYLE_THUMBNAILS['graphite-aurora']
   },
-  ...POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
-    id: `base-${variant.id}`,
-    type: 'tableBase',
-    optionId: variant.id,
-    name: `${variant.name} Base`,
-    price: 0,
-    description: variant.description,
-    thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
-  })),
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     id: `hdri-${variant.id}`,
     type: 'environmentHdri',
@@ -1217,11 +1208,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'plastic-black', label: 'Plastic Black Pocket Jaws' },
-  {
-    type: 'tableBase',
-    optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
-    label: POOL_ROYALE_BASE_VARIANTS[0].name
-  },
   {
     type: 'environmentHdri',
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,

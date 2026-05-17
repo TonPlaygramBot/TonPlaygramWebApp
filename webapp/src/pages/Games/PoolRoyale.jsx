@@ -117,7 +117,7 @@ import {
   buildPoolSuggestionKey,
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
-import { resolveCueContactPush, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
@@ -1114,7 +1114,7 @@ const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
-const DEFAULT_CUE_STROKE_STYLE = 'classic';
+const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
@@ -1241,7 +1241,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.285; // make the table just a bit larger while keeping the same height
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1257,7 +1257,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
+const RAIL_HEIGHT = TABLE.THICK * 1.26; // shorten the top wooden rail stack while preserving the playfield footprint
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1780,9 +1780,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
+const SHOT_POWER_ADJUSTMENT = 0.66; // reduce overall Pool Royale power a bit more for softer strokes
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 1.06; // stronger Pool Royale strike speed so shots carry more power
+const SHOT_GLOBAL_POWER_SCALE = 1; // keep Pool Royale strike speed slightly softer and easier to control
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1798,7 +1798,7 @@ const SHOT_FORCE_BOOST =
   SHOT_GLOBAL_POWER_SCALE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25; // match Snooker Royal's minimum cue drive so every released stroke can move the cue ball
+const SHOT_MIN_FACTOR = 0;
 const SHOT_POWER_RANGE = 1;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
@@ -1825,9 +1825,9 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
+const LEG_ELEVATION_SCALE = 1.1; // extend the visible leg drop so the shorter rails keep the same overall stance
+const LEG_LENGTH_SHRINK = 0.96; // keep the legs longer so the base reaches lower under the rails
+const BASE_HEIGHT_REDUCTION = 0.94; // let table bases and legs fill more vertical space under the shorter rails
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -1836,7 +1836,11 @@ const BASE_LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
+const LEG_TABLETOP_ANCHOR_SCALE = BASE_LEG_LENGTH_SCALE * 1.04 * LEG_LENGTH_SHRINK * 0.86;
+const LEG_TABLETOP_ANCHOR_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_TABLETOP_ANCHOR_SCALE - LEG_HEIGHT_OFFSET;
+// Lock the tabletop to the pre-tuning height while the extended base/legs grow downward.
+const TABLETOP_HEIGHT_LOCK_DELTA = LEG_TABLETOP_ANCHOR_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const LEG_POCKET_CLEARANCE = TABLE.WALL * 1.35; // pull the classic legs deeper toward the short-rail centres to clear pocket drops
 const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward shift so legs visually hug the middle of each short rail
@@ -1853,28 +1857,27 @@ const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table bod
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
-// adjust overall table position so the shorter legs bring the playfield closer to floor level
+// Keep the playfield/tabletop at its legacy height; only the base/legs extend downward.
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
-const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
+const TABLE_Y = BASE_TABLE_Y + TABLETOP_HEIGHT_LOCK_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_CONTACT_GAP = BALL_R * 0.03; // Snooker-style impact clearance: the cue tip reaches the cue-ball surface before physics applies
 const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 2.08;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
 const CUE_PULL_DISTANCE_SCALE = 0.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // match Snooker Champion pullback depth and readability
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
@@ -2119,11 +2122,8 @@ async function loadPoolHumanModelFromCatalog(loader, urls = POOL_HUMAN_URLS) {
   throw lastError || new Error('No Pool Royale human models configured');
 }
 
-function createPoolRoyaleHumanRig() {
-  // Pool Royale now uses the cue stick itself as the shot actuator. Keep a
-  // deliberately empty, invisible shim so existing cue-placement calls can be
-  // left in place without loading or rendering any human character/rig assets.
-  return {
+function createPoolRoyaleHumanRig(parent, renderer) {
+  const human = {
     root: new THREE.Group(),
     modelRoot: new THREE.Group(),
     model: null,
@@ -2132,7 +2132,6 @@ function createPoolRoyaleHumanRig() {
     rightFingers: [],
     restQuats: new Map(),
     activeGlb: false,
-    disabled: true,
     poseT: 0,
     walkT: 0,
     yaw: 0,
@@ -2143,6 +2142,52 @@ function createPoolRoyaleHumanRig() {
     strikeClock: 0,
     idleCuePose: null
   };
+  human.root.visible = false;
+  human.modelRoot.visible = false;
+  parent.add(human.root, human.modelRoot);
+  const loader = createPoolHumanGLTFLoader(renderer);
+  loadPoolHumanModelFromCatalog(loader)
+    .then(({ model, url }) => {
+      human.modelUrl = url;
+      normalizePoolHumanModel(model);
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        mats.forEach((mat) => {
+          if (mat?.map) {
+            applySRGBColorSpace(mat.map);
+            mat.map.flipY = false;
+            mat.map.needsUpdate = true;
+          }
+          if (mat) {
+            mat.depthWrite = true;
+            mat.depthTest = true;
+            mat.needsUpdate = true;
+          }
+        });
+      });
+      human.bones = buildPoolHumanBones(model);
+      human.leftFingers = collectPoolHumanFingerBones(human.bones.leftHand);
+      human.rightFingers = collectPoolHumanFingerBones(human.bones.rightHand);
+      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
+        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
+      });
+      human.activeGlb = Boolean(
+        human.bones.hips && human.bones.spine && human.bones.head &&
+        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
+        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
+        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
+      );
+      human.model = model;
+      human.modelRoot.add(model);
+      human.modelRoot.visible = human.activeGlb;
+    })
+    .catch((error) => console.warn('Pool Royale human rig failed', error))
+    .finally(() => disposePoolHumanGLTFLoader(loader));
+  return human;
 }
 
 function setPoolHumanBoneWorldQuaternion(bone, q) {
@@ -2473,7 +2518,7 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
 }
 
 function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
-  if (!human || human.disabled) return null;
+  if (!human) return null;
   const poseForward = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
   const activeHumanState = shotState === 'rolling' ? 'idle' : shotState;
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
@@ -2517,7 +2562,6 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
 }
 
 function movePoolRoyaleCueToHumanHand(human, cueStick) {
-  if (human?.disabled) return false;
   const pose = human?.idleCuePose;
   if (!pose || !cueStick) return false;
   const dir = pose.tip.clone().sub(pose.back).normalize();
@@ -4228,7 +4272,6 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'topWoodRail',
   'railSight',
   'pocketCup',
-  'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
@@ -4238,7 +4281,6 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
-  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
   leg: DEFAULT_TABLE_FINISH_ID,
   baseFoot: 'gold'
 });
@@ -4260,10 +4302,6 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
-  baseCornerBlock: Object.freeze([
-    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
-    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
-  ]),
   leg: Object.freeze([]),
   baseFoot: Object.freeze([
     { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
@@ -4276,8 +4314,7 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   topWoodRail: 'Top Rails',
   railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
-  baseCornerBlock: 'Table Base',
-  leg: 'Legs',
+  leg: 'Table Base',
   baseFoot: 'Feet'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
@@ -4293,7 +4330,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+  if (part === 'topWoodRail' || part === 'leg') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4302,7 +4339,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Table Base'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
@@ -6755,8 +6792,8 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = BALL_R * 0.12;
-const RAIL_CONTACT_RADIUS = BALL_R;
+const RAIL_LIMIT_PADDING = BALL_R * 0.24;
+const RAIL_CONTACT_RADIUS = BALL_R * 1.035;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
@@ -9291,12 +9328,15 @@ export function Table3D(
     }
     return fallbackMaterials[key];
   };
-  const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
+  let frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   let legMat = rawMaterials.leg ?? frameMat;
   if (legMat === frameMat) {
     legMat = frameMat.clone();
   }
+  // Table base/skirt surfaces intentionally share the leg material so base textures
+  // are not selectable or rendered independently from the legs.
+  frameMat = legMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
@@ -11922,7 +11962,6 @@ export function Table3D(
       wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.25;
       wordmark.castShadow = false;
       wordmark.receiveShadow = false;
-      wordmark.userData.preserveMaterial = true;
       railsGroup.add(wordmark);
       finishParts.trimMeshes.push(wordmark);
     });
@@ -12446,7 +12485,6 @@ export function Table3D(
         wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.3;
         wordmark.castShadow = false;
         wordmark.receiveShadow = false;
-        wordmark.userData.preserveMaterial = true;
         cushionGroup.add(wordmark);
         finishParts.trimMeshes.push(wordmark);
       });
@@ -12703,12 +12741,12 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron|bevel[_\s.-]*3/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
+  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface|playfield[_\s-]*(board|nord)/.test(childName)) return 'cloth';
   if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
   if (/base|corner[_\s-]*block|cabinet|lower[_\s-]*trim|underside/.test(childName)) return 'baseCornerBlock';
   if (/leg|support/.test(childName)) return 'leg';
   if (/rail|wood|showood|bevel/.test(childName)) return 'topWoodRail';
   if (/gold|metal|chrome|plate|trim|screw|bolt/.test(childName)) return 'railSight';
-  if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
   if (/pocket|liner|leather|net|basket|drop|cup/.test(label)) return 'pocketCup';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'railSight';
@@ -12853,7 +12891,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     pocketCup: 'pocketCup',
     verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
-    baseCornerBlock: 'baseCornerBlock',
+    baseCornerBlock: 'leg',
     leg: 'leg'
   };
   const part = roleToPart[role] || 'topWoodRail';
@@ -12922,18 +12960,41 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   } else if (part === 'pocketCup') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
-  } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
-    const surface = part === 'topWoodRail'
+  } else if (part === 'topWoodRail' || part === 'leg') {
+    const partFinish = TABLE_FINISHES[option.id] ?? finish;
+    const partWoodOption =
+      partFinish?.woodTexture ||
+      (partFinish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[partFinish.woodTextureId]) ||
+      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ||
+      WOOD_GRAIN_OPTIONS[0];
+    const fallbackSurface = part === 'topWoodRail'
       ? finishInfo?.parts?.woodSurfaces?.rail
-      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
-    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
-    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
+      : finishInfo?.parts?.woodSurfaces?.leg ||
+        finishInfo?.parts?.woodSurfaces?.frame ||
+        finishInfo?.parts?.woodSurfaces?.rail;
+    const partSurface = resolveWoodSurfaceConfig(
+      part === 'topWoodRail' ? partWoodOption?.rail : partWoodOption?.frame,
+      fallbackSurface || partWoodOption?.rail || partWoodOption?.frame || { repeat: { x: 1, y: 1 }, rotation: 0 }
+    );
+    const partRepeatScale = clampWoodRepeatScaleValue(
+      partFinish?.woodRepeatScale ?? finishInfo?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    );
+    const colorSource = part === 'topWoodRail'
+      ? partFinish?.colors?.rail ?? partFinish?.colors?.base
+      : partFinish?.colors?.base ?? partFinish?.colors?.rail;
+    if (mat.color && Number.isFinite(colorSource)) mat.color.set(colorSource);
+    else if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    applyWoodTextureToMaterial(mat, {
+      ...partSurface,
+      woodRepeatScale: partRepeatScale
+    });
     applyTableFinishDulling(mat);
     applyTableWoodVisibilityTuning(mat);
-    if (finish?.surfaceStyle === 'matte') {
-      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+    if (partFinish?.surfaceStyle === 'matte') {
+      if (partFinish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
       else applyMonoMattePlasticSurface(mat);
     }
+    applyFinishWoodTint(mat, partFinish);
     applyShowoodTint();
   } else {
     applyShowoodTint();
@@ -13000,7 +13061,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const black = color ? color.r < 0.11 && color.g < 0.11 && color.b < 0.11 : false;
   const gold = color ? color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88 : false;
   const light = color ? color.r > 0.72 && color.g > 0.72 && color.b > 0.62 : false;
-  const namedCloth = /cloth|felt|fabric|surface|bed|slate/i.test(name);
+  const namedCloth = /cloth|felt|fabric|surface|bed|slate|playfield|playing[_\s-]*surface|playfield[_\s-]*(board|nord)/i.test(name);
   const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
   const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
   const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
@@ -13035,6 +13096,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
+  if (namedCloth && high && s.upFace && !anyPocketZone) return 'cloth';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
@@ -14495,7 +14557,7 @@ function applyTableFinishToTable(table, finish) {
     return fallback;
   };
   const swapMaterial = (mesh, material) => {
-    if (!mesh || !material || mesh.userData?.preserveMaterial) return;
+    if (!mesh || !material) return;
     const resolvedMaterial = resolveMaterialForMesh(mesh, material);
     if (!resolvedMaterial) return;
     const nextMaterial = mesh.userData?.isChromePlate
@@ -14551,7 +14613,8 @@ function applyTableFinishToTable(table, finish) {
     resolvedFinish?.woodTextureEnabled ?? WOOD_TEXTURES_ENABLED;
   const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
     frame: null,
-    rail: null
+    rail: null,
+    leg: null
   };
   finishInfo.parts.woodSurfaces = woodSurfaces;
   if (woodTextureEnabled) {
@@ -14618,7 +14681,10 @@ function applyTableFinishToTable(table, finish) {
       });
     } else {
       applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
-      applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+      applyWoodTextureToMaterial(frameMat, {
+        ...synchronizedFrameSurface,
+        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+      });
     }
     applyTableFinishDulling(railMat);
     applyTableFinishDulling(frameMat);
@@ -14697,8 +14763,13 @@ function applyTableFinishToTable(table, finish) {
       }
     }
     applyFinishWoodTint(legMat, resolvedFinish);
+    const synchronizedLegSurface = {
+      ...synchronizedFrameSurface,
+      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+    };
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
-    woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
+    woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedLegSurface);
+    woodSurfaces.leg = cloneWoodSurfaceConfig(synchronizedLegSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
     finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
     finishInfo.woodRepeatScale = woodRepeatScale;
@@ -14723,6 +14794,7 @@ function applyTableFinishToTable(table, finish) {
     });
     woodSurfaces.rail = null;
     woodSurfaces.frame = null;
+    woodSurfaces.leg = null;
     finishInfo.woodTextureId = null;
     finishInfo.parts.woodTextureId = null;
     finishInfo.woodRepeatScale = 1;
@@ -16980,7 +17052,8 @@ function PoolRoyaleGame({
           material.needsUpdate = true;
         };
         applyShowoodPartMaterial(materials.rail, 'topWoodRail');
-        applyShowoodPartMaterial(materials.frame, 'baseCornerBlock');
+        // The table base now follows the leg finish instead of exposing a separate texture choice.
+        applyShowoodPartMaterial(materials.frame, 'leg');
         applyShowoodPartMaterial(materials.leg, 'leg');
         const liners = createPocketLinerMaterials(linerSelection);
         materials.pocketJaw = liners.jawMaterial;
@@ -17699,7 +17772,6 @@ const shotPowerRef = useRef(0);
     shootingRef.current = shotActive;
   }, [shotActive]);
   const sliderInstanceRef = useRef(null);
-  const sliderDraggingRef = useRef(false);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
@@ -24740,9 +24812,7 @@ const shotPowerRef = useRef(0);
             strikeDuration,
             holdDuration,
             recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
-            strikeWindowRatio: stroke.strikeWindowRatio ?? 0.12,
-            hitArmRatio: strikeImpactThreshold ?? 0.88
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -24798,7 +24868,7 @@ const shotPowerRef = useRef(0);
             return true;
           }
           if (sample.phase === 'hold') {
-            cueStick.position.copy(stroke.contactPos ?? impactPos);
+            cueStick.position.copy(followPos ?? stroke.contactPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -25619,21 +25689,20 @@ const shotPowerRef = useRef(0);
         if (useHdriOnly) {
           const shadowRig = new THREE.Group();
           world.add(shadowRig);
-          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.42);
+          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.22);
           hdriShadowKey.position.set(-roomWidth * 0.22, tableSurfaceY + TABLE.THICK * 9, roomDepth * 0.18);
           hdriShadowKey.target.position.set(0, floorY, 0);
           hdriShadowKey.castShadow = true;
           const shadowSpan = Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 4;
-          hdriShadowKey.shadow.mapSize.set(3072, 3072);
+          hdriShadowKey.shadow.mapSize.set(2048, 2048);
           hdriShadowKey.shadow.camera.near = 0.1;
           hdriShadowKey.shadow.camera.far = TABLE.THICK * 42;
           hdriShadowKey.shadow.camera.left = -shadowSpan;
           hdriShadowKey.shadow.camera.right = shadowSpan;
           hdriShadowKey.shadow.camera.top = shadowSpan;
           hdriShadowKey.shadow.camera.bottom = -shadowSpan;
-          hdriShadowKey.shadow.bias = -0.000035;
-          hdriShadowKey.shadow.normalBias = 0.00045;
-          hdriShadowKey.shadow.radius = 4;
+          hdriShadowKey.shadow.bias = -0.00005;
+          hdriShadowKey.shadow.normalBias = 0.0008;
           hdriShadowKey.shadow.camera.updateProjectionMatrix();
           shadowRig.add(hdriShadowKey, hdriShadowKey.target);
           lightingRigRef.current = { group: shadowRig, key: hdriShadowKey };
@@ -26942,7 +27011,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = createPoolRoyaleHumanRig();
+      const humanRig = createPoolRoyaleHumanRig(table, rendererRef.current);
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -28120,15 +28189,11 @@ const shotPowerRef = useRef(0);
         else shotDir3.set(0, 0, 1);
         const launchVelocity = base?.clone?.();
         if (launchVelocity?.lengthSq?.() > 1e-8) {
-          if (Number.isFinite(launchVelocity.z)) {
-            cue.vel.set(launchVelocity.x, launchVelocity.z);
-          } else {
-            cue.vel.copy(launchVelocity);
-          }
+          cue.vel.copy(launchVelocity);
         } else {
           const speedBase = SHOT_BASE_SPEED;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          cue.vel.set(shotDir3.x, shotDir3.z).multiplyScalar(speedBase * powerScale);
+          cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
         }
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -28572,6 +28637,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28658,32 +28724,51 @@ const shotPowerRef = useRef(0);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          const pullPos = buildCuePosition(visualPull);
-          // Snooker Champion strike path: release from the already-pulled cue,
-          // drive into the cue-ball contact point, hold briefly, then hide.
-          const impactPush = resolveCueContactPush({
-            cueTipGap: CUE_TIP_GAP,
-            ballRadius: BALL_R,
-            contactGap: CUE_CONTACT_GAP,
-            minPush: CUE_TIP_CLEARANCE
-          });
-          const impactPos = buildCuePosition(-impactPush);
-          const contactPos = impactPos.clone();
-          const followPos = impactPos.clone();
-          cueStick.position.copy(pullPos);
+          // Start the release exactly from the computed pull position so the
+          // cue always pushes forward from the same pulled depth the player set.
+          const releaseStartPos = buildCuePosition(visualPull);
+          cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-          cueStick.visible = true;
           cueAnimating = true;
+          cueStick.visible = true;
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const pullbackDuration = 0;
-          const strikeDuration = 120;
-          const holdDuration = 50;
-          const recoverDuration = 0;
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
+          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
+          const impactPos = idlePos.clone();
+          const contactAdvance = THREE.MathUtils.lerp(
+            BALL_R * 0.28,
+            BALL_R * 0.62,
+            clampedPower
+          );
+          shotImpactPayload.contactAdvance = contactAdvance;
+          const contactPos = impactPos
+            .clone()
+            .addScaledVector(dir, contactAdvance);
+          const followDistance = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            clampedPower
+          );
+          const followPos = contactPos
+            .clone()
+            .addScaledVector(dir, followDistance);
+          const followDurationResolved = strikeHoldDuration;
+          const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
-            startTime + strikeDuration + holdDuration + CUE_STROKE_POST_HIT_CAMERA_HOLD_MS;
+            startTime +
+            Math.max(
+              pullbackDuration +
+                strikeDuration +
+                followDurationResolved +
+                recoverDuration +
+                (strokeProfile.cameraExtraHoldMs ?? 240) +
+                CUE_STROKE_POST_HIT_CAMERA_HOLD_MS,
+              980
+            );
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
@@ -28755,25 +28840,24 @@ const shotPowerRef = useRef(0);
             applyShotAtImpact(shotImpactPayload);
           };
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
-            const strokeStartOffset = Math.max(
-              0,
-              startTime - (shotRecording.startTime ?? startTime)
-            );
+            const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
               idle: serializeVector3Snapshot(idlePos),
-              pull: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(impactPos),
+              pull: serializeVector3Snapshot(releaseStartPos),
+              impact: serializeVector3Snapshot(contactPos),
               follow: serializeVector3Snapshot(followPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
               releaseDuration: strikeDuration,
-              followDuration: holdDuration,
+              followDuration: followDurationResolved,
               recoverDuration,
               startOffset: strokeStartOffset
             };
           }
           if (ENABLE_CUE_STROKE_ANIMATION) {
+            cueStick.visible = true;
+            cueAnimating = true;
             lastCueIdlePoseRef.current = {
               position: idlePos.clone(),
               rotationX: cueStick.rotation.x,
@@ -28782,25 +28866,24 @@ const shotPowerRef = useRef(0);
             cueStrokeStateRef.current = {
               startTime,
               idlePos: idlePos.clone(),
-              pullPos: pullPos.clone(),
+              pullPos: releaseStartPos.clone(),
               impactPos: impactPos.clone(),
               contactPos: contactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
               strikeDuration,
-              holdDuration,
+              holdDuration: followDurationResolved,
               recoverDuration,
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
-              strikeDip: 0,
-              wobbleAmount: 0,
-              strikeImpactThreshold: 0.88,
-              strikeWindowRatio: 0.12,
-              strikeExtraFollow: 0,
+              strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
+              wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
+              strikeImpactThreshold: 0.9,
+              strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
-              onImpact: applyShotImpactOnce,
-              animationStyle: 'linear',
-              motionTechnique: 'snookerChampion',
+              onImpact: () => applyShotImpactOnce(),
+              animationStyle: strokeStyle,
+              motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: false
             };
           } else {
@@ -34674,34 +34757,25 @@ const shotPowerRef = useRef(0);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        sliderDraggingRef.current = true;
-        shotPowerRef.current = powerRef.current;
         captureCueStickAnchor();
       },
-      onChange: (v) => {
-        const normalized = clampPower(v / 100, 0);
-        applyPower(normalized);
-        if (sliderDraggingRef.current) {
-          shotPowerRef.current = normalized;
-        }
-      },
-      onCommit: (v) => {
-        const normalized = clampPower(v / 100, 0);
-        shotPowerRef.current = normalized;
-        sliderDraggingRef.current = false;
-        fireRef.current?.(normalized);
-        slider.animateToMin({ duration: 180 });
+      onCommit: () => {
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
-      sliderDraggingRef.current = false;
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -35973,13 +36047,14 @@ const shotPowerRef = useRef(0);
                       {activeTablePersonalizationSection.options.map((option) => {
                         const part = activeTablePersonalizationSection.key;
                         const chromeLinked = activeTablePersonalizationSection.chromeLinked;
+                        const normalizedShowoodStyle = normalizeShowoodTableStyle(showoodTableStyle);
                         const selected = part === 'cloth'
                           ? clothColorId
                           : part === 'topWoodRail' || part === 'leg'
-                            ? tableFinishId
+                            ? normalizedShowoodStyle[part]
                             : chromeLinked
                               ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                              : normalizedShowoodStyle[part];
                         const active = option.id === selected;
                         return (
                           <button
@@ -35989,7 +36064,9 @@ const shotPowerRef = useRef(0);
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
                               } else if (part === 'topWoodRail' || part === 'leg') {
-                                setTableFinishId(option.id);
+                                if (part === 'topWoodRail') {
+                                  setTableFinishId(option.id);
+                                }
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
                                 );

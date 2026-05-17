@@ -29,12 +29,12 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 4.12;
-const COURT_WIDTH_MULTIPLIER = 1.28;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 3.52;
+const COURT_WIDTH_MULTIPLIER = 1.18;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep camera scaling independent from world scale so camera framing can be
 // tuned precisely while the enlarged court keeps its regulation proportions.
-const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.62;
+const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.42;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
 const PLAYER_CHARACTER_SCALE = 1.42;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
@@ -52,7 +52,7 @@ export const gameConfig = {
   doublesW: 10.97 * WORLD_SCALE * COURT_WIDTH_MULTIPLIER,
   courtL: 23.77 * WORLD_SCALE,
   serviceLineZ: 6.4 * WORLD_SCALE,
-  netH: 1.12 * WORLD_SCALE,
+  netH: 0.914 * WORLD_SCALE,
   ballR: 0.085 * WORLD_SCALE,
   gravity: 9.81 * WORLD_SCALE * 1.04,
   airDrag: 0.13,
@@ -66,9 +66,9 @@ export const gameConfig = {
   playerDeceleration: 34 * PLAYER_SCALE,
   aiSpeed: 11.7 * PLAYER_SCALE,
   reach: 1.62 * PLAYER_SCALE,
-  racketHitRadius: 0.17 * PLAYER_SCALE,
-  contactAngleTolerance: 0.08,
-  timingWindow: { start: 0.46, end: 0.66 },
+  racketHitRadius: 0.56 * PLAYER_SCALE,
+  contactAngleTolerance: 0.18,
+  timingWindow: { start: 0.42, end: 0.72 },
   minContactHeight: 0.25 * PLAYER_SCALE,
   maxContactHeight: 1.85 * PLAYER_SCALE,
   maxReachDistance: 1.62 * PLAYER_SCALE,
@@ -76,11 +76,10 @@ export const gameConfig = {
   serveDuration: 0.86,
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
-  // Scales full-match shot force so player and AI strokes share a softer, lower power ceiling.
-  // Keep this conservative: the enlarged court already magnifies perceived ball speed.
-  matchPowerMultiplier: 0.58,
-  servePower: { min: 0.42, max: 0.68 },
-  shotPower: { min: 0.18, max: 0.6 },
+  // Scales the full match shot force so player and AI strokes share a softer, lower power ceiling.
+  matchPowerMultiplier: 0.68,
+  servePower: { min: 0.48, max: 0.74 },
+  shotPower: { min: 0.2, max: 0.68 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
   playerVisualYawFix: Math.PI,
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
@@ -99,7 +98,7 @@ export const gameConfig = {
     moveSpeed: 13.5 * PLAYER_SCALE,
     reachRadius: 1.95 * PLAYER_SCALE,
     accuracy: 0.94,
-    power: 0.54,
+    power: 0.62,
     spin: 0.88,
     mistakeChance: 0.018,
     serveQuality: 0.84,
