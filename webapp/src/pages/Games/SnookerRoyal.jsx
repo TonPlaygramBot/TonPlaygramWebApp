@@ -1531,7 +1531,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_GLOBAL_SCALE = 0.45; // reduce Snooker Champion cue-ball spin by 50% for calmer roll
+const SPIN_GLOBAL_SCALE = 0.9; // match Pool Royale spin controller scaling
 const CUE_LOGIC_STRIKE_TIME_MS = 120;
 const CUE_LOGIC_HOLD_TIME_MS = 50;
 const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
@@ -2258,7 +2258,7 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.04; // align rail physics closer to the visible cushion face so balls do not bounce early
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playable face and cushion nose further inward to match the expanded top surface
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -5703,9 +5703,9 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = 0; // keep rail mapping flush with the visible cushion face instead of bouncing before contact
+const RAIL_LIMIT_PADDING = BALL_R * 0.12; // mirror Pool Royale rail padding so balls cannot slip outside table limits
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS; // keep short-rail cut contacts flush with cushion mapping
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -7693,25 +7693,27 @@ function Table3D(
     accentConfig.material.needsUpdate = true;
   }
 
-  const initialRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.rail,
-    defaultWoodOption.rail ?? defaultWoodOption.frame
-  );
   const initialFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
-    defaultWoodOption.frame ?? initialRailSurface
+    resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
   const synchronizedRailSurface = {
-    repeat: new THREE.Vector2(initialRailSurface.repeat.x, initialRailSurface.repeat.y),
-    rotation: initialRailSurface.rotation,
-    textureSize: initialRailSurface.textureSize,
-    mapUrl: initialRailSurface.mapUrl,
-    roughnessMapUrl: initialRailSurface.roughnessMapUrl,
-    normalMapUrl: initialRailSurface.normalMapUrl,
+    repeat: new THREE.Vector2(
+      initialFrameSurface.repeat.x,
+      initialFrameSurface.repeat.y
+    ),
+    rotation: initialFrameSurface.rotation,
+    textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
+    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
+    normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
-    repeat: new THREE.Vector2(initialFrameSurface.repeat.x, initialFrameSurface.repeat.y),
+    repeat: new THREE.Vector2(
+      initialFrameSurface.repeat.x,
+      initialFrameSurface.repeat.y
+    ),
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
     mapUrl: initialFrameSurface.mapUrl,
@@ -10722,13 +10724,9 @@ function Table3D(
     normalMapUrl:
       resolvedWoodOption?.frame?.normalMapUrl ?? resolvedWoodOption?.rail?.normalMapUrl
   };
-  const woodRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.rail,
-    baseFrameFallback
-  );
   const woodFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
-    baseFrameFallback
+    resolvedWoodOption?.rail ?? baseFrameFallback
   );
   const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
@@ -10737,15 +10735,6 @@ function Table3D(
     mapUrl: woodFrameSurface.mapUrl,
     roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
     normalMapUrl: woodFrameSurface.normalMapUrl,
-    woodRepeatScale
-  };
-  const railWoodSurface = {
-    repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
-    rotation: woodRailSurface.rotation,
-    textureSize: woodRailSurface.textureSize,
-    mapUrl: woodRailSurface.mapUrl,
-    roughnessMapUrl: woodRailSurface.roughnessMapUrl,
-    normalMapUrl: woodRailSurface.normalMapUrl,
     woodRepeatScale
   };
 
@@ -10760,9 +10749,9 @@ function Table3D(
     woodRepeatScale
   });
 
-  // Preserve the original rail-vs-frame wood mapping so finish changes apply
-  // to the correct table surfaces instead of reusing the skirt/apron texture.
-  const railSurfaceFromFrame = { ...railWoodSurface };
+  // Force the rail grain direction and scale to match the skirt/apron below so
+  // every side shares the exact same wood flow and texture density.
+  const railSurfaceFromFrame = { ...synchronizedWoodSurface };
 
   applyWoodTextureToMaterial(railMat, railSurfaceFromFrame);
 
@@ -12193,27 +12182,26 @@ function applyTableFinishToTable(table, finish) {
       (finishInfo.woodTextureId &&
         WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
       defaultWoodOption;
-    const nextRailSurface = resolveWoodSurfaceConfig(
-      resolvedWoodOption?.rail,
-      woodSurfaces.rail ?? resolvedWoodOption?.frame ?? {
+    const nextFrameSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.frame,
+      woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
         repeat: { x: 1, y: 1 },
         rotation: 0
       }
-    );
-    const nextFrameSurface = resolveWoodSurfaceConfig(
-      resolvedWoodOption?.frame,
-      woodSurfaces.frame ?? nextRailSurface
     );
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
     const synchronizedRailSurface = {
-      repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
-      rotation: nextRailSurface.rotation,
-      textureSize: nextRailSurface.textureSize,
-      mapUrl: nextRailSurface.mapUrl,
-      roughnessMapUrl: nextRailSurface.roughnessMapUrl,
-      normalMapUrl: nextRailSurface.normalMapUrl,
+      repeat: new THREE.Vector2(
+        nextFrameSurface.repeat.x,
+        nextFrameSurface.repeat.y
+      ),
+      rotation: nextFrameSurface.rotation,
+      textureSize: nextFrameSurface.textureSize,
+      mapUrl: nextFrameSurface.mapUrl,
+      roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
+      normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
@@ -19941,7 +19929,7 @@ const powerRef = useRef(hud.power);
               ? TMP_VEC3_A.copy(cueBallPos)
               : cuePath[0]?.pos?.clone?.() ?? null;
             if (!cuePos) {
-              cueStick.visible = shooting;
+              cueStick.visible = false;
               cueAnimating = false;
               return;
             }
@@ -23112,18 +23100,14 @@ const powerRef = useRef(hud.power);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
-          const scaledPhysicsSpin = {
-            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
-            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
-          };
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = scaledPhysicsSpin.x * (ranges.side ?? 0);
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledPhysicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledPhysicsSpin.y < 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledPhysicsSpin.y > 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -23356,7 +23340,7 @@ const powerRef = useRef(hud.power);
           }
           const animateStroke = (now) => {
             if (!ENABLE_CUE_STROKE_ANIMATION) {
-              cueStick.visible = shooting;
+              cueStick.visible = false;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
@@ -23388,7 +23372,7 @@ const powerRef = useRef(hud.power);
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
-              cueStick.visible = shooting;
+              cueStick.visible = false;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
@@ -26439,7 +26423,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          if (!cueAnimating && !shooting) cueStick.visible = false;
+          if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
         }
 
