@@ -133,11 +133,6 @@ const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
 const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
-// The Pooltool GLB bed includes a small cloth-under-cushion lip, so the playable
-// cushion nose must be mapped slightly inside the rendered bed bounds. Keeping this
-// correction in metres lets the physics use the same official-table scale as spots,
-// jaws, and pocket mouths while preventing balls from visually entering cushions.
-const SNOOKER_GLB_CUSHION_NOSE_INSET_M = 0.006;
 const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -148,7 +143,6 @@ const SNOOKER_OFFICIAL_D_RADIUS = OFFICIAL_SNOOKER_D_RADIUS_M * SNOOKER_PLAYFIEL
 const SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION = OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
-const SNOOKER_CUSHION_NOSE_INSET = SNOOKER_GLB_CUSHION_NOSE_INSET_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
 const SNOOKER_SHOT_POWER_BOOST = 0.455; // Snooker Royal full-size strike output, shared by Champion through the common table/physics core
@@ -157,7 +151,6 @@ const SNOOKER_SHOT_POWER_RANGE = 0.75;
 const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_SHOT_SPIN_SCALE = 0.25;
-const SNOOKER_SPIN_GLOBAL_SCALE = 0.82; // match Pool Royale's softened cue-spin input amount
 const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
@@ -169,20 +162,6 @@ const SNOOKER_SPIN_KINETIC_FRICTION = 0.22;
 const SNOOKER_SPIN_ROLL_DAMPING = 0.1;
 const SNOOKER_SPIN_ANGULAR_DAMPING = 0.04;
 const SNOOKER_SPIN_GRAVITY = 9.81;
-const SNOOKER_SPIN_TABLE_REFERENCE_WIDTH = 2.627;
-const SNOOKER_SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
-const SNOOKER_SPIN_TABLE_SCALE = Math.max(
-  SNOOKER_OFFICIAL_PLAYFIELD_W / SNOOKER_SPIN_TABLE_REFERENCE_WIDTH,
-  SNOOKER_OFFICIAL_PLAYFIELD_L / SNOOKER_SPIN_TABLE_REFERENCE_HEIGHT
-);
-const SNOOKER_SPIN_ROLL_ACCELERATION = 1.2 * SNOOKER_SPIN_TABLE_SCALE;
-const SNOOKER_SPIN_POWER_MIN_SCALE = 0.35;
-const SNOOKER_SPIN_POWER_MAX_SCALE = 1.4;
-const SNOOKER_SPIN_POWER_REFERENCE_SPEED = SNOOKER_SHOT_FULL_SPEED * 0.68;
-const SNOOKER_TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62;
-const SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84;
-const SNOOKER_TOPSPIN_ROLL_SPEED_FACTOR = 0.84;
-const SNOOKER_TOPSPIN_POWER_SOFT_CAP = 0.985;
 const SNOOKER_ROLLING_RESISTANCE = 0.011;
 const SNOOKER_BALL_BALL_FRICTION = 0.105;
 const SNOOKER_RAIL_FRICTION = 0.16;
@@ -318,29 +297,6 @@ const SNOOKER_TMP_VEC3_C = new THREE.Vector3();
 const SNOOKER_TMP_VEC3_D = new THREE.Vector3();
 const SNOOKER_TMP_VEC3_E = new THREE.Vector3();
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-function getSnookerCushionHalfExtents() {
-  return {
-    halfW: CFG.tableW / 2 - SNOOKER_CUSHION_NOSE_INSET,
-    halfL: CFG.tableL / 2 - SNOOKER_CUSHION_NOSE_INSET
-  };
-}
-
-function resolveSnookerSpinPowerScale(speed) {
-  if (!Number.isFinite(speed)) return SNOOKER_SPIN_POWER_MIN_SCALE;
-  return clamp(
-    speed / Math.max(SNOOKER_SPIN_POWER_REFERENCE_SPEED, 1e-6),
-    SNOOKER_SPIN_POWER_MIN_SCALE,
-    SNOOKER_SPIN_POWER_MAX_SCALE
-  );
-}
-
-function resolveSnookerTopspinPowerScale(power) {
-  if (!Number.isFinite(power)) return 0.55 + SNOOKER_TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = clamp(power, 0, SNOOKER_TOPSPIN_POWER_SOFT_CAP);
-  return 0.55 + cappedPower * 0.45;
-}
-
 const clamp01 = (v) => clamp(v, 0, 1);
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -823,14 +779,13 @@ function addTable(scene, renderer, options = {}) {
   const clothOption = options.clothOption ?? null;
   const textureOption = resolveSnookerChampionTextureOption(options.textureId);
   const pocketY = CFG.ballR + 0.006 * CFG.scale;
-  const { halfW: cushionHalfW, halfL: cushionHalfL } = getSnookerCushionHalfExtents();
   const pocketPositions = [
-    [-cushionHalfW + SNOOKER_CORNER_JAW_SETBACK, pocketY, -cushionHalfL + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [cushionHalfW - SNOOKER_CORNER_JAW_SETBACK, pocketY, -cushionHalfL + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [-cushionHalfW + SNOOKER_CORNER_JAW_SETBACK, pocketY, cushionHalfL - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [cushionHalfW - SNOOKER_CORNER_JAW_SETBACK, pocketY, cushionHalfL - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [-cushionHalfW + SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS],
-    [cushionHalfW - SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS]
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
+    [-CFG.tableW / 2 + SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS],
+    [CFG.tableW / 2 - SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS]
   ].map(([x, y, z, radius]) => {
     const pocket = new THREE.Vector3(x, y, z);
     pocket.userData = { radius };
@@ -1233,22 +1188,13 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spinMapped = mapSpinForPhysics(normalizeSpinInput(spinInput));
   const powerSpinScale = 0.55 + p * 0.45;
-  const topspinPowerScale = resolveSnookerTopspinPowerScale(p);
-  const scaledSpin = {
-    x: (spinMapped.x ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE,
-    y: (spinMapped.y ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE
+  const rawTopSpin = (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE * powerSpinScale;
+  const spin = {
+    x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE * SNOOKER_SIDE_SPIN_MULTIPLIER * powerSpinScale,
+    y: rawTopSpin < 0
+      ? rawTopSpin * SNOOKER_BACKSPIN_MULTIPLIER
+      : rawTopSpin * SNOOKER_TOPSPIN_MULTIPLIER
   };
-  let spinSide = scaledSpin.x * SNOOKER_SHOT_SPIN_SCALE * SNOOKER_SIDE_SPIN_MULTIPLIER * powerSpinScale;
-  let spinTop = scaledSpin.y * SNOOKER_SHOT_SPIN_SCALE * powerSpinScale;
-  if (scaledSpin.y < 0) {
-    spinTop *= SNOOKER_BACKSPIN_MULTIPLIER;
-  } else if (scaledSpin.y > 0) {
-    spinTop = scaledSpin.y * SNOOKER_SHOT_SPIN_SCALE * topspinPowerScale * SNOOKER_TOPSPIN_MULTIPLIER;
-    if (Math.abs(scaledSpin.x) > 1e-6) {
-      spinSide = scaledSpin.x * SNOOKER_SHOT_SPIN_SCALE * SNOOKER_SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-    }
-  }
-  const spin = { x: spinSide, y: spinTop };
   const powerScale = SNOOKER_SHOT_MIN_FACTOR + SNOOKER_SHOT_POWER_RANGE * p;
   const speed = SNOOKER_SHOT_FULL_SPEED * powerScale;
   cueBall.vel.copy(dir.multiplyScalar(speed));
@@ -1257,12 +1203,10 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   cueBall.omega?.set(0, 0, 0);
   const launchSpeed = cueBall.vel.length();
   if (launchSpeed > 1e-6 && cueBall.omega) {
-    const impulseMag = SNOOKER_BALL_MASS * launchSpeed;
-    const cueOffset = side.clone()
-      .multiplyScalar((spin.x ?? 0) * CFG.ballR)
-      .addScaledVector(UP, (spin.y ?? 0) * CFG.ballR);
-    const torqueImpulse = cueOffset.cross(cueBall.vel.clone().normalize().multiplyScalar(impulseMag));
-    cueBall.omega.addScaledVector(torqueImpulse, 1 / SNOOKER_BALL_INERTIA);
+    const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
+    cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
+    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
+    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
@@ -1446,10 +1390,9 @@ function isInsideSnookerPocketThroat(ball, axis, sign, pocketPositions = []) {
 }
 
 function clampSnookerAimImpactToPerimeter(point) {
-  const { halfW, halfL } = getSnookerCushionHalfExtents();
   return new THREE.Vector2(
-    clamp(point.x, -halfW + CFG.ballR, halfW - CFG.ballR),
-    clamp(point.y, -halfL + CFG.ballR, halfL - CFG.ballR)
+    clamp(point.x, -CFG.tableW / 2 + CFG.ballR, CFG.tableW / 2 - CFG.ballR),
+    clamp(point.y, -CFG.tableL / 2 + CFG.ballR, CFG.tableL / 2 - CFG.ballR)
   );
 }
 
@@ -1470,34 +1413,20 @@ function decaySnookerSpin(ball, stepScale) {
 
 function applySnookerSpinController(ball, stepScale) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  if (ball.isCue && !ball.impacted) {
-    return decaySnookerSpin(ball, stepScale);
-  }
   const speed = Math.max(ball.vel.length(), 0);
   if (speed > 1e-6) {
     const forward = SNOOKER_TMP_VEC3_A.copy(ball.vel).setY(0).normalize();
+    const lateral = SNOOKER_TMP_VEC3_B.set(forward.z, 0, -forward.x).normalize();
+    const sideSpin = ball.spin.x || 0;
     const forwardSpin = ball.spin.y || 0;
-    const powerScale = resolveSnookerSpinPowerScale(speed);
-    let rollAccel = SNOOKER_SPIN_ROLL_ACCELERATION * powerScale * stepScale;
-    if (forwardSpin < 0) {
-      rollAccel *= ball.isCue && ball.impacted ? 3.4 : 1.35;
+    const speedScale = clamp(speed / Math.max(CFG.scale * 8, 1e-6), 0.35, 1.4);
+    if (Math.abs(sideSpin) > 1e-8) {
+      ball.vel.addScaledVector(lateral, sideSpin * 0.22 * CFG.scale * speedScale * stepScale);
     }
     if (Math.abs(forwardSpin) > 1e-8) {
-      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+      ball.vel.addScaledVector(forward, forwardSpin * 0.11 * CFG.scale * speedScale * stepScale);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(CFG.ballR * 2.2, speed * SNOOKER_TOPSPIN_ROLL_SPEED_FACTOR);
-        const settling = clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
-        const transfer = Math.min(
-          forwardSpin,
-          rollAccel * SNOOKER_TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
-        );
-        let remainingSpin = Math.max(0, forwardSpin - transfer);
-        if (speed >= naturalRollSpeed * 0.98) {
-          remainingSpin *= Math.exp(-SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
-        }
-        ball.spin.y = remainingSpin * Math.exp(
-          -SNOOKER_TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
-        );
+        ball.spin.y = Math.max(0, forwardSpin - 0.028 * stepScale * speedScale);
       }
     }
   }
@@ -1537,8 +1466,7 @@ function applySnookerRailImpulse(ball, normal) {
 function updateSnookerRollingBall(ball, stepScale) {
   applySnookerSpinController(ball, stepScale);
   const dt = SNOOKER_SPIN_FIXED_DT * stepScale;
-  const preImpactCueSpinLocked = ball.isCue && !ball.impacted;
-  if (ball.omega && !preImpactCueSpinLocked) {
+  if (ball.omega) {
     const linear = SNOOKER_TMP_VEC3_A.set(ball.vel.x, 0, ball.vel.z);
     const radius = SNOOKER_TMP_VEC3_B.set(0, -CFG.ballR, 0);
     const angular = SNOOKER_TMP_VEC3_C.copy(ball.omega);
@@ -1563,7 +1491,8 @@ function updateSnookerRollingBall(ball, stepScale) {
 }
 
 function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = null) {
-  const { halfW, halfL } = getSnookerCushionHalfExtents();
+  const halfW = CFG.tableW / 2;
+  const halfL = CFG.tableL / 2;
   const subSteps = Math.max(1, Math.ceil(Math.max(dt, 0) / SNOOKER_PHYSICS_MAX_STEP));
   const subDt = dt / subSteps;
   for (let subStep = 0; subStep < subSteps; subStep += 1) {
@@ -1593,7 +1522,6 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     if (railNormal) {
       if (rulesState?.shotActive && rulesState.firstContactKind) rulesState.railAfterContact = true;
       applySnookerRailImpulse(ball, railNormal);
-      if (ball.isCue) ball.impacted = true;
       if (ball.spin) ball.spin.x *= -0.65;
     }
     let speed = ball.vel.length();
@@ -1712,9 +1640,8 @@ function calcSnookerAimTarget(cueBall, aimDir, balls, pocketPositions = []) {
       targetBall = null;
     }
   };
-  const { halfW, halfL } = getSnookerCushionHalfExtents();
-  const railX = halfW - CFG.ballR;
-  const railZ = halfL - CFG.ballR;
+  const railX = CFG.tableW / 2 - CFG.ballR;
+  const railZ = CFG.tableL / 2 - CFG.ballR;
   const mouthClear = (axis, sign, impact) => {
     const probe = { pos: new THREE.Vector3(impact.x, CFG.ballR, impact.y) };
     return isInsideSnookerPocketThroat(probe, axis, sign, pocketPositions);
