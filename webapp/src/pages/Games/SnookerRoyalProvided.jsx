@@ -137,8 +137,8 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
-const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.18; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
+const SNOOKER_PLAYFIELD_SCALE = (2.75 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_BALL_R = (OFFICIAL_SNOOKER_BALL_DIAMETER_M * SNOOKER_PLAYFIELD_SCALE) / 2;
@@ -155,11 +155,9 @@ const SNOOKER_SHOT_MIN_FACTOR = 0.25;
 const SNOOKER_SHOT_POWER_RANGE = 0.75;
 const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
-const SNOOKER_SHOT_SPIN_SCALE = 0.18;
-const SNOOKER_SPIN_GLOBAL_SCALE = 0.46; // keep cue-ball side/top input subtle so center-ball shots do not over-rotate
+const SNOOKER_SHOT_SPIN_SCALE = 0.115;
+const SNOOKER_SPIN_GLOBAL_SCALE = 0.32; // keep cue-ball natural-follow input subtle so center-ball shots do not over-rotate
 const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
-const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
-const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_TOPSPIN_MULTIPLIER = 1.34 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_CUE_CENTER_ROLL_OMEGA_FACTOR = 0.32;
 const SNOOKER_CUE_SPIN_OMEGA_MULTIPLIER = 10;
@@ -177,7 +175,8 @@ const SNOOKER_STOP_EPS = 0.0074;
 const SNOOKER_STOP_SOFTENING = 0.96;
 const SNOOKER_STOP_FINAL_EPS = SNOOKER_STOP_EPS * 0.35;
 const SNOOKER_CUSHION_NOSE_CONTACT_INSET = Math.max(0, (SNOOKER_OFFICIAL_BALL_R * 2 - SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS) * 0.5);
-const SNOOKER_PHYSICS_MAX_STEP = 1 / 240;
+const SNOOKER_CUSHION_COLLISION_SAFETY_INSET = SNOOKER_OFFICIAL_BALL_R * 0.12;
+const SNOOKER_PHYSICS_MAX_STEP = 1 / 480;
 const SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD = -0.08;
 const SNOOKER_CAMERA_HEIGHT_STEP = 0.075;
 const SNOOKER_CAMERA_HEIGHT_MIN = -0.34;
@@ -1198,24 +1197,21 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
 function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const p = clamp01(power);
   const dir = out.set(0, 0, -1).applyAxisAngle(Y_AXIS, yaw).normalize();
-  const side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
   const spinMappedRaw = mapSpinForPhysics(normalizeSpinInput(spinInput));
   const spinMapped = {
     x: (spinMappedRaw.x ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE,
     y: (spinMappedRaw.y ?? 0) * SNOOKER_SPIN_GLOBAL_SCALE
   };
   const powerSpinScale = 0.55 + p * 0.45;
-  const rawTopSpin = (spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE * powerSpinScale;
+  const rawTopSpin = Math.max(0, spinMapped.y ?? 0) * SNOOKER_SHOT_SPIN_SCALE * powerSpinScale;
   const spin = {
-    x: (spinMapped.x ?? 0) * SNOOKER_SHOT_SPIN_SCALE * SNOOKER_SIDE_SPIN_MULTIPLIER * powerSpinScale,
-    y: rawTopSpin < 0
-      ? rawTopSpin * SNOOKER_BACKSPIN_MULTIPLIER
-      : rawTopSpin * SNOOKER_TOPSPIN_MULTIPLIER
+    x: 0,
+    y: rawTopSpin * SNOOKER_TOPSPIN_MULTIPLIER
   };
   const powerScale = SNOOKER_SHOT_MIN_FACTOR + SNOOKER_SHOT_POWER_RANGE * p;
   const speed = SNOOKER_SHOT_FULL_SPEED * powerScale;
   cueBall.vel.copy(dir.multiplyScalar(speed));
-  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
+  // Side/draw spin is disabled for Snooker Champion; shots keep only natural forward roll.
   cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
   cueBall.omega?.set(0, 0, 0);
   const launchSpeed = cueBall.vel.length();
@@ -1382,7 +1378,7 @@ function finalizeSnookerShotRules(balls, rulesState) {
 function findSnookerPocketCapture(ball, pocketPositions = []) {
   return pocketPositions.find((pocket) => {
     const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const captureRadius = Math.max(radius + CFG.ballR * 0.56, CFG.ballR * 1.35);
+    const captureRadius = Math.max(radius + CFG.ballR * 0.28, CFG.ballR * 1.08);
     return ball.pos.distanceToSquared(pocket) < captureRadius * captureRadius;
   });
 }
@@ -1390,7 +1386,7 @@ function findSnookerPocketCapture(ball, pocketPositions = []) {
 function isInSnookerPocketMouth(ball, axis, sign, pocketPositions = []) {
   const nearPocket = pocketPositions.some((pocket) => {
     const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
-    const mouth = Math.max(radius + CFG.ballR * 0.92, CFG.ballR * 1.65);
+    const mouth = Math.max(radius + CFG.ballR * 0.52, CFG.ballR * 1.24);
     if (axis === 'x') {
       return Math.sign(pocket.x || sign) === sign && Math.abs(ball.pos.z - pocket.z) <= mouth;
     }
@@ -1408,7 +1404,7 @@ function isInsideSnookerPocketThroat(ball, axis, sign, pocketPositions = []) {
 
 function getSnookerCushionCenterLimit(axis) {
   const half = axis === 'x' ? CFG.tableW / 2 : CFG.tableL / 2;
-  return half - CFG.ballR - SNOOKER_CUSHION_NOSE_CONTACT_INSET;
+  return half - CFG.ballR - SNOOKER_CUSHION_NOSE_CONTACT_INSET - SNOOKER_CUSHION_COLLISION_SAFETY_INSET;
 }
 
 function clampSnookerAimImpactToPerimeter(point) {
@@ -2131,8 +2127,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const normalized = normalizeSpinInput(clamped);
       setSpin(normalized);
       spinRef.current = normalized;
-      dot.style.left = `${50 + clamped.x * 42}%`;
-      dot.style.top = `${50 - clamped.y * 42}%`;
+      dot.style.left = `${50 + normalized.x * 42}%`;
+      dot.style.top = `${50 - normalized.y * 42}%`;
     };
 
     const clearTimer = () => {
@@ -2199,13 +2195,13 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const rect = pad.getBoundingClientRect();
       const rawX = ((clientX - rect.left) / rect.width - 0.5) * 2;
       const rawY = (0.5 - (clientY - rect.top) / rect.height) * 2;
-      const clamped = clampToUnitCircle(rawX, rawY);
+      const clamped = normalizeSpinInput(clampToUnitCircle(rawX, rawY));
       spinState.target = clamped;
       startSpring();
     };
     const snapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(spinState.target.x, spinState.target.y);
-      spinState.target = clampToUnitCircle(snapped.x, snapped.y);
+      spinState.target = normalizeSpinInput(clampToUnitCircle(snapped.x, snapped.y));
       startSpring();
     };
     const onPointerDown = (e) => {

@@ -54,6 +54,15 @@ describe('snooker table model selection', () => {
     assert.match(source, /mapping = 'glb-bed-to-game-playfield'/);
   });
 
+
+  test('Snooker Champion scene enlarges the GLB table and tightens cushion mapping', async () => {
+    const source = await readFile('webapp/src/pages/Games/SnookerRoyalProvided.jsx', 'utf8');
+    assert.match(source, /SNOOKER_PLAYFIELD_SCALE = \(2\.75 \* WORLD_SCALE\)/);
+    assert.match(source, /SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1\.18/);
+    assert.match(source, /SNOOKER_CUSHION_COLLISION_SAFETY_INSET/);
+    assert.match(source, /SNOOKER_PHYSICS_MAX_STEP = 1 \/ 480/);
+  });
+
   test('uses procedural rail decor only for the classic table model', () => {
     assert.equal(usesProceduralSnookerTableRailDecor('classic'), true);
     assert.equal(usesProceduralSnookerTableRailDecor('opensource'), false);
