@@ -1880,7 +1880,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = 0; // stop the cue at the cue-ball contact point instead of following through
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -2470,9 +2470,7 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12 / POOL_HUMAN_CFG.scale);
   const walkAmount = poolHumanClamp01(moveAmountRaw * 18 / POOL_HUMAN_CFG.scale) * idle;
   const dragStroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0;
-  const strikeFollow = state === 'striking'
-    ? poolHumanEaseOutCubic(poolHumanClamp01(human.strikeClock / Math.max(POOL_HUMAN_CFG.strikeTime, 1e-6)))
-    : 0;
+  const strikeFollow = state === 'striking' ? Math.sin(poolHumanClamp01(human.strikeClock / (POOL_HUMAN_CFG.strikeTime + POOL_HUMAN_CFG.holdTime)) * Math.PI) : 0;
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v) => v.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).add(human.root.position);
@@ -28639,8 +28637,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          // Defer physics until the animated cue reaches the cue ball so the
-          // visible stick, player hand, and ball launch all line up at impact.
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -33123,15 +33120,12 @@ const shotPowerRef = useRef(0);
           0,
           1
         ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
-        const sliderPullingForHuman = Boolean(sliderInstanceRef.current?.dragging) || (powerRef.current ?? 0) > 0.01;
-        const humanShotState = shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
-          ? 'striking'
-          : replayActive
-            ? 'rolling'
-            : cueCameraLoweredForHuman
-              ? sliderPullingForHuman
-                ? 'dragging'
-                : 'aiming'
+        const humanShotState = cueCameraLoweredForHuman && !shooting && !cueAnimating && !aiTakingShot && !replayActive
+          ? 'dragging'
+          : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
+            ? 'striking'
+            : replayActive
+              ? 'rolling'
               : 'idle';
         updatePoolRoyaleHumanFrame(
           humanRig,
