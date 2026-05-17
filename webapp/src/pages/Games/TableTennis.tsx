@@ -124,6 +124,7 @@ const DEFAULT_HDRI_URLS = [
 
 const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
+const TABLE_TENNIS_VISUAL_SCALE = 1.3;
 
 const CFG = {
   // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
@@ -394,7 +395,7 @@ function createConfiguredGltfLoader(renderer: THREE.WebGLRenderer) {
   return loader;
 }
 
-function addTable(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+function addTable(scene: THREE.Object3D, renderer: THREE.WebGLRenderer) {
   const fallback = buildRealisticTableTennisTable();
   scene.add(fallback);
   if (!TABLE_GLTF_URL) return fallback;
@@ -750,7 +751,7 @@ function addLocalRotation(bone: THREE.Bone | undefined, x: number, y: number, z:
   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")));
 }
 
-function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: PlayerSide, start: THREE.Vector3, accent: number, humanUrl?: string): HumanRig {
+function addHuman(scene: THREE.Object3D, renderer: THREE.WebGLRenderer, side: PlayerSide, start: THREE.Vector3, accent: number, humanUrl?: string): HumanRig {
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
@@ -1005,12 +1006,26 @@ function updateSkeletonTorso(player: HumanRig, pose: StrokePose) {
   addLocalRotation(player.bones.neck, -pose.torsoLean * 0.35, -pose.torsoYaw * 0.16, 0);
 }
 
+function localPosePointToWorld(player: HumanRig, point: THREE.Vector3) {
+  return player.modelRoot.parent ? player.modelRoot.parent.localToWorld(point.clone()) : point.clone();
+}
+
 function updateModelRigWithHands(player: HumanRig, pose: StrokePose) {
   if (!player.model) return false;
   restoreRestPose(player);
   updateSkeletonTorso(player, pose);
-  const rightSolved = solveTwoBoneArm(player.rightArmChain, pose.rightShoulder, pose.rightElbow, pose.rightHand);
-  const leftSolved = solveTwoBoneArm(player.leftArmChain, pose.leftShoulder, pose.leftElbow, pose.leftHand);
+  const rightSolved = solveTwoBoneArm(
+    player.rightArmChain,
+    localPosePointToWorld(player, pose.rightShoulder),
+    localPosePointToWorld(player, pose.rightElbow),
+    localPosePointToWorld(player, pose.rightHand)
+  );
+  const leftSolved = solveTwoBoneArm(
+    player.leftArmChain,
+    localPosePointToWorld(player, pose.leftShoulder),
+    localPosePointToWorld(player, pose.leftElbow),
+    localPosePointToWorld(player, pose.leftHand)
+  );
   if (rightSolved) {
     addLocalRotation(player.bones.rightHand, 0.03, pose.wristPronation, -0.1);
     addLocalRotation(player.bones.rightForeArm, 0, 0.04, pose.shoulderLift * 0.18);
@@ -1040,7 +1055,8 @@ function updatePoseAndPaddle(player: HumanRig, ball: BallState) {
   const bladeDir = vectorToBlade.clone().normalize();
 
   if (handSolved && player.bones.rightHand) {
-    const wrist = getWorldPos(player.bones.rightHand);
+    const wristWorld = getWorldPos(player.bones.rightHand);
+    const wrist = player.paddle.parent ? player.paddle.parent.worldToLocal(wristWorld.clone()) : wristWorld;
     const palmGrip = wrist.clone().addScaledVector(bladeDir, CFG.paddlePalmOffset);
     setPaddlePose(player.paddle, palmGrip, palmGrip.clone().add(vectorToBlade), pose.faceNormal);
   } else {
@@ -1378,6 +1394,14 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
   };
 }
 
+function getCameraPosition(aspect: number) {
+  return new THREE.Vector3(0, aspect < 0.72 ? 7.1 : 6.2, aspect < 0.72 ? 8.55 : 7.55).multiplyScalar(TABLE_TENNIS_VISUAL_SCALE);
+}
+
+function getCameraTarget() {
+  return new THREE.Vector3(0, CFG.tableY + 0.22, -0.08).multiplyScalar(TABLE_TENNIS_VISUAL_SCALE);
+}
+
 function chooseServerAfterScore(nearScore: number, farScore: number): PlayerSide {
   const total = nearScore + farScore;
   return Math.floor(total / 2) % 2 === 0 ? "near" : "far";
@@ -1477,37 +1501,42 @@ export default function MobileRealisticTableTennisGame() {
     };
     loadHdri();
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36);
-    const cameraTarget = new THREE.Vector3(0, CFG.tableY + 0.22, -0.08);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.03, 36 * TABLE_TENNIS_VISUAL_SCALE);
+    const cameraTarget = getCameraTarget();
     const netWobble = { amount: 0, side: 0 };
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.64));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x263f4b, 0.8));
     const key = new THREE.DirectionalLight(0xffffff, 1.55);
-    key.position.set(-2.8, 4.6, 3.7);
+    key.position.set(-2.8, 4.6, 3.7).multiplyScalar(TABLE_TENNIS_VISUAL_SCALE);
     key.castShadow = true;
     key.shadow.mapSize.width = 2048;
     key.shadow.mapSize.height = 2048;
     key.shadow.camera.near = 0.4;
-    key.shadow.camera.far = 12;
-    key.shadow.camera.left = -3.8;
-    key.shadow.camera.right = 3.8;
-    key.shadow.camera.top = 4.5;
-    key.shadow.camera.bottom = -4.5;
+    key.shadow.camera.far = 12 * TABLE_TENNIS_VISUAL_SCALE;
+    key.shadow.camera.left = -3.8 * TABLE_TENNIS_VISUAL_SCALE;
+    key.shadow.camera.right = 3.8 * TABLE_TENNIS_VISUAL_SCALE;
+    key.shadow.camera.top = 4.5 * TABLE_TENNIS_VISUAL_SCALE;
+    key.shadow.camera.bottom = -4.5 * TABLE_TENNIS_VISUAL_SCALE;
     scene.add(key);
 
     const rim = new THREE.DirectionalLight(0xb8e6ff, 0.55);
-    rim.position.set(2.4, 2.1, -3.1);
+    rim.position.set(2.4, 2.1, -3.1).multiplyScalar(TABLE_TENNIS_VISUAL_SCALE);
     scene.add(rim);
 
-    addTable(scene, renderer);
+    const gameplayRoot = new THREE.Group();
+    gameplayRoot.name = "TableTennisVisualScaleRoot";
+    gameplayRoot.scale.setScalar(TABLE_TENNIS_VISUAL_SCALE);
+    scene.add(gameplayRoot);
+
+    addTable(gameplayRoot, renderer);
 
     const humanModelUrl = selectedHumanOption?.modelUrls?.[0];
-    const nearPlayer = addHuman(scene, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 1.05), 0xff6b2e, humanModelUrl);
-    const farPlayer = addHuman(scene, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05), 0x4ab7ff, humanModelUrl);
+    const nearPlayer = addHuman(gameplayRoot, renderer, "near", new THREE.Vector3(0, 0, TABLE_HALF_L + 1.05), 0xff6b2e, humanModelUrl);
+    const farPlayer = addHuman(gameplayRoot, renderer, "far", new THREE.Vector3(0, 0, -TABLE_HALF_L - 1.05), 0x4ab7ff, humanModelUrl);
     const players: Record<PlayerSide, HumanRig> = { near: nearPlayer, far: farPlayer };
     const ball = createBall();
-    scene.add(ball.mesh);
+    gameplayRoot.add(ball.mesh);
 
     let currentServer: PlayerSide = "near";
     let aiServeWindup = 0;
@@ -1519,7 +1548,7 @@ export default function MobileRealisticTableTennisGame() {
     );
     aimGhost.rotation.x = -Math.PI / 2;
     aimGhost.position.set(0, CFG.tableY + 0.009, -0.72);
-    scene.add(aimGhost);
+    gameplayRoot.add(aimGhost);
 
     const playerGhost = new THREE.Mesh(
       new THREE.RingGeometry(0.18, 0.22, 38),
@@ -1527,7 +1556,7 @@ export default function MobileRealisticTableTennisGame() {
     );
     playerGhost.rotation.x = -Math.PI / 2;
     playerGhost.position.copy(nearPlayer.target).setY(0.035);
-    scene.add(playerGhost);
+    gameplayRoot.add(playerGhost);
 
     let frameId = 0;
     let last = performance.now();
@@ -1580,7 +1609,7 @@ export default function MobileRealisticTableTennisGame() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       camera.aspect = w / h;
       camera.fov = camera.aspect < 0.72 ? 44 : 39;
-      camera.position.set(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
+      camera.position.copy(getCameraPosition(camera.aspect));
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     };
@@ -1945,9 +1974,9 @@ export default function MobileRealisticTableTennisGame() {
         netObj.position.z = Math.sin(now * 0.02) * 0.012 * netWobble.amount * netWobble.side;
       }
 
-      const bPos = new THREE.Vector3(0, camera.aspect < 0.72 ? 7.1 : 6.2, camera.aspect < 0.72 ? 8.55 : 7.55);
+      const bPos = getCameraPosition(camera.aspect);
       camera.position.lerp(bPos, 1 - Math.exp(-5 * dt));
-      cameraTarget.lerp(new THREE.Vector3(0, CFG.tableY + 0.22, -0.08), 1 - Math.exp(-5 * dt));
+      cameraTarget.lerp(getCameraTarget(), 1 - Math.exp(-5 * dt));
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     }
