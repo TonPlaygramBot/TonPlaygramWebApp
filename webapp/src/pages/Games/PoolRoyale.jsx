@@ -1257,7 +1257,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.45; // keep the top rails shorter while preserving the playfield footprint
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1825,9 +1825,9 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 1.04; // extend the visible leg drop for the taller support stance
-const LEG_LENGTH_SHRINK = 0.96; // keep the legs longer so the base reaches lower under the rails
-const BASE_HEIGHT_REDUCTION = 0.86; // let table bases fill more vertical space instead of trimming them short
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
+const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
+const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -4268,6 +4268,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'topWoodRail',
   'railSight',
   'pocketCup',
+  'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
@@ -4277,6 +4278,7 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
+  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
   leg: DEFAULT_TABLE_FINISH_ID,
   baseFoot: 'gold'
 });
@@ -4298,6 +4300,10 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
+  baseCornerBlock: Object.freeze([
+    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
+    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
+  ]),
   leg: Object.freeze([]),
   baseFoot: Object.freeze([
     { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
@@ -4310,6 +4316,7 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   topWoodRail: 'Top Rails',
   railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
+  baseCornerBlock: 'Table Base',
   leg: 'Legs',
   baseFoot: 'Feet'
 });
@@ -4326,7 +4333,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail' || part === 'leg') {
+  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4335,7 +4342,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
@@ -9324,15 +9331,12 @@ export function Table3D(
     }
     return fallbackMaterials[key];
   };
-  let frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
+  const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   let legMat = rawMaterials.leg ?? frameMat;
   if (legMat === frameMat) {
     legMat = frameMat.clone();
   }
-  // Table base/skirt surfaces intentionally share the leg material so base textures
-  // are not selectable or rendered independently from the legs.
-  frameMat = legMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
@@ -12887,7 +12891,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     pocketCup: 'pocketCup',
     verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
-    baseCornerBlock: 'leg',
+    baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
   };
   const part = roleToPart[role] || 'topWoodRail';
@@ -12956,12 +12960,10 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   } else if (part === 'pocketCup') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
-  } else if (part === 'topWoodRail' || part === 'leg') {
+  } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
     const surface = part === 'topWoodRail'
       ? finishInfo?.parts?.woodSurfaces?.rail
-      : finishInfo?.parts?.woodSurfaces?.leg ||
-        finishInfo?.parts?.woodSurfaces?.frame ||
-        finishInfo?.parts?.woodSurfaces?.rail;
+      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
     if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
     applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
     applyTableFinishDulling(mat);
@@ -14587,8 +14589,7 @@ function applyTableFinishToTable(table, finish) {
     resolvedFinish?.woodTextureEnabled ?? WOOD_TEXTURES_ENABLED;
   const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
     frame: null,
-    rail: null,
-    leg: null
+    rail: null
   };
   finishInfo.parts.woodSurfaces = woodSurfaces;
   if (woodTextureEnabled) {
@@ -14655,10 +14656,7 @@ function applyTableFinishToTable(table, finish) {
       });
     } else {
       applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
-      applyWoodTextureToMaterial(frameMat, {
-        ...synchronizedFrameSurface,
-        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
-      });
+      applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
     }
     applyTableFinishDulling(railMat);
     applyTableFinishDulling(frameMat);
@@ -14737,13 +14735,8 @@ function applyTableFinishToTable(table, finish) {
       }
     }
     applyFinishWoodTint(legMat, resolvedFinish);
-    const synchronizedLegSurface = {
-      ...synchronizedFrameSurface,
-      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
-    };
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
-    woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedLegSurface);
-    woodSurfaces.leg = cloneWoodSurfaceConfig(synchronizedLegSurface);
+    woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
     finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
     finishInfo.woodRepeatScale = woodRepeatScale;
@@ -14768,7 +14761,6 @@ function applyTableFinishToTable(table, finish) {
     });
     woodSurfaces.rail = null;
     woodSurfaces.frame = null;
-    woodSurfaces.leg = null;
     finishInfo.woodTextureId = null;
     finishInfo.parts.woodTextureId = null;
     finishInfo.woodRepeatScale = 1;
@@ -17026,8 +17018,7 @@ function PoolRoyaleGame({
           material.needsUpdate = true;
         };
         applyShowoodPartMaterial(materials.rail, 'topWoodRail');
-        // The table base now follows the leg finish instead of exposing a separate texture choice.
-        applyShowoodPartMaterial(materials.frame, 'leg');
+        applyShowoodPartMaterial(materials.frame, 'baseCornerBlock');
         applyShowoodPartMaterial(materials.leg, 'leg');
         const liners = createPocketLinerMaterials(linerSelection);
         materials.pocketJaw = liners.jawMaterial;
@@ -36191,6 +36182,49 @@ const shotPowerRef = useRef(0);
                               src={thumb}
                               alt={option.label}
                               className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {availableTableBases.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Table Base
+                  </h3>
+                  <p className="mt-1 text-[0.7rem] text-white/60">
+                    Showood Original keeps the table base and legs; procedural base variants remain available for alternate table support styles.
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    {availableTableBases.map((variant) => {
+                      const active = variant.id === tableBaseId;
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => setTableBaseId(variant.id)}
+                          aria-pressed={active}
+                          className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex flex-col gap-1">
+                            <span>{variant.name}</span>
+                            <span className="text-[9px] font-medium uppercase tracking-[0.14em] opacity-70">
+                              {variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID ? 'Original Showood base + legs' : 'Procedural support base'}
+                            </span>
+                          </span>
+                          {variant.thumbnail ? (
+                            <img
+                              src={variant.thumbnail}
+                              alt={variant.name}
+                              className="h-8 w-12 rounded-lg border border-white/20 object-cover"
                               loading="lazy"
                             />
                           ) : null}
