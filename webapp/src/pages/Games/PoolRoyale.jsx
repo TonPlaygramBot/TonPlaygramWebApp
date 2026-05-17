@@ -1241,7 +1241,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.285; // make the Pool Royale table slightly larger in width/length while keeping rail height unchanged
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1337,7 +1337,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAYFIELD_SHRINK = 0.852; // keep the larger Showood footprint precise while preserving table height
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1843,7 +1843,7 @@ const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward s
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
 const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
-const LEG_LEVELER_RADIUS_SCALE = 1.08; // slightly shrink the rounded metallic leveler so it reads less oversized on portrait screens
+const LEG_LEVELER_RADIUS_SCALE = 1.28; // widen the metallic feet/levelers so the Showood base sits on broader pads
 const LEG_LEVELER_HEIGHT_SCALE = 0.2; // keep each plate low and rounded, similar to real metal levelers
 const LEG_LEVELER_STEM_RADIUS_SCALE = 0.42; // the inner cylinder that inserts into the leg center
 const LEG_LEVELER_STEM_HEIGHT_SCALE = 0.34; // visible neck before it disappears into the leg
@@ -4310,10 +4310,13 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   topWoodRail: 'Top Rails',
   railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
-  leg: 'Legs',
+  leg: 'Table Base',
   baseFoot: 'Feet'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_TABLE_MENU_PARTS = Object.freeze(
+  SHOWOOD_TABLE_PARTS.filter((part) => part !== 'baseFoot')
+);
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
@@ -4335,7 +4338,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Base'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
@@ -6789,8 +6792,8 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
-const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
+const RAIL_CONTACT_RADIUS = BALL_R * 1.035; // keep cushion contact just proud of the visual nose so balls bounce before overlapping the cushion
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.15;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -7330,10 +7333,10 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive follow
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
+const MAX_TOPSPIN_INPUT = 0.78; // trim topspin cap further to reduce excessive default follow
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.54; // soften straight follow transfer so default topspin is less aggressive
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.78; // cap follow acceleration earlier to avoid excessive default top spin
 const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.42;
@@ -8176,8 +8179,6 @@ function reflectRails(ball) {
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
-      const velocityToward = ball.vel.dot(segment.normal);
-      if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
@@ -8237,8 +8238,6 @@ function reflectRails(ball) {
       const dist = Math.sqrt(distSq);
       if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
       TMP_VEC2_A.multiplyScalar(1 / dist);
-      const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
       const penetration = jawRadius + railRadius - dist;
       if (penetration <= 0) continue;
       ball.pos.addScaledVector(TMP_VEC2_A, penetration);
@@ -13051,7 +13050,26 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
   const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
   const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
-  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.74 && s.shortN < 0.59;
+  const centralCloth =
+    high &&
+    s.upFace &&
+    (
+      (!anyPocketZone && s.longN < 0.74 && s.shortN < 0.59) ||
+      ((namedCloth || green) && s.longN < 0.84 && s.shortN < 0.76)
+    );
+  const clothPocketCutWall =
+    high &&
+    s.sideFace &&
+    (namedCloth || green) &&
+    anyPocketZone &&
+    s.relY > 0.58;
+  const sidePocketApronStripe =
+    sideMiddlePocketZone &&
+    s.sideFace &&
+    !s.upFace &&
+    !green &&
+    s.relY > 0.54 &&
+    s.relY < 0.72;
   const cushionBand = high && !anyPocketZone && (
     (s.upFace && s.longN >= 0.70 && s.longN < 0.88 && s.shortN < 0.68) ||
     (s.upFace && s.shortN >= 0.54 && s.shortN < 0.78 && s.longN < 0.88) ||
@@ -13068,10 +13086,11 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.longN > 0.64 && s.shortN > 0.64)
   );
   const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
+  if ((namedCloth || green) && (centralCloth || clothPocketCutWall)) return 'cloth';
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
+  if (sidePocketApronStripe && !namedPocket && !namedCushion) return 'sideWoodApron';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
-  if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
@@ -13453,9 +13472,14 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
   if (!model || tableModel?.id !== 'showood-seven-foot') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
+  const footWidthScale = Number(tableModel?.footWidthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
   const shouldScaleLegs = Number.isFinite(legScale) && legScale > MICRO_EPS && Math.abs(legScale - 1) > MICRO_EPS;
-  if (!shouldScaleBase && !shouldScaleLegs) return;
+  const shouldWidenFeet =
+    Number.isFinite(footWidthScale) &&
+    footWidthScale > MICRO_EPS &&
+    Math.abs(footWidthScale - 1) > MICRO_EPS;
+  if (!shouldScaleBase && !shouldScaleLegs && !shouldWidenFeet) return;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodBaseProportionsAdjusted) return;
@@ -13468,13 +13492,20 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
         : shouldScaleBase && (role === 'baseCornerBlock' || /base|cabinet|corner[_\s-]*block/.test(childName))
           ? baseScale
           : null;
-    if (!scaleY) return;
+    const widenFoot =
+      shouldWidenFeet &&
+      (role === 'verticalCornerRim' || role === 'baseFoot' || /foot|feet|leveler|leveller|pad/.test(childName));
+    if (!scaleY && !widenFoot) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty()) return;
     const anchorWorldY = childBox.max.y;
     const parent = child.parent || model;
     const anchorLocalY = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    child.scale.y *= scaleY;
+    if (scaleY) child.scale.y *= scaleY;
+    if (widenFoot) {
+      child.scale.x *= footWidthScale;
+      child.scale.z *= footWidthScale;
+    }
     child.updateMatrixWorld(true);
     const nextBox = new THREE.Box3().setFromObject(child);
     const nextAnchorLocalY = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
@@ -15511,7 +15542,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
+      SHOWOOD_TABLE_MENU_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
@@ -17097,9 +17128,9 @@ function PoolRoyaleGame({
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
       const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
+      return next.railSight === linkedRailSight && next.baseFoot === linkedRailSight
         ? next
-        : { ...next, railSight: linkedRailSight };
+        : { ...next, railSight: linkedRailSight, baseFoot: linkedRailSight };
     });
   }, [chromeColorId]);
   useEffect(() => {
