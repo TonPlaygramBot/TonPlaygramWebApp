@@ -31,22 +31,43 @@ const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SNOOKER_CHAMPION_TABLE_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
 const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
 const FRAME_RATE_OPTIONS = Object.freeze([
-  { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Pool Royale performance preset for stable battery-friendly play.' },
-  { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Pool Royale smooth preset for sharper textures and 90 FPS timing.' },
-  { id: 'uhd120', label: 'Ultra (120 Hz)', fps: 120, pixelRatioCap: 1.85, resolution: 'Desktop 8K / Mobile 4K', description: 'Pool Royale ultra preset with the highest pixel cap available on this device.' }
+  { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Snooker Royal performance preset for stable battery-friendly play.' },
+  { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Snooker Royal smooth preset for sharper textures and 90 FPS timing.' },
+  { id: 'uhd120', label: 'Ultra (120 Hz)', fps: 120, pixelRatioCap: 1.85, resolution: 'Desktop 8K / Mobile 4K', description: 'Snooker Royal ultra preset with the highest pixel cap available on this device.' }
 ]);
 const CAMERA_MODE_OPTIONS = Object.freeze([
-  { id: 'rail-overhead', label: 'Rail Overhead', description: 'Pool Royale locked broadcast rail camera.' },
-  { id: 'top-2d', label: '2D Overhead', description: 'Pool Royale straight-down tactical camera.' },
+  { id: 'rail-overhead', label: 'Rail Overhead', description: 'Snooker Royal locked broadcast rail camera.' },
+  { id: 'top-2d', label: '2D Overhead', description: 'Snooker Royal straight-down tactical camera.' },
   { id: 'cue-follow', label: 'Cue Follow', description: 'Low cue-side player camera while lining up the shot.' },
   { id: 'tv-broadcast', label: 'TV Broadcast', description: 'Alternates cue view, rail overhead, and pocket-style action framing.' },
-  { id: 'corner-pocket-left', label: 'Left Pocket Cam', description: 'Pool Royale corner-pocket broadcast camera on the left short rail.' },
-  { id: 'corner-pocket-right', label: 'Right Pocket Cam', description: 'Pool Royale corner-pocket broadcast camera on the right short rail.' }
+  { id: 'corner-pocket-left', label: 'Left Pocket Cam', description: 'Snooker Royal corner-pocket broadcast camera on the left short rail.' },
+  { id: 'corner-pocket-right', label: 'Right Pocket Cam', description: 'Snooker Royal corner-pocket broadcast camera on the right short rail.' }
 ]);
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
-  { id: 'rail-overhead', label: 'Rail Overhead', method: 'Single rail-overhead mount', description: 'Same default broadcast technique used by Pool Royale.' },
+  { id: 'rail-overhead', label: 'Rail Overhead', method: 'Single rail-overhead mount', description: 'Same default broadcast technique used by Snooker Royal.' },
   { id: 'pocket-cuts', label: 'Pocket Cuts', method: 'Corner pocket cutaways', description: 'Cuts to a pocket-side view when balls are close to a pocket.' },
   { id: 'cinematic', label: 'Cinematic Follow', method: 'Cue + action dolly blend', description: 'Smooth shot-following angle for replays and live pot attempts.' }
+]);
+
+const SNOOKER_ROYAL_PARITY_MENU_THUMBNAILS = Object.freeze([
+  {
+    id: 'table-map',
+    label: 'GLB table map',
+    image: '/assets/icons/snooker-royale.svg',
+    description: 'Royal snooker.glb chassis, cushion jaws, pocket throats, and cloth material mapping.'
+  },
+  {
+    id: 'balls-spin',
+    label: 'Balls + spin',
+    image: '/assets/icons/snooker-regular.svg',
+    description: 'Royal ball rack, official spots, strike power, rolling friction, and spin transfer.'
+  },
+  {
+    id: 'broadcast-camera',
+    label: 'Broadcast cameras',
+    image: '/assets/icons/snooker-tournament.svg',
+    description: 'Royal cue follow, rail overhead, TV broadcast, replay, and pocket cut camera positions.'
+  }
 ]);
 const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
   { id: 'showood', label: 'Showood Walnut', rail: 0x4d2f1f, trim: 0xd4af37 },
@@ -2470,7 +2491,18 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 <button type="button" onClick={() => setConfigOpen(false)} className="rounded-full p-1 text-white/70 transition hover:text-white" aria-label="Close setup">✕</button>
               </div>
               <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-50/85">
-                Mirrors Pool Royale controls: graphics quality, table textures, cloth, HDRI room mood, cameras, broadcast style, power slider, and spin controller.
+                Mirrors the Snooker Royal match package: the same GLB table, cushion/jaw mapping, cloth finish, balls, cameras, broadcast style, power slider, and spin controller.
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Snooker Royal parity thumbnails">
+                {SNOOKER_ROYAL_PARITY_MENU_THUMBNAILS.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 text-center">
+                    <div className="mx-auto flex h-16 w-full items-center justify-center overflow-hidden rounded-xl border border-emerald-300/20 bg-gradient-to-br from-emerald-400/20 via-slate-900/70 to-black/80">
+                      <img src={item.image} alt="" className="h-12 w-12 object-contain drop-shadow-[0_8px_18px_rgba(16,185,129,0.35)]" aria-hidden="true" />
+                    </div>
+                    <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100">{item.label}</p>
+                    <p className="mt-1 text-[9px] leading-snug text-white/55">{item.description}</p>
+                  </div>
+                ))}
               </div>
               <div className="mt-4 space-y-4">
                 <div>
@@ -2482,7 +2514,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                     </button>
                     <button type="button" onClick={() => { setReplaySkipAll((prev) => { const next = !prev; replaySkipAllRef.current = next; if (next) setReplayActive(false); return next; }); setConfigOpen(false); }} className={optionButtonClass(replaySkipAll)}>
                       <span className="font-black uppercase tracking-[0.2em]">Replay off</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Pool Royale-style pot/foul replays.</span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Snooker Royal-style pot/foul replays.</span>
                     </button>
                   </div>
                 </div>
@@ -2633,7 +2665,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
             ref={spinPadRef}
             className="relative rounded-full border border-white/70 bg-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] touch-none"
             style={{ width: `${SPIN_CONTROL_DIAMETER_PX}px`, height: `${SPIN_CONTROL_DIAMETER_PX}px` }}
-            aria-label="Pool Royale style spin controller"
+            aria-label="Snooker Royal style spin controller"
           >
             <div
               id="spinDot"

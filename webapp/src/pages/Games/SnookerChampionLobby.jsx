@@ -21,6 +21,7 @@ import {
 
 const PLAYER_FLAG_STORAGE_KEY = 'snookerChampionPlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'snookerChampionAiFlag';
+const SNOOKER_ROYAL_MENU_THUMBNAIL_SLUG = 'snookerroyale';
 
 export default function SnookerChampionLobby() {
   const navigate = useNavigate();
@@ -418,7 +419,7 @@ export default function SnookerChampionLobby() {
                   <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('snookerchampion', `type-${id}`)}
+                        src={getLobbyIcon(SNOOKER_ROYAL_MENU_THUMBNAIL_SLUG, `type-${id}`)}
                         alt={label}
                         fallback={icon}
                         className="lobby-option-icon"
@@ -441,12 +442,22 @@ export default function SnookerChampionLobby() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Table</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">GLB</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Royal GLB</span>
           </div>
           <div className="lobby-option-card lobby-option-card-active cursor-default">
+            <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-emerald-500/10 to-transparent">
+              <div className="lobby-option-thumb-inner">
+                <OptionIcon
+                  src={getLobbyIcon(SNOOKER_ROYAL_MENU_THUMBNAIL_SLUG, 'table-championship')}
+                  alt="Snooker Royal GLB table"
+                  fallback="🎱"
+                  className="lobby-option-icon"
+                />
+              </div>
+            </div>
             <div className="text-center">
-              <p className="lobby-option-label">GLB Snooker Table</p>
-              <p className="lobby-option-subtitle">Default table with original GLB cushions and procedural bases.</p>
+              <p className="lobby-option-label">Snooker Royal GLB Table</p>
+              <p className="lobby-option-subtitle">Identical Royal table, balls, cushion map, cloth finish, broadcast cameras, power, and spin.</p>
             </div>
           </div>
         </div>
