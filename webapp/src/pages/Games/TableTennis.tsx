@@ -134,43 +134,44 @@ const CFG = {
   netH: 0.21,
   netPostOutside: 0.21,
   ballR: 0.052,
-  gravity: 9.35,
-  airDrag: 0.12,
-  magnus: 0.00138,
-  tableRestitution: 1.18,
-  tableFriction: 0.994,
-  spinDecay: 0.66,
+  gravity: 9.81,
+  airDrag: 0.22,
+  magnus: 0.00125,
+  tableRestitution: 0.9,
+  tableFriction: 0.965,
+  spinDecay: 0.72,
   playerHeight: 3.5,
-  playerSpeed: 3.9,
-  aiSpeed: 4.95,
-  aiServeReceiveBoost: 1.08,
-  aiOutBallConfidenceCutoff: 0.18,
-  reach: 1.09,
-  swingDuration: 0.31,
-  backhandDuration: 0.27,
-  serveDuration: 0.82,
-  hitWindowStart: 0.35,
-  hitWindowEnd: 0.8,
+  playerSpeed: 4.15,
+  aiSpeed: 4.28,
+  reach: 1.02,
+  swingDuration: 0.34,
+  backhandDuration: 0.29,
+  serveDuration: 0.86,
+  hitWindowStart: 0.43,
+  hitWindowEnd: 0.72,
   serveContactT: 0.68,
-  netPowerRetention: 0.12,
-  netClipPowerRetention: 0.34,
-  netTangentDamping: 0.34,
-  netThickness: 0.032,
-  netTopBandRadius: 0.018,
+  netTopRestitution: 0.34,
+  netFaceRestitution: 0.18,
+  netPowerRetention: 0.2,
   bodyPowerRetention: 0.2,
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 9.4,
-  maxShotSpeed: 42.0,
-  netClearance: 0.38,
+  minShotSpeed: 4.6,
+  maxShotSpeed: 12.2,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
 };
 
 const TABLE_REFERENCE_LENGTH = 2.74;
 const TABLE_SCALE_FACTOR = CFG.tableL / TABLE_REFERENCE_LENGTH;
-const PADDLE_SCALE_FACTOR = Math.max(1.18, TABLE_SCALE_FACTOR * 0.86);
+const PADDLE_SCALE_FACTOR = Math.max(1.18, TABLE_SCALE_FACTOR * 0.78);
+const TABLE_LOGIC_BASE_L = 5.8;
+const TABLE_LOGIC_BASE_W = 3.2;
+const TABLE_LOGIC_LENGTH_SCALE = CFG.tableL / TABLE_LOGIC_BASE_L;
+const TABLE_LOGIC_WIDTH_SCALE = CFG.tableW / TABLE_LOGIC_BASE_W;
+const scaleTableZ = (z: number) => z * TABLE_LOGIC_LENGTH_SCALE;
+const scaleTableX = (x: number) => x * TABLE_LOGIC_WIDTH_SCALE;
 
 const TABLE_HALF_W = CFG.tableW / 2;
 const TABLE_HALF_L = CFG.tableL / 2;
@@ -187,13 +188,6 @@ function reduceImpactPower(velocity: THREE.Vector3, keepRatio: number, minSpeed 
   const speed = velocity.length();
   if (speed <= 0.0001) return;
   const capped = Math.max(minSpeed, speed * clamp(keepRatio, 0.05, 1));
-  velocity.multiplyScalar(capped / speed);
-}
-
-function retainSourceImpactPower(velocity: THREE.Vector3, sourceSpeed: number, keepRatio: number, minSpeed = 0.35) {
-  const speed = velocity.length();
-  if (speed <= 0.0001 || sourceSpeed <= 0.0001) return;
-  const capped = Math.max(minSpeed, sourceSpeed * clamp(keepRatio, 0.05, 1));
   velocity.multiplyScalar(capped / speed);
 }
 
@@ -1057,44 +1051,19 @@ function ballisticVelocity(from: THREE.Vector3, target: THREE.Vector3, flight: n
   );
 }
 
-function flightWithNetClearance(from: THREE.Vector3, target: THREE.Vector3, baseFlight: number, minFlight: number, maxFlight: number) {
-  if ((from.z > 0 && target.z < 0) || (from.z < 0 && target.z > 0)) {
-    const netAlpha = clamp01((0 - from.z) / (target.z - from.z));
-    const netArcWeight = netAlpha * (1 - netAlpha);
-    if (netArcWeight > 0.0001) {
-      const linearNetY = lerp(from.y, target.y, netAlpha);
-      const requiredCenterY = CFG.tableY + CFG.netH + CFG.ballR + CFG.netClearance;
-      const requiredLift = requiredCenterY - linearNetY;
-      if (requiredLift > 0) {
-        const clearanceFlight = Math.sqrt((requiredLift * 2) / (CFG.gravity * netArcWeight));
-        return clamp(Math.max(baseFlight, clearanceFlight), minFlight, maxFlight);
-      }
-    }
-  }
-  return clamp(baseFlight, minFlight, maxFlight);
-}
-
 function makeUserHitFromSwipe(startX: number, startY: number, endX: number, endY: number, isServe: boolean): DesiredHit {
   const dx = endX - startX;
   const dy = endY - startY;
-  const screenW = Math.max(320, typeof window !== "undefined" ? window.innerWidth : 390);
-  const screenH = Math.max(480, typeof window !== "undefined" ? window.innerHeight : 844);
-  const shortSide = Math.max(320, Math.min(screenW, screenH));
-  const releaseLane = clamp((endX / screenW - 0.5) * 2, -1, 1);
-  const swipeLane = clamp(dx / (shortSide * 0.27), -1, 1);
-  const lateral = clamp(swipeLane * 0.68 + releaseLane * 0.32, -1, 1);
-  const upwardIntent = clamp(-dy / (shortSide * 0.52), -0.16, 1.2);
-  const depth = clamp(upwardIntent * 0.96 + Math.max(0, Math.abs(dx) / (shortSide * 0.92)) * 0.04, 0, 1);
-  const rawPower = Math.hypot(dx, dy) / (shortSide * (isServe ? 0.36 : 0.28));
-  const power = clamp(Math.pow(clamp01(rawPower), 0.56), isServe ? 0.76 : 0.58, 1);
-  const safetyMargin = isServe ? 0.18 : 0.1;
-  const targetX = clamp(lateral * (TABLE_HALF_W - safetyMargin), -TABLE_HALF_W + safetyMargin, TABLE_HALF_W - safetyMargin);
-  const targetZ = isServe ? -lerp(0.38, TABLE_HALF_L - 0.32, depth) : -lerp(0.3, TABLE_HALF_L - 0.1, depth);
+  const power = clamp(Math.hypot(dx, dy) / 180, isServe ? 0.56 : 0.36, 1);
+  const lateral = clamp(dx / 170, -1, 1);
+  const depth = clamp((-dy + 42) / 255, 0, 1);
+  const targetX = clamp(lateral * (TABLE_HALF_W - scaleTableX(0.13)), -TABLE_HALF_W + scaleTableX(0.12), TABLE_HALF_W - scaleTableX(0.12));
+  const targetZ = isServe ? -lerp(scaleTableZ(0.38), TABLE_HALF_L - scaleTableZ(0.32), depth) : -lerp(scaleTableZ(0.32), TABLE_HALF_L - scaleTableZ(0.15), depth);
   return {
     target: new THREE.Vector3(targetX, BALL_SURFACE_Y, targetZ),
     power,
-    topSpin: clamp(0.5 + depth * 0.92 + power * 0.36, 0.32, 1.58),
-    sideSpin: clamp(swipeLane * 0.9 + releaseLane * 0.1, -1, 1),
+    topSpin: clamp(0.35 + depth * 0.65 + power * 0.25, 0.22, 1.15),
+    sideSpin: lateral,
   };
 }
 
@@ -1102,8 +1071,8 @@ function makeAiServeTarget(): DesiredHit {
   const sideSpin = clamp((Math.random() - 0.5) * 1.7, -0.95, 0.95);
   const shortServe = Math.random() < 0.56;
   const wide = Math.random() < 0.45;
-  const x = clamp((wide ? Math.sign(Math.random() - 0.5) * 0.58 : (Math.random() - 0.5) * 0.45), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-  const z = shortServe ? lerp(0.32, 0.52, Math.random()) : lerp(TABLE_HALF_L - 0.35, TABLE_HALF_L - 0.16, Math.random());
+  const x = clamp((wide ? Math.sign(Math.random() - 0.5) * scaleTableX(0.58) : (Math.random() - 0.5) * scaleTableX(0.45)), -TABLE_HALF_W + scaleTableX(0.1), TABLE_HALF_W - scaleTableX(0.1));
+  const z = shortServe ? lerp(scaleTableZ(0.32), scaleTableZ(0.52), Math.random()) : lerp(TABLE_HALF_L - scaleTableZ(0.35), TABLE_HALF_L - scaleTableZ(0.16), Math.random());
   return {
     target: new THREE.Vector3(x, BALL_SURFACE_Y, z),
     power: shortServe ? 0.48 + Math.random() * 0.12 : 0.62 + Math.random() * 0.18,
@@ -1113,75 +1082,58 @@ function makeAiServeTarget(): DesiredHit {
   };
 }
 
-function makeAiTarget(near: HumanRig, ball: BallState, read?: { strike: THREE.Vector3; landing: THREE.Vector3; confidence: number; time: number }): DesiredHit {
+function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((-ball.pos.z + TABLE_HALF_L) / CFG.tableL);
-  const recoverX = clamp(near.target.x * 0.62 + near.pos.x * 0.38, -TABLE_HALF_W, TABLE_HALF_W);
-  const playerMomentum = clamp(near.target.x - near.pos.x, -0.8, 0.8);
-  const strike = read?.strike || ball.pos;
-  const highBall = strike.y > CFG.tableY + 0.39;
-  const lowBall = strike.y < CFG.tableY + 0.18;
-  const earlyBall = (read?.time ?? 0.28) < 0.24;
-  const confidence = read?.confidence ?? 0.68;
-  const openSide = recoverX + playerMomentum * 0.72 > 0 ? -1 : 1;
-  const wrongFootSide = playerMomentum > 0.08 ? -1 : playerMomentum < -0.08 ? 1 : openSide;
-  const ballLateralPressure = clamp(Math.abs(strike.x) / Math.max(0.001, TABLE_HALF_W), 0, 1);
-
+  const nearRecoverX = clamp(near.pos.x, -scaleTableX(0.75), scaleTableX(0.75));
+  const highBall = ball.pos.y > CFG.tableY + 0.34;
+  const lowBall = ball.pos.y < CFG.tableY + 0.16;
   let tactic: AiTactic;
   const roll = Math.random();
-  if (confidence > 0.82 && highBall && roll < 0.68) tactic = "loop";
-  else if (lowBall && roll < 0.58) tactic = "push";
-  else if (ballLateralPressure > 0.68 && roll < 0.7) tactic = "body";
-  else if (roll < 0.46 + pressure * 0.18) tactic = "wide";
-  else if (roll < 0.72) tactic = "body";
-  else tactic = highBall ? "loop" : "drive";
+  if (lowBall) tactic = roll < 0.62 ? "push" : "wide";
+  else if (highBall) tactic = roll < 0.72 ? "loop" : "drive";
+  else tactic = roll < 0.38 ? "wide" : roll < 0.7 ? "body" : "drive";
 
   let x = 0;
-  let z = 0.92;
-  let power = 0.64;
-  let topSpin = 0.8;
-  let sideSpin = clamp((Math.random() - 0.5) * 0.46, -0.46, 0.46);
+  let z = scaleTableZ(0.92);
+  let power = 0.58;
+  let topSpin = 0.75;
+  let sideSpin = clamp((Math.random() - 0.5) * 0.8, -0.8, 0.8);
 
   if (tactic === "push") {
-    const shortAngle = Math.random() < 0.55 ? openSide : -Math.sign(strike.x || openSide);
-    x = clamp(shortAngle * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.58, Math.random()), -TABLE_HALF_W + 0.16, TABLE_HALF_W - 0.16);
-    z = lerp(0.24, 0.5, Math.random());
-    power = 0.36 + confidence * 0.1;
-    topSpin = -0.34;
-    sideSpin = shortAngle * 0.32;
+    x = clamp(-nearRecoverX * 0.42 + (Math.random() - 0.5) * scaleTableX(0.24), -TABLE_HALF_W + scaleTableX(0.14), TABLE_HALF_W - scaleTableX(0.14));
+    z = lerp(scaleTableZ(0.26), scaleTableZ(0.58), Math.random());
+    power = 0.34 + Math.random() * 0.16;
+    topSpin = -0.28;
+    sideSpin *= 0.45;
   } else if (tactic === "wide") {
-    const angleSide = Math.random() < 0.68 ? openSide : wrongFootSide;
-    x = clamp(angleSide * lerp(TABLE_HALF_W - 0.28, TABLE_HALF_W - 0.1, Math.random()), -TABLE_HALF_W + 0.08, TABLE_HALF_W - 0.08);
-    z = lerp(TABLE_HALF_L * 0.34, TABLE_HALF_L - 0.14, Math.random());
-    power = 0.72 + pressure * 0.2 + confidence * 0.04;
-    topSpin = 0.92 + pressure * 0.26;
-    sideSpin = angleSide * lerp(0.48, 0.82, confidence);
+    const openSide = near.pos.x > 0 ? -1 : 1;
+    x = clamp(openSide * (TABLE_HALF_W - scaleTableX(0.14)), -TABLE_HALF_W + scaleTableX(0.1), TABLE_HALF_W - scaleTableX(0.1));
+    z = lerp(scaleTableZ(0.74), TABLE_HALF_L - scaleTableZ(0.16), Math.random());
+    power = 0.66 + pressure * 0.18;
+    topSpin = 0.86 + pressure * 0.25;
+    sideSpin = openSide * 0.6;
   } else if (tactic === "body") {
-    x = clamp(recoverX * 0.86 + playerMomentum * 0.34 + (Math.random() - 0.5) * 0.08, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L * 0.24, TABLE_HALF_L * 0.48, Math.random());
-    power = 0.68 + pressure * 0.22 + (earlyBall ? 0.04 : 0);
-    topSpin = 0.72 + pressure * 0.24;
-    sideSpin = -Math.sign(playerMomentum || openSide) * 0.25;
+    x = clamp(near.pos.x * 0.78 + (Math.random() - 0.5) * scaleTableX(0.12), -TABLE_HALF_W + scaleTableX(0.12), TABLE_HALF_W - scaleTableX(0.12));
+    z = lerp(scaleTableZ(0.62), scaleTableZ(0.95), Math.random());
+    power = 0.62 + pressure * 0.2;
+    topSpin = 0.68 + pressure * 0.22;
   } else if (tactic === "loop") {
-    const heavySide = Math.random() < 0.62 ? openSide : -Math.sign(strike.x || openSide);
-    x = clamp(heavySide * lerp(TABLE_HALF_W * 0.34, TABLE_HALF_W - 0.16, Math.random()), -TABLE_HALF_W + 0.1, TABLE_HALF_W - 0.1);
-    z = lerp(TABLE_HALF_L - 0.42, TABLE_HALF_L - 0.12, Math.random());
-    power = 0.82 + pressure * 0.14 + confidence * 0.04;
-    topSpin = 1.12 + pressure * 0.24;
-    sideSpin = heavySide * 0.28;
+    x = clamp(-nearRecoverX * 0.72 + (Math.random() - 0.5) * scaleTableX(0.18), -TABLE_HALF_W + scaleTableX(0.12), TABLE_HALF_W - scaleTableX(0.12));
+    z = lerp(TABLE_HALF_L - scaleTableZ(0.34), TABLE_HALF_L - scaleTableZ(0.13), Math.random());
+    power = 0.78 + pressure * 0.14;
+    topSpin = 1.05 + pressure * 0.22;
+    sideSpin *= 0.35;
   } else {
-    const driveSide = Math.random() < 0.58 ? wrongFootSide : openSide;
-    x = clamp(driveSide * lerp(TABLE_HALF_W * 0.18, TABLE_HALF_W * 0.72, Math.random()), -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12);
-    z = lerp(TABLE_HALF_L * 0.32, TABLE_HALF_L - 0.18, Math.random());
-    power = 0.68 + pressure * 0.22;
-    topSpin = 0.78 + pressure * 0.2;
-    sideSpin = driveSide * 0.22;
+    x = clamp(-nearRecoverX * 0.56 + (Math.random() - 0.5) * scaleTableX(0.34), -TABLE_HALF_W + scaleTableX(0.12), TABLE_HALF_W - scaleTableX(0.12));
+    z = lerp(scaleTableZ(0.68), TABLE_HALF_L - scaleTableZ(0.18), Math.random());
+    power = 0.62 + pressure * 0.2;
+    topSpin = 0.72 + pressure * 0.2;
   }
 
-  const safeMargin = confidence > 0.78 ? 0.08 : 0.16;
   return {
-    target: new THREE.Vector3(clamp(x, -TABLE_HALF_W + safeMargin, TABLE_HALF_W - safeMargin), BALL_SURFACE_Y, clamp(z, 0.2, TABLE_HALF_L - safeMargin)),
-    power: clamp(power, 0.34, 0.98),
-    topSpin: clamp(topSpin, -0.4, 1.32),
+    target: new THREE.Vector3(x, BALL_SURFACE_Y, z),
+    power: clamp(power, 0.32, 0.96),
+    topSpin: clamp(topSpin, -0.35, 1.25),
     sideSpin: clamp(sideSpin, -1, 1),
     tactic,
   };
@@ -1196,10 +1148,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
-    const serveDistance = Math.max(0.001, ball.pos.distanceTo(ownBounce));
-    const serveFlight = serveDistance / (18.0 + hit.power * 13.0);
-    const flight = clamp(serveFlight, 0.14, 0.26);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + scaleTableX(0.12), TABLE_HALF_W - scaleTableX(0.12)), BALL_SURFACE_Y, dirZ * -scaleTableZ(0.56));
+    const flight = clamp(0.18 + (1 - hit.power) * 0.075, 0.17, 0.28);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
@@ -1207,8 +1157,7 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const baseFlight = dist / ((8.8 + hit.power * 11.8) * speedScale);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.52);
+    const flight = clamp(dist / ((4.2 + hit.power * 4.1) * speedScale), 0.14, 0.4);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1236,19 +1185,16 @@ function canReachBall(player: HumanRig, ball: BallState) {
   if (player.cooldown > 0 || ball.lastHitBy === player.side || ball.lastHitBy === null) return false;
   if (sideOfZ(ball.pos.z) !== player.side) return false;
   if (ball.bounceSide !== player.side || ball.bounceCount < 1) return false;
-  const maxContactHeight = player.side === "far" ? CFG.tableY + 0.74 : CFG.tableY + 0.62;
-  if (ball.pos.y < CFG.tableY + 0.06 || ball.pos.y > maxContactHeight) return false;
+  if (ball.pos.y < CFG.tableY + 0.06 || ball.pos.y > CFG.tableY + 0.62) return false;
   const pose = tableTennisPose(player, ball);
-  const reachBoost = player.side === "far" ? 0.32 : 0.24;
-  const paddleReach = pose.paddleCenter.distanceTo(ball.pos) < reachBoost * PADDLE_SCALE_FACTOR;
+  const paddleReach = pose.paddleCenter.distanceTo(ball.pos) < 0.24 * PADDLE_SCALE_FACTOR;
   return paddleReach;
 }
 
 function updatePlayerMotion(player: HumanRig, ball: BallState, dt: number) {
   const to = player.target.clone().sub(player.pos);
   const dist = to.length();
-  const receivingServe = player.side === "far" && ball.lastHitBy === "near" && (ball.phase.kind === "serve" || ball.bounceSide === "near");
-  const maxStep = player.speed * (receivingServe ? CFG.aiServeReceiveBoost : 1) * dt;
+  const maxStep = player.speed * dt;
   if (dist > 0.0001) player.pos.addScaledVector(to.normalize(), Math.min(maxStep, dist));
 
   player.pos.x = clamp(player.pos.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
@@ -1304,78 +1250,6 @@ function predictNextTableBounce(ball: BallState) {
     if (p.y <= BALL_SURFACE_Y && isOverTable(p.x, p.z, 0.02)) return p;
   }
   return p;
-}
-
-function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
-  const p = ball.pos.clone();
-  const v = ball.vel.clone();
-  const spin = ball.spin.clone();
-  const dt = 1 / 120;
-  let landing = predictNextTableBounce(ball);
-  let hasFarBounce = ball.bounceSide === "far" && ball.bounceCount >= 1;
-  let firstSurfaceTouch: THREE.Vector3 | null = null;
-  let firstSurfaceTouchLegal = false;
-  let firstSurfaceTouchSide: PlayerSide | null = null;
-  let best: THREE.Vector3 | null = null;
-  let bestTime = 0;
-  let bestReachScore = Number.POSITIVE_INFINITY;
-
-  for (let i = 1; i <= 220; i++) {
-    const prevY = p.y;
-    const magnus = spin.clone().cross(v).multiplyScalar(CFG.magnus);
-    v.x += (magnus.x - v.x * CFG.airDrag) * dt;
-    v.y += (-CFG.gravity + magnus.y - v.y * CFG.airDrag * 0.45) * dt;
-    v.z += (magnus.z - v.z * CFG.airDrag) * dt;
-    p.addScaledVector(v, dt);
-
-    if (prevY > BALL_SURFACE_Y && p.y <= BALL_SURFACE_Y) {
-      if (!firstSurfaceTouch) {
-        firstSurfaceTouch = p.clone();
-        firstSurfaceTouchLegal = isOverTable(p.x, p.z, 0.04);
-        firstSurfaceTouchSide = firstSurfaceTouchLegal ? sideOfZ(p.z) : null;
-      }
-      if (!isOverTable(p.x, p.z, 0.04)) {
-        if (i > 8) break;
-        continue;
-      }
-      landing = p.clone();
-      if (sideOfZ(p.z) === "far") hasFarBounce = true;
-      v.y = Math.abs(v.y) * CFG.tableRestitution;
-      v.x *= CFG.tableFriction;
-      v.z *= CFG.tableFriction;
-      v.z += spin.x * 0.0016;
-      v.x += spin.y * 0.0012;
-      spin.x *= 0.82;
-      spin.y *= 0.86;
-    }
-
-    const time = i * dt;
-    const playableHeight = p.y >= CFG.tableY + 0.1 && p.y <= CFG.tableY + 0.7;
-    const farSide = p.z < 0.12;
-    if (!hasFarBounce || !playableHeight || !farSide) continue;
-
-    const targetZ = clamp(p.z - (p.y > CFG.tableY + 0.36 ? 0.36 : 0.26), -TABLE_HALF_L - 1.42, -TABLE_HALF_L - 0.36);
-    const targetX = clamp(p.x, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
-    const travelNeeded = Math.hypot(targetX - ai.pos.x, targetZ - ai.pos.z);
-    const reachableDistance = ai.speed * time + CFG.reach * 0.42;
-    const reachScore = travelNeeded - reachableDistance;
-    if (reachScore < bestReachScore) {
-      bestReachScore = reachScore;
-      best = p.clone();
-      bestTime = time;
-      if (reachScore < -0.18 && time > 0.12) break;
-    }
-  }
-
-  const strike = best || landing.clone().setY(clamp(landing.y + 0.22, CFG.tableY + 0.16, CFG.tableY + 0.46));
-  return {
-    strike,
-    landing,
-    time: bestTime || 0.32,
-    confidence: clamp01(0.78 - Math.max(0, bestReachScore) * 0.35 + (hasFarBounce ? 0.18 : -0.28) + (firstSurfaceTouch && !firstSurfaceTouchLegal ? -0.45 : 0)),
-    willLandFarLegal: hasFarBounce || (firstSurfaceTouchLegal && firstSurfaceTouchSide === "far"),
-    firstSurfaceTouch,
-  };
 }
 
 function chooseServerAfterScore(nearScore: number, farScore: number): PlayerSide {
@@ -1720,49 +1594,29 @@ export default function MobileRealisticTableTennisGame() {
         if (rollAxis.lengthSq() > 0.0001) ball.mesh.rotateOnWorldAxis(rollAxis.normalize(), (ball.vel.length() / CFG.ballR) * dt);
       }
 
-      const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0);
-      const netTopY = CFG.tableY + CFG.netH;
-      const netHalfThickness = CFG.netThickness / 2;
-      const netTravelAlpha = crossedNet ? clamp01((0 - prev.z) / (ball.pos.z - prev.z || 1)) : 1;
-      const netImpact = crossedNet ? prev.clone().lerp(ball.pos, netTravelAlpha) : ball.pos.clone();
-      const netSpanHit = Math.abs(netImpact.x) <= TABLE_HALF_W + CFG.netPostOutside + CFG.ballR * 0.45;
-      const ballBottomAtNet = netImpact.y - CFG.ballR;
-      const ballCenterNearNet = Math.abs(netImpact.z) <= Math.max(netHalfThickness + CFG.ballR * 0.18, Math.abs(ball.vel.z) * dt + netHalfThickness);
-      const netContact = Boolean(ball.lastHitBy && netSpanHit && (crossedNet || ballCenterNearNet) && ballBottomAtNet < netTopY);
-      if (netContact) {
-        const travelDir = Math.sign(ball.vel.z || (ball.lastHitBy === "near" ? -1 : 1));
-        const approachSide = travelDir === 0 ? (ball.lastHitBy === "near" ? 1 : -1) : -travelDir;
-        const incomingSpeed = ball.vel.length();
-        const centerBelowTop = netTopY - netImpact.y;
-        const hitTopBand = centerBelowTop <= CFG.ballR + CFG.netTopBandRadius && centerBelowTop > -CFG.ballR * 0.45;
-        const clipDepth = clamp01((netImpact.y + CFG.ballR - (netTopY - CFG.netTopBandRadius)) / (CFG.ballR + CFG.netTopBandRadius));
-        const lateralDeflect = clamp(ball.vel.x * 0.04 + ball.spin.y * 0.0007 + (Math.random() - 0.5) * 0.055, -0.18, 0.18);
-
-        ball.pos.copy(netImpact);
-        ball.pos.z = travelDir * (netHalfThickness + CFG.ballR + 0.004);
-        if (hitTopBand) {
-          const crawlsOver = ball.vel.y > -0.72 && Math.abs(ball.vel.z) > 1.0 && clipDepth > 0.42;
-          const keep = crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention;
-          ball.vel.z = Math.abs(ball.vel.z) * keep * travelDir;
-          ball.vel.y = Math.max(crawlsOver ? 0.075 : 0.018, Math.abs(ball.vel.y) * 0.16 + clipDepth * 0.07);
-          ball.vel.x = ball.vel.x * 0.54 + lateralDeflect;
-          retainSourceImpactPower(ball.vel, incomingSpeed, keep, crawlsOver ? 0.28 : 0.18);
-        } else {
-          ball.vel.z = Math.abs(ball.vel.z) * CFG.netPowerRetention * approachSide;
-          ball.vel.x = ball.vel.x * CFG.netTangentDamping + lateralDeflect;
-          ball.vel.y = Math.min(0.035, ball.vel.y * 0.14) - 0.08;
-          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.14);
-        }
-        ball.spin.multiplyScalar(hitTopBand ? 0.48 : 0.26);
+      const crossedNet = (prev.z > 0 && ball.pos.z <= 0) || (prev.z < 0 && ball.pos.z >= 0) || Math.abs(ball.pos.z) < 0.01;
+      if (crossedNet && Math.abs(ball.pos.x) <= TABLE_HALF_W + CFG.netPostOutside && ball.pos.y < CFG.tableY + CFG.netH + CFG.ballR * 0.6 && ball.lastHitBy) {
+        ball.pos.z = ball.pos.z >= 0 ? 0.024 : -0.024;
+        ball.vel.z *= -CFG.netFaceRestitution;
+        ball.vel.y = Math.max(0.12, Math.abs(ball.vel.y) * 0.24);
+        ball.vel.x += clamp(ball.pos.x * 0.55, -0.5, 0.5);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.32);
         netWobble.amount = 1;
-        netWobble.side = approachSide;
+        netWobble.side = Math.sign(ball.pos.z || (ball.lastHitBy === "near" ? -1 : 1));
         playFx(netFx);
       }
 
       const descendingThroughSurface = prev.y > BALL_SURFACE_Y && ball.pos.y <= BALL_SURFACE_Y && ball.vel.y < 0;
-      const tableImpactAlpha = descendingThroughSurface ? clamp01((prev.y - BALL_SURFACE_Y) / Math.max(0.0001, prev.y - ball.pos.y)) : 1;
-      const tableImpactX = lerp(prev.x, ball.pos.x, tableImpactAlpha);
-      const tableImpactZ = lerp(prev.z, ball.pos.z, tableImpactAlpha);
+      const nearNetTop = Math.abs(ball.pos.z) < 0.02 && ball.pos.y <= CFG.tableY + CFG.netH + CFG.ballR * 0.24 && ball.pos.y > CFG.tableY + CFG.netH - CFG.ballR * 0.5;
+      if (nearNetTop && ball.lastHitBy) {
+        ball.pos.z = ball.pos.z >= 0 ? 0.028 : -0.028;
+        ball.vel.z *= -CFG.netTopRestitution;
+        ball.vel.y = Math.max(0.03, ball.vel.y * 0.3);
+        ball.vel.x += clamp((Math.random() - 0.5) * 0.26, -0.13, 0.13);
+        reduceImpactPower(ball.vel, CFG.netPowerRetention, 0.28);
+        netWobble.amount = 1;
+        netWobble.side = Math.sign(ball.pos.z);
+      }
 
       for (const player of [nearPlayer, farPlayer]) {
         const torsoCenter = player.pos.clone().setY(CFG.tableY + 0.34);
@@ -1778,10 +1632,10 @@ export default function MobileRealisticTableTennisGame() {
         ball.vel.y = Math.max(ball.vel.y, 0.05);
       }
 
-      if (descendingThroughSurface && isOverTable(tableImpactX, tableImpactZ, 0)) {
-        ball.pos.set(tableImpactX, BALL_SURFACE_Y, tableImpactZ);
-        const side = sideOfZ(tableImpactZ);
-        ball.vel.y = Math.max(-ball.vel.y * CFG.tableRestitution, 1.05);
+      if (descendingThroughSurface && isOverTable(ball.pos.x, ball.pos.z, 0)) {
+        ball.pos.y = BALL_SURFACE_Y;
+        const side = sideOfZ(ball.pos.z);
+        ball.vel.y = -ball.vel.y * CFG.tableRestitution;
         ball.vel.x *= CFG.tableFriction;
         ball.vel.z *= CFG.tableFriction;
         ball.vel.z += ball.spin.x * 0.0016;
@@ -1839,30 +1693,21 @@ export default function MobileRealisticTableTennisGame() {
         return;
       }
 
-      const incoming = ball.lastHitBy === "near" && ball.pos.z < 0.42;
-      const read = incoming ? predictAiStrikeRead(ball, farPlayer) : null;
-      if (incoming && read && !read.willLandFarLegal && ball.bounceSide !== "far") {
-        farPlayer.target.lerp(home, 0.08);
-        if (read.confidence <= CFG.aiOutBallConfidenceCutoff) setHudSafe({ status: "AI lets the out ball go" });
-      } else if (incoming && read) {
-        const serviceReceive = ball.phase.kind === "serve" || ball.bounceSide === "near";
-        const speedBoost = serviceReceive ? CFG.aiServeReceiveBoost : 1;
-        const strikeZ = read.strike.z - (read.strike.y > CFG.tableY + 0.36 ? 0.38 : 0.27);
-        const anticipationX = clamp(read.strike.x + ball.vel.x * (serviceReceive ? 0.055 : 0.045), -TABLE_HALF_W * 0.9, TABLE_HALF_W * 0.9);
-        farPlayer.target.x = clamp(anticipationX, -TABLE_HALF_W * 0.86, TABLE_HALF_W * 0.86);
-        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - 1.42 * speedBoost, -TABLE_HALF_L - 0.34);
+      const incoming = ball.lastHitBy === "near" && ball.pos.z < scaleTableZ(0.22);
+      if (incoming) {
+        const landing = predictNextTableBounce(ball);
+        const strikeZ = landing.z - (ball.pos.y > CFG.tableY + 0.35 ? scaleTableZ(0.42) : scaleTableZ(0.32));
+        farPlayer.target.x = clamp(landing.x, -TABLE_HALF_W * 0.82, TABLE_HALF_W * 0.82);
+        farPlayer.target.z = clamp(strikeZ, -TABLE_HALF_L - scaleTableZ(1.45), -TABLE_HALF_L - scaleTableZ(0.42));
       } else {
-        farPlayer.target.lerp(home, 0.055);
+        farPlayer.target.lerp(home, 0.04);
       }
 
-      const aiReadyToStrike = incoming && read && read.willLandFarLegal && read.confidence > 0.34 && (canReachBall(farPlayer, ball) || (read.time < 0.2 && ball.bounceSide === "far"));
-      if (aiReadyToStrike && farPlayer.swingT === 0) {
-        const plan = makeAiTarget(nearPlayer, ball, read);
-        const backhandBias = ball.pos.x - farPlayer.pos.x > 0.08 || plan.tactic === "push" || (read.strike.x > farPlayer.pos.x && Math.abs(read.strike.x) > TABLE_HALF_W * 0.32);
-        const action: StrokeAction = backhandBias ? "backhand" : "forehand";
+      if (incoming && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+        const plan = makeAiTarget(nearPlayer, ball);
+        const action: StrokeAction = ball.pos.x - farPlayer.pos.x > scaleTableX(0.1) || plan.tactic === "push" ? "backhand" : "forehand";
         startSwing(farPlayer, plan, action);
-        farPlayer.cooldown = Math.min(farPlayer.cooldown, 0.05);
-        const label = plan.tactic === "loop" ? "AI topspin loop" : plan.tactic === "push" ? "AI touch push" : plan.tactic === "wide" ? "AI open-court angle" : plan.tactic === "body" ? "AI jammed body shot" : "AI counter drive";
+        const label = plan.tactic === "loop" ? "AI loop" : plan.tactic === "push" ? "AI short push" : plan.tactic === "wide" ? "AI wide angle" : plan.tactic === "body" ? "AI body shot" : "AI drive";
         setHudSafe({ status: label });
       }
     }
