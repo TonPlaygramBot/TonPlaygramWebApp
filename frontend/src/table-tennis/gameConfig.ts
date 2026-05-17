@@ -93,9 +93,16 @@ export const GAME_CONFIG = {
     sideSpin: 4.2,
     accuracy: 0.96,
   },
+  venue: {
+    width: TABLE_WIDTH + 7.2,
+    length: TABLE_LENGTH + 8.8,
+    borderLineColor: '#d8f3ff',
+    surfaceColor: '#1f7a67',
+    runoffColor: '#123f4c',
+  },
   camera: {
-    position: new THREE.Vector3(0, 2.7, 6.1),
-    target: new THREE.Vector3(0, 1.02, 0.18),
+    position: new THREE.Vector3(0, 3.05, 6.85),
+    target: new THREE.Vector3(0, 1.14, 0.06),
     damping: 8,
   },
   score: {
