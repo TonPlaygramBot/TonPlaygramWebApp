@@ -1694,7 +1694,7 @@ function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
     CFG.courtW / 2 - 0.45 * CFG.worldScale
   );
   const z = lerp(1.35 * CFG.worldScale, CFG.courtL / 2 - 1.0 * CFG.worldScale, 0.35 + pressure * 0.55);
-  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, CFG.shotPower.min, CFG.shotPower.max);
+  const power = clamp(0.42 + pressure * 0.3 + Math.random() * 0.08, CFG.shotPower.min, CFG.shotPower.max);
   return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique: "flat" };
 }
 
