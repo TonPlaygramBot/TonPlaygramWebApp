@@ -12,13 +12,8 @@ namespace TonPlaygram.Gameplay.Tennis
         [SerializeField] private Camera targetCamera;
         [SerializeField] private Transform framingPivot;
         [SerializeField, Min(0.1f)] private float worldScaleMultiplier = 2.45f;
-        [SerializeField, Min(0.1f)] private float courtWidthMultiplier = 4.25f;
-        [SerializeField, Min(0.1f)] private float courtLengthMultiplier = 4.65f;
-        [SerializeField, Min(0.1f)] private float courtHeightMultiplier = 1.18f;
-        [SerializeField, Min(0.1f)] private float netWidthMultiplier = 4.25f;
-        [SerializeField, Min(0.1f)] private float netHeightMultiplier = 1.55f;
-        [SerializeField, Min(0.1f)] private float netDepthMultiplier = 1.2f;
-        [SerializeField, Min(1f)] private float framingDistanceScale = 3.25f;
+        [SerializeField, Min(0.1f)] private float courtScaleMultiplier = 3.2f;
+        [SerializeField, Min(1f)] private float framingDistanceScale = 2.65f;
 
         private bool _initialized;
         private Vector3 _initialCourtScale;
@@ -38,9 +33,9 @@ namespace TonPlaygram.Gameplay.Tennis
         {
             EnsureInitialized();
 
-            SetScaled(courtRoot, _initialCourtScale, CourtScale);
-            SetScaled(ballRoot, _initialBallScale, Vector3.one * worldScaleMultiplier);
-            SetScaled(netRoot, _initialNetScale, NetScale);
+            SetScaled(courtRoot, _initialCourtScale, courtScaleMultiplier);
+            SetScaled(ballRoot, _initialBallScale, worldScaleMultiplier);
+            SetScaled(netRoot, _initialNetScale, courtScaleMultiplier);
             SetScaledArray(characterRoots, _initialCharacterScales);
             SetScaledArray(racketRoots, _initialRacketScales);
 
@@ -97,18 +92,14 @@ namespace TonPlaygram.Gameplay.Tennis
             if (roots == null || baseScales == null) return;
             for (int i = 0; i < roots.Length && i < baseScales.Length; i++)
             {
-                SetScaled(roots[i], baseScales[i], Vector3.one * worldScaleMultiplier);
+                SetScaled(roots[i], baseScales[i], worldScaleMultiplier);
             }
         }
 
-        private Vector3 CourtScale => new Vector3(courtWidthMultiplier, courtHeightMultiplier, courtLengthMultiplier);
-
-        private Vector3 NetScale => new Vector3(netWidthMultiplier, netHeightMultiplier, netDepthMultiplier);
-
-        private void SetScaled(Transform target, Vector3 baseScale, Vector3 scaleMultiplier)
+        private void SetScaled(Transform target, Vector3 baseScale, float scaleMultiplier)
         {
             if (target == null) return;
-            target.localScale = Vector3.Scale(baseScale, scaleMultiplier);
+            target.localScale = baseScale * scaleMultiplier;
         }
     }
 }
