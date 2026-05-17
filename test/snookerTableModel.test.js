@@ -74,6 +74,15 @@ describe('snooker table model selection', () => {
     assert.match(source, /const cueBackShoot = cueTipShoot\.clone\(\)\.addScaledVector\(aimForward, -CFG\.cueLength\)/);
   });
 
+  test('Snooker Champion freezes the cue stick at cue-ball impact', async () => {
+    const source = await readFile('webapp/src/pages/Games/SnookerRoyalProvided.jsx', 'utf8');
+    assert.match(source, /let impactCueBack = null, impactCueTip = null/);
+    assert.match(source, /impactCueBack = cueBackShoot\.clone\(\)/);
+    assert.match(source, /impactCueTip = cueTipShoot\.clone\(\)/);
+    assert.match(source, /didHit && impactCueBack \? impactCueBack : cueBackShoot/);
+    assert.match(source, /didHit && impactCueTip \? impactCueTip : cueTipShoot/);
+  });
+
   test('uses procedural rail decor only for the classic table model', () => {
     assert.equal(usesProceduralSnookerTableRailDecor('classic'), true);
     assert.equal(usesProceduralSnookerTableRailDecor('opensource'), false);
