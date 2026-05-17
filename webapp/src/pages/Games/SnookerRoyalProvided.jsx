@@ -104,7 +104,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1; // keep the larger GLB cabinet aligned to the live snooker mapping
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 0.94; // shorter GLB cabinet framing so official baulk/D markings and balls stay visible
 const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -117,7 +117,7 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-const SNOOKER_SHOT_POWER_BOOST = 0.65; // 50% softer Snooker Champion strike speed to match the live table mapping
+const SNOOKER_SHOT_POWER_BOOST = 1.3; // Snooker Royal strike lift: restores the proven snooker power/spin feel
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_BALL_INERTIA = (2 / 5) * SNOOKER_BALL_MASS * SNOOKER_OFFICIAL_BALL_R * SNOOKER_OFFICIAL_BALL_R;
 const SNOOKER_SPIN_FIXED_DT = 1 / 120;
@@ -132,13 +132,9 @@ const SNOOKER_RAIL_FRICTION = 0.16;
 const SNOOKER_STOP_EPS = 0.0074;
 const SNOOKER_STOP_SOFTENING = 0.96;
 const SNOOKER_STOP_FINAL_EPS = SNOOKER_STOP_EPS * 0.35;
-const SNOOKER_PHYSICS_MAX_DT = 1 / 240;
-const SNOOKER_COLLISION_SOLVER_PASSES = 3;
-const SNOOKER_RAIL_CONTACT_SLOP = 0.0006 * WORLD_SCALE;
 const SNOOKER_CAMERA_HEIGHT_STEP = 0.075;
 const SNOOKER_CAMERA_HEIGHT_MIN = -0.34;
 const SNOOKER_CAMERA_HEIGHT_MAX = 0.44;
-const SNOOKER_CAMERA_SHOOT_POSE_OFFSET = -0.08;
 const SNOOKER_CHAMPION_WOOD_TEXTURE_DEFAULT = Object.freeze({
   hue: 24,
   sat: 0.4,
@@ -201,7 +197,7 @@ const CFG = {
   tableTopY: 0.84 * WORLD_SCALE,
   tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
   tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
-  tableVisualMultiplier: 1.14 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
+  tableVisualMultiplier: 1.08 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
   topThickness: 0.09 * WORLD_SCALE,
   railW: 0.15 * WORLD_SCALE,
   railH: 0.08 * WORLD_SCALE,
@@ -224,11 +220,10 @@ const CFG = {
   humanScale: 1.2 * 1.78 * WORLD_SCALE,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * WORLD_SCALE,
-  bridgePalmTableLift: 0.004 * WORLD_SCALE,
-  bridgeCueLift: 0.014 * WORLD_SCALE,
+  bridgePalmTableLift: 0.006 * WORLD_SCALE,
+  bridgeCueLift: 0.018 * WORLD_SCALE,
   bridgeHandBackFromBall: 0.235 * WORLD_SCALE,
-  bridgeHandCueForward: 0.018 * WORLD_SCALE,
-  bridgeHandSide: -0.004 * WORLD_SCALE,
+  bridgeHandSide: -0.012 * WORLD_SCALE,
   chinToCueHeight: 0.11 * WORLD_SCALE,
   footGroundY: 0.035 * WORLD_SCALE,
   footLockStrength: 1,
@@ -1034,12 +1029,10 @@ function poseFingers(fingers, mode, weight) {
       finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w;
       return;
     }
-    // Open snooker bridge: fingertips stay planted, knuckles lift, and the thumb presses
-    // toward the index finger to create the V-channel that keeps the cue under control.
-    if (thumb) { finger.rotation.x += -0.24 * w; finger.rotation.y += 1.08 * w; finger.rotation.z += -1.08 * w; }
-    else if (index) { finger.rotation.x += (base ? 0.18 : mid ? 0.36 : 0.24) * w; finger.rotation.y += -0.58 * w; finger.rotation.z += -0.5 * w; }
-    else if (middle) { finger.rotation.x += (base ? 0.14 : mid ? 0.26 : 0.18) * w; finger.rotation.y += -0.1 * w; finger.rotation.z += -0.1 * w; }
-    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.06 : 0.04) : mid ? (ring ? 0.14 : 0.12) : tip ? (ring ? 0.1 : 0.08) : 0.08) * w; finger.rotation.y += (ring ? 0.16 : 0.3) * w; finger.rotation.z += (ring ? 0.24 : 0.4) * w; }
+    if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
+    else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
+    else if (middle) { finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w; finger.rotation.y += -0.12 * w; finger.rotation.z += -0.14 * w; }
+    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : tip ? (ring ? 0.12 : 0.1) : 0.1) * w; finger.rotation.y += (ring ? 0.18 : 0.34) * w; finger.rotation.z += (ring ? 0.28 : 0.46) * w; }
   });
 }
 function driveHuman(human, frame) {
@@ -1088,7 +1081,7 @@ function driveHuman(human, frame) {
   poseFingers(human.rightFingers, 'grip', 0.95);
   if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
   aimTwoBone(b.leftUpperArm, b.leftLowerArm, frame.leftElbow, frame.leftHandWorld, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, ik);
-  setHandBasis(b.leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.62).normalize(), UP.clone().multiplyScalar(0.82).addScaledVector(frame.forward, -0.22).addScaledVector(frame.side, -0.1).normalize(), cueDir, -0.58 * ik, ik);
+  setHandBasis(b.leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize(), UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize(), cueDir, -0.68 * ik, ik);
   poseFingers(human.leftFingers, 'bridge', ik);
   aimTwoBone(b.leftUpperLeg, b.leftLowerLeg, frame.leftKnee, frame.leftFootWorld, frame.forward.clone().addScaledVector(UP, 0.18).normalize(), 0.9 * ik, ik);
   aimTwoBone(b.rightUpperLeg, b.rightLowerLeg, frame.rightKnee, frame.rightFootWorld, frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(), 0.9 * ik, ik);
@@ -1135,11 +1128,7 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const rightHip = local(new THREE.Vector3(0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * CFG.scale, CFG.footGroundY, 0.03 * CFG.scale + walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, CFG.footGroundY, -0.34 * CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * CFG.scale, CFG.footGroundY, -0.03 * CFG.scale - walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(CFG.stanceWidth * 0.5, CFG.footGroundY, 0.34 * CFG.scale), t));
-  const bridgePalmTarget = bridgeTarget.clone()
-    .addScaledVector(forward, CFG.bridgeHandCueForward * t)
-    .addScaledVector(side, CFG.bridgeHandSide * t)
-    .setY(CFG.tableTopY + CFG.bridgePalmTableLift)
-    .addScaledVector(UP, -0.008 * CFG.scale * human.settleT);
+  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t).setY(CFG.tableTopY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * CFG.scale * human.settleT);
   const leftHand = idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
   const handIk = easeInOut(clamp01(t));
@@ -1358,17 +1347,17 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     let railNormal = null;
     const pocket = findSnookerPocketCapture(ball, pocketPositions);
     if (!pocket) {
-      if (ball.pos.x < -halfW + CFG.ballR + SNOOKER_RAIL_CONTACT_SLOP && !isInsideSnookerPocketThroat(ball, 'x', -1, pocketPositions)) {
+      if (ball.pos.x < -halfW + CFG.ballR && !isInsideSnookerPocketThroat(ball, 'x', -1, pocketPositions)) {
         ball.pos.x = -halfW + CFG.ballR;
         if (ball.vel.x < 0) railNormal = new THREE.Vector3(1, 0, 0);
-      } else if (ball.pos.x > halfW - CFG.ballR - SNOOKER_RAIL_CONTACT_SLOP && !isInsideSnookerPocketThroat(ball, 'x', 1, pocketPositions)) {
+      } else if (ball.pos.x > halfW - CFG.ballR && !isInsideSnookerPocketThroat(ball, 'x', 1, pocketPositions)) {
         ball.pos.x = halfW - CFG.ballR;
         if (ball.vel.x > 0) railNormal = new THREE.Vector3(-1, 0, 0);
       }
-      if (ball.pos.z < -halfL + CFG.ballR + SNOOKER_RAIL_CONTACT_SLOP && !isInsideSnookerPocketThroat(ball, 'z', -1, pocketPositions)) {
+      if (ball.pos.z < -halfL + CFG.ballR && !isInsideSnookerPocketThroat(ball, 'z', -1, pocketPositions)) {
         ball.pos.z = -halfL + CFG.ballR;
         if (ball.vel.z < 0) railNormal = new THREE.Vector3(0, 0, 1);
-      } else if (ball.pos.z > halfL - CFG.ballR - SNOOKER_RAIL_CONTACT_SLOP && !isInsideSnookerPocketThroat(ball, 'z', 1, pocketPositions)) {
+      } else if (ball.pos.z > halfL - CFG.ballR && !isInsideSnookerPocketThroat(ball, 'z', 1, pocketPositions)) {
         ball.pos.z = halfL - CFG.ballR;
         if (ball.vel.z > 0) railNormal = new THREE.Vector3(0, 0, -1);
       }
@@ -1414,59 +1403,52 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
       }
     }
   }
-  for (let pass = 0; pass < SNOOKER_COLLISION_SOLVER_PASSES; pass += 1) {
-    for (let i = 0; i < balls.length; i += 1) for (let j = i + 1; j < balls.length; j += 1) {
-      const a = balls[i], b = balls[j];
-      if (a.potted || b.potted) continue;
-      const delta = tmpA.copy(b.pos).sub(a.pos);
-      let dist = delta.length();
-      const minDist = CFG.ballR * 2;
-      if (dist < minDist) {
-        if (dist <= 1e-8) {
-          delta.set(1, 0, 0);
-          dist = 1;
+  for (let i = 0; i < balls.length; i += 1) for (let j = i + 1; j < balls.length; j += 1) {
+    const a = balls[i], b = balls[j];
+    if (a.potted || b.potted) continue;
+    const delta = tmpA.copy(b.pos).sub(a.pos);
+    const dist = delta.length();
+    const minDist = CFG.ballR * 2;
+    if (dist > 0 && dist < minDist) {
+      const n = delta.multiplyScalar(1 / dist);
+      const overlap = minDist - dist;
+      a.pos.addScaledVector(n, -overlap * 0.5);
+      b.pos.addScaledVector(n, overlap * 0.5);
+      const normal = SNOOKER_TMP_VEC3_A.copy(n).setY(0).normalize();
+      const ra = SNOOKER_TMP_VEC3_B.copy(normal).multiplyScalar(CFG.ballR);
+      const rb = SNOOKER_TMP_VEC3_C.copy(normal).multiplyScalar(-CFG.ballR);
+      const va = SNOOKER_TMP_VEC3_D.set(a.vel.x, 0, a.vel.z);
+      const vb = SNOOKER_TMP_VEC3_E.set(b.vel.x, 0, b.vel.z);
+      const omegaA = a.omega ?? new THREE.Vector3();
+      const omegaB = b.omega ?? new THREE.Vector3();
+      const contactA = omegaA.clone().cross(ra).add(va);
+      const contactB = omegaB.clone().cross(rb).add(vb);
+      const relative = contactB.sub(contactA);
+      const relNormal = relative.dot(normal);
+      if (relNormal < 0) {
+        const normalImpulseMag = (-(1 + CFG.restitution) * relNormal * SNOOKER_BALL_MASS) / 2;
+        const impulse = normal.clone().multiplyScalar(normalImpulseMag);
+        va.addScaledVector(impulse, -1 / SNOOKER_BALL_MASS);
+        vb.addScaledVector(impulse, 1 / SNOOKER_BALL_MASS);
+        const tangentVel = relative.addScaledVector(normal, -relNormal);
+        const tangentSpeed = tangentVel.length();
+        if (tangentSpeed > 1e-8) {
+          tangentVel.multiplyScalar(1 / tangentSpeed);
+          const raCrossT = ra.clone().cross(tangentVel).lengthSq();
+          const rbCrossT = rb.clone().cross(tangentVel).lengthSq();
+          const denom = 2 / SNOOKER_BALL_MASS + (raCrossT + rbCrossT) / SNOOKER_BALL_INERTIA;
+          const jt = -tangentSpeed / Math.max(denom, 1e-6);
+          const tangentImpulse = tangentVel.multiplyScalar(clamp(jt, -SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag), SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag)));
+          va.addScaledVector(tangentImpulse, -1 / SNOOKER_BALL_MASS);
+          vb.addScaledVector(tangentImpulse, 1 / SNOOKER_BALL_MASS);
+          a.omega?.addScaledVector(ra.clone().cross(tangentImpulse), -1 / SNOOKER_BALL_INERTIA);
+          b.omega?.addScaledVector(rb.clone().cross(tangentImpulse), 1 / SNOOKER_BALL_INERTIA);
         }
-        const n = delta.multiplyScalar(1 / dist);
-        const overlap = minDist - dist;
-        a.pos.addScaledVector(n, -overlap * 0.5);
-        b.pos.addScaledVector(n, overlap * 0.5);
-        const normal = SNOOKER_TMP_VEC3_A.copy(n).setY(0).normalize();
-        if (pass > 0) continue;
-        const ra = SNOOKER_TMP_VEC3_B.copy(normal).multiplyScalar(CFG.ballR);
-        const rb = SNOOKER_TMP_VEC3_C.copy(normal).multiplyScalar(-CFG.ballR);
-        const va = SNOOKER_TMP_VEC3_D.set(a.vel.x, 0, a.vel.z);
-        const vb = SNOOKER_TMP_VEC3_E.set(b.vel.x, 0, b.vel.z);
-        const omegaA = a.omega ?? new THREE.Vector3();
-        const omegaB = b.omega ?? new THREE.Vector3();
-        const contactA = omegaA.clone().cross(ra).add(va);
-        const contactB = omegaB.clone().cross(rb).add(vb);
-        const relative = contactB.sub(contactA);
-        const relNormal = relative.dot(normal);
-        if (relNormal < 0) {
-          const normalImpulseMag = (-(1 + CFG.restitution) * relNormal * SNOOKER_BALL_MASS) / 2;
-          const impulse = normal.clone().multiplyScalar(normalImpulseMag);
-          va.addScaledVector(impulse, -1 / SNOOKER_BALL_MASS);
-          vb.addScaledVector(impulse, 1 / SNOOKER_BALL_MASS);
-          const tangentVel = relative.addScaledVector(normal, -relNormal);
-          const tangentSpeed = tangentVel.length();
-          if (tangentSpeed > 1e-8) {
-            tangentVel.multiplyScalar(1 / tangentSpeed);
-            const raCrossT = ra.clone().cross(tangentVel).lengthSq();
-            const rbCrossT = rb.clone().cross(tangentVel).lengthSq();
-            const denom = 2 / SNOOKER_BALL_MASS + (raCrossT + rbCrossT) / SNOOKER_BALL_INERTIA;
-            const jt = -tangentSpeed / Math.max(denom, 1e-6);
-            const tangentImpulse = tangentVel.multiplyScalar(clamp(jt, -SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag), SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag)));
-            va.addScaledVector(tangentImpulse, -1 / SNOOKER_BALL_MASS);
-            vb.addScaledVector(tangentImpulse, 1 / SNOOKER_BALL_MASS);
-            a.omega?.addScaledVector(ra.clone().cross(tangentImpulse), -1 / SNOOKER_BALL_INERTIA);
-            b.omega?.addScaledVector(rb.clone().cross(tangentImpulse), 1 / SNOOKER_BALL_INERTIA);
-          }
-          a.vel.set(va.x, 0, va.z);
-          b.vel.set(vb.x, 0, vb.z);
-          if (a.isCue || b.isCue) {
-            a.impacted = a.impacted || a.isCue;
-            b.impacted = b.impacted || b.isCue;
-          }
+        a.vel.set(va.x, 0, va.z);
+        b.vel.set(vb.x, 0, vb.z);
+        if (a.isCue || b.isCue) {
+          a.impacted = a.impacted || a.isCue;
+          b.impacted = b.impacted || b.isCue;
         }
       }
     }
@@ -2003,7 +1985,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const aimSide = tmpB.set(aimForward.z, 0, -aimForward.x).normalize().clone();
       const humanRootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward);
       const bridgeHandTarget = cueBallWorld.clone().addScaledVector(aimForward, -CFG.bridgeHandBackFromBall).addScaledVector(aimSide, CFG.bridgeHandSide).setY(CFG.tableTopY + CFG.bridgePalmTableLift);
-      const bridgeCuePoint = bridgeHandTarget.clone().addScaledVector(aimForward, CFG.bridgeHandCueForward).add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
+      const bridgeCuePoint = bridgeHandTarget.clone().addScaledVector(aimForward, 0.014 * CFG.scale).add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
       const pull = CFG.pullRange * easeOutCubic(activePower);
       const practiceStroke = state === 'dragging' ? Math.sin(now * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75) : 0;
       const strikeNorm = clamp01(strikeT / CFG.strikeTime);
@@ -2040,11 +2022,8 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         }
         if (strikeT >= CFG.strikeTime + CFG.holdTime) { strikeT = 0; didHit = false; setShotState('idle'); }
       }
-      const cameraIsLowForShot = cameraHeightOffsetRef.current <= SNOOKER_CAMERA_SHOOT_POSE_OFFSET;
-      const cueInShootingBridge = state !== 'idle' || cameraIsLowForShot;
-      const activeCueBack = cueInShootingBridge ? cueBackShoot : idleCue.back;
-      const activeCueTip = cueInShootingBridge ? cueTipShoot : idleCue.tip;
-      const activeHumanState = state === 'idle' && cameraIsLowForShot ? 'aiming' : state;
+      const activeCueBack = state === 'idle' ? idleCue.back : cueBackShoot;
+      const activeCueTip = state === 'idle' ? idleCue.tip : cueTipShoot;
       setCuePose(cue, activeCueBack, activeCueTip);
       if (replayModeRef.current && replayFramesRef.current.length > 1) {
         const frames = replayFramesRef.current;
@@ -2061,12 +2040,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
         renderer.render(scene, camera);
         return;
       }
-      let physicsRemaining = dt;
-      while (physicsRemaining > 1e-6) {
-        const physicsDt = Math.min(physicsRemaining, SNOOKER_PHYSICS_MAX_DT);
-        updateBalls(balls, physicsDt, tmpB, tmpC, pocketPositions, rulesRef.current);
-        physicsRemaining -= physicsDt;
-      }
+      updateBalls(balls, dt, tmpB, tmpC, pocketPositions, rulesRef.current);
       const ballsMoving = balls.some((ball) => !ball.potted && ball.vel.lengthSq() > CFG.minSpeed2);
       if (recordingReplay && now - lastReplaySampleAt >= SNOOKER_REPLAY_SAMPLE_MS) {
         lastReplaySampleAt = now;
@@ -2085,7 +2059,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       if (rulesRef.current.score !== lastScore) { lastScore = rulesRef.current.score; setScore(lastScore); }
       if (rulesRef.current.target !== lastTarget) { lastTarget = rulesRef.current.target; setTarget(lastTarget); }
       if (rulesRef.current.foul !== lastFoul) { lastFoul = rulesRef.current.foul; setFoul(lastFoul); }
-      updateHumanPose(human, dt, activeHumanState, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
+      updateHumanPose(human, dt, state, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
       setGuideLine(cueLine, activeCueBack, cueBallWorld, true);
       const prediction = calcSnookerAimTarget(cueBall, aimForward, balls, pocketPositions);
       const aimY = cueBallWorld.y;
