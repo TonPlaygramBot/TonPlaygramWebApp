@@ -2118,8 +2118,11 @@ async function loadPoolHumanModelFromCatalog(loader, urls = POOL_HUMAN_URLS) {
   throw lastError || new Error('No Pool Royale human models configured');
 }
 
-function createPoolRoyaleHumanRig(parent, renderer) {
-  const human = {
+function createPoolRoyaleHumanRig() {
+  // Pool Royale now uses the cue stick itself as the shot actuator. Keep a
+  // deliberately empty, invisible shim so existing cue-placement calls can be
+  // left in place without loading or rendering any human character/rig assets.
+  return {
     root: new THREE.Group(),
     modelRoot: new THREE.Group(),
     model: null,
@@ -2128,6 +2131,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
     rightFingers: [],
     restQuats: new Map(),
     activeGlb: false,
+    disabled: true,
     poseT: 0,
     walkT: 0,
     yaw: 0,
@@ -2138,52 +2142,6 @@ function createPoolRoyaleHumanRig(parent, renderer) {
     strikeClock: 0,
     idleCuePose: null
   };
-  human.root.visible = false;
-  human.modelRoot.visible = false;
-  parent.add(human.root, human.modelRoot);
-  const loader = createPoolHumanGLTFLoader(renderer);
-  loadPoolHumanModelFromCatalog(loader)
-    .then(({ model, url }) => {
-      human.modelUrl = url;
-      normalizePoolHumanModel(model);
-      model.traverse((obj) => {
-        if (!obj?.isMesh) return;
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        obj.frustumCulled = false;
-        const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        mats.forEach((mat) => {
-          if (mat?.map) {
-            applySRGBColorSpace(mat.map);
-            mat.map.flipY = false;
-            mat.map.needsUpdate = true;
-          }
-          if (mat) {
-            mat.depthWrite = true;
-            mat.depthTest = true;
-            mat.needsUpdate = true;
-          }
-        });
-      });
-      human.bones = buildPoolHumanBones(model);
-      human.leftFingers = collectPoolHumanFingerBones(human.bones.leftHand);
-      human.rightFingers = collectPoolHumanFingerBones(human.bones.rightHand);
-      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
-        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
-      });
-      human.activeGlb = Boolean(
-        human.bones.hips && human.bones.spine && human.bones.head &&
-        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
-        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
-        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
-      );
-      human.model = model;
-      human.modelRoot.add(model);
-      human.modelRoot.visible = human.activeGlb;
-    })
-    .catch((error) => console.warn('Pool Royale human rig failed', error))
-    .finally(() => disposePoolHumanGLTFLoader(loader));
-  return human;
 }
 
 function setPoolHumanBoneWorldQuaternion(bone, q) {
@@ -2514,7 +2472,7 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
 }
 
 function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
-  if (!human) return null;
+  if (!human || human.disabled) return null;
   const poseForward = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
   const activeHumanState = shotState === 'rolling' ? 'idle' : shotState;
   const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
@@ -2558,6 +2516,7 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
 }
 
 function movePoolRoyaleCueToHumanHand(human, cueStick) {
+  if (human?.disabled) return false;
   const pose = human?.idleCuePose;
   if (!pose || !cueStick) return false;
   const dir = pose.tip.clone().sub(pose.back).normalize();
@@ -11962,6 +11921,7 @@ export function Table3D(
       wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.25;
       wordmark.castShadow = false;
       wordmark.receiveShadow = false;
+      wordmark.userData.preserveMaterial = true;
       railsGroup.add(wordmark);
       finishParts.trimMeshes.push(wordmark);
     });
@@ -12485,6 +12445,7 @@ export function Table3D(
         wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.3;
         wordmark.castShadow = false;
         wordmark.receiveShadow = false;
+        wordmark.userData.preserveMaterial = true;
         cushionGroup.add(wordmark);
         finishParts.trimMeshes.push(wordmark);
       });
@@ -14533,7 +14494,7 @@ function applyTableFinishToTable(table, finish) {
     return fallback;
   };
   const swapMaterial = (mesh, material) => {
-    if (!mesh || !material) return;
+    if (!mesh || !material || mesh.userData?.preserveMaterial) return;
     const resolvedMaterial = resolveMaterialForMesh(mesh, material);
     if (!resolvedMaterial) return;
     const nextMaterial = mesh.userData?.isChromePlate
@@ -24833,7 +24794,7 @@ const shotPowerRef = useRef(0);
             return true;
           }
           if (sample.phase === 'hold') {
-            cueStick.position.copy(followPos ?? stroke.contactPos ?? impactPos);
+            cueStick.position.copy(stroke.contactPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -25654,20 +25615,21 @@ const shotPowerRef = useRef(0);
         if (useHdriOnly) {
           const shadowRig = new THREE.Group();
           world.add(shadowRig);
-          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.22);
+          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.42);
           hdriShadowKey.position.set(-roomWidth * 0.22, tableSurfaceY + TABLE.THICK * 9, roomDepth * 0.18);
           hdriShadowKey.target.position.set(0, floorY, 0);
           hdriShadowKey.castShadow = true;
           const shadowSpan = Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 4;
-          hdriShadowKey.shadow.mapSize.set(2048, 2048);
+          hdriShadowKey.shadow.mapSize.set(3072, 3072);
           hdriShadowKey.shadow.camera.near = 0.1;
           hdriShadowKey.shadow.camera.far = TABLE.THICK * 42;
           hdriShadowKey.shadow.camera.left = -shadowSpan;
           hdriShadowKey.shadow.camera.right = shadowSpan;
           hdriShadowKey.shadow.camera.top = shadowSpan;
           hdriShadowKey.shadow.camera.bottom = -shadowSpan;
-          hdriShadowKey.shadow.bias = -0.00005;
-          hdriShadowKey.shadow.normalBias = 0.0008;
+          hdriShadowKey.shadow.bias = -0.000035;
+          hdriShadowKey.shadow.normalBias = 0.00045;
+          hdriShadowKey.shadow.radius = 4;
           hdriShadowKey.shadow.camera.updateProjectionMatrix();
           shadowRig.add(hdriShadowKey, hdriShadowKey.target);
           lightingRigRef.current = { group: shadowRig, key: hdriShadowKey };
@@ -26976,7 +26938,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = createPoolRoyaleHumanRig(table, rendererRef.current);
+      const humanRig = createPoolRoyaleHumanRig();
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -28602,7 +28564,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28710,17 +28671,14 @@ const shotPowerRef = useRef(0);
             clampedPower
           );
           shotImpactPayload.contactAdvance = contactAdvance;
+          shotImpactPayload.pullDistance = visualPull;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+          // Match Snooker Champion's visible cue behavior for Pool Royale:
+          // pull back, drive forward, then stop at cue-ball contact instead of
+          // visually spearing through the ball after impact.
+          const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -36182,49 +36140,6 @@ const shotPowerRef = useRef(0);
                               src={thumb}
                               alt={option.label}
                               className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-              {availableTableBases.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Table Base
-                  </h3>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Showood Original keeps the table base and legs; procedural base variants remain available for alternate table support styles.
-                  </p>
-                  <div className="mt-2 grid grid-cols-1 gap-2">
-                    {availableTableBases.map((variant) => {
-                      const active = variant.id === tableBaseId;
-                      return (
-                        <button
-                          key={variant.id}
-                          type="button"
-                          onClick={() => setTableBaseId(variant.id)}
-                          aria-pressed={active}
-                          className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex flex-col gap-1">
-                            <span>{variant.name}</span>
-                            <span className="text-[9px] font-medium uppercase tracking-[0.14em] opacity-70">
-                              {variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID ? 'Original Showood base + legs' : 'Procedural support base'}
-                            </span>
-                          </span>
-                          {variant.thumbnail ? (
-                            <img
-                              src={variant.thumbnail}
-                              alt={variant.name}
-                              className="h-8 w-12 rounded-lg border border-white/20 object-cover"
                               loading="lazy"
                             />
                           ) : null}
