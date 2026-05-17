@@ -117,7 +117,7 @@ import {
   buildPoolSuggestionKey,
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
-import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolveCueContactPush, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
@@ -1798,7 +1798,7 @@ const SHOT_FORCE_BOOST =
   SHOT_GLOBAL_POWER_SCALE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0;
+const SHOT_MIN_FACTOR = 0.25; // match Snooker Royal's minimum cue drive so every released stroke can move the cue ball
 const SHOT_POWER_RANGE = 1;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
@@ -1862,6 +1862,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
+const CUE_CONTACT_GAP = BALL_R * 0.03; // Snooker-style impact clearance: the cue tip reaches the cue-ball surface before physics applies
 const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
@@ -28660,11 +28661,12 @@ const shotPowerRef = useRef(0);
           const pullPos = buildCuePosition(visualPull);
           // Snooker Champion strike path: release from the already-pulled cue,
           // drive into the cue-ball contact point, hold briefly, then hide.
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE,
-            BALL_R * 0.08,
-            BALL_R * 0.3
-          );
+          const impactPush = resolveCueContactPush({
+            cueTipGap: CUE_TIP_GAP,
+            ballRadius: BALL_R,
+            contactGap: CUE_CONTACT_GAP,
+            minPush: CUE_TIP_CLEARANCE
+          });
           const impactPos = buildCuePosition(-impactPush);
           const contactPos = impactPos.clone();
           const followPos = impactPos.clone();

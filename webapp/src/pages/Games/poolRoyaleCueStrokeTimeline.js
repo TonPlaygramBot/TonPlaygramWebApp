@@ -1,5 +1,19 @@
 import * as THREE from 'three'
 
+export const resolveCueContactPush = ({
+  cueTipGap = 0,
+  ballRadius = 0,
+  contactGap = 0,
+  minPush = 0
+} = {}) => {
+  const safeCueTipGap = Number.isFinite(cueTipGap) ? Math.max(0, cueTipGap) : 0
+  const safeBallRadius = Number.isFinite(ballRadius) ? Math.max(0, ballRadius) : 0
+  const safeContactGap = Number.isFinite(contactGap) ? Math.max(0, contactGap) : 0
+  const safeMinPush = Number.isFinite(minPush) ? Math.max(0, minPush) : 0
+  const physicalContactPush = safeCueTipGap - (safeBallRadius + safeContactGap)
+  return Math.max(safeMinPush, physicalContactPush)
+}
+
 export const sampleCueStrokeTimeline = ({
   elapsed = 0,
   pullbackDuration = 0,
