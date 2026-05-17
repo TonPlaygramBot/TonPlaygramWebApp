@@ -1241,7 +1241,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.285; // make the table footprint just a bit larger while keeping vertical height unchanged
+  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1257,7 +1257,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.24; // shorten the top wooden rail stack while preserving the playfield footprint
+const RAIL_HEIGHT = TABLE.THICK * 1.45; // keep the top rails shorter while preserving the playfield footprint
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1508,8 +1508,8 @@ const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking a
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
-const MAX_FRAME_SCALE = 2.1; // clamp slow-frame recovery so rail contacts do not tunnel through cushions
-const MAX_PHYSICS_SUBSTEPS = 7; // increase rail-contact sampling so balls cannot visibly enter cushions
+const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
+const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
@@ -1782,7 +1782,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.98; // reduce Pool Royale strike speed a bit for softer, more controllable power
+const SHOT_GLOBAL_POWER_SCALE = 1.06; // stronger Pool Royale strike speed so shots carry more power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1825,12 +1825,11 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 1.12; // extend the visible leg drop for the taller support stance
-const LEG_LENGTH_SHRINK = 1.02; // keep the legs longer so the base reaches lower under the rails
-const BASE_HEIGHT_REDUCTION = 0.92; // let table bases fill more vertical space instead of trimming them short
+const LEG_ELEVATION_SCALE = 1.04; // extend the visible leg drop for the taller support stance
+const LEG_LENGTH_SHRINK = 0.96; // keep the legs longer so the base reaches lower under the rails
+const BASE_HEIGHT_REDUCTION = 0.86; // let table bases fill more vertical space instead of trimming them short
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
-const BASELINE_LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * 1.04 * 0.96 * 0.86;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const BASE_LEG_ROOM_HEIGHT =
@@ -1838,9 +1837,6 @@ const BASE_LEG_ROOM_HEIGHT =
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
-const BASELINE_LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASELINE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const BASELINE_LEG_ELEVATION_DELTA = BASELINE_LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const LEG_POCKET_CLEARANCE = TABLE.WALL * 1.35; // pull the classic legs deeper toward the short-rail centres to clear pocket drops
 const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward shift so legs visually hug the middle of each short rail
@@ -1857,10 +1853,10 @@ const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table bod
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
-// Keep the playfield at the previous height while the base and legs grow downward
+// adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
-const TABLE_Y = BASE_TABLE_Y + BASELINE_LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
@@ -4314,7 +4310,7 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   topWoodRail: 'Top Rails',
   railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
-  leg: 'Table Base',
+  leg: 'Legs',
   baseFoot: 'Feet'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
@@ -4336,10 +4332,10 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       : TABLE_FINISH_OPTIONS;
     return sourceOptions.map((option) => {
       const finish = TABLE_FINISHES[option.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-      const swatch = option.swatches?.[0] ?? (part === 'leg' ? finish?.colors?.base : finish?.colors?.rail) ?? finish?.colors?.base ?? 0x5a2608;
+      const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Table Base'}`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : 'Legs'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
@@ -6792,9 +6788,9 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = BALL_R * 0.16;
-const RAIL_CONTACT_RADIUS = BALL_R * 1.04;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.14;
+const RAIL_LIMIT_PADDING = BALL_R * 0.12;
+const RAIL_CONTACT_RADIUS = BALL_R;
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -12737,7 +12733,6 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
     : [];
   if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (/playfield.*(board|panel)|(?:board|panel).*(playfield|cloth|felt|baize)/.test(childName)) return 'cloth';
   if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
   if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron|bevel[_\s.-]*3/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
@@ -12962,53 +12957,19 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'topWoodRail' || part === 'leg') {
-    const partFinish = TABLE_FINISHES[option.id] ?? finish;
-    const partWoodOption =
-      (partFinish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[partFinish.woodTextureId]) ||
-      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ||
-      WOOD_GRAIN_OPTIONS[0];
-    const partWoodRepeatScale = clampWoodRepeatScaleValue(
-      partFinish?.woodRepeatScale ?? finishInfo?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
-    );
-    const partSurface = part === 'topWoodRail'
-      ? resolveWoodSurfaceConfig(
-          partWoodOption?.rail,
-          partWoodOption?.frame ?? partWoodOption?.rail
-        )
-      : resolveWoodSurfaceConfig(
-          partWoodOption?.frame,
-          partWoodOption?.rail ?? partWoodOption?.frame
-        );
-    partSurface.woodRepeatScale = partWoodRepeatScale;
-    const partMaterials =
-      typeof partFinish?.createMaterials === 'function'
-        ? partFinish.createMaterials()
-        : null;
-    const partMaterial = part === 'topWoodRail'
-      ? partMaterials?.rail
-      : partMaterials?.leg || partMaterials?.frame;
-    copyMaterialLook(partMaterial ?? (part === 'topWoodRail' ? materials.rail : materials.frame));
-    if (partFinish?.disableWoodPattern) {
-      if (partFinish?.useBrandCarbonTexture) {
-        applyLtCarbonFiberTexture(mat);
-      } else {
-        mat.map = null;
-        mat.normalMap = null;
-        mat.roughnessMap = null;
-        mat.aoMap = null;
-        mat.metalnessMap = null;
-        mat.bumpMap = null;
-      }
-    } else {
-      applyWoodTextureToMaterial(mat, partSurface);
-    }
+    const surface = part === 'topWoodRail'
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.leg ||
+        finishInfo?.parts?.woodSurfaces?.frame ||
+        finishInfo?.parts?.woodSurfaces?.rail;
+    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
     applyTableFinishDulling(mat);
     applyTableWoodVisibilityTuning(mat);
-    if (partFinish?.surfaceStyle === 'matte') {
-      if (partFinish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+    if (finish?.surfaceStyle === 'matte') {
+      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
       else applyMonoMattePlasticSurface(mat);
     }
-    applyFinishWoodTint(mat, partFinish);
     applyShowoodTint();
   } else {
     applyShowoodTint();
@@ -13075,7 +13036,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const black = color ? color.r < 0.11 && color.g < 0.11 && color.b < 0.11 : false;
   const gold = color ? color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88 : false;
   const light = color ? color.r > 0.72 && color.g > 0.72 && color.b > 0.62 : false;
-  const namedCloth = /cloth|felt|fabric|surface|bed|slate|playfield.*(?:board|panel)|(?:board|panel).*(?:playfield|cloth|felt|baize)/i.test(name);
+  const namedCloth = /cloth|felt|fabric|surface|bed|slate/i.test(name);
   const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
   const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
   const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
@@ -36062,13 +36023,11 @@ const shotPowerRef = useRef(0);
                         const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : part === 'topWoodRail'
+                          : part === 'topWoodRail' || part === 'leg'
                             ? tableFinishId
-                            : part === 'leg'
-                              ? normalizeShowoodTableStyle(showoodTableStyle).leg
-                              : chromeLinked
-                                ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                                : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                            : chromeLinked
+                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
+                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
                         const active = option.id === selected;
                         return (
                           <button
@@ -36077,14 +36036,10 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
-                              } else if (part === 'topWoodRail') {
+                              } else if (part === 'topWoodRail' || part === 'leg') {
                                 setTableFinishId(option.id);
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              } else if (part === 'leg') {
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, leg: option.id })
                                 );
                               } else if (chromeLinked) {
                                 setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
