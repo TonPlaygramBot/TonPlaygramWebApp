@@ -1120,6 +1120,8 @@ function addPocketCuts(
     mesh.position.set(p.x, sleeveTopY, p.y);
     mesh.renderOrder = 3.1;
     mesh.receiveShadow = true;
+    mesh.userData.externalTableKeepVisible = true;
+    mesh.userData.showoodGeneratedPocketClothSleeve = true;
     parent.add(mesh);
     stripes.push(mesh);
   });
@@ -1962,15 +1964,6 @@ const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MUL
 const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.48;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
-const POOL_HUMAN_SHOT_LEAN_SIGN = -1;
-const POOL_HUMAN_SHOT_BEND = Object.freeze({
-  torso: 0.08,
-  chest: 0.18,
-  neck: 0.25,
-  head: 0.31,
-  leftShoulder: 0.2,
-  rightShoulder: 0.16
-});
 const POOL_HUMAN_CFG = Object.freeze({
   scale: POOL_HUMAN_WORLD_SCALE,
   cueLength: POOL_HUMAN_CUE_REFERENCE_LENGTH,
@@ -1997,7 +1990,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   bridgePalmTableLift: 0.006 * POOL_HUMAN_WORLD_SCALE,
   bridgeCueLift: 0.018 * POOL_HUMAN_WORLD_SCALE,
   bridgeHandBackFromBall: 0.235 * POOL_HUMAN_WORLD_SCALE,
-  bridgeHandSide: -0.012 * POOL_HUMAN_WORLD_SCALE,
+  bridgeHandSide: -0.115 * POOL_HUMAN_WORLD_SCALE,
+  bridgePalmUnderCueDrop: 0.052 * POOL_HUMAN_WORLD_SCALE,
   chinToCueHeight: 0.11 * POOL_HUMAN_WORLD_SCALE,
   upperBodyCueBallLean: 0.18 * POOL_HUMAN_WORLD_SCALE,
   chestCueBallLean: 0.24 * POOL_HUMAN_WORLD_SCALE,
@@ -2534,22 +2528,26 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
   rootWorld.y = POOL_HUMAN_CFG.floorLocalY;
-  // Keep the shooting bend subtle and mirror it to the opposite side of the
-  // character's local stance so the upper body no longer dips in the previous
-  // direction while aiming. The Y targets only lower the torso/head a little,
-  // avoiding the exaggerated crouch that made the avatar sink too far.
-  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.torso, t) + 0.006 * powerLean) * POOL_HUMAN_CFG.scale));
-  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.4, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.chest, t) + 0.01 * powerLean) * POOL_HUMAN_CFG.scale));
-  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.53, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.neck, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
-  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.65, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.08 * t, (poolHumanLerp(0.04, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.head, t) + 0.012 * powerLean) * POOL_HUMAN_CFG.scale));
-  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.leftShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
-  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.45, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, POOL_HUMAN_SHOT_LEAN_SIGN * POOL_HUMAN_SHOT_BEND.rightShoulder, t) + 0.008 * human.settleT) * POOL_HUMAN_CFG.scale));
-  const hipForwardLean = poolHumanLerp(0.02, -0.08, t) * POOL_HUMAN_CFG.scale;
+  // Match the Snooker Champion shooting orientation: as the cue camera lowers,
+  // the upper body folds forward toward the shot line while the bridge hand
+  // settles under the cue instead of lifting away from it.
+  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) - 0.014 * powerLean) * POOL_HUMAN_CFG.scale));
+  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) - 0.024 * powerLean) * POOL_HUMAN_CFG.scale));
+  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
+  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.34, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const hipForwardLean = 0.02 * POOL_HUMAN_CFG.scale;
   const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, hipForwardLean));
   const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, hipForwardLean));
   const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, -0.03 * POOL_HUMAN_CFG.scale - walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(POOL_HUMAN_CFG.stanceWidth * 0.5, POOL_HUMAN_CFG.footGroundY, 0.34 * POOL_HUMAN_CFG.scale), t));
-  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, -0.012 * POOL_HUMAN_CFG.scale * t).setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift).addScaledVector(POOL_HUMAN_UP, -0.01 * POOL_HUMAN_CFG.scale * human.settleT);
+  const bridgePalmTarget = bridgeTarget.clone()
+    .addScaledVector(forward, -0.006 * POOL_HUMAN_CFG.scale * t)
+    .addScaledVector(side, -0.012 * POOL_HUMAN_CFG.scale * t)
+    .setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift)
+    .addScaledVector(POOL_HUMAN_UP, -POOL_HUMAN_CFG.bridgePalmUnderCueDrop * t)
+    .addScaledVector(POOL_HUMAN_UP, -0.01 * POOL_HUMAN_CFG.scale * human.settleT);
   const leftHand = idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
   const handIk = poolHumanEaseInOut(poolHumanClamp01(t));
@@ -2589,9 +2587,9 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
     POOL_HUMAN_CFG.idleRightHandZ
   ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
   const idleLeftHandTarget = rootTarget.clone().add(new THREE.Vector3(
-    -0.18 * POOL_HUMAN_CFG.scale,
-    1.08 * POOL_HUMAN_CFG.scale,
-    0.03 * POOL_HUMAN_CFG.scale
+    -0.3 * POOL_HUMAN_CFG.scale,
+    0.62 * POOL_HUMAN_CFG.scale,
+    0.02 * POOL_HUMAN_CFG.scale
   ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
   const idleDir = POOL_HUMAN_CFG.idleCueDir.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw).normalize();
   const idleCue = cuePoseFromPoolHumanGrip(idleRightHandTarget, idleDir, POOL_HUMAN_CFG.idleCueGripFromBack, cueLen);
@@ -4424,7 +4422,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -13074,7 +13072,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'railSight',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13253,6 +13251,14 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
   const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
   const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
+  const sideApronBand =
+    s.sideFace &&
+    !anyPocketZone &&
+    !outsideBaseCornerRimZone &&
+    !outerMostVerticalCorner &&
+    s.relY > 0.52 &&
+    s.relY < 0.64 &&
+    (s.longN > 0.54 || s.shortN > 0.50);
   const baseCornerZone = s.sideFace && midBody && (
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
@@ -13267,11 +13273,11 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
   if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if (sideApronBand && !green) return 'sideWoodApron';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
-  if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
 }
 
@@ -13297,7 +13303,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -14569,7 +14575,8 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && object.userData?.showoodGeneratedPocketClothSleeve) ||
           (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
@@ -15634,10 +15641,8 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter(
-        (variant) =>
-          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
-          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15736,10 +15741,12 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      availableTableBases.find((variant) => variant.id === tableBaseId) ??
+      availableTableBases.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
+      availableTableBases[0] ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases]
+    [availableTableBases, tableBaseId]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15796,9 +15803,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
-      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
-    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -33274,7 +33279,7 @@ const shotPowerRef = useRef(0);
           0,
           1
         ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
-        const humanShotState = sliderInstanceRef.current?.dragging && cueCameraLoweredForHuman
+        const humanShotState = cueCameraLoweredForHuman && !shooting && !cueAnimating && !aiTakingShot && !replayActive
           ? 'dragging'
           : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
             ? 'striking'
@@ -36371,6 +36376,49 @@ const shotPowerRef = useRef(0);
                               src={thumb}
                               alt={option.label}
                               className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {availableTableBases.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Table Base
+                  </h3>
+                  <p className="mt-1 text-[0.7rem] text-white/60">
+                    Showood Original keeps the table base and legs; procedural base variants remain available for alternate table support styles.
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    {availableTableBases.map((variant) => {
+                      const active = variant.id === tableBaseId;
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => setTableBaseId(variant.id)}
+                          aria-pressed={active}
+                          className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex flex-col gap-1">
+                            <span>{variant.name}</span>
+                            <span className="text-[9px] font-medium uppercase tracking-[0.14em] opacity-70">
+                              {variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID ? 'Original Showood base + legs' : 'Procedural support base'}
+                            </span>
+                          </span>
+                          {variant.thumbnail ? (
+                            <img
+                              src={variant.thumbnail}
+                              alt={variant.name}
+                              className="h-8 w-12 rounded-lg border border-white/20 object-cover"
                               loading="lazy"
                             />
                           ) : null}
