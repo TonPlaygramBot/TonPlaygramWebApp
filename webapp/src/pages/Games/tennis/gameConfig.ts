@@ -76,10 +76,11 @@ export const gameConfig = {
   serveDuration: 0.86,
   serveContactT: 0.72,
   serveTossMinHeight: 1.85 * PLAYER_SCALE,
-  // Scales the full match shot force so player and AI strokes share a softer, lower power ceiling.
-  matchPowerMultiplier: 0.68,
-  servePower: { min: 0.48, max: 0.74 },
-  shotPower: { min: 0.2, max: 0.68 },
+  // Scales full-match shot force so player and AI strokes share a softer, lower power ceiling.
+  // Keep this conservative: the enlarged court already magnifies perceived ball speed.
+  matchPowerMultiplier: 0.58,
+  servePower: { min: 0.42, max: 0.68 },
+  shotPower: { min: 0.18, max: 0.6 },
   spinAmount: { flat: 0.8, topspin: 1.6, slice: -1.4, lob: 1.1, drop: -0.7, block: 0.25 },
   playerVisualYawFix: Math.PI,
   serveNearBaselineZ: (23.77 / 2 + 0.92) * WORLD_SCALE,
@@ -98,7 +99,7 @@ export const gameConfig = {
     moveSpeed: 13.5 * PLAYER_SCALE,
     reachRadius: 1.95 * PLAYER_SCALE,
     accuracy: 0.94,
-    power: 0.62,
+    power: 0.54,
     spin: 0.88,
     mistakeChance: 0.018,
     serveQuality: 0.84,
