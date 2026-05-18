@@ -120,7 +120,6 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
-import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1755,8 +1754,6 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
 const SPIN_GLOBAL_SCALE = 0.82; // reduce Pool Royale cue spin slightly for a more natural roll
-const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
-const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1773,33 +1770,14 @@ const RAIL_SPIN_THROW_SCALE = 0.09; // re-enable a mild rail throw so cue-ball s
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
-// Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
-const SHOT_POWER_REDUCTION = 0.425;
-const SHOT_POWER_MULTIPLIER = 2.109375;
-const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.66; // reduce overall Pool Royale power a bit more for softer strokes
-const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 1; // keep Pool Royale strike speed slightly softer and easier to control
-const SHOT_FORCE_BOOST =
-  1.5 *
-  0.75 *
-  0.85 *
-  0.8 *
-  1.3 *
-  0.85 *
-  SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE *
-  SHOT_POWER_ADJUSTMENT *
-  SHOT_POWER_BOOST *
-  SHOT_GLOBAL_POWER_SCALE;
-const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0;
-const SHOT_POWER_RANGE = 1;
+// Keep Pool Royale's cue-ball launch math identical to SnookerRoyalProvided.jsx:
+// a released cue physically reaches the contact gap, then the cue ball receives
+// the same full-speed/min-power/spin-scaled strike used by Snooker Royal.
+const SHOT_POWER_BOOST = 0.455;
+const SHOT_BASE_SPEED = 12 * WORLD_SCALE * SHOT_POWER_BOOST;
+const SHOT_MIN_FACTOR = 0.25;
+const SHOT_POWER_RANGE = 0.75;
+const SHOT_SPIN_SCALE = 0.25;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -7358,16 +7336,9 @@ const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive f
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
-const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.42;
 const SPIN_VIEW_BLOCK_THRESHOLD = -0.2;
-
-const resolveTopspinPowerScale = (power) => {
-  if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = THREE.MathUtils.clamp(power, 0, TOPSPIN_POWER_SOFT_CAP);
-  return 0.55 + cappedPower * 0.45;
-};
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -24833,7 +24804,7 @@ const shotPowerRef = useRef(0);
             holdDuration,
             recoverDuration,
             animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
-            hitArmRatio: strikeImpactThreshold ?? 0.78
+            hitArmRatio: strikeImpactThreshold ?? 0.88
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -28195,53 +28166,41 @@ const shotPowerRef = useRef(0);
         if (!payload || payload.applied) return;
         payload.applied = true;
         const {
-          base,
           aimDir,
           physicsSpin,
-          clampedPower,
-          liftStrength,
-          pullDistance = 0,
-          contactAdvance = 0,
-          strikeDuration = LIVE_CUE_FORWARD_DURATION_MS
+          clampedPower
         } = payload;
-        const offsetScaled = {
-          x: physicsSpin?.x ?? 0,
-          y: physicsSpin?.y ?? 0
-        };
+        const p = THREE.MathUtils.clamp(clampedPower, 0, 1);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
-        const launchVelocity = base?.clone?.();
-        if (launchVelocity?.lengthSq?.() > 1e-8) {
-          cue.vel.copy(launchVelocity);
-        } else {
-          const speedBase = SHOT_BASE_SPEED;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
-        }
+        const sideAxis = TMP_VEC3_E.set(shotDir3.z, 0, -shotDir3.x);
+        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
+        const spin = {
+          x: physicsSpin?.x ?? 0,
+          y: physicsSpin?.y ?? 0
+        };
+        const speedBase = SHOT_BASE_SPEED;
+        const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * p;
+        cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
+        cue.vel.addScaledVector(sideAxis, (spin.x ?? 0) * p * 1.05 * WORLD_SCALE * SHOT_POWER_BOOST);
         if (cue.spin) {
-          cue.spin.set(offsetScaled.x, offsetScaled.y);
+          cue.spin.set(spin.x ?? 0, spin.y ?? 0);
         }
         if (cue.omega) {
           cue.omega.set(0, 0, 0);
+          const launchSpeed = cue.vel.length();
+          if (launchSpeed > 1e-6) {
+            const rollingAxis = TMP_VEC3_A.set(cue.vel.z, 0, -cue.vel.x).normalize();
+            cue.omega.addScaledVector(rollingAxis, launchSpeed / BALL_R);
+            cue.omega.x += -(spin.y ?? 0) * p * 18;
+            cue.omega.z += -(spin.x ?? 0) * p * 18;
+          }
         }
         if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        const shotDir = shotDir3;
-        const sideAxis = TMP_VEC3_E.set(-shotDir.z, 0, shotDir.x);
-        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-        const rOffset = TMP_VEC3_E
-          .copy(sideAxis)
-          .multiplyScalar(offsetScaled.x * BALL_R)
-          .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
-        const impulseMag = BALL_MASS * cue.vel.length();
-        const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
-        const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
-        if (cue.omega) {
-          cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
-        }
         resetSpinRef.current?.();
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
@@ -28453,10 +28412,8 @@ const shotPowerRef = useRef(0);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const speedBase = SHOT_BASE_SPEED;
           const base = shotAimDir
             .clone()
             .multiplyScalar(speedBase * powerScale);
@@ -28630,26 +28587,15 @@ const shotPowerRef = useRef(0);
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
           const scaledSpin = {
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
           };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
-            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
-            spinTop *= TOPSPIN_MULTIPLIER;
-            if (Math.abs(baseSide) <= STRAIGHT_TOPSPIN_SIDE_THRESHOLD) {
-              spinTop *= STRAIGHT_TOPSPIN_BONUS_SCALE;
-            }
-            if (Math.abs(baseSide) > 1e-6) {
-              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-            }
-          }
+          const rawTopSpin = scaledSpin.y * SHOT_SPIN_SCALE * powerSpinScale;
+          const spinSide = scaledSpin.x * SHOT_SPIN_SCALE * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          const spinTop = rawTopSpin < 0
+            ? rawTopSpin * BACKSPIN_MULTIPLIER
+            : rawTopSpin * TOPSPIN_MULTIPLIER;
           const shotImpactPayload = {
             base: base.clone(),
             aimDir: shotAimDir.clone(),
@@ -28895,7 +28841,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.78,
+              strikeImpactThreshold: 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               releaseStartsFromCurrentPull: true,
