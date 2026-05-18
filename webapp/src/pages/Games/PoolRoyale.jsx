@@ -28192,6 +28192,11 @@ const shotPowerRef = useRef(0);
           y: physicsSpin?.y ?? 0
         };
         applyPoolRoyaleCueShot(cue, p, aimDir, spin);
+        // Start the rolling-shot timeout only after the cue has physically
+        // reached the cue ball. This matches SnookerRoyalProvided.jsx, where
+        // the balls are not allowed to resolve while the cue/hand strike is
+        // still travelling toward contact.
+        shotStartedAt = getNow();
         if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
@@ -34231,23 +34236,33 @@ const shotPowerRef = useRef(0);
             recordReplayFrame(now);
           }
           if (shooting) {
-            const any = balls.some(
-              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+            const activeCueStroke = ENABLE_CUE_STROKE_ANIMATION
+              ? cueStrokeStateRef.current
+              : null;
+            const waitingForPhysicalCueImpact = Boolean(
+              activeCueStroke &&
+                !activeCueStroke.shotApplied &&
+                typeof activeCueStroke.onImpact === 'function'
             );
-            if (!any) {
-              resolve();
-            } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
-              console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
-              balls.forEach((ball) => {
-                if (!ball) return;
-                if (ball.vel) ball.vel.set(0, 0);
-                if (ball.spin) ball.spin.set(0, 0);
-                if (ball.omega) ball.omega.set(0, 0, 0);
-                if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
-                ball.launchDir = null;
-                ball.impacted = false;
-              });
-              resolve();
+            if (!waitingForPhysicalCueImpact) {
+              const any = balls.some(
+                (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+              );
+              if (!any) {
+                resolve();
+              } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
+                console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
+                balls.forEach((ball) => {
+                  if (!ball) return;
+                  if (ball.vel) ball.vel.set(0, 0);
+                  if (ball.spin) ball.spin.set(0, 0);
+                  if (ball.omega) ball.omega.set(0, 0, 0);
+                  if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+                  ball.launchDir = null;
+                  ball.impacted = false;
+                });
+                resolve();
+              }
             }
           }
           if (pocketDropRef.current.size > 0) {
