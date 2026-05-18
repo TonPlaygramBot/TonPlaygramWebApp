@@ -86,7 +86,7 @@ const CHAIR_BASE_HEIGHT =
 const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const CHECKERS_BOARD_VISUAL_SCALE = 0.82;
+const CHECKERS_BOARD_VISUAL_SCALE = 0.7;
 const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE * CHECKERS_BOARD_VISUAL_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
@@ -319,10 +319,10 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
-// Visual tuning for portrait screens: keep chairs prominent but slightly smaller
-// so they match the reduced table, board, and seated-human scale.
-const CHAIR_VISUAL_SCALE = 1.14;
-const CHAIR_VISUAL_HEIGHT_SCALE = 1.04;
+// Visual tuning for portrait screens: keep the chairs modest and leave
+// additional breathing room around the smaller board.
+const CHAIR_VISUAL_SCALE = 0.95;
+const CHAIR_VISUAL_HEIGHT_SCALE = 0.96;
 const CHAIR_NON_POLYHAVEN_SIDE_SCALE = 0.6;
 const CHAIR_TARGET_SCALE_FACTOR = 0.76;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
