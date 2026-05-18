@@ -137,10 +137,10 @@ const CFG = {
   gravity: 9.35,
   airDrag: 0.1,
   magnus: 0.00118,
-  tableRestitution: 1.34,
-  tableFriction: 1.012,
-  tableBounceMinY: 1.62,
-  serveOwnBounceMinY: 2.48,
+  tableRestitution: 0.89,
+  tableTangentRetention: 0.82,
+  tableSpinGrip: 0.018,
+  tableSpinToSpeed: 0.00125,
   serveOwnBounceForwardDamping: 0.76,
   spinDecay: 0.62,
   playerHeight: 3.5,
@@ -155,14 +155,14 @@ const CFG = {
   hitWindowStart: 0.35,
   hitWindowEnd: 0.8,
   serveContactT: 0.68,
-  netPowerRetention: 0.12,
-  netClipPowerRetention: 0.34,
-  netTangentDamping: 0.34,
+  netPowerRetention: 0.3,
+  netClipPowerRetention: 0.3,
+  netTangentDamping: 0.62,
   netThickness: 0.032,
   netTopBandRadius: 0.018,
-  bodyPowerRetention: 0.2,
-  floorRestitution: 0.56,
-  floorFriction: 0.88,
+  bodyPowerRetention: 0.3,
+  floorRestitution: 0.42,
+  floorFriction: 0.74,
   railRestitution: 0.5,
   minShotSpeed: 11.2,
   maxShotSpeed: 46.0,
@@ -186,18 +186,47 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const sideOfZ = (z: number): PlayerSide => (z >= 0 ? "near" : "far");
 const opposite = (side: PlayerSide): PlayerSide => (side === "near" ? "far" : "near");
 
-function reduceImpactPower(velocity: THREE.Vector3, keepRatio: number, minSpeed = 0.35) {
-  const speed = velocity.length();
-  if (speed <= 0.0001) return;
-  const capped = Math.max(minSpeed, speed * clamp(keepRatio, 0.05, 1));
-  velocity.multiplyScalar(capped / speed);
-}
-
-function retainSourceImpactPower(velocity: THREE.Vector3, sourceSpeed: number, keepRatio: number, minSpeed = 0.35) {
+function retainImpactEnergy(velocity: THREE.Vector3, sourceSpeed: number, keepRatio: number) {
   const speed = velocity.length();
   if (speed <= 0.0001 || sourceSpeed <= 0.0001) return;
-  const capped = Math.max(minSpeed, sourceSpeed * clamp(keepRatio, 0.05, 1));
-  velocity.multiplyScalar(capped / speed);
+  const targetSpeed = sourceSpeed * clamp(keepRatio, 0.01, 1);
+  velocity.multiplyScalar(targetSpeed / speed);
+}
+
+function reflectVelocityByNormal(velocity: THREE.Vector3, normal: THREE.Vector3, restitution: number, tangentRetention: number) {
+  const n = normal.clone().normalize();
+  const normalSpeed = velocity.dot(n);
+  const normalComponent = n.clone().multiplyScalar(normalSpeed);
+  const tangentComponent = velocity.clone().sub(normalComponent).multiplyScalar(tangentRetention);
+  const reboundNormalSpeed = normalSpeed < 0 ? -normalSpeed * restitution : normalSpeed;
+  velocity.copy(tangentComponent.addScaledVector(n, reboundNormalSpeed));
+}
+
+function applyTableBounce(ball: Pick<BallState, "vel" | "spin">, isOwnServeBounce = false) {
+  const incomingVy = ball.vel.y;
+  ball.vel.y = Math.abs(incomingVy) * CFG.tableRestitution;
+  ball.vel.x *= CFG.tableTangentRetention;
+  ball.vel.z *= CFG.tableTangentRetention * (isOwnServeBounce ? CFG.serveOwnBounceForwardDamping : 1);
+
+  const tangentialVelocity = new THREE.Vector2(ball.vel.x, ball.vel.z);
+  const spinKickX = ball.spin.x * CFG.tableSpinToSpeed;
+  const spinKickZ = -ball.spin.y * CFG.tableSpinToSpeed;
+  ball.vel.x += spinKickX;
+  ball.vel.z += spinKickZ;
+
+  const rollingSpinX = ball.vel.z / Math.max(CFG.ballR, 0.001);
+  const rollingSpinY = -ball.vel.x / Math.max(CFG.ballR, 0.001);
+  const grip = clamp(CFG.tableSpinGrip + tangentialVelocity.length() * 0.0015, 0.018, 0.055);
+  ball.spin.x = lerp(ball.spin.x, rollingSpinX, grip) * 0.965;
+  ball.spin.y = lerp(ball.spin.y, rollingSpinY, grip) * 0.955;
+  ball.spin.z *= 0.91;
+}
+
+function applyRetainedObstacleDeflection(ball: Pick<BallState, "vel" | "spin">, normal: THREE.Vector3, keepRatio: number, restitution = 0.34) {
+  const incomingSpeed = ball.vel.length();
+  reflectVelocityByNormal(ball.vel, normal, restitution, CFG.netTangentDamping);
+  retainImpactEnergy(ball.vel, incomingSpeed, keepRatio);
+  ball.spin.multiplyScalar(0.58);
 }
 
 function material(color: number, roughness = 0.72, metalness = 0.02) {
@@ -1344,13 +1373,7 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
       }
       landing = p.clone();
       if (sideOfZ(p.z) === "far") hasFarBounce = true;
-      v.y = Math.max(Math.abs(v.y) * CFG.tableRestitution, CFG.tableBounceMinY);
-      v.x *= CFG.tableFriction;
-      v.z *= CFG.tableFriction;
-      v.z += spin.x * 0.0012;
-      v.x += spin.y * 0.001;
-      spin.x *= 0.78;
-      spin.y *= 0.84;
+      applyTableBounce({ vel: v, spin });
     }
 
     const time = i * dt;
@@ -1747,17 +1770,16 @@ export default function MobileRealisticTableTennisGame() {
         if (hitTopBand) {
           const crawlsOver = ball.vel.y > -0.72 && Math.abs(ball.vel.z) > 1.0 && clipDepth > 0.42;
           const keep = crawlsOver ? CFG.netClipPowerRetention : CFG.netPowerRetention;
-          ball.vel.z = Math.abs(ball.vel.z) * keep * travelDir;
-          ball.vel.y = Math.max(crawlsOver ? 0.075 : 0.018, Math.abs(ball.vel.y) * 0.16 + clipDepth * 0.07);
-          ball.vel.x = ball.vel.x * 0.54 + lateralDeflect;
-          retainSourceImpactPower(ball.vel, incomingSpeed, keep, crawlsOver ? 0.28 : 0.18);
+          const normal = new THREE.Vector3(lateralDeflect * 0.25, crawlsOver ? 0.34 : 0.14 + clipDepth * 0.16, travelDir).normalize();
+          applyRetainedObstacleDeflection(ball, normal, keep, crawlsOver ? 0.42 : 0.28);
+          ball.vel.y += crawlsOver ? 0.16 + clipDepth * 0.08 : 0.035;
         } else {
-          ball.vel.z = Math.abs(ball.vel.z) * CFG.netPowerRetention * approachSide;
-          ball.vel.x = ball.vel.x * CFG.netTangentDamping + lateralDeflect;
-          ball.vel.y = Math.min(0.035, ball.vel.y * 0.14) - 0.08;
-          retainSourceImpactPower(ball.vel, incomingSpeed, CFG.netPowerRetention, 0.14);
+          const meshNormal = new THREE.Vector3(lateralDeflect * 0.4, 0.08, approachSide).normalize();
+          applyRetainedObstacleDeflection(ball, meshNormal, CFG.netPowerRetention, 0.24);
+          ball.vel.y -= 0.05;
         }
-        ball.spin.multiplyScalar(hitTopBand ? 0.48 : 0.26);
+        ball.vel.x += lateralDeflect;
+        retainImpactEnergy(ball.vel, incomingSpeed, CFG.netPowerRetention);
         netWobble.amount = 1;
         netWobble.side = approachSide;
         playFx(netFx);
@@ -1776,25 +1798,14 @@ export default function MobileRealisticTableTennisGame() {
         if (delta.lengthSq() > collisionRadius * collisionRadius) continue;
         const normal = delta.lengthSq() > 0.0001 ? delta.normalize() : new THREE.Vector3(0, 0.4, player.side === "near" ? 1 : -1).normalize();
         ball.pos.copy(torsoCenter).addScaledVector(normal, collisionRadius + 0.004);
-        const vn = ball.vel.dot(normal);
-        if (vn < 0) ball.vel.addScaledVector(normal, -(1 + 0.18) * vn);
-        reduceImpactPower(ball.vel, CFG.bodyPowerRetention, 0.26);
-        ball.vel.y = Math.max(ball.vel.y, 0.05);
+        applyRetainedObstacleDeflection(ball, normal, CFG.bodyPowerRetention, 0.22);
       }
 
       if (descendingThroughSurface && isOverTable(tableImpactX, tableImpactZ, 0)) {
         ball.pos.set(tableImpactX, BALL_SURFACE_Y, tableImpactZ);
         const side = sideOfZ(tableImpactZ);
         const isOwnServeBounce = ball.phase.kind === "serve" && ball.phase.stage === "own" && side === ball.phase.server;
-        const minBounceY = isOwnServeBounce ? CFG.serveOwnBounceMinY : CFG.tableBounceMinY;
-        ball.vel.y = Math.max(-ball.vel.y * CFG.tableRestitution, minBounceY);
-        ball.vel.x *= CFG.tableFriction;
-        ball.vel.z *= CFG.tableFriction;
-        if (isOwnServeBounce) ball.vel.z *= CFG.serveOwnBounceForwardDamping;
-        ball.vel.z += ball.spin.x * 0.0012;
-        ball.vel.x += ball.spin.y * 0.001;
-        ball.spin.x *= 0.78;
-        ball.spin.y *= 0.84;
+        applyTableBounce(ball, isOwnServeBounce);
         playFx(bounceFx);
         handleTableBounce(side);
       }
@@ -1806,9 +1817,8 @@ export default function MobileRealisticTableTennisGame() {
       }
       if (ball.pos.y <= CFG.ballR && !ball.lastHitBy) {
         ball.pos.y = CFG.ballR;
-        ball.vel.y = Math.abs(ball.vel.y) * CFG.floorRestitution;
-        ball.vel.x *= CFG.floorFriction;
-        ball.vel.z *= CFG.floorFriction;
+        reflectVelocityByNormal(ball.vel, UP, CFG.floorRestitution, CFG.floorFriction);
+        ball.spin.multiplyScalar(0.82);
       }
       if (Math.abs(ball.pos.x) > TABLE_HALF_W + 0.68) {
         ball.pos.x = Math.sign(ball.pos.x) * (TABLE_HALF_W + 0.68);
@@ -1916,6 +1926,7 @@ export default function MobileRealisticTableTennisGame() {
       }
 
       if (pointLock) {
+        if (replayT <= 0) updateBall(dt);
         pointLockT -= dt;
         if (pointLockT <= 0) {
           pointLock = false;
