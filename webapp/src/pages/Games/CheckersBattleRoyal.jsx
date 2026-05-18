@@ -86,7 +86,7 @@ const CHAIR_BASE_HEIGHT =
 const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.055 * CHECKERS_ARENA_SCALE;
+const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
@@ -96,11 +96,13 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-// Pull the seated player stations in close so chairs, humans, and avatars
-// feel connected to the table.
-const CHAIR_OUTWARD_OFFSET = -0.08;
+// Keep the seated player stations connected to the table while leaving a
+// little breathing room around the bottom player's chair and human.
+const CHAIR_OUTWARD_OFFSET = -0.04;
 const CHAIR_DISTANCE =
   TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE + CHAIR_OUTWARD_OFFSET;
+const BOTTOM_CHAIR_EXTRA_DISTANCE = 0.05;
+const BOTTOM_CHAIR_DISTANCE = CHAIR_DISTANCE + BOTTOM_CHAIR_EXTRA_DISTANCE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -129,15 +131,16 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
+const CHECKERS_ROOM_HALF_SPAN =
+  Math.max(CHAIR_DISTANCE, BOTTOM_CHAIR_DISTANCE) + SEAT_DEPTH;
 const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_INSET = 0.12 * CHECKERS_ARENA_SCALE;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.56 * CHECKERS_ARENA_SCALE;
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.68 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
@@ -342,8 +345,8 @@ const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 
 const getBottomPlayerFaceCameraPosition = () => {
   const radius = Math.max(
-    TABLE_RADIUS * 1.08,
-    CHAIR_DISTANCE - PLAYER_FACE_CAMERA_INSET
+    PLAYER_FACE_CAMERA_RADIUS,
+    TABLE_RADIUS * 0.95
   );
   return new THREE.Vector3(
     Math.cos(PLAYER_FACE_CAMERA_SEAT_ANGLE) * radius,
@@ -387,7 +390,7 @@ const applyBottomPlayerFaceCamera = (camera, look = { yaw: 0, pitch: 0 }) => {
   );
   camera.lookAt(position.clone().add(direction));
 };
-const CHECKER_PIECE_SCALE = 1.02;
+const CHECKER_PIECE_SCALE = 0.92;
 // Keep chips seated directly on the board surface in portrait view.
 const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.01;
 const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.055;
@@ -2293,7 +2296,7 @@ export default function CheckersBattleRoyal() {
         );
         if (requestId !== chairLoadRequestRef.current) return;
         chairsRef.current = [
-          makePlacedChair(chairTemplate, CHAIR_DISTANCE, Math.PI),
+          makePlacedChair(chairTemplate, BOTTOM_CHAIR_DISTANCE, Math.PI),
           makePlacedChair(chairTemplate, -CHAIR_DISTANCE, 0)
         ];
         activeChairIdRef.current = chairOption?.id || null;
@@ -2314,7 +2317,7 @@ export default function CheckersBattleRoyal() {
           return g;
         };
         chairsRef.current = [
-          makeFallback(CHAIR_DISTANCE, Math.PI),
+          makeFallback(BOTTOM_CHAIR_DISTANCE, Math.PI),
           makeFallback(-CHAIR_DISTANCE, 0)
         ];
         activeChairIdRef.current = chairOption?.id || null;
