@@ -135,11 +135,14 @@ const CFG = {
   netPostOutside: 0.21,
   ballR: 0.052,
   gravity: 9.35,
-  airDrag: 0.12,
-  magnus: 0.00138,
-  tableRestitution: 1.18,
-  tableFriction: 0.994,
-  spinDecay: 0.66,
+  airDrag: 0.1,
+  magnus: 0.00118,
+  tableRestitution: 1.34,
+  tableFriction: 1.012,
+  tableBounceMinY: 1.62,
+  serveOwnBounceMinY: 2.48,
+  serveOwnBounceForwardDamping: 0.76,
+  spinDecay: 0.62,
   playerHeight: 3.5,
   playerSpeed: 3.9,
   aiSpeed: 4.95,
@@ -161,8 +164,8 @@ const CFG = {
   floorRestitution: 0.56,
   floorFriction: 0.88,
   railRestitution: 0.5,
-  minShotSpeed: 9.4,
-  maxShotSpeed: 42.0,
+  minShotSpeed: 11.2,
+  maxShotSpeed: 46.0,
   netClearance: 0.38,
   playerVisualYawFix: Math.PI,
   paddlePalmOffset: 0.038,
@@ -1196,10 +1199,11 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
 
   if (serve) {
     ball.pos.copy(serveContactPosition(player));
-    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -0.62);
+    const ownBounceDepth = lerp(TABLE_HALF_L * 0.32, TABLE_HALF_L * 0.44, hit.power);
+    const ownBounce = new THREE.Vector3(clamp(target.x * 0.45, -TABLE_HALF_W + 0.12, TABLE_HALF_W - 0.12), BALL_SURFACE_Y, dirZ * -ownBounceDepth);
     const serveDistance = Math.max(0.001, ball.pos.distanceTo(ownBounce));
-    const serveFlight = serveDistance / (18.0 + hit.power * 13.0);
-    const flight = clamp(serveFlight, 0.14, 0.26);
+    const serveFlight = serveDistance / (15.5 + hit.power * 9.5);
+    const flight = clamp(serveFlight, 0.16, 0.31);
     ball.vel.copy(ballisticVelocity(ball.pos, ownBounce, flight));
     ball.spin.set(-dirZ * (52 + hit.topSpin * 50), hit.sideSpin * 86, hit.sideSpin * 9);
     ball.phase = { kind: "serve", server: player.side, stage: "own" };
@@ -1207,8 +1211,8 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.pos.y = clamp(ball.pos.y, CFG.tableY + 0.08, CFG.tableY + 0.48);
     const dist = Math.hypot(target.x - ball.pos.x, target.z - ball.pos.z);
     const speedScale = Math.max(1, TABLE_SCALE_FACTOR * 0.85);
-    const baseFlight = dist / ((8.8 + hit.power * 11.8) * speedScale);
-    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.52);
+    const baseFlight = dist / ((10.4 + hit.power * 13.6) * speedScale);
+    const flight = flightWithNetClearance(ball.pos, target, baseFlight, 0.1, 0.48);
     ball.vel.copy(ballisticVelocity(ball.pos, target, flight));
     ball.spin.set(-dirZ * (68 + hit.topSpin * 102), hit.sideSpin * 118, hit.sideSpin * 14);
     ball.phase = { kind: "rally" };
@@ -1340,13 +1344,13 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
       }
       landing = p.clone();
       if (sideOfZ(p.z) === "far") hasFarBounce = true;
-      v.y = Math.abs(v.y) * CFG.tableRestitution;
+      v.y = Math.max(Math.abs(v.y) * CFG.tableRestitution, CFG.tableBounceMinY);
       v.x *= CFG.tableFriction;
       v.z *= CFG.tableFriction;
-      v.z += spin.x * 0.0016;
-      v.x += spin.y * 0.0012;
-      spin.x *= 0.82;
-      spin.y *= 0.86;
+      v.z += spin.x * 0.0012;
+      v.x += spin.y * 0.001;
+      spin.x *= 0.78;
+      spin.y *= 0.84;
     }
 
     const time = i * dt;
@@ -1781,13 +1785,16 @@ export default function MobileRealisticTableTennisGame() {
       if (descendingThroughSurface && isOverTable(tableImpactX, tableImpactZ, 0)) {
         ball.pos.set(tableImpactX, BALL_SURFACE_Y, tableImpactZ);
         const side = sideOfZ(tableImpactZ);
-        ball.vel.y = Math.max(-ball.vel.y * CFG.tableRestitution, 1.05);
+        const isOwnServeBounce = ball.phase.kind === "serve" && ball.phase.stage === "own" && side === ball.phase.server;
+        const minBounceY = isOwnServeBounce ? CFG.serveOwnBounceMinY : CFG.tableBounceMinY;
+        ball.vel.y = Math.max(-ball.vel.y * CFG.tableRestitution, minBounceY);
         ball.vel.x *= CFG.tableFriction;
         ball.vel.z *= CFG.tableFriction;
-        ball.vel.z += ball.spin.x * 0.0016;
-        ball.vel.x += ball.spin.y * 0.0012;
-        ball.spin.x *= 0.82;
-        ball.spin.y *= 0.86;
+        if (isOwnServeBounce) ball.vel.z *= CFG.serveOwnBounceForwardDamping;
+        ball.vel.z += ball.spin.x * 0.0012;
+        ball.vel.x += ball.spin.y * 0.001;
+        ball.spin.x *= 0.78;
+        ball.spin.y *= 0.84;
         playFx(bounceFx);
         handleTableBounce(side);
       }
