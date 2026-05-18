@@ -190,9 +190,6 @@ const AI_ROLL_DELAY_MS = 1300;
 const AI_EXTRA_ROLL_DELAY_MS = 850;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
 const DICE_RESULT_HOLD_MS = 2000;
-// Match the 3D Snake board dice timing to Ludo Battle Royal and Pool Royale.
-const DICE_BOARD_ROLL_MS = 900;
-const DICE_BOARD_SETTLE_MS = 220;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
@@ -1453,7 +1450,6 @@ export default function SnakeAndLadder() {
 
   const diceRollerDivRef = useRef(null);
   const activeDiceBoardRollRef = useRef(null);
-  const diceVisualReadyAtRef = useRef(0);
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
@@ -1516,25 +1512,7 @@ export default function SnakeAndLadder() {
   }, []);
 
   const startDiceBoardAnimation = useCallback((phase) => {
-    if (phase?.phase === 'start') {
-      diceVisualReadyAtRef.current = Date.now() + DICE_BOARD_ROLL_MS + DICE_BOARD_SETTLE_MS;
-    } else if (phase?.phase === 'end') {
-      diceVisualReadyAtRef.current = Math.max(
-        diceVisualReadyAtRef.current,
-        Date.now() + DICE_BOARD_SETTLE_MS
-      );
-    }
     setDiceBoardEvent(phase);
-  }, []);
-
-  const runAfterDiceVisual = useCallback((callback) => {
-    if (typeof callback !== 'function') return;
-    const waitMs = Math.max(0, diceVisualReadyAtRef.current - Date.now());
-    if (waitMs <= 0) {
-      callback();
-      return;
-    }
-    window.setTimeout(callback, waitMs);
   }, []);
 
   const normalizeAuthoritativeDiceValues = useCallback((value, fallbackCount = 1) => {
@@ -2203,72 +2181,68 @@ export default function SnakeAndLadder() {
       }, maxPlayers);
     };
     const onMove = ({ playerId, from = 0, to }) => {
-      runAfterDiceVisual(() => {
-        const updatePosition = (pos) => {
-          updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
-          if (playerId === myAccountId) setPos(pos);
-        };
-        const ctx = {
-          updatePosition,
-          setHighlight,
-          setTrail,
-          moveSoundRef,
-          hahaSoundRef,
-          snakes,
-          ladders,
-          setOffsetPopup,
-          snakeSoundRef,
-          oldSnakeSoundRef,
-          ladderSoundRef,
-          badLuckSoundRef,
-          muted,
-          FINAL_TILE,
-        };
-        const finalizeMove = (finalPos, type) => {
-          updatePosition(finalPos);
-          setHighlight({ cell: finalPos, type, color: playerColors[0] });
-          setTrail([]);
-          setTimeout(() => setHighlight(null), 2300);
-          setMoving(false);
-        };
-        const seq = [];
-        for (let i = from + 1; i <= to; i++) seq.push(i);
-        setMoving(true);
-        moveSeq(seq, 'normal', ctx, () => finalizeMove(to, 'normal'), 'forward');
-      });
+      const updatePosition = (pos) => {
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === myAccountId) setPos(pos);
+      };
+      const ctx = {
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type, color: playerColors[0] });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 2300);
+        setMoving(false);
+      };
+      const seq = [];
+      for (let i = from + 1; i <= to; i++) seq.push(i);
+      setMoving(true);
+      moveSeq(seq, 'normal', ctx, () => finalizeMove(to, 'normal'), 'forward');
     };
     const onSnakeOrLadder = ({ playerId, from, to }) => {
-      runAfterDiceVisual(() => {
-        const updatePosition = (pos) => {
-          updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
-          if (playerId === myAccountId) setPos(pos);
-        };
-        const ctx = {
-          updatePosition,
-          setHighlight,
-          setTrail,
-          moveSoundRef,
-          hahaSoundRef,
-          snakes,
-          ladders,
-          setOffsetPopup,
-          snakeSoundRef,
-          oldSnakeSoundRef,
-          ladderSoundRef,
-          badLuckSoundRef,
-          muted,
-          FINAL_TILE,
-        };
-        const finalizeMove = (finalPos, type) => {
-          updatePosition(finalPos);
-          setHighlight({ cell: finalPos, type, color: playerColors[0] });
-          setTrail([]);
-          setTimeout(() => setHighlight(null), 2300);
-          setMoving(false);
-        };
-        setMoving(true);
-        applyEffectHelper(from, ctx, finalizeMove);
-      });
+      const updatePosition = (pos) => {
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === myAccountId) setPos(pos);
+      };
+      const ctx = {
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type, color: playerColors[0] });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 2300);
+        setMoving(false);
+      };
+      setMoving(true);
+      applyEffectHelper(from, ctx, finalizeMove);
     };
     const onReset = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
@@ -2375,12 +2349,6 @@ export default function SnakeAndLadder() {
         });
       }
 
-      // If this client did not already show the full hidden DiceRoller cycle
-      // (spectators and opponents), let the 3D board dice complete the same
-      // 900 ms roll used by Ludo Battle Royal / Pool Royale before landing on
-      // the authoritative result.
-      const resultDelayMs = canReuseActiveRoll ? 0 : DICE_BOARD_ROLL_MS;
-      diceVisualReadyAtRef.current = Date.now() + resultDelayMs + DICE_BOARD_SETTLE_MS;
       window.setTimeout(() => {
         startDiceBoardAnimation({
           id: rollId,
@@ -2389,7 +2357,7 @@ export default function SnakeAndLadder() {
           seatIndex
         });
         activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
-      }, resultDelayMs);
+      }, canReuseActiveRoll ? 0 : 80);
 
       setRollResult(resultTotal);
       setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
@@ -2588,7 +2556,7 @@ export default function SnakeAndLadder() {
         }
       }
     };
-  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, runAfterDiceVisual, tableId, updateMpPlayers, watchOnly]);
+  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
