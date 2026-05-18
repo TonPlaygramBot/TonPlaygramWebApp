@@ -589,7 +589,7 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.82;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 5.7;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -2175,7 +2175,6 @@ const CHECKMATE_SOUND_URL =
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
-const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
@@ -9779,8 +9778,6 @@ function Chess3D({
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
-    const jetFlySound = new Audio(JET_FLY_SOUND_URL);
-    jetFlySound.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -12436,7 +12433,6 @@ function Chess3D({
         const group = resolvePieceGroupFromType(movingType);
         const firearmAnimationId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
         const firearmProfile = resolveFirearmCaptureProfile(firearmAnimationId);
-        playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.52);
         missileFx.root.visible = false;
@@ -15460,7 +15456,6 @@ function Chess3D({
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
       helicopterSoundRef.current?.pause();
-      jetFlySound?.pause?.();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
       activeCaptureFx.splice(0, activeCaptureFx.length);
