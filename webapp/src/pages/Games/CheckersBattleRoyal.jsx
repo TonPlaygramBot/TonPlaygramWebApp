@@ -78,7 +78,7 @@ const CHECKERS_ARENA_BASE_SCALE = 0.48;
 const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.68;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
-const TABLE_RADIUS = 3.0 * MODEL_SCALE;
+const TABLE_RADIUS = 2.85 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.98 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
@@ -99,10 +99,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
 // Keep the seated player stations connected to the table while leaving a
 // little breathing room around the bottom player's chair and human.
-const CHAIR_OUTWARD_OFFSET = -0.04;
+const CHAIR_OUTWARD_OFFSET = -0.075;
 const CHAIR_DISTANCE =
   TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE + CHAIR_OUTWARD_OFFSET;
-const BOTTOM_CHAIR_EXTRA_DISTANCE = 0.05;
+const BOTTOM_CHAIR_EXTRA_DISTANCE = 0.025;
 const BOTTOM_CHAIR_DISTANCE = CHAIR_DISTANCE + BOTTOM_CHAIR_EXTRA_DISTANCE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -115,7 +115,7 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
 // keep them readable while matching the smaller table/chair/board presentation.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.95;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.08;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
@@ -135,10 +135,10 @@ const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN =
   Math.max(CHAIR_DISTANCE, BOTTOM_CHAIR_DISTANCE) + SEAT_DEPTH;
 const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
-const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
+const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.0;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
-const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
-const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.12;
+const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.84;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 const PLAYER_FACE_CAMERA_RADIUS =
   TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
@@ -321,10 +321,10 @@ const CHAIR_MODEL_URLS = [
 const CHAIR_GROUND_SINK = 0.44;
 // Visual tuning for portrait screens: keep the chairs modest and leave
 // additional breathing room around the smaller board.
-const CHAIR_VISUAL_SCALE = 0.95;
-const CHAIR_VISUAL_HEIGHT_SCALE = 0.96;
+const CHAIR_VISUAL_SCALE = 0.9;
+const CHAIR_VISUAL_HEIGHT_SCALE = 0.93;
 const CHAIR_NON_POLYHAVEN_SIDE_SCALE = 0.6;
-const CHAIR_TARGET_SCALE_FACTOR = 0.76;
+const CHAIR_TARGET_SCALE_FACTOR = 0.72;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
   1.9173749900311232 * CHAIR_TARGET_SCALE_FACTOR,
@@ -395,8 +395,8 @@ const applyBottomPlayerFaceCamera = (camera, look = { yaw: 0, pitch: 0 }) => {
 };
 const CHECKER_PIECE_SCALE = 0.92;
 // Keep chips seated directly on the board surface in portrait view.
-const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.004;
-const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.018;
+const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.012;
+const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.022;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -1431,7 +1431,7 @@ async function buildChairTemplateForOption(chairOption, renderer = null) {
 function fitTableModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetSpan = TABLE_RADIUS * 2.05;
+  const targetSpan = TABLE_RADIUS * 1.98;
   const horizontalSpan = Math.max(size.x, size.z);
   if (horizontalSpan > 0) {
     model.scale.multiplyScalar(targetSpan / horizontalSpan);
