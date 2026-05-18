@@ -2183,122 +2183,6 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 
 const CHARACTER_MODEL_CACHE = new Map();
 
-function createThumbnailCharacterStandIn(theme = {}) {
-  const group = new THREE.Group();
-  group.name = `${theme.id || 'murlan'}-procedural-human-stand-in`;
-
-  const texture = theme.thumbnail ? new THREE.TextureLoader().load(theme.thumbnail) : null;
-  if (texture) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 4;
-    texture.userData = { ...(texture.userData || {}), murlanCanDispose: true };
-  }
-
-  const makeMaterial = (color, { roughness = 0.74, metalness = 0.03, map = null } = {}) =>
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color),
-      roughness,
-      metalness,
-      map
-    });
-
-  const skinMaterial = makeMaterial(theme.skinTone ?? 0xd2a07c, { roughness: 0.58, metalness: 0 });
-  const hairMaterial = makeMaterial(theme.hairColor ?? 0x21150f, { roughness: 0.68, metalness: 0.01 });
-  const jacketMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'jacket', 0).tint ?? 0x1f2937);
-  const shirtMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'shirt', 0).tint ?? 0xf8fafc);
-  const pantsMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'pants', 0).tint ?? 0x1f2937);
-  const shoeMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'shoes', 0).tint ?? 0x0f172a, { roughness: 0.62, metalness: 0.06 });
-  const tieMaterial = makeMaterial(resolveMurlanCharacterClothSlot(theme, 'tie', 0).tint ?? 0x8b0f16, { roughness: 0.7, metalness: 0.02 });
-
-  const addMesh = (mesh, position, rotation = null) => {
-    mesh.position.copy(position);
-    if (rotation) mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return mesh;
-  };
-
-  // Compact seated humanoid proportions matching the same seatRoot scale/offset path as GLB humans.
-  addMesh(
-    new THREE.Mesh(new THREE.CapsuleGeometry(0.18 * MODEL_SCALE, 0.36 * MODEL_SCALE, 8, 16), jacketMaterial),
-    new THREE.Vector3(0, 0.82 * MODEL_SCALE, 0)
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.2 * MODEL_SCALE, 0.28 * MODEL_SCALE, 0.035 * MODEL_SCALE), shirtMaterial),
-    new THREE.Vector3(0, 0.84 * MODEL_SCALE, 0.165 * MODEL_SCALE)
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.045 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.025 * MODEL_SCALE), tieMaterial),
-    new THREE.Vector3(0, 0.83 * MODEL_SCALE, 0.19 * MODEL_SCALE)
-  );
-
-  addMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.155 * MODEL_SCALE, 24, 18), skinMaterial),
-    new THREE.Vector3(0, 1.2 * MODEL_SCALE, 0.02 * MODEL_SCALE)
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.163 * MODEL_SCALE, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.54), hairMaterial),
-    new THREE.Vector3(0, 1.25 * MODEL_SCALE, 0.01 * MODEL_SCALE)
-  );
-
-  if (texture) {
-    const face = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.2 * MODEL_SCALE, 0.2 * MODEL_SCALE),
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0xffffff),
-        map: texture,
-        roughness: 0.5,
-        metalness: 0,
-        side: THREE.DoubleSide
-      })
-    );
-    addMesh(face, new THREE.Vector3(0, 1.2 * MODEL_SCALE, 0.162 * MODEL_SCALE));
-  }
-
-  const armGeometry = new THREE.CapsuleGeometry(0.045 * MODEL_SCALE, 0.34 * MODEL_SCALE, 8, 12);
-  addMesh(
-    new THREE.Mesh(armGeometry, jacketMaterial),
-    new THREE.Vector3(-0.23 * MODEL_SCALE, 0.77 * MODEL_SCALE, 0.12 * MODEL_SCALE),
-    { x: THREE.MathUtils.degToRad(58), z: THREE.MathUtils.degToRad(-18) }
-  );
-  addMesh(
-    new THREE.Mesh(armGeometry.clone(), jacketMaterial),
-    new THREE.Vector3(0.23 * MODEL_SCALE, 0.77 * MODEL_SCALE, 0.12 * MODEL_SCALE),
-    { x: THREE.MathUtils.degToRad(58), z: THREE.MathUtils.degToRad(18) }
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.052 * MODEL_SCALE, 14, 10), skinMaterial),
-    new THREE.Vector3(-0.31 * MODEL_SCALE, 0.61 * MODEL_SCALE, 0.26 * MODEL_SCALE)
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.052 * MODEL_SCALE, 14, 10), skinMaterial),
-    new THREE.Vector3(0.31 * MODEL_SCALE, 0.61 * MODEL_SCALE, 0.26 * MODEL_SCALE)
-  );
-
-  const legGeometry = new THREE.CapsuleGeometry(0.055 * MODEL_SCALE, 0.38 * MODEL_SCALE, 8, 12);
-  addMesh(
-    new THREE.Mesh(legGeometry, pantsMaterial),
-    new THREE.Vector3(-0.1 * MODEL_SCALE, 0.43 * MODEL_SCALE, 0.16 * MODEL_SCALE),
-    { x: THREE.MathUtils.degToRad(82), z: THREE.MathUtils.degToRad(-3) }
-  );
-  addMesh(
-    new THREE.Mesh(legGeometry.clone(), pantsMaterial),
-    new THREE.Vector3(0.1 * MODEL_SCALE, 0.43 * MODEL_SCALE, 0.16 * MODEL_SCALE),
-    { x: THREE.MathUtils.degToRad(82), z: THREE.MathUtils.degToRad(3) }
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.13 * MODEL_SCALE, 0.055 * MODEL_SCALE, 0.2 * MODEL_SCALE), shoeMaterial),
-    new THREE.Vector3(-0.1 * MODEL_SCALE, 0.24 * MODEL_SCALE, 0.39 * MODEL_SCALE)
-  );
-  addMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.13 * MODEL_SCALE, 0.055 * MODEL_SCALE, 0.2 * MODEL_SCALE), shoeMaterial),
-    new THREE.Vector3(0.1 * MODEL_SCALE, 0.24 * MODEL_SCALE, 0.39 * MODEL_SCALE)
-  );
-
-  return group;
-}
-
 async function loadCharacterModel(theme, renderer = null) {
   const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
@@ -2325,13 +2209,6 @@ async function loadCharacterModel(theme, renderer = null) {
       }
     }
     if (!gltf) {
-      if (theme?.thumbnail) {
-        console.warn('Using Murlan thumbnail stand-in for missing character GLB', {
-          characterId: theme.id,
-          urls
-        });
-        return createThumbnailCharacterStandIn(theme);
-      }
       throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
     }
     const root = gltf.scene || gltf.scenes?.[0];
@@ -3435,6 +3312,7 @@ const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.4 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
+const PLAYER_HAND_LOWER_OFFSET = 0.05 * MODEL_SCALE;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
@@ -4976,7 +4854,8 @@ export default function MurlanRoyaleArena({ search }) {
           HUMAN_HAND_UP_SHIFT_Y +
           aiExtraUpShift +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          PLAYER_HAND_UP_LIFT_ONE_CARD;
+          PLAYER_HAND_UP_LIFT_ONE_CARD -
+          PLAYER_HAND_LOWER_OFFSET;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : AI_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
