@@ -8586,24 +8586,16 @@ function Chess3D({
   }, [viewMode]);
 
   const runCaptureInTemporary3dView = useCallback((durationMs = 0) => {
-    if (typeof window === 'undefined') return;
+    // Capture effects should play from the exact camera angle the player chose.
+    // Older behavior temporarily switched 2D players into a forced 3D cinematic
+    // view and then restored them afterward, which made the board jump away from
+    // the user's side during combat animations. Keep the timing hook so capture
+    // animation scheduling stays unchanged, but intentionally leave the camera
+    // mode, OrbitControls target, zoom, and yaw/pitch untouched.
     const safeDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
     if (safeDurationMs <= 0) return;
-    if (viewModeRef.current !== '2d' && !restoreAutoViewTo2dRef.current) return;
-    if (forced3dAnimationCountRef.current === 0 && viewModeRef.current === '2d') {
-      restoreAutoViewTo2dRef.current = true;
-      setViewMode('3d');
-    }
-    forced3dAnimationCountRef.current += 1;
-    window.setTimeout(() => {
-      forced3dAnimationCountRef.current = Math.max(0, forced3dAnimationCountRef.current - 1);
-      if (forced3dAnimationCountRef.current === 0 && restoreAutoViewTo2dRef.current) {
-        if (viewModeRef.current === '3d') {
-          setViewMode('2d');
-        }
-        restoreAutoViewTo2dRef.current = false;
-      }
-    }, safeDurationMs + 140);
+    forced3dAnimationCountRef.current = 0;
+    restoreAutoViewTo2dRef.current = false;
   }, []);
 
   const customizationSections = useMemo(
@@ -14895,7 +14887,9 @@ function Chess3D({
                 wake: bulletWake
               };
               fx.liveBullets.push(bulletState);
-              if (isFatalBullet) activeBulletCameraFollow = bulletState;
+              // Keep the final bullet's cinematic trail/easing, but never hand
+              // camera control to it; players should keep their current view.
+              if (isFatalBullet) activeBulletCameraFollow = null;
               const shell = createFirearmShellMesh(fx.bulletProfile);
               const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
               shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.035);
