@@ -145,6 +145,10 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 2.08;
 const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.36;
 const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.5;
+const FOUR_IN_ROW_SCENE_VIEWPORT_LOWER_OFFSET = 'translateY(3.5vh)';
+const FOUR_IN_ROW_BOTTOM_USER_CHARACTER_DISTANCE =
+  CHAIR_DISTANCE + TARGET_CHAIR_SIZE.z * 0.92;
+const FOUR_IN_ROW_BOTTOM_USER_CHARACTER_SCALE = 0.86;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
 const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
   CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
@@ -1124,6 +1128,26 @@ function attachFourInRowSeatedCharacter({ template, chair, theme, isHumanSeat = 
   return createFourInRowCharacterRig(instance, seatRoot, { chair }, isHumanSeat);
 }
 
+function attachFourInRowBottomUserCharacter({ template, arenaRoot, theme }) {
+  if (!template || !arenaRoot) return null;
+  const anchor = new THREE.Group();
+  anchor.position.set(0, 0, FOUR_IN_ROW_BOTTOM_USER_CHARACTER_DISTANCE);
+  anchor.lookAt(0, 0, 0);
+  anchor.scale.setScalar(FOUR_IN_ROW_BOTTOM_USER_CHARACTER_SCALE);
+  arenaRoot.add(anchor);
+
+  const rig = attachFourInRowSeatedCharacter({
+    template,
+    chair: anchor,
+    theme,
+    isHumanSeat: true
+  });
+  if (rig?.seatRoot) {
+    rig.seatRoot.position.z += 0.1;
+  }
+  return rig;
+}
+
 function tintChairModel(model, chairTheme) {
   const seatColor = chairTheme?.seatColor || chairTheme?.primary || '#7f1d1d';
   const legColor = chairTheme?.legColor || '#111827';
@@ -1889,6 +1913,7 @@ export default function FourInRowRoyal() {
       })
     ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
       if (!arenaRootRef.current) return;
+      let bottomUserCharacterAdded = false;
       chairMeshesRef.current.forEach((chair, index) => {
         chair.clear();
         chair.add(chairTemplate.clone(true));
@@ -1903,6 +1928,14 @@ export default function FourInRowRoyal() {
           isHumanSeat: isPlayerSeat
         });
         if (rig) characterRigsRef.current.set(isPlayerSeat ? 'front' : 'back', rig);
+        if (isPlayerSeat && playerTemplate && !bottomUserCharacterAdded) {
+          bottomUserCharacterAdded = true;
+          attachFourInRowBottomUserCharacter({
+            template: playerTemplate,
+            arenaRoot,
+            theme: playerHumanOption
+          });
+        }
       });
     }).catch((error) => {
       console.warn('Four in Row chair model failed to load.', error);
@@ -2849,7 +2882,11 @@ export default function FourInRowRoyal() {
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-white">
-      <div ref={mountRef} className="absolute inset-0" />
+      <div
+        ref={mountRef}
+        className="absolute inset-0"
+        style={{ transform: FOUR_IN_ROW_SCENE_VIEWPORT_LOWER_OFFSET }}
+      />
 
       <div className="absolute inset-0 pointer-events-none z-20">
         <div className="absolute top-20 left-4 flex flex-col items-start gap-3 pointer-events-none">
