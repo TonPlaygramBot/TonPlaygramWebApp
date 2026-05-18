@@ -94,6 +94,8 @@ const CAMERA_FRAME_MATCH_SCALE =
   ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
 const CAMERA_CLOSER_RADIUS_FACTOR = 0.82;
 const CAMERA_HEIGHT_MATCH_BOOST = 1.22;
+const CAMERA_VIEW_LOWER_PAGE_OFFSET = 0.18;
+const BOTTOM_USER_CHARACTER_HEIGHT_MULTIPLIER = 1.18;
 const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT =
@@ -1124,6 +1126,64 @@ function attachFourInRowSeatedCharacter({ template, chair, theme, isHumanSeat = 
   return createFourInRowCharacterRig(instance, seatRoot, { chair }, isHumanSeat);
 }
 
+function poseFourInRowBottomUserCharacter(instance) {
+  const bones = {
+    hips: findFourInRowBone(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']),
+    spine: findFourInRowBone(instance, ['spine', 'chest', 'torso']),
+    head: findFourInRowBone(instance, ['head', 'neck', 'headjoint', 'head_joint']),
+    leftUpperArm: findFourInRowBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']),
+    leftForeArm: findFourInRowBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']),
+    leftHand: findFourInRowBone(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']),
+    rightUpperArm: findFourInRowBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']),
+    rightForeArm: findFourInRowBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']),
+    rightHand: findFourInRowBone(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']),
+    leftThigh: findFourInRowBone(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']),
+    rightThigh: findFourInRowBone(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r'])
+  };
+
+  addFourInRowBoneRotation(bones.hips, THREE.MathUtils.degToRad(-2), 0, 0);
+  addFourInRowBoneRotation(bones.spine, THREE.MathUtils.degToRad(4), 0, 0);
+  addFourInRowBoneRotation(bones.head, THREE.MathUtils.degToRad(-3), 0, 0);
+  addFourInRowBoneRotation(bones.leftUpperArm, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(9), THREE.MathUtils.degToRad(7));
+  addFourInRowBoneRotation(bones.leftForeArm, THREE.MathUtils.degToRad(-36), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(5));
+  addFourInRowBoneRotation(bones.leftHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(4));
+  addFourInRowBoneRotation(bones.rightUpperArm, THREE.MathUtils.degToRad(52), THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(-10));
+  addFourInRowBoneRotation(bones.rightForeArm, THREE.MathUtils.degToRad(-30), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-5));
+  addFourInRowBoneRotation(bones.rightHand, THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-4));
+  addFourInRowBoneRotation(bones.leftThigh, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(1));
+  addFourInRowBoneRotation(bones.rightThigh, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+}
+
+function attachFourInRowBottomUserCharacter({ template, arenaRoot, theme }) {
+  if (!template || !arenaRoot) return null;
+  const instance = cloneSkeleton(template);
+  preserveOriginalGltfTextureMapping(instance);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+  normalizeFourInRowCharacterPivot(instance);
+  poseFourInRowBottomUserCharacter(instance);
+
+  const userRoot = new THREE.Group();
+  const bounds = getFourInRowRenderableMeshBounds(instance) || new THREE.Box3().setFromObject(instance);
+  const measuredHeight = Math.max(0.01, bounds.max.y - bounds.min.y);
+  const adapterScale = instance.userData?.seatedScaleMultiplier ?? 1;
+  const targetHeight = TARGET_CHAIR_SIZE.y * BOTTOM_USER_CHARACTER_HEIGHT_MULTIPLIER;
+  userRoot.scale.setScalar((targetHeight / measuredHeight) * adapterScale);
+  userRoot.position.set(
+    TABLE_RADIUS * 0.55,
+    0,
+    CHAIR_DISTANCE + CHAIR_GAP * 0.18
+  );
+  userRoot.lookAt(0, TABLE_HEIGHT * 0.62, 0);
+  userRoot.rotateY(theme?.bottomUserYawOffset ?? 0);
+  userRoot.add(instance);
+  arenaRoot.add(userRoot);
+  return userRoot;
+}
+
 function tintChairModel(model, chairTheme) {
   const seatColor = chairTheme?.seatColor || chairTheme?.primary || '#7f1d1d';
   const legColor = chairTheme?.legColor || '#111827';
@@ -1795,7 +1855,7 @@ export default function FourInRowRoyal() {
       CAMERA_CLOSER_RADIUS_FACTOR;
     perspective.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
-      arenaRoot.position.y + TABLE_HEIGHT + cameraHeightOffset,
+      arenaRoot.position.y + TABLE_HEIGHT + cameraHeightOffset + CAMERA_VIEW_LOWER_PAGE_OFFSET,
       Math.sin(cameraSeatAngle) * cameraRadius
     );
     perspectiveCameraRef.current = perspective;
@@ -1804,7 +1864,7 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.07, 0);
+    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.07 + CAMERA_VIEW_LOWER_PAGE_OFFSET, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
@@ -1903,6 +1963,11 @@ export default function FourInRowRoyal() {
           isHumanSeat: isPlayerSeat
         });
         if (rig) characterRigsRef.current.set(isPlayerSeat ? 'front' : 'back', rig);
+      });
+      attachFourInRowBottomUserCharacter({
+        template: playerTemplate,
+        arenaRoot,
+        theme: playerHumanOption
       });
     }).catch((error) => {
       console.warn('Four in Row chair model failed to load.', error);
