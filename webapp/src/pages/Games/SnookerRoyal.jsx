@@ -24,8 +24,8 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
-import '../../../../pool-royale-power-slider.css';
+import { SnookerRoyalPowerSlider } from '../../../../snooker-royale-power-slider.js';
+import '../../../../snooker-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -14497,6 +14497,9 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotVisualPowerRef = useRef(0);
+const committedShotPowerRef = useRef(0);
+const sliderDraggingRef = useRef(false);
+const sliderResetTimerRef = useRef(null);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14508,6 +14511,12 @@ const shotVisualPowerRef = useRef(0);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
+  useEffect(() => () => {
+    if (sliderResetTimerRef.current) {
+      clearTimeout(sliderResetTimerRef.current);
+      sliderResetTimerRef.current = null;
+    }
+  }, []);
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -23168,13 +23177,22 @@ const shotVisualPowerRef = useRef(0);
             if (shotImpactApplied) return false;
             shotImpactApplied = true;
             shotImpulseApplied = true;
-            cue.vel.copy(base);
+            const impactPower = THREE.MathUtils.clamp(
+              committedShotPowerRef.current || clampedPower,
+              0,
+              1
+            );
+            const impactPowerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * impactPower;
+            const impactBase = aimDir
+              .clone()
+              .multiplyScalar(speedBase * impactPowerScale);
+            cue.vel.copy(impactBase);
             const sideThrow = TMP_VEC2_A
               .set(aimDir.y, -aimDir.x)
               .normalize()
               .multiplyScalar(
                 (spinSide ?? 0) *
-                  clampedPower *
+                  impactPower *
                   1.05 *
                   WORLD_SCALE *
                   SNOOKER_PROVIDED_SHOT_POWER_BOOST
@@ -23189,8 +23207,8 @@ const shotVisualPowerRef = useRef(0);
               if (launchSpeed > 1e-6) {
                 TMP_VEC3_CUE_DIR.set(cue.vel.y, 0, -cue.vel.x).normalize();
                 cue.omega.addScaledVector(TMP_VEC3_CUE_DIR, launchSpeed / BALL_R);
-                cue.omega.x += -(spinTop ?? 0) * clampedPower * 18;
-                cue.omega.z += -(spinSide ?? 0) * clampedPower * 18;
+                cue.omega.x += -(spinTop ?? 0) * impactPower * 18;
+                cue.omega.z += -(spinSide ?? 0) * impactPower * 18;
               }
             }
             cue.lastShotSpin = { x: spinSide ?? 0, y: spinTop ?? 0 };
@@ -23208,12 +23226,12 @@ const shotVisualPowerRef = useRef(0);
             cue.liftVel = 0;
             const topSpinWeight = Math.max(0, physicsSpin.y || 0);
             if (
-              clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+              impactPower >= JUMP_SHOT_POWER_THRESHOLD &&
               liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
               topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
             ) {
               const powerRatio = THREE.MathUtils.clamp(
-                (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+                (impactPower - JUMP_SHOT_POWER_THRESHOLD) /
                   Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
                 0,
                 1
@@ -23245,7 +23263,7 @@ const shotVisualPowerRef = useRef(0);
               cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
               cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
             }
-            playCueHit(clampedPower * 0.6);
+            playCueHit(impactPower * 0.6);
             return true;
           };
 
@@ -27644,23 +27662,42 @@ const shotVisualPowerRef = useRef(0);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
+    const slider = new SnookerRoyalPowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
+        sliderDraggingRef.current = true;
+        if (sliderResetTimerRef.current) {
+          clearTimeout(sliderResetTimerRef.current);
+          sliderResetTimerRef.current = null;
+        }
         captureCueStickAnchor();
       },
       onCommit: (value) => {
         const normalized = THREE.MathUtils.clamp(value / 100, 0, 1);
+        sliderDraggingRef.current = false;
+        committedShotPowerRef.current = normalized;
+        shotVisualPowerRef.current = normalized;
         applyPower(normalized);
-        fireRef.current?.(normalized);
-        requestAnimationFrame(() => {
-          slider.animateToMin({ duration: 180 });
+        if (normalized > 0.02) {
+          fireRef.current?.(normalized);
+        }
+        slider.animateToMin({ duration: 180 });
+        if (sliderResetTimerRef.current) {
+          clearTimeout(sliderResetTimerRef.current);
+          sliderResetTimerRef.current = null;
+        }
+        const resetDelay = normalized > 0.02
+          ? CUE_LOGIC_STRIKE_TIME_MS + CUE_LOGIC_HOLD_TIME_MS + 180
+          : 180;
+        sliderResetTimerRef.current = window.setTimeout(() => {
+          sliderResetTimerRef.current = null;
+          committedShotPowerRef.current = 0;
           applyPower(0);
-        });
+        }, resetDelay);
       }
     });
     sliderInstanceRef.current = slider;
