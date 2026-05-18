@@ -86,7 +86,8 @@ const CHAIR_BASE_HEIGHT =
 const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE;
+const CHECKERS_BOARD_VISUAL_SCALE = 0.82;
+const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE * CHECKERS_BOARD_VISUAL_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
@@ -114,7 +115,7 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
 // keep them readable while matching the smaller table/chair/board presentation.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.62;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.95;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
@@ -137,11 +138,11 @@ const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
-const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.3;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.12;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 const PLAYER_FACE_CAMERA_RADIUS =
   TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.68 * CHECKERS_ARENA_SCALE;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
@@ -322,6 +323,7 @@ const CHAIR_GROUND_SINK = 0.44;
 // so they match the reduced table, board, and seated-human scale.
 const CHAIR_VISUAL_SCALE = 1.14;
 const CHAIR_VISUAL_HEIGHT_SCALE = 1.04;
+const CHAIR_NON_POLYHAVEN_SIDE_SCALE = 0.6;
 const CHAIR_TARGET_SCALE_FACTOR = 0.76;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -393,8 +395,8 @@ const applyBottomPlayerFaceCamera = (camera, look = { yaw: 0, pitch: 0 }) => {
 };
 const CHECKER_PIECE_SCALE = 0.92;
 // Keep chips seated directly on the board surface in portrait view.
-const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.01;
-const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.055;
+const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.004;
+const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.018;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -2250,6 +2252,8 @@ export default function CheckersBattleRoyal() {
         CHESS_CHAIR_OPTIONS.find((c) => c.id === chairId) || CHESS_CHAIR_OPTIONS[0];
       const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
       const legColor = chairOption?.legColor || '#111827';
+      const chairSideScale =
+        chairOption?.source === 'polyhaven' ? 1 : CHAIR_NON_POLYHAVEN_SIDE_SCALE;
 
       chairsRef.current.forEach((chair) => {
         chair?.parent?.remove?.(chair);
@@ -2279,9 +2283,9 @@ export default function CheckersBattleRoyal() {
           });
         }
         g.scale.set(
-          CHAIR_VISUAL_SCALE,
+          CHAIR_VISUAL_SCALE * chairSideScale,
           CHAIR_VISUAL_SCALE * CHAIR_VISUAL_HEIGHT_SCALE,
-          CHAIR_VISUAL_SCALE
+          CHAIR_VISUAL_SCALE * chairSideScale
         );
         g.position.set(0, CHAIR_HEIGHT, z);
         g.rotation.y = ry;
@@ -2307,9 +2311,9 @@ export default function CheckersBattleRoyal() {
         const makeFallback = (z, ry) => {
           const g = createProceduralChairFallback(chairColor, legColor);
           g.scale.set(
-            CHAIR_VISUAL_SCALE,
+            CHAIR_VISUAL_SCALE * chairSideScale,
             CHAIR_VISUAL_SCALE * CHAIR_VISUAL_HEIGHT_SCALE,
-            CHAIR_VISUAL_SCALE
+            CHAIR_VISUAL_SCALE * chairSideScale
           );
           g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
