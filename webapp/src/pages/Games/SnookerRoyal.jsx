@@ -24,8 +24,8 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
-import { SnookerRoyalPowerSlider } from '../../../../snooker-royale-power-slider.js';
-import '../../../../snooker-royale-power-slider.css';
+import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -1667,6 +1667,172 @@ const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance whi
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+
+
+const SNOOKER_PROVIDED_WORLD_SCALE = BALL_R / 0.0525;
+const CFG = {
+  scale: SNOOKER_PROVIDED_WORLD_SCALE,
+  tableTopY: CUE_Y,
+  tableW: PLAY_W,
+  tableL: PLAY_H,
+  tableVisualMultiplier: 1.08,
+  railH: 0.08 * SNOOKER_PROVIDED_WORLD_SCALE,
+  ballR: BALL_R,
+  friction: 1.18,
+  restitution: 0.92,
+  minSpeed2: 0.00045 * SNOOKER_PROVIDED_WORLD_SCALE * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleGap: 0.012 * SNOOKER_PROVIDED_WORLD_SCALE,
+  contactGap: SNOOKER_PROVIDED_CONTACT_GAP,
+  pullRange: 0.42 * SNOOKER_PROVIDED_WORLD_SCALE,
+  strikeTime: 0.12,
+  holdTime: 0.05,
+  cueLength: 1.78 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeDist: 0.28 * SNOOKER_PROVIDED_WORLD_SCALE,
+  edgeMargin: 0.5 * SNOOKER_PROVIDED_WORLD_SCALE,
+  desiredShootDistance: 0.82 * SNOOKER_PROVIDED_WORLD_SCALE,
+  poseLambda: 9,
+  moveLambda: 5.6,
+  rotLambda: 8.5,
+  humanScale: 1.2 * 1.78 * SNOOKER_PROVIDED_WORLD_SCALE,
+  humanVisualYawFix: Math.PI,
+  stanceWidth: 0.52 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgePalmTableLift: 0.006 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeCueLift: 0.018 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeHandBackFromBall: 0.235 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeHandSide: -0.115 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeVGrooveForward: 0.026 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgeVGrooveSide: -0.032 * SNOOKER_PROVIDED_WORLD_SCALE,
+  bridgePalmUnderCueDrop: 0.052 * SNOOKER_PROVIDED_WORLD_SCALE,
+  chinToCueHeight: 0.11 * SNOOKER_PROVIDED_WORLD_SCALE,
+  footGroundY: 0.035 * SNOOKER_PROVIDED_WORLD_SCALE,
+  footLockStrength: 1,
+  kneeBendShot: 0.16 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightElbowShotRise: 0.18 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightElbowShotSide: -0.46 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightElbowShotBack: -0.78 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightForearmOutward: 0.36 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightForearmBack: 0.44 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightForearmDown: 0.48 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightForearmLength: 0.34 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightStrokePull: 0.30 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightStrokePush: 0.24 * SNOOKER_PROVIDED_WORLD_SCALE,
+  rightHandShotLift: -0.30 * SNOOKER_PROVIDED_WORLD_SCALE,
+  shootCueGripFromBack: 0.58 * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleRightHandY: 0.8 * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleRightHandX: 0.31 * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleRightHandZ: -0.015 * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleCueGripFromBack: 0.24 * SNOOKER_PROVIDED_WORLD_SCALE,
+  idleCueDir: new THREE.Vector3(0.055, 0.965, -0.13),
+  rightHandRollIdle: -2.2,
+  rightHandRollShoot: -2.05,
+  rightHandDownPose: 0.42,
+  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(SNOOKER_PROVIDED_WORLD_SCALE)
+};
+const UP = new THREE.Vector3(0, 1, 0);
+const BASIS_MAT = new THREE.Matrix4();
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function enableShadow(obj) {
+  obj.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.frustumCulled = false;
+    }
+  });
+  return obj;
+}
+function createCue() {
+  const group = new THREE.Group();
+  const SCALE = CFG.ballR / (0.0525);
+  const shaftMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd8b17d,
+    roughness: 0.34,
+    metalness: 0,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.24
+  });
+  const ferruleMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xf8fafc,
+    roughness: 0.22,
+    metalness: 0.04,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.18
+  });
+  const tipMaterial = new THREE.MeshStandardMaterial({ color: 0x1f3f73, roughness: 0.95, metalness: 0 });
+  const bandMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x111827,
+    roughness: 0.32,
+    metalness: 0.08,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.2
+  });
+  const ringMaterial = new THREE.MeshPhysicalMaterial({ color: 0xc07a2d, roughness: 0.38, metalness: 0.62 });
+  const makeSegment = (name, material, radialSegments = 40) => {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, radialSegments), material);
+    mesh.name = `snooker-royal-cue-${name}`;
+    enableShadow(mesh);
+    group.add(mesh);
+    return mesh;
+  };
+  const rearShaft = makeSegment('rear-tapered-shaft', shaftMaterial, 48);
+  const frontShaft = makeSegment('front-tapered-shaft', shaftMaterial, 48);
+  const butt = makeSegment('rounded-butt', shaftMaterial, 56);
+  const stripe = makeSegment('butt-stripe-wrap', bandMaterial, 64);
+  const ring = makeSegment('brass-ring', ringMaterial, 48);
+  const ferrule = makeSegment('ferrule', ferruleMaterial, 40);
+  const tip = makeSegment('blue-leather-tip', tipMaterial, 32);
+  const buttCap = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), shaftMaterial);
+  buttCap.name = 'snooker-royal-cue-rounded-butt-cap';
+  enableShadow(buttCap);
+  group.add(buttCap);
+  return { group, rearShaft, frontShaft, butt, stripe, ring, ferrule, tip, buttCap, scale: SCALE };
+}
+function setSegmentTaper(mesh, a, b, radiusTop, radiusBottom = radiusTop) {
+  const dir = b.clone().sub(a);
+  const len = Math.max(0.0001, dir.length());
+  const geomKey = `${radiusTop.toFixed(5)}:${radiusBottom.toFixed(5)}:${len.toFixed(5)}`;
+  if (mesh.userData?.geomKey !== geomKey) {
+    mesh.geometry?.dispose?.();
+    mesh.geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, len, 48);
+    mesh.userData = { ...(mesh.userData || {}), geomKey };
+  }
+  mesh.position.copy(a).addScaledVector(dir, 0.5);
+  mesh.quaternion.setFromUnitVectors(UP, dir.normalize());
+  mesh.scale.set(1, 1, 1);
+}
+function setCuePose(cue, back, tip) {
+  const dir = tip.clone().sub(back).normalize();
+  const totalLength = tip.distanceTo(back);
+  const rearLength = totalLength * 0.62;
+  const frontLength = totalLength - rearLength;
+  const tipRadius = 0.008 * CFG.scale;
+  const joinRadius = 0.0165 * CFG.scale;
+  const buttRadius = 0.026 * CFG.scale;
+  const buttLength = Math.min(rearLength * 0.36, 0.52 * CFG.scale);
+  const stripeLength = Math.min(rearLength * 0.34, 0.48 * CFG.scale);
+  const ferruleLength = 0.038 * CFG.scale;
+  const tipLength = 0.024 * CFG.scale;
+  const p0 = back.clone();
+  const buttEnd = p0.clone().addScaledVector(dir, buttLength);
+  const rearEnd = back.clone().addScaledVector(dir, rearLength);
+  const ferruleBack = tip.clone().addScaledVector(dir, -(ferruleLength + tipLength));
+  const tipBack = tip.clone().addScaledVector(dir, -tipLength);
+  setSegmentTaper(cue.butt, p0, buttEnd, buttRadius, buttRadius * 1.04);
+  setSegmentTaper(cue.rearShaft, buttEnd, rearEnd, joinRadius, buttRadius * 0.92);
+  setSegmentTaper(cue.frontShaft, rearEnd, ferruleBack, tipRadius, joinRadius);
+  setSegmentTaper(cue.ferrule, ferruleBack, tipBack, tipRadius * 1.08, tipRadius * 1.18);
+  setSegmentTaper(cue.tip, tipBack, tip, tipRadius * 1.05, tipRadius * 1.05);
+  const stripeStart = back.clone().addScaledVector(dir, Math.max(buttLength * 0.28, rearLength * 0.18));
+  const stripeEnd = stripeStart.clone().addScaledVector(dir, stripeLength);
+  setSegmentTaper(cue.stripe, stripeStart, stripeEnd, buttRadius * 1.012, buttRadius * 1.012);
+  const ringStart = rearEnd.clone().addScaledVector(dir, -0.022 * CFG.scale);
+  setSegmentTaper(cue.ring, ringStart, rearEnd, joinRadius * 1.08, joinRadius * 1.12);
+  cue.buttCap.position.copy(back);
+  cue.buttCap.scale.setScalar(buttRadius * 1.08);
+}
 
 
 const SNOOKER_HUMAN_CHARACTER_THEME =
@@ -19947,6 +20113,7 @@ const sliderResetTimerRef = useRef(null);
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
             cueAnimating = false;
             return;
           }
@@ -19980,6 +20147,7 @@ const sliderResetTimerRef = useRef(null);
               : cuePath[0]?.pos?.clone?.() ?? null;
             if (!cuePos) {
               cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
               cueAnimating = false;
               return;
             }
@@ -20080,6 +20248,7 @@ const sliderResetTimerRef = useRef(null);
           if (!warmupSnap || !startSnap || !impactSnap || !settleSnap || !idleSnap) {
             if (!applyCueSnapshot()) {
               cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
               cueAnimating = false;
             }
             return;
@@ -20266,6 +20435,7 @@ const sliderResetTimerRef = useRef(null);
                 cueStick.rotation.x = stroke.rotationX;
               }
               cueStick.visible = true;
+          providedCueStick.group.visible = true;
               cueAnimating = true;
               return;
             }
@@ -20291,6 +20461,7 @@ const sliderResetTimerRef = useRef(null);
               cuePos.y = CUE_Y;
               cueStick.position.copy(cuePos);
               cueStick.visible = true;
+          providedCueStick.group.visible = true;
               cueAnimating = true;
               return;
             }
@@ -20299,6 +20470,7 @@ const sliderResetTimerRef = useRef(null);
           if (cueBall?.pos) {
             cueStick.position.set(cueBall.pos.x, CUE_Y, cueBall.pos.y - CUE_TIP_GAP);
             cueStick.visible = true;
+          providedCueStick.group.visible = true;
             cueAnimating = true;
           }
         };
@@ -20393,6 +20565,7 @@ const sliderResetTimerRef = useRef(null);
           }
           if (cueStick) {
             cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
           }
           cueAnimating = false;
           if (playback.pocketDrops) {
@@ -21709,10 +21882,12 @@ const sliderResetTimerRef = useRef(null);
       const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
+      const providedCueStick = createCue();
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
       cueStick.userData.isCueStick = true;
       cueBodyRef.current = cueBody;
+      cueBody.visible = false;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
@@ -21771,6 +21946,8 @@ const sliderResetTimerRef = useRef(null);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
         cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
+        setCuePose(providedCueStick, TMP_VEC3_BUTT, tipTarget);
+        providedCueStick.group.visible = cueStick.visible;
       };
       const clampCueButtAboveCushion = (tipTarget) => {
         if (!tipTarget) return;
@@ -22014,7 +22191,13 @@ const sliderResetTimerRef = useRef(null);
       applyCueButtTilt(cueStick, 0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
       table.add(cueStick);
+      table.add(providedCueStick.group);
+      cueMaterialsRef.current.shaft = providedCueStick.rearShaft.material;
+      cueMaterialsRef.current.buttMaterial = providedCueStick.butt.material;
+      cueMaterialsRef.current.buttCapMaterial = providedCueStick.buttCap.material;
+      cueMaterialsRef.current.stripe = providedCueStick.stripe.material;
       const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
@@ -23376,6 +23559,7 @@ const sliderResetTimerRef = useRef(null);
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           cueStick.visible = true;
+          providedCueStick.group.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -23441,6 +23625,7 @@ const sliderResetTimerRef = useRef(null);
           const animateStroke = (now) => {
             if (!ENABLE_CUE_STROKE_ANIMATION) {
               cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
               cueAnimating = false;
               shotVisualPowerRef.current = 0;
               cuePullCurrentRef.current = 0;
@@ -23477,6 +23662,7 @@ const sliderResetTimerRef = useRef(null);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
               cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
               cueAnimating = false;
               shotVisualPowerRef.current = 0;
               cuePullCurrentRef.current = 0;
@@ -23498,6 +23684,7 @@ const sliderResetTimerRef = useRef(null);
           } else {
             applyShotImpactAtCueContact();
             cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
             cueAnimating = false;
             shotVisualPowerRef.current = 0;
             cuePullCurrentRef.current = 0;
@@ -26272,6 +26459,7 @@ const sliderResetTimerRef = useRef(null);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
+          providedCueStick.group.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -26426,6 +26614,7 @@ const sliderResetTimerRef = useRef(null);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
+          providedCueStick.group.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -26526,6 +26715,7 @@ const sliderResetTimerRef = useRef(null);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
+          providedCueStick.group.visible = true;
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -26538,6 +26728,7 @@ const sliderResetTimerRef = useRef(null);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
+          if (typeof providedCueStick !== 'undefined') providedCueStick.group.visible = false;
           updateChalkVisibility(null);
         }
 
@@ -27662,9 +27853,12 @@ const sliderResetTimerRef = useRef(null);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new SnookerRoyalPowerSlider({
+    const slider = new PoolRoyalePowerSlider({
       mount,
-      value: powerRef.current * 100,
+      value: 0,
+      min: 0,
+      max: 100,
+      step: 1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),

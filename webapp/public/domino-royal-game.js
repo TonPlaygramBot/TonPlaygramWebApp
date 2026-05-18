@@ -6718,12 +6718,14 @@ const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 // Keep player-hand dominoes compact, with opponent hands tucked lower and
 // closer to the tabletop center while the bottom player's hand anchor stays fixed.
 const PLAYER_HAND_TILE_SCALE = 0.9;
-const HUMAN_PLAYER_HAND_TILE_SCALE = 0.78;
+const HUMAN_PLAYER_HAND_TILE_SCALE = 0.74;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.6;
+const PLAYER_HAND_OPPONENT_OUTWARD_EXTRA = DOMINO_WIDTH * 0.28;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.45;
+const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.18;
 const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.4;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
@@ -8277,10 +8279,10 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.98 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 1.02 * MODEL_SCALE;
 // Keep the non-bottom players' held domino fans lifted and pushed farther
 // outward so their hands read clearly around the top and side seats.
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.96 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 1.0 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 1.04 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.04 * MODEL_SCALE;
 
@@ -8307,7 +8309,7 @@ function createHeldDominoRack(seatIndex, handTiles = []) {
     (isBottom ? -0.2 * MODEL_SCALE : -1.66 * MODEL_SCALE) - outwardOffset
   );
   rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
-  rack.scale.setScalar(isBottom ? 1.18 : 1.02);
+  rack.scale.setScalar(isBottom ? 1.12 : 1.02);
   rack.userData.signature = desiredSignature;
   rack.userData.dispose = () => {};
   return rack;
@@ -9221,13 +9223,14 @@ function computeHandSlotPosition(
   const handVerticalDrop = isHuman ? 0 : PLAYER_HAND_CENTER_VERTICAL_DROP;
   const handY = openFlat
     ? CLOTH_TOP + 0.016
-    : HAND_Y + PLAYER_HAND_VERTICAL_RAISE - handVerticalDrop;
+    : HAND_Y + PLAYER_HAND_VERTICAL_RAISE - handVerticalDrop +
+      (isHuman ? 0 : PLAYER_HAND_OPPONENT_VERTICAL_EXTRA);
   const safeCount = Math.max(1, handCount | 0);
   const safeSlot = THREE.MathUtils.clamp(slotIndex | 0, 0, safeCount - 1);
   const seatLength = Math.hypot(x0, z0) || 1;
   const handOutwardOffset = isHuman && !openFlat
     ? HUMAN_PLAYER_HAND_OUTWARD_OFFSET
-    : PLAYER_HAND_OUTWARD_OFFSET;
+    : PLAYER_HAND_OUTWARD_OFFSET + PLAYER_HAND_OPPONENT_OUTWARD_EXTRA;
   const outwardX = (x0 / seatLength) * handOutwardOffset;
   const outwardZ = (z0 / seatLength) * handOutwardOffset;
 
