@@ -1743,9 +1743,14 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
   player.hitThisSwing = true;
 }
 
-function canReachBall(player: HumanRig, ball: BallState) {
+function hasBouncedForReceiver(player: HumanRig, ball: BallState) {
+  return ball.lastHitBy !== null && ball.lastHitBy !== player.side && ball.bounceSide === player.side && ball.bounceCount >= 1;
+}
+
+function canReachBall(player: HumanRig, ball: BallState, requireBounce = true) {
   if (player.cooldown > 0) return false;
   if (sideOfZ(ball.pos.z) !== player.side && ball.lastHitBy !== null) return false;
+  if (requireBounce && !hasBouncedForReceiver(player, ball)) return false;
   if (ball.pos.y < 0.16 * CFG.worldScale || ball.pos.y > 1.62 * CFG.playerHeight / 1.82) return false;
   const pose = strokePose(player, ball);
   const dx = ball.pos.x - pose.racketHead.x;
@@ -1834,9 +1839,67 @@ function predictLanding(ball: BallState) {
     v.multiplyScalar(Math.exp(-CFG.airDrag * dt));
     spin *= Math.exp(-1.25 * dt);
     p.addScaledVector(v, dt);
-    if (p.y <= CFG.ballR) return p;
+    if (p.y <= CFG.ballR) return p.setY(CFG.ballR);
   }
   return p;
+}
+
+type ReceiverPlayPrediction = { landing: THREE.Vector3; contact: THREE.Vector3; footTarget: THREE.Vector3; postBounce: boolean };
+
+function predictReceiverPlay(ball: BallState, side: PlayerSide): ReceiverPlayPrediction {
+  const p = ball.pos.clone();
+  const v = ball.vel.clone();
+  let spin = ball.spin;
+  const dt = 1 / 90;
+  const backSign = side === "near" ? 1 : -1;
+  let landing: THREE.Vector3 | null = null;
+  let postBounce = false;
+  let contact: THREE.Vector3 | null = null;
+
+  for (let i = 0; i < 260; i++) {
+    const spinDip = Math.max(0, spin) * 0.11;
+    const spinLift = Math.max(0, -spin) * 0.035;
+    v.y -= CFG.gravity * (1 + spinDip - spinLift) * dt;
+    if (ball.lastHitBy && Math.abs(v.z) > 0.001) {
+      const forwardSign = ball.lastHitBy === "near" ? -1 : 1;
+      v.z += forwardSign * spin * 0.14 * CFG.worldScale * dt;
+      v.x += Math.sin(spin * 0.65) * 0.022 * CFG.worldScale * dt;
+    }
+    v.multiplyScalar(Math.exp(-CFG.airDrag * dt));
+    p.addScaledVector(v, dt);
+    spin *= Math.exp(-1.25 * dt);
+
+    if (p.y <= CFG.ballR && v.y < 0) {
+      p.y = CFG.ballR;
+      if (!landing) landing = p.clone();
+      const forwardSign = ball.lastHitBy === "near" ? -1 : ball.lastHitBy === "far" ? 1 : Math.sign(v.z || 1);
+      const forwardSpeed = Math.max(0, Math.abs(v.z) * CFG.groundFriction + Math.max(-1.1, Math.min(1.1, spin)) * 0.08 * CFG.worldScale);
+      v.y = Math.max(0.18 * CFG.worldScale, -v.y * CFG.bounceRestitution * clamp(1 - Math.max(0, spin) * 0.03, 0.84, 1.04));
+      v.x = v.x * CFG.groundFriction + Math.sign(v.x || Math.sin(spin) || 1) * Math.min(Math.abs(spin) * 0.022 * CFG.worldScale, 0.09 * CFG.worldScale);
+      v.z = forwardSign * forwardSpeed;
+      spin *= -0.32;
+      postBounce = true;
+    }
+
+    const onReceiverSide = side === "near" ? p.z > CFG.serviceBuffer * 0.5 : p.z < -CFG.serviceBuffer * 0.5;
+    if (postBounce && onReceiverSide && p.y >= CFG.minContactHeight * 0.86 && p.y <= CFG.maxContactHeight * 0.96) {
+      contact = p.clone();
+      break;
+    }
+  }
+
+  const fallbackLanding = landing ?? predictLanding(ball);
+  const contactPoint = contact ?? fallbackLanding.clone().setY(clamp(CFG.minContactHeight * 1.05, CFG.ballR, CFG.maxContactHeight));
+  const footTarget = new THREE.Vector3(
+    clamp(contactPoint.x, -CFG.courtW / 2 + 0.38 * CFG.worldScale, CFG.courtW / 2 - 0.38 * CFG.worldScale),
+    0,
+    clamp(
+      contactPoint.z + backSign * 1.18 * CFG.worldScale,
+      side === "near" ? 0.82 * CFG.worldScale : -CFG.courtL / 2 + 0.72 * CFG.worldScale,
+      side === "near" ? CFG.courtL / 2 - 0.58 * CFG.worldScale : -0.82 * CFG.worldScale
+    )
+  );
+  return { landing: fallbackLanding, contact: contactPoint, footTarget, postBounce };
 }
 
 export default function MobileThreeTennisPrototype() {
@@ -2093,15 +2156,13 @@ export default function MobileThreeTennisPrototype() {
       if (ball.pos.y <= CFG.ballR) {
         ball.pos.y = CFG.ballR;
         if (ball.vel.y < 0) {
-          const incomingZ = ball.vel.z;
           const forwardSign = ball.lastHitBy === "near" ? -1 : ball.lastHitBy === "far" ? 1 : Math.sign(ball.vel.z || 1);
-          ball.vel.y = -ball.vel.y * CFG.bounceRestitution;
-          ball.vel.x *= CFG.groundFriction;
-          ball.vel.z *= CFG.groundFriction;
-          ball.vel.z += forwardSign * ball.spin * 0.25 * CFG.worldScale;
-          ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.038 * CFG.worldScale;
-          ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.045, 0.8, 1.06);
-          if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
+          const spinKick = clamp(ball.spin, -1.1, 1.1) * 0.08 * CFG.worldScale;
+          const forwardSpeed = Math.max(0.04 * CFG.worldScale, Math.abs(ball.vel.z) * CFG.groundFriction + spinKick);
+          ball.vel.y = Math.max(0.18 * CFG.worldScale, -ball.vel.y * CFG.bounceRestitution);
+          ball.vel.x = ball.vel.x * CFG.groundFriction + Math.sign(ball.vel.x || Math.sin(ball.spin) || 1) * Math.min(Math.abs(ball.spin) * 0.022 * CFG.worldScale, 0.09 * CFG.worldScale);
+          ball.vel.z = forwardSign * forwardSpeed;
+          ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.03, 0.84, 1.04);
           ball.spin *= -0.32;
           const bounceSide = sideOfZ(ball.pos.z);
           audioVfx.play("bounce");
@@ -2159,14 +2220,8 @@ export default function MobileThreeTennisPrototype() {
         return;
       }
 
-      const autoTarget = landing.clone();
-      autoTarget.x = clamp(autoTarget.x, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
-      autoTarget.z = clamp(
-        autoTarget.z + CFG.playerAutoChase.anticipation * CFG.worldScale,
-        0.82 * CFG.worldScale,
-        CFG.courtL / 2 - 0.58 * CFG.worldScale
-      );
-      nearPlayer.target.lerp(autoTarget, 1 - Math.exp(-CFG.playerAutoChase.maxBlendPerSecond * dt));
+      const play = predictReceiverPlay(ball, "near");
+      nearPlayer.target.lerp(play.footTarget, 1 - Math.exp(-CFG.playerAutoChase.maxBlendPerSecond * dt));
       PlayerController.clampMovement(nearPlayer.target, "near");
     }
 
@@ -2186,17 +2241,13 @@ export default function MobileThreeTennisPrototype() {
 
       const ballComingToAi = ball.lastHitBy === "near" && (ball.pos.z < 0.65 * CFG.worldScale || landing.z < 0);
       if (ballComingToAi) {
-        farPlayer.target.x = clamp(landing.x, -CFG.courtW / 2 + 0.35 * CFG.worldScale, CFG.courtW / 2 - 0.35 * CFG.worldScale);
-        farPlayer.target.z = clamp(
-          Math.min(-0.95 * CFG.worldScale, landing.z + 0.22 * CFG.worldScale),
-          -CFG.courtL / 2 + 0.7 * CFG.worldScale,
-          -0.82 * CFG.worldScale
-        );
+        const play = predictReceiverPlay(ball, "far");
+        farPlayer.target.copy(play.footTarget);
       } else {
         farPlayer.target.lerp(home, 0.035);
       }
 
-      if (ballComingToAi && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
+      if (ballComingToAi && hasBouncedForReceiver(farPlayer, ball) && canReachBall(farPlayer, ball) && farPlayer.swingT === 0) {
         startSwing(farPlayer, makeAiTarget(nearPlayer, ball), "forehand");
       }
     }

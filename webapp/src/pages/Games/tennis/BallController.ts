@@ -46,15 +46,13 @@ export class BallController {
       ball.pos.y = gameConfig.ballR;
       if (ball.vel.y < 0) {
         ball.state = TennisBallState.CourtBounce;
-        const incomingZ = ball.vel.z;
         const forwardSign = ball.lastHitBy === "near" ? -1 : ball.lastHitBy === "far" ? 1 : Math.sign(ball.vel.z || 1);
-        ball.vel.y = -ball.vel.y * gameConfig.bounceRestitution;
-        ball.vel.x *= gameConfig.groundFriction;
-        ball.vel.z *= gameConfig.groundFriction;
-        ball.vel.z += forwardSign * ball.spin * 0.25 * gameConfig.worldScale;
-        ball.vel.x += Math.sign(ball.vel.x || Math.sin(ball.spin)) * Math.abs(ball.spin) * 0.038 * gameConfig.worldScale;
-        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.045, 0.8, 1.06);
-        if (Math.sign(incomingZ) !== Math.sign(ball.vel.z) && Math.abs(incomingZ) > 0.01) ball.vel.z *= 0.65;
+        const spinKick = clamp(ball.spin, -1.1, 1.1) * 0.08 * gameConfig.worldScale;
+        const forwardSpeed = Math.max(0.04 * gameConfig.worldScale, Math.abs(ball.vel.z) * gameConfig.groundFriction + spinKick);
+        ball.vel.y = Math.max(0.18 * gameConfig.worldScale, -ball.vel.y * gameConfig.bounceRestitution);
+        ball.vel.x = ball.vel.x * gameConfig.groundFriction + Math.sign(ball.vel.x || Math.sin(ball.spin) || 1) * Math.min(Math.abs(ball.spin) * 0.022 * gameConfig.worldScale, 0.09 * gameConfig.worldScale);
+        ball.vel.z = forwardSign * forwardSpeed;
+        ball.vel.y *= clamp(1 - Math.max(0, ball.spin) * 0.03, 0.84, 1.04);
         ball.spin *= -0.32;
         const bounceSide = sideOfZ(ball.pos.z);
         ball.bounceCount = ball.bounceSide === bounceSide ? ball.bounceCount + 1 : 1;
