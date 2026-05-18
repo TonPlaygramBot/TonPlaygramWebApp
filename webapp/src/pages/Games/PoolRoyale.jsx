@@ -1789,6 +1789,40 @@ const CROWD_VOLUME_SCALE = 1;
 const CUE_STRIKE_VOLUME_MULTIPLIER = 1; // normalize cue strikes to 100% loudness for clearer but balanced feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
 const POCKET_SOUND_TAIL = 1;
+
+function applyPoolRoyaleCueShot(cueBall, power, aimDir, spinInput = { x: 0, y: 0 }) {
+  if (!cueBall?.vel || !aimDir) return;
+  const p = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+  const dir = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 0);
+  if (dir.lengthSq() > 1e-8) dir.normalize();
+  else dir.set(0, 1);
+  const side = new THREE.Vector2(dir.y, -dir.x);
+  if (side.lengthSq() > 1e-8) side.normalize();
+  const spin = {
+    x: spinInput?.x ?? 0,
+    y: spinInput?.y ?? 0
+  };
+  const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * p;
+  const speed = SHOT_BASE_SPEED * powerScale;
+  cueBall.vel.copy(dir).multiplyScalar(speed);
+  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * WORLD_SCALE * SHOT_POWER_BOOST);
+  if (cueBall.spin) {
+    cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
+  }
+  if (cueBall.omega) {
+    cueBall.omega.set(0, 0, 0);
+    const launchSpeed = cueBall.vel.length();
+    if (launchSpeed > 1e-6) {
+      const rollingAxis = new THREE.Vector3(cueBall.vel.y, 0, -cueBall.vel.x).normalize();
+      cueBall.omega.addScaledVector(rollingAxis, launchSpeed / BALL_R);
+      cueBall.omega.x += -(spin.y ?? 0) * p * 18;
+      cueBall.omega.z += -(spin.x ?? 0) * p * 18;
+    }
+  }
+  cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
+  cueBall.impacted = false;
+  cueBall.lastShotSpin = { x: spin.x ?? 0, y: spin.y ?? 0 };
+}
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
@@ -28153,32 +28187,11 @@ const shotPowerRef = useRef(0);
           clampedPower
         } = payload;
         const p = THREE.MathUtils.clamp(clampedPower, 0, 1);
-        const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
-        else shotDir3.set(0, 0, 1);
-        const sideAxis = TMP_VEC3_E.set(shotDir3.z, 0, -shotDir3.x);
-        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
         const spin = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
         };
-        const speedBase = SHOT_BASE_SPEED;
-        const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * p;
-        cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
-        cue.vel.addScaledVector(sideAxis, (spin.x ?? 0) * p * 1.05 * WORLD_SCALE * SHOT_POWER_BOOST);
-        if (cue.spin) {
-          cue.spin.set(spin.x ?? 0, spin.y ?? 0);
-        }
-        if (cue.omega) {
-          cue.omega.set(0, 0, 0);
-          const launchSpeed = cue.vel.length();
-          if (launchSpeed > 1e-6) {
-            const rollingAxis = TMP_VEC3_A.set(cue.vel.z, 0, -cue.vel.x).normalize();
-            cue.omega.addScaledVector(rollingAxis, launchSpeed / BALL_R);
-            cue.omega.x += -(spin.y ?? 0) * p * 18;
-            cue.omega.z += -(spin.x ?? 0) * p * 18;
-          }
-        }
+        applyPoolRoyaleCueShot(cue, p, aimDir, spin);
         if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
@@ -28187,7 +28200,9 @@ const shotPowerRef = useRef(0);
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
         cue.impacted = false;
-        cue.launchDir = aimDir.clone().normalize();
+        cue.launchDir = cue.vel?.lengthSq?.() > 1e-8
+          ? cue.vel.clone().normalize()
+          : aimDir.clone().normalize();
         maxPowerLiftTriggered = false;
         cue.lift = 0;
         cue.liftVel = 0;
