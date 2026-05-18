@@ -6715,26 +6715,26 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// Keep player-hand dominoes compact, with opponent hands tucked lower and
-// closer to the tabletop center while the bottom player's hand anchor stays fixed.
+// Keep player-hand dominoes compact while nudging opponent hands slightly
+// higher and farther outward; the bottom player's hand anchor stays fixed.
 const PLAYER_HAND_TILE_SCALE = 0.9;
 const HUMAN_PLAYER_HAND_TILE_SCALE = 0.74;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OPPONENT_MIN_GAP_SCALE = 0.8;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.6;
-const PLAYER_HAND_OPPONENT_OUTWARD_EXTRA = DOMINO_WIDTH * 0.28;
-const PLAYER_HAND_SIDE_OUTWARD_EXTRA = DOMINO_WIDTH * 0.22;
+const PLAYER_HAND_OPPONENT_OUTWARD_EXTRA = DOMINO_WIDTH * 0.44;
+const PLAYER_HAND_SIDE_OUTWARD_EXTRA = DOMINO_WIDTH * 0.3;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.45;
-const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.18;
+const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.34;
 const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.4;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
 const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.7;
 // Keep the bottom player's upright tiles separated by a small visible gap.
-const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.96;
+const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE * DOMINO_HEIGHT_ADJUST;
@@ -8281,17 +8281,17 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 1.02 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 1.08 * MODEL_SCALE;
 // Keep the non-bottom players' held domino fans lifted and pushed farther
 // outward so their hands read clearly around the top and side seats.
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 1.0 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 1.06 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 1.04 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.04 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
   const isBottom = seatIndex === human;
-  const horizontalTileSpacing = isBottom ? 0.092 : 0.12;
+  const horizontalTileSpacing = isBottom ? 0.084 : 0.12;
   const visibleTiles = Array.isArray(handTiles) ? handTiles.slice(0, 5) : [];
   const desiredSignature = visibleTiles.map((tile) => `${tile.a}:${tile.b}`).join('|');
   const tiles = visibleTiles.length ? visibleTiles : [{ a: 6, b: 6 }, { a: 5, b: 4 }];
