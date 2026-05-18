@@ -135,8 +135,8 @@ const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_INSET = 0.22 * CHECKERS_ARENA_SCALE;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.42 * CHECKERS_ARENA_SCALE;
+const PLAYER_FACE_CAMERA_INSET = 0.12 * CHECKERS_ARENA_SCALE;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.56 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
@@ -313,8 +313,9 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
-// Visual tuning for portrait screens: make chairs 20% bigger.
+// Visual tuning for portrait screens: make chairs 20% bigger and slightly taller.
 const CHAIR_VISUAL_SCALE = 1.2;
+const CHAIR_VISUAL_HEIGHT_SCALE = 1.06;
 const CHAIR_TARGET_SCALE_FACTOR = 0.8;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -2271,7 +2272,11 @@ export default function CheckersBattleRoyal() {
             });
           });
         }
-        g.scale.setScalar(CHAIR_VISUAL_SCALE);
+        g.scale.set(
+          CHAIR_VISUAL_SCALE,
+          CHAIR_VISUAL_SCALE * CHAIR_VISUAL_HEIGHT_SCALE,
+          CHAIR_VISUAL_SCALE
+        );
         g.position.set(0, CHAIR_HEIGHT, z);
         g.rotation.y = ry;
         groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK);
@@ -2295,7 +2300,11 @@ export default function CheckersBattleRoyal() {
         console.error('Checkers chairs load failed, using fallback:', error);
         const makeFallback = (z, ry) => {
           const g = createProceduralChairFallback(chairColor, legColor);
-          g.scale.setScalar(CHAIR_VISUAL_SCALE);
+          g.scale.set(
+            CHAIR_VISUAL_SCALE,
+            CHAIR_VISUAL_SCALE * CHAIR_VISUAL_HEIGHT_SCALE,
+            CHAIR_VISUAL_SCALE
+          );
           g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
           groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK);
@@ -3003,7 +3012,7 @@ export default function CheckersBattleRoyal() {
       pointerDown.lookDragged = true;
       const look = playerFaceLookRef.current;
       look.yaw = clamp(
-        look.yaw - dx * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
+        look.yaw + dx * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
         -PLAYER_FACE_CAMERA_YAW_LIMIT,
         PLAYER_FACE_CAMERA_YAW_LIMIT
       );
