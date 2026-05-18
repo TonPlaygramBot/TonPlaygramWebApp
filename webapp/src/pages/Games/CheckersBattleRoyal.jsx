@@ -110,7 +110,7 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
 // boost only their visual target height so the humans read larger at gameplay camera distance.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.25;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.45;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
