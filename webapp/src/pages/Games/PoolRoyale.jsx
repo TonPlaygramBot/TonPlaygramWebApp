@@ -1448,7 +1448,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
+const BALL_CENTER_LIFT = BALL_R * 0.02; // lower balls slightly so they sit closer to the lowered cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1859,7 +1859,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // Keep the playfield/tabletop at its legacy height; only the base/legs extend downward.
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.3; // lower the full table assembly and balls a bit more for the Pool Royal camera view
 const TABLE_Y = BASE_TABLE_Y + TABLETOP_HEIGHT_LOCK_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -1880,7 +1880,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
+const CUE_FOLLOW_THROUGH_MAX = 0; // stop the cue at the cue-ball contact point instead of following through
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -2315,6 +2315,18 @@ function choosePoolHumanEdgePosition(cueBallWorld, aimForward) {
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
 
+function constrainPoolHumanPerimeterStep(current, target) {
+  if (!current || current.lengthSq() < 1e-6) return target;
+  const xEdge = POOL_HUMAN_CFG.tableW / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const zEdge = POOL_HUMAN_CFG.tableL / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const curOnX = Math.abs(Math.abs(current.x) - xEdge) < Math.abs(Math.abs(current.z) - zEdge);
+  const goalOnX = Math.abs(Math.abs(target.x) - xEdge) < Math.abs(Math.abs(target.z) - zEdge);
+  if (curOnX === goalOnX && (curOnX ? Math.sign(current.x) === Math.sign(target.x) : Math.sign(current.z) === Math.sign(target.z))) return target;
+  return curOnX
+    ? new THREE.Vector3(current.x, 0, Math.sign(target.z || current.z || 1) * zEdge)
+    : new THREE.Vector3(Math.sign(target.x || current.x || 1) * xEdge, 0, current.z);
+}
+
 function drivePoolRoyaleHuman(human, frame) {
   if (!human.activeGlb || !human.model) return;
   human.modelRoot.visible = true;
@@ -2448,19 +2460,13 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   } else {
     human.strikeClock = 0;
   }
-  const rootGoal = state === 'striking' ? human.strikeRoot : rootTarget;
+  const rootGoal = state === 'striking' ? human.strikeRoot : constrainPoolHumanPerimeterStep(human.root.position, rootTarget);
   poolHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / POOL_HUMAN_CFG.scale));
-  const tableFacingAimForward = poolHumanSafePlanarForward(aimForward);
-  const rootToTable = bridgeTarget.clone().sub(human.root.position);
-  rootToTable.y = 0;
-  if (rootToTable.lengthSq() > 1e-8 && tableFacingAimForward.dot(rootToTable.normalize()) < 0) {
-    tableFacingAimForward.multiplyScalar(-1);
-  }
   human.yaw = poolHumanDampScalar(
     human.yaw,
-    state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(tableFacingAimForward),
+    state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(aimForward),
     POOL_HUMAN_CFG.rotLambda,
     dt
   );
@@ -27952,22 +27958,19 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
-        const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
-        const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
-          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
-          // then release performs a single forward punch through the cue ball.
+          // Match SnookerRoyalProvided.jsx: power directly controls the live pull,
+          // release starts from that pulled pose and hits at the same 0.88 window.
           motion: 'classic',
           pullRatio: p,
           pullSmoothing: 1,
-          strikeDuration,
-          holdDuration,
-          pullbackDuration,
+          strikeDuration: POOL_HUMAN_CFG.strikeTime * 1000,
+          holdDuration: POOL_HUMAN_CFG.holdTime * 1000,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.86,
+          impactThreshold: 0.88,
           forwardOnly: false,
-          cameraExtraHoldMs: 240,
+          cameraExtraHoldMs: 140,
           spinScale: 0.22
         };
       };
@@ -28637,8 +28640,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
-
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -28739,11 +28740,7 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.28,
-            BALL_R * 0.62,
-            clampedPower
-          );
+          const contactAdvance = 0;
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
@@ -28878,13 +28875,13 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: false
+              releaseStartsFromCurrentPull: true
             };
           } else {
             applyShotImpactOnce();
@@ -33120,13 +33117,24 @@ const shotPowerRef = useRef(0);
           0,
           1
         ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
-        const humanShotState = cueCameraLoweredForHuman && !shooting && !cueAnimating && !aiTakingShot && !replayActive
-          ? 'dragging'
-          : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
-            ? 'striking'
-            : replayActive
-              ? 'rolling'
-              : 'idle';
+        const sliderPullingForHuman =
+          Boolean(sliderInstanceRef.current?.dragging) ||
+          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1) > 0.01;
+        const activeHumanStroke = cueStrokeStateRef.current;
+        const humanShotState = (shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && activeHumanStroke))
+          ? 'striking'
+          : sliderPullingForHuman && !replayActive
+            ? 'dragging'
+            : cueCameraLoweredForHuman && !replayActive
+              ? 'aiming'
+              : replayActive
+                ? 'rolling'
+                : 'idle';
+        const humanPower = humanShotState === 'dragging'
+          ? THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          : humanShotState === 'striking'
+            ? THREE.MathUtils.clamp(shotPowerRef.current ?? 0, 0, 1)
+            : 0;
         updatePoolRoyaleHumanFrame(
           humanRig,
           Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
@@ -33135,7 +33143,7 @@ const shotPowerRef = useRef(0);
           aimForwardForHuman,
           cueStick,
           cueLen,
-          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          humanPower
         );
         if (humanShotState === 'idle' || humanShotState === 'rolling') {
           movePoolRoyaleCueToHumanHand(humanRig, cueStick);
