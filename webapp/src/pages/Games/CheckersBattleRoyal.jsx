@@ -72,9 +72,10 @@ const clamp01 = (value, fallback = 0) => {
 };
 const smoothEase = (t) => t * t * (3 - 2 * t);
 const CHECKERS_ARENA_BASE_SCALE = 0.48;
-// Requested visual tuning: make the arena setup 15% smaller while preserving
-// the exact same layout relationships between table, board, pieces, and chairs.
-const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.85;
+// Requested visual tuning: keep the Checkers Battle Royal table/board setup
+// a bit smaller while preserving layout relationships between the board, table,
+// pieces, chairs, and seated humans.
+const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.8;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.0 * MODEL_SCALE;
@@ -110,8 +111,8 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
-// boost only their visual target height so the humans read larger at gameplay camera distance.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.72;
+// keep them readable while matching the smaller table/chair/board presentation.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.62;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
@@ -313,10 +314,11 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
-// Visual tuning for portrait screens: make chairs 20% bigger and slightly taller.
-const CHAIR_VISUAL_SCALE = 1.2;
-const CHAIR_VISUAL_HEIGHT_SCALE = 1.06;
-const CHAIR_TARGET_SCALE_FACTOR = 0.8;
+// Visual tuning for portrait screens: keep chairs prominent but slightly smaller
+// so they match the reduced table, board, and seated-human scale.
+const CHAIR_VISUAL_SCALE = 1.14;
+const CHAIR_VISUAL_HEIGHT_SCALE = 1.04;
+const CHAIR_TARGET_SCALE_FACTOR = 0.76;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
   1.9173749900311232 * CHAIR_TARGET_SCALE_FACTOR,
