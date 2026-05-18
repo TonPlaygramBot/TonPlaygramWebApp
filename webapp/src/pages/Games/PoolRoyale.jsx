@@ -24838,7 +24838,8 @@ const shotPowerRef = useRef(0);
             strikeDuration,
             holdDuration,
             recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
+            hitArmRatio: strikeImpactThreshold ?? 0.78
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -24874,7 +24875,8 @@ const shotPowerRef = useRef(0);
               }
             })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
-            cueStick.position.lerpVectors(pullPos, impactPos, eased);
+            const releaseTargetPos = stroke.contactPos ?? impactPos;
+            cueStick.position.lerpVectors(pullPos, releaseTargetPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased * 0.72;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
@@ -24884,7 +24886,8 @@ const shotPowerRef = useRef(0);
           if (sample.phase === 'strike') {
             const punchT = 1 - Math.pow(1 - THREE.MathUtils.clamp(sample.t, 0, 1), 4);
             const contactPos = stroke.contactPos ?? impactPos;
-            cueStick.position.lerpVectors(impactPos, contactPos, punchT);
+            const strikeStartPos = stroke.contactPos ?? impactPos;
+            cueStick.position.lerpVectors(strikeStartPos, contactPos, punchT);
             cueStick.position.y -= (strikeDip ?? 0.003) * (0.72 + punchT * 0.38);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
@@ -28889,7 +28892,9 @@ const shotPowerRef = useRef(0);
               startTime,
               idlePos: idlePos.clone(),
               pullPos: releaseStartPos.clone(),
-              impactPos: impactPos.clone(),
+              // Match Snooker Royal's visible strike: once released, the cue
+              // pushes from the pulled depth all the way to cue-ball contact.
+              impactPos: contactPos.clone(),
               contactPos: contactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
@@ -28900,7 +28905,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: 0.78,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
