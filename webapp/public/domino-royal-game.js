@@ -6715,14 +6715,16 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// Keep player-hand dominoes compact, raised above the lowered character hands,
-// and far enough beyond the rail for clearer Battle Royal seating.
+// Keep player-hand dominoes compact, with opponent hands tucked lower and
+// closer to the tabletop center while the bottom player's hand anchor stays fixed.
 const PLAYER_HAND_TILE_SCALE = 0.9;
+const HUMAN_PLAYER_HAND_TILE_SCALE = 0.82;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 10.6;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.35;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.2;
+const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.4;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
@@ -9215,7 +9217,10 @@ function computeHandSlotPosition(
 
   const gapBase =
     (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
-  const handY = openFlat ? CLOTH_TOP + 0.016 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
+  const handVerticalDrop = isHuman ? 0 : PLAYER_HAND_CENTER_VERTICAL_DROP;
+  const handY = openFlat
+    ? CLOTH_TOP + 0.016
+    : HAND_Y + PLAYER_HAND_VERTICAL_RAISE - handVerticalDrop;
   const safeCount = Math.max(1, handCount | 0);
   const safeSlot = THREE.MathUtils.clamp(slotIndex | 0, 0, safeCount - 1);
   const seatLength = Math.hypot(x0, z0) || 1;
@@ -9297,7 +9302,9 @@ function renderHands() {
         flat: openFlat,
         faceUp: faceUp || openFaceUpHand
       });
-      m.scale.multiplyScalar(PLAYER_HAND_TILE_SCALE);
+      m.scale.multiplyScalar(
+        isHuman ? HUMAN_PLAYER_HAND_TILE_SCALE : PLAYER_HAND_TILE_SCALE
+      );
       const slotPosition = computeHandSlotPosition(pi, hi, count, {
         isTopDown
       });
