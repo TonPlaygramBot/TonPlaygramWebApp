@@ -1448,7 +1448,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
+const BALL_CENTER_LIFT = -BALL_R * 0.035; // lower balls slightly so they sit closer to the lowered cloth like Snooker Royal
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1859,7 +1859,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // Keep the playfield/tabletop at its legacy height; only the base/legs extend downward.
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.3; // lower the full table assembly a bit more so balls/cue sit lower in frame
 const TABLE_Y = BASE_TABLE_Y + TABLETOP_HEIGHT_LOCK_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -1867,6 +1867,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
 const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
+const CUE_CONTACT_GAP = BALL_R * 0.08; // Snooker Royal-style contact gap when the cue reaches the cue ball
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1880,7 +1881,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
+const CUE_FOLLOW_THROUGH_MAX = 0; // stop the cue at the cue-ball contact point instead of following through
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1922,7 +1923,7 @@ const POOL_HUMAN_CFG = Object.freeze({
   tableW: PLAY_W,
   tableL: PLAY_H,
   idleGap: CUE_TIP_GAP,
-  contactGap: BALL_R * 0.08,
+  contactGap: CUE_CONTACT_GAP,
   pullRange: CUE_PULL_BASE,
   strikeTime: CUE_STRIKE_DURATION_MS / 1000,
   holdTime: CUE_STRIKE_HOLD_MS / 1000,
@@ -2315,6 +2316,37 @@ function choosePoolHumanEdgePosition(cueBallWorld, aimForward) {
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
 
+function constrainPoolHumanPerimeterStep(current, target) {
+  const xEdge = POOL_HUMAN_CFG.tableW / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const zEdge = POOL_HUMAN_CFG.tableL / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const project = (point) => {
+    const dx = Math.abs(Math.abs(point.x) - xEdge);
+    const dz = Math.abs(Math.abs(point.z) - zEdge);
+    if (dx < dz) {
+      return new THREE.Vector3(
+        Math.sign(point.x || target.x || 1) * xEdge,
+        0,
+        poolHumanClamp(point.z, -zEdge, zEdge)
+      );
+    }
+    return new THREE.Vector3(
+      poolHumanClamp(point.x, -xEdge, xEdge),
+      0,
+      Math.sign(point.z || target.z || 1) * zEdge
+    );
+  };
+  const cur = current.lengthSq() > 1e-6 ? project(current) : project(target);
+  const goal = project(target);
+  const curOnX = Math.abs(Math.abs(cur.x) - xEdge) < Math.abs(Math.abs(cur.z) - zEdge);
+  const goalOnX = Math.abs(Math.abs(goal.x) - xEdge) < Math.abs(Math.abs(goal.z) - zEdge);
+  if (curOnX === goalOnX && (curOnX ? Math.sign(cur.x) === Math.sign(goal.x) : Math.sign(cur.z) === Math.sign(goal.z))) {
+    return goal;
+  }
+  return curOnX
+    ? new THREE.Vector3(cur.x, 0, Math.sign(goal.z || cur.z || 1) * zEdge)
+    : new THREE.Vector3(Math.sign(goal.x || cur.x || 1) * xEdge, 0, cur.z);
+}
+
 function drivePoolRoyaleHuman(human, frame) {
   if (!human.activeGlb || !human.model) return;
   human.modelRoot.visible = true;
@@ -2448,19 +2480,13 @@ function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bri
   } else {
     human.strikeClock = 0;
   }
-  const rootGoal = state === 'striking' ? human.strikeRoot : rootTarget;
+  const rootGoal = state === 'striking' ? human.strikeRoot : constrainPoolHumanPerimeterStep(human.root.position, rootTarget);
   poolHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / POOL_HUMAN_CFG.scale));
-  const tableFacingAimForward = poolHumanSafePlanarForward(aimForward);
-  const rootToTable = bridgeTarget.clone().sub(human.root.position);
-  rootToTable.y = 0;
-  if (rootToTable.lengthSq() > 1e-8 && tableFacingAimForward.dot(rootToTable.normalize()) < 0) {
-    tableFacingAimForward.multiplyScalar(-1);
-  }
   human.yaw = poolHumanDampScalar(
     human.yaw,
-    state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(tableFacingAimForward),
+    state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(aimForward),
     POOL_HUMAN_CFG.rotLambda,
     dt
   );
@@ -2536,9 +2562,9 @@ function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForwa
     POOL_HUMAN_CFG.idleRightHandZ
   ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
   const idleLeftHandTarget = rootTarget.clone().add(new THREE.Vector3(
-    -0.3 * POOL_HUMAN_CFG.scale,
-    0.62 * POOL_HUMAN_CFG.scale,
-    0.02 * POOL_HUMAN_CFG.scale
+    -0.18 * POOL_HUMAN_CFG.scale,
+    1.08 * POOL_HUMAN_CFG.scale,
+    0.03 * POOL_HUMAN_CFG.scale
   ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
   const idleDir = POOL_HUMAN_CFG.idleCueDir.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw).normalize();
   const idleCue = cuePoseFromPoolHumanGrip(idleRightHandTarget, idleDir, POOL_HUMAN_CFG.idleCueGripFromBack, cueLen);
@@ -24812,7 +24838,8 @@ const shotPowerRef = useRef(0);
             strikeDuration,
             holdDuration,
             recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
+            hitArmRatio: strikeImpactThreshold ?? 0.78
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -24848,7 +24875,8 @@ const shotPowerRef = useRef(0);
               }
             })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
-            cueStick.position.lerpVectors(pullPos, impactPos, eased);
+            const releaseTargetPos = stroke.contactPos ?? impactPos;
+            cueStick.position.lerpVectors(pullPos, releaseTargetPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased * 0.72;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
@@ -24858,7 +24886,8 @@ const shotPowerRef = useRef(0);
           if (sample.phase === 'strike') {
             const punchT = 1 - Math.pow(1 - THREE.MathUtils.clamp(sample.t, 0, 1), 4);
             const contactPos = stroke.contactPos ?? impactPos;
-            cueStick.position.lerpVectors(impactPos, contactPos, punchT);
+            const strikeStartPos = stroke.contactPos ?? impactPos;
+            cueStick.position.lerpVectors(strikeStartPos, contactPos, punchT);
             cueStick.position.y -= (strikeDip ?? 0.003) * (0.72 + punchT * 0.38);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
@@ -28739,11 +28768,7 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.28,
-            BALL_R * 0.62,
-            clampedPower
-          );
+          const contactAdvance = Math.max(0, CUE_TIP_GAP - CUE_CONTACT_GAP);
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
@@ -28867,7 +28892,9 @@ const shotPowerRef = useRef(0);
               startTime,
               idlePos: idlePos.clone(),
               pullPos: releaseStartPos.clone(),
-              impactPos: impactPos.clone(),
+              // Match Snooker Royal's visible strike: once released, the cue
+              // pushes from the pulled depth all the way to cue-ball contact.
+              impactPos: contactPos.clone(),
               contactPos: contactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
@@ -28878,7 +28905,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: 0.78,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
@@ -33120,13 +33147,26 @@ const shotPowerRef = useRef(0);
           0,
           1
         ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
-        const humanShotState = cueCameraLoweredForHuman && !shooting && !cueAnimating && !aiTakingShot && !replayActive
-          ? 'dragging'
-          : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
-            ? 'striking'
-            : replayActive
-              ? 'rolling'
-              : 'idle';
+        const sliderPullingForHuman =
+          Boolean(sliderInstanceRef.current?.dragging) ||
+          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1) > 0.01;
+        const activeHumanStroke = cueStrokeStateRef.current;
+        const humanShotState = (shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && activeHumanStroke))
+          ? 'striking'
+          : sliderPullingForHuman && !replayActive
+            ? 'dragging'
+            : cueCameraLoweredForHuman && !replayActive
+              ? 'aiming'
+              : replayActive
+                ? 'rolling'
+                : 'idle';
+        const humanPower = THREE.MathUtils.clamp(
+          humanShotState === 'striking'
+            ? Math.max(shotPowerRef.current ?? 0, powerRef.current ?? 0)
+            : powerRef.current ?? 0,
+          0,
+          1
+        );
         updatePoolRoyaleHumanFrame(
           humanRig,
           Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
@@ -33135,7 +33175,7 @@ const shotPowerRef = useRef(0);
           aimForwardForHuman,
           cueStick,
           cueLen,
-          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          humanPower
         );
         if (humanShotState === 'idle' || humanShotState === 'rolling') {
           movePoolRoyaleCueToHumanHand(humanRig, cueStick);
