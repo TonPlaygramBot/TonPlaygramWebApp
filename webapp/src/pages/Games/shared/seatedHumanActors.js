@@ -218,18 +218,60 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
-  addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
-  addBoneRot(rig, rig.leftForeArm, -0.56, 0.06, -0.22);
-  addBoneRot(rig, rig.leftHand, -0.14, 0.02, 0.02);
-  let shoulderX = -0.36;
-  let shoulderY = -0.03;
-  let shoulderZ = -1.02;
-  let forearmX = -0.56;
-  let forearmY = -0.06;
-  let forearmZ = 0.22;
-  let wristX = -0.14;
-  let wristY = 0.02;
-  let wristZ = 0.02;
+  const relaxedArmsDown = mode === 'idle' && motionProfile?.relaxedArmsDown === true;
+  const leftIdleArmPose = relaxedArmsDown
+    ? {
+        shoulderX: -0.12,
+        shoulderY: 0.16,
+        shoulderZ: 1.36,
+        forearmX: -0.18,
+        forearmY: 0.02,
+        forearmZ: -0.06,
+        wristX: -0.04,
+        wristY: 0,
+        wristZ: 0.01
+      }
+    : {
+        shoulderX: -0.36,
+        shoulderY: 0.1,
+        shoulderZ: 1.02,
+        forearmX: -0.56,
+        forearmY: 0.06,
+        forearmZ: -0.22,
+        wristX: -0.14,
+        wristY: 0.02,
+        wristZ: 0.02
+      };
+  addBoneRot(
+    rig,
+    rig.leftUpperArm,
+    leftIdleArmPose.shoulderX,
+    leftIdleArmPose.shoulderY,
+    leftIdleArmPose.shoulderZ
+  );
+  addBoneRot(
+    rig,
+    rig.leftForeArm,
+    leftIdleArmPose.forearmX,
+    leftIdleArmPose.forearmY,
+    leftIdleArmPose.forearmZ
+  );
+  addBoneRot(
+    rig,
+    rig.leftHand,
+    leftIdleArmPose.wristX,
+    leftIdleArmPose.wristY,
+    leftIdleArmPose.wristZ
+  );
+  let shoulderX = relaxedArmsDown ? -0.12 : -0.36;
+  let shoulderY = relaxedArmsDown ? -0.16 : -0.03;
+  let shoulderZ = relaxedArmsDown ? -1.36 : -1.02;
+  let forearmX = relaxedArmsDown ? -0.18 : -0.56;
+  let forearmY = relaxedArmsDown ? -0.02 : -0.06;
+  let forearmZ = relaxedArmsDown ? 0.06 : 0.22;
+  let wristX = relaxedArmsDown ? -0.04 : -0.14;
+  let wristY = relaxedArmsDown ? 0 : 0.02;
+  let wristZ = relaxedArmsDown ? -0.01 : 0.02;
   let chestX = 0.16;
   let headX = -0.03;
   const forwardReach = clamp01(motionProfile?.forwardReach, 0);
