@@ -1878,13 +1878,10 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
 const POOL_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/Soldier.glb',
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
 ]);
-const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.48;
-const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
+const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.78 * (BALL_R / 0.0525);
+const POOL_HUMAN_TARGET_HEIGHT = 1.2 * POOL_HUMAN_CUE_REFERENCE_LENGTH;
 const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
 const POOL_HUMAN_CFG = Object.freeze({
   scale: POOL_HUMAN_WORLD_SCALE,
@@ -1900,13 +1897,12 @@ const POOL_HUMAN_CFG = Object.freeze({
   strikeTime: CUE_STRIKE_DURATION_MS / 1000,
   holdTime: CUE_STRIKE_HOLD_MS / 1000,
   bridgeDist: 0.28 * POOL_HUMAN_WORLD_SCALE,
-  edgeMargin: 0.78 * POOL_HUMAN_WORLD_SCALE,
-  desiredShootDistance: 1.38 * POOL_HUMAN_WORLD_SCALE,
+  edgeMargin: 0.5 * POOL_HUMAN_WORLD_SCALE,
+  desiredShootDistance: 0.82 * POOL_HUMAN_WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
   humanScale: POOL_HUMAN_TARGET_HEIGHT,
-  shotPoseAmount: 1.0,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmTableLift: 0.006 * POOL_HUMAN_WORLD_SCALE,
@@ -1915,11 +1911,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   bridgeHandSide: -0.115 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmUnderCueDrop: 0.052 * POOL_HUMAN_WORLD_SCALE,
   chinToCueHeight: 0.11 * POOL_HUMAN_WORLD_SCALE,
-  upperBodyCueBallLean: 0.18 * POOL_HUMAN_WORLD_SCALE,
-  chestCueBallLean: 0.24 * POOL_HUMAN_WORLD_SCALE,
-  headCueBallLean: 0.28 * POOL_HUMAN_WORLD_SCALE,
   footGroundY: 0.035 * POOL_HUMAN_WORLD_SCALE,
-  footLockStrength: 1.0,
+  footLockStrength: 1,
   kneeBendShot: 0.16 * POOL_HUMAN_WORLD_SCALE,
   rightElbowShotRise: 0.18 * POOL_HUMAN_WORLD_SCALE,
   rightElbowShotSide: -0.46 * POOL_HUMAN_WORLD_SCALE,
@@ -2026,8 +2019,7 @@ function normalizePoolHumanModel(model) {
   model.updateMatrixWorld(true);
   let box = new THREE.Box3().setFromObject(model);
   const unscaledHeight = Math.max(box.getSize(new THREE.Vector3()).y, 1e-4);
-  const targetHeight = POOL_HUMAN_CFG.targetHeight || POOL_HUMAN_CFG.humanScale;
-  model.scale.setScalar(targetHeight / unscaledHeight);
+  model.scale.multiplyScalar(POOL_HUMAN_CFG.humanScale / unscaledHeight);
   model.updateMatrixWorld(true);
   box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
@@ -2148,12 +2140,7 @@ function createPoolRoyaleHumanRig(parent, renderer) {
       [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
         if (bone) human.restQuats.set(bone, bone.quaternion.clone());
       });
-      human.activeGlb = Boolean(
-        human.bones.hips && human.bones.spine && human.bones.head &&
-        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
-        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
-        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
-      );
+      human.activeGlb = Boolean(human.bones.hips && human.bones.spine && human.bones.head && human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand);
       human.model = model;
       human.modelRoot.add(model);
       human.modelRoot.visible = human.activeGlb;
@@ -26698,7 +26685,7 @@ const shotPowerRef = useRef(0);
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
-      const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
+      const cueLen = 1.78 * SCALE;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
@@ -26816,15 +26803,15 @@ const shotPowerRef = useRef(0);
       const initialIndex =
         ((initialIndexRaw % paletteLength) + paletteLength) % paletteLength;
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0xd8b17d,
         map: null,
         normalMap: null,
         roughnessMap: null,
         bumpScale: 0.02 * SCALE,
-        roughness: 0.4,
-        metalness: 0.0,
-        clearcoat: 0.48,
-        clearcoatRoughness: 0.3
+        roughness: 0.34,
+        metalness: 0,
+        clearcoat: 0.56,
+        clearcoatRoughness: 0.24
       });
       shaftMaterial.userData = shaftMaterial.userData || {};
       shaftMaterial.userData.isCueWood = true;
@@ -26835,26 +26822,18 @@ const shotPowerRef = useRef(0);
       cueMaterialsRef.current.buttRingMaterial = null;
       cueMaterialsRef.current.buttCapMaterial = null;
       cueMaterialsRef.current.styleIndex = initialIndex;
-      const frontLength = THREE.MathUtils.clamp(
-        cueLen * CUE_FRONT_SECTION_RATIO,
-        cueLen * 0.1,
-        cueLen * 0.5
-      );
-      const rearLength = Math.max(cueLen - frontLength, 1e-4);
+      const rearLength = cueLen * 0.62;
+      const frontLength = cueLen - rearLength;
       const rearStart = -rearLength / 2 + frontLength / 2;
-      const buttLength = Math.min(rearLength * 0.45, rearLength);
+      const buttLength = Math.min(rearLength * 0.36, 0.52 * SCALE);
       const rearShaftLength = Math.max(rearLength - buttLength, 0);
       const tipShaftRadius = 0.008 * SCALE;
-      const buttShaftRadius = 0.025 * SCALE;
-      const joinRadius = THREE.MathUtils.lerp(
-        tipShaftRadius,
-        buttShaftRadius,
-        THREE.MathUtils.clamp(frontLength / Math.max(cueLen, 1e-4), 0, 1)
-      );
+      const buttShaftRadius = 0.026 * SCALE;
+      const joinRadius = 0.0165 * SCALE;
 
       if (rearShaftLength > 1e-4) {
         const rearShaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearShaftLength, 32),
+          new THREE.CylinderGeometry(joinRadius, buttShaftRadius * 0.92, rearShaftLength, 48),
           shaftMaterial
         );
         rearShaft.rotation.x = -Math.PI / 2;
@@ -26870,7 +26849,7 @@ const shotPowerRef = useRef(0);
 
       if (frontLength > 1e-4) {
         const frontShaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 32),
+          new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 48),
           shaftMaterial
         );
         frontShaft.rotation.x = -Math.PI / 2;
@@ -26906,12 +26885,12 @@ const shotPowerRef = useRef(0);
       tipCtx.globalAlpha = 1;
       const tipTex = new THREE.CanvasTexture(tipCanvas);
 
-      const connectorHeight = 0.015 * SCALE;
-      const tipRadius = CUE_TIP_RADIUS;
-      const tipLen = 0.015 * SCALE * 1.5;
+      const connectorHeight = 0.038 * SCALE;
+      const tipRadius = 0.008 * SCALE;
+      const tipLen = 0.024 * SCALE;
       const tipMaterial = new THREE.MeshStandardMaterial({
         color: 0x1f3f73,
-        roughness: 1,
+        roughness: 0.95,
         metalness: 0,
         map: tipTex
       });
@@ -26942,9 +26921,11 @@ const shotPowerRef = useRef(0);
           32
         ),
         new THREE.MeshPhysicalMaterial({
-          color: 0xcd7f32,
-          metalness: 0.8,
-          roughness: 0.5
+          color: 0xf8fafc,
+          metalness: 0.04,
+          roughness: 0.22,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.18
         })
       );
       connector.rotation.x = -Math.PI / 2;
@@ -26963,11 +26944,11 @@ const shotPowerRef = useRef(0);
         cueBody.add(butt);
       }
 
-      const stripeLength = rearLength * 0.42;
-      const stripeCenter = frontLength / 2 + rearLength * 0.32;
+      const stripeLength = Math.min(rearLength * 0.34, 0.48 * SCALE);
+      const stripeCenter = frontLength / 2 + Math.max(buttLength * 0.28, rearLength * 0.18) + stripeLength / 2;
 
       const buttCap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
+        new THREE.SphereGeometry(buttShaftRadius * 1.08, 32, 16),
         buttMaterial
       );
       buttCap.position.z = cueLen / 2;
@@ -26985,9 +26966,10 @@ const shotPowerRef = useRef(0);
         ),
         new THREE.MeshPhysicalMaterial({
           transparent: true,
+          color: 0x111827,
           roughness: 0.32,
-          metalness: 0.1,
-          clearcoat: 0.12,
+          metalness: 0.08,
+          clearcoat: 0.18,
           depthWrite: false,
           side: THREE.DoubleSide,
           polygonOffset: true,
@@ -34734,34 +34716,27 @@ const shotPowerRef = useRef(0);
     if (!mount) return undefined;
     const slider = new PoolRoyalePowerSlider({
       mount,
-      value: powerRef.current * 100,
+      value: 0,
+      min: 0,
+      max: 100,
+      step: 1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onStart: (value) => {
+      onStart: () => {
         captureCueStickAnchor();
-        const normalized = clampPower(
-          (Number.isFinite(value) ? value : slider.min) / 100,
-          0
-        );
-        shotPowerRef.current = normalized;
       },
-      onChange: (v) => {
-        const normalized = clampPower(v / 100, 0);
+      onChange: (value) => {
+        const normalized = clampPower(value / 100, 0);
         shotPowerRef.current = normalized;
         applyPower(normalized);
       },
       onCommit: (value) => {
-        const commitValue = Number.isFinite(value)
-          ? value
-          : (slider.get?.() ?? slider.min);
-        const normalized = clampPower(commitValue / 100, 0);
+        const normalized = clampPower(value / 100, 0);
         shotPowerRef.current = normalized;
         powerRef.current = normalized;
+        slider.animateToMin({ duration: 180 });
         fireRef.current?.(normalized);
-        requestAnimationFrame(() => {
-          slider.animateToMin?.({ duration: 180 });
-          applyPower(0);
-        });
+        requestAnimationFrame(() => applyPower(0));
       }
     });
     sliderInstanceRef.current = slider;
