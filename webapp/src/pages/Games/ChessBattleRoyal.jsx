@@ -588,8 +588,8 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.35;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.82;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -627,9 +627,12 @@ const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
 const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
 const SEATED_HUMAN_FIREARM_IK_STRENGTH = 1;
-const SEATED_HUMAN_FIREARM_HAND_FORWARD = 0.105;
-const SEATED_HUMAN_FIREARM_HAND_UP = 0.018;
-const SEATED_HUMAN_FIREARM_HAND_SIDE = 0.012;
+const SEATED_HUMAN_FIREARM_HAND_FORWARD = 0.118;
+const SEATED_HUMAN_FIREARM_HAND_UP = 0.024;
+const SEATED_HUMAN_FIREARM_HAND_SIDE = 0.01;
+const SEATED_HUMAN_FIREARM_SUPPORT_FORWARD = 0.072;
+const SEATED_HUMAN_FIREARM_SUPPORT_UP = 0.012;
+const SEATED_HUMAN_FIREARM_SUPPORT_SIDE = 0.018;
 
 
 function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
@@ -789,6 +792,31 @@ function saveBoneRig(modelRoot) {
     leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
     leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
     leftHand: findBoneByNeedle(bones, 'lefthand'),
+    leftThumb: [
+      findBoneByNeedle(bones, 'leftthumb1'),
+      findBoneByNeedle(bones, 'leftthumb2'),
+      findBoneByNeedle(bones, 'leftthumb3')
+    ].filter(Boolean),
+    leftIndex: [
+      findBoneByNeedle(bones, 'leftindex1'),
+      findBoneByNeedle(bones, 'leftindex2'),
+      findBoneByNeedle(bones, 'leftindex3')
+    ].filter(Boolean),
+    leftMiddle: [
+      findBoneByNeedle(bones, 'leftmiddle1'),
+      findBoneByNeedle(bones, 'leftmiddle2'),
+      findBoneByNeedle(bones, 'leftmiddle3')
+    ].filter(Boolean),
+    leftRing: [
+      findBoneByNeedle(bones, 'leftring1'),
+      findBoneByNeedle(bones, 'leftring2'),
+      findBoneByNeedle(bones, 'leftring3')
+    ].filter(Boolean),
+    leftPinky: [
+      findBoneByNeedle(bones, 'leftpinky1'),
+      findBoneByNeedle(bones, 'leftpinky2'),
+      findBoneByNeedle(bones, 'leftpinky3')
+    ].filter(Boolean),
     rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
     rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
     rightHand: findBoneByNeedle(bones, 'righthand'),
@@ -874,6 +902,19 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
+function applyLeftHandSupportGrip(rig, gripAmount = 0) {
+  if (!rig) return;
+  const grip = clamp(gripAmount, 0, 1);
+  curlFingerChain(rig, rig.leftIndex, grip * 0.86, 0.08);
+  curlFingerChain(rig, rig.leftMiddle, grip * 0.9, 0.03);
+  curlFingerChain(rig, rig.leftRing, grip * 0.82, -0.02);
+  curlFingerChain(rig, rig.leftPinky, grip * 0.76, -0.06);
+  (rig.leftThumb || []).forEach((bone, index) => {
+    const fold = index === 0 ? -0.2 : -0.38;
+    addBoneRot(rig, bone, fold * grip, 0.2 * grip, -0.18 * grip);
+  });
+}
+
 function rotateBoneTowardTarget(rig, bone, endBone, targetWorld, strength = 0.5) {
   if (!rig || !bone || !endBone || !targetWorld) return;
   const axisFrom = endBone.getWorldPosition(new THREE.Vector3()).sub(
@@ -898,6 +939,13 @@ function applyRightArmContactIK(rig, targetWorld, strength = 0.5) {
   rotateBoneTowardTarget(rig, rig.rightUpperArm, rig.rightHand, targetWorld, strength * 0.62);
   rotateBoneTowardTarget(rig, rig.rightForeArm, rig.rightHand, targetWorld, strength * 0.9);
   rotateBoneTowardTarget(rig, rig.rightHand, rig.rightMiddle?.[rig.rightMiddle.length - 1], targetWorld, strength * 0.4);
+}
+
+function applyLeftArmContactIK(rig, targetWorld, strength = 0.5) {
+  if (!rig?.leftHand || !targetWorld) return;
+  rotateBoneTowardTarget(rig, rig.leftUpperArm, rig.leftHand, targetWorld, strength * 0.64);
+  rotateBoneTowardTarget(rig, rig.leftForeArm, rig.leftHand, targetWorld, strength * 0.92);
+  rotateBoneTowardTarget(rig, rig.leftHand, rig.leftMiddle?.[rig.leftMiddle.length - 1], targetWorld, strength * 0.42);
 }
 
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
@@ -995,6 +1043,22 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.31, t);
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
+  } else if (mode === 'firearmAim') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.08, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.28, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.48, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.02, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.03, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.06, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
+    headX = THREE.MathUtils.lerp(headX, 0.09, t);
+    addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
+    addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
+    addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
+    applyLeftHandSupportGrip(rig, Math.max(0.72, handGrip));
   } else if (mode === 'carryPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
@@ -1745,6 +1809,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const POLYHAVEN_MODEL_CACHE = new Map();
+const POLYHAVEN_TEXTURE_CACHE = new Map();
 
 function extractAllHttpUrls(value) {
   const urls = [];
@@ -1786,8 +1851,20 @@ function buildPolyhavenModelUrls(assetId) {
 }
 
 function pickBestModelUrl(urls = []) {
-  const preferred = urls.filter((u) => u.endsWith('.glb') || u.endsWith('.gltf'));
-  return preferred[0] || urls[0] || null;
+  const scored = urls
+    .filter((u) => /\.(glb|gltf)(\?|$)/i.test(u))
+    .map((url) => {
+      const lower = url.toLowerCase();
+      let score = 0;
+      if (lower.endsWith('.gltf')) score += 40;
+      if (lower.includes('/gltf/')) score += 30;
+      if (lower.includes('/2k/')) score += 20;
+      if (lower.includes('/1k/')) score += 10;
+      if (lower.endsWith('.glb')) score += 4;
+      return { url, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.url || urls[0] || null;
 }
 
 const PREFERRED_POLYHAVEN_TEXTURE_SIZES = Object.freeze(['4k', '2k', '1k']);
@@ -2128,6 +2205,29 @@ const CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE = Object.freeze({
   Sniper: Object.freeze({ projectileKind: 'marksman-round', caliberLabel: '7.62 marksman round', bulletRadius: 0.0042, bulletLength: 0.052, bulletSpeed: 0.29, shellRadius: 0.0032, shellLength: 0.024, shellArc: 0.036 }),
   Shotgun: Object.freeze({ projectileKind: 'buckshot-pellet', caliberLabel: '12-gauge buckshot', bulletRadius: 0.0032, bulletLength: 0.013, bulletSpeed: 0.17, shellRadius: 0.004, shellLength: 0.023, shellArc: 0.061 }),
   GrenadeLauncher: Object.freeze({ projectileKind: 'explosive-warhead', caliberLabel: 'explosive warhead', bulletRadius: 0.0064, bulletLength: 0.046, bulletSpeed: 0.14, shellRadius: 0.0046, shellLength: 0.03, shellArc: 0.03 })
+});
+
+const CHESS_FIREARM_CALIBER_BY_ANIMATION_ID = Object.freeze({
+  glockSidearmAttack: Object.freeze({ caliberLabel: '9×19mm Glock round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.027, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 }),
+  smithSidearmAttack: Object.freeze({ caliberLabel: '.38 revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0034, bulletLength: 0.029, shellRadius: 0.0025, shellLength: 0.016, bulletSpeed: 0.215 }),
+  sigsauerTacticalAttack: Object.freeze({ caliberLabel: '9×19mm tactical round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.028, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 }),
+  polyPistol01Attack: Object.freeze({ caliberLabel: '9×19mm low-poly round', projectileKind: 'pistol-round', bulletRadius: 0.0032, bulletLength: 0.027, shellRadius: 0.0024, shellLength: 0.014, bulletSpeed: 0.22 }),
+  polyRevolver01Attack: Object.freeze({ caliberLabel: '.38 heavy revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0035, bulletLength: 0.03, shellRadius: 0.0026, shellLength: 0.017, bulletSpeed: 0.21 }),
+  polyRevolver02Attack: Object.freeze({ caliberLabel: '.38 silver revolver round', projectileKind: 'revolver-round', bulletRadius: 0.0035, bulletLength: 0.03, shellRadius: 0.0026, shellLength: 0.017, bulletSpeed: 0.21 }),
+  uziSprayAttack: Object.freeze({ caliberLabel: '9×19mm Uzi round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 }),
+  smgBurstAttack: Object.freeze({ caliberLabel: '9×19mm SMG burst round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 }),
+  polySmg01Attack: Object.freeze({ caliberLabel: '9×19mm low-poly SMG round', projectileKind: 'smg-round', bulletRadius: 0.0031, bulletLength: 0.028, shellRadius: 0.0022, shellLength: 0.013, bulletSpeed: 0.24 }),
+  assaultRifleAttack: Object.freeze({ caliberLabel: '5.56×45mm rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 }),
+  ak47VolleyAttack: Object.freeze({ caliberLabel: '7.62×39mm AK round', projectileKind: 'rifle-round', bulletRadius: 0.004, bulletLength: 0.045, shellRadius: 0.0031, shellLength: 0.023, bulletSpeed: 0.265 }),
+  fpsGunAttack: Object.freeze({ caliberLabel: '5.56×45mm tactical rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 }),
+  krsvBurstAttack: Object.freeze({ caliberLabel: '5.56×45mm KRSV round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 }),
+  compactCarbineAttack: Object.freeze({ caliberLabel: '5.56×45mm carbine round', projectileKind: 'rifle-round', bulletRadius: 0.0037, bulletLength: 0.039, shellRadius: 0.0028, shellLength: 0.02, bulletSpeed: 0.265 }),
+  polyAssaultRifle01Attack: Object.freeze({ caliberLabel: '5.56×45mm low-poly rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0038, bulletLength: 0.041, shellRadius: 0.0029, shellLength: 0.021, bulletSpeed: 0.27 }),
+  sniperShotAttack: Object.freeze({ caliberLabel: '.338 sniper round', projectileKind: 'sniper-round', bulletRadius: 0.0045, bulletLength: 0.058, shellRadius: 0.0034, shellLength: 0.027, bulletSpeed: 0.3 }),
+  mosinMarksmanAttack: Object.freeze({ caliberLabel: '7.62×54mmR marksman round', projectileKind: 'marksman-round', bulletRadius: 0.0044, bulletLength: 0.055, shellRadius: 0.0033, shellLength: 0.026, bulletSpeed: 0.3 }),
+  marksmanDmrAttack: Object.freeze({ caliberLabel: '7.62×51mm DMR round', projectileKind: 'marksman-round', bulletRadius: 0.0042, bulletLength: 0.052, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.292 }),
+  polyRobotLargeGunAttack: Object.freeze({ caliberLabel: 'heavy robot rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0042, bulletLength: 0.047, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.255 }),
+  polyRobotFlyingGunAttack: Object.freeze({ caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 })
 });
 const CHESS_SMALL_9MM_PROJECTILE_KINDS = new Set(['pistol-round', 'smg-round', 'revolver-round']);
 
@@ -3300,17 +3400,22 @@ function createProceduralChair(theme) {
       seat: seatMaterial,
       leg: legMaterial,
       upholstery: [seatMaterial],
-    metal: [legMaterial]
+      metal: [legMaterial]
     }
   };
 }
 
-async function buildChessChairTemplate(theme) {
+async function buildChessChairTemplate(theme, options = {}) {
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const root = await loadPolyhavenModel(theme.assetId);
-      const model = root.clone(true);
-      prepareLoadedModel(model);
+      const textureLoader = options.textureLoader || new THREE.TextureLoader();
+      textureLoader.setCrossOrigin?.('anonymous');
+      const model = await createPolyhavenInstance(theme.assetId, 0, options.renderer || null, {
+        textureLoader,
+        maxAnisotropy: options.maxAnisotropy ?? 8,
+        textureCache: options.textureCache || POLYHAVEN_TEXTURE_CACHE,
+        fallbackTexture: options.fallbackTexture || null
+      });
       fitChairModelToFootprint(model);
       const materials = extractChairMaterials(model);
       applyChairThemeMaterials({ chairMaterials: materials }, theme);
@@ -9420,7 +9525,13 @@ function Chess3D({
         currentChairSource !== nextChairSource;
 
       if (shouldRebuildChairModel) {
-        void buildChessChairTemplate(chairTheme)
+        void buildChessChairTemplate(chairTheme, {
+          renderer: arena.renderer,
+          textureLoader: arena.textureLoader,
+          maxAnisotropy: arena.maxAnisotropy,
+          textureCache: arena.textureCache,
+          fallbackTexture: arena.fallbackTexture
+        })
           .then((chairBuild) => {
             if (!arenaRef.current) {
               disposeChessChairMaterials(chairBuild?.materials);
@@ -11866,10 +11977,12 @@ function Chess3D({
       const ludoType = LUDO_WEAPON_TYPE_BY_ANIMATION_ID[captureAnimationId] || 'Rifle';
       const bridgeProfile = CHESS_FIREARM_BULLET_PROFILE_BY_TYPE[ludoType] || CHESS_FIREARM_BULLET_PROFILE_BY_TYPE.Rifle;
       const projectileProfile = CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE[ludoType] || CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE.Rifle;
+      const animationCaliberProfile = CHESS_FIREARM_CALIBER_BY_ANIMATION_ID[captureAnimationId] || null;
       const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId) || bridgeProfile.bulletCount === 1;
       return {
         ...bridgeProfile,
         ...projectileProfile,
+        ...(animationCaliberProfile || {}),
         ludoType,
         bulletCount: bridgeProfile.bulletCount ?? (singleShot ? 1 : 7),
         duration: bridgeProfile.duration ?? (singleShot ? 0.62 : 1.15),
@@ -11879,7 +11992,9 @@ function Chess3D({
     };
 
     const resolveLudoProjectileProfile = (profile = {}) =>
-      CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE[profile.ludoType] || CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE.Rifle;
+      profile.projectileKind
+        ? profile
+        : CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE[profile.ludoType] || CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE.Rifle;
 
     const createLudoBulletTrailFx = (projectileProfile = CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE.Rifle, distance = 0.12) => {
       const kind = projectileProfile.projectileKind || 'rifle-round';
@@ -14724,7 +14839,7 @@ function Chess3D({
             let shooterPos = fx.from.clone().lerp(targetPos, 0.24);
             shooterPos.y += 0.24;
             if (shooterActor?.rig) {
-              applySeatedHumanPose(shooterActor.rig, 'carryPiece', 1, 1, { forwardReach: 0.95, sideReach: 0 });
+              applySeatedHumanPose(shooterActor.rig, 'firearmAim', 1, 1, { forwardReach: 0.95, sideReach: 0 });
               const gripWorld = getThreeFingerGripWorldPosition(shooterActor.rig) || shooterActor.rig.rightHand?.getWorldPosition?.(new THREE.Vector3());
               if (gripWorld) {
                 const towardTarget = targetPos.clone().sub(gripWorld).normalize();
@@ -14735,6 +14850,12 @@ function Chess3D({
                   .addScaledVector(side, fx.shooterSeatIndex === 0 ? SEATED_HUMAN_FIREARM_HAND_SIDE : -SEATED_HUMAN_FIREARM_HAND_SIDE);
                 shooterPos.y += SEATED_HUMAN_FIREARM_HAND_UP;
                 applyRightArmContactIK(shooterActor.rig, shooterPos, SEATED_HUMAN_FIREARM_IK_STRENGTH);
+                const supportPos = gripWorld
+                  .clone()
+                  .addScaledVector(towardTarget, SEATED_HUMAN_FIREARM_SUPPORT_FORWARD)
+                  .addScaledVector(side, fx.shooterSeatIndex === 0 ? -SEATED_HUMAN_FIREARM_SUPPORT_SIDE : SEATED_HUMAN_FIREARM_SUPPORT_SIDE);
+                supportPos.y += SEATED_HUMAN_FIREARM_SUPPORT_UP;
+                applyLeftArmContactIK(shooterActor.rig, supportPos, SEATED_HUMAN_FIREARM_IK_STRENGTH * 0.86);
               }
             }
             const aimDir = targetPos.clone().sub(shooterPos).normalize();
