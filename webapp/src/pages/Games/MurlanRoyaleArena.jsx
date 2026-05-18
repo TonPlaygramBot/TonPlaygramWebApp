@@ -3310,10 +3310,12 @@ const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
 const PLAYER_HAND_TABLE_OUTWARD_PUSH = 0.4 * MODEL_SCALE;
+const PLAYER_HAND_SUBTLE_OUTWARD_NUDGE = 0.034 * MODEL_SCALE;
 const PLAYER_HAND_OUTWARD_PUSH_ONE_CARD = CARD_H;
 const PLAYER_HAND_UP_LIFT_ONE_CARD = CARD_H;
-const PLAYER_HAND_LOWER_OFFSET = 0.05 * MODEL_SCALE;
+const PLAYER_HAND_LOWER_OFFSET = 0.064 * MODEL_SCALE;
 const PLAYER_HAND_SCREEN_TOP_NUDGE = 0.045 * MODEL_SCALE;
+const PLAYER_HAND_SCREEN_TOP_SHIFT = 0.032 * MODEL_SCALE;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
@@ -4848,9 +4850,11 @@ export default function MurlanRoyaleArena({ search }) {
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
         target.addScaledVector(
           forward,
-          aiExtraOutwardPush -
+          PLAYER_HAND_SUBTLE_OUTWARD_NUDGE +
+            aiExtraOutwardPush -
             (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull + PLAYER_HAND_SCREEN_TOP_NUDGE)
         );
+        target.z -= PLAYER_HAND_SCREEN_TOP_SHIFT;
         target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift + aiSideTopwardShift);
         target.y =
           baseHeight +
