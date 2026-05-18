@@ -24,8 +24,8 @@ import {
   TABLE_MODEL_OPENSOURCE,
   TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
-import { SnookerRoyalPowerSlider } from '../../../../snooker-royale-power-slider.js';
-import '../../../../snooker-royale-power-slider.css';
+import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -1178,6 +1178,14 @@ const BALL_SIZE_SCALE = 1.14; // bump ball scale slightly so shots read larger o
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
+const SNOOKER_PLAYFIELD_SCALE = BALL_R / (OFFICIAL_SNOOKER_BALL_DIAMETER_M / 2);
+const UP = new THREE.Vector3(0, 1, 0);
+const CFG = {
+  scale: SNOOKER_PLAYFIELD_SCALE,
+  ballR: BALL_R,
+  cueLength: 1.78 * SNOOKER_PLAYFIELD_SCALE
+};
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
@@ -1576,7 +1584,7 @@ const SHOT_POWER_RANGE = 0.75;
 // this same full-size snooker strike and spin transfer model.
 const SNOOKER_PROVIDED_SHOT_POWER_BOOST = 0.455;
 const SNOOKER_PROVIDED_SHOT_FULL_SPEED =
-  12 * WORLD_SCALE * SNOOKER_PROVIDED_SHOT_POWER_BOOST;
+  12 * SNOOKER_PLAYFIELD_SCALE * SNOOKER_PROVIDED_SHOT_POWER_BOOST;
 const SNOOKER_PROVIDED_SHOT_SPIN_SCALE = 0.25;
 const SNOOKER_PROVIDED_SPIN_GLOBAL_SCALE = 0.82;
 const SNOOKER_PROVIDED_CONTACT_GAP = 0.0012 * WORLD_SCALE;
@@ -1669,28 +1677,133 @@ const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cu
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
 
+const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+
+function enableShadow(obj) {
+  obj.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.frustumCulled = false;
+    }
+  });
+  return obj;
+}
+function createCue() {
+  const group = new THREE.Group();
+  const SCALE = CFG.ballR / (OFFICIAL_SNOOKER_BALL_DIAMETER_M / 2 * SNOOKER_PLAYFIELD_SCALE);
+  const shaftMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd8b17d,
+    roughness: 0.34,
+    metalness: 0,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.24
+  });
+  const ferruleMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xf8fafc,
+    roughness: 0.22,
+    metalness: 0.04,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.18
+  });
+  const tipMaterial = new THREE.MeshStandardMaterial({ color: 0x1f3f73, roughness: 0.95, metalness: 0 });
+  const bandMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x111827,
+    roughness: 0.32,
+    metalness: 0.08,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.2
+  });
+  const ringMaterial = new THREE.MeshPhysicalMaterial({ color: 0xc07a2d, roughness: 0.38, metalness: 0.62 });
+  const makeSegment = (name, material, radialSegments = 40) => {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, radialSegments), material);
+    mesh.name = `snooker-royal-cue-${name}`;
+    enableShadow(mesh);
+    group.add(mesh);
+    return mesh;
+  };
+  const rearShaft = makeSegment('rear-tapered-shaft', shaftMaterial, 48);
+  const frontShaft = makeSegment('front-tapered-shaft', shaftMaterial, 48);
+  const butt = makeSegment('rounded-butt', shaftMaterial, 56);
+  const stripe = makeSegment('butt-stripe-wrap', bandMaterial, 64);
+  const ring = makeSegment('brass-ring', ringMaterial, 48);
+  const ferrule = makeSegment('ferrule', ferruleMaterial, 40);
+  const tip = makeSegment('blue-leather-tip', tipMaterial, 32);
+  const buttCap = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), shaftMaterial);
+  buttCap.name = 'snooker-royal-cue-rounded-butt-cap';
+  enableShadow(buttCap);
+  group.add(buttCap);
+  return { group, rearShaft, frontShaft, butt, stripe, ring, ferrule, tip, buttCap, scale: SCALE };
+}
+function setSegmentTaper(mesh, a, b, radiusTop, radiusBottom = radiusTop) {
+  const dir = b.clone().sub(a);
+  const len = Math.max(0.0001, dir.length());
+  const geomKey = `${radiusTop.toFixed(5)}:${radiusBottom.toFixed(5)}:${len.toFixed(5)}`;
+  if (mesh.userData?.geomKey !== geomKey) {
+    mesh.geometry?.dispose?.();
+    mesh.geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, len, 48);
+    mesh.userData = { ...(mesh.userData || {}), geomKey };
+  }
+  mesh.position.copy(a).addScaledVector(dir, 0.5);
+  mesh.quaternion.setFromUnitVectors(UP, dir.normalize());
+  mesh.scale.set(1, 1, 1);
+}
+function setCuePose(cue, back, tip) {
+  const dir = tip.clone().sub(back).normalize();
+  const totalLength = tip.distanceTo(back);
+  const rearLength = totalLength * 0.62;
+  const frontLength = totalLength - rearLength;
+  const tipRadius = 0.008 * CFG.scale;
+  const joinRadius = 0.0165 * CFG.scale;
+  const buttRadius = 0.026 * CFG.scale;
+  const buttLength = Math.min(rearLength * 0.36, 0.52 * CFG.scale);
+  const stripeLength = Math.min(rearLength * 0.34, 0.48 * CFG.scale);
+  const ferruleLength = 0.038 * CFG.scale;
+  const tipLength = 0.024 * CFG.scale;
+  const p0 = back.clone();
+  const buttEnd = p0.clone().addScaledVector(dir, buttLength);
+  const rearEnd = back.clone().addScaledVector(dir, rearLength);
+  const ferruleBack = tip.clone().addScaledVector(dir, -(ferruleLength + tipLength));
+  const tipBack = tip.clone().addScaledVector(dir, -tipLength);
+  setSegmentTaper(cue.butt, p0, buttEnd, buttRadius, buttRadius * 1.04);
+  setSegmentTaper(cue.rearShaft, buttEnd, rearEnd, joinRadius, buttRadius * 0.92);
+  setSegmentTaper(cue.frontShaft, rearEnd, ferruleBack, tipRadius, joinRadius);
+  setSegmentTaper(cue.ferrule, ferruleBack, tipBack, tipRadius * 1.08, tipRadius * 1.18);
+  setSegmentTaper(cue.tip, tipBack, tip, tipRadius * 1.05, tipRadius * 1.05);
+  const stripeStart = back.clone().addScaledVector(dir, Math.max(buttLength * 0.28, rearLength * 0.18));
+  const stripeEnd = stripeStart.clone().addScaledVector(dir, stripeLength);
+  setSegmentTaper(cue.stripe, stripeStart, stripeEnd, buttRadius * 1.012, buttRadius * 1.012);
+  const ringStart = rearEnd.clone().addScaledVector(dir, -0.022 * CFG.scale);
+  setSegmentTaper(cue.ring, ringStart, rearEnd, joinRadius * 1.08, joinRadius * 1.12);
+  cue.buttCap.position.copy(back);
+  cue.buttCap.scale.setScalar(buttRadius * 1.08);
+}
+function cuePoseFromGrip(grip, dir, gripFromBack, length = CFG.cueLength) {
+  const n = dir.clone().normalize();
+  return { back: grip.clone().addScaledVector(n, -gripFromBack), tip: grip.clone().addScaledVector(n, length - gripFromBack) };
+}
+
 const SNOOKER_HUMAN_CHARACTER_THEME =
   MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
   MURLAN_CHARACTER_THEMES[0];
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
-const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
+const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / (0.0525 / 2);
 const SNOOKER_HUMAN_CFG = Object.freeze({
-  // Match the larger Snooker Champion character proportions exactly so the
-  // Royal avatar reads as a full-sized player beside the GLB snooker table.
+  // Keep the Royal avatar dimensions and shot stance matched to SnookerRoyalProvided.jsx.
   targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
   idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
-  rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
-  leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-  chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeBackFromBall: 0.235 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeSide: -0.115 * SNOOKER_HUMAN_WORLD_SCALE,
+  stanceSide: 0.52 * SNOOKER_HUMAN_WORLD_SCALE,
+  rightFootBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
+  leftFootForward: -0.34 * SNOOKER_HUMAN_WORLD_SCALE,
+  chinCueOffsetY: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
   chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
-  rootLambda: 7.5,
-  poseLambda: 10,
-  yawFix: 0
+  rootLambda: 5.6,
+  poseLambda: 9,
+  yawFix: Math.PI
 });
 const cleanSnookerHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const snookerHumanClamp01 = (value) => Math.max(0, Math.min(1, value));
@@ -1958,18 +2071,8 @@ function loadSnookerHumanModel(loader, url) {
   });
 }
 
-function buildSnookerHumanModelUrls(theme = SNOOKER_HUMAN_CHARACTER_THEME) {
-  const urls = [
-    ...(theme?.modelUrls || []),
-    theme?.url,
-    ...MURLAN_CHARACTER_THEMES.flatMap((entry) => [
-      ...(entry?.modelUrls || []),
-      entry?.url
-    ]),
-    'https://threejs.org/examples/models/gltf/Xbot.glb',
-    'https://threejs.org/examples/models/gltf/Soldier.glb'
-  ].filter(Boolean);
-  return [...new Set(urls)];
+function buildSnookerHumanModelUrls(_theme = SNOOKER_HUMAN_CHARACTER_THEME) {
+  return [HUMAN_URL];
 }
 
 async function loadSnookerHumanModelFromCatalog(loader, urls = buildSnookerHumanModelUrls()) {
@@ -21710,9 +21813,14 @@ const sliderResetTimerRef = useRef(null);
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
+      const providedCue = createCue();
+      providedCue.group.name = 'SnookerRoyalProvidedCueStick';
+      providedCue.group.visible = false;
+      cueStick.userData.providedCue = providedCue;
       cueStick.userData.body = cueBody;
       cueStick.userData.isCueStick = true;
       cueBodyRef.current = cueBody;
+      cueBody.visible = false;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
@@ -22015,6 +22123,7 @@ const sliderResetTimerRef = useRef(null);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+      table.add(providedCue.group);
       const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
@@ -23194,7 +23303,7 @@ const sliderResetTimerRef = useRef(null);
                 (spinSide ?? 0) *
                   impactPower *
                   1.05 *
-                  WORLD_SCALE *
+                  CFG.scale *
                   SNOOKER_PROVIDED_SHOT_POWER_BOOST
               );
             cue.vel.add(sideThrow);
@@ -26541,6 +26650,17 @@ const sliderResetTimerRef = useRef(null);
           updateChalkVisibility(null);
         }
 
+        const providedCueVisual = cueStick.userData?.providedCue;
+        if (providedCueVisual?.group) {
+          providedCueVisual.group.visible = cueStick.visible;
+          if (cueStick.visible) {
+            const endpoints = getSnookerCueEndpoints(cueStick, cueLen);
+            if (endpoints?.butt && endpoints?.tip) {
+              setCuePose(providedCueVisual, endpoints.butt, endpoints.tip);
+            }
+          }
+        }
+
         try {
           updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
             cue,
@@ -27473,6 +27593,7 @@ const sliderResetTimerRef = useRef(null);
         activeRenderCameraRef.current = null;
         snookerHumanPlayer?.root?.removeFromParent?.();
         snookerHumanPlayer?.modelRoot?.removeFromParent?.();
+        providedCue?.group?.removeFromParent?.();
         cueBodyRef.current = null;
         tipGroupRef.current = null;
         try {
@@ -27662,7 +27783,7 @@ const sliderResetTimerRef = useRef(null);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new SnookerRoyalPowerSlider({
+    const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
