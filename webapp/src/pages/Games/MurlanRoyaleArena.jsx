@@ -2241,9 +2241,11 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const managedTextures = [backTexture];
   const managedMaterials = [edgeMaterial];
 
-  // Narrow centers and wider rotations make held helper decks pinch at the
-  // thumb/bottom while opening gradually toward the card tops.
-  const spread = 0.082 * MODEL_SCALE;
+  // Anchor the fan around the lower/thumb side of the cards so nearby
+  // bottoms stay tucked together while the upper edges flare open clearly.
+  const cardHeight = 0.316 * MODEL_SCALE;
+  const bottomSpread = 0.018 * MODEL_SCALE;
+  const topFanDegrees = 20;
   for (let idx = 0; idx < safeCount; idx++) {
     const handCard = handCards[idx] || handCards[handCards.length - 1];
     const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, cardTextureSize?.heldW, cardTextureSize?.heldH);
@@ -2268,11 +2270,14 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
     const card = new THREE.Mesh(cardGeometry, sideMaterials);
     const centered = idx - (safeCount - 1) / 2;
-    card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
+    const fanRotationZ = THREE.MathUtils.degToRad(-centered * topFanDegrees);
+    const bottomAnchorX = centered * bottomSpread;
+    const centerX = bottomAnchorX - Math.sin(fanRotationZ) * cardHeight * 0.5;
+    card.position.set(centerX, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
       THREE.MathUtils.degToRad(-72),
       THREE.MathUtils.degToRad(-centered * 12),
-      THREE.MathUtils.degToRad(centered * 16)
+      fanRotationZ
     );
     card.castShadow = true;
     card.receiveShadow = true;
