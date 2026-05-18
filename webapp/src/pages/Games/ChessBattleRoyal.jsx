@@ -69,6 +69,7 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
+import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -346,6 +347,7 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]);
+const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.72;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
@@ -587,7 +589,7 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.95;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.35;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -602,7 +604,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28; // Lower the 3D player c
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.22; // Aim slightly upward from the lower camera toward the pieces/opponent.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 4.1; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 4.85; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -624,6 +626,10 @@ const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.5;
 const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
 const SEATED_HUMAN_GRIP_CONTACT_BLEND = 0.98;
 const SEATED_HUMAN_CONTACT_IK_STRENGTH = 0.98;
+const SEATED_HUMAN_FIREARM_IK_STRENGTH = 1;
+const SEATED_HUMAN_FIREARM_HAND_FORWARD = 0.105;
+const SEATED_HUMAN_FIREARM_HAND_UP = 0.018;
+const SEATED_HUMAN_FIREARM_HAND_SIDE = 0.012;
 
 
 function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
@@ -1096,6 +1102,195 @@ function getRenderableMeshBounds(object) {
   return hasMeshBounds ? box : null;
 }
 
+
+const CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: 'Poly Haven denim_fabric 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    tint: 0x314d86
+  },
+  check: {
+    source: 'Poly Haven gingham_check 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    tint: 0x9f3651
+  },
+  hessian: {
+    source: 'Poly Haven hessian_230 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    tint: 0xa27445
+  },
+  floral: {
+    source: 'Poly Haven floral_jacquard 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    tint: 0x6d3f7f
+  },
+  fleece: {
+    source: 'Poly Haven knitted_fleece 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    tint: 0x4b5563
+  },
+  picnic: {
+    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    tint: 0xc44f42
+  }
+});
+
+const CHESS_DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5 } },
+  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4 } },
+  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4 } },
+  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3 } },
+  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5 } },
+  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
+});
+
+const chessDominoCharacterTextureCache = new Map();
+let chessDominoCharacterTextureLoader = null;
+
+function loadChessDominoCharacterTexture(url, { isColor = false, repeat = 4, maxAnisotropy = 1 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'color' : 'data'}|${repeat}`;
+  if (chessDominoCharacterTextureCache.has(cacheKey)) return chessDominoCharacterTextureCache.get(cacheKey);
+  if (!chessDominoCharacterTextureLoader) {
+    chessDominoCharacterTextureLoader = new THREE.TextureLoader();
+    chessDominoCharacterTextureLoader.setCrossOrigin?.('anonymous');
+  }
+  const texture = chessDominoCharacterTextureLoader.load(url, (loaded) => {
+    loaded.needsUpdate = true;
+  }, undefined, () => chessDominoCharacterTextureCache.delete(cacheKey));
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  normalizePbrTexture(texture, maxAnisotropy);
+  if (isColor) applySRGBColorSpace(texture);
+  texture.userData.chessDominoCanDispose = false;
+  chessDominoCharacterTextureCache.set(cacheKey, texture);
+  return texture;
+}
+
+function isChessHumanNearlyWhiteMaterial(mat) {
+  if (!mat?.color) return false;
+  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
+}
+
+function isChessHumanLowSaturationLightMaterial(mat) {
+  if (!mat?.color || mat.map) return false;
+  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
+  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyChessDominoHumanSurface(obj, mat) {
+  const name = `${obj?.name || ''} ${mat?.name || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'lowerCloth';
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
+  if (isChessHumanNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
+  return 'other';
+}
+
+function resolveChessDominoClothSlot(option, slot, seatIndex = 0) {
+  const combo = CHESS_DOMINO_CHARACTER_CLOTH_COMBOS[option?.dominoClothTheme] || CHESS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
+  const material = CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS.denim;
+  const repeatBoost = seatIndex === 0 ? 0.75 : 0;
+  return {
+    ...material,
+    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
+    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
+  };
+}
+
+function applyChessDominoClothMaterial(mat, cloth, maxAnisotropy = 1) {
+  mat.map = loadChessDominoCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat, maxAnisotropy });
+  mat.normalMap = loadChessDominoCharacterTexture(cloth.normal, { repeat: cloth.repeat, maxAnisotropy });
+  mat.roughnessMap = loadChessDominoCharacterTexture(cloth.roughness, { repeat: cloth.repeat, maxAnisotropy });
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.userData = { ...(mat.userData || {}), chessDominoCloth: cloth.source };
+}
+
+function enhanceChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0) {
+  if (!option?.dominoClothTheme || !instance?.traverse) return;
+  const clothSlots = {
+    upperCloth: resolveChessDominoClothSlot(option, 'upper', seatIndex),
+    lowerCloth: resolveChessDominoClothSlot(option, 'lower', seatIndex),
+    accentCloth: resolveChessDominoClothSlot(option, 'accent', seatIndex)
+  };
+  const skinColor = new THREE.Color(option?.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(option?.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(option?.eyeColor ?? 0x3f5f75);
+
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyChessDominoHumanSurface(obj, mat);
+      if (clothSlots[surface]) {
+        applyChessDominoClothMaterial(mat, clothSlots[surface], maxAnisotropy);
+      } else if (surface === 'hair') {
+        mat.map = null;
+        mat.color = hairColor.clone();
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
+      } else if (surface === 'eye') {
+        mat.map = null;
+        mat.color = eyeColor.clone();
+        mat.roughness = 0.18;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+      } else if (surface === 'skin') {
+        if (isChessHumanLowSaturationLightMaterial(mat)) mat.color = skinColor.clone();
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = 0;
+      } else if (surface === 'shoe') {
+        if (isChessHumanLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827);
+        mat.roughness = 0.78;
+        mat.metalness = 0.02;
+      } else if (surface === 'mouth') {
+        if (isChessHumanNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc);
+        mat.roughness = 0.32;
+        mat.metalness = 0;
+      } else if (isChessHumanNearlyWhiteMaterial(mat)) {
+        mat.color = skinColor.clone();
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      }
+      if (mat.map) applyTextureQualityToMaterialMap(mat.map, maxAnisotropy);
+      if (mat.normalMap) applyTextureQualityToMaterialMap(mat.normalMap, maxAnisotropy);
+      if (mat.roughnessMap) applyTextureQualityToMaterialMap(mat.roughnessMap, maxAnisotropy);
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
+  });
+}
+
 function normalizeSeatedHumanRootToChair(root) {
   const box = getRenderableMeshBounds(root);
   if (!box) return;
@@ -1213,6 +1408,7 @@ async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 
         mat.needsUpdate = true;
       });
     });
+    enhanceChessDominoCharacterMaterials(root, selectedOption, maxAnisotropy, 0);
     const seatedScaleMultiplier = Number.isFinite(selectedAdapter?.seatedScaleMultiplier)
       ? selectedAdapter.seatedScaleMultiplier
       : 1;
@@ -1905,6 +2101,16 @@ const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
+const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
+const CHESS_FIREARM_BULLET_PROFILE_BY_TYPE = Object.freeze({
+  Pistol: { bulletCount: 1, duration: 0.62, impactAt: 0.96, color: 0xffd36a, radius: 0.012, length: 0.105, casingScale: 0.78 },
+  SMG: { bulletCount: 9, duration: 1.12, impactAt: 0.9, color: 0xfff1a8, radius: 0.009, length: 0.082, casingScale: 0.62 },
+  Rifle: { bulletCount: 7, duration: 1.15, impactAt: 0.92, color: 0xffc247, radius: 0.01, length: 0.13, casingScale: 0.7 },
+  Sniper: { bulletCount: 1, duration: 0.82, impactAt: 0.985, color: 0xbfe7ff, radius: 0.011, length: 0.18, casingScale: 0.82 },
+  Shotgun: { bulletCount: 6, pelletCount: 5, duration: 0.78, impactAt: 0.94, color: 0xffb15c, radius: 0.008, length: 0.075, casingScale: 0.95 },
+  GrenadeLauncher: { bulletCount: 1, duration: 1.05, impactAt: 0.98, color: 0xff7a36, radius: 0.018, length: 0.12, casingScale: 1.1 }
+});
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
@@ -9129,6 +9335,18 @@ function Chess3D({
         if (nextTable?.surfaceY != null) {
           nextTable.surfaceY += tableFloorOffset;
         }
+        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
+        if (nextTable?.group) {
+          nextTable.group.position.x += placementOffset.x;
+          nextTable.group.position.z += placementOffset.z;
+        }
+        positionChessBattleChairRing(arena.chairs || [], nextTable);
+        (arena.chairs || []).forEach((chair) => {
+          if (!chair?.group) return;
+          chair.group.position.x = placementOffset.x;
+          chair.group.position.z += placementOffset.z;
+          alignGroupToFloorY(chair.group, arenaFloorY);
+        });
         if (boardGroup && nextTable?.group) {
           nextTable.group.add(boardGroup);
           alignBoardGroupToTableSurface(boardGroup, nextTable);
@@ -9137,20 +9355,14 @@ function Chess3D({
         arena.tableInfo = nextTable;
         arena.tableShapeId = nextTable?.shapeId;
         arena.tableThemeId = tableTheme?.id;
-        if (arena.boardLookTarget) {
-          const targetY = boardGroup
-            ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
-            : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
-          arena.boardLookTarget.set(0, targetY, 0);
-        }
-        positionChessBattleChairRing(arena.chairs || [], nextTable);
-        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
-        // Preserve original room layout when table/chair options change so gameplay framing stays stable.
-        const placementOffset = arena.tablePlacementOffset ?? new THREE.Vector3();
         arena.tablePlacementOffset = placementOffset.clone();
         if (arena.boardLookTarget) {
-          arena.boardLookTarget.x = placementOffset.x;
-          arena.boardLookTarget.z = placementOffset.z;
+          const boardWorld = new THREE.Vector3();
+          boardGroup?.getWorldPosition?.(boardWorld);
+          const targetY = boardGroup
+            ? boardWorld.y + (BOARD.baseH + 0.12) * BOARD_SCALE
+            : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
+          arena.boardLookTarget.set(placementOffset.x, targetY, placementOffset.z);
         }
         const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
         groundArenaGroups(arenaGroups, arenaFloorY);
@@ -11570,13 +11782,64 @@ function Chess3D({
     ]);
 
     const resolveFirearmCaptureProfile = (captureAnimationId = selectedCaptureAnimationIdRef.current) => {
-      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId);
+      const ludoType = LUDO_WEAPON_TYPE_BY_ANIMATION_ID[captureAnimationId] || 'Rifle';
+      const bridgeProfile = CHESS_FIREARM_BULLET_PROFILE_BY_TYPE[ludoType] || CHESS_FIREARM_BULLET_PROFILE_BY_TYPE.Rifle;
+      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId) || bridgeProfile.bulletCount === 1;
       return {
-        bulletCount: singleShot ? 1 : 7,
-        duration: singleShot ? 0.62 : 1.15,
-        impactAt: singleShot ? 1 : 0.92,
+        ...bridgeProfile,
+        ludoType,
+        bulletCount: bridgeProfile.bulletCount ?? (singleShot ? 1 : 7),
+        duration: bridgeProfile.duration ?? (singleShot ? 0.62 : 1.15),
+        impactAt: bridgeProfile.impactAt ?? (singleShot ? 1 : 0.92),
         singleShot
       };
+    };
+
+    const createFirearmBulletMesh = (profile = {}) => {
+      const group = new THREE.Group();
+      const radius = profile.radius ?? 0.01;
+      const length = profile.length ?? 0.1;
+      const bulletMat = new THREE.MeshStandardMaterial({
+        color: profile.color ?? 0xffd36a,
+        emissive: profile.color ?? 0xffb347,
+        emissiveIntensity: 1.15,
+        metalness: 0.85,
+        roughness: 0.22
+      });
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 14), bulletMat);
+      body.rotation.z = Math.PI / 2;
+      const head = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.12, radius * 2.9, 14), bulletMat);
+      head.rotation.z = -Math.PI / 2;
+      head.position.x = length * 0.5 + radius * 1.45;
+      const tracer = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, length * 2.8, 10),
+        new THREE.MeshBasicMaterial({
+          color: profile.color ?? 0xffd36a,
+          transparent: true,
+          opacity: 0.42,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      tracer.rotation.z = Math.PI / 2;
+      tracer.position.x = -length * 1.1;
+      group.add(tracer, body, head);
+      group.userData.dispose = () => {
+        [tracer, body, head].forEach((mesh) => {
+          mesh.geometry?.dispose?.();
+          mesh.material?.dispose?.();
+        });
+      };
+      return group;
+    };
+
+    const createFirearmShellMesh = (profile = {}) => {
+      const scale = profile.casingScale ?? 0.7;
+      const mat = new THREE.MeshStandardMaterial({ color: 0xc8943f, metalness: 0.9, roughness: 0.24 });
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.006 * scale, 0.006 * scale, 0.04 * scale, 12), mat);
+      shell.rotation.z = Math.PI / 2;
+      shell.userData.dispose = () => { shell.geometry?.dispose?.(); shell.material?.dispose?.(); };
+      return shell;
     };
 
     const resolvePieceGroupFromType = (pieceType) => {
@@ -11797,7 +12060,10 @@ function Chess3D({
         void loadChessCaptureWeaponModel(firearmAnimationId).then((template) => {
           if (!template || !firearmFx.parent) return;
           firearmFx.clear();
-          const weaponClone = prepareChessCaptureWeaponClone(template, firearmAnimationId, { flat: false });
+          const weaponClone = prepareChessCaptureWeaponClone(template, firearmAnimationId, {
+            flat: false,
+            targetSize: (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[firearmAnimationId]?.scale ?? 0.18) * CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER
+          });
           weaponClone.position.y = -0.04;
           firearmFx.add(weaponClone);
         });
@@ -11813,8 +12079,12 @@ function Chess3D({
           bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
+          bulletProfile: firearmProfile,
           firedBullets: 0,
           hitTriggered: false,
+          liveBullets: [],
+          liveShells: [],
+          shooterSeatIndex: movingMesh?.userData?.w ? 0 : 1,
           muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
         return withAuto3d({
@@ -14169,20 +14439,67 @@ function Chess3D({
           } else if (fx.type === 'firearm') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             fx.to.copy(targetPos);
-            const shooterPos = fx.from.clone().lerp(targetPos, 0.24);
+            const shooterActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === fx.shooterSeatIndex);
+            let shooterPos = fx.from.clone().lerp(targetPos, 0.24);
             shooterPos.y += 0.24;
+            if (shooterActor?.rig) {
+              applySeatedHumanPose(shooterActor.rig, 'carryPiece', 1, 1, { forwardReach: 0.95, sideReach: 0 });
+              const gripWorld = getThreeFingerGripWorldPosition(shooterActor.rig) || shooterActor.rig.rightHand?.getWorldPosition?.(new THREE.Vector3());
+              if (gripWorld) {
+                const towardTarget = targetPos.clone().sub(gripWorld).normalize();
+                const side = new THREE.Vector3().crossVectors(WORLD_UP, towardTarget).normalize();
+                shooterPos = gripWorld
+                  .clone()
+                  .addScaledVector(towardTarget, SEATED_HUMAN_FIREARM_HAND_FORWARD)
+                  .addScaledVector(side, fx.shooterSeatIndex === 0 ? SEATED_HUMAN_FIREARM_HAND_SIDE : -SEATED_HUMAN_FIREARM_HAND_SIDE);
+                shooterPos.y += SEATED_HUMAN_FIREARM_HAND_UP;
+                applyRightArmContactIK(shooterActor.rig, shooterPos, SEATED_HUMAN_FIREARM_IK_STRENGTH);
+              }
+            }
             const aimDir = targetPos.clone().sub(shooterPos).normalize();
+            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
             fx.missileFx.root.visible = true;
-            fx.missileFx.root.position.copy(shooterPos).addScaledVector(aimDir, 0.08);
+            fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -0.03);
+              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
               fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, aimDir);
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
               fx.firearmFx.position.addScaledVector(aimDir, -recoil);
             }
+
+            (fx.liveBullets || []).forEach((bullet) => {
+              const bulletAge = clamp01((now - bullet.startMs) / Math.max(1, bullet.durationMs));
+              const bt = smoothEase(bulletAge);
+              const pos = bullet.from.clone().lerp(bullet.to, bt);
+              pos.y += Math.sin(bt * Math.PI) * (LUDO_FIREARM_BROADCAST_PROFILE.bulletFollowLift ?? 0.092);
+              bullet.mesh.position.copy(pos);
+              orientForwardKeepingUp(bullet.mesh, bullet.dir);
+              bullet.mesh.visible = bulletAge < 1;
+            });
+            fx.liveBullets = (fx.liveBullets || []).filter((bullet) => {
+              if ((now - bullet.startMs) / Math.max(1, bullet.durationMs) < 1.05) return true;
+              bullet.mesh.userData?.dispose?.();
+              captureFxGroup.remove(bullet.mesh);
+              return false;
+            });
+
+            (fx.liveShells || []).forEach((shell) => {
+              const age = clamp01((now - shell.startMs) / 620);
+              shell.mesh.position.copy(shell.from).addScaledVector(shell.velocity, age);
+              shell.mesh.position.y += Math.sin(age * Math.PI) * 0.08 - age * 0.06;
+              shell.mesh.rotation.x += dt * 12;
+              shell.mesh.rotation.z += dt * 9;
+              shell.mesh.visible = age < 1;
+            });
+            fx.liveShells = (fx.liveShells || []).filter((shell) => {
+              if ((now - shell.startMs) / 620 < 1.05) return true;
+              shell.mesh.userData?.dispose?.();
+              captureFxGroup.remove(shell.mesh);
+              return false;
+            });
 
             const bulletsToFire = Math.max(1, fx.bulletCount || 1);
             const fireStep = 1 / bulletsToFire;
@@ -14192,9 +14509,32 @@ function Chess3D({
             );
             while (fx.firedBullets < shouldFireCount) {
               fx.firedBullets += 1;
-              const shotProgress = clamp01(fx.firedBullets / bulletsToFire);
-              const shotPos = shooterPos.clone().lerp(targetPos, shotProgress);
-              launchExplosion(shotPos);
+              const shotIndex = fx.firedBullets - 1;
+              const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
+              const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
+              const bulletTo = targetPos.clone().addScaledVector(side, spread);
+              const bullet = createFirearmBulletMesh(fx.bulletProfile);
+              bullet.position.copy(muzzlePos);
+              orientForwardKeepingUp(bullet, aimDir);
+              captureFxGroup.add(bullet);
+              fx.liveBullets.push({
+                mesh: bullet,
+                from: muzzlePos.clone(),
+                to: bulletTo,
+                dir: aimDir.clone(),
+                startMs: now,
+                durationMs: Math.max(90, fx.duration * 1000 * fireStep * 0.86)
+              });
+              const shell = createFirearmShellMesh(fx.bulletProfile);
+              const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
+              shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.035);
+              captureFxGroup.add(shell);
+              fx.liveShells.push({
+                mesh: shell,
+                from: shell.position.clone(),
+                velocity: ejectSide.multiplyScalar(0.16).add(new THREE.Vector3(0, 0.11, 0)).addScaledVector(aimDir, -0.025),
+                startMs: now
+              });
               if (!fx.singleShot && fx.firedBullets < bulletsToFire) {
                 playAudio(missileImpactSoundRef, { volume: 0.25 });
               }
@@ -14206,7 +14546,7 @@ function Chess3D({
               launchExplosion(targetPos);
             }
 
-            if (u >= 1) {
+            if (u >= 1 && !(fx.liveBullets || []).length && !(fx.liveShells || []).length) {
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
               if (fx.firearmFx) {
@@ -15164,7 +15504,7 @@ function Chess3D({
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const avatarSize = anchor ? clamp((1.32 - (depth - 2.6) * 0.22) * 0.84, 0.72, 1.02) : 0.86;
             return (
               <div
                 key={`chess-seat-${player.index}`}

@@ -16,6 +16,12 @@ const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
   author: 'Mixamo / Adobe (sample avatars)'
 });
 
+const DOMINO_READY_PLAYER_ME_SOURCE = Object.freeze({
+  source: 'Ready Player Me / Domino Battle Royal',
+  license: 'Avatar creator model; preserve original glTF plus Poly Haven cloth overlays',
+  author: 'Ready Player Me'
+});
+
 const DEFAULT_SEATED_HUMAN_ADAPTER = Object.freeze({
   seatedScaleMultiplier: 1,
   seatedYawOffset: 0,
@@ -30,7 +36,59 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     thumbnail: swatchThumbnail(['#2f6f8a', '#1e293b', '#b48d6b']),
     seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
-    ...CHESS_HUMAN_CHARACTER_SOURCE
+    dominoClothTheme: 'royalDenim',
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    skinTone: 0xd9a27d,
+    ...DOMINO_READY_PLAYER_ME_SOURCE
+  },
+  {
+    id: 'rpm-67d411-domino',
+    label: 'Domino Casino Check',
+    modelUrls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    thumbnail: swatchThumbnail(['#b7375d', '#243e70', '#f4d7a1']),
+    seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
+    dominoClothTheme: 'casinoCheck',
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    skinTone: 0xc78f68,
+    ...DOMINO_READY_PLAYER_ME_SOURCE
+  },
+  {
+    id: 'rpm-67f433-domino',
+    label: 'Domino Linen Street',
+    modelUrls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    thumbnail: swatchThumbnail(['#b68452', '#374151', '#4a6fa4']),
+    seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
+    dominoClothTheme: 'linenStreet',
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    skinTone: 0xe0b18d,
+    ...DOMINO_READY_PLAYER_ME_SOURCE
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    label: 'Domino Jacquard Night',
+    modelUrls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    thumbnail: swatchThumbnail(['#7c3f88', '#1f335f', '#e3c16f']),
+    seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
+    dominoClothTheme: 'jacquardNight',
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    skinTone: 0xb87957,
+    ...DOMINO_READY_PLAYER_ME_SOURCE
   },
   {
     id: 'mixamo-aj',
@@ -155,6 +213,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'Vietnam Human',
     modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
     thumbnail: swatchThumbnail(['#3b82f6', '#1e293b', '#d6b08a']),
+    dominoClothTheme: 'softFleece',
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    skinTone: 0xd39a72,
     source: 'hmthanh/3d-human-model GitHub',
     license: 'Check repository license',
     author: 'hmthanh'
@@ -182,6 +244,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'AI Teacher',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
     thumbnail: swatchThumbnail(['#ec4899', '#1e1b4b', '#d7ae89']),
+    dominoClothTheme: 'patternedRed',
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    skinTone: 0xc88b64,
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license',
     author: 'Surbh77'
@@ -191,6 +257,10 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     label: 'AI Teacher 1',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     thumbnail: swatchThumbnail(['#06b6d4', '#0f172a', '#d4a882']),
+    dominoClothTheme: 'mixedDenim',
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    skinTone: 0xe3b08b,
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license',
     author: 'Surbh77'
@@ -198,6 +268,9 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
 ]);
 
 const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
+  'rpm-67d411-domino',
+  'rpm-67f433-domino',
+  'rpm-67e1b5-domino',
   'webgl-vietnam-human',
   'webgl-human-body-a',
   'webgl-human-body-b',
