@@ -1530,7 +1530,14 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_GLOBAL_SCALE = 0.9; // match Pool Royale spin controller scaling
+// Keep Snooker Royal cue-ball launch tuning identical to SnookerRoyalProvided.jsx.
+const SNOOKER_PROVIDED_SHOT_POWER_BOOST = 0.455;
+const SNOOKER_PROVIDED_SHOT_MIN_FACTOR = 0.25;
+const SNOOKER_PROVIDED_SHOT_POWER_RANGE = 0.75;
+const SNOOKER_PROVIDED_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_PROVIDED_SHOT_POWER_BOOST;
+const SNOOKER_PROVIDED_SHOT_SPIN_SCALE = 0.25;
+const SNOOKER_PROVIDED_CUE_CONTACT_GAP = 0.0012 * WORLD_SCALE;
+const SPIN_GLOBAL_SCALE = 0.82; // match SnookerRoyalProvided.jsx cue-spin input scaling
 const CUE_LOGIC_STRIKE_TIME_MS = 120;
 const CUE_LOGIC_HOLD_TIME_MS = 50;
 const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
@@ -1550,27 +1557,14 @@ const RAIL_SPIN_THROW_SCALE = 0; // match Pool Royale rail spin throw behavior
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Snooker Royal power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.425; // reduce shot power by 50% to match the requested pacing
-const SHOT_POWER_MULTIPLIER = 2.109375;
-const SHOT_POWER_INCREASE = 1.5; // boost overall shot strength by 50%
-const SHOT_FORCE_BOOST =
-  1.5 *
-  0.75 *
-  0.85 *
-  0.8 *
-  1.3 *
-  0.85 *
-  SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE;
-const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
+// Shot speed is intentionally sourced from the SnookerRoyalProvided.jsx strike model
+// instead of the legacy 2D tuning so both Snooker Royal implementations launch
+// the cue ball with the same power curve.
+const SHOT_FORCE_BOOST = SNOOKER_PROVIDED_SHOT_POWER_BOOST;
+const SHOT_BREAK_MULTIPLIER = 1;
+const SHOT_BASE_SPEED = SNOOKER_PROVIDED_SHOT_FULL_SPEED;
+const SHOT_MIN_FACTOR = SNOOKER_PROVIDED_SHOT_MIN_FACTOR;
+const SHOT_POWER_RANGE = SNOOKER_PROVIDED_SHOT_POWER_RANGE;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -2272,6 +2266,51 @@ const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+
+function computeProvidedCueShotVector(power, aimDir, spinInput = { x: 0, y: 0 }) {
+  const p = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+  const dir = new THREE.Vector2(aimDir?.x ?? 0, aimDir?.y ?? 0);
+  if (dir.lengthSq() <= 1e-8) {
+    dir.set(0, -1);
+  } else {
+    dir.normalize();
+  }
+  // Same handedness as SnookerRoyalProvided.jsx: side = (dir.z, -dir.x)
+  // after mapping this game's table-plane Vector2(x, y) to world Vector3(x, 0, z).
+  const side = new THREE.Vector2(dir.y, -dir.x);
+  if (side.lengthSq() > 1e-8) side.normalize();
+  const spinMappedRaw = mapSpinForPhysics(normalizeSpinInput(spinInput));
+  const spinMapped = {
+    x: (spinMappedRaw.x ?? 0) * SPIN_GLOBAL_SCALE,
+    y: (spinMappedRaw.y ?? 0) * SPIN_GLOBAL_SCALE
+  };
+  const powerSpinScale = 0.55 + p * 0.45;
+  const rawTopSpin = (spinMapped.y ?? 0) * SNOOKER_PROVIDED_SHOT_SPIN_SCALE * powerSpinScale;
+  const spin = {
+    x: (spinMapped.x ?? 0) * SNOOKER_PROVIDED_SHOT_SPIN_SCALE * SIDE_SPIN_MULTIPLIER * powerSpinScale,
+    y:
+      rawTopSpin < 0
+        ? rawTopSpin * BACKSPIN_MULTIPLIER
+        : rawTopSpin * TOPSPIN_MULTIPLIER
+  };
+  const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * p;
+  const velocity = dir.clone().multiplyScalar(SHOT_BASE_SPEED * powerScale);
+  velocity.addScaledVector(
+    side,
+    (spin.x ?? 0) * p * 1.05 * WORLD_SCALE * SNOOKER_PROVIDED_SHOT_POWER_BOOST
+  );
+  return { dir, side, spin, velocity, speed: velocity.length(), powerScale };
+}
+
+function applyProvidedCueShot(cueBall, power, aimDir, spinInput = { x: 0, y: 0 }) {
+  const shot = computeProvidedCueShotVector(power, aimDir, spinInput);
+  cueBall.vel.copy(shot.velocity);
+  if (cueBall.spin) {
+    cueBall.spin.set(shot.spin.x ?? 0, shot.spin.y ?? 0);
+  }
+  return shot;
+}
+
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -22995,14 +23034,14 @@ const shotVisualPowerRef = useRef(0);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const isBreakCameraShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = aimDir
-            .clone()
-            .multiplyScalar(speedBase * powerScale);
-          const predictedCueSpeed = base.length();
+          const committedSpinInput = normalizeSpinInput(spinRef.current);
+          const providedShot = computeProvidedCueShotVector(
+            clampedPower,
+            aimDir,
+            committedSpinInput
+          );
+          const predictedCueSpeed = providedShot.speed;
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
             shotRecording = {
@@ -23135,29 +23174,15 @@ const shotVisualPowerRef = useRef(0);
               suspendedActionView = actionView;
             }
           }
-          const appliedSpin = applySpinConstraints(aimDir, true);
-          const liftAngle = resolveUserCueLift();
-          const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const appliedSpin = committedSpinInput;
+          const liftAngle = 0;
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
           let shotImpactApplied = false;
           const applyShotImpactAtCueContact = () => {
             if (shotImpactApplied) return false;
             shotImpactApplied = true;
             shotImpulseApplied = true;
-            cue.vel.copy(base);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
+            applyProvidedCueShot(cue, clampedPower, aimDir, committedSpinInput);
             if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
             cue.spinMode = 'standard';
             cue.swerveStrength = 0;
@@ -23170,45 +23195,8 @@ const shotVisualPowerRef = useRef(0);
             maxPowerLiftTriggered = false;
             cue.lift = 0;
             cue.liftVel = 0;
-            const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-            if (
-              clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-              liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-              topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-            ) {
-              const powerRatio = THREE.MathUtils.clamp(
-                (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const liftRatio = THREE.MathUtils.clamp(
-                (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const spinRatio = THREE.MathUtils.clamp(
-                (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const jumpStrength =
-                (0.25 + 0.75 * powerRatio) *
-                (0.4 + 0.6 * liftRatio) *
-                (0.55 + 0.45 * spinRatio);
-              const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-              const physicsHeight =
-                (jumpVelocity * jumpVelocity) /
-                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-              const jumpHeight = Math.min(
-                MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-                physicsHeight
-              );
-              cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-              cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-            }
+            // SnookerRoyalProvided.jsx applies a flat cue-ball strike only; keep
+            // jump/lift impulses disabled so the physics launch is identical.
             playCueHit(clampedPower * 0.6);
             return true;
           };
@@ -23299,16 +23287,15 @@ const shotVisualPowerRef = useRef(0);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const pullbackDuration = 0;
-          const strikeDuration = 110;
-          const holdDuration = 45;
+          const strikeDuration = CUE_LOGIC_STRIKE_TIME_MS;
+          const holdDuration = CUE_LOGIC_HOLD_TIME_MS;
           const returnDuration = 0;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE,
-            BALL_R * 0.08,
-            BALL_R * 0.3
+          const impactPush = Math.max(
+            0,
+            CUE_TIP_GAP - (BALL_R + SNOOKER_PROVIDED_CUE_CONTACT_GAP)
           );
           const impactPos = buildCuePosition(-impactPush);
           // Stop the visible cue at contact so it reads as a push without
