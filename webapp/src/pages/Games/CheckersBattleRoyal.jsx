@@ -76,10 +76,7 @@ const CHECKERS_ARENA_BASE_SCALE = 0.48;
 // a bit smaller while preserving layout relationships between the board, table,
 // pieces, chairs, and seated humans.
 const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.8;
-// Keep the tabletop itself smaller than the surrounding arena so the board and
-// chips do not dominate the mobile viewport.
-const CHECKERS_TABLETOP_SCALE = 0.78;
-const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE * CHECKERS_TABLETOP_SCALE;
+const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.0 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.98 * MODEL_SCALE;
@@ -89,7 +86,7 @@ const CHAIR_BASE_HEIGHT =
 const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE * CHECKERS_TABLETOP_SCALE;
+const BOARD_SCALE = 0.049 * CHECKERS_ARENA_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
@@ -140,9 +137,9 @@ const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
-const CHECKERS_CAMERA_FRAME_COMPENSATION = 2.45;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 1.55;
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98;
 const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.68 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
@@ -393,7 +390,7 @@ const applyBottomPlayerFaceCamera = (camera, look = { yaw: 0, pitch: 0 }) => {
   );
   camera.lookAt(position.clone().add(direction));
 };
-const CHECKER_PIECE_SCALE = 0.82;
+const CHECKER_PIECE_SCALE = 0.92;
 // Keep chips seated directly on the board surface in portrait view.
 const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.01;
 const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.055;
@@ -3827,8 +3824,7 @@ export default function CheckersBattleRoyal() {
     if (viewMode === '2d') {
       camera.position.set(
         0,
-        TABLE_HEIGHT +
-          9.2 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
+        TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE,
         0.001
       );
       controls.enableRotate = false;
