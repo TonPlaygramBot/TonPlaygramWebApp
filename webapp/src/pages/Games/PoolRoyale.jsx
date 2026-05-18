@@ -1239,7 +1239,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_LENGTH_SCALE = 0.72; // shorten the Pool Royale table footprint so the arena reads more compact
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
   const TABLE_SURFACE_EXPANSION = 1.285; // make the table just a bit larger while keeping the same height
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
@@ -1880,8 +1880,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
-const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = 0; // stop the cue at the cue-ball contact point instead of following through
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // match Snooker Champion's visible forward push on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // let the cue drive through contact without chasing the moving cue ball
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -24875,7 +24875,7 @@ const shotPowerRef = useRef(0);
               }
             })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
-            const releaseTargetPos = stroke.contactPos ?? impactPos;
+            const releaseTargetPos = impactPos ?? stroke.contactPos;
             cueStick.position.lerpVectors(pullPos, releaseTargetPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased * 0.72;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
@@ -24886,8 +24886,9 @@ const shotPowerRef = useRef(0);
           if (sample.phase === 'strike') {
             const punchT = 1 - Math.pow(1 - THREE.MathUtils.clamp(sample.t, 0, 1), 4);
             const contactPos = stroke.contactPos ?? impactPos;
-            const strikeStartPos = stroke.contactPos ?? impactPos;
-            cueStick.position.lerpVectors(strikeStartPos, contactPos, punchT);
+            const strikeStartPos = impactPos ?? stroke.contactPos;
+            const strikeEndPos = followPos ?? contactPos;
+            cueStick.position.lerpVectors(strikeStartPos, strikeEndPos, punchT);
             cueStick.position.y -= (strikeDip ?? 0.003) * (0.72 + punchT * 0.38);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
@@ -28908,10 +28909,10 @@ const shotPowerRef = useRef(0);
               strikeImpactThreshold: 0.78,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
+              releaseStartsFromCurrentPull: true,
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
-              motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: false
+              motionTechnique: strokeProfile.motion ?? strokeStyle
             };
           } else {
             applyShotImpactOnce();
