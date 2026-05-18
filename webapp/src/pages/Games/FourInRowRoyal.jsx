@@ -152,6 +152,8 @@ const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
 const FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION = 1.2;
 const FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT = 0.18 * MODEL_SCALE;
 const FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT = 0.32 * MODEL_SCALE;
+const FOUR_IN_ROW_TABLE_SET_SCREEN_LOWER_OFFSET = 0.2 * MODEL_SCALE;
+const FOUR_IN_ROW_EXTRA_USER_CHARACTER_Z_OFFSET = 0.86 * CHAIR_SCALE;
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
@@ -894,6 +896,58 @@ function normalizeFourInRowSeatedHumanRootToChair(root) {
   root.position.z -= centerZ;
   root.position.y -= box.min.y;
   root.updateMatrixWorld(true);
+}
+
+function createFourInRowFallbackSeatedHumanTemplate(option = {}) {
+  const root = new THREE.Group();
+  root.name = `FourInRowFallbackHuman-${option?.id || 'user'}`;
+  const skin = new THREE.MeshStandardMaterial({ color: option?.skinTone || 0xd9a27d, roughness: 0.62, metalness: 0.02 });
+  const cloth = new THREE.MeshStandardMaterial({ color: option?.id === 'rpm-current' ? 0x256d85 : 0x365f91, roughness: 0.7, metalness: 0.03 });
+  const darkCloth = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.74, metalness: 0.02 });
+  const hair = new THREE.MeshStandardMaterial({ color: option?.hairColor || 0x24150f, roughness: 0.58, metalness: 0.01 });
+  const shoe = new THREE.MeshStandardMaterial({ color: 0x0b0f17, roughness: 0.66, metalness: 0.03 });
+  const makeCapsule = (radius, length, material, position, rotation = [0, 0, 0]) => {
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 8, 16), material);
+    mesh.position.set(...position);
+    mesh.rotation.set(...rotation);
+    root.add(mesh);
+    return mesh;
+  };
+
+  makeCapsule(0.16, 0.42, cloth, [0, 0.78, 0.02], [0.12, 0, 0]);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 24, 18), skin);
+  head.position.set(0, 1.17, 0.01);
+  root.add(head);
+  const hairCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.145, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.58),
+    hair
+  );
+  hairCap.position.set(0, 1.225, 0.005);
+  root.add(hairCap);
+  makeCapsule(0.04, 0.34, skin, [-0.2, 0.78, 0.05], [0.82, 0.05, -0.36]);
+  makeCapsule(0.04, 0.34, skin, [0.2, 0.78, 0.05], [0.82, -0.05, 0.36]);
+  makeCapsule(0.055, 0.36, darkCloth, [-0.095, 0.5, 0.16], [Math.PI / 2, 0, 0.08]);
+  makeCapsule(0.055, 0.36, darkCloth, [0.095, 0.5, 0.16], [Math.PI / 2, 0, -0.08]);
+  makeCapsule(0.048, 0.34, darkCloth, [-0.095, 0.25, 0.32], [0.1, 0, 0.03]);
+  makeCapsule(0.048, 0.34, darkCloth, [0.095, 0.25, 0.32], [0.1, 0, -0.03]);
+  const footGeo = new THREE.BoxGeometry(0.13, 0.055, 0.2);
+  [-0.095, 0.095].forEach((x) => {
+    const foot = new THREE.Mesh(footGeo, shoe);
+    foot.position.set(x, 0.035, 0.48);
+    root.add(foot);
+  });
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+  root.userData = {
+    seatedScaleMultiplier: 0.94,
+    seatedYawOffset: 0,
+    seatedYOffset: -0.02,
+    seatedZOffset: 0.02
+  };
+  return root;
 }
 
 async function loadFourInRowCharacterModel(option, renderer = null, maxAnisotropy = 1) {
@@ -1804,7 +1858,11 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.07, 0);
+    controls.target.set(
+      0,
+      arenaRoot.position.y + TABLE_HEIGHT - 0.07 + FOUR_IN_ROW_TABLE_SET_SCREEN_LOWER_OFFSET,
+      0
+    );
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
@@ -1855,6 +1913,15 @@ export default function FourInRowRoyal() {
       chairMeshesRef.current.push(chair);
       arenaRoot.add(chair);
     });
+    const extraUserCharacter = new THREE.Group();
+    extraUserCharacter.name = 'four-in-row-bottom-user-character';
+    extraUserCharacter.position.set(
+      0,
+      0,
+      CHAIR_DISTANCE + FOUR_IN_ROW_EXTRA_USER_CHARACTER_Z_OFFSET
+    );
+    extraUserCharacter.lookAt(0, 0, 0);
+    arenaRoot.add(extraUserCharacter);
     characterRigsRef.current.clear();
     const humanOptions = FOUR_IN_ROW_CHESS_HUMAN_OPTIONS.length
       ? FOUR_IN_ROW_CHESS_HUMAN_OPTIONS
@@ -1864,6 +1931,12 @@ export default function FourInRowRoyal() {
       humanOptions.find((option) => option.id === requestedHumanId) ||
       humanOptions[0] ||
       CHESS_HUMAN_CHARACTER_OPTIONS[0];
+    attachFourInRowSeatedCharacter({
+      template: createFourInRowFallbackSeatedHumanTemplate(playerHumanOption),
+      chair: extraUserCharacter,
+      theme: playerHumanOption,
+      isHumanSeat: true
+    });
     const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
     const aiHumanOption =
       aiHumanPool[Math.floor(Math.random() * Math.max(aiHumanPool.length, 1))] ||
@@ -1876,16 +1949,16 @@ export default function FourInRowRoyal() {
         renderer,
         getFourInRowPresetMaxAnisotropy(renderer, initialGraphicsPreset)
       ).catch((error) => {
-        console.warn('Four in Row Chess Battle player human failed to load.', playerHumanOption?.id, error);
-        return null;
+        console.warn('Four in Row Chess Battle player human failed to load; using fallback.', playerHumanOption?.id, error);
+        return createFourInRowFallbackSeatedHumanTemplate(playerHumanOption);
       }),
       loadFourInRowCharacterModel(
         aiHumanOption,
         renderer,
         getFourInRowPresetMaxAnisotropy(renderer, initialGraphicsPreset)
       ).catch((error) => {
-        console.warn('Four in Row Chess Battle opponent human failed to load.', aiHumanOption?.id, error);
-        return null;
+        console.warn('Four in Row Chess Battle opponent human failed to load; using fallback.', aiHumanOption?.id, error);
+        return createFourInRowFallbackSeatedHumanTemplate(aiHumanOption);
       })
     ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
       if (!arenaRootRef.current) return;
@@ -1904,6 +1977,16 @@ export default function FourInRowRoyal() {
         });
         if (rig) characterRigsRef.current.set(isPlayerSeat ? 'front' : 'back', rig);
       });
+
+      if (playerTemplate) {
+        extraUserCharacter.clear();
+        attachFourInRowSeatedCharacter({
+          template: playerTemplate,
+          chair: extraUserCharacter,
+          theme: playerHumanOption,
+          isHumanSeat: true
+        });
+      }
     }).catch((error) => {
       console.warn('Four in Row chair model failed to load.', error);
     });
@@ -2953,6 +3036,20 @@ export default function FourInRowRoyal() {
             isTurn={turn === 'player'}
             size={0.92}
           />
+        </div>
+        <div
+          aria-label="User human character"
+          className="absolute bottom-[5.35rem] left-1/2 flex -translate-x-1/2 flex-col items-center"
+        >
+          <div className="relative h-24 w-16 drop-shadow-[0_12px_18px_rgba(0,0,0,0.55)]">
+            <div className="absolute left-1/2 top-0 h-8 w-8 -translate-x-1/2 rounded-full border border-amber-100/80 bg-[#d9a27d]" />
+            <div className="absolute left-1/2 top-0 h-4 w-9 -translate-x-1/2 rounded-t-full bg-[#24150f]" />
+            <div className="absolute left-1/2 top-7 h-10 w-11 -translate-x-1/2 rounded-2xl border border-cyan-200/40 bg-gradient-to-b from-[#2f6f8a] to-[#13263b]" />
+            <div className="absolute left-1 top-9 h-8 w-4 rotate-12 rounded-full bg-[#d9a27d]" />
+            <div className="absolute right-1 top-9 h-8 w-4 -rotate-12 rounded-full bg-[#d9a27d]" />
+            <div className="absolute bottom-0 left-5 h-9 w-4 rounded-full bg-[#111827]" />
+            <div className="absolute bottom-0 right-5 h-9 w-4 rounded-full bg-[#111827]" />
+          </div>
         </div>
       </div>
 
