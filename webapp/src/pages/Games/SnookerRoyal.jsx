@@ -2164,7 +2164,10 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     walkPhase: 0,
     walkAmount: 0,
     restQuats: new Map(),
-    theme: SNOOKER_HUMAN_CHARACTER_THEME
+    theme: SNOOKER_HUMAN_CHARACTER_THEME,
+    strikeClock: 0,
+    strikeRoot: new THREE.Vector3(),
+    strikeYaw: 0
   };
   human.root.name = 'SnookerRoyalHumanPlayerRoot';
   human.modelRoot.name = 'SnookerRoyalDominoCharacterRoot';
@@ -2271,12 +2274,25 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const yawTarget = Math.atan2(bodyForward.x, bodyForward.z);
   human.root.visible = true;
   human.modelRoot.visible = human.loaded && human.activeGlb;
-  const travel = human.lastRootPosition.distanceTo(rootTarget);
+  if (shooting || cueAnimating) {
+    if (human.strikeClock === 0) {
+      human.strikeRoot.copy(
+        human.root.position.lengthSq() > 0.001 ? human.root.position : rootTarget
+      );
+      human.strikeYaw = human.yaw;
+    }
+    human.strikeClock += dt;
+  } else {
+    human.strikeClock = 0;
+  }
+  const rootGoal = shooting || cueAnimating ? human.strikeRoot : rootTarget;
+  const yawGoal = shooting || cueAnimating ? human.strikeYaw : yawTarget;
+  const travel = human.lastRootPosition.distanceTo(rootGoal);
   human.walkAmount = snookerHumanDamp(human.walkAmount, snookerHumanClamp01(travel / Math.max(BALL_R * 4, 1e-4)), 8, dt);
   human.walkPhase += dt * (4.5 + human.walkAmount * 5.5);
-  human.root.position.lerp(rootTarget, 1 - Math.exp(-SNOOKER_HUMAN_CFG.rootLambda * dt));
+  human.root.position.lerp(rootGoal, 1 - Math.exp(-SNOOKER_HUMAN_CFG.rootLambda * dt));
   human.lastRootPosition.copy(human.root.position);
-  human.yaw = snookerHumanDampAngle(human.yaw, yawTarget, SNOOKER_HUMAN_CFG.rootLambda, dt);
+  human.yaw = snookerHumanDampAngle(human.yaw, yawGoal, SNOOKER_HUMAN_CFG.rootLambda, dt);
   human.root.rotation.set(0, human.yaw, 0);
   human.modelRoot.position.copy(human.root.position);
   human.modelRoot.rotation.copy(human.root.rotation);
@@ -23281,11 +23297,16 @@ const sliderResetTimerRef = useRef(null);
             rawTopSpin < 0
               ? rawTopSpin * BACKSPIN_MULTIPLIER
               : rawTopSpin * TOPSPIN_MULTIPLIER;
+          let contactFallbackHandle = null;
           let shotImpactApplied = false;
           const applyShotImpactAtCueContact = () => {
             if (shotImpactApplied) return false;
             shotImpactApplied = true;
             shotImpulseApplied = true;
+            if (contactFallbackHandle) {
+              clearTimeout(contactFallbackHandle);
+              contactFallbackHandle = null;
+            }
             const impactPower = THREE.MathUtils.clamp(
               committedShotPowerRef.current || clampedPower,
               0,
@@ -23491,6 +23512,12 @@ const sliderResetTimerRef = useRef(null);
           const impactTime = pullEndTime + strikeDuration;
           const holdEndTime = impactTime + holdDuration;
           const returnTime = holdEndTime + returnDuration;
+          contactFallbackHandle = window.setTimeout(() => {
+            // Same commit point as SnookerRoyalProvided: if a throttled frame
+            // misses the contact sample, still transfer the slider power exactly
+            // when the cue tip reaches the cue ball.
+            applyShotImpactAtCueContact();
+          }, Math.max(0, impactTime - performance.now()));
           const forwardPreviewHold =
             impactTime +
             Math.min(
